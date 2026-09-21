@@ -2,11 +2,35 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 
 const read = (path) => readFileSync(path, 'utf8');
+const ignoredDirectories = new Set([
+  '.build',
+  '.git',
+  '.gradle',
+  '.swc',
+  '.turbo',
+  'DerivedData',
+  'build',
+  'dist',
+  'node_modules',
+  'target',
+]);
+
+function filesUnder(directory, include, output = []) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory() && !ignoredDirectories.has(entry.name)) {
+      filesUnder(entryPath, include, output);
+    } else if (entry.isFile() && include(entryPath)) {
+      output.push(entryPath);
+    }
+  }
+  return output.sort();
+}
 
 test('CI runs public boundary, license, secret, JavaScript, and Android gates', () => {
   const workflow = read('.github/workflows/ci.yml');
@@ -46,22 +70,19 @@ test('Dependabot covers each public dependency ecosystem', () => {
 });
 
 test('published metadata points to the public MIT-licensed repository', () => {
-  const manifests = execFileSync('rg', ['--files', 'packages', '-g', 'package.json'], {
-    encoding: 'utf8',
-  }).trim().split('\n');
+  const manifests = filesUnder('packages', (file) => path.basename(file) === 'package.json');
 
-  for (const path of manifests) {
-    const manifest = JSON.parse(read(path));
+  for (const manifestPath of manifests) {
+    const manifest = JSON.parse(read(manifestPath));
     if (manifest.license !== undefined) {
-      assert.equal(manifest.license, 'MIT', `${path} must publish as MIT`);
+      assert.equal(manifest.license, 'MIT', `${manifestPath} must publish as MIT`);
     }
   }
 
-  const publishingFiles = execFileSync(
-    'rg',
-    ['--files', 'packages/sdk-android/android', '-g', '*.gradle.kts', '-g', 'README.md'],
-    { encoding: 'utf8' },
-  ).trim().split('\n');
+  const publishingFiles = filesUnder(
+    'packages/sdk-android/android',
+    (file) => file.endsWith('.gradle.kts') || path.basename(file) === 'README.md',
+  );
   const publishingText = publishingFiles.map(read).join('\n');
 
   assert.doesNotMatch(publishingText, /binary-only|binary-distribution/i);
@@ -73,11 +94,13 @@ test('published metadata points to the public MIT-licensed repository', () => {
   assert.match(read('packages/sdk-android/android/build.gradle.kts'), /dokkaGeneratePublicationJavadoc/);
   assert.match(read('packages/sdk-android/android/build.gradle.kts'), /archiveClassifier\.set\("javadoc"\)/);
 
-  const publicMetadata = execFileSync(
-    'rg',
-    ['--files', 'packages', '-g', 'package.json', '-g', '*.podspec', '-g', 'README.md', '-g', 'NOTICE'],
-    { encoding: 'utf8' },
-  ).trim().split('\n').map(read).join('\n');
+  const publicMetadata = filesUnder('packages', (file) => {
+    const basename = path.basename(file);
+    return basename === 'package.json'
+      || basename === 'README.md'
+      || basename === 'NOTICE'
+      || file.endsWith('.podspec');
+  }).map(read).join('\n');
 
   assert.doesNotMatch(publicMetadata, /github\.com\/scriptx-com\/traceitx(?!-releases)/);
   assert.doesNotMatch(publicMetadata, /github\.com\/scriptx\/traceitx/);
