@@ -1,0 +1,113 @@
+{
+  "name": "@traceitx/web",
+  "version": "0.8.1",
+  "private": false,
+  "description": "Framework-agnostic web SDK for TraceItX — AI-ready in-app bug reporting for any web framework or plain HTML.",
+  "keywords": [
+    "bug-report",
+    "feedback",
+    "screenshot",
+    "session-replay",
+    "vue",
+    "svelte",
+    "angular",
+    "vanilla-js",
+    "traceitx"
+  ],
+  "homepage": "https://traceitx.com",
+  "bugs": {
+    "url": "https://github.com/scriptx-com/traceitx-releases/issues"
+  },
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scriptx-com/traceitx-releases.git",
+    "directory": "packages/sdk-web"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "default": "./dist/ui.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "prebuild": "./scripts/sync-version.sh",
+    "build": "rm -rf dist && tsup",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
+    "clean": "rm -rf dist .turbo node_modules/.cache",
+    "size-limit": "size-limit",
+    "perf:vitals": "node perf/vitals-harness.mjs"
+  },
+  "peerDependencies": {
+    "konva": "^10.2.5",
+    "lucide-react": "^0.469.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-konva": "^19.2.3"
+  },
+  "peerDependenciesMeta": {
+    "konva": {
+      "optional": true
+    },
+    "lucide-react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "react-konva": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "modern-screenshot": "^4.7.0",
+    "rrweb": "2.0.1",
+    "zod": "^4.3.0"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.0",
+    "@playwright/test": "^1.59.1",
+    "@size-limit/preset-small-lib": "^11.0.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.2",
+    "@traceitx/protocol": "workspace:*",
+    "@traceitx/sdk-core": "workspace:*",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "hls.js": "^1.7.2",
+    "jsdom": "^29.1.1",
+    "konva": "^10.2.5",
+    "lucide-react": "^0.469.0",
+    "publint": "^0.3.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-konva": "^19.2.3",
+    "size-limit": "^11.0.0",
+    "tsup": "^8.0.0"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "7b9f4c2e-8d31-4a6b-9c05-2f1e6a8d4b70",
+  "submittedAt": "2026-04-29T16:00:00.000Z",
+  "sdk": {
+    "name": "traceitx-react",
+    "version": "0.0.0",
+    "platform": "web",
+    "formFactor": "desktop"
+  },
+  "reporter": {
+    "title": "Test report",
+    "description": "Minimal valid envelope"
+  },
+  "captures": {
+    "screenshot": false,
+    "uiTree": false,
+    "focus": false,
+    "logs": false,
+    "network": false,
+    "breadcrumbs": true
+  },
+  "captureControl": {
+    "included": ["breadcrumbs"],
+    "excluded": []
+  },
+  "payload": {
+    "breadcrumbs": [
+      { "t": 1751884800000, "seq": 0, "kind": "lifecycle", "level": "info", "message": "app foregrounded", "data": { "state": "foreground" } },
+      { "t": 1751884801000, "seq": 1, "kind": "navigation", "message": "/home → /cart", "data": { "from": "/home", "to": "/cart" } },
+      { "t": 1751884801500, "seq": 2, "kind": "tap", "message": "Pressed CheckoutButton", "data": { "target": "CheckoutButton" } },
+      { "t": 1751884802000, "seq": 3, "kind": "network", "level": "error", "message": "POST /api/checkout 500", "data": { "method": "POST", "url": "/api/checkout", "status": 500, "durationMs": 220 } },
+      { "t": 1751884802100, "seq": 4, "kind": "console", "level": "info", "message": "+3 console hidden", "data": { "droppedCount": 3 } },
+      { "t": 1751884802200, "seq": 5, "kind": "console", "level": "error", "message": "Uncaught (in promise): checkout failed", "truncated": false },
+      { "t": 1751884802300, "seq": 6, "kind": "error", "level": "error", "message": "TypeError: Cannot read properties of undefined", "data": { "name": "TypeError", "stackDigest": "at submitOrder (checkout.ts:42)" } },
+      { "t": 1751884803000, "seq": 7, "kind": "custom", "message": "checkout started", "data": { "flag": "new-checkout" } }
+    ]
+  },
+  "context": {
+    "app": { "name": "test-app", "version": "1.0.0" },
+    "device": {
+      "os": "macos",
+      "osVersion": "14.4",
+      "screenSize": { "width": 1920, "height": 1080 },
+      "pixelRatio": 2,
+      "locale": "en-US",
+      "timezone": "America/New_York"
+    }
+  },
+  "attachments": []
+}

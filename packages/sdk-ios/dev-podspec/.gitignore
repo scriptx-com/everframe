@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+# Copyright 2026 ScriptX
+
+# Symlinks created by examples/react-native/plugins/with-traceitx-ios-local.js
+# pointing at ../dist/<Name>.xcframework. Plugin-managed dev artifact —
+# never commit (would couple the repo to a specific build).
+*.xcframework
+dist

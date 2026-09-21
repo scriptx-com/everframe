@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!-- Views login screen. Two sensitivity surfaces exercised:
+     1. TXSensitiveView container around an EditText subtree
+     2. android:inputType="textPassword" auto-detected by SensitiveRectRegistry
+
+     fitsSystemWindows="true" so content draws below the status / camera
+     cutout instead of underneath them.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:fitsSystemWindows="true">
+
+    <EditText
+        android:id="@+id/email"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Email"
+        android:inputType="textEmailAddress" />
+
+    <!-- Surface (1): Wrap the password field in TXSensitiveView. The whole
+         subtree is treated as sensitive by SensitiveRectRegistry. -->
+    <com.traceitx.sensitive.TXSensitiveView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp">
+        <!-- Surface (2): inputType="textPassword" auto-detect. -->
+        <EditText
+            android:id="@+id/password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Password"
+            android:inputType="textPassword" />
+    </com.traceitx.sensitive.TXSensitiveView>
+
+    <!-- OTP / secret token — wrapped in TXSensitiveView (same surface as the
+         password above). Avoids the dropped XML-attribute path. -->
+    <com.traceitx.sensitive.TXSensitiveView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp">
+        <EditText
+            android:id="@+id/secret"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="OTP / secret token" />
+    </com.traceitx.sensitive.TXSensitiveView>
+
+    <Button
+        android:id="@+id/openReporter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Submit (open reporter via openAsync)" />
+</LinearLayout>

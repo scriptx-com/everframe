@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+//
+// Demonstrates two of the three sensitive-content idioms:
+//   1) UITextField.isSecureTextEntry → auto-detected, blacked out at capture time.
+//   2) TXSensitiveView wrapper around an arbitrary subtree (PRIV-01).
+//
+// PaymentScreen demonstrates the third (TraceItX.shared.markSensitive(_:)).
+
+import SwiftUI
+import UIKit
+import TraceItXKit
+
+struct LoginScreen: View {
+    @State private var username = ""
+    @State private var password = ""
+    @State private var otp = "123456"
+
+    var body: some View {
+        Form {
+            Section("Visible") {
+                TextField("Username", text: $username)
+                    .textInputAutocapitalization(.never)
+            }
+            Section("Auto-detected secure (UITextField.isSecureTextEntry)") {
+                SecureField("Password", text: $password)
+            }
+            Section("Explicit TXSensitiveView wrapper") {
+                TXSensitiveBox {
+                    HStack {
+                        Text("OTP")
+                        Spacer()
+                        Text(otp).monospaced()
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .navigationTitle("Login")
+    }
+}
+
+/// Bridges UIKit's `TXSensitiveView` into SwiftUI. Any SwiftUI subview hosted
+/// inside this wrapper is reported as sensitive at screenshot capture time.
+struct TXSensitiveBox<Content: View>: UIViewRepresentable {
+    let content: () -> Content
+
+    init(@ViewBuilder content: @escaping () -> Content) {
+        self.content = content
+    }
+
+    func makeUIView(context: Context) -> TXSensitiveView {
+        let container = TXSensitiveView()
+        container.backgroundColor = .clear
+        let host = UIHostingController(rootView: content())
+        host.view.backgroundColor = .clear
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: container.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        // Retain host controller for the lifetime of the container view.
+        objc_setAssociatedObject(container, &TXSensitiveBoxHostKey, host, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        return container
+    }
+
+    func updateUIView(_ uiView: TXSensitiveView, context: Context) {
+        if let host = objc_getAssociatedObject(uiView, &TXSensitiveBoxHostKey) as? UIHostingController<Content> {
+            host.rootView = content()
+        }
+    }
+}
+
+private var TXSensitiveBoxHostKey: UInt8 = 0

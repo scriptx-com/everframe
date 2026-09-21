@@ -1,0 +1,13 @@
+{
+  "id": "com.traceitx.smarttv.tester",
+  "version": "0.0.1",
+  "vendor": "ScriptX",
+  "type": "web",
+  "main": "index.html",
+  "title": "TraceItX TV Tester",
+  "icon": "icon-80.png",
+  "largeIcon": "icon-130.png",
+  "bgColor": "#0d0d28",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true
+}

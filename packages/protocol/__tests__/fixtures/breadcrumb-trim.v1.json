@@ -1,0 +1,415 @@
+{
+  "__comment": "Parity fixture for trimBreadcrumbs(crumbs, options). Consumed by TS (sdk-core), Swift (sdk-ios), and Kotlin (sdk-android) tests. All three implementations must produce byte-identical output arrays for every case. See packages/sdk-core/src/breadcrumbs/trim.ts for the reference implementation and the public behavior contract §4 for the algorithm.",
+  "__costModel": "cost(crumb) = 64 + message.length + dataCost(data). dataCost: string=length, number|boolean=8, null=4, array=2+sum(item+2), object=2+sum(key.length+value+2), absent data=0. ALL lengths are UTF-16 code units (JS .length, Swift utf16.count, Kotlin String.length).",
+  "__semantics": "INPUT INVARIANT: no two crumbs share the same (t, seq) pair — determinism (and Swift's non-stable sort) depends on it. 1) console messages over consoleEntryCap are middle-spliced to first cap/2 + '…[+N chars]…' + last cap/2 and flagged truncated:true; error crumbs' data.stackDigest is capped to its first 10 newline-separated lines and flagged truncated:true. 2) The newest entry of every kind present is always kept. 3) While total cost > byteBudget, evict the oldest console/network crumb; only when none remain, evict the oldest structural (navigation/tap/lifecycle/error/custom). 4) Each kind that lost entries gets ONE marker {t,seq of its newest dropped entry, level:'info', message:'+N <kind> hidden', data:{droppedCount:N}}; markers do not count against the budget. 5) Output sorted by (t, seq). 6) After byte eviction, if more than 121 entries remain (121 = 128 protocol payload.breadcrumbs maxItems minus 7 worst-case one-marker-per-kind), evict further in the same order (oldest console/network first, then oldest structural, skipping the newest-of-kind must-keeps) until 121 remain; markers then apply as in step 4. 7) Both eviction passes can fire in one run (too large for a literal fixture case — see the ported 'combined byte-eviction + count-cap' unit test per SDK): the byte pass runs first and evicts bulky crumbs down to budget, then the count pass continues down the SAME eviction order (oldest bulky, then oldest structural, skipping must-keeps) until kept ≤ 121; because both passes share that order, a kind whose non-must-keep members are entirely bulky-evicted before the count target is reached will show the identical dropped count even under an unbounded byte budget — the count pass alone would evict it.",
+  "cases": [
+    {
+      "name": "under-budget-passthrough",
+      "options": {
+        "byteBudget": 16384,
+        "consoleEntryCap": 1024
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "navigation",
+          "message": "nav-to-home"
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "console",
+          "message": "hello world"
+        }
+      ],
+      "expected": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "navigation",
+          "message": "nav-to-home"
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "console",
+          "message": "hello world"
+        }
+      ]
+    },
+    {
+      "name": "console-middle-splice",
+      "options": {
+        "byteBudget": 16384,
+        "consoleEntryCap": 20
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "console",
+          "message": "cccccccccccccccccccccccccccccc"
+        }
+      ],
+      "expected": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "console",
+          "message": "cccccccccc…[+10 chars]…cccccccccc",
+          "truncated": true
+        }
+      ]
+    },
+    {
+      "name": "bulky-evicted-before-structural",
+      "options": {
+        "byteBudget": 250,
+        "consoleEntryCap": 100
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "navigation",
+          "message": "nav-to-home"
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "console",
+          "message": "cccccccccccccccccccccccccccccccccccccccc"
+        },
+        {
+          "t": 3,
+          "seq": 2,
+          "kind": "console",
+          "message": "dddddddddddddddddddddddddddddddddddddddd"
+        }
+      ],
+      "expected": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "navigation",
+          "message": "nav-to-home"
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "console",
+          "level": "info",
+          "message": "+1 console hidden",
+          "data": {
+            "droppedCount": 1
+          }
+        },
+        {
+          "t": 3,
+          "seq": 2,
+          "kind": "console",
+          "message": "dddddddddddddddddddddddddddddddddddddddd"
+        }
+      ]
+    },
+    {
+      "name": "structural-evicted-last-resort",
+      "options": {
+        "byteBudget": 100,
+        "consoleEntryCap": 1024
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "tap",
+          "message": "tap-btn-x"
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "tap",
+          "message": "tap-btn-y"
+        },
+        {
+          "t": 3,
+          "seq": 2,
+          "kind": "tap",
+          "message": "tap-btn-z"
+        }
+      ],
+      "expected": [
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "tap",
+          "level": "info",
+          "message": "+2 tap hidden",
+          "data": {
+            "droppedCount": 2
+          }
+        },
+        {
+          "t": 3,
+          "seq": 2,
+          "kind": "tap",
+          "message": "tap-btn-z"
+        }
+      ]
+    },
+    {
+      "name": "newest-of-every-kind-untouchable",
+      "options": {
+        "byteBudget": 10,
+        "consoleEntryCap": 1024
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "navigation",
+          "message": "nav-to-home"
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "console",
+          "message": "hello world"
+        }
+      ],
+      "expected": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "navigation",
+          "message": "nav-to-home"
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "console",
+          "message": "hello world"
+        }
+      ]
+    },
+    {
+      "name": "error-stack-digest-cap",
+      "options": {
+        "byteBudget": 16384,
+        "consoleEntryCap": 1024
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "error",
+          "message": "TypeError: boom",
+          "data": {
+            "name": "TypeError",
+            "stackDigest": "at f0\nat f1\nat f2\nat f3\nat f4\nat f5\nat f6\nat f7\nat f8\nat f9\nat f10\nat f11"
+          }
+        }
+      ],
+      "expected": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "error",
+          "message": "TypeError: boom",
+          "data": {
+            "name": "TypeError",
+            "stackDigest": "at f0\nat f1\nat f2\nat f3\nat f4\nat f5\nat f6\nat f7\nat f8\nat f9"
+          },
+          "truncated": true
+        }
+      ]
+    },
+    {
+      "name": "data-cost-branches",
+      "options": {
+        "byteBudget": 480,
+        "consoleEntryCap": 1024
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "network",
+          "message": "net-1",
+          "data": {
+            "method": "GET",
+            "status": 500,
+            "ok": false,
+            "tags": [
+              "a",
+              "b",
+              3
+            ],
+            "nested": {
+              "x": {
+                "y": "z"
+              }
+            },
+            "qnum": "8"
+          }
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "network",
+          "message": "net-2",
+          "data": {
+            "method": "GET",
+            "status": 500,
+            "ok": false,
+            "tags": [
+              "a",
+              "b",
+              3
+            ],
+            "nested": {
+              "x": {
+                "y": "z"
+              }
+            },
+            "qnum": "8"
+          }
+        },
+        {
+          "t": 3,
+          "seq": 2,
+          "kind": "lifecycle",
+          "message": "lifecycle-1",
+          "data": {
+            "state": "background"
+          }
+        },
+        {
+          "t": 4,
+          "seq": 3,
+          "kind": "custom",
+          "message": "custom-1",
+          "data": {
+            "note": true
+          }
+        },
+        {
+          "t": 5,
+          "seq": 4,
+          "kind": "console",
+          "message": "console-1"
+        }
+      ],
+      "expected": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "network",
+          "level": "info",
+          "message": "+1 network hidden",
+          "data": {
+            "droppedCount": 1
+          }
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "network",
+          "message": "net-2",
+          "data": {
+            "method": "GET",
+            "status": 500,
+            "ok": false,
+            "tags": [
+              "a",
+              "b",
+              3
+            ],
+            "nested": {
+              "x": {
+                "y": "z"
+              }
+            },
+            "qnum": "8"
+          }
+        },
+        {
+          "t": 3,
+          "seq": 2,
+          "kind": "lifecycle",
+          "message": "lifecycle-1",
+          "data": {
+            "state": "background"
+          }
+        },
+        {
+          "t": 4,
+          "seq": 3,
+          "kind": "custom",
+          "message": "custom-1",
+          "data": {
+            "note": true
+          }
+        },
+        {
+          "t": 5,
+          "seq": 4,
+          "kind": "console",
+          "message": "console-1"
+        }
+      ]
+    },
+    {
+      "name": "quoted-number-vs-number-cost",
+      "options": {
+        "byteBudget": 200,
+        "consoleEntryCap": 1024
+      },
+      "input": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "network",
+          "message": "network-op",
+          "data": {
+            "v": 88888888,
+            "w": 123456789012345
+          }
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "network",
+          "message": "network-op",
+          "data": {
+            "v": "88888888",
+            "w": "123456789012345"
+          }
+        }
+      ],
+      "expected": [
+        {
+          "t": 1,
+          "seq": 0,
+          "kind": "network",
+          "level": "info",
+          "message": "+1 network hidden",
+          "data": {
+            "droppedCount": 1
+          }
+        },
+        {
+          "t": 2,
+          "seq": 1,
+          "kind": "network",
+          "message": "network-op",
+          "data": {
+            "v": "88888888",
+            "w": "123456789012345"
+          }
+        }
+      ]
+    }
+  ]
+}

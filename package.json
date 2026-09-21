@@ -1,0 +1,56 @@
+{
+  "name": "traceitx-sdks",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "check:publish": "turbo run check:publish",
+    "build:packages": "turbo run build --filter='./packages/*' --filter='!@traceitx/sdk-android'",
+    "test:packages": "turbo run test --concurrency=1 --filter='./packages/*' --filter='!@traceitx/sdk-android'",
+    "typecheck:packages": "turbo run typecheck --filter='./packages/*' --filter='!@traceitx/sdk-android'",
+    "build:examples": "turbo run build --filter='./examples/*'",
+    "test:examples": "turbo run test --filter='./examples/*'",
+    "typecheck:examples": "turbo run typecheck --filter='./examples/*'",
+    "check:boundary": "node scripts/public-boundary.mjs",
+    "test:boundary": "node --test scripts/public-boundary.test.mjs",
+    "gen-web-config": "pnpm --filter examples-react-web gen-web-config",
+    "gen-rn-config": "pnpm --filter examples-react-native sync-env",
+    "gen-ios-config": "pnpm --filter @traceitx/example-ios-native-marker gen-ios-config",
+    "gen-android-config": "pnpm --filter @traceitx/example-android-compose-marker gen-android-config"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.0",
+    "@changesets/cli": "^2.27.0",
+    "@size-limit/preset-small-lib": "^11.0.0",
+    "publint": "^0.3.0",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "size-limit": "^11.0.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@expo/cli": "56.1.0",
+      "react": "19.2.5",
+      "react-dom": "19.2.5",
+      "zod": "4.3.6"
+    },
+    "patchedDependencies": {
+      "@expo/cli@56.1.0": "patches/@expo__cli@56.1.0.patch",
+      "@noble/hashes@1.8.0": "patches/@noble__hashes@1.8.0.patch",
+      "modern-screenshot@4.7.0": "patches/modern-screenshot@4.7.0.patch",
+      "rrweb@2.0.1": "patches/rrweb@2.0.1.patch",
+      "zod@4.3.6": "patches/zod@4.3.6.patch"
+    }
+  }
+}

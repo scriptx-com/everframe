@@ -1,0 +1,43 @@
+{
+  "exceptionType": "Error",
+  "fatal": false,
+  "fingerprint": "0123456789abcdef",
+  "frames": [],
+  "handled": true,
+  "mechanism": "captureException",
+  "message": "outer",
+  "occurredAt": "2026-09-16T00:00:00.000Z",
+  "causeChain": {
+    "causes": [
+      {
+        "exceptionType": "TypeError",
+        "message": "underlying",
+        "frames": [
+          {
+            "raw": "at middle (https://fixture.test/middle.js:11:7)",
+            "file": "https://fixture.test/middle.js",
+            "function": "middle",
+            "line": 11,
+            "col": 7
+          }
+        ],
+        "framesTruncated": false
+      },
+      {
+        "exceptionType": "RangeError",
+        "message": "root-range",
+        "frames": [
+          {
+            "raw": "at root (https://fixture.test/root.js:3:5)",
+            "file": "https://fixture.test/root.js",
+            "function": "root",
+            "line": 3,
+            "col": 5
+          }
+        ],
+        "framesTruncated": false
+      }
+    ],
+    "truncated": false
+  }
+}

@@ -1,0 +1,14 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>vitals perf harness</title>
+<style>body{margin:0;background:#111;color:#eee;font:14px system-ui}video{width:640px;height:360px;display:block}</style>
+</head><body>
+<video id="v" muted autoplay loop playsinline src="/media/field-loop.webm"></video>
+<p id="status">booting</p>
+<script type="module">
+  import { init } from '/dist/browser/index.js';
+  window.__traceitx = init({ apiKey: 'pk_perf', appVersion: '0.0.0-perf' });
+  document.getElementById('status').textContent = 'sdk-init';
+</script>
+</body></html>

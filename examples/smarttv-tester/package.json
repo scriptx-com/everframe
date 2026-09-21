@@ -1,0 +1,36 @@
+{
+  "name": "@traceitx/example-smarttv-tester",
+  "version": "0.0.4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "run:hosted": "vite build && vite preview",
+    "run:chromium": "node scripts/run-chromium.mjs",
+    "build:tizen": "node scripts/build-tizen.mjs",
+    "run:tizen": "node scripts/build-tizen.mjs --run",
+    "build:webos": "node scripts/build-webos.mjs",
+    "run:webos": "node scripts/build-webos.mjs --run",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@traceitx/react": "workspace:*",
+    "html-to-image": "^1.11.11",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-legacy": "^6.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "terser": "^5.36.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^4.0.0"
+  }
+}

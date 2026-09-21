@@ -1,0 +1,132 @@
+diff --git a/dist/rrweb.cjs b/dist/rrweb.cjs
+index 1104b78ed49df1a5a0b6de71799997be813267be..e81b078e63ee760d70f5151a90a0d6c511988161 100644
+--- a/dist/rrweb.cjs
++++ b/dist/rrweb.cjs
+@@ -711,7 +711,8 @@ function transformAttribute(doc, tagName, name, value) {
+   } else if (name === "srcset") {
+     return getAbsoluteSrcsetString(doc, value);
+   } else if (name === "style") {
+-    return absolutifyURLs(value, getHref(doc));
++    // URL-free inline styles need neither a base URL read nor a regex pass.
++    return value.indexOf("url(") === -1 ? value : absolutifyURLs(value, getHref(doc));
+   } else if (tagName === "object" && name === "data") {
+     return absoluteToDoc(doc, value);
+   }
+@@ -953,6 +954,16 @@ function serializeTextNode(n2, options) {
+     rootId
+   };
+ }
++// Keep exception handling outside the per-element serializer: older V8 cannot
++// optimize functions containing try/catch. Missing registries are common on TVs.
++function isRegisteredCustomElement(tagName) {
++  try {
++    if (typeof customElements !== "undefined" && customElements.get(tagName)) {
++      return true;
++    }
++  } catch (e2) {
++  }
++}
+ function serializeElementNode(n2, options) {
+   const {
+     doc,
+@@ -1128,11 +1139,7 @@ function serializeElementNode(n2, options) {
+     }
+     delete attributes.src;
+   }
+-  let isCustomElement;
+-  try {
+-    if (customElements.get(tagName)) isCustomElement = true;
+-  } catch (e2) {
+-  }
++  const isCustomElement = isRegisteredCustomElement(tagName);
+   return {
+     type: NodeType$3.Element,
+     tagName,
+diff --git a/dist/rrweb.js b/dist/rrweb.js
+index b43377cce7691010e0e2ee6373745851aaa89294..30045baf5af025e49156ad196493caac25a9a972 100644
+--- a/dist/rrweb.js
++++ b/dist/rrweb.js
+@@ -709,7 +709,8 @@ function transformAttribute(doc, tagName, name, value) {
+   } else if (name === "srcset") {
+     return getAbsoluteSrcsetString(doc, value);
+   } else if (name === "style") {
+-    return absolutifyURLs(value, getHref(doc));
++    // URL-free inline styles need neither a base URL read nor a regex pass.
++    return value.indexOf("url(") === -1 ? value : absolutifyURLs(value, getHref(doc));
+   } else if (tagName === "object" && name === "data") {
+     return absoluteToDoc(doc, value);
+   }
+@@ -951,6 +952,16 @@ function serializeTextNode(n2, options) {
+     rootId
+   };
+ }
++// Keep exception handling outside the per-element serializer: older V8 cannot
++// optimize functions containing try/catch. Missing registries are common on TVs.
++function isRegisteredCustomElement(tagName) {
++  try {
++    if (typeof customElements !== "undefined" && customElements.get(tagName)) {
++      return true;
++    }
++  } catch (e2) {
++  }
++}
+ function serializeElementNode(n2, options) {
+   const {
+     doc,
+@@ -1126,11 +1137,7 @@ function serializeElementNode(n2, options) {
+     }
+     delete attributes.src;
+   }
+-  let isCustomElement;
+-  try {
+-    if (customElements.get(tagName)) isCustomElement = true;
+-  } catch (e2) {
+-  }
++  const isCustomElement = isRegisteredCustomElement(tagName);
+   return {
+     type: NodeType$3.Element,
+     tagName,
+diff --git a/dist/rrweb.umd.cjs b/dist/rrweb.umd.cjs
+index c603181aa6854614ae560230d53df8ffc8881273..a8917559d984958a6e8bc97e48e1e125d5045cf9 100644
+--- a/dist/rrweb.umd.cjs
++++ b/dist/rrweb.umd.cjs
+@@ -757,7 +757,8 @@ function transformAttribute(doc, tagName, name, value) {
+   } else if (name === "srcset") {
+     return getAbsoluteSrcsetString(doc, value);
+   } else if (name === "style") {
+-    return absolutifyURLs(value, getHref(doc));
++    // URL-free inline styles need neither a base URL read nor a regex pass.
++    return value.indexOf("url(") === -1 ? value : absolutifyURLs(value, getHref(doc));
+   } else if (tagName === "object" && name === "data") {
+     return absoluteToDoc(doc, value);
+   }
+@@ -999,6 +1000,16 @@ function serializeTextNode(n2, options) {
+     rootId
+   };
+ }
++// Keep exception handling outside the per-element serializer: older V8 cannot
++// optimize functions containing try/catch. Missing registries are common on TVs.
++function isRegisteredCustomElement(tagName) {
++  try {
++    if (typeof customElements !== "undefined" && customElements.get(tagName)) {
++      return true;
++    }
++  } catch (e2) {
++  }
++}
+ function serializeElementNode(n2, options) {
+   const {
+     doc,
+@@ -1174,11 +1185,7 @@ function serializeElementNode(n2, options) {
+     }
+     delete attributes.src;
+   }
+-  let isCustomElement;
+-  try {
+-    if (customElements.get(tagName)) isCustomElement = true;
+-  } catch (e2) {
+-  }
++  const isCustomElement = isRegisteredCustomElement(tagName);
+   return {
+     type: NodeType$3.Element,
+     tagName,

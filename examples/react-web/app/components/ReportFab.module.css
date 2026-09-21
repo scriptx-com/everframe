@@ -1,0 +1,87 @@
+/* SPDX-License-Identifier: MIT */
+/* SPDX-FileCopyrightText: 2026 ScriptX */
+
+/*
+ * Self-contained on purpose — no var() references into globals.css, because
+ * this component also mounts on /strict-csp where globals.css never loads.
+ * The cyan is the TraceItX brand accent (brand-ui --accent, oklch 0.74 0.13
+ * 210): SDK chrome wears brand colour, the demo app around it does not.
+ */
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 900; /* above app content; the SDK reporter modal stacks higher */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid #0e3038;
+  background: #12333c;
+  color: #a7dceb;
+  font: 500 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  box-shadow:
+    0 2px 6px rgba(14, 48, 56, 0.25),
+    0 10px 24px rgba(14, 48, 56, 0.28);
+  transition:
+    transform 130ms ease,
+    box-shadow 130ms ease,
+    background 130ms ease;
+}
+
+.fab:hover {
+  background: #17414c;
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 10px rgba(14, 48, 56, 0.3),
+    0 16px 32px rgba(14, 48, 56, 0.32);
+}
+
+.fab:active {
+  transform: translateY(0);
+}
+
+.fab:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.fab:focus-visible {
+  outline: 2px solid #6fc3d8;
+  outline-offset: 3px;
+}
+
+.icon {
+  flex: none;
+}
+
+.label {
+  white-space: nowrap;
+}
+
+/* Icon-only on small screens — the corner stays uncluttered on phones. */
+@media (max-width: 560px) {
+  .fab {
+    padding: 14px;
+  }
+  .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab {
+    transition: none;
+  }
+  .fab:hover {
+    transform: none;
+  }
+}

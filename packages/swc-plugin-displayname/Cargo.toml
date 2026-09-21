@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+[package]
+name = "traceitx_swc_plugin_displayname"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# @swc/core 1.16.2 embeds swc_plugin_runner 34.0.0, built from swc_core 78.
+# These serialization ABIs must match or the host cannot deserialize the plugin.
+swc_core = { version = "=78.0.0", features = ["ecma_plugin_transform"] }
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1

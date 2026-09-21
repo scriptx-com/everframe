@@ -1,0 +1,63 @@
+{
+  "name": "@traceitx/identity",
+  "version": "0.2.0",
+  "description": "Mint TraceItX identity tokens from any runtime — one handler that works as a Next route, a Cloudflare Worker, an Edge function or a Node server.",
+  "keywords": [
+    "traceitx",
+    "identity",
+    "jwt",
+    "authentication",
+    "bug-reporting"
+  ],
+  "homepage": "https://traceitx.com",
+  "bugs": {
+    "url": "https://github.com/scriptx-com/traceitx-releases/issues"
+  },
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scriptx-com/traceitx-releases.git",
+    "directory": "packages/identity"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
+    "clean": "rm -rf dist .turbo node_modules/.cache"
+  },
+  "dependencies": {
+    "jose": "6.2.5"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.0",
+    "@types/node": "^22.0.0",
+    "publint": "^0.3.0",
+    "tsup": "^8.0.0"
+  }
+}

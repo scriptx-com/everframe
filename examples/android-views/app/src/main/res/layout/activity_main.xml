@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!-- Plan 05-08 — entry-point screen for the Views sample. Buttons route to
+     the login_screen layout (which exercises TXSensitiveView + tx_sensitive
+     XML attribute) and to a report.openAsync(...) demo. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:fitsSystemWindows="true">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"
+        android:text="TraceItX View XML Sample (Java)" />
+
+    <Button
+        android:id="@+id/openLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Open Login screen (TXSensitiveView demo)" />
+
+    <Button
+        android:id="@+id/openReporter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Open reporter via report.openAsync(...)" />
+
+    <TextView
+        android:id="@+id/openResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textSize="14sp" />
+</LinearLayout>

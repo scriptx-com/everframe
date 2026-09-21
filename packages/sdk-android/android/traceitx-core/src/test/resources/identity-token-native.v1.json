@@ -1,0 +1,30 @@
+{
+  "generatedAt": 1786622400000,
+  "secret": "5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f",
+  "tokens": [
+    {
+      "name": "alice-300s",
+      "jwt": "eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwibmFtZSI6IkFsaWNlIEFuZGVyc29uIiwic3ViIjoiYWxpY2UiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpYXQiOjE3ODY2MjI0MDAsImV4cCI6MTc4NjYyMjcwMH0.ga9B9aAypvGBnOwpn0coISaRgpqFpC5oFqAC66uGC-Q",
+      "iatMs": 1786622400000,
+      "expMs": 1786622700000,
+      "sub": "alice",
+      "projectId": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "name": "bob-600s-boundary",
+      "jwt": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJib2IiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpYXQiOjE3ODY2MjI0MDAsImV4cCI6MTc4NjYyMzAwMH0.zl5PPrGjki3GZQNvJik4ZDYZkcIscnieZ-Avcwad0oI",
+      "iatMs": 1786622400000,
+      "expMs": 1786623000000,
+      "sub": "bob",
+      "projectId": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "name": "sub-255-boundary",
+      "jwt": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXUiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpYXQiOjE3ODY2MjI0MDAsImV4cCI6MTc4NjYyMjcwMH0._5vBZLRaqaQkVldyLvOoyNDNmOz1B6_NHXJTKp3VIXc",
+      "iatMs": 1786622400000,
+      "expMs": 1786622700000,
+      "sub": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+      "projectId": "00000000-0000-4000-8000-000000000001"
+    }
+  ]
+}

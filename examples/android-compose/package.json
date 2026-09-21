@@ -1,0 +1,9 @@
+{
+  "name": "@traceitx/example-android-compose-marker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace marker for the native Android Compose sample. The actual project is opened in Android Studio (or built via ./gradlew). This file exists so pnpm-workspace.yaml's examples/* glob recognizes the dir AND so 'pnpm gen-android-config' has a script anchor.",
+  "scripts": {
+    "gen-android-config": "bash scripts/gen-local-properties.sh"
+  }
+}

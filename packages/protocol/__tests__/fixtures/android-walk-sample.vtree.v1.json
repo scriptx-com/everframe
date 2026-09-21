@@ -1,0 +1,121 @@
+{
+  "frames": [
+    {
+      "ops": [
+        {
+          "op": "add",
+          "index": 0,
+          "node": {
+            "children": [
+              {
+                "bg": "#0b0b0c",
+                "children": [
+                  {
+                    "bg": "#16181d",
+                    "children": [
+                      {
+                        "children": [],
+                        "fontSize": 14.0,
+                        "frame": {
+                          "h": 30.0,
+                          "w": 200.0,
+                          "x": 50.0,
+                          "y": 226.0
+                        },
+                        "id": "v3",
+                        "role": "text",
+                        "text": "Hello",
+                        "textAlign": "left",
+                        "textColor": "#f4f4f5"
+                      },
+                      {
+                        "children": [],
+                        "frame": {
+                          "h": 80.0,
+                          "w": 300.0,
+                          "x": 50.0,
+                          "y": 266.0
+                        },
+                        "id": "v4",
+                        "role": "image"
+                      },
+                      {
+                        "children": [],
+                        "fontSize": 14.0,
+                        "frame": {
+                          "h": 40.0,
+                          "w": 300.0,
+                          "x": 50.0,
+                          "y": 356.0
+                        },
+                        "id": "v5",
+                        "role": "button",
+                        "text": "Tap",
+                        "textAlign": "center",
+                        "textColor": "#191c1e"
+                      },
+                      {
+                        "children": [],
+                        "frame": {
+                          "h": 40.0,
+                          "w": 300.0,
+                          "x": 50.0,
+                          "y": 406.0
+                        },
+                        "id": "v6",
+                        "masked": true,
+                        "role": "view"
+                      }
+                    ],
+                    "frame": {
+                      "h": 200.0,
+                      "w": 360.0,
+                      "x": 20.0,
+                      "y": 136.0
+                    },
+                    "id": "v2",
+                    "role": "view"
+                  }
+                ],
+                "frame": {
+                  "h": 800.0,
+                  "w": 400.0,
+                  "x": 0.0,
+                  "y": 56.0
+                },
+                "id": "v1",
+                "role": "view"
+              }
+            ],
+            "frame": {
+              "h": 414.0,
+              "w": 320.0,
+              "x": 0.0,
+              "y": 56.0
+            },
+            "id": "v0",
+            "role": "view"
+          },
+          "parent": ""
+        }
+      ],
+      "timestamp": 0.0
+    },
+    {
+      "ops": [
+        {
+          "op": "set",
+          "id": "v3",
+          "textColor": "#a1a1aa"
+        }
+      ],
+      "timestamp": 500.0
+    }
+  ],
+  "version": "traceitx-vtree-v1",
+  "viewport": {
+    "height": 470.0,
+    "scale": 3.0,
+    "width": 320.0
+  }
+}

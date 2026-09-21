@@ -1,0 +1,13 @@
+/* SPDX-License-Identifier: MIT */
+/* SPDX-FileCopyrightText: 2026 ScriptX */
+:root { color-scheme: dark; }
+body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e8ee; }
+.shell { padding: 32px; display: grid; gap: 16px; max-width: 860px; margin: 0 auto; }
+.card { background: #171a23; border: 1px solid #2a2e3a; border-radius: 10px; padding: 20px; }
+.site-nav { display: flex; gap: 16px; padding: 16px 32px; border-bottom: 1px solid #2a2e3a; }
+.site-nav a { color: #9db2d3; text-decoration: none; }
+.site-nav a.router-link-active { color: #e6e8ee; font-weight: 600; }
+.report-fab { position: fixed; right: 24px; bottom: 24px; padding: 12px 18px; border-radius: 999px;
+  border: 1px solid #2a2e3a; background: #1d2230; color: #e6e8ee; cursor: pointer; }
+.pii-value { font-family: ui-monospace, monospace; }
+.fixture-note { color: #8a93a8; font-size: 13px; }

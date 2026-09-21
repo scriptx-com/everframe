@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "comment": "RN vitals bridge parity. Three conventions the drivers implement: (1) `seedNow` is the fixed clock both drivers inject into RemotePlayerIntegration, so the emissions the integration ORIGINATES itself — the attach/describe seeds and the spans detach() closes — carry a deterministic `t` (codex round-1 C2: seeds stamp the instant they READ the model, never nil). (2) `seedNow` is only the STARTING clock: a `{ \"op\": \"clock\", \"t\": … }` call moves it mid-scenario, and both drivers implement it (codex round-3 E1). The reseed floor made one fixed clock unable to say what several scenarios need — a seed BEFORE the host events it forwards unchanged, and a detach AFTER the spans it closes. (3) JSON cannot carry NaN, so the string \"NaN\" inside a `stats` object means the double NaN; BOTH drivers translate it when building the stats map.",
+  "seedNow": 1757000000999,
+  "scenarios": [
+    {
+      "name": "pre-attach model seeds identity then open spans",
+      "keepQuery": false,
+      "calls": [
+        { "op": "record", "type": "source_change", "t": 1757000000001, "data": { "src": "https://cdn.example/live/a.m3u8?token=s", "live": true } },
+        { "op": "record", "type": "drm", "t": 1757000000002, "data": { "keySystem": "widevine" } },
+        { "op": "record", "type": "play", "t": 1757000000003 },
+        { "op": "record", "type": "buffer_start", "t": 1757000000004 },
+        { "op": "attach" }
+      ],
+      "expect": [
+        { "type": "source_change", "t": 1757000000999, "data": { "src": "https://cdn.example/live/a.m3u8", "protocol": "hls", "live": true } },
+        { "type": "drm", "t": 1757000000999, "data": { "keySystem": "widevine" } },
+        { "type": "play", "t": 1757000000999 },
+        { "type": "buffer_start", "t": 1757000000999 }
+      ]
+    },
+    {
+      "name": "attached forwarding keeps the JS timestamp and closes spans",
+      "keepQuery": true,
+      "calls": [
+        { "op": "clock", "t": 1757000000005 },
+        { "op": "attach" },
+        { "op": "record", "type": "source_change", "t": 1757000000010, "data": { "src": "https://cdn.example/v.mpd?x=1" } },
+        { "op": "record", "type": "play", "t": 1757000000011 },
+        { "op": "record", "type": "buffer_start", "t": 1757000000012 },
+        { "op": "record", "type": "buffer_end", "t": 1757000000020, "data": { "durationMs": 8 } },
+        { "op": "record", "type": "pause", "t": 1757000000030 },
+        { "op": "clock", "t": 1757000000040 },
+        { "op": "describe" }
+      ],
+      "expect": [
+        { "type": "source_change", "t": 1757000000010, "data": { "src": "https://cdn.example/v.mpd?x=1", "protocol": "dash" } },
+        { "type": "play", "t": 1757000000011 },
+        { "type": "buffer_start", "t": 1757000000012 },
+        { "type": "buffer_end", "t": 1757000000020, "data": { "durationMs": 8 } },
+        { "type": "pause", "t": 1757000000030 },
+        { "type": "source_change", "t": 1757000000040, "data": { "src": "https://cdn.example/v.mpd?x=1", "protocol": "dash" } }
+      ]
+    },
+    {
+      "name": "detach closes the open buffer span then the open play span",
+      "keepQuery": false,
+      "calls": [
+        { "op": "clock", "t": 1757000000065 },
+        { "op": "attach" },
+        { "op": "record", "type": "play", "t": 1757000000070 },
+        { "op": "record", "type": "buffer_start", "t": 1757000000071 },
+        { "op": "clock", "t": 1757000000090 },
+        { "op": "detach" },
+        { "op": "detach" },
+        { "op": "record", "type": "play", "t": 1757000000072 }
+      ],
+      "expect": [
+        { "type": "play", "t": 1757000000070 },
+        { "type": "buffer_start", "t": 1757000000071 },
+        { "type": "buffer_end", "t": 1757000000090 },
+        { "type": "pause", "t": 1757000000090 }
+      ]
+    },
+    {
+      "name": "snapshot from host stats with dropped-frames delta",
+      "keepQuery": false,
+      "calls": [
+        { "op": "attach" },
+        { "op": "stats", "stats": { "bufferAheadMs": 2500, "bandwidthEstimate": 8000000, "bitrate": 4500000, "width": 1920, "height": 1080, "droppedFrames": 3 } },
+        { "op": "snapshot" }
+      ],
+      "expect": [],
+      "expectSnapshot": { "bufferAheadMs": 2500, "bandwidthEstimate": 8000000, "bitrate": 4500000, "width": 1920, "height": 1080, "droppedFramesDelta": 3 }
+    },
+    {
+      "name": "numeric hygiene drops every unusable stats field but keeps the snapshot",
+      "keepQuery": false,
+      "calls": [
+        { "op": "attach" },
+        { "op": "stats", "stats": { "bufferAheadMs": "NaN", "bitrate": -5, "width": true, "height": 9.21e18, "droppedFrames": 3 } },
+        { "op": "snapshot" }
+      ],
+      "expect": [],
+      "expectSnapshot": { "droppedFramesDelta": 3 }
+    },
+    {
+      "name": "host event allowlist drops forged markers and unknown types",
+      "keepQuery": false,
+      "calls": [
+        { "op": "attach" },
+        { "op": "record", "type": "player_attach", "t": 1757000000040, "data": { "library": "forged" } },
+        { "op": "record", "type": "player_detach", "t": 1757000000041 },
+        { "op": "record", "type": "bogus", "t": 1757000000042, "data": { "src": "https://x/y.m3u8" } },
+        { "op": "describe" }
+      ],
+      "expect": []
+    },
+    {
+      "name": "mime beats the extension for protocol",
+      "keepQuery": false,
+      "calls": [
+        { "op": "attach" },
+        { "op": "record", "type": "source_change", "t": 1757000000050, "data": { "src": "https://cdn.example/live/master", "mime": "application/x-mpegurl" } }
+      ],
+      "expect": [
+        { "type": "source_change", "t": 1757000000050, "data": { "src": "https://cdn.example/live/master", "mime": "application/x-mpegurl", "protocol": "hls" } }
+      ]
+    },
+    {
+      "name": "a source change clears the cached drm and the cached stats",
+      "keepQuery": false,
+      "calls": [
+        { "op": "record", "type": "source_change", "t": 1757000000060, "data": { "src": "https://cdn.example/a.m3u8" } },
+        { "op": "attach" },
+        { "op": "record", "type": "drm", "t": 1757000000061, "data": { "keySystem": "widevine" } },
+        { "op": "stats", "stats": { "bufferAheadMs": 4000, "droppedFrames": 9 } },
+        { "op": "record", "type": "source_change", "t": 1757000000062, "data": { "src": "https://cdn.example/b.mpd" } },
+        { "op": "describe" },
+        { "op": "snapshot" }
+      ],
+      "expectSnapshot": null,
+      "expect": [
+        { "type": "source_change", "t": 1757000000999, "data": { "src": "https://cdn.example/a.m3u8", "protocol": "hls" } },
+        { "type": "drm", "t": 1757000000061, "data": { "keySystem": "widevine" } },
+        { "type": "source_change", "t": 1757000000062, "data": { "src": "https://cdn.example/b.mpd", "protocol": "dash" } },
+        { "type": "source_change", "t": 1757000000999, "data": { "src": "https://cdn.example/b.mpd", "protocol": "dash" } }
+      ]
+    },
+    {
+      "name": "a span transition predating the reseed is stamped at the seed",
+      "keepQuery": false,
+      "calls": [
+        { "op": "record", "type": "play", "t": 1757000001500 },
+        { "op": "clock", "t": 1757000002000 },
+        { "op": "attach" },
+        { "op": "record", "type": "pause", "t": 1757000001900 },
+        { "op": "record", "type": "seek", "t": 1757000001901 },
+        { "op": "record", "type": "play", "t": 1757000002500 }
+      ],
+      "expect": [
+        { "type": "play", "t": 1757000002000 },
+        { "type": "pause", "t": 1757000002000 },
+        { "type": "seek", "t": 1757000001901 },
+        { "type": "play", "t": 1757000002500 }
+      ]
+    }
+  ]
+}

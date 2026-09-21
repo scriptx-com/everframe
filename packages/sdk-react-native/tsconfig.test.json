@@ -1,0 +1,40 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*", "__tests__/**/*"],
+  "compilerOptions": {
+    "noEmit": true,
+    // Required: this package's tsconfig.json sets rootDir: "src", which must be
+    // overridden to allow __tests__ files outside src. Only include in packages
+    // whose base tsconfig.json explicitly sets rootDir.
+    //
+    // Widened to the repo root (not just "."): __tests__/host-surface-conformance.spec.ts
+    // resolves '@traceitx/sdk-core/conformance' via the `paths` mapping below,
+    // straight to packages/sdk-core source — a file outside this package
+    // entirely. rootDir must contain every input in the program, so "."
+    // is no longer sufficient once that mapping is in play. Mirrors the
+    // same widening in packages/sdk-react/tsconfig.test.json.
+    "rootDir": "../..",
+    // Relaxed for tests ONLY — src/ keeps both via tsconfig.json.
+    // Measured on sdk-react, the largest suite: these two account for 89 of
+    // the 109 errors that typechecking __tests__ surfaces, and none of the
+    // real ones. `entries[0].foo` after expect(entries).toHaveLength(1) is
+    // not a nullability bug, and a fixture literal with an explicit
+    // `undefined` is not an exactOptionalPropertyTypes violation.
+    //
+    // packages/protocol and packages/sdk-core deliberately do NOT use this
+    // file: they already typecheck their tests at FULL strictness via their
+    // own tsconfig.json `include`, and moving them here would be a downgrade.
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    // '@traceitx/sdk-core/conformance' is deliberately NOT a published
+    // exports subpath (see packages/sdk-core/src/conformance/host-surface.ts's
+    // header — it must stay out of the tsup-built artifact), so tsc has no
+    // package.json entry to resolve it from. Mirror the vitest alias
+    // (vitest.config.ts's resolve.alias) that points the SAME specifier at
+    // SOURCE for the test runner, so `tsc -p tsconfig.test.json` can resolve
+    // it too.
+    "paths": {
+      "@traceitx/sdk-core/conformance": ["../sdk-core/src/conformance/host-surface.ts"]
+    }
+  }
+}

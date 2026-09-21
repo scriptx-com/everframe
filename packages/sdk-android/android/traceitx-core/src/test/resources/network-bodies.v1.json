@@ -1,0 +1,39 @@
+[
+  {
+    "ref": 1,
+    "t": 1721304000000,
+    "reqBody": "{\"q\":\"hello\"}",
+    "resBody": "{\"ok\":true}",
+    "reqHeaders": { "content-type": "application/json", "authorization": "[REDACTED]" },
+    "resHeaders": { "content-type": "application/json" }
+  },
+  {
+    "ref": 2,
+    "t": 1721304000500,
+    "resBody": "AAAAAAAAAAAAAAAA",
+    "resBodyTruncated": true,
+    "resBodyBytes": 214000,
+    "resHeaders": { "content-type": "text/plain" }
+  },
+  {
+    "ref": 3,
+    "t": 1721304001000,
+    "resBodySkipped": "content-type",
+    "resHeaders": { "content-type": "image/png" }
+  },
+  {
+    "ref": 4,
+    "t": 1721304001500,
+    "reqBodySkipped": "unsupported",
+    "resBody": "{\"ok\":true}",
+    "resHeaders": { "content-type": "application/json" }
+  },
+  {
+    "ref": 5,
+    "t": 1721304002000,
+    "reqBody": "{\"a\":1}",
+    "resBodySkipped": "unsupported",
+    "reqHeaders": { "content-type": "application/json" },
+    "resHeaders": { "content-type": "application/json" }
+  }
+]

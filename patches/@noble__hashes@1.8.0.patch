@@ -1,0 +1,57 @@
+diff --git a/_md.js b/_md.js
+index 53047f3a244b232f63b417cd84b6a8bbdec10107..565cc16778de2333a5da9d46d78d08a577620032 100644
+--- a/_md.js
++++ b/_md.js
+@@ -99,7 +99,13 @@ class HashMD extends utils_ts_1.Hash {
+         // Note: sha512 requires length to be 128bit integer, but length in JS will overflow before that
+         // You need to write around 2 exabytes (u64_max / 8 / (1024**6)) for this to happen.
+         // So we just write lowest 64 bits of that value.
+-        setBigUint64(view, blockLen - 8, BigInt(this.length * 8), isLE);
++        // Length is already a JS number. Write its low 64 bits without BigInt,
++        // which is absent on older TV engines (SHA-256/HMAC use this path).
++        const bitLength = this.length * 8;
++        const high = Math.floor(bitLength / 0x100000000);
++        const low = bitLength >>> 0;
++        view.setUint32(blockLen - 8, isLE ? low : high, isLE);
++        view.setUint32(blockLen - 4, isLE ? high : low, isLE);
+         this.process(view, 0);
+         const oview = (0, utils_ts_1.createView)(out);
+         const len = this.outputLen;
+diff --git a/esm/_md.js b/esm/_md.js
+index 3cf023d9f7d9160ff5c10264725b68148668d168..56ef7e0997289dcafc9993e8935f4b8241e5416f 100644
+--- a/esm/_md.js
++++ b/esm/_md.js
+@@ -93,7 +93,13 @@ export class HashMD extends Hash {
+         // Note: sha512 requires length to be 128bit integer, but length in JS will overflow before that
+         // You need to write around 2 exabytes (u64_max / 8 / (1024**6)) for this to happen.
+         // So we just write lowest 64 bits of that value.
+-        setBigUint64(view, blockLen - 8, BigInt(this.length * 8), isLE);
++        // Length is already a JS number. Write its low 64 bits without BigInt,
++        // which is absent on older TV engines (SHA-256/HMAC use this path).
++        const bitLength = this.length * 8;
++        const high = Math.floor(bitLength / 0x100000000);
++        const low = bitLength >>> 0;
++        view.setUint32(blockLen - 8, isLE ? low : high, isLE);
++        view.setUint32(blockLen - 4, isLE ? high : low, isLE);
+         this.process(view, 0);
+         const oview = createView(out);
+         const len = this.outputLen;
+diff --git a/src/_md.ts b/src/_md.ts
+index 469b781553a2235c5fe613f119f46eb3f75a44e4..0962b21e8e1113baae424efc164f4b6f364a557b 100644
+--- a/src/_md.ts
++++ b/src/_md.ts
+@@ -114,7 +114,13 @@ export abstract class HashMD<T extends HashMD<T>> extends Hash<T> {
+     // Note: sha512 requires length to be 128bit integer, but length in JS will overflow before that
+     // You need to write around 2 exabytes (u64_max / 8 / (1024**6)) for this to happen.
+     // So we just write lowest 64 bits of that value.
+-    setBigUint64(view, blockLen - 8, BigInt(this.length * 8), isLE);
++    // Length is already a JS number. Write its low 64 bits without BigInt,
++    // which is absent on older TV engines (SHA-256/HMAC use this path).
++    const bitLength = this.length * 8;
++    const high = Math.floor(bitLength / 0x100000000);
++    const low = bitLength >>> 0;
++    view.setUint32(blockLen - 8, isLE ? low : high, isLE);
++    view.setUint32(blockLen - 4, isLE ? high : low, isLE);
+     this.process(view, 0);
+     const oview = createView(out);
+     const len = this.outputLen;

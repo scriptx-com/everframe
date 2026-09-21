@@ -1,0 +1,87 @@
+diff --git a/src/v4/core/util.ts b/src/v4/core/util.ts
+index dec859217bde10a85091fc55c14401fc1467bdd3..01dab63701ec221d977855bde3ce7cd129a3ba36 100644
+--- a/src/v4/core/util.ts
++++ b/src/v4/core/util.ts
+@@ -376,7 +376,8 @@ export const allowsEval: { value: boolean } = cached(() => {
+ 
+   try {
+     const F = Function;
+-    new F("");
++    // The object parser JIT emits object spread; eval alone is insufficient.
++    new F("return {...{}}");
+     return true;
+   } catch (_) {
+     return false;
+@@ -586,8 +587,12 @@ export const NUMBER_FORMAT_RANGES: Record<checks.$ZodNumberFormats, [number, num
+ };
+ 
+ export const BIGINT_FORMAT_RANGES: Record<checks.$ZodBigIntFormats, [bigint, bigint]> = {
+-  int64: [/* @__PURE__*/ BigInt("-9223372036854775808"), /* @__PURE__*/ BigInt("9223372036854775807")],
+-  uint64: [/* @__PURE__*/ BigInt(0), /* @__PURE__*/ BigInt("18446744073709551615")],
++  get int64() {
++    return [/* @__PURE__*/ BigInt("-9223372036854775808"), /* @__PURE__*/ BigInt("9223372036854775807")];
++  },
++  get uint64() {
++    return [/* @__PURE__*/ BigInt(0), /* @__PURE__*/ BigInt("18446744073709551615")];
++  },
+ };
+ 
+ export function pick(schema: schemas.$ZodObject, mask: Record<string, unknown>): any {
+diff --git a/v4/core/util.cjs b/v4/core/util.cjs
+index c6bc2a7c6af354944eebd0821c629783c788781d..8157603d53eb5deda5d8fd770cfed9e715d47dc8 100644
+--- a/v4/core/util.cjs
++++ b/v4/core/util.cjs
+@@ -211,7 +211,8 @@ exports.allowsEval = cached(() => {
+     }
+     try {
+         const F = Function;
+-        new F("");
++        // The object parser JIT emits object spread; eval alone is insufficient.
++        new F("return {...{}}");
+         return true;
+     }
+     catch (_) {
+@@ -380,8 +381,12 @@ exports.NUMBER_FORMAT_RANGES = {
+     float64: [-Number.MAX_VALUE, Number.MAX_VALUE],
+ };
+ exports.BIGINT_FORMAT_RANGES = {
+-    int64: [/* @__PURE__*/ BigInt("-9223372036854775808"), /* @__PURE__*/ BigInt("9223372036854775807")],
+-    uint64: [/* @__PURE__*/ BigInt(0), /* @__PURE__*/ BigInt("18446744073709551615")],
++    get int64() {
++        return [/* @__PURE__*/ BigInt("-9223372036854775808"), /* @__PURE__*/ BigInt("9223372036854775807")];
++    },
++    get uint64() {
++        return [/* @__PURE__*/ BigInt(0), /* @__PURE__*/ BigInt("18446744073709551615")];
++    },
+ };
+ function pick(schema, mask) {
+     const currDef = schema._zod.def;
+diff --git a/v4/core/util.js b/v4/core/util.js
+index 3fc99ca9de705ba563a3221f0032f1372b8f8a53..e44a794b44a0f909ff9eff48e0703ead5f19d4e3 100644
+--- a/v4/core/util.js
++++ b/v4/core/util.js
+@@ -154,7 +154,8 @@ export const allowsEval = cached(() => {
+     }
+     try {
+         const F = Function;
+-        new F("");
++        // The object parser JIT emits object spread; eval alone is insufficient.
++        new F("return {...{}}");
+         return true;
+     }
+     catch (_) {
+@@ -322,8 +323,12 @@ export const NUMBER_FORMAT_RANGES = {
+     float64: [-Number.MAX_VALUE, Number.MAX_VALUE],
+ };
+ export const BIGINT_FORMAT_RANGES = {
+-    int64: [/* @__PURE__*/ BigInt("-9223372036854775808"), /* @__PURE__*/ BigInt("9223372036854775807")],
+-    uint64: [/* @__PURE__*/ BigInt(0), /* @__PURE__*/ BigInt("18446744073709551615")],
++    get int64() {
++        return [/* @__PURE__*/ BigInt("-9223372036854775808"), /* @__PURE__*/ BigInt("9223372036854775807")];
++    },
++    get uint64() {
++        return [/* @__PURE__*/ BigInt(0), /* @__PURE__*/ BigInt("18446744073709551615")];
++    },
+ };
+ export function pick(schema, mask) {
+     const currDef = schema._zod.def;

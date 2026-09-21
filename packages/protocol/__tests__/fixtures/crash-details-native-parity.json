@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "default",
+      "input": {},
+      "expected": { "severity": "error" }
+    },
+    {
+      "name": "masked-key",
+      "input": {
+        "severity": "warning",
+        "context": "checkout",
+        "metadata": {
+          "attempt": 2,
+          "accessToken": "synthetic",
+          "API-KEY": "synthetic-api-key",
+          "apiKey": "ordinary"
+        }
+      },
+      "expected": {
+        "severity": "warning",
+        "context": "checkout",
+        "metadata": {
+          "attempt": 2,
+          "accessToken": "[REDACTED]",
+          "API-KEY": "[REDACTED]",
+          "apiKey": "ordinary"
+        }
+      }
+    },
+    {
+      "name": "nested",
+      "input": {
+        "metadata": {
+          "attempt": 3,
+          "flags": [true, null, false],
+          "request": { "method": "POST", "latency": 12.5 }
+        }
+      },
+      "expected": {
+        "severity": "error",
+        "metadata": {
+          "attempt": 3,
+          "flags": [true, null, false],
+          "request": { "method": "POST", "latency": 12.5 }
+        }
+      }
+    },
+    {
+      "name": "repaired-text",
+      "input": {
+        "context": "check\u0000out",
+        "metadata": { "unsafe\u0000key": "left\u0000\ud800right" }
+      },
+      "expected": {
+        "severity": "error",
+        "context": "check�out",
+        "metadata": { "unsafe�key": "left��right" },
+        "truncated": true
+      }
+    },
+    {
+      "name": "bounded-loss",
+      "input": {
+        "metadata": { "second": { "third": { "fourth": { "fifth": { "value": true } } } } }
+      },
+      "expected": {
+        "severity": "error",
+        "metadata": { "second": { "third": { "fourth": {} } } },
+        "truncated": true
+      }
+    },
+    {
+      "name": "prototype-keys",
+      "input": { "metadata": { "__proto__": "kept", "sibling": 7 } },
+      "expected": { "severity": "error", "metadata": { "__proto__": "kept", "sibling": 7 } }
+    }
+  ]
+}

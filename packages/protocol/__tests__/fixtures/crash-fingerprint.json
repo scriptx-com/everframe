@@ -1,0 +1,56 @@
+[
+  {
+    "exceptionType": "TypeError",
+    "frames": [
+      {
+        "raw": "at render (app.tsx:10:5)",
+        "function": "render",
+        "file": "app.tsx"
+      },
+      {
+        "raw": "at main (index.ts:3:1)"
+      }
+    ],
+    "expected": "e604ae90b705c6da"
+  },
+  {
+    "exceptionType": "java.lang.NullPointerException",
+    "frames": [
+      {
+        "raw": "com.example.MainActivity.onCreate(MainActivity.kt:42)",
+        "function": "onCreate",
+        "file": "MainActivity.kt"
+      }
+    ],
+    "expected": "9972d4f6c1fe65a1"
+  },
+  {
+    "exceptionType": "Error",
+    "frames": [],
+    "expected": "cd81d27b8db3fb3e"
+  },
+  {
+    "exceptionType": "RangeError",
+    "frames": [
+      {
+        "raw": "foo@https://x.test/bundle.js:1:2"
+      },
+      {
+        "raw": "bar@https://x.test/bundle.js:3:4"
+      },
+      {
+        "raw": "a@b:1:1"
+      },
+      {
+        "raw": "c@d:2:2"
+      },
+      {
+        "raw": "e@f:3:3"
+      },
+      {
+        "raw": "IGNORED-sixth-frame:9:9"
+      }
+    ],
+    "expected": "29e8e3b5ae6ad1e8"
+  }
+]

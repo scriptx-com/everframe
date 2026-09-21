@@ -1,29 +1,59 @@
-# TraceItX Releases
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-Public binary releases for the [TraceItX](https://traceitx.com) SDK.
+# TraceItX SDKs
 
-Source code lives in the private `scriptx-com/traceitx` repository; only
-compiled binaries (iOS xcframework zips) are published here so that
-anonymous `pod install` works.
+Public source, examples, and release artifacts for the TraceItX reporting and
+session-evidence SDKs.
 
-## Available downloads
+## Packages
 
-Each tag corresponds to a TraceItX SDK release. Release assets:
+- `@traceitx/web`
+- `@traceitx/react`
+- `@traceitx/react-native`
+- Android SDK
+- Apple SDK for iOS and tvOS
+- Shared protocol, SDK core, identity helper, and display-name tooling
 
-- `TraceItXKit.xcframework.zip` — SDK core (capture, envelope, transport, companion-mode reporter).
-- `TraceItXReporterUI.xcframework.zip` — on-device reporter modal (opt-in subspec).
+Customer-facing sample applications live in [`examples`](examples). The tvOS
+sample includes a credential-free remote-focus smoke test.
 
-## Install
+## Development
 
-```ruby
-# Podfile
-pod 'TraceItX', '~> 0.1'
-# Opt-in on-device reporter UI:
-pod 'TraceItX/ReporterUI', '~> 0.1'
+Requirements vary by platform. JavaScript development requires Node 22 and
+pnpm 9. Android development requires a compatible JDK and Android SDK. Apple
+development requires Xcode.
+
+```sh
+corepack enable
+pnpm install --frozen-lockfile
+pnpm check:boundary
+pnpm build
+pnpm test
+pnpm typecheck
 ```
 
-## Why a separate public repo?
+To run examples against your own TraceItX project:
 
-CocoaPods cannot attach auth headers when fetching `:http =>` sources, so
-the xcframework zips must be anonymously fetchable. Hosting them here
-(public) keeps the source code repo (private) closed-source.
+```sh
+cp .env.example .env
+```
+
+Fill only the SDK keys needed by the examples you run. `.env` and generated
+platform configuration files are ignored by Git.
+
+## Apple binary releases
+
+The repository root [`Package.swift`](Package.swift) remains the binary SwiftPM
+manifest used by tagged releases. Source development uses
+[`packages/sdk-ios/Package.swift`](packages/sdk-ios/Package.swift).
+
+## Security
+
+Never commit credentials or production SDK keys. See [`SECURITY.md`](SECURITY.md)
+for reporting instructions and the repository publication gates.
+
+## License
+
+ScriptX-owned source is available under the MIT License. Bundled upstream files
+retain their original licenses; see `LICENSES` and `.reuse/dep5`.

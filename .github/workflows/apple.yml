@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+
+name: Apple SDK CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  swift-and-tvos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Swift package
+        env:
+          TRACEITX_DEV_INGEST_URL: http://127.0.0.1:9
+        run: swift test --package-path packages/sdk-ios
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate credential-free tvOS sample
+        run: xcodegen generate --spec examples/tvos-replay/project.yml
+      - name: Run tvOS sample smoke tests
+        run: |
+          xcodebuild test \
+            -project examples/tvos-replay/ReplayTV.xcodeproj \
+            -scheme ReplayTV \
+            -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation),OS=latest' \
+            CODE_SIGNING_ALLOWED=NO

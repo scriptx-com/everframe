@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  // `e2e/**` is in here so the Playwright specs are typechecked by
+  // `pnpm typecheck` — the Playwright runner transpiles TS without checking
+  // it, so nothing else would ever look at them. They are excluded from the
+  // vitest run by vitest.config.ts, which is the only other consumer of this
+  // directory.
+  "include": ["src/**/*", "__tests__/**/*", "e2e/**/*"],
+  "compilerOptions": {
+    "noEmit": true,
+    // rootDir must contain every input in the program; the specs live beside
+    // src/, so the package root is the honest description of the test program.
+    "rootDir": ".",
+    // Relaxed for tests ONLY — src/ keeps both via tsconfig.json. Same
+    // rationale (and same two options) as packages/sdk-react's test config:
+    // `entries[0].foo` after expect(entries).toHaveLength(1) is not a
+    // nullability bug, and a fixture literal with an explicit `undefined` is
+    // not an exactOptionalPropertyTypes violation.
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  }
+}

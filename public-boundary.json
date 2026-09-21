@@ -1,0 +1,177 @@
+{
+  "publicPackages": [
+    "@traceitx/babel-plugin-displayname",
+    "@traceitx/identity",
+    "@traceitx/protocol",
+    "@traceitx/react",
+    "@traceitx/react-native",
+    "@traceitx/sdk-android",
+    "@traceitx/sdk-core",
+    "@traceitx/sdk-ios-marker",
+    "@traceitx/swc-plugin-displayname",
+    "@traceitx/web"
+  ],
+  "allowedTopLevel": [
+    ".env.example",
+    ".gitattributes",
+    ".github",
+    ".gitignore",
+    ".gitleaks.toml",
+    ".gitleaksignore",
+    ".npmrc",
+    ".reuse",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "LICENSES",
+    "NOTICE",
+    "Package.swift",
+    "README.md",
+    "REUSE.toml",
+    "SECURITY.md",
+    "docs",
+    "examples",
+    "package.json",
+    "packages",
+    "patches",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "public-boundary.json",
+    "scripts",
+    "tsconfig.base.json",
+    "turbo.json",
+    "vitest.base.ts"
+  ],
+  "requiredPaths": [
+    ".env.example",
+    "REUSE.toml",
+    "LICENSE",
+    "LICENSES/Apache-2.0.txt",
+    "LICENSES/MIT.txt",
+    "vitest.base.ts",
+    "examples/android-compose",
+    "examples/android-views",
+    "examples/ios-native",
+    "examples/react-native",
+    "examples/react-tv-sample",
+    "examples/react-web",
+    "examples/smarttv-tester",
+    "examples/tvos-replay",
+    "examples/vue-web",
+    "packages/babel-plugin-displayname/package.json",
+    "packages/identity/package.json",
+    "packages/protocol/package.json",
+    "packages/sdk-android/package.json",
+    "packages/sdk-core/package.json",
+    "packages/sdk-ios/package.json",
+    "packages/sdk-react-native/package.json",
+    "packages/sdk-react/package.json",
+    "packages/sdk-web/package.json",
+    "packages/swc-plugin-displayname/package.json",
+    "patches/@expo__cli@56.1.0.patch",
+    "patches/@noble__hashes@1.8.0.patch",
+    "patches/modern-screenshot@4.7.0.patch",
+    "patches/rrweb@2.0.1.patch",
+    "patches/zod@4.3.6.patch"
+  ],
+  "forbiddenPathPatterns": [
+    "(^|/)apps/",
+    "examples/tvos-replay/scripts/(benchmark|companion|dashboard|drive-xctest|verify-recording)\\.mjs$"
+  ],
+  "ignoredPathPatterns": [
+    "(^|/)(?:node_modules|dist|build|target|\\.turbo|\\.next|\\.build|DerivedData)(?:/|$)",
+    "(^|/)next-env\\.d\\.ts$",
+    "(^|/)examples/react-native/(?:android|ios)(?:/|$)",
+    "(^|/)examples/tvos-replay/ReplayTV\\.xcodeproj(?:/|$)",
+    "(^|/)packages/sdk-android/android/\\.gradle(?:/|$)"
+  ],
+  "forbiddenTextPatterns": [
+    {
+      "pattern": "@traceitx/(admin|api|brand-ui|reporter-surface|source-maps)",
+      "reason": "out-of-scope package reference"
+    },
+    {
+      "pattern": "apps/(api|admin|ingest-service|reporter)",
+      "reason": "out-of-scope application path"
+    },
+    {
+      "pattern": "(\\.planning/|docs/superpowers/)",
+      "reason": "out-of-scope planning artifact"
+    },
+    {
+      "pattern": "~/mware/",
+      "reason": "developer-local repository path"
+    },
+    {
+      "pattern": "mware(tv|/|-)",
+      "flags": "i",
+      "reason": "unrelated customer or product reference"
+    },
+    {
+      "pattern": "REPLAY_ADMIN_(EMAIL|PASSWORD)",
+      "reason": "admin credential reference"
+    },
+    {
+      "pattern": "github\\.com/(scriptx-com|scriptx)/traceitx(?:\\.git|/|\\)|$)",
+      "reason": "unrelated repository URL"
+    }
+  ],
+  "envTemplates": [
+    ".env.example"
+  ],
+  "license": {
+    "ownedExtensions": [
+      ".c",
+      ".cjs",
+      ".css",
+      ".example",
+      ".gradle",
+      ".h",
+      ".html",
+      ".java",
+      ".js",
+      ".jsx",
+      ".kt",
+      ".kts",
+      ".lock",
+      ".md",
+      ".mjs",
+      ".mm",
+      ".pbxproj",
+      ".plist",
+      ".podspec",
+      ".pro",
+      ".properties",
+      ".py",
+      ".rb",
+      ".rs",
+      ".sh",
+      ".swift",
+      ".ts",
+      ".tsx",
+      ".vue",
+      ".xcconfig",
+      ".xcprivacy",
+      ".xcscheme",
+      ".xcworkspacedata",
+      ".xml",
+      ".yaml",
+      ".yml"
+    ],
+    "upstream": [
+      {
+        "pathPattern": "(^|/)gradlew$",
+        "spdx": "Apache-2.0"
+      },
+      {
+        "pathPattern": "(^|/)gradlew\\.bat$",
+        "spdx": "Apache-2.0"
+      },
+      {
+        "pathPattern": "(^|/)gradle/wrapper/gradle-wrapper\\.properties$",
+        "spdx": "Apache-2.0"
+      }
+    ],
+    "exemptPathPatterns": []
+  }
+}

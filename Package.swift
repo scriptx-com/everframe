@@ -1,14 +1,11 @@
 // swift-tools-version: 5.10
-// SPDX-License-Identifier: Apache-2.0
-// Copyright 2026 ScriptX
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
 //
-// BINARY-DISTRIBUTION Package.swift. NOT used during local development —
-// `Package.swift` (the source-based manifest) is the working file. At release
-// time the publishing runbook (PUBLISHING.md) renames this file to
-// `Package.swift` on the `release/<version>` branch, after updating the
-// `binaryVersion` constant + each `checksum:` to match the artifacts attached
-// to the GitHub Release on `scriptx-com/traceitx-releases`. The xcframework
-// zips are public on that repo so anonymous SwiftPM consumers can fetch them.
+// Binary-distribution manifest used by tagged releases and SwiftPM consumers.
+// Contributor source builds use packages/sdk-ios/Package.swift. Release
+// automation updates binaryVersion and the checksums below to match the
+// xcframework archives attached to the corresponding GitHub release.
 //
 // Consumers reference the binary tag, e.g.
 //
@@ -16,25 +13,8 @@
 //         .package(url: "https://github.com/scriptx-com/traceitx-releases", from: "0.1.1"),
 //     ]
 //
-// **Update these per release — both are now automated; do not hand-edit:**
-//   * binaryVersion   — the SemVer string of the release. Written by
-//                       `scripts/sync-version.sh` from TraceItX.podspec.
-//   * each binaryTarget's `checksum:` — written by
-//                       `scripts/build-xcframework.sh` (Release builds only)
-//                       from the zips it just produced.
-//
-// The two are written at DIFFERENT times, and that gap is the trap: a version
-// bump alone (sync-version.sh, or any release-prep script that calls it)
-// advances `binaryVersion` while leaving the PREVIOUS release's checksums in
-// place. The manifest then looks plausible and is completely broken — SwiftPM
-// rejects every fetch with "checksum of downloaded artifact does not match".
-// v0.5.0 shipped into this exact state carrying 0.4.5 hashes.
-//
-// `scripts/verify-binary-checksums.sh` is the guard. Run it against the
-// published artifacts before `pod trunk push` (PUBLISHING.md §6); it is also
-// available as the `release-verify` workflow. On a feature branch that has
-// bumped ahead of the release, `--allow-unpublished` is the honest answer —
-// inventing placeholder checksums is not.
+// Never hand-edit one without the other: a version/checksum mismatch makes
+// SwiftPM reject the downloaded artifact.
 //
 // Three binary targets ship in lockstep:
 //   * TraceItXKit          — the core SDK (was published as TraceItX in 0.1.0)

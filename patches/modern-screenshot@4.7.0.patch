@@ -1,0 +1,190 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index cd4cebcb2c33a84959cb94ce1048c9c16a2f6e7b..36c64ae8123f5ceea0df0cc43b6329607334f11d 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -849,9 +849,12 @@ function copyPseudoClass(node, cloned, copyScrollbar, context, addWordToFontFami
+   function copyBy(pseudoClass) {
+     const computedStyle = ownerWindow.getComputedStyle(node, pseudoClass);
+     let content = computedStyle.getPropertyValue("content");
+-    if (!content || content === "none")
++    // Generated pseudos need content; native scrollbar parts do not. Legacy
++    // webOS reports empty content even when display:none or custom paint applies.
++    const generated = pseudoClasses.includes(pseudoClass);
++    if (generated && (!content || content === "none"))
+       return;
+-    addWordToFontFamilies?.(content);
++    if (generated) addWordToFontFamilies?.(content);
+     content = content.replace(/(')|(")|(counter\(.+\))/g, "");
+     const klasses = [uuid()];
+     const defaultStyle = getDefaultStyle(node, pseudoClass, context);
+@@ -864,13 +867,13 @@ function copyPseudoClass(node, cloned, copyScrollbar, context, addWordToFontFami
+     if (style.get("background-clip")?.[0] === "text") {
+       cloned.classList.add("______background-clip--text");
+     }
+-    const cloneStyle = [
++    const cloneStyle = generated ? [
+       `content: '${content}';`
+-    ];
++    ] : [];
+     style.forEach(([value, priority], name) => {
+       cloneStyle.push(`${name}: ${value}${priority ? " !important" : ""};`);
+     });
+-    if (cloneStyle.length === 1)
++    if (cloneStyle.length === 0 || generated && cloneStyle.length === 1)
+       return;
+     try {
+       cloned.className = [cloned.className, ...klasses].join(" ");
+@@ -885,10 +888,17 @@ function copyPseudoClass(node, cloned, copyScrollbar, context, addWordToFontFami
+       svgStyles.set(cssText, allClasses);
+     }
+     allClasses.push(`.${klasses[0]}${pseudoClass}`);
++    return computedStyle.getPropertyValue("display") === "none";
+   }
+   pseudoClasses.forEach(copyBy);
+-  if (copyScrollbar)
+-    scrollbarPseudoClasses.forEach(copyBy);
++  if (copyScrollbar) {
++    const hidden = copyBy(scrollbarPseudoClasses[0]);
++    for (let index = 1; index < scrollbarPseudoClasses.length; index++) {
++      const pseudoClass = scrollbarPseudoClasses[index];
++      // A resize handle can remain visible even when the scrollbar is hidden.
++      if (!hidden || pseudoClass === "::-webkit-resizer") copyBy(pseudoClass);
++    }
++  }
+ }
+ 
+ const excludeParentNodes = /* @__PURE__ */ new Set([
+@@ -940,13 +950,18 @@ function restoreScrollPosition(node, chlidCloned) {
+     return;
+   }
+   const { transform } = chlidCloned.style;
+-  const matrix = new DOMMatrix(transform);
++  // Chrome 53 exposes WebKitCSSMatrix, but not DOMMatrix. Keep the fallback
++  // local: clone/default-style documents can have different realm prototypes.
++  let matrix = typeof DOMMatrix === "function" ? new DOMMatrix(transform) : new WebKitCSSMatrix(transform);
+   const { a, b, c, d } = matrix;
+   matrix.a = 1;
+   matrix.b = 0;
+   matrix.c = 0;
+   matrix.d = 1;
+-  matrix.translateSelf(-scrollLeft, -scrollTop);
++  if (typeof matrix.translateSelf === "function")
++    matrix.translateSelf(-scrollLeft, -scrollTop);
++  else
++    matrix = matrix.translate(-scrollLeft, -scrollTop);
+   matrix.a = a;
+   matrix.b = b;
+   matrix.c = c;
+@@ -978,7 +993,7 @@ async function cloneNode(node, context, isRoot = false, addWordToFontFamilies) {
+   if (ownerDocument && ownerWindow && isElementNode(node) && (isHTMLElementNode(node) || isSVGElementNode(node))) {
+     const cloned2 = await cloneElement(node, context);
+     if (context.isEnable("removeAbnormalAttributes")) {
+-      const names = cloned2.getAttributeNames();
++      const names = Array.from(cloned2.attributes, (attribute) => attribute.name);
+       for (let len = names.length, i = 0; i < len; i++) {
+         const name = names[i];
+         if (!NORMAL_ATTRIBUTE_RE.test(name)) {
+@@ -1550,7 +1565,7 @@ function createForeignObjectSvg(clone, context) {
+   foreignObject.setAttributeNS(null, "y", "0%");
+   foreignObject.setAttributeNS(null, "width", "100%");
+   foreignObject.setAttributeNS(null, "height", "100%");
+-  foreignObject.append(clone);
++  foreignObject.appendChild(clone);
+   svg.appendChild(foreignObject);
+   return svg;
+ }
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 4ebba57d5736e55f55f569e182635de71bcd26c0..67359fcb707e9998591e3edac6e36e5ac564bcfb 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -847,9 +847,12 @@ function copyPseudoClass(node, cloned, copyScrollbar, context, addWordToFontFami
+   function copyBy(pseudoClass) {
+     const computedStyle = ownerWindow.getComputedStyle(node, pseudoClass);
+     let content = computedStyle.getPropertyValue("content");
+-    if (!content || content === "none")
++    // Generated pseudos need content; native scrollbar parts do not. Legacy
++    // webOS reports empty content even when display:none or custom paint applies.
++    const generated = pseudoClasses.includes(pseudoClass);
++    if (generated && (!content || content === "none"))
+       return;
+-    addWordToFontFamilies?.(content);
++    if (generated) addWordToFontFamilies?.(content);
+     content = content.replace(/(')|(")|(counter\(.+\))/g, "");
+     const klasses = [uuid()];
+     const defaultStyle = getDefaultStyle(node, pseudoClass, context);
+@@ -862,13 +865,13 @@ function copyPseudoClass(node, cloned, copyScrollbar, context, addWordToFontFami
+     if (style.get("background-clip")?.[0] === "text") {
+       cloned.classList.add("______background-clip--text");
+     }
+-    const cloneStyle = [
++    const cloneStyle = generated ? [
+       `content: '${content}';`
+-    ];
++    ] : [];
+     style.forEach(([value, priority], name) => {
+       cloneStyle.push(`${name}: ${value}${priority ? " !important" : ""};`);
+     });
+-    if (cloneStyle.length === 1)
++    if (cloneStyle.length === 0 || generated && cloneStyle.length === 1)
+       return;
+     try {
+       cloned.className = [cloned.className, ...klasses].join(" ");
+@@ -883,10 +886,17 @@ function copyPseudoClass(node, cloned, copyScrollbar, context, addWordToFontFami
+       svgStyles.set(cssText, allClasses);
+     }
+     allClasses.push(`.${klasses[0]}${pseudoClass}`);
++    return computedStyle.getPropertyValue("display") === "none";
+   }
+   pseudoClasses.forEach(copyBy);
+-  if (copyScrollbar)
+-    scrollbarPseudoClasses.forEach(copyBy);
++  if (copyScrollbar) {
++    const hidden = copyBy(scrollbarPseudoClasses[0]);
++    for (let index = 1; index < scrollbarPseudoClasses.length; index++) {
++      const pseudoClass = scrollbarPseudoClasses[index];
++      // A resize handle can remain visible even when the scrollbar is hidden.
++      if (!hidden || pseudoClass === "::-webkit-resizer") copyBy(pseudoClass);
++    }
++  }
+ }
+ 
+ const excludeParentNodes = /* @__PURE__ */ new Set([
+@@ -938,13 +948,18 @@ function restoreScrollPosition(node, chlidCloned) {
+     return;
+   }
+   const { transform } = chlidCloned.style;
+-  const matrix = new DOMMatrix(transform);
++  // Chrome 53 exposes WebKitCSSMatrix, but not DOMMatrix. Keep the fallback
++  // local: clone/default-style documents can have different realm prototypes.
++  let matrix = typeof DOMMatrix === "function" ? new DOMMatrix(transform) : new WebKitCSSMatrix(transform);
+   const { a, b, c, d } = matrix;
+   matrix.a = 1;
+   matrix.b = 0;
+   matrix.c = 0;
+   matrix.d = 1;
+-  matrix.translateSelf(-scrollLeft, -scrollTop);
++  if (typeof matrix.translateSelf === "function")
++    matrix.translateSelf(-scrollLeft, -scrollTop);
++  else
++    matrix = matrix.translate(-scrollLeft, -scrollTop);
+   matrix.a = a;
+   matrix.b = b;
+   matrix.c = c;
+@@ -976,7 +991,7 @@ async function cloneNode(node, context, isRoot = false, addWordToFontFamilies) {
+   if (ownerDocument && ownerWindow && isElementNode(node) && (isHTMLElementNode(node) || isSVGElementNode(node))) {
+     const cloned2 = await cloneElement(node, context);
+     if (context.isEnable("removeAbnormalAttributes")) {
+-      const names = cloned2.getAttributeNames();
++      const names = Array.from(cloned2.attributes, (attribute) => attribute.name);
+       for (let len = names.length, i = 0; i < len; i++) {
+         const name = names[i];
+         if (!NORMAL_ATTRIBUTE_RE.test(name)) {
+@@ -1548,7 +1563,7 @@ function createForeignObjectSvg(clone, context) {
+   foreignObject.setAttributeNS(null, "y", "0%");
+   foreignObject.setAttributeNS(null, "width", "100%");
+   foreignObject.setAttributeNS(null, "height", "100%");
+-  foreignObject.append(clone);
++  foreignObject.appendChild(clone);
+   svg.appendChild(foreignObject);
+   return svg;
+ }

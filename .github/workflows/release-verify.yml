@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 ScriptX
+name: release-verify
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to verify (default: whatever Package.binary.swift declares)'
+        required: false
+        type: string
+      allow_unpublished:
+        description: 'Downgrade "release not published" to a warning (feature-branch use only)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  binary-checksums:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag name must match the manifest's binaryVersion
+        if: github.ref_type == 'tag'
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST_VERSION=$(awk -F'"' '/^let binaryVersion =/ { print $2; exit }' \
+            packages/sdk-ios/Package.binary.swift)
+          echo "tag=${TAG} manifest=${MANIFEST_VERSION}"
+          if [ "${TAG}" != "${MANIFEST_VERSION}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match Package.binary.swift binaryVersion ${MANIFEST_VERSION}"
+            exit 1
+          fi
+      - name: Verify Package.binary.swift checksums against published artifacts
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ -n "${{ inputs.version }}" ]; then
+            ARGS+=(--version "${{ inputs.version }}")
+          fi
+          if [ "${{ inputs.allow_unpublished }}" = "true" ]; then
+            ARGS+=(--allow-unpublished)
+          fi
+          packages/sdk-ios/scripts/verify-binary-checksums.sh ${ARGS[@]+"${ARGS[@]}"}

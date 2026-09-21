@@ -1,0 +1,18 @@
+/* SPDX-License-Identifier: MIT */
+/* SPDX-FileCopyrightText: 2026 ScriptX */
+/*
+ * Served from public/, not imported: a /src/*.css request would be
+ * transformed into a JS module by Vite dev, so a <link> to it would not
+ * apply styles, and importing it from strict-csp.ts would inject a runtime
+ * <style> tag into the very document.head this fixture's spec measures.
+ * Files under public/ are served byte-for-byte in dev and copied as-is on
+ * build, so this stays a plain 'self'-served stylesheet either way.
+ *
+ * Subset of examples/vue-web/src/styles.css needed by strict-csp.html.
+ */
+body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e8ee; }
+.shell { padding: 32px; display: grid; gap: 16px; max-width: 860px; margin: 0 auto; }
+.card { background: #171a23; border: 1px solid #2a2e3a; border-radius: 10px; padding: 20px; }
+.report-fab { position: fixed; right: 24px; bottom: 24px; padding: 12px 18px; border-radius: 999px;
+  border: 1px solid #2a2e3a; background: #1d2230; color: #e6e8ee; cursor: pointer; }
+.pii-value { font-family: ui-monospace, monospace; }

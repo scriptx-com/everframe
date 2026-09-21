@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "relay.v1",
+  "messages": [
+    {
+      "type": "pair.created",
+      "pair_id": "pair_abc",
+      "pair_token": "tok_placeholder_43_chars_base64url____________"
+    },
+    {
+      "type": "pair.bonded",
+      "pair_id": "pair_abc",
+      "device_token": "dev_placeholder_43_chars_base64url___________",
+      "device_token_expires_at": "2026-06-01T00:00:00.000Z"
+    },
+    {
+      "type": "pair.expired",
+      "pair_id": "pair_abc",
+      "reason": "inactivity"
+    },
+    {
+      "type": "report.request",
+      "correlation_id": "corr_001"
+    },
+    {
+      "type": "report.assembled",
+      "correlation_id": "corr_001",
+      "mime": "image/png",
+      "size": 123456,
+      "toggles": {
+        "logs": true,
+        "network": true,
+        "uiTree": true,
+        "metadata": true,
+        "screenshot": true
+      },
+      "counts": {
+        "logs": 12,
+        "network": 5,
+        "uiTreeNodes": 87
+      }
+    },
+    {
+      "type": "report.draft.update",
+      "correlation_id": "corr_001",
+      "title": "Login screen crash",
+      "description_partial": {
+        "text": "Tapping Submit triggers a crash.",
+        "redactions": [
+          { "start": 0, "end": 7 }
+        ]
+      }
+    },
+    {
+      "type": "report.submit",
+      "correlation_id": "corr_001",
+      "title": "Login screen crash",
+      "description": {
+        "text": "Tapping Submit triggers a crash.",
+        "redactions": [
+          { "start": 0, "end": 7 }
+        ]
+      },
+      "annotations": [
+        {
+          "kind": "stroke",
+          "points": [[10, 20], [30, 40], [50, 60]],
+          "color": "#ff0000",
+          "strokeWidth": 4
+        },
+        {
+          "kind": "blur",
+          "rect": { "x": 100, "y": 200, "w": 80, "h": 24 }
+        }
+      ],
+      "includes": {
+        "logs": true,
+        "network": true,
+        "uiTree": false,
+        "metadata": true,
+        "screenshot": true
+      }
+    },
+    {
+      "type": "report.completed",
+      "correlation_id": "corr_001",
+      "event_id": "evt_001"
+    },
+    {
+      "type": "report.failed",
+      "correlation_id": "corr_001",
+      "reason": "upstream_5xx"
+    },
+    {
+      "type": "report.rejected",
+      "reason": "in_flight"
+    }
+  ]
+}
