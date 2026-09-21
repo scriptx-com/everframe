@@ -31,7 +31,8 @@ privacy controls, platform support, and current limitations.
   envelope shared by every SDK and provides the generated JSON Schema used by
   the native implementations.
 - [`@traceitx/sdk-core`](packages/sdk-core/README.md) contains the platform-independent
-  TypeScript reporting runtime used by the web integrations.
+  TypeScript reporting runtime and utilities shared by the Web, React, and React
+  Native SDKs.
 - The [Babel](packages/babel-plugin-displayname) and
   [SWC](packages/swc-plugin-displayname) plugins preserve React component names
   in optimized builds.
