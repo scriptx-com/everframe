@@ -210,51 +210,59 @@ class ReplaySessionGenerationRaceTest {
             val holderThread = Thread {
                 NetworkBodyCaptureState.__holdLockForTesting {
                     lockAcquired.countDown()
-                    releaseLock.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                    // The held lock defines the interleaving under test. A
+                    // timed wait can silently release it on a loaded runner
+                    // and turn the setup into a different race. The finally
+                    // block below always releases this latch.
+                    releaseLock.await()
                 }
             }
             holderThread.start()
-            assertTrue(
-                "lock-holder thread never acquired NetworkBodyCaptureState's lock",
-                lockAcquired.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS),
-            )
+            try {
+                assertTrue(
+                    "lock-holder thread never acquired NetworkBodyCaptureState's lock",
+                    lockAcquired.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS),
+                )
 
-            val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
-                "networkBodies":{"captureBodies":true}}"""
-            val fetcher = ConfigFetcher { response(200, onBody) }
-            val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
-            val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+                val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
+                    "networkBodies":{"captureBodies":true}}"""
+                val fetcher = ConfigFetcher { response(200, onBody) }
+                val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
+                val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
 
-            // Mirrors enableIfConfigured()'s initial fetch — hops to the
-            // REAL Dispatchers.IO inside provider.refresh(), so this
-            // genuinely blocks on the externally-held NetworkBodyCaptureState
-            // lock below on a separate OS thread, same rationale as the test
-            // above.
-            val refreshJob = launch { session.refreshConfigNow() }
+                // Mirrors enableIfConfigured()'s initial fetch — hops to the
+                // REAL Dispatchers.IO inside provider.refresh(), so this
+                // genuinely blocks on the externally-held NetworkBodyCaptureState
+                // lock below on a separate OS thread, same rationale as the test
+                // above.
+                val refreshJob = launch { session.refreshConfigNow() }
 
-            val deadline = System.currentTimeMillis() + COORDINATION_TIMEOUT_MS
-            while (!NetworkBodyCaptureState.__hasQueuedThreadsForTesting() && System.currentTimeMillis() < deadline) {
-                Thread.sleep(5)
+                val deadline = System.currentTimeMillis() + COORDINATION_TIMEOUT_MS
+                while (!NetworkBodyCaptureState.__hasQueuedThreadsForTesting() && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(5)
+                }
+                assertTrue(
+                    "refresh never blocked on NetworkBodyCaptureState's own lock — test setup is wrong, not exercising the race",
+                    NetworkBodyCaptureState.__hasQueuedThreadsForTesting(),
+                )
+
+                // teardown() must be able to proceed RIGHT NOW even though the
+                // refresh is blocked above — sessionLock is never held across a
+                // buffer's own lock.
+                session.teardown()
+
+                releaseLock.countDown()
+                refreshJob.join()
+
+                assertFalse(
+                    "teardown() racing a refresh blocked on NetworkBodyCaptureState's OWN lock must still " +
+                        "prevent isActive from becoming true",
+                    NetworkBodyCaptureState.isActive,
+                )
+            } finally {
+                releaseLock.countDown()
+                holderThread.join()
             }
-            assertTrue(
-                "refresh never blocked on NetworkBodyCaptureState's own lock — test setup is wrong, not exercising the race",
-                NetworkBodyCaptureState.__hasQueuedThreadsForTesting(),
-            )
-
-            // teardown() must be able to proceed RIGHT NOW even though the
-            // refresh is blocked above — sessionLock is never held across a
-            // buffer's own lock.
-            session.teardown()
-
-            releaseLock.countDown()
-            refreshJob.join()
-            holderThread.join(COORDINATION_TIMEOUT_MS)
-
-            assertFalse(
-                "teardown() racing a refresh blocked on NetworkBodyCaptureState's OWN lock must still " +
-                    "prevent isActive from becoming true",
-                NetworkBodyCaptureState.isActive,
-            )
         }
 
     // Round-1 review, Critical 1 (Report Resource Window, spec 2026-09-05):
