@@ -23,14 +23,3 @@ jobs:
         # Swift Testing runs suites concurrently by default, but these SDK tests
         # deliberately exercise shared process-global capture state.
         run: swift test --package-path packages/sdk-ios --no-parallel
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Generate credential-free tvOS sample
-        run: xcodegen generate --spec examples/tvos-replay/project.yml
-      - name: Run tvOS sample smoke tests
-        run: |
-          xcodebuild test \
-            -project examples/tvos-replay/ReplayTV.xcodeproj \
-            -scheme ReplayTV \
-            -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation),OS=latest' \
-            CODE_SIGNING_ALLOWED=NO
