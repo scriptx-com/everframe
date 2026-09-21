@@ -80,10 +80,23 @@ final class RemoteRailTests: XCTestCase {
         XCTAssertTrue(app.cells["poster-0-7"].hasFocus)
         XCUIRemote.shared.press(.down)
         XCTAssertFalse(app.cells["poster-0-7"].hasFocus)
-        XCTAssertTrue(app.cells.matching(NSPredicate(format: "identifier BEGINSWITH 'poster-1-' AND hasFocus == true")).firstMatch.exists)
+        let secondRail = app.cells.matching(NSPredicate(format: "identifier BEGINSWITH 'poster-1-'"))
+        guard waitForFocus(in: secondRail, timeout: 10) else {
+            XCTFail("focus did not move to the second rail")
+            return
+        }
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "tvOS-native-rail-focus"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func waitForFocus(in query: XCUIElementQuery, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if query.allElementsBoundByIndex.contains(where: { $0.hasFocus }) { return true }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        return false
     }
 }
