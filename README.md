@@ -3,57 +3,147 @@
 
 # TraceItX SDKs
 
-Public source, examples, and release artifacts for the TraceItX reporting and
-session-evidence SDKs.
+The open-source home of the TraceItX reporting SDKs, shared protocol and SDK
+core, developer tooling, and sample applications.
 
-## Packages
+[TraceItX](https://traceitx.com) helps users report problems from inside an
+application with the context needed to reproduce them: screenshots and
+annotations, session evidence, breadcrumbs, device and application metadata,
+and captured errors.
 
-- `@traceitx/web`
-- `@traceitx/react`
-- `@traceitx/react-native`
-- Android SDK
-- Apple SDK for iOS and tvOS
-- Shared protocol, SDK core, identity helper, and display-name tooling
+## Choose an SDK
 
-Customer-facing sample applications live in [`examples`](examples). The tvOS
-sample includes a credential-free remote-focus smoke test.
+| Platform | SDK | Documentation | Examples |
+| --- | --- | --- | --- |
+| Web and framework-agnostic JavaScript | [`@traceitx/web`](https://www.npmjs.com/package/@traceitx/web) | [Web SDK](packages/sdk-web/README.md) | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester) |
+| React | [`@traceitx/react`](https://www.npmjs.com/package/@traceitx/react) | [React SDK](packages/sdk-react/README.md) | [React web](examples/react-web) |
+| React Native, Apple TV, and Android TV | [`@traceitx/react-native`](https://www.npmjs.com/package/@traceitx/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample) |
+| Android and Android TV | `com.traceitx` Maven modules | [Android SDK](packages/sdk-android/android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
+| iOS, iPadOS, and tvOS | `TraceItX` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
+| Server-side identity | [`@traceitx/identity`](https://www.npmjs.com/package/@traceitx/identity) | [Identity helper](packages/identity/README.md) | Runtime-specific recipes are included in the package documentation |
 
-## Development
+Each SDK README is the canonical guide for installation, configuration,
+privacy controls, platform support, and current limitations.
 
-Requirements vary by platform. JavaScript development requires Node 22 and
-pnpm 9. Android development requires a compatible JDK and Android SDK. Apple
-development requires Xcode.
+## Shared packages and tooling
+
+- [`@traceitx/protocol`](packages/protocol) defines the versioned report
+  envelope shared by every SDK and provides the generated JSON Schema used by
+  the native implementations.
+- [`@traceitx/sdk-core`](packages/sdk-core) contains the platform-independent
+  TypeScript reporting runtime used by the web integrations.
+- The [Babel](packages/babel-plugin-displayname) and
+  [SWC](packages/swc-plugin-displayname) plugins preserve React component names
+  in optimized builds.
+- [`packages/sdk-android`](packages/sdk-android) and
+  [`packages/sdk-ios`](packages/sdk-ios) contain the native SDK source,
+  platform tests, and publication tooling.
+
+## Using the SDKs
+
+Install the package for your application and follow its platform guide. For
+JavaScript projects, for example:
 
 ```sh
-corepack enable
-pnpm install --frozen-lockfile
-pnpm check:boundary
-pnpm build
-pnpm test
-pnpm typecheck
+pnpm add @traceitx/web
+# or
+pnpm add @traceitx/react
+# or
+pnpm add @traceitx/react-native
 ```
 
-To run examples against your own TraceItX project:
+The Android SDK is distributed as `com.traceitx` Maven modules through GitHub
+Packages. Tagged Apple releases can be consumed with Swift Package Manager
+from this repository. Their documentation contains the current coordinates,
+products, and setup instructions.
+
+## Examples
+
+The [`examples`](examples) directory contains runnable hosts for the supported
+platforms and integration styles:
+
+| Example | Demonstrates |
+| --- | --- |
+| [`react-web`](examples/react-web) | React web integration and SSR/CSP fixtures |
+| [`vue-web`](examples/vue-web) | Framework-agnostic SDK integration from Vue |
+| [`smarttv-tester`](examples/smarttv-tester) | Browser-based Smart TV behavior |
+| [`react-native`](examples/react-native) | React Native bridge integration |
+| [`react-tv-sample`](examples/react-tv-sample) | React Native TV host integration |
+| [`android-compose`](examples/android-compose) | Native Android with Jetpack Compose |
+| [`android-views`](examples/android-views) | Native Android with the Views system |
+| [`ios-native`](examples/ios-native) | Native iOS integration |
+| [`tvos-replay`](examples/tvos-replay) | Credential-free tvOS replay and remote-focus smoke testing |
+
+Examples that connect to TraceItX read development credentials from generated,
+ignored configuration. Start from the checked-in template:
 
 ```sh
 cp .env.example .env
 ```
 
-Fill only the SDK keys needed by the examples you run. `.env` and generated
-platform configuration files are ignored by Git.
+Fill only the values required by the example you are running. Never commit SDK
+keys, identity secrets, generated platform configuration, or production data.
 
-## Apple binary releases
+## Contributing
 
-The repository root [`Package.swift`](Package.swift) remains the binary SwiftPM
-manifest used by tagged releases. Source development uses
+JavaScript development requires Node.js 22 and pnpm 9.15. Android development
+also requires a compatible JDK and Android SDK; Apple development requires
+Xcode.
+
+```sh
+git clone https://github.com/scriptx-com/traceitx-releases.git
+cd traceitx-releases
+corepack enable
+pnpm install --frozen-lockfile
+```
+
+Run the same JavaScript workspace checks used by CI:
+
+```sh
+pnpm test:boundary
+pnpm check:boundary
+pnpm build:packages
+pnpm test:packages
+pnpm typecheck:packages
+pnpm build:examples
+pnpm test:examples
+pnpm typecheck:examples
+pnpm check:publish
+```
+
+Run native checks from their platform projects:
+
+```sh
+# Android
+cd packages/sdk-android/android
+./gradlew test assembleRelease
+
+# Apple, from the repository root
+TRACEITX_DEV_INGEST_URL=http://127.0.0.1:9 \
+  swift test --package-path packages/sdk-ios
+```
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and licensing rules.
+
+## Releases
+
+JavaScript packages are published to npm, Android artifacts are published as
+Maven packages, and tagged Apple releases provide binary XCFrameworks for
+Swift Package Manager consumers.
+
+The root [`Package.swift`](Package.swift) is the binary manifest used by Apple
+SDK consumers. Source development and tests use
 [`packages/sdk-ios/Package.swift`](packages/sdk-ios/Package.swift).
 
 ## Security
 
-Never commit credentials or production SDK keys. See [`SECURITY.md`](SECURITY.md)
-for reporting instructions and the repository publication gates.
+Please report vulnerabilities privately as described in
+[`SECURITY.md`](SECURITY.md). The repository's publication gates check the
+allowed public file boundary, SPDX metadata, committed content, and Git history
+before release.
 
 ## License
 
-ScriptX-owned source is available under the MIT License. Bundled upstream files
-retain their original licenses; see `LICENSES` and `.reuse/dep5`.
+ScriptX-owned source is available under the [MIT License](LICENSE). Bundled
+upstream files retain their original licenses; see [`LICENSES`](LICENSES) and
+[`REUSE.toml`](REUSE.toml).
