@@ -49,15 +49,13 @@ test('CI runs public boundary, license, secret, JavaScript, and Android gates', 
   assert.match(workflow, /verify-android-publication\.sh/);
 });
 
-test('Apple CI covers SwiftPM and the credential-free tvOS sample only', () => {
+test('Apple CI runs serialized SwiftPM unit tests only', () => {
   const workflow = read('.github/workflows/apple.yml');
 
   assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
-  assert.match(workflow, /swift test --package-path packages\/sdk-ios/);
+  assert.match(workflow, /swift test --package-path packages\/sdk-ios --no-parallel/);
   assert.match(workflow, /TRACEITX_DEV_INGEST_URL: http:\/\/127\.0\.0\.1:9/);
-  assert.match(workflow, /xcodegen generate --spec examples\/tvos-replay\/project\.yml/);
-  assert.match(workflow, /xcodebuild test/);
-  assert.match(workflow, /-scheme ReplayTV/);
+  assert.doesNotMatch(workflow, /xcodegen|xcodebuild|ReplayTV/);
   assert.doesNotMatch(workflow, /admin|TRACEITX_ADMIN|drive-xctest|benchmark-runner|dashboard/i);
 });
 
