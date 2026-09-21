@@ -216,6 +216,10 @@ final class RecordingHTTPServer: @unchecked Sendable {
         if stopped { lock.unlock(); return }
         stopped = true
         lock.unlock()
-        close(listenFD)  // unblocks acceptLoop
+        // Closing a descriptor from another thread does not reliably wake a
+        // blocking accept(). Shut the socket down first so the detached accept
+        // loop exits instead of surviving into a later test after port reuse.
+        shutdown(listenFD, SHUT_RDWR)
+        close(listenFD)
     }
 }
