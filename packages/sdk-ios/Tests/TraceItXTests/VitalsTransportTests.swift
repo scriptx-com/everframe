@@ -294,8 +294,13 @@ final class VitalsTransportTests: XCTestCase {
     func testFinishSuppressesRetriesAndLaterSendsAndStillClosesAfterItsTimeout() {
         VitalsStubProtocol.outcomes = [.status(503)]
         let t = transport(retryDelayMs: 100)
-        t.send(Data("x".utf8)); waitForRequests(1)
-        t.finish(timeoutMs: 50)
+        let finishStarted = expectation(description: "finish seals the transport before the 503 is delivered")
+        VitalsStubProtocol.onRequest = { [weak t] in
+            t?.finish(timeoutMs: 50)
+            finishStarted.fulfill()
+        }
+        t.send(Data("x".utf8))
+        wait(for: [finishStarted], timeout: 3)
         settle(0.5)
         XCTAssertEqual(VitalsStubProtocol.requests.count, 1, "the 5xx retry is suppressed, not awaited")
         t.send(Data("y".utf8)); settle(0.2)
