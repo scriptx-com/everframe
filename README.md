@@ -18,7 +18,7 @@ and captured errors.
 | Web and framework-agnostic JavaScript | [`@traceitx/web`](https://www.npmjs.com/package/@traceitx/web) | [Web SDK](packages/sdk-web/README.md) | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester) |
 | React | [`@traceitx/react`](https://www.npmjs.com/package/@traceitx/react) | [React SDK](packages/sdk-react/README.md) | [React web](examples/react-web) |
 | React Native, Apple TV, and Android TV | [`@traceitx/react-native`](https://www.npmjs.com/package/@traceitx/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample) |
-| Android and Android TV | `com.traceitx` Maven modules | [Android SDK](packages/sdk-android/android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
+| Android and Android TV | `com.traceitx` Maven modules | [Android SDK](packages/sdk-android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
 | iOS, iPadOS, and tvOS | `TraceItX` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
 | Server-side identity | [`@traceitx/identity`](https://www.npmjs.com/package/@traceitx/identity) | [Identity helper](packages/identity/README.md) | Runtime-specific recipes are included in the package documentation |
 
@@ -27,10 +27,10 @@ privacy controls, platform support, and current limitations.
 
 ## Shared packages and tooling
 
-- [`@traceitx/protocol`](packages/protocol) defines the versioned report
+- [`@traceitx/protocol`](packages/protocol/README.md) defines the versioned report
   envelope shared by every SDK and provides the generated JSON Schema used by
   the native implementations.
-- [`@traceitx/sdk-core`](packages/sdk-core) contains the platform-independent
+- [`@traceitx/sdk-core`](packages/sdk-core/README.md) contains the platform-independent
   TypeScript reporting runtime used by the web integrations.
 - The [Babel](packages/babel-plugin-displayname) and
   [SWC](packages/swc-plugin-displayname) plugins preserve React component names
