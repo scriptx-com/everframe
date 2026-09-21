@@ -32,10 +32,16 @@ final class RemoteRailTests: XCTestCase {
         let seconds = try XCTUnwrap(Double(env["REPLAY_RUN_SECONDS"] ?? "75"))
         XCTAssertTrue((15...120).contains(seconds))
         let deadline = Date().addingTimeInterval(seconds)
-        let pattern: [XCUIRemote.Button] = Array(repeating: .right, count: 8) + [.down]
-            + Array(repeating: .left, count: 8) + [.down]
-            + Array(repeating: .right, count: 8) + [.up]
-            + Array(repeating: .left, count: 8) + [.up]
+        var pattern: [XCUIRemote.Button] = []
+        pattern.reserveCapacity(36)
+        pattern.append(contentsOf: repeatElement(.right, count: 8))
+        pattern.append(.down)
+        pattern.append(contentsOf: repeatElement(.left, count: 8))
+        pattern.append(.down)
+        pattern.append(contentsOf: repeatElement(.right, count: 8))
+        pattern.append(.up)
+        pattern.append(contentsOf: repeatElement(.left, count: 8))
+        pattern.append(.up)
         var keys = 0
         while Date() < deadline {
             XCUIRemote.shared.press(pattern[keys % pattern.count])
