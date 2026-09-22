@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+# Copyright 2026 ScriptX
+[target.'cfg(target_arch = "wasm32")']
+rustflags = ["--cfg=swc_ast_unknown"]

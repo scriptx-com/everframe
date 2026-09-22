@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!-- R.id.tx_sensitive — single resource ID used as a View tag key by all
+     sensitive-marker surfaces (TXSensitiveView, View.tag(), XML attr resolver).
+     SensitiveRectRegistry.isSensitive() reads view.getTag(R.id.tx_sensitive). -->
+<resources>
+    <item name="tx_sensitive" type="id" />
+</resources>

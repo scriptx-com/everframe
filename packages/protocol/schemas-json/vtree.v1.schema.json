@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "traceitx-vtree-v1"
+    },
+    "viewport": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "scale"
+      ],
+      "additionalProperties": false
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "number"
+          },
+          "ops": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "set"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "frame": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "w": {
+                          "type": "number"
+                        },
+                        "h": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "w",
+                        "h"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "bg": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "alpha": {
+                      "type": "number"
+                    },
+                    "cornerRadius": {
+                      "type": "number"
+                    },
+                    "fontSize": {
+                      "type": "number"
+                    },
+                    "textColor": {
+                      "type": "string"
+                    },
+                    "borderWidth": {
+                      "type": "number"
+                    },
+                    "borderColor": {
+                      "type": "string"
+                    },
+                    "textAlign": {
+                      "type": "string",
+                      "enum": [
+                        "left",
+                        "center",
+                        "right"
+                      ]
+                    },
+                    "fontWeight": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1000
+                    },
+                    "imageRef": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "VOpSet"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "add"
+                    },
+                    "parent": {
+                      "type": "string"
+                    },
+                    "index": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "node": {
+                      "$ref": "VNode"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "parent",
+                    "index",
+                    "node"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "VOpAdd"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "remove"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "$id": "VOpRemove"
+                }
+              ],
+              "$id": "VOp"
+            }
+          }
+        },
+        "required": [
+          "timestamp",
+          "ops"
+        ],
+        "additionalProperties": false,
+        "$id": "VFrame"
+      }
+    },
+    "originEpochMs": {
+      "type": "number"
+    },
+    "assets": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "mime": {
+            "type": "string",
+            "enum": [
+              "image/webp",
+              "image/jpeg",
+              "image/png"
+            ]
+          },
+          "w": {
+            "type": "number"
+          },
+          "h": {
+            "type": "number"
+          },
+          "b64": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mime",
+          "w",
+          "h",
+          "b64"
+        ],
+        "additionalProperties": false,
+        "$id": "VAsset"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "viewport",
+    "frames"
+  ],
+  "additionalProperties": false,
+  "$id": "VTreeTimeline",
+  "$defs": {
+    "__schema0": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "view",
+            "text",
+            "image",
+            "input",
+            "button",
+            "scroll",
+            "list-item"
+          ]
+        },
+        "frame": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        },
+        "bg": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "masked": {
+          "type": "boolean"
+        },
+        "alpha": {
+          "type": "number"
+        },
+        "cornerRadius": {
+          "type": "number"
+        },
+        "fontSize": {
+          "type": "number"
+        },
+        "textColor": {
+          "type": "string"
+        },
+        "textAlign": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "fontWeight": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "borderWidth": {
+          "type": "number"
+        },
+        "borderColor": {
+          "type": "string"
+        },
+        "imageRef": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "VNode"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "frame",
+        "children"
+      ],
+      "additionalProperties": false,
+      "$id": "VNode"
+    }
+  }
+}

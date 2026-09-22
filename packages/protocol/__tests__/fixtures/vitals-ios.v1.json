@@ -1,0 +1,75 @@
+{
+  "chunk": {
+    "kind": "chunk",
+    "sessionId": "0f0e5b2a-6a1e-4c8b-9d3f-2b7c1a9e4d10",
+    "seq": 3,
+    "entries": [
+      { "kind": "sample", "t": 1757000000000, "cpu": 0.42, "mem": 183500800, "extras": { "availableMemory": 1073741824, "thermalState": 1 } },
+      { "kind": "sample", "t": 1757000020000, "mem": 190000000 },
+      { "kind": "player", "t": 1757000001000, "type": "player_attach", "playerId": "p1", "data": { "name": "main", "tag": "video", "library": "avplayer", "libraryVersion": "18.5" } },
+      { "kind": "player", "t": 1757000001100, "type": "source_change", "playerId": "p1", "data": { "src": "https://cdn.example.com/live/master.m3u8", "protocol": "hls", "live": true } },
+      { "kind": "player", "t": 1757000002400, "type": "startup", "playerId": "p1", "data": { "ttffMs": 1300, "accessLogStartupMs": 1210 } },
+      { "kind": "player", "t": 1757000002400, "type": "drm", "playerId": "p1", "data": { "keySystem": "fairplay" } },
+      { "kind": "player", "t": 1757000002500, "type": "play", "playerId": "p1" },
+      { "kind": "player", "t": 1757000005000, "type": "bitrate_change", "playerId": "p1", "data": { "bitrate": 2800000, "width": 1280, "height": 720, "reason": "abr" } },
+      { "kind": "player", "t": 1757000009000, "type": "buffer_start", "playerId": "p1" },
+      { "kind": "player", "t": 1757000009800, "type": "buffer_end", "playerId": "p1", "data": { "durationMs": 800 } },
+      { "kind": "player", "t": 1757000012000, "type": "seek", "playerId": "p1", "data": { "fromMs": 9800, "toMs": 60000 } },
+      { "kind": "player", "t": 1757000013000, "type": "rate_change", "playerId": "p1", "data": { "rate": 1.5 } },
+      { "kind": "player", "t": 1757000014000, "type": "quality_change", "playerId": "p1", "data": { "width": 1920, "height": 1080 } },
+      { "kind": "player", "t": 1757000020000, "type": "stats", "playerId": "p1", "data": { "bufferAheadMs": 12400, "bandwidthEstimate": 5200000, "bitrate": 2800000, "width": 1280, "height": 720, "droppedFrames": 2 } },
+      { "kind": "player", "t": 1757000021000, "type": "error", "playerId": "p1", "data": { "message": "Source error", "code": "CoreMediaErrorDomain:-12889", "fatal": false, "detail": "CoreMediaErrorDomain cdn.example.com" } },
+      { "kind": "player", "t": 1757000022000, "type": "pause", "playerId": "p1" },
+      { "kind": "player", "t": 1757000023000, "type": "player_detach", "playerId": "p1" },
+      { "kind": "custom", "t": 1757000015000, "name": "ad_break", "data": { "position": "midroll", "adCount": 2 }, "playerId": "p1" },
+      { "kind": "custom", "t": 1757000016000, "name": "cdn_switch", "data": { "truncated": true, "preview": "{\"from\":\"cdn-a\"" }, "truncated": true }
+    ]
+  },
+  "summary": {
+    "kind": "summary",
+    "sessionId": "0f0e5b2a-6a1e-4c8b-9d3f-2b7c1a9e4d10",
+    "final": false,
+    "seq": 1,
+    "startedAt": 1757000000000,
+    "durationMs": 23000,
+    "playtimeMs": 19500,
+    "startupTimeMs": 1300,
+    "rebufferCount": 1,
+    "rebufferDurationMs": 800,
+    "bitrateMean": 2800000,
+    "errorCount": 1,
+    "memPeak": 190000000,
+    "memAvg": 186750400,
+    "playerCount": 1,
+    "playerCountSaturated": false,
+    "dims": { "platform": "ios", "appVersion": "1.4.2", "sdkVersion": "0.7.0", "deviceModel": "iPhone16,1", "osVersion": "18.5.0" }
+  },
+  "summaryNulls": {
+    "kind": "summary",
+    "sessionId": "5a2d9c11-0b6e-4f7a-8c3d-1e2f3a4b5c6d",
+    "final": true,
+    "seq": 0,
+    "startedAt": 1757000000000,
+    "durationMs": 0,
+    "playtimeMs": 0,
+    "startupTimeMs": null,
+    "rebufferCount": 0,
+    "rebufferDurationMs": 0,
+    "bitrateMean": null,
+    "errorCount": 0,
+    "memPeak": 0,
+    "memAvg": 0,
+    "playerCount": 0,
+    "playerCountSaturated": false,
+    "dims": { "platform": "tvos", "appVersion": "1.4.2", "sdkVersion": "0.7.0" }
+  },
+  "numericCustom": {
+    "kind": "chunk",
+    "sessionId": "7c1d4e88-3a52-4b19-8e0d-6f5a2c3b1d04",
+    "seq": 0,
+    "entries": [
+      { "kind": "custom", "t": 1757000030000, "name": "values", "data": [100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000, 100000000000000000000] },
+      { "kind": "custom", "t": 1757000031000, "name": "values_over", "truncated": true, "data": { "preview": "[1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20,1e+20]", "truncated": true } }
+    ]
+  }
+}

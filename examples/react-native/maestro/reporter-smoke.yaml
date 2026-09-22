@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+#
+# Maestro reporter-smoke flow (Plan 06-06 Task 3).
+#
+# Asserts the @traceitx/react-native integration boundary works:
+#   - App launches without crash.
+#   - Host "Open Reporter" button exists and is tappable.
+#   - Provider-rendered <ReporterModal> opens.
+#   - User can title + submit a report.
+#   - Provider transitions to submitted; the host renders the submitted label.
+#
+# Selectors: Maestro's `id:` matches RN `testID` (mapped to
+# iOS accessibilityIdentifier / Android resource-id). The targeted elements in
+# src/App.tsx + src/screens/Home.tsx set both `testID` and
+# `accessibilityLabel` so screen readers and Maestro both work.
+#
+# Cross-tool coexistence (Sentry / Bugsnag / Datadog / New Relic / Crashlytics
+# × URLSession/OkHttp interceptor collisions) is intentionally OUT of this flow.
+# That matrix moves to Phase 7 Hardening, where it's testable as a true matrix
+# rather than via a kitchen-sink dogfood. See 06-VALIDATION.md and the Phase 7
+# ROADMAP entry.
+
+appId: com.traceitx.example
+---
+- launchApp:
+    clearState: true
+
+# 1. The reporter trigger surface exists (proves the provider mounted, the host
+#    rendered, and useTraceItX() resolved a real runtime).
+- assertVisible:
+    id: "open-reporter-button"
+
+# 2. Tap → provider-rendered <ReporterModal> appears. The modal renders the
+#    "Capture preview" header (06-05 ReporterModal copy).
+- tapOn:
+    id: "open-reporter-button"
+- assertVisible: "Capture preview"
+
+# 3. User adds a title and submits.
+- tapOn:
+    id: "reporter-title-input"
+- inputText: "Reporter smoke test"
+- tapOn:
+    id: "reporter-send-button"
+
+# 4. Provider's reporter pipeline transitions to submitted; the host renders
+#    the "submitted" label (auto-clears after ~3s in Home.tsx).
+- assertVisible:
+    id: "submitted"

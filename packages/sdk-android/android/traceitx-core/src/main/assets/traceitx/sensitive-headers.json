@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "description": "Cross-language header allowlist + redact-list. Mirrors the SENSITIVE_HEADERS regex and allowlistedHeaders set used by sdk-core/redaction/engine.ts and the iOS RedactionConfig defaults.",
+  "sensitive_to_redact": [
+    "authorization",
+    "cookie",
+    "set-cookie",
+    "proxy-authorization",
+    "x-api-key"
+  ],
+  "allowed_to_capture": [
+    "content-type",
+    "content-length",
+    "cache-control",
+    "x-request-id",
+    "x-trace-id",
+    "x-correlation-id"
+  ]
+}

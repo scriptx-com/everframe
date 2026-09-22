@@ -1,0 +1,230 @@
+{
+  "__comment": "Parity fixture for traceitx-vtree-v1. Consumed by TS (this repo), Swift (sdk-ios, Phase 22), Kotlin (sdk-android, Phase 23), and the dashboard VTreePlayer (Phase 25). All must decode → re-encode → equal the canonical (sorted-key) JSON. The per-node redaction-strip flag is intentionally absent in v1 (a v2-additive field).",
+  "__semantics": "id is a stable per-node handle, unique within the timeline, persisting across frames; diffing is id-keyed, NEVER index-keyed. children[] order == paint order (LAST child on top — same as find-path-at.json). frame is logical points {x,y,w,h}, top-left origin; viewport.scale carries device density. frame 0 carries the full snapshot; to render frame N apply frames[0..N].ops in order against a mutable copy keyed by id. set = partial-attr patch (absent field == unchanged). add = embedded subtree at insert index. remove = by id.",
+  "timeline": {
+    "version": "traceitx-vtree-v1",
+    "viewport": { "width": 400, "height": 800, "scale": 3 },
+    "frames": [
+      {
+        "timestamp": 0,
+        "ops": [
+          {
+            "op": "add",
+            "parent": "",
+            "index": 0,
+            "node": {
+              "id": "root",
+              "role": "view",
+              "frame": { "x": 0, "y": 0, "w": 400, "h": 800 },
+              "bg": "#0b0b0c",
+              "children": [
+                {
+                  "id": "card",
+                  "role": "view",
+                  "frame": { "x": 20, "y": 80, "w": 360, "h": 200 },
+                  "bg": "#16181d",
+                  "cornerRadius": 12,
+                  "borderWidth": 1,
+                  "borderColor": "#2a2d34",
+                  "children": [
+                    {
+                      "id": "title",
+                      "role": "text",
+                      "frame": { "x": 30, "y": 90, "w": 200, "h": 30 },
+                      "text": "Hello",
+                      "fontSize": 18,
+                      "textColor": "#f4f4f5",
+                      "children": []
+                    },
+                    {
+                      "id": "hero",
+                      "role": "image",
+                      "frame": { "x": 30, "y": 130, "w": 300, "h": 80 },
+                      "bg": "#23262d",
+                      "children": []
+                    },
+                    {
+                      "id": "input",
+                      "role": "input",
+                      "frame": { "x": 30, "y": 220, "w": 300, "h": 40 },
+                      "bg": "#1d2026",
+                      "borderWidth": 1,
+                      "borderColor": "#3a3d44",
+                      "children": []
+                    },
+                    {
+                      "id": "secret",
+                      "role": "input",
+                      "frame": { "x": 30, "y": 270, "w": 300, "h": 40 },
+                      "bg": "#1d2026",
+                      "masked": true,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "overlayBadge",
+                  "role": "text",
+                  "frame": { "x": 300, "y": 70, "w": 80, "h": 40 },
+                  "bg": "#d4a017",
+                  "text": "NEW",
+                  "fontSize": 12,
+                  "textColor": "#0b0b0c",
+                  "cornerRadius": 8,
+                  "children": []
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "timestamp": 500,
+        "ops": [
+          { "op": "set", "id": "title", "text": "Updated" }
+        ]
+      },
+      {
+        "timestamp": 1000,
+        "ops": [
+          {
+            "op": "add",
+            "parent": "card",
+            "index": 3,
+            "node": {
+              "id": "badge",
+              "role": "text",
+              "frame": { "x": 30, "y": 270, "w": 120, "h": 24 },
+              "text": "saved",
+              "fontSize": 12,
+              "textColor": "#a1a1aa",
+              "children": []
+            }
+          }
+        ]
+      },
+      {
+        "timestamp": 1500,
+        "ops": [
+          { "op": "remove", "id": "input" }
+        ]
+      }
+    ]
+  },
+  "expectedRenderAfterAllFrames": {
+    "id": "root",
+    "role": "view",
+    "frame": { "x": 0, "y": 0, "w": 400, "h": 800 },
+    "bg": "#0b0b0c",
+    "children": [
+      {
+        "id": "card",
+        "role": "view",
+        "frame": { "x": 20, "y": 80, "w": 360, "h": 200 },
+        "bg": "#16181d",
+        "cornerRadius": 12,
+        "borderWidth": 1,
+        "borderColor": "#2a2d34",
+        "children": [
+          {
+            "id": "title",
+            "role": "text",
+            "frame": { "x": 30, "y": 90, "w": 200, "h": 30 },
+            "text": "Updated",
+            "fontSize": 18,
+            "textColor": "#f4f4f5",
+            "children": []
+          },
+          {
+            "id": "hero",
+            "role": "image",
+            "frame": { "x": 30, "y": 130, "w": 300, "h": 80 },
+            "bg": "#23262d",
+            "children": []
+          },
+          {
+            "id": "badge",
+            "role": "text",
+            "frame": { "x": 30, "y": 270, "w": 120, "h": 24 },
+            "text": "saved",
+            "fontSize": 12,
+            "textColor": "#a1a1aa",
+            "children": []
+          },
+          {
+            "id": "secret",
+            "role": "input",
+            "frame": { "x": 30, "y": 270, "w": 300, "h": 40 },
+            "bg": "#1d2026",
+            "masked": true,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "overlayBadge",
+        "role": "text",
+        "frame": { "x": 300, "y": 70, "w": 80, "h": 40 },
+        "bg": "#d4a017",
+        "text": "NEW",
+        "fontSize": 12,
+        "textColor": "#0b0b0c",
+        "cornerRadius": 8,
+        "children": []
+      }
+    ]
+  },
+  "invalidUnknownRole": {
+    "version": "traceitx-vtree-v1",
+    "viewport": { "width": 400, "height": 800, "scale": 3 },
+    "frames": [
+      {
+        "timestamp": 0,
+        "ops": [
+          {
+            "op": "add",
+            "parent": "",
+            "index": 0,
+            "node": {
+              "id": "root",
+              "role": "webview",
+              "frame": { "x": 0, "y": 0, "w": 400, "h": 800 },
+              "children": []
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "invalidMaskedWithText": {
+    "version": "traceitx-vtree-v1",
+    "viewport": { "width": 400, "height": 800, "scale": 3 },
+    "frames": [
+      {
+        "timestamp": 0,
+        "ops": [
+          {
+            "op": "add",
+            "parent": "",
+            "index": 0,
+            "node": {
+              "id": "root",
+              "role": "view",
+              "frame": { "x": 0, "y": 0, "w": 400, "h": 800 },
+              "children": [
+                {
+                  "id": "leaky",
+                  "role": "input",
+                  "frame": { "x": 30, "y": 90, "w": 200, "h": 30 },
+                  "masked": true,
+                  "text": "this should never ship",
+                  "children": []
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

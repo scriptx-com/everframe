@@ -1,0 +1,39 @@
+{
+  "name": "@traceitx/swc-plugin-displayname",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./swc_plugin_displayname.wasm": "./swc_plugin_displayname.wasm"
+  },
+  "files": [
+    "dist",
+    "swc_plugin_displayname.wasm",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build-wasm.mjs && tsup",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "check:publish": "node check-publish.mjs",
+    "clean": "rm -rf dist target swc_plugin_displayname.wasm"
+  },
+  "peerDependencies": {
+    "@swc/core": ">=1.15.0"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.0",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "terser": "^5.0.0"
+  }
+}

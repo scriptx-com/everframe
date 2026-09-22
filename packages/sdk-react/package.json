@@ -1,0 +1,94 @@
+{
+  "name": "@traceitx/react",
+  "version": "0.8.2",
+  "description": "React SDK for TraceItX — AI-ready in-app bug reporting with screenshots, annotation, session replay, breadcrumbs, and crash capture.",
+  "keywords": [
+    "bug-report",
+    "bug-reporting",
+    "feedback",
+    "screenshot",
+    "annotation",
+    "session-replay",
+    "breadcrumbs",
+    "crash-reporting",
+    "error-reporting",
+    "react",
+    "traceitx"
+  ],
+  "homepage": "https://traceitx.com",
+  "bugs": {
+    "url": "https://github.com/scriptx-com/traceitx-releases/issues"
+  },
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scriptx-com/traceitx-releases.git",
+    "directory": "packages/sdk-react"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./preview": {
+      "types": "./dist/preview.d.ts",
+      "default": "./dist/preview.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "prebuild": "./scripts/sync-version.sh",
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:error-severity-artifacts": "node scripts/check-error-severity-artifacts.mjs",
+    "size-limit": "size-limit",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
+    "clean": "rm -rf dist .turbo node_modules/.cache"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "konva": "^10.2.5",
+    "lucide-react": "^0.469.0",
+    "modern-screenshot": "^4.7.0",
+    "react-konva": "^19.2.3",
+    "rrweb": "2.0.1",
+    "zod": "^4.3.0"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.0",
+    "@playwright/test": "^1.59.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.2",
+    "@traceitx/protocol": "workspace:*",
+    "@traceitx/sdk-core": "workspace:*",
+    "@traceitx/web": "workspace:*",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@size-limit/preset-small-lib": "^11.0.0",
+    "@vitest/browser": "^4.1.5",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.59.1",
+    "publint": "^0.3.0",
+    "size-limit": "^11.0.0",
+    "tsup": "^8.0.0"
+  }
+}

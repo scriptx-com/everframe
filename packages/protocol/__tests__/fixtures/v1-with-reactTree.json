@@ -1,0 +1,63 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "01939c34-7b8f-7000-8000-000000000003",
+  "submittedAt": "2026-05-11T10:00:00.000Z",
+  "sdk": {
+    "name": "traceitx-react-native",
+    "version": "0.0.0",
+    "platform": "ios",
+    "formFactor": "phone"
+  },
+  "reporter": {
+    "title": "Phase 6 reactTree sibling",
+    "description": "Exercises the additive payload.reactTree field alongside the existing native uiTree"
+  },
+  "captures": {
+    "screenshot": true,
+    "uiTree": true,
+    "focus": false,
+    "logs": false,
+    "network": false
+  },
+  "captureControl": {
+    "included": ["screenshot", "uiTree"],
+    "excluded": []
+  },
+  "payload": {
+    "uiTree": {
+      "root": {
+        "componentType": "RCTRootView",
+        "identifiers": { "nativeTag": "1" },
+        "rect": { "x": 0, "y": 0, "width": 390, "height": 844 },
+        "safeProps": {},
+        "children": []
+      },
+      "capturedAt": "2026-05-11T10:00:00.000Z",
+      "rendererHint": "uikit"
+    },
+    "reactTree": {
+      "root": {
+        "componentType": "View",
+        "identifiers": { "nativeTag": "42" },
+        "rect": { "x": 0, "y": 0, "width": 100, "height": 100 },
+        "safeProps": {},
+        "children": []
+      },
+      "capturedAt": "2026-05-11T10:00:00.000Z",
+      "rendererHint": "rn-fabric"
+    }
+  },
+  "context": {
+    "app": { "name": "rn-sample", "version": "1.0.0" },
+    "device": {
+      "os": "ios",
+      "osVersion": "17.4",
+      "model": "iPhone15,3",
+      "screenSize": { "width": 390, "height": 844 },
+      "pixelRatio": 3,
+      "locale": "en-US",
+      "timezone": "America/New_York"
+    }
+  },
+  "attachments": []
+}

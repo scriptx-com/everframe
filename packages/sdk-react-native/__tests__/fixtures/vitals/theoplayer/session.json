@@ -1,0 +1,39 @@
+{
+  "events": [
+    { "at": 0,    "type": "sourcechange", "event": { "source": { "sources": { "src": "https://cdn.example/live.m3u8?k=1", "type": "application/x-mpegurl", "contentProtection": { "fairplay": { "licenseAcquisitionURL": "https://l" } } } } } },
+    { "at": 50,   "type": "loadstart", "event": {} },
+    { "at": 700,  "type": "waiting", "event": {} },
+    { "at": 1200, "type": "playing", "event": {} },
+    { "at": 1300, "type": "timeupdate", "event": { "currentTime": 0.1 }, "buffered": [{ "start": 0, "end": 6.1 }] },
+    { "at": 1500, "type": "ratechange", "event": { "playbackRate": 1 } },
+    { "at": 2000, "type": "mediatrack", "event": { "subType": "activequalitychanged", "trackType": "video", "trackUid": 1, "qualities": { "bandwidth": 2800000, "width": 1280, "height": 720 } } },
+    { "at": 2400, "type": "timeupdate", "event": { "currentTime": 1.2 }, "buffered": [{ "start": 0, "end": 9.2 }] },
+    { "at": 2600, "type": "waiting", "event": {} },
+    { "at": 2750, "type": "playing", "event": {} },
+    { "at": 3000, "type": "seeking", "event": { "currentTime": 1.2 } },
+    { "at": 3100, "type": "seeked", "event": { "currentTime": 40 } },
+    { "at": 3500, "type": "pause", "event": {} },
+    { "at": 4000, "type": "contentprotectionerror", "event": { "error": { "errorCode": "CP-1", "errorMessage": "licence refused" } } },
+    { "at": 4500, "type": "error", "event": { "error": { "errorCode": "NETWORK-3", "errorMessage": "manifest 404" } } },
+    { "at": 5000, "type": "ended", "event": {} }
+  ],
+  "expect": [
+    { "type": "source_change", "data": { "src": "https://cdn.example/live.m3u8?k=1", "mime": "application/x-mpegurl" }, "t": 0 },
+    { "type": "drm", "data": { "keySystem": "fairplay" }, "t": 0 },
+    { "type": "startup", "data": { "ttffMs": 1200 }, "t": 1200 },
+    { "type": "play", "t": 1200 },
+    { "type": "rate_change", "data": { "rate": 1 }, "t": 1500 },
+    { "type": "bitrate_change", "data": { "bitrate": 2800000, "width": 1280, "height": 720 }, "t": 2000 },
+    { "type": "quality_change", "data": { "width": 1280, "height": 720 }, "t": 2000 },
+    { "type": "buffer_start", "t": 2600 },
+    { "type": "buffer_end", "data": { "durationMs": 150 }, "t": 2750 },
+    { "type": "seek", "t": 3100 },
+    { "type": "pause", "t": 3500 },
+    { "type": "error", "data": { "message": "licence refused", "fatal": false, "code": "CP-1" }, "t": 4000 },
+    { "type": "error", "data": { "message": "manifest 404", "fatal": true, "code": "NETWORK-3" }, "t": 4500 }
+  ],
+  "expectStats": [
+    { "bufferAheadMs": 6000 },
+    { "bufferAheadMs": 8000, "bitrate": 2800000, "width": 1280, "height": 720 }
+  ]
+}

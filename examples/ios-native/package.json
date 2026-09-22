@@ -1,0 +1,9 @@
+{
+  "name": "@traceitx/example-ios-native-marker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace marker for the native iOS sample app. The actual project is opened in Xcode (SampleApp.xcodeproj). This file exists only so pnpm-workspace.yaml's examples/* glob doesn't choke.",
+  "scripts": {
+    "gen-ios-config": "bash scripts/gen-local-xcconfig.sh"
+  }
+}

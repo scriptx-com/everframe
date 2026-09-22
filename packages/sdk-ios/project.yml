@@ -1,0 +1,169 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+#
+# XcodeGen project spec for producing the published TraceItX.xcframework +
+# TraceItXReporterUI.xcframework. `Package.swift` stays the working manifest
+# for development; this file is consumed at release time by
+# scripts/build-xcframework.sh:
+#
+#   xcodegen generate          # → TraceItX.xcodeproj (gitignored)
+#   xcodebuild archive …       # per-platform archives
+#   xcodebuild -create-xcframework …
+#
+# Single-target-per-product design: each target widens SUPPORTED_PLATFORMS to
+# cover iphoneos / iphonesimulator / appletvos / appletvsimulator. The archive
+# script selects the slice via `-sdk` + `-destination`. Avoids XcodeGen's
+# `platform: [iOS, tvOS]` shorthand which auto-suffixes target names with
+# `_iOS` / `_tvOS` and breaks cross-target dependencies.
+#
+# `BUILD_LIBRARIES_FOR_DISTRIBUTION: YES` is mandatory — the emitted
+# .swiftinterface must be stable across consumer Swift compiler versions.
+
+name: TraceItX
+
+options:
+  bundleIdPrefix: com.traceitx
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    BUILD_LIBRARIES_FOR_DISTRIBUTION: YES
+    # Belt-and-suspenders: Xcode 26.5 + XcodeGen has a known bug where the
+    # high-level BUILD_LIBRARIES_FOR_DISTRIBUTION doesn't propagate
+    # -enable-library-evolution / -emit-module-interface to the swiftc
+    # invocation. Force them. (Note: the build system also skips the
+    # "copy .swiftinterface into framework" step under this configuration,
+    # so the build script patches the archives post-hoc — see
+    # scripts/build-xcframework.sh.)
+    OTHER_SWIFT_FLAGS: "$(inherited) -enable-library-evolution -emit-module-interface"
+    SKIP_INSTALL: NO
+    DEFINES_MODULE: YES
+    SWIFT_VERSION: "5.10"
+    # `package`-scoped declarations (CompanionAPI.__builtinPinUiInstalled /
+    # __builtinPinUiSuppressed, written from the TraceItXReporterUI module)
+    # need swiftc's `-package-name`. SwiftPM derives it from Package.swift, so
+    # `swift build` / `swift test` were fine while the xcodegen project — which
+    # has no notion of a package — failed to compile at all:
+    #   "the package access level used on '__builtinPinUiInstalled' requires a
+    #    package name; set it with the compiler flag -package-name"
+    # Every target here belongs to the one Swift package, so a single
+    # project-level value is correct; it must match across them or `package`
+    # access stops resolving.
+    SWIFT_PACKAGE_NAME: TraceItX
+    SWIFT_OPTIMIZATION_LEVEL: "-O"
+    SWIFT_COMPILATION_MODE: wholemodule
+    DEBUG_INFORMATION_FORMAT: dwarf
+    # Strip non-public Swift symbols from the binary's symbol table.
+    # Public API names are preserved in the .swiftinterface (consumers
+    # need them to compile against the framework). Internal class /
+    # method / property identifiers get stripped, so binary inspection
+    # via `nm` / strings / class-dump shows only Swift mangled stubs.
+    STRIP_SWIFT_SYMBOLS: YES
+    # Standard release stripping — removes the symbol table for the
+    # underlying object code (anything compiled from Swift gets the
+    # Swift-specific strip above; this catches the rest).
+    STRIP_INSTALLED_PRODUCT: YES
+    # `non-global` strips local + debug symbols but keeps externally-
+    # referenced ones the dynamic linker needs to bind the framework at
+    # load time. `all` would break dyld bind for any consumer linking
+    # against this xcframework.
+    STRIP_STYLE: non-global
+    DEPLOYMENT_POSTPROCESSING: YES
+    COPY_PHASE_STRIP: YES
+    DEAD_CODE_STRIPPING: YES
+    # The generated Info.plist only contains CFBundleShortVersionString when
+    # MARKETING_VERSION is set — and App Store validation rejects apps that
+    # embed a framework without that key (ITMS error 90057; shipped broken in
+    # 0.4.4). MARKETING_VERSION is injected per-build by
+    # scripts/build-xcframework.sh from the podspec version, not set here,
+    # so project.yml never holds a stale literal.
+    GENERATE_INFOPLIST_FILE: YES
+    APPLICATION_EXTENSION_API_ONLY: NO
+    # Single target builds for both iOS + tvOS — the archive script picks
+    # the slice via -sdk and -destination. SUPPORTED_PLATFORMS gates which
+    # SDKs the target accepts; TARGETED_DEVICE_FAMILY covers iPhone (1) +
+    # iPad (2) + Apple TV (3).
+    SUPPORTED_PLATFORMS: "iphoneos iphonesimulator appletvos appletvsimulator"
+    SUPPORTS_MACCATALYST: NO
+    TARGETED_DEVICE_FAMILY: "1,2,3"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TVOS_DEPLOYMENT_TARGET: "15.0"
+
+targets:
+
+  TraceItXProtocol:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/TraceItXProtocol
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.traceitx.TraceItXProtocol
+        PRODUCT_MODULE_NAME: TraceItXProtocol
+
+  # Module name `TraceItXKit` avoids the Swift library-evolution collision
+  # where `module TraceItX` + `public class TraceItX` makes .swiftinterface
+  # references `TraceItX.CompanionState` unparseable (parser resolves the
+  # leftmost `TraceItX` to the class, then fails). Apple convention reserves
+  # "Kit" suffix for framework modules whose primary classes drop it
+  # (UIKit/UIScreen, MapKit/MKMapView). Customer code: `import TraceItXKit`
+  # then `TraceItX.shared.start(...)` — class API unchanged.
+  TraceItXKit:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/TraceItX
+        excludes:
+          - "PrivacyInfo.xcprivacy"
+          - "Resources/**"
+      - path: Sources/TraceItX/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - path: Sources/TraceItX/Resources
+        buildPhase: resources
+    dependencies:
+      - target: TraceItXProtocol
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.traceitx.TraceItXKit
+        PRODUCT_MODULE_NAME: TraceItXKit
+        SWIFT_STRICT_CONCURRENCY: complete
+
+  TraceItXReporterUI:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/TraceItXReporterUI
+    dependencies:
+      - target: TraceItXKit
+        embed: false
+      - target: TraceItXProtocol
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.traceitx.TraceItXReporterUI
+        PRODUCT_MODULE_NAME: TraceItXReporterUI
+
+schemes:
+  TraceItXProtocol:
+    build:
+      targets:
+        TraceItXProtocol: all
+    archive:
+      config: Release
+  TraceItXKit:
+    build:
+      targets:
+        TraceItXKit: all
+        TraceItXProtocol: all
+    archive:
+      config: Release
+  TraceItXReporterUI:
+    build:
+      targets:
+        TraceItXReporterUI: all
+        TraceItXKit: all
+        TraceItXProtocol: all
+    archive:
+      config: Release

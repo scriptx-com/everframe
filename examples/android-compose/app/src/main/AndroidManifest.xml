@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!-- Plan 05-08 — Compose sample app phone/tablet flavor. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- TraceItX is a zero-permission SDK; the host app declares only what it needs.
+         The sample app makes a demo HTTPS request via OkHttp + addTraceItXInterceptor()
+         in PaymentScreen, which requires INTERNET. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="TraceItX Compose Sample"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="false"
+        tools:targetApi="33">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

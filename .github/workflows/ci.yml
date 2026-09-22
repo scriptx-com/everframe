@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+
+name: Public SDK CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  repository-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify repository boundary
+        run: |
+          node --test scripts/public-boundary.test.mjs
+          node --test scripts/public-ci.test.mjs
+          node scripts/public-boundary.mjs
+      - name: Verify REUSE licensing
+        run: pipx run --spec 'reuse[charset-normalizer]==6.2.0' reuse lint
+      - name: Install Gitleaks 8.30.1
+        run: |
+          curl --fail --silent --show-error --location --output gitleaks.tar.gz \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz' | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+      - name: Scan current tree and Git history
+        run: |
+          ./gitleaks dir --no-banner --redact .
+          ./gitleaks git --no-banner --redact --log-opts=--all .
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Enable the SWC WebAssembly target
+        run: rustup target add wasm32-wasip1
+      - name: Build packages
+        run: pnpm build:packages
+      - name: Test packages
+        run: pnpm test:packages
+      - name: Typecheck packages
+        run: pnpm typecheck:packages
+      - name: Build examples
+        run: pnpm build:examples
+      - name: Test examples
+        run: pnpm test:examples
+      - name: Typecheck examples
+        run: pnpm typecheck:examples
+      - name: Verify publishable package contents
+        run: pnpm check:publish
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test, assemble, and publish Android SDK locally
+        working-directory: packages/sdk-android/android
+        run: ./gradlew test assembleRelease publishAllToMavenLocal -PtraceitxVersion=0.0.0-ci
+      - name: Verify Android publication contents
+        run: scripts/verify-android-publication.sh 0.0.0-ci

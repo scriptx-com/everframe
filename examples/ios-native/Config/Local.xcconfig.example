@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+
+// Copy this file to Local.xcconfig and fill in real values, OR run
+// `pnpm gen-ios-config` to materialize it from the repo-root .env automatically.
+// Local.xcconfig is gitignored.
+//
+// NOTE: '//' in URL values must be escaped via $() so xcconfig's line-comment
+// parser does not truncate the value to `http:`. The escape resolves back to
+// the original URL at Info.plist build time.
+INGEST_URL = http:/$()/localhost:8787
+INGEST_SDK_KEY = txx_live_replace_me_with_real_key_from_admin_ui

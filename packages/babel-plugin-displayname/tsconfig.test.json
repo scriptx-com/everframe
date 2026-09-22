@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*", "__tests__/**/*"],
+  // Fixture cases are INPUT TEXT for the Babel transform under test — read
+  // with readFileSync and handed to babel, never imported. They are
+  // deliberately not valid standalone modules (no jsx flag, React subclasses
+  // without `override`), so typechecking them checks data, not code. All 14
+  // of this package's errors came from here.
+  "exclude": ["__tests__/fixtures/cases/**"],
+  "compilerOptions": {
+    "noEmit": true,
+    // Required: this package's tsconfig.json sets rootDir: "src", which must be
+    // overridden to allow __tests__ files outside src. Only include in packages
+    // whose base tsconfig.json explicitly sets rootDir.
+    "rootDir": ".",
+    // Relaxed for tests ONLY — see packages/swc-plugin-displayname/tsconfig.test.json
+    // for the measurement behind these two.
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  }
+}

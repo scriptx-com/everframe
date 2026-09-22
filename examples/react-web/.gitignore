@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+# Copyright 2026 ScriptX
+
+.next/
+.next-error-test/
+node_modules/
+.turbo/
+next-env.d.ts
+out/
+*.log
+*.tsbuildinfo
+.env.local

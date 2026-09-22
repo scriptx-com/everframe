@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+
+name: ReplayTV
+options:
+  deploymentTarget:
+    tvOS: "16.0"
+packages:
+  TraceItX:
+    path: ../../packages/sdk-ios
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  ReplayTV:
+    type: application
+    platform: tvOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.scriptx.traceitx.replaytv
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG"
+    info:
+      path: build/Info.plist
+      properties:
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
+    dependencies:
+      - package: TraceItX
+        product: TraceItXKit
+  ReplayTVUITests:
+    type: bundle.ui-testing
+    platform: tvOS
+    sources: [Tests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.scriptx.traceitx.replaytv.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: ReplayTV
+    dependencies:
+      - target: ReplayTV
+schemes:
+  ReplayTV:
+    build:
+      targets:
+        ReplayTV: all
+    run:
+      config: Release
+    test:
+      config: Release
+      targets: [ReplayTVUITests]

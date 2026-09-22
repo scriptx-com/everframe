@@ -1,0 +1,116 @@
+{
+  "name": "@traceitx/react-native",
+  "version": "0.8.2",
+  "description": "React Native SDK for TraceItX — AI-ready in-app bug reporting, bridging the native iOS and Android reporter to your RN app. Supports phone, Apple TV, and Android TV.",
+  "keywords": [
+    "bug-report",
+    "bug-reporting",
+    "feedback",
+    "screenshot",
+    "annotation",
+    "session-replay",
+    "breadcrumbs",
+    "crash-reporting",
+    "error-reporting",
+    "react-native",
+    "ios",
+    "android",
+    "tvos",
+    "android-tv",
+    "turbomodule",
+    "traceitx"
+  ],
+  "homepage": "https://traceitx.com",
+  "bugs": {
+    "url": "https://github.com/scriptx-com/traceitx-releases/issues"
+  },
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scriptx-com/traceitx-releases.git",
+    "directory": "packages/sdk-react-native"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "react-native": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./integrations/console": {
+      "types": "./dist/integrations/console.d.ts",
+      "default": "./dist/integrations/console.js"
+    },
+    "./integrations/react-navigation": {
+      "types": "./dist/integrations/react-navigation.d.ts",
+      "default": "./dist/integrations/react-navigation.js"
+    },
+    "./integrations/react-native-video": {
+      "types": "./dist/integrations/react-native-video.d.ts",
+      "default": "./dist/integrations/react-native-video.js"
+    },
+    "./integrations/theoplayer": {
+      "types": "./dist/integrations/theoplayer.d.ts",
+      "default": "./dist/integrations/theoplayer.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src/NativeTraceItX.ts",
+    "src/codegen-types.ts",
+    "ios/Sources",
+    "ios/*.h",
+    "android/build.gradle.kts",
+    "android/settings.gradle.kts",
+    "android/src/main",
+    "*.podspec",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "verify:error-details-public": "node scripts/verify-error-details-public.mjs",
+    "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-native": ">=0.84"
+  },
+  "dependencies": {
+    "bippy": "^0.5.39",
+    "zod": "^4.3.0"
+  },
+  "devDependencies": {
+    "@traceitx/sdk-core": "workspace:*",
+    "@traceitx/protocol": "workspace:*",
+    "@arethetypeswrong/cli": "^0.18.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "jsdom": "^29.1.1",
+    "react-dom": "^19.0.0",
+    "publint": "^0.3.0",
+    "tsup": "^8.0.0",
+    "vitest": "^4.0.0"
+  },
+  "codegenConfig": {
+    "name": "TraceItXSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.facebook.fbreact.specs"
+    }
+  }
+}

@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+#
+# Pinned version catalog for the TraceItX Android SDK (Plan 05-01).
+# Single source of truth — RESEARCH Finding 2 lines 226-247.
+
+[versions]
+agp = "8.7.2"                       # AGP 8.7.x (LOCKED per CONTEXT carry-forward)
+kotlin = "2.1.0"                    # Kotlin 2.1.x stable
+compose-bom = "2025.10.01"          # Compose BOM that includes Material3 + tv-foundation + tv-material GA
+okhttp = "4.12.0"                   # NOT 5.x — still alpha
+coroutines = "1.9.0"                # kotlinx.coroutines stable
+serialization = "1.7.3"             # kotlinx.serialization stable (matches quicktype --framework kotlinx)
+timber = "5.0.1"                    # Reflection-detected, NOT a hard dep — see Finding 11
+security-crypto = "1.1.0-alpha06"   # androidx.security:security-crypto for EncryptedFile (Pitfall 16 recovery)
+datastore = "1.1.1"                 # androidx.datastore-preferences
+annotation = "1.9.1"                # androidx.annotation
+compose-compiler = "1.5.15"         # only used by reporter-ui/tv (Compose-enabled modules)
+compose-ui = "1.7.5"                # explicit version for :traceitx-core (no BOM in core)
+compose-runtime = "1.7.5"           # explicit version for :traceitx-core (no BOM in core)
+junit = "4.13.2"                    # JVM unit-test runner (Plan 05-02)
+robolectric = "4.14.1"                # API35 support for sidecar persistence coverage
+androidx-test-core = "1.6.1"        # ApplicationProvider for Robolectric (Plan 05-02)
+androidx-test-runner = "1.6.2"      # AndroidJUnitRunner for instrumented tests (Plan 05-03)
+androidx-test-rules = "1.6.1"       # ActivityScenarioRule for instrumented tests (Plan 05-03)
+espresso-core = "3.6.1"             # Espresso for screenshot instrumented test (Plan 05-03)
+fresco = "3.6.0"                    # androidTest ONLY - the Drawee stack React Native's <Image> is built on (4d RN verification)
+mockwebserver = "4.12.0"            # OkHttp MockWebServer — JVM unit tests for TraceItXInterceptor (Plan 05-04)
+androidx-startup = "1.2.0"          # androidx.startup Initializer — Plan 05-06 wires reporter resolvers at module-load
+androidx-activity-compose = "1.9.3" # ComponentActivity + Compose hosting — Plan 05-06 reporter UI
+compose-animation = "1.7.5"         # Plan 05-06 reporter UI (NOT in :traceitx-core; Compose-isolation gate stays green)
+androidx-lifecycle = "2.8.6"        # Plan 06.2-08 — ProcessLifecycleOwner for RelayWSClient background hook (host already pulls lifecycle-runtime-ktx 2.8.6 in example apps)
+media3 = "1.8.0"                    # AAR minCompileSdk=35 matches this repo; 1.11 needs 36
+
+[libraries]
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "compose-ui" }
+compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "compose-runtime" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+tv-foundation = { group = "androidx.tv", name = "tv-foundation", version = "1.0.0-alpha11" }
+tv-material = { group = "androidx.tv", name = "tv-material", version = "1.0.0" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidx-test-core" }
+coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+# Plan 05-03 — instrumented tests only (androidTestImplementation). Compose-isolation
+# gate (releaseRuntimeClasspath) ignores androidTest configurations, so adding these
+# does NOT pull Compose foundation/test into the production AAR.
+compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "compose-ui" }
+compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "compose-ui" }
+compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose-ui" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test-runner" }
+androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidx-test-rules" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso-core" }
+fresco = { group = "com.facebook.fresco", name = "fresco", version.ref = "fresco" }
+# Plan 05-04 — MockWebServer is testImplementation only; never appears in releaseRuntimeClasspath.
+mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "mockwebserver" }
+# Plan 05-06 — :traceitx-reporter-ui only. NEVER added to :traceitx-core (Compose-isolation gate).
+androidx-startup-runtime = { group = "androidx.startup", name = "startup-runtime", version.ref = "androidx-startup" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidx-activity-compose" }
+compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "compose-animation" }
+# Plan 06.2-08 — ProcessLifecycleOwner for RelayWSClient (foreground/background hook).
+# `lifecycle-process` provides the app-process observer; `lifecycle-common` is its
+# transitive `DefaultLifecycleObserver`/`LifecycleOwner` carrier. Both are
+# AndroidX with no Compose/Material reach (Compose-isolation gate stays green).
+androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-common = { group = "androidx.lifecycle", name = "lifecycle-common", version.ref = "androidx-lifecycle" }
+# Task 8 (session vitals) — TestLifecycleOwner for VitalsLifecycleObserverTest. Test-only.
+androidx-lifecycle-runtime-testing = { group = "androidx.lifecycle", name = "lifecycle-runtime-testing", version.ref = "androidx-lifecycle" }
+# Task 13 (session vitals) — :traceitx-media3's AnalyticsListener facade + trackPlayer(exoPlayer).
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "@traceitx/web ESM entry — the ALWAYS-LOADED cost for a bundler consumer. React, rrweb, konva and the screenshot deps must all stay lazy; `ignore` names exactly the lazy chunks, so this figure is the real page-load weight and React arriving in the eager graph would add ~69 kB. Checked by `pnpm size` only — nothing in CI runs it yet. Mirrored in the repo-root .size-limit.json; keep the two in step.",
+    "path": "dist/index.js",
+    "limit": "135 KB",
+    "gzip": true,
+    "ignore": ["./rrweb-*.js", "./dist-*.js", "./react-island-*.js", "./browser-*.js"]
+  },
+  {
+    "name": "@traceitx/web browser entry — the ALWAYS-LOADED cost for a `<script type=\"module\">` page with no bundler at all. Same graph as the ESM entry with EVERY dependency inlined, so nothing is left for the browser to resolve; `splitting: true` is what keeps React, konva, rrweb and modern-screenshot in lazy chunks, which is why this costs about what the ESM entry does instead of the 391 kB the IIFE it replaced did. Turn splitting off and this measures 400 kB — the 135 kB budget here is the guard. `ignore` names exactly the lazy chunks. Checked by `pnpm size` only — nothing in CI runs it yet. Mirrored in the repo-root .size-limit.json; keep the two in step.",
+    "path": "dist/browser/index.js",
+    "limit": "135 KB",
+    "gzip": true,
+    "ignore": ["./rrweb-*.js", "./dist-*.js", "./react-island-*.js", "./browser-*.js"]
+  }
+]

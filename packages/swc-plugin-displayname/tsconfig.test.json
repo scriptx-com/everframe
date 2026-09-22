@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*", "__tests__/**/*"],
+  "compilerOptions": {
+    "noEmit": true,
+    // Required: this package's tsconfig.json sets rootDir: "src", which must be
+    // overridden to allow __tests__ files outside src. Only include in packages
+    // whose base tsconfig.json explicitly sets rootDir.
+    "rootDir": ".",
+    // Relaxed for tests ONLY — src/ keeps both via tsconfig.json.
+    // Measured on sdk-react, the largest suite: these two account for 89 of
+    // the 109 errors that typechecking __tests__ surfaces, and none of the
+    // real ones. `entries[0].foo` after expect(entries).toHaveLength(1) is
+    // not a nullability bug, and a fixture literal with an explicit
+    // `undefined` is not an exactOptionalPropertyTypes violation.
+    //
+    // packages/protocol and packages/sdk-core deliberately do NOT use this
+    // file: they already typecheck their tests at FULL strictness via their
+    // own tsconfig.json `include`, and moving them here would be a downgrade.
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  }
+}

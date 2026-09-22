@@ -1,0 +1,42 @@
+{
+  "events": [
+    { "at": 0,    "event": "onLoadStart", "args": [{ "sourceType": "network", "source": { "uri": "https://cdn.example/a.m3u8?sig=1", "config": { "drm": { "type": "widevine" } } } }] },
+    { "at": 300,  "event": "onPlaybackStateChange", "args": [{ "isPlaying": false, "isBuffering": true }] },
+    { "at": 300,  "event": "onBuffer", "args": [true] },
+    { "at": 310,  "event": "onPlaybackStateChange", "args": [{ "isPlaying": false, "isBuffering": true }] },
+    { "at": 900,  "event": "onBuffer", "args": [false] },
+    { "at": 900,  "event": "onLoad", "args": [{ "currentTime": 0, "duration": 600, "width": 1280, "height": 720, "orientation": "landscape" }] },
+    { "at": 950,  "event": "onPlaybackStateChange", "args": [{ "isPlaying": true, "isBuffering": false }] },
+    { "at": 1000, "event": "onPlaybackRateChange", "args": [1] },
+    { "at": 1200, "event": "onProgress", "args": [{ "currentTime": 0.25, "bufferDuration": 8.5 }] },
+    { "at": 1450, "event": "onProgress", "args": [{ "currentTime": 0.5, "bufferDuration": 9 }] },
+    { "at": 2300, "event": "onBandwidthUpdate", "args": [{ "bitrate": 4200000, "width": 1920, "height": 1080 }] },
+    { "at": 2400, "event": "onProgress", "args": [{ "currentTime": 1.45, "bufferDuration": 12 }] },
+    { "at": 2500, "event": "onBuffer", "args": [true] },
+    { "at": 2650, "event": "onBuffer", "args": [false] },
+    { "at": 3000, "event": "onSeek", "args": [30] },
+    { "at": 3100, "event": "onPlaybackRateChange", "args": [0] },
+    { "at": 3200, "event": "onPlaybackStateChange", "args": [{ "isPlaying": false, "isBuffering": false }] },
+    { "at": 4000, "event": "onError", "args": [{ "code": "source/invalid-uri", "message": "bad uri" }] },
+    { "at": 4000, "event": "onStatusChange", "args": ["error"] },
+    { "at": 4500, "event": "onEnd", "args": [] }
+  ],
+  "expect": [
+    { "type": "source_change", "data": { "src": "https://cdn.example/a.m3u8?sig=1" }, "t": 0 },
+    { "type": "drm", "data": { "keySystem": "widevine" }, "t": 0 },
+    { "type": "quality_change", "data": { "width": 1280, "height": 720 }, "t": 900 },
+    { "type": "startup", "data": { "ttffMs": 950 }, "t": 950 },
+    { "type": "play", "t": 950 },
+    { "type": "rate_change", "data": { "rate": 1 }, "t": 1000 },
+    { "type": "bitrate_change", "data": { "bitrate": 4200000, "width": 1920, "height": 1080 }, "t": 2300 },
+    { "type": "buffer_start", "t": 2500 },
+    { "type": "buffer_end", "data": { "durationMs": 150 }, "t": 2650 },
+    { "type": "seek", "t": 3000 },
+    { "type": "pause", "t": 3200 },
+    { "type": "error", "data": { "message": "player status error", "fatal": true }, "t": 4000 }
+  ],
+  "expectStats": [
+    { "bufferAheadMs": 8250, "width": 1280, "height": 720 },
+    { "bufferAheadMs": 10550, "bitrate": 4200000, "width": 1920, "height": 1080 }
+  ]
+}

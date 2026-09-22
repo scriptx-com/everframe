@@ -1,0 +1,40 @@
+{
+  "name": "@traceitx/sdk-core",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@traceitx/protocol": "workspace:*",
+    "zod": "^4.3.0",
+    "@noble/hashes": "^1.5.0",
+    "fflate": "^0.8.0",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "@types/uuid": "^10.0.0",
+    "esbuild": "^0.27.7"
+  }
+}

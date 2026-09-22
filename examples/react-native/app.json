@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "TraceItX RN Example",
+    "slug": "examplereactnative",
+    "version": "0.0.0",
+    "scheme": "traceitxexample",
+    "orientation": "portrait",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.traceitx.example",
+      "supportsTablet": true,
+      "deploymentTarget": "16.4"
+    },
+    "android": {
+      "package": "com.traceitx.example"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "dynamic",
+            "deploymentTarget": "16.4"
+          },
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 24
+          }
+        }
+      ],
+      [
+        "@react-native-tvos/config-tv",
+        { "tvosDeploymentTarget": "16.4" }
+      ],
+      "./plugins/with-traceitx-workspace.js",
+      "./plugins/with-traceitx-tv-prebuild.js",
+      "./plugins/with-traceitx-ios-local.js"
+    ]
+  }
+}

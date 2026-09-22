@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+
+name: Apple SDK CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  swift-and-tvos:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Swift package
+        env:
+          TRACEITX_DEV_INGEST_URL: http://127.0.0.1:9
+        # Swift Testing runs suites concurrently by default, but these SDK tests
+        # deliberately exercise shared process-global capture state.
+        run: swift test --package-path packages/sdk-ios --no-parallel

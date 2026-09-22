@@ -1,0 +1,2198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "protocolVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "reportId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "submittedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "crash",
+        "error"
+      ]
+    },
+    "sessionId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "sdk": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "traceitx-react",
+            "traceitx-web",
+            "traceitx-react-native",
+            "traceitx-ios",
+            "traceitx-android"
+          ]
+        },
+        "version": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "web",
+            "ios",
+            "android",
+            "tvos",
+            "tizen",
+            "webos",
+            "androidtv"
+          ],
+          "$id": "SDKPlatform",
+          "description": "All TV form factors enumerated from v1 (PLAT-04)"
+        },
+        "formFactor": {
+          "type": "string",
+          "enum": [
+            "phone",
+            "tablet",
+            "desktop",
+            "tv"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "platform",
+        "formFactor"
+      ],
+      "additionalProperties": {}
+    },
+    "reporter": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "user": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "displayName": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "title",
+        "description"
+      ],
+      "additionalProperties": {}
+    },
+    "captures": {
+      "type": "object",
+      "properties": {
+        "screenshot": {
+          "type": "boolean"
+        },
+        "uiTree": {
+          "type": "boolean"
+        },
+        "focus": {
+          "type": "boolean"
+        },
+        "logs": {
+          "type": "boolean"
+        },
+        "network": {
+          "type": "boolean"
+        },
+        "breadcrumbs": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "screenshot",
+        "uiTree",
+        "focus",
+        "logs",
+        "network"
+      ],
+      "additionalProperties": {}
+    },
+    "captureControl": {
+      "type": "object",
+      "properties": {
+        "included": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "degradedReason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "included",
+        "excluded"
+      ],
+      "additionalProperties": {}
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "focus": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "componentPath": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "mouse",
+                "keyboard",
+                "remote",
+                "touch",
+                "programmatic"
+              ]
+            },
+            "cursor": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "path",
+            "componentPath",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "logs": {
+          "type": "array",
+          "items": {}
+        },
+        "network": {
+          "type": "array",
+          "items": {}
+        },
+        "breadcrumbs": {
+          "maxItems": 128,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "t": {
+                "type": "number"
+              },
+              "seq": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "navigation",
+                  "tap",
+                  "console",
+                  "network",
+                  "lifecycle",
+                  "error",
+                  "custom"
+                ],
+                "$id": "BreadcrumbKind"
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "debug",
+                  "info",
+                  "warn",
+                  "error"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "data": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "t",
+              "seq",
+              "kind",
+              "message"
+            ],
+            "additionalProperties": {},
+            "$id": "Breadcrumb"
+          }
+        },
+        "networkBodies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "number"
+              },
+              "t": {
+                "type": "number"
+              },
+              "reqBody": {
+                "type": "string"
+              },
+              "resBody": {
+                "type": "string"
+              },
+              "reqBodyTruncated": {
+                "type": "boolean"
+              },
+              "resBodyTruncated": {
+                "type": "boolean"
+              },
+              "reqBodyBytes": {
+                "type": "number"
+              },
+              "resBodyBytes": {
+                "type": "number"
+              },
+              "reqHeaders": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "resHeaders": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "reqBodySkipped": {
+                "type": "string",
+                "enum": [
+                  "content-type",
+                  "unsupported",
+                  "error"
+                ]
+              },
+              "resBodySkipped": {
+                "type": "string",
+                "enum": [
+                  "content-type",
+                  "unsupported",
+                  "error"
+                ]
+              }
+            },
+            "required": [
+              "ref",
+              "t"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "vitals": {
+          "maxItems": 400,
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "sample"
+                  },
+                  "t": {
+                    "type": "number"
+                  },
+                  "cpu": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "mem": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "extras": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "required": [
+                  "kind",
+                  "t",
+                  "mem"
+                ],
+                "additionalProperties": false,
+                "$id": "VitalsSample"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "player"
+                  },
+                  "t": {
+                    "type": "number"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "play",
+                      "pause",
+                      "seek",
+                      "buffer_start",
+                      "buffer_end",
+                      "bitrate_change",
+                      "rate_change",
+                      "error",
+                      "startup",
+                      "dropped_frames",
+                      "source_change",
+                      "player_attach",
+                      "player_detach",
+                      "drm",
+                      "quality_change",
+                      "stats"
+                    ],
+                    "$id": "VitalsPlayerEventType"
+                  },
+                  "playerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  "data": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "t",
+                  "type"
+                ],
+                "additionalProperties": false,
+                "$id": "VitalsPlayerEvent"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "custom"
+                  },
+                  "t": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "data": {},
+                  "truncated": {
+                    "type": "boolean"
+                  },
+                  "playerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  }
+                },
+                "required": [
+                  "kind",
+                  "t",
+                  "name"
+                ],
+                "additionalProperties": false,
+                "$id": "VitalsCustomEntry"
+              }
+            ]
+          }
+        },
+        "resources": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "t": {
+                "type": "number"
+              },
+              "cpu": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1024
+              },
+              "mem": {
+                "type": "number",
+                "minimum": 0
+              },
+              "extras": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "number"
+                }
+              }
+            },
+            "required": [
+              "t",
+              "mem"
+            ],
+            "additionalProperties": false,
+            "$id": "ResourceSample"
+          }
+        },
+        "annotations": {
+          "type": "array",
+          "items": {}
+        },
+        "redactions": {
+          "type": "array",
+          "items": {}
+        },
+        "extra": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "crash": {
+          "type": "object",
+          "properties": {
+            "causeChain": {
+              "$ref": "#/$defs/CrashCauseChain"
+            },
+            "details": {
+              "$ref": "#/$defs/CrashDetails"
+            },
+            "jsBundle": {
+              "type": "object",
+              "properties": {
+                "engine": {
+                  "type": "string",
+                  "const": "hermes"
+                },
+                "platform": {
+                  "type": "string",
+                  "enum": [
+                    "android",
+                    "ios"
+                  ],
+                  "title": "JsBundlePlatform"
+                },
+                "buildId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "allOf": [
+                    {
+                      "pattern": "\\S"
+                    },
+                    {
+                      "pattern": "^(?:[^\\u0000\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
+                    }
+                  ],
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,0}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 199,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,1}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 198,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,2}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 197,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,3}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 196,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,4}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 195,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,5}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 194,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,6}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 193,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,7}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 192,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,8}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 191,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,9}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 190,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,10}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 189,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,11}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 188,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,12}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 187,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,13}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 186,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,14}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 185,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,15}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 184,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,16}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 183,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,17}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 182,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,18}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 181,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,19}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 180,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,20}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 179,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,21}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 178,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,22}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 177,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,23}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 176,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,24}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 175,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,25}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 174,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,26}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 173,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,27}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 172,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,28}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 171,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,29}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 170,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,30}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 169,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,31}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 168,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,32}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 167,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,33}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 166,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,34}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 165,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,35}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 164,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,36}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 163,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,37}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 162,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,38}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 161,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,39}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 160,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,40}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 159,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,41}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 158,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,42}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 157,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,43}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 156,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,44}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 155,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,45}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 154,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,46}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 153,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,47}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 152,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,48}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 151,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,49}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 150,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,50}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 149,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,51}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 148,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,52}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 147,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,53}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 146,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,54}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 145,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,55}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 144,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,56}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 143,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,57}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 142,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,58}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 141,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,59}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 140,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,60}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 139,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,61}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 138,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,62}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 137,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,63}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 136,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,64}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 135,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,65}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 134,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,66}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 133,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,67}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 132,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,68}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 131,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,69}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 130,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,70}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 129,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,71}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 128,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,72}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 127,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,73}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 126,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,74}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 125,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,75}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 124,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,76}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 123,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,77}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 122,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,78}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 121,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,79}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 120,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,80}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 119,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,81}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 118,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,82}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 117,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,83}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 116,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,84}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 115,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,85}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 114,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,86}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 113,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,87}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 112,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,88}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 111,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,89}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 110,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,90}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 109,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,91}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 108,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,92}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 107,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,93}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 106,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,94}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 105,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,95}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 104,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,96}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 103,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,97}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 102,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,98}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 101,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,99}[\\u0000-\\uFFFF]*$"
+                    },
+                    {
+                      "maxLength": 100,
+                      "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,100}[\\u0000-\\uFFFF]*$"
+                    }
+                  ]
+                },
+                "bundleName": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+                }
+              },
+              "required": [
+                "engine",
+                "platform",
+                "buildId",
+                "bundleName"
+              ],
+              "additionalProperties": false
+            },
+            "jvm": {
+              "$ref": "#/$defs/JvmCrashMetadata"
+            },
+            "exceptionType": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 4096
+            },
+            "frames": {
+              "maxItems": 256,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Frame"
+              }
+            },
+            "threadName": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "mechanism": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "handled": {
+              "type": "boolean"
+            },
+            "fatal": {
+              "type": "boolean"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            },
+            "fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{16}$"
+            }
+          },
+          "required": [
+            "exceptionType",
+            "message",
+            "frames",
+            "mechanism",
+            "handled",
+            "occurredAt",
+            "fingerprint"
+          ],
+          "additionalProperties": {}
+        }
+      },
+      "additionalProperties": {}
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "build": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": {}
+        },
+        "device": {
+          "type": "object",
+          "properties": {
+            "os": {
+              "type": "string"
+            },
+            "osVersion": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "screenSize": {
+              "type": "object",
+              "properties": {
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "width",
+                "height"
+              ],
+              "additionalProperties": false
+            },
+            "pixelRatio": {
+              "type": "number"
+            },
+            "locale": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "userAgent": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          "required": [
+            "os",
+            "osVersion",
+            "screenSize",
+            "pixelRatio",
+            "locale",
+            "timezone"
+          ],
+          "additionalProperties": {}
+        },
+        "route": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "device"
+      ],
+      "additionalProperties": {}
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "partName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "screenshot",
+              "annotated-screenshot",
+              "video",
+              "audio",
+              "session-replay",
+              "other"
+            ],
+            "$id": "AttachmentKind"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "byteLength": {
+            "type": "number"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "rrweb",
+              "traceitx-vtree-v1",
+              "traceitx-video-v1"
+            ]
+          },
+          "durationMs": {
+            "type": "number"
+          },
+          "replayStartEpochMs": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "partName",
+          "kind",
+          "contentType",
+          "byteLength",
+          "sha256"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "reportId",
+    "submittedAt",
+    "sdk",
+    "reporter",
+    "captures",
+    "captureControl",
+    "payload",
+    "context",
+    "attachments"
+  ],
+  "additionalProperties": {},
+  "$id": "ReportEnvelope",
+  "$defs": {
+    "CrashCauseChain": {
+      "type": "object",
+      "properties": {
+        "causes": {
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CrashCause"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "causes",
+        "truncated"
+      ],
+      "additionalProperties": false,
+      "title": "CrashCauseChain"
+    },
+    "CrashCause": {
+      "type": "object",
+      "properties": {
+        "exceptionType": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "frames": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CrashCauseFrame"
+          }
+        },
+        "framesTruncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "exceptionType",
+        "message",
+        "frames",
+        "framesTruncated"
+      ],
+      "additionalProperties": false,
+      "title": "CrashCause"
+    },
+    "CrashCauseFrame": {
+      "type": "object",
+      "properties": {
+        "raw": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "file": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "function": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "raw"
+      ],
+      "additionalProperties": false,
+      "title": "CrashCauseFrame"
+    },
+    "CrashDetails": {
+      "type": "object",
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "ErrorSeverity"
+        },
+        "context": {
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^(?:[^\\u0000\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,0}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 255,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,1}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 254,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,2}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 253,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,3}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 252,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,4}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 251,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,5}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 250,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,6}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 249,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,7}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 248,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,8}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 247,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,9}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 246,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,10}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 245,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,11}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 244,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,12}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 243,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,13}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 242,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,14}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 241,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,15}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 240,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,16}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 239,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,17}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 238,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,18}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 237,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,19}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 236,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,20}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 235,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,21}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 234,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,22}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 233,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,23}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 232,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,24}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 231,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,25}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 230,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,26}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 229,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,27}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 228,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,28}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 227,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,29}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 226,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,30}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 225,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,31}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 224,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,32}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 223,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,33}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 222,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,34}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 221,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,35}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 220,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,36}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 219,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,37}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 218,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,38}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 217,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,39}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 216,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,40}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 215,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,41}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 214,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,42}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 213,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,43}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 212,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,44}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 211,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,45}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 210,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,46}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 209,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,47}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 208,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,48}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 207,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,49}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 206,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,50}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 205,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,51}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 204,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,52}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 203,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,53}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 202,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,54}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 201,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,55}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 200,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,56}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 199,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,57}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 198,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,58}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 197,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,59}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 196,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,60}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 195,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,61}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 194,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,62}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 193,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,63}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 192,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,64}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 191,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,65}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 190,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,66}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 189,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,67}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 188,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,68}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 187,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,69}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 186,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,70}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 185,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,71}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 184,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,72}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 183,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,73}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 182,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,74}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 181,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,75}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 180,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,76}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 179,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,77}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 178,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,78}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 177,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,79}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 176,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,80}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 175,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,81}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 174,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,82}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 173,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,83}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 172,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,84}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 171,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,85}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 170,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,86}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 169,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,87}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 168,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,88}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 167,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,89}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 166,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,90}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 165,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,91}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 164,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,92}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 163,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,93}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 162,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,94}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 161,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,95}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 160,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,96}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 159,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,97}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 158,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,98}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 157,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,99}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 156,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,100}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 155,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,101}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 154,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,102}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 153,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,103}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 152,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,104}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 151,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,105}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 150,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,106}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 149,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,107}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 148,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,108}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 147,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,109}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 146,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,110}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 145,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,111}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 144,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,112}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 143,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,113}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 142,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,114}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 141,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,115}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 140,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,116}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 139,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,117}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 138,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,118}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 137,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,119}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 136,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,120}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 135,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,121}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 134,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,122}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 133,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,123}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 132,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,124}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 131,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,125}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 130,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,126}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 129,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,127}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 128,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,128}[\\u0000-\\uFFFF]*$"
+            }
+          ]
+        },
+        "metadata": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^(?:[^\\u0000\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,0}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 127,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,1}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 126,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,2}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 125,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,3}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 124,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,4}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 123,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,5}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 122,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,6}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 121,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,7}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 120,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,8}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 119,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,9}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 118,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,10}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 117,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,11}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 116,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,12}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 115,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,13}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 114,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,14}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 113,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,15}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 112,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,16}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 111,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,17}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 110,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,18}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 109,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,19}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 108,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,20}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 107,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,21}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 106,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,22}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 105,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,23}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 104,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,24}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 103,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,25}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 102,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,26}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 101,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,27}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 100,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,28}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 99,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,29}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 98,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,30}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 97,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,31}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 96,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,32}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 95,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,33}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 94,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,34}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 93,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,35}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 92,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,36}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 91,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,37}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 90,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,38}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 89,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,39}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 88,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,40}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 87,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,41}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 86,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,42}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 85,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,43}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 84,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,44}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 83,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,45}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 82,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,46}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 81,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,47}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 80,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,48}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 79,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,49}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 78,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,50}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 77,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,51}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 76,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,52}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 75,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,53}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 74,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,54}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 73,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,55}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 72,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,56}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 71,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,57}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 70,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,58}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 69,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,59}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 68,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,60}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 67,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,61}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 66,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,62}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 65,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,63}[\\u0000-\\uFFFF]*$"
+              },
+              {
+                "maxLength": 64,
+                "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,64}[\\u0000-\\uFFFF]*$"
+              }
+            ]
+          },
+          "additionalProperties": {}
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "title": "CrashDetails"
+    },
+    "JvmCrashMetadata": {
+      "type": "object",
+      "properties": {
+        "mappingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$(?![\\s\\S])"
+        },
+        "causes": {
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JvmCause"
+          }
+        },
+        "causesTruncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "causes",
+        "causesTruncated"
+      ],
+      "additionalProperties": false,
+      "title": "JvmCrashMetadata"
+    },
+    "JvmCause": {
+      "type": "object",
+      "properties": {
+        "exceptionType": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "frames": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Frame"
+          }
+        },
+        "framesTruncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "exceptionType",
+        "message",
+        "frames",
+        "framesTruncated"
+      ],
+      "additionalProperties": false,
+      "title": "JvmCause"
+    },
+    "Frame": {
+      "type": "object",
+      "properties": {
+        "raw": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "file": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "function": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "raw"
+      ],
+      "additionalProperties": {},
+      "title": "Frame"
+    }
+  }
+}

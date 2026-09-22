@@ -1,0 +1,9 @@
+[
+  {
+    "name": "always-loaded SDK entry (rrweb, konva/annotate + screenshot/fiber capture deps stay out — all lazy-imported)",
+    "path": "dist/index.js",
+    "limit": "240 KB",
+    "gzip": true,
+    "ignore": ["react", "react-dom", "react/jsx-runtime", "./rrweb-*.js", "react-konva", "./dist-*.js"]
+  }
+]

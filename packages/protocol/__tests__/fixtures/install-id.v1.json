@@ -1,0 +1,21 @@
+{
+  "domainSeparator": "traceitx-install-id-v1",
+  "note": "installId = base64url_unpadded(HMAC-SHA256(key = seed, message = UTF8(domainSeparator))). The seed is the KEY, not the message. Replayed by install-id-parity.spec.ts (TS), InstallIdentifierTests (Swift), and InstallIdentifierTest (Kotlin). Copies are drift-guarded by fixture-sync.spec.ts.",
+  "cases": [
+    {
+      "name": "16-byte ascending seed — the shape every platform mints",
+      "seedHex": "000102030405060708090a0b0c0d0e0f",
+      "expected": "iYgxBgJiRf1n_ekekB7M9g03ulCzNx2O4jfL8PWLegA"
+    },
+    {
+      "name": "16 zero bytes — output contains both '-' and '_', so a platform using the STANDARD base64 alphabet fails here and only here",
+      "seedHex": "00000000000000000000000000000000",
+      "expected": "iTL9QA9EqrSXPuB-lpG77pMWetAWDyB5tZ4ZqYK_wHI"
+    },
+    {
+      "name": "32-byte seed — proves nothing truncates the HMAC key",
+      "seedHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "expected": "c_BqG1Auraipi3vqasrnIx5hWVUMhZ7p-_w3VLeV_18"
+    }
+  ]
+}

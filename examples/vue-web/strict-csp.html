@@ -1,0 +1,28 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Strict-CSP fixture</title>
+    <!--
+      Served from public/, not /src/styles.css: in Vite dev a /src/*.css
+      request is transformed into a JS module, so a <link> to it would apply
+      no styles at all. See public/strict-csp.css for why.
+    -->
+    <link rel="stylesheet" href="/strict-csp.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="card">
+        <h1 data-testid="strict-csp-heading">Strict-CSP fixture</h1>
+        <p data-testid="csp-marker">
+          Served with default-src 'self'; style-src 'self' 'nonce-…'
+        </p>
+        <p class="pii-value" data-testid="cc-number">Test card: 4111-1111-1111-1111</p>
+      </div>
+      <button type="button" class="report-fab" data-testid="traceitx-bubble">Report a bug</button>
+    </main>
+    <script type="module" src="/src/strict-csp.ts"></script>
+  </body>
+</html>

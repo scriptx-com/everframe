@@ -1,0 +1,97 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "01939c34-7b8f-7000-8000-000000000002",
+  "submittedAt": "2026-04-29T16:00:00.000Z",
+  "sdk": {
+    "name": "traceitx-react-native",
+    "version": "0.0.0",
+    "platform": "tvos",
+    "formFactor": "tv"
+  },
+  "reporter": {
+    "title": "Full envelope",
+    "description": "Every optional field populated to lock the schema",
+    "user": {
+      "id": "user_123",
+      "email": "user@example.com",
+      "displayName": "Test User"
+    }
+  },
+  "captures": {
+    "screenshot": true,
+    "uiTree": true,
+    "focus": true,
+    "logs": true,
+    "network": true
+  },
+  "captureControl": {
+    "included": ["screenshot", "uiTree", "focus", "logs", "network"],
+    "excluded": [],
+    "degradedReason": "uiTree walker unavailable in test fixture"
+  },
+  "payload": {
+    "uiTree": {
+      "root": {
+        "componentType": "App",
+        "componentName": "App",
+        "identifiers": { "testID": "root" },
+        "rect": { "x": 0, "y": 0, "width": 1920, "height": 1080 },
+        "safeProps": { "theme": "dark" },
+        "children": [
+          {
+            "componentType": "Header",
+            "componentName": "Header",
+            "identifiers": {},
+            "rect": { "x": 0, "y": 0, "width": 1920, "height": 64 },
+            "safeProps": { "sticky": true },
+            "children": [],
+            "sensitive": false
+          }
+        ]
+      },
+      "capturedAt": "2026-04-29T16:00:00.000Z",
+      "rendererHint": "dom",
+      "truncated": false
+    },
+    "focus": {
+      "path": [0, 1, 2],
+      "componentPath": "App > Header > LogoutButton",
+      "source": "keyboard",
+      "cursor": { "x": 100, "y": 200 }
+    },
+    "logs": [{ "level": "error", "message": "test" }],
+    "network": [
+      { "method": "GET", "url": "https://api.example.com/users", "status": 200 }
+    ],
+    "annotations": [
+      { "type": "rect", "x": 0, "y": 0, "width": 10, "height": 10 }
+    ],
+    "redactions": [
+      { "type": "blur", "x": 0, "y": 0, "width": 10, "height": 10 }
+    ]
+  },
+  "context": {
+    "app": { "name": "test-app", "version": "1.0.0", "build": "1234" },
+    "device": {
+      "os": "tvos",
+      "osVersion": "17.0",
+      "model": "MacBookPro18,3",
+      "screenSize": { "width": 1920, "height": 1080 },
+      "pixelRatio": 2,
+      "locale": "en-US",
+      "timezone": "America/New_York"
+    },
+    "route": "/checkout"
+  },
+  "attachments": [
+    {
+      "partName": "screenshot",
+      "kind": "screenshot",
+      "contentType": "image/png",
+      "byteLength": 1024,
+      "sha256": "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
+      "width": 1920,
+      "height": 1080
+    }
+  ]
+}

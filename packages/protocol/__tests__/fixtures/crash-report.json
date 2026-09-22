@@ -1,0 +1,48 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "01939c34-7b8f-7000-8000-000000000001",
+  "submittedAt": "2026-04-29T16:00:00.000Z",
+  "sdk": {
+    "name": "traceitx-react",
+    "version": "0.0.0",
+    "platform": "web",
+    "formFactor": "desktop"
+  },
+  "source": "crash",
+  "reporter": { "title": "java.lang.NullPointerException: boom", "description": "" },
+  "captures": {
+    "screenshot": false,
+    "uiTree": false,
+    "focus": false,
+    "logs": false,
+    "network": false
+  },
+  "payload": {
+    "crash": {
+      "exceptionType": "java.lang.NullPointerException",
+      "message": "boom",
+      "frames": [
+        { "raw": "com.example.MainActivity.onCreate(MainActivity.kt:42)", "function": "onCreate", "file": "MainActivity.kt", "line": 42 }
+      ],
+      "threadName": "main",
+      "mechanism": "uncaught-exception-handler",
+      "handled": false,
+      "occurredAt": "2026-07-18T12:00:00.000Z",
+      "fingerprint": "0123456789abcdef"
+    },
+    "breadcrumbs": []
+  },
+  "captureControl": { "included": ["breadcrumbs"], "excluded": ["screenshot", "uiTree", "focus", "logs", "network"], "degradedReason": "crash-capture" },
+  "context": {
+    "app": { "name": "test-app", "version": "1.0.0" },
+    "device": {
+      "os": "macos",
+      "osVersion": "14.4",
+      "screenSize": { "width": 1920, "height": 1080 },
+      "pixelRatio": 2,
+      "locale": "en-US",
+      "timezone": "America/New_York"
+    }
+  },
+  "attachments": []
+}

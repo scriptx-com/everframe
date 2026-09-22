@@ -1,0 +1,13 @@
+diff --git a/build/src/start/platforms/android/adb.js b/build/src/start/platforms/android/adb.js
+index 0000000..1111111 100644
+--- a/build/src/start/platforms/android/adb.js
++++ b/build/src/start/platforms/android/adb.js
+@@ -290,7 +290,7 @@ async function getAttachedDevicesAsync() {
+     return Promise.all(devicePromises);
+ }
+ async function getAdbNameForDeviceIdAsync(device) {
+-    const results = await getServer().runAsync(adbArgs(device.pid, 'emu', 'avd', 'name'));
++    const results = (await getServer().runAsync(adbArgs(device.pid, 'emu', 'avd', 'name'))).trim() || await getServer().runAsync(adbArgs(device.pid, 'shell', 'getprop', 'ro.boot.qemu.avd_name'));
+     if (results.match(/could not connect to TCP port .*: Connection refused/)) {
+         // Can also occur when the emulator does not exist.
+         throw new _errors.CommandError('EMULATOR_NOT_FOUND', results);

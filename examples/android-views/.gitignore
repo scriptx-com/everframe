@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.cxx/
+app/build/

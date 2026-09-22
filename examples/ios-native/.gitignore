@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+# Copyright 2026 ScriptX
+
+# Xcode user-specific state generated on first open / build.
+# Project structure (project.pbxproj, shared schemes) is committed; user state is not.
+xcuserdata/
+*.xcuserstate

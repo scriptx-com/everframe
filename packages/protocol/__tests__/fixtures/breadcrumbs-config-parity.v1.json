@@ -1,0 +1,15 @@
+{
+  "__comment": "Drift guard between the server's BreadcrumbsBlockSchema (the server configuration contract) and sdk-core's BreadcrumbsConfig (packages/sdk-core/src/types/replay/config-provider.ts). Both schemas MUST agree on every case below. If you change either schema, update this fixture and both parity specs together.",
+  "valid": [
+    { "enabled": true, "kinds": ["navigation", "tap", "console", "network", "lifecycle", "error", "custom"], "maxCount": 100, "byteBudget": 16384, "consoleEntryCap": 1024 },
+    { "enabled": false, "kinds": [], "maxCount": 1, "byteBudget": 1, "consoleEntryCap": 1 },
+    { "enabled": true, "kinds": ["error"], "maxCount": 50, "byteBudget": 8192, "consoleEntryCap": 512 }
+  ],
+  "invalid": [
+    { "__why": "unknown kind", "enabled": true, "kinds": ["scroll"], "maxCount": 100, "byteBudget": 16384, "consoleEntryCap": 1024 },
+    { "__why": "extra key (strict)", "enabled": true, "kinds": ["tap"], "maxCount": 100, "byteBudget": 16384, "consoleEntryCap": 1024, "surprise": 1 },
+    { "__why": "missing field", "enabled": true, "kinds": ["tap"], "maxCount": 100, "byteBudget": 16384 },
+    { "__why": "non-positive int", "enabled": true, "kinds": ["tap"], "maxCount": 0, "byteBudget": 16384, "consoleEntryCap": 1024 },
+    { "__why": "wrong type entirely", "not": "an object shape" }
+  ]
+}

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+# Copyright 2026 ScriptX
+
+ReplayTV.xcodeproj/
+build/
+artifacts/
