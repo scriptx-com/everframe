@@ -3,6 +3,84 @@
 
 # @traceitx/protocol
 
+## 0.5.0
+
+### Minor Changes
+
+- fb6e79b: **Report Resource Window: CPU and memory for the last N seconds on every report.**
+
+  Reports and crash envelopes now carry `payload.resources` — CPU and memory
+  sampled every 2 seconds over a per-app configurable window (30/60/120s,
+  default 60, off by default). Configure it per app in the admin App Overview.
+  The admin event drawer charts the window with a peak/average stat row.
+
+  `cpu` is absent on web — no browser CPU API exists; web samples instead carry
+  `extras.longTaskMs` / `extras.loopLagMs`.
+
+  Session Vitals is unchanged by this release and keeps stamping `payload.vitals`
+  exactly as before.
+
+  The webhook event schema goes `1.1` → `1.2`, additive only:
+  `data.report.payload.resources` joins the report payload. Nothing renamed,
+  removed, or re-typed, so an existing `1.1` receiver keeps working untouched.
+
+  ## Deploy order — REQUIRED: API before this SDK
+
+  Deploy the API before releasing this SDK version. An API build without
+  `payload.resources` in its envelope schema rejects an envelope carrying it
+  with a non-retryable 400, and envelope validation is all-or-nothing: the
+  **entire bug report or crash report is silently dropped**, not merely its
+  resources block, with no error visible to the customer or to you.
+
+  **Minimum required API version:** an API deploy from this repo at or after
+  this change merges — one that includes the `resources_enabled` /
+  `resource_window_sec` migration, serves the negotiated `resources` config
+  block, validates `payload.resources` from this same `@traceitx/protocol`
+  release, and delivers webhook schema `1.2`.
+
+- 6f23344: **Playback sessions can now be attributed to the person who was watching.**
+
+  A session carries the end user's identity, through the same two tiers reports
+  already use: the verified identity token, or a self-declared `user` block.
+  Self-declared identities are shown with an "unverified" badge — the claim rides
+  under the publishable SDK key, so it is a claim, never authentication.
+
+  Identity is sent with the session SUMMARY only, never with individual chunks.
+  Sessions from SDKs that do not send identity stay anonymous, which is ordinary
+  and expected.
+
+  **React Native is not covered by this release.** It is in the same fixed version
+  group, so it bumps to the same version, but it gains nothing here: there is no
+  JS vitals collector on React Native — `src/vitals.ts` is a thin TurboModule
+  forwarder over the native collectors — so parity means adding identity to the
+  Android and iOS collectors and their wire codecs. That is separate, and much
+  larger, work.
+
+  ## Deploy order — REQUIRED: API before this SDK
+
+  Deploy the API before releasing this SDK version, and apply migration `0091`
+  before that API boots.
+
+  The fetch path now sends `X-TX-Identity-Token` on the vitals summary, and that
+  header is not in the `Access-Control-Allow-Headers` allow-list of any API build
+  predating this change. Omitting a header from that list does **not** merely
+  strip the header — it fails the CORS **preflight** outright. So a customer on
+  this SDK with verified identity tokens loses the ENTIRE cross-origin summary,
+  and the summary is the session row's only source of dims and metrics: the
+  sessions go blank, not merely unattributed.
+
+  Customers on the self-declared tier, or sending no identity at all, are
+  unaffected — the protocol objects strip unknown keys, so an old API silently
+  ignores `user` and `identityToken`.
+
+  Migration `0091` adds `vitals_sessions.reporter_identity_id`. The new API's
+  summary INSERT lists that column unconditionally, so booting the new API
+  against an un-migrated database fails every summary write.
+
+  **Minimum required API version:** an API deploy from this repo at or after this
+  change merges — one with migration `0091` applied, `X-TX-Identity-Token` in the
+  vitals CORS allow-list, and the summary-path identity resolution.
+
 ## 0.4.0
 
 ### Minor Changes

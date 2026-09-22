@@ -1,6 +1,6 @@
 {
   "name": "@traceitx/react",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "React SDK for TraceItX — AI-ready in-app bug reporting with screenshots, annotation, session replay, breadcrumbs, and crash capture.",
   "keywords": [
     "bug-report",

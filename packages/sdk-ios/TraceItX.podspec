@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 ScriptX
 Pod::Spec.new do |spec|
   spec.name         = "TraceItX"
-  spec.version      = "0.8.1"
+  spec.version      = "0.8.2"
   spec.summary      = "AI-readable bug-report SDK for iOS and tvOS."
   spec.description  = <<-DESC
     TraceItX captures structured bug reports (UI tree + console + network +

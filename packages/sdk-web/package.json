@@ -1,6 +1,6 @@
 {
   "name": "@traceitx/web",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": false,
   "description": "Framework-agnostic web SDK for TraceItX — AI-ready in-app bug reporting for any web framework or plain HTML.",
   "keywords": [

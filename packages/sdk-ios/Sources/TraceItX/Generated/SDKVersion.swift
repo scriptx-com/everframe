@@ -14,4 +14,4 @@
 // `TraceItX.swift` can reference it without an extra import. It is `internal`
 // because consumers should read `TraceItX.SDK_VERSION` — the wrapped public
 // surface, not this implementation detail.
-let TraceItXSDKVersion: String = "0.8.1"
+let TraceItXSDKVersion: String = "0.8.2"

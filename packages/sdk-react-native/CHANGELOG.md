@@ -3,6 +3,55 @@
 
 # @scriptx-com/traceitx-react-native
 
+## 0.8.2
+
+### Minor Changes
+
+- d0b05a4: Add dashboard-controlled shake-to-report on Android and iOS phones and tablets.
+
+  The trigger lives in the native SDKs, so bare native and React Native/Expo apps
+  share the same implementation. It is enabled locally by default, requires no
+  new permission, treats Android's accelerometer as optional, and excludes TV
+  targets. The dashboard remains authoritative; local configuration can only opt
+  out. React Native and Expo development builds should use
+  `shakeToReport: { enabled: !__DEV__ }` to avoid overlapping with the development
+  menu's shake gesture.
+
+- 061f83a: Give `@traceitx/react` the host-facing API `@traceitx/react-native` already had, and fix `setExtra` corruption.
+  - `recordScreen`, `useTXScreen` and `<TXScreen>` are now available on web, deriving the same `from → to` breadcrumb the native SDKs emit. Hosts previously hand-rolled this from a recipe in our own docstring, and different hosts got different subsets of the five rules right.
+  - Top-level `setUser` on web; calling it with no argument clears, matching React Native.
+  - `companion.start()` no longer requires `sdkKey` / `deviceLabel` when a `<TraceItXProvider>` is mounted — it defaults them from the provider config. Explicit arguments still win, and standalone `@traceitx/web` is unchanged.
+  - `useCompanion()` now reports `running`, the session intent hosts previously had to track in a module-scoped flag.
+
+  **`setExtra`, all four SDKs (web, React, React Native, and the protocol/native ceiling underneath them):** the `extra` cap is raised from 2000 characters to 16384 (16 KiB). The 2000-char figure had no storage or ingest justification — it only existed because the native SDKs happened to truncate there — and it was the tightest budget of anything in the report payload (a single breadcrumb message alone gets 2048). If you were ever hand-trimming your own `extra` object to survive the old limit, you almost certainly don't need to anymore.
+
+  `setExtra` accepts an object as well as a string — `@traceitx/sdk-core`, `@traceitx/web` and `@traceitx/react` already had this, and `@traceitx/react-native` now does too — so hosts stop hand-serializing JSON themselves.
+
+  **`setExtra` also accepts a resolver — `setExtra(() => buildExtra())` — and this is now the form to prefer.** It is invoked once per report, at assembly time, never at registration time, so what it returns reflects the host's state when the bug happened rather than whenever `setExtra` last ran. The string and object forms freeze a snapshot at call time, which goes stale the moment anything changes; a host that was re-calling `setExtra` on every state change to keep it fresh can replace all of those calls with one resolver registered at startup. React Native reaches the resolver through a native ask-and-wait seam, so it behaves the same there as on the web. An over-budget payload is never sliced (slicing serialized JSON produces a fragment nothing can parse); it is OMITTED from the report instead, with a warning logged at the `setExtra` call site naming the actual size and the limit. On React Native, an over-budget **string** still crosses the bridge as-is and is truncated by the native side's own raw character cut — that native behavior is unchanged; prefer the object form there.
+
+  `EXTRA_MAX_CHARS` is now exported from `@traceitx/react` and `@traceitx/react-native` (it was already available from `@traceitx/sdk-core` and `@traceitx/web`), so a host that wants to trim its own `extra` object can check the real limit and decide for itself what to drop — that decision needs knowledge of what the host's own fields mean, which only the host has. The SDK does not attempt this on your behalf.
+
+- 80ac7d9: **Session Vitals no longer ships CPU/memory samples.**
+
+  Resource consumption is covered by the Report Resource Window: CPU and memory
+  sampled every 2 seconds over the window before a report or crash. That is both
+  finer than the vitals sample stream (which sampled every 30 seconds) and
+  actually aligned to the failure it explains.
+
+  The vitals stream cost nearly everything and explained little. Measured against
+  real stored data: 79% of stored chunks came from sessions where no video ever
+  played, and a single 10-hour session produced 1,154 stored objects containing
+  nothing but samples and not one playback event.
+
+  `recordSample` still exists and still runs the full entry path — session
+  rotation, activity tracking and the summary accumulator — so session lifetimes
+  are unchanged and `memPeak` / `memAvg` still land on the session summary. What
+  stops is transport: samples no longer enter the chunk upload queue, and no
+  longer enter the recent ring that gets stamped into a bug or crash report.
+
+  Session Vitals is now playback-only: startup, buffering, bitrate and quality
+  switches, errors and seeks. A session with no playback activity uploads nothing.
+
 ## 0.8.1
 
 ### Minor Changes

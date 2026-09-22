@@ -3,6 +3,15 @@
 
 # examples-react-native
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies [d0b05a4]
+- Updated dependencies [061f83a]
+- Updated dependencies [80ac7d9]
+  - @traceitx/react-native@0.9.0
+
 ## 0.0.9
 
 ### Patch Changes

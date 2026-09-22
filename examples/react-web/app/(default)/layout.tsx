@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
-import { TraceItXProvider } from '@traceitx/react';
-import { SiteNav } from '../components/SiteNav';
-import { ReportFab } from '../components/ReportFab';
-import { SessionProvider, UserSwitcher, useSession } from '../components/UserSwitcher';
-import '../globals.css';
+import type { ReactNode } from "react";
+import { TraceItXProvider } from "@traceitx/react";
+import { SiteNav } from "../components/SiteNav";
+import { ReportFab } from "../components/ReportFab";
+import {
+  SessionProvider,
+  UserSwitcher,
+  useSession,
+} from "../components/UserSwitcher";
+import "../globals.css";
 
 // Mint a real key from /admin/ → app detail → "Create SDK key" and put it in
 // examples/react-web/.env.local as NEXT_PUBLIC_TRACEITX_KEY=txx_live_…
 // `txx_live_test` is the placeholder accepted only by the e2e stub server.
-const TRACEITX_KEY = process.env.NEXT_PUBLIC_TRACEITX_KEY ?? 'txx_live_test';
+const TRACEITX_KEY = process.env.NEXT_PUBLIC_TRACEITX_KEY ?? "txx_live_test";
 
 /**
  * Recognition is ONE PROP. It used to be <IdentityBridge/> — a component whose
@@ -28,9 +32,15 @@ function Shell({ children }: { children: ReactNode }) {
   const { user, getAccessToken } = useSession();
   return (
     <TraceItXProvider
-      config={{ apiKey: TRACEITX_KEY, appBuild: process.env.NEXT_PUBLIC_TRACEITX_APP_BUILD, debug: true, vitals: { enabled: true } }}
+      config={{
+        apiKey: TRACEITX_KEY,
+        // The build id is what lets the API match uploaded source maps to a report.
+        appBuild: process.env.NEXT_PUBLIC_TRACEITX_APP_BUILD,
+        debug: true,
+        vitals: { enabled: true },
+      }}
       identity={{
-        endpoint: '/api/traceitx-identity',
+        endpoint: "/api/traceitx-identity",
         key: user?.id,
         headers: (): Record<string, string> => {
           const token = getAccessToken();

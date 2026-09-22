@@ -3,6 +3,15 @@
 
 # @traceitx/example-react-tv
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies [41f87fe]
+- Updated dependencies [061f83a]
+- Updated dependencies [6f23344]
+  - @traceitx/react@0.9.0
+
 ## 0.0.9
 
 ### Patch Changes

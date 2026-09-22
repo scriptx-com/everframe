@@ -1,6 +1,6 @@
 {
   "name": "examples-react-native",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "private": true,
   "main": "index.js",
   "scripts": {
@@ -43,7 +43,9 @@
   "expo": {
     "autolinking": {
       "android": {
-        "exclude": ["react-native-safe-area-context"]
+        "exclude": [
+          "react-native-safe-area-context"
+        ]
       },
       "searchPaths": [
         "../../packages"
