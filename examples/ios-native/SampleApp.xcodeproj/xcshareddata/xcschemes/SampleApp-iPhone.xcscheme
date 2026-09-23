@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
-
 <Scheme
    LastUpgradeVersion = "1430"
    version = "1.7">
@@ -70,7 +67,7 @@
       </CommandLineArguments>
       <EnvironmentVariables>
          <EnvironmentVariable
-            key = "TRACEITX_DEV_INGEST_URL"
+            key = "EVERFRAME_DEV_INGEST_URL"
             value = "http://localhost:8787"
             isEnabled = "YES">
          </EnvironmentVariable>

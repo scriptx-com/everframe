@@ -4,7 +4,7 @@
 import UIKit
 import Darwin
 
-/// Host-only probe. No metric hooks or file output are added to the SDK.
+/// Host-only probe. No metric hooks or file output are added to the Everframe SDK.
 @MainActor final class FrameProbe: NSObject {
     private var link: CADisplayLink?
     private var previous: CFTimeInterval?

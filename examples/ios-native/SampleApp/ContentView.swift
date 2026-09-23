@@ -3,17 +3,17 @@
 //
 // Phase 05.1: trigger detection is a host-app concern. This sample shows the
 // canonical phone/tablet recipe — a Button that calls
-// TraceItX.shared.report.open() and disables itself while the reporter is
+// Everframe.shared.report.open() and disables itself while the reporter is
 // presenting (observed via the new @Published `report.isPresenting` surface).
 
 import SwiftUI
-import TraceItXKit
+import EverframeKit
 
 struct ContentView: View {
     /// Observe the reporter's presenting state so the trigger button can
     /// disable itself while the reporter is up. ReportAPI is an
     /// ObservableObject; its `isPresenting` is `@Published`.
-    @ObservedObject private var report = TraceItX.shared.report
+    @ObservedObject private var report = Everframe.shared.report
 
     var body: some View {
         NavigationStack {
@@ -23,7 +23,7 @@ struct ContentView: View {
                     NavigationLink("Detail", destination: DetailScreen())
                 }
                 Section("Sensitive content (PRIV-01..03)") {
-                    NavigationLink("Login (TXSensitiveView + SecureField)", destination: LoginScreen())
+                    NavigationLink("Login (EFSensitiveView + SecureField)", destination: LoginScreen())
                     NavigationLink("Payment (markSensitive)", destination: PaymentScreen())
                 }
                 Section("Session Vitals") {
@@ -33,14 +33,14 @@ struct ContentView: View {
                     Button("Report handled error") {
                         do {
                             throw NSError(
-                                domain: "TraceItXSample",
+                                domain: "EverframeSample",
                                 code: 1,
                                 userInfo: [
                                     NSLocalizedDescriptionKey: "Native iOS handled error test"
                                 ]
                             )
                         } catch {
-                            TraceItX.shared.captureException(
+                            Everframe.shared.captureException(
                                 error,
                                 options: CaptureExceptionOptions(
                                     severity: .warning,
@@ -56,13 +56,13 @@ struct ContentView: View {
                     }
                 }
                 Section("Trigger reporter") {
-                    Button("Open TraceItX reporter") {
-                        Task { try? await TraceItX.shared.report.open() }
+                    Button("Open Everframe reporter") {
+                        Task { try? await Everframe.shared.report.open() }
                     }
                     .disabled(report.isPresenting)
                 }
             }
-            .navigationTitle("TraceItX Sample")
+            .navigationTitle("Everframe Sample")
         }
     }
 }

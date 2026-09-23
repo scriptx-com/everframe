@@ -8,7 +8,7 @@
 // then drops the player, which would also self-detach via the release sentinel.
 import AVKit
 import SwiftUI
-import TraceItXKit
+import EverframeKit
 
 private let mainStream = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
 
@@ -30,9 +30,9 @@ struct PlaybackScreen: View {
                 Button("Log ad break") {
                     adBreaks += 1
                     let positionMs = Int((player.currentTime().seconds * 1000).rounded())
-                    TraceItX.shared.trackVitals("ad_break", data: ["position": "midroll", "index": adBreaks, "positionMs": positionMs])
+                    Everframe.shared.trackVitals("ad_break", data: ["position": "midroll", "index": adBreaks, "positionMs": positionMs])
                 }
-                Button("Open reporter") { Task { try? await TraceItX.shared.report.open() } }
+                Button("Open reporter") { Task { try? await Everframe.shared.report.open() } }
             }
             .buttonStyle(.bordered)
             Text("Session Vitals — playback").font(.footnote).foregroundStyle(.secondary)
@@ -40,7 +40,7 @@ struct PlaybackScreen: View {
         .padding()
         .navigationTitle("Playback")
         .onAppear {
-            handle = TraceItX.shared.trackPlayer(player, name: "main")
+            handle = Everframe.shared.trackPlayer(player, name: "main")
             player.play()
         }
         .onDisappear {

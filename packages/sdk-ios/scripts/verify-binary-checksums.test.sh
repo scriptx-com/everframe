@@ -76,26 +76,26 @@ let binaryVersion = "${version}"
 let baseURL = "${base}"
 
 let package = Package(
-    name: "TraceItX",
+    name: "Everframe",
     targets: [
         .binaryTarget(
-            name: "TraceItXKit",
-            url: baseURL + "TraceItXKit.xcframework.zip",
+            name: "EverframeKit",
+            url: baseURL + "EverframeKit.xcframework.zip",
             checksum: "1111111111111111111111111111111111111111111111111111111111111111"
         ),
         .binaryTarget(
-            name: "TraceItXProtocol",
-            url: baseURL + "TraceItXProtocol.xcframework.zip",
+            name: "EverframeProtocol",
+            url: baseURL + "EverframeProtocol.xcframework.zip",
             checksum: "2222222222222222222222222222222222222222222222222222222222222222"
         ),
     ]
 )
 EOF
-    cat > "${dir}/TraceItX.podspec" <<EOF
+    cat > "${dir}/Everframe.podspec" <<EOF
 Pod::Spec.new do |spec|
-  spec.name    = "TraceItX"
+  spec.name    = "Everframe"
   spec.version = "${version}"
-  spec.source  = { :http => "https://example.invalid/v#{spec.version}/TraceItX-#{spec.version}.zip" }
+  spec.source  = { :http => "https://example.invalid/v#{spec.version}/Everframe-#{spec.version}.zip" }
 end
 EOF
 }

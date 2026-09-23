@@ -4,7 +4,7 @@
 // Default empty values; Local.xcconfig overrides via the optional include.
 // The `?` form makes Local.xcconfig optional so the project still parses
 // when the file is absent (e.g. before first `pnpm gen-ios-config` run);
-// SampleApp.swift then throws TraceItXConfigError.missingAppId at launch
+// SampleApp.swift then throws EverframeConfigError.missingAppId at launch
 // (clear failure surface) instead of failing at xcconfig parse time.
 INGEST_URL =
 INGEST_SDK_KEY =

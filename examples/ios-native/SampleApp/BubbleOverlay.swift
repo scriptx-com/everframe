@@ -4,8 +4,8 @@
 // BubbleOverlay — sample-owned floating-bubble trigger for iOS / iPadOS.
 //
 // Phase 05.1 contract (D-01): floating bubble overlays are a HOST-APP concern,
-// not SDK code. This file is the canonical iOS recipe. It is NOT promoted to
-// the SDK; it lives in the sample so hosts can copy/paste and adapt.
+// not Everframe SDK code. This file is the canonical iOS recipe. It is NOT promoted to
+// the Everframe SDK; it lives in the sample so hosts can copy/paste and adapt.
 //
 // Recipe (per RESEARCH Q5 finding 5):
 //   • A separate `UIWindow` at `windowLevel = .normal + 1` keeps the bubble
@@ -33,7 +33,7 @@
 
 import UIKit
 import Combine
-import TraceItXKit
+import EverframeKit
 
 @MainActor
 enum BubbleOverlay {
@@ -119,7 +119,7 @@ private final class BubbleRootController: UIViewController {
         button.layer.shadowOpacity = 0.25
         button.layer.shadowOffset = CGSize(width: 0, height: 3)
         button.layer.shadowRadius = 6
-        button.accessibilityLabel = "Open TraceItX reporter"
+        button.accessibilityLabel = "Open Everframe reporter"
         button.addTarget(self, action: #selector(bubbleTapped), for: .touchUpInside)
 
         view.addSubview(button)
@@ -134,7 +134,7 @@ private final class BubbleRootController: UIViewController {
         // Bind isPresenting → button.isEnabled + alpha. Combine surface from
         // Phase 05.1: ReportAPI is an ObservableObject; isPresenting is
         // @Published.
-        TraceItX.shared.report.$isPresenting
+        Everframe.shared.report.$isPresenting
             .receive(on: DispatchQueue.main)
             .sink { [weak button] presenting in
                 button?.isEnabled = !presenting
@@ -144,6 +144,6 @@ private final class BubbleRootController: UIViewController {
     }
 
     @objc private func bubbleTapped() {
-        Task { try? await TraceItX.shared.report.open() }
+        Task { try? await Everframe.shared.report.open() }
     }
 }

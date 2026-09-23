@@ -4,7 +4,7 @@
 import UIKit
 import SwiftUI
 import AVFoundation
-import TraceItXKit
+import EverframeKit
 
 final class RailsController: UICollectionViewController {
     private let probe = FrameProbe()
@@ -30,7 +30,7 @@ final class RailsController: UICollectionViewController {
         collectionView.register(PosterCell.self, forCellWithReuseIdentifier: "poster")
         collectionView.remembersLastFocusedIndexPath = true
         let title = UILabel(frame: CGRect(x: 60, y: 20, width: 950, height: 110))
-        title.text = "TRACEITX TV  ·  CINEMA COLLECTION"
+        title.text = "EVERFRAME TV  ·  CINEMA COLLECTION"
         title.font = .boldSystemFont(ofSize: 36); title.textColor = .white
         view.addSubview(title)
         // The sensitive label is masked in screenshots and replay; the player
@@ -38,7 +38,7 @@ final class RailsController: UICollectionViewController {
         let secret = UILabel(frame: CGRect(x: 1120, y: 35, width: 240, height: 75))
         secret.text = "PRIVATE 7391"; secret.textAlignment = .center
         secret.backgroundColor = .magenta; secret.textColor = .white
-        secret.tx_isSensitive = true; view.addSubview(secret)
+        secret.everframe_isSensitive = true; view.addSubview(secret)
         let video = AVPlayerLayer()
         video.frame = CGRect(x: 1420, y: 35, width: 200, height: 75)
         video.backgroundColor = UIColor.red.cgColor; view.layer.addSublayer(video)
@@ -115,7 +115,7 @@ private struct HeaderCard: View {
             Image(systemName: "play.rectangle.fill").font(.system(size: 56)).foregroundStyle(.cyan)
             VStack(alignment: .leading) {
                 Text("SwiftUI · Tonight’s selection").font(.title2).bold()
-                Text("Focus, browse and discover").font(.headline).foregroundStyle(.secondary)
+                Text("EverframeFocus, browse and discover").font(.headline).foregroundStyle(.secondary)
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(Color(red: 0.035, green: 0.05, blue: 0.09))
@@ -139,7 +139,7 @@ private enum PosterArt {
             }
             let title = ["NORTHBOUND", "AFTER HOURS", "THE HORIZON", "DEEP BLUE", "WILD EARTH"][index % 5]
             (title as NSString).draw(at: CGPoint(x: 28, y: 210), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 38), .foregroundColor: UIColor.white])
-            ("A TRACEITX ORIGINAL  •  \(2020 + index % 7)" as NSString).draw(at: CGPoint(x: 30, y: 265), withAttributes: [.font: UIFont.systemFont(ofSize: 17), .foregroundColor: UIColor.white])
+            ("A EVERFRAME ORIGINAL  •  \(2020 + index % 7)" as NSString).draw(at: CGPoint(x: 30, y: 265), withAttributes: [.font: UIFont.systemFont(ofSize: 17), .foregroundColor: UIColor.white])
         }
     }
 }

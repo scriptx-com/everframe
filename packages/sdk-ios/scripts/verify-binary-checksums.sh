@@ -4,7 +4,7 @@
 #
 # Guard: `Package.binary.swift`'s `binaryVersion` and every one of its
 # `checksum:` values must describe the SAME set of artifacts — plus the
-# CocoaPods source zip named by `TraceItX.podspec`, which is a release asset
+# CocoaPods source zip named by `Everframe.podspec`, which is a release asset
 # nothing else checks.
 #
 # Why this exists. `scripts/sync-version.sh` propagates the podspec version
@@ -20,7 +20,7 @@
 #
 # The CocoaPods asset is checked here rather than by a separate script because
 # this is the gate PUBLISHING.md §6 makes mandatory before `pod trunk push`,
-# and `pod trunk push` is exactly what a missing `TraceItX-<version>.zip`
+# and `pod trunk push` is exactly what a missing `Everframe-<version>.zip`
 # breaks. It is not a `binaryTarget`, so the loop above cannot see it, and its
 # name is DERIVED from the podspec's own `spec.source` — never retyped here.
 # There is no checksum to compare: CocoaPods does not verify one, so existence
@@ -68,7 +68,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MANIFEST="${PKG_DIR}/Package.binary.swift"
-POD_SPEC="${PKG_DIR}/TraceItX.podspec"
+POD_SPEC="${PKG_DIR}/Everframe.podspec"
 MANIFEST_LABEL="Package.binary.swift"
 
 MODE="fetch"
@@ -122,7 +122,7 @@ if [[ -n "${GIT_REF}" ]]; then
     mkdir -p "${REF_DIR}"
     PREFIX="$(git -C "${PKG_DIR}" rev-parse --show-prefix 2>/dev/null)" || {
         echo "error: --ref only works inside a git checkout" 1>&2; exit 2; }
-    for f in Package.binary.swift TraceItX.podspec; do
+    for f in Package.binary.swift Everframe.podspec; do
         if ! git -C "${PKG_DIR}" show "${GIT_REF}:${PREFIX}${f}" > "${REF_DIR}/${f}" 2>"${TMP_DIR}/git-err"; then
             echo "error: could not read ${PREFIX}${f} at ref '${GIT_REF}':" 1>&2
             cat "${TMP_DIR}/git-err" 1>&2
@@ -130,7 +130,7 @@ if [[ -n "${GIT_REF}" ]]; then
         fi
     done
     MANIFEST="${REF_DIR}/Package.binary.swift"
-    POD_SPEC="${REF_DIR}/TraceItX.podspec"
+    POD_SPEC="${REF_DIR}/Everframe.podspec"
     MANIFEST_LABEL="${GIT_REF}:${PREFIX}Package.binary.swift"
 fi
 
@@ -355,7 +355,7 @@ POD_ASSET="${POD_ASSET##*/}"
 if [[ -z "${VERSION_OVERRIDE}" && "${POD_VERSION}" != "${VERSION}" ]]; then
     cat 1>&2 <<EOF
 FAIL: version drift between the two iOS manifests.
-      TraceItX.podspec   spec.version  = ${POD_VERSION}
+      Everframe.podspec   spec.version  = ${POD_VERSION}
       Package.binary.swift binaryVersion = ${VERSION}
       The podspec is the source of truth — rerun scripts/sync-version.sh.
 EOF
@@ -367,7 +367,7 @@ if [[ "${MODE}" == "dist" ]]; then
         echo "  MISSING  CocoaPods zip: no ${DIST_DIR}/${POD_ASSET}" 1>&2
         cat 1>&2 <<EOF
 FAIL: the CocoaPods source zip is missing from ${DIST_DIR}.
-      Run scripts/build-xcframework.sh — it writes TraceItX-<version>.zip
+      Run scripts/build-xcframework.sh — it writes Everframe-<version>.zip
       alongside the xcframework zips.
 EOF
         exit 1
@@ -384,7 +384,7 @@ else
 FAIL: ${BASE_URL}${POD_ASSET} → HTTP 404.
       The GitHub Release is missing the CocoaPods source zip, so
       \`pod trunk push\` will fail its lint. Upload it (PUBLISHING.md §6
-      uploads dist/*.xcframework.zip AND dist/TraceItX-<version>.zip), then
+      uploads dist/*.xcframework.zip AND dist/Everframe-<version>.zip), then
       rerun.
 EOF
         exit 1
