@@ -2,17 +2,17 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { createRuntime, type RuntimeConfig } from '../src/runtime.js';
 import { __setCurrentContext } from '../src/contextSeam.js';
 
-const native = NativeTraceItX as unknown as { configureSync: ReturnType<typeof vi.fn> };
+const native = NativeEverframe as unknown as { configureSync: ReturnType<typeof vi.fn> };
 
 describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () => {
   beforeEach(() => native.configureSync.mockClear());
   // Each `.mount()` below installs a module-level singleton context (single-
   // instance enforcement, T-06-05-04) — clear it between cases so the next
-  // `.mount()` doesn't throw TraceItXNotMountedError. Mirrors set-user.spec.ts.
+  // `.mount()` doesn't throw EverframeNotMountedError. Mirrors set-user.spec.ts.
   afterEach(() => __setCurrentContext(null));
 
   it('flattens all three fields when set', () => {
@@ -49,7 +49,7 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
       createRuntime({ apiKey: 'k', vitals: { sampleRate: 50 } }).mount();
       const opts = native.configureSync.mock.calls[0][0];
       expect('vitalsSampleRate' in opts).toBe(false);
-      expect(warn).toHaveBeenCalledWith('[traceitx] vitals.sampleRate must be within 0..1; ignoring 50');
+      expect(warn).toHaveBeenCalledWith('[everframe] vitals.sampleRate must be within 0..1; ignoring 50');
       warn.mockRestore();
     });
 

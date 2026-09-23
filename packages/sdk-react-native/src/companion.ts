@@ -3,8 +3,8 @@
 //
 // Plan 06.2-11 — JS facade for the phone-companion bridge.
 //
-// Mirrors the native shape of `TraceItX.shared.companion` (iOS) and
-// `TraceItX.companion` (Android):
+// Mirrors the native shape of `Everframe.shared.companion` (iOS) and
+// `Everframe.companion` (Android):
 //
 //   • `start(endpoint)` — open the relay WS against `<endpoint>/relay/tv`.
 //   • `stop()`          — close the relay WS; observable state retained.
@@ -40,14 +40,14 @@
 // not embedded here.
 //
 // Emitter selection:
-//   • iOS — `TraceItXEventEmitter` (dedicated RCTEventEmitter subclass).
+//   • iOS — `EverframeEventEmitter` (dedicated RCTEventEmitter subclass).
 //   • Android — the default RCTDeviceEventEmitter (no module ref needed).
 // We construct an `emitter` lazily at first listener attachment so importing
 // this module doesn't require NativeEventEmitter wiring before the
-// TraceItXProvider has configured the native side.
+// EverframeProvider has configured the native side.
 
 import { useEffect, useState } from 'react';
-import NativeTraceItX from './NativeTraceItX.js';
+import NativeEverframe from './NativeEverframe.js';
 import { getEmitter } from './events.js';
 
 // Re-exported so any existing import of `getEmitter` from this module keeps
@@ -66,16 +66,16 @@ export type CompanionState =
   | 'report_in_progress'
   | 'phone_disconnected';
 
-// Event names — duplicated in `ios/Sources/TraceItXEventEmitter.swift` and
-// `android/.../TraceItXModule.kt`. Keep all three lists in lock-step; on iOS
+// Event names — duplicated in `ios/Sources/EverframeEventEmitter.swift` and
+// `android/.../EverframeModule.kt`. Keep all three lists in lock-step; on iOS
 // an event absent from `supportedEvents()` is silently dropped by RN.
-const STATE_EVENT = 'traceitx.companion.state';
-const PAIR_URL_EVENT = 'traceitx.companion.pairUrl';
-const CODE_EVENT = 'traceitx.companion.code';
-const ATTACHED_USER_NAME_EVENT = 'traceitx.companion.attachedUserName';
-const RESOLVED_NAME_EVENT = 'traceitx.companion.resolvedName';
-const ATTACH_CHALLENGE_EVENT = 'traceitx.companion.attachChallenge';
-const REPORT_REQUESTED_EVENT = 'traceitx.companion.reportRequested';
+const STATE_EVENT = 'everframe.companion.state';
+const PAIR_URL_EVENT = 'everframe.companion.pairUrl';
+const CODE_EVENT = 'everframe.companion.code';
+const ATTACHED_USER_NAME_EVENT = 'everframe.companion.attachedUserName';
+const RESOLVED_NAME_EVENT = 'everframe.companion.resolvedName';
+const ATTACH_CHALLENGE_EVENT = 'everframe.companion.attachChallenge';
+const REPORT_REQUESTED_EVENT = 'everframe.companion.reportRequested';
 
 /**
  * A pending dashboard-initiated attach-PIN challenge (spec 2026-08-19).
@@ -137,7 +137,7 @@ let _latestAttachChallengeExpiresAt: number | null = null;
 /**
  * Does the host WANT a session right now? Distinct from `CompanionState`,
  * which reports what the relay is doing — mirrors the same flag added to
- * `@traceitx/web`'s companion singleton. Written only by `start()`/`stop()`
+ * `@everframe/web`'s companion singleton. Written only by `start()`/`stop()`
  * below; there is no native event for it, it is purely a JS-side intent
  * flag, so subscribers are tracked the same way the web SDK's
  * `__onCompanionRunning` does rather than through `getEmitter()`.
@@ -172,12 +172,12 @@ let _attachChallengeExpiryTimer: ReturnType<typeof setTimeout> | null = null;
  * a fresh one.
  *
  * The ingest URL is no longer a JS-side argument — the native SDKs bake it
- * at compile time (Release: https://traceitx.com; Debug: optionally
- * overridden via TRACEITX_DEV_INGEST_URL on each native build).
+ * at compile time (Release: https://everframe.dev; Debug: optionally
+ * overridden via EVERFRAME_DEV_INGEST_URL on each native build).
  */
 export function start(): void {
   setRunning(true);
-  NativeTraceItX.startCompanion();
+  NativeEverframe.startCompanion();
   installReportRequestedHandler();
   installAttachChallengeCache();
   installResolvedNameCache();
@@ -199,7 +199,7 @@ function installReportRequestedHandler(): void {
     REPORT_REQUESTED_EVENT,
     (correlationId: string) => {
       try {
-        NativeTraceItX.signalCompanionReportRequestReady(correlationId);
+        NativeEverframe.signalCompanionReportRequestReady(correlationId);
       } catch {
         // Older native SDK without the signal method — bridge will time
         // out on its own. No harm; the report still ships.
@@ -298,7 +298,7 @@ function attachChallengeReplayValue(): CompanionAttachChallenge | null {
  */
 export function stop(): void {
   setRunning(false);
-  NativeTraceItX.stopCompanion();
+  NativeEverframe.stopCompanion();
 }
 
 /**

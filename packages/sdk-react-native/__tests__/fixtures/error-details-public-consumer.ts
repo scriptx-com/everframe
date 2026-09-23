@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import {
   captureException,
-  useTraceItX,
+  useEverframe,
   type CaptureExceptionOptions,
-} from '@traceitx/react-native';
+} from '@everframe/react-native';
 
 const options: CaptureExceptionOptions = {
   severity: 'warning',
@@ -15,7 +15,7 @@ const publicCapture: (
   error: unknown,
   options?: CaptureExceptionOptions,
 ) => void = captureException;
-const hook: ReturnType<typeof useTraceItX> = {} as ReturnType<typeof useTraceItX>;
+const hook: ReturnType<typeof useEverframe> = {} as ReturnType<typeof useEverframe>;
 
 publicCapture(new Error('top-level'), options);
 hook.captureException(new Error('hook'), options);

@@ -28,17 +28,17 @@ cd ios && pod install
 
 ## Usage
 
-Wrap your app with `<TraceItXProvider>` at the highest practical level
+Wrap your app with `<EverframeProvider>` at the highest practical level
 (above any navigator / focus engine root):
 
 ```tsx
-import { TraceItXProvider, useTraceItX } from '@everframe/react-native';
+import { EverframeProvider, useEverframe } from '@everframe/react-native';
 
 export default function App() {
   return (
     // `apiKey` is the only required field. The ingest endpoint is a
     // compile-time constant in the SDK and is not configurable in v1.
-    <TraceItXProvider
+    <EverframeProvider
       config={{
         apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
         // Recommended in RN/Expo development: shake also opens the dev menu.
@@ -46,7 +46,7 @@ export default function App() {
       }}
     >
       <RootNavigator />
-    </TraceItXProvider>
+    </EverframeProvider>
   );
 }
 ```
@@ -55,13 +55,13 @@ Trigger the reporter from any host UI:
 
 ```tsx
 function HelpButton() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   return <Button title="Report a bug" onPress={() => open()} />;
 }
 ```
 
 For non-component contexts, use the top-level `open` re-export
-(throws `TraceItXNotMountedError` if the provider is not yet mounted):
+(throws `EverframeNotMountedError` if the provider is not yet mounted):
 
 ```ts
 import { open } from '@everframe/react-native';
@@ -79,7 +79,7 @@ artifacts are not evidence of support.
 ## Network body capture (client veto)
 
 ```tsx
-<TraceItXProvider config={{ apiKey: '…', networkBodies: { disabled: true } }}>
+<EverframeProvider config={{ apiKey: '…', networkBodies: { disabled: true } }}>
 ```
 
 `networkBodies.disabled: true` is a **client veto** — it can only turn body
@@ -97,7 +97,7 @@ native capture — and even that requires the native side to actually be
 capturing network traffic in the first place:
 
 - **Android**: bodies are captured only for OkHttpClient instances the host
-  app explicitly builds with `addTraceItXInterceptor()` (see
+  app explicitly builds with `addEverframeInterceptor()` (see
   `packages/sdk-android/android/README.md`). Without that interceptor, no
   network capture — and therefore no bodies — happens regardless of this
   option.
@@ -115,11 +115,11 @@ chain shared with native auto-capture. Works with any navigation approach.
 react-navigation (screens stay mounted — pass focus):
 
 ```tsx
-import { useTXScreen } from '@everframe/react-native';
+import { useEverframeScreen } from '@everframe/react-native';
 import { useIsFocused, useRoute } from '@react-navigation/native';
 
 function DetailScreen() {
-  useTXScreen(useRoute().name, { focused: useIsFocused() });
+  useEverframeScreen(useRoute().name, { focused: useIsFocused() });
   ...
 }
 ```
@@ -141,7 +141,7 @@ Hand-rolled (conditional-render tabs, custom switchers):
 
 ```tsx
 function DeskTab() {
-  useTXScreen('Desk');
+  useEverframeScreen('Desk');
   ...
 }
 ```
@@ -162,7 +162,7 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 const navigationRef = createNavigationContainerRef();
 const txNav = reactNavigationIntegration({ navigationRef });
 
-<TraceItXProvider config={{ apiKey, integrations: [consoleIntegration(), txNav] }}>
+<EverframeProvider config={{ apiKey, integrations: [consoleIntegration(), txNav] }}>
   <NavigationContainer ref={navigationRef} onReady={txNav.onReady}>
     ...
 ```
@@ -175,7 +175,7 @@ const txNav = reactNavigationIntegration({ navigationRef });
   to the container so the initial route is recorded.
 
 Using another navigator? Any stack is a ~5-line adapter over
-`recordScreen` — the `useTXScreen` recipes above cover Wix RNN and
+`recordScreen` — the `useEverframeScreen` recipes above cover Wix RNN and
 hand-rolled navigation, and a custom integration is just
 `{ name, setup() { ...subscribe...; return unsubscribe } }`.
 
@@ -191,7 +191,7 @@ inside a native view and never reaches JS.
 ### Config
 
 ```tsx
-<TraceItXProvider config={{ apiKey, vitals: { enabled: true, sampleRate: 0.5, captureSourceQuery: false } }}>
+<EverframeProvider config={{ apiKey, vitals: { enabled: true, sampleRate: 0.5, captureSourceQuery: false } }}>
 ```
 
 - `enabled` — absent follows the dashboard toggle; `false` opts out locally;
@@ -367,16 +367,16 @@ the canonical example app below is kept building on that matrix.
 
 ### Provider placement
 
-`<TraceItXProvider>` MUST sit ABOVE the TV focus engine's root in the
+`<EverframeProvider>` MUST sit ABOVE the TV focus engine's root in the
 component tree. The reporter is presented imperatively by the native side
-(via `TXTVReporterViewController` on iOS / `:traceitx-tv` `ReporterActivity`
+(via `TXTVReporterViewController` on iOS / `:everframe-tv` `ReporterActivity`
 on Android), so React Native's focus engine never sees it — the native VC
 manages focus on its own UIWindow / Activity.
 
 ```tsx
-<TraceItXProvider config={{ apiKey }}>
+<EverframeProvider config={{ apiKey }}>
   <NavigationContainer>{/* focus engine root */}</NavigationContainer>
-</TraceItXProvider>
+</EverframeProvider>
 ```
 
 ### Triggers are the host app's concern
@@ -392,7 +392,7 @@ In React Native and Expo development builds, use
 menu also uses shake. Production remains enabled by default.
 
 All other gestures and keys are host-owned. The host app
-calls `useTraceItX().open()` (or the top-level `open()`)
+calls `useEverframe().open()` (or the top-level `open()`)
 from whatever trigger makes sense for the target form factor.
 
 For TV, the canonical pattern uses `TVEventHandler` (exposed by
@@ -426,11 +426,11 @@ subscription?.remove();
 
 ```tsx
 import { Platform, TVEventHandler } from 'react-native';
-import { useTraceItX } from '@everframe/react-native';
+import { useEverframe } from '@everframe/react-native';
 import { useEffect } from 'react';
 
 function useAppleTVReporterTrigger() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   useEffect(() => {
     if (!(Platform.isTV && Platform.OS === 'ios')) return;
     const sub = TVEventHandler.addListener((evt) => {
@@ -454,11 +454,11 @@ function useAppleTVReporterTrigger() {
 
 ```tsx
 import { Platform, TVEventHandler } from 'react-native';
-import { useTraceItX } from '@everframe/react-native';
+import { useEverframe } from '@everframe/react-native';
 import { useEffect } from 'react';
 
 function useAndroidTVReporterTrigger() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   useEffect(() => {
     if (!(Platform.isTV && Platform.OS === 'android')) return;
     const sub = TVEventHandler.addListener((evt) => {

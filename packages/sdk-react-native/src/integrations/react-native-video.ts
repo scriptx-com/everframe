@@ -45,7 +45,7 @@ export interface VideoPlayerVitalsOptions {
    * Subscribe to `onError` so errors carry the library's `code`. OFF by
    * default: registering an `onError` listener makes react-native-video stop
    * throwing synchronously from `play()`/`pause()`/`seek*()` for the entire
-   * host app, which is a behaviour change TraceItX must not make silently.
+   * host app, which is a behaviour change Everframe must not make silently.
    * Without it, a fatal error is still reported via `onStatusChange('error')`
    * — just without a `code`.
    */

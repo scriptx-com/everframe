@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { captureException, useTraceItX } from '@traceitx/react-native';
+import { captureException, useEverframe } from '@everframe/react-native';
 import { color, radius, type } from '../theme';
 
 // Separate, stable throw sites make the reports easy to identify and map.
@@ -19,9 +19,9 @@ function throwUnhandled(): never {
 }
 
 export function ErrorTests(): React.JSX.Element {
-  const { captureException: captureViaHook } = useTraceItX();
+  const { captureException: captureViaHook } = useEverframe();
   const [lastAttempt, setLastAttempt] = useState('No error triggered yet.');
-  const hasKey = Boolean(process.env.EXPO_PUBLIC_TRACEITX_KEY?.trim());
+  const hasKey = Boolean(process.env.EXPO_PUBLIC_EVERFRAME_KEY?.trim());
 
   function handledTopLevel() {
     try {
@@ -58,7 +58,7 @@ export function ErrorTests(): React.JSX.Element {
         {hasKey ? 'SDK key configured; capture and delivery must be checked in admin.' : 'SDK key missing. Configure the RN example key and restart Metro.'}
       </Text>
       <Text testID="error-test-build" style={type.monoNote}>
-        {process.env.EXPO_PUBLIC_TRACEITX_JS_BUILD_ID ?? 'Metro development build — no release map identity'}
+        {process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID ?? 'Metro development build — no release map identity'}
       </Text>
       {[
         { id: 'trigger-handled-error', label: 'Handled error', onPress: handledTopLevel },

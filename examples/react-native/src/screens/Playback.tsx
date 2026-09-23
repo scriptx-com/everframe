@@ -24,14 +24,14 @@
 // exception: a custom, app-domain event the player cannot know about.
 //
 // react-native-video is a dependency of THIS EXAMPLE only — never of
-// @traceitx/react-native, whose adapter is structurally typed and imports
+// @everframe/react-native, whose adapter is structurally typed and imports
 // nothing from the library.
 
 import React, { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'react-native-video';
-import { trackVitals, useTXScreen } from '@traceitx/react-native';
-import { useVideoPlayerVitals } from '@traceitx/react-native/integrations/react-native-video';
+import { trackVitals, useEverframeScreen } from '@everframe/react-native';
+import { useVideoPlayerVitals } from '@everframe/react-native/integrations/react-native-video';
 import { color, font, radius, type } from '../theme';
 
 // Apple's public HLS reference stream — multi-bitrate, so ABR actually
@@ -56,7 +56,7 @@ const RNV_VERSION = '7.0.0-beta.11';
 const initialised = new WeakSet<object>();
 
 export function Playback(): React.JSX.Element {
-  useTXScreen('Playback');
+  useEverframeScreen('Playback');
 
   // `initializeOnCreation: false` is what makes STARTUP measurable here (codex round-5, G3).
   // On Android react-native-video v7 emits `onLoadStart` synchronously from inside the native

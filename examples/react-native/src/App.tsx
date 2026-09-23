@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Sample-app root for the @traceitx/react-native dogfood —
+// Sample-app root for the @everframe/react-native dogfood —
 // "Elytra", a small insect field guide (the RN sibling of
 // examples/react-web). Multi-tab so the reporter has something real to
 // capture: tabs to switch, a long list to scroll, SVG plates to screenshot,
 // and seeded PII to redact.
 //
 // What this file demonstrates:
-//   1. <TraceItXProvider> wraps the subtree, supplying configure-on-mount.
+//   1. <EverframeProvider> wraps the subtree, supplying configure-on-mount.
 //   2. The host renders its own triggers — the floating <ReportFab/> in the
 //      corner of every tab (testID "open-reporter-button", the Maestro
 //      anchor) plus the TV remote listener inside it. NO trigger machinery
@@ -27,8 +27,8 @@
 
 import React, { useCallback, useState } from 'react';
 import { Platform, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { TraceItXProvider } from '@traceitx/react-native';
-import { consoleIntegration } from '@traceitx/react-native/integrations/console';
+import { EverframeProvider } from '@everframe/react-native';
+import { consoleIntegration } from '@everframe/react-native/integrations/console';
 
 import { ReportFab } from './components/ReportFab';
 import { PLAYBACK_SUPPORTED, TabBar, type TabKey } from './components/TabBar';
@@ -58,21 +58,21 @@ const STATUS_BAR_HEIGHT = Platform.isTV
     });
 
 // Source of truth: repo-root `.env`. `scripts/sync-env.mjs` projects
-// NEXT_PUBLIC_TRACEITX_KEY into EXPO_PUBLIC_TRACEITX_KEY at bundle time.
+// NEXT_PUBLIC_EVERFRAME_KEY into EXPO_PUBLIC_EVERFRAME_KEY at bundle time.
 // The ingest URL is baked into the native iOS/Android SDKs at compile time
-// (Release: https://traceitx.com; Debug: TRACEITX_DEV_INGEST_URL env var).
+// (Release: https://everframe.dev; Debug: EVERFRAME_DEV_INGEST_URL env var).
 //
 // Only `consoleIntegration()` is wired here — the sample's <TabBar/> is
 // pure-JS, deliberately NOT @react-navigation (see header comment), so
 // `reactNavigationIntegration` doesn't apply; navigation breadcrumbs already
-// come from each screen's `useTXScreen(...)` marker instead.
-const TRACEITX_CONFIG = {
-  apiKey: process.env.EXPO_PUBLIC_TRACEITX_KEY ?? '',
+// come from each screen's `useEverframeScreen(...)` marker instead.
+const EVERFRAME_CONFIG = {
+  apiKey: process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? '',
   appName: 'examplereactnative',
   appVersion: '1.0.0',
-  ...(process.env.EXPO_PUBLIC_TRACEITX_JS_BUILD_ID ? {
+  ...(process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID ? {
     jsBundle: {
-      buildId: process.env.EXPO_PUBLIC_TRACEITX_JS_BUILD_ID,
+      buildId: process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID,
       bundleName: Platform.OS === 'android' ? 'index.android.bundle' : 'main.jsbundle',
     },
   } : {}),
@@ -126,12 +126,12 @@ export function App(): React.JSX.Element {
   }, []);
 
   return (
-    <TraceItXProvider config={TRACEITX_CONFIG}>
+    <EverframeProvider config={EVERFRAME_CONFIG}>
       <StatusBar barStyle="dark-content" />
       <View style={[styles.root, { paddingTop: STATUS_BAR_HEIGHT }]}>
         <View style={styles.masthead}>
           <Text style={styles.wordmark}>ELYTRA</Text>
-          <Text style={styles.demoTag}>TraceItX demo</Text>
+          <Text style={styles.demoTag}>Everframe demo</Text>
         </View>
 
         {/* FieldLog owns its scrolling (SectionList); the other tabs share a
@@ -155,7 +155,7 @@ export function App(): React.JSX.Element {
         <TabBar active={tab} onSelect={selectTab} />
         <ReportFab />
       </View>
-    </TraceItXProvider>
+    </EverframeProvider>
   );
 }
 

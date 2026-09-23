@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { Platform } from 'react-native';
-import type { JsBundleMetadata } from '@traceitx/protocol';
+import type { JsBundleMetadata } from '@everframe/protocol';
 
 export interface JsBundleConfig { buildId: string; bundleName: string }
 

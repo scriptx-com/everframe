@@ -25,7 +25,7 @@ import { spawn } from 'node:child_process';
 
 const PORT = Number(process.env.METRO_PORT ?? 8081);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
-  console.error(`[traceitx-example] invalid METRO_PORT: ${process.env.METRO_PORT}`);
+  console.error(`[everframe-example] invalid METRO_PORT: ${process.env.METRO_PORT}`);
   process.exit(2);
 }
 
@@ -51,7 +51,7 @@ if (!cmd) {
 
 if (!(await isFree(PORT))) {
   console.error(
-    `\n[traceitx-example] Metro port ${PORT} is already in use.\n` +
+    `\n[everframe-example] Metro port ${PORT} is already in use.\n` +
     `Another RN sample is probably running. Stop it, or run this one on\n` +
     `its own port:\n` +
     `  METRO_PORT=8082 pnpm ios\n` +
@@ -60,7 +60,7 @@ if (!(await isFree(PORT))) {
   process.exit(1);
 }
 
-console.error(`[traceitx-example] using Metro port ${PORT}`);
+console.error(`[everframe-example] using Metro port ${PORT}`);
 
 // Forward the port to Expo so the dev build's script URL and Metro agree —
 // see the drift warning in the header. Skip if the caller already passed one.
@@ -93,18 +93,18 @@ if (SHOULD_INJECT_DEVICE_FLAG) {
 
 // Dev ingest URL for the iOS/tvOS simulator. `expo run:ios` launches the
 // app via `simctl launch`, which forwards only host env prefixed with
-// SIMCTL_CHILD_ — so mirror TRACEITX_DEV_INGEST_URL (default local ingest)
+// SIMCTL_CHILD_ — so mirror EVERFRAME_DEV_INGEST_URL (default local ingest)
 // into that shape. Only the Debug-built vendored xcframework reads it
 // (`#if DEBUG` in IngestEndpoint.swift); against a Release framework or the
 // published pod it is inert. Simulators share the host network namespace,
 // hence localhost (Android's 10.0.2.2 does not apply here; the Android AAR
 // bakes its URL at publish time instead — see scripts/dev/rn.mjs).
-const devIngestUrl = process.env.TRACEITX_DEV_INGEST_URL || 'http://localhost:8787';
+const devIngestUrl = process.env.EVERFRAME_DEV_INGEST_URL || 'http://localhost:8787';
 const env = {
   ...process.env,
-  TRACEITX_DEV_INGEST_URL: devIngestUrl,
-  SIMCTL_CHILD_TRACEITX_DEV_INGEST_URL:
-    process.env.SIMCTL_CHILD_TRACEITX_DEV_INGEST_URL || devIngestUrl,
+  EVERFRAME_DEV_INGEST_URL: devIngestUrl,
+  SIMCTL_CHILD_EVERFRAME_DEV_INGEST_URL:
+    process.env.SIMCTL_CHILD_EVERFRAME_DEV_INGEST_URL || devIngestUrl,
 };
 
 const child = spawn(cmd, args, { stdio: 'inherit', env });

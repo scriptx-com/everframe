@@ -5,7 +5,7 @@
 // bottom-right corner above the tab bar on every screen. The SDK ships zero
 // trigger machinery (feedback_triggers_are_host_concern.md); this is the
 // canonical host wiring, now app-global instead of Home-screen-local:
-//   - Phone: one Pressable calling useTraceItX().open().
+//   - Phone: one Pressable calling useEverframe().open().
 //   - TV:    TVEventHandler → Apple TV long-press Play/Pause
 //            (`longPlayPause`) or Android TV KEYCODE_MENU (`menu`).
 //
@@ -22,7 +22,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TVEventHandler, View } from 'react-native';
 import Svg, { Ellipse, Path } from 'react-native-svg';
-import { useTraceItX } from '@traceitx/react-native';
+import { useEverframe } from '@everframe/react-native';
 import { color, font, radius } from '../theme';
 
 // Key-up sentinel: RCTTVRemoteEventKeyActionUp (iOS, NSNumber @(1)) and
@@ -31,7 +31,7 @@ import { color, font, radius } from '../theme';
 const KEY_ACTION_UP = 1;
 
 export function ReportFab(): React.JSX.Element {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   const [submitted, setSubmitted] = useState(false);
   // open() resolves when the reporter closes; the ref guards re-entry so a
   // double-tap (or remote-key repeat) can't stack two reporters.

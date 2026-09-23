@@ -17,7 +17,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useTXScreen } from '@traceitx/react-native';
+import { useEverframeScreen } from '@everframe/react-native';
 import { ARCHIVE, ARCHIVE_TOTAL, type ArchiveRecord } from '../data/archive';
 import { SPECIMENS } from '../data/specimens';
 import { color, font, radius, type } from '../theme';
@@ -53,7 +53,7 @@ const SEED_ENTRIES: LogEntry[] = [
 type Row = { kind: 'log'; entry: LogEntry } | { kind: 'archive'; record: ArchiveRecord };
 
 export function FieldLog(): React.JSX.Element {
-  useTXScreen('FieldLog');
+  useEverframeScreen('FieldLog');
   const [entries, setEntries] = useState<LogEntry[]>(SEED_ENTRIES);
   const [note, setNote] = useState('');
 

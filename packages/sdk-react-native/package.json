@@ -63,7 +63,7 @@
   },
   "files": [
     "dist",
-    "src/NativeTraceItX.ts",
+    "src/NativeEverframe.ts",
     "src/codegen-types.ts",
     "ios/Sources",
     "ios/*.h",
@@ -106,11 +106,11 @@
     "vitest": "^4.0.0"
   },
   "codegenConfig": {
-    "name": "TraceItXSpec",
+    "name": "EverframeSpec",
     "type": "modules",
     "jsSrcsDir": "src",
     "android": {
-      "javaPackageName": "com.facebook.fbreact.specs"
+      "javaPackageName": "dev.everframe.rn"
     }
   }
 }

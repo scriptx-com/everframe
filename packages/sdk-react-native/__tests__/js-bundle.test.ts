@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { Platform } from 'react-native';
 import { installErrorHandler } from '../src/errors.js';
 import { createRuntime } from '../src/runtime.js';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 
 let teardown: (() => void) | undefined;
 afterEach(() => { teardown?.(); vi.unstubAllGlobals(); vi.clearAllMocks(); Platform.OS = 'android'; });
@@ -18,7 +18,7 @@ function capture(jsBundle: unknown, platform = 'android', hermes = true) {
   } });
   installed(new Error('hermes-identity'), false);
   expect(previous).toHaveBeenCalledOnce();
-  return JSON.parse(vi.mocked(NativeTraceItX.reportCrash).mock.calls[0][0]);
+  return JSON.parse(vi.mocked(NativeEverframe.reportCrash).mock.calls[0][0]);
 }
 it.each(['android', 'ios'])('attaches actual Hermes %s identity', platform => {
   expect(capture({ buildId: 'run-7', bundleName: 'index.bundle' }, platform).jsBundle)
@@ -47,6 +47,6 @@ it('snapshots identity at runtime mount and picks a new build after remount', ()
   jsBundle.buildId = 'second';
   installed(new Error('first'), true);
   rt.unmount(); rt.mount(); installed(new Error('second'), true);
-  expect(vi.mocked(NativeTraceItX.reportCrash).mock.calls.map(([json]) => JSON.parse(json).jsBundle?.buildId)).toEqual(['first', 'second']);
-  expect(vi.mocked(NativeTraceItX.configureSync).mock.calls[0][0]).not.toHaveProperty('jsBundle');
+  expect(vi.mocked(NativeEverframe.reportCrash).mock.calls.map(([json]) => JSON.parse(json).jsBundle?.buildId)).toEqual(['first', 'second']);
+  expect(vi.mocked(NativeEverframe.configureSync).mock.calls[0][0]).not.toHaveProperty('jsBundle');
 });

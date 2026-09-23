@@ -3,7 +3,7 @@
 #
 # Maestro reporter-smoke flow (Plan 06-06 Task 3).
 #
-# Asserts the @traceitx/react-native integration boundary works:
+# Asserts the @everframe/react-native integration boundary works:
 #   - App launches without crash.
 #   - Host "Open Reporter" button exists and is tappable.
 #   - Provider-rendered <ReporterModal> opens.
@@ -21,13 +21,13 @@
 # rather than via a kitchen-sink dogfood. See 06-VALIDATION.md and the Phase 7
 # ROADMAP entry.
 
-appId: com.traceitx.example
+appId: dev.everframe.example
 ---
 - launchApp:
     clearState: true
 
 # 1. The reporter trigger surface exists (proves the provider mounted, the host
-#    rendered, and useTraceItX() resolved a real runtime).
+#    rendered, and useEverframe() resolved a real runtime).
 - assertVisible:
     id: "open-reporter-button"
 

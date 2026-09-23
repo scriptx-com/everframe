@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // setExtra resolver round trip (spec 2026-09-17 setExtra-resolver) — RN
-// parity for the resolver form @traceitx/sdk-core / @traceitx/web already
+// parity for the resolver form @everframe/sdk-core / @everframe/web already
 // have. Native (Android/iOS) asks JS for a fresh value right before it
 // drains pending attachments for a report, mirroring the companion
 // `reportRequested`/`signalCompanionReportRequestReady` handshake in
 // `companion.ts`. This file exercises the JS half of that handshake end to
-// end: the real `src/runtime.ts`, the real `traceitx.extra.resolveRequested`
-// listener it installs, real budgeting via `@traceitx/sdk-core`'s
+// end: the real `src/runtime.ts`, the real `everframe.extra.resolveRequested`
+// listener it installs, real budgeting via `@everframe/sdk-core`'s
 // `budgetExtra`.
 //
 // WHAT THIS FILE ACTUALLY EXERCISES
@@ -67,7 +67,7 @@ vi.mock('react-native', () => {
     __nativeMock: nativeMock,
     NativeEventEmitter: FakeNativeEventEmitter,
     // Non-undefined so `getEmitter()` doesn't take its __DEV__ warning branch.
-    NativeModules: { TraceItXEventEmitter: {} },
+    NativeModules: { EverframeEventEmitter: {} },
     Platform: { OS: 'ios' },
     TurboModuleRegistry: {
       getEnforcing: () => nativeMock,
@@ -76,11 +76,11 @@ vi.mock('react-native', () => {
 });
 
 import * as RN from 'react-native';
-import { EXTRA_MAX_CHARS } from '@traceitx/sdk-core';
+import { EXTRA_MAX_CHARS } from '@everframe/sdk-core';
 import { createRuntime } from '../src/runtime.js';
 import { __setCurrentContext } from '../src/contextSeam.js';
 
-const EXTRA_RESOLVE_REQUESTED_EVENT = 'traceitx.extra.resolveRequested';
+const EXTRA_RESOLVE_REQUESTED_EVENT = 'everframe.extra.resolveRequested';
 
 const listeners = (
   RN as unknown as {

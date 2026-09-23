@@ -19,7 +19,7 @@ import { describe, it, expect } from "vitest";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const specPath = path.join(__dirname, "..", "src", "NativeTraceItX.ts");
+const specPath = path.join(__dirname, "..", "src", "NativeEverframe.ts");
 const specSrc = readFileSync(specPath, "utf8");
 
 // Strip line/block comments so doc-comment prose mentioning a token (e.g. an
@@ -38,7 +38,7 @@ function extractConfigOptsBody(code: string): string {
   const decl = code.match(/export\s+type\s+ConfigOpts\s*=\s*\{/);
   expect(
     decl,
-    "RBRIDGE-01: ConfigOpts type declaration must exist in NativeTraceItX.ts",
+    "RBRIDGE-01: ConfigOpts type declaration must exist in NativeEverframe.ts",
   ).toBeTruthy();
   const start = decl!.index! + decl![0].length;
   let depth = 1;
@@ -84,17 +84,17 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
         // asks JS for a fresh resolver value (bounded, fail-open) right
         // before draining pending attachments — mirrors the companion
         // `reportRequested`/`signalCompanionReportRequestReady` handshake
-        // below. See both methods' doc comments on NativeTraceItX.ts.
+        // below. See both methods' doc comments on NativeEverframe.ts.
         "setExtraResolverActive",
         "signalExtraResolverReady",
         // Plan 4 / Task 14 — the 6th report method, a deliberate D-decision:
         // a manual breadcrumb escape hatch that forwards to the native
         // singleton's existing coercion path (Tasks 5/9). See its doc
-        // comment on NativeTraceItX.ts's `Spec.addBreadcrumb`.
+        // comment on NativeEverframe.ts's `Spec.addBreadcrumb`.
         "addBreadcrumb",
         // Spec 2026-07-14 — the 7th report method, the navigation screen marker:
         // records "this screen is now visible". See its doc comment on
-        // NativeTraceItX.ts's `Spec.recordScreen`.
+        // NativeEverframe.ts's `Spec.recordScreen`.
         "recordScreen",
         // Spec 2026-07-18 — the 8th report method and Task 11's own
         // D-decision: the ONLY sync method on this spec (non-void return
@@ -109,17 +109,17 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
         "configureSync",
         // Spec 2026-08-12 — the 9th report method and Task 10's own
         // D-decision: the self-declared identity surface. Bridge parameter
-        // is `UnsafeObject` (NOT the named `TXUserSpec` alias — codegen
+        // is `UnsafeObject` (NOT the named `EverframeUserSpec` alias — codegen
         // ignores `?` optionality on named struct aliases, only honouring it
-        // for UnsafeObject; see NativeTraceItX.ts's file header). No
+        // for UnsafeObject; see NativeEverframe.ts's file header). No
         // replay/ingest/remote-config surface — it's a pass-through to the
         // native singleton's `setUser`. See its doc comment on
-        // NativeTraceItX.ts's `Spec.setUser`.
+        // NativeEverframe.ts's `Spec.setUser`.
         "setUser",
         // Spec 2026-09-06 — Session Vitals RN bridge, five D-decisions in
         // one: the library-agnostic player bridge (trackPlayer / detachPlayer /
         // recordPlayerEvent / updatePlayerStats) and the custom log line
-        // (trackVitals). All void, fire-and-forget; see NativeTraceItX.ts.
+        // (trackVitals). All void, fire-and-forget; see NativeEverframe.ts.
         "trackPlayer",
         "detachPlayer",
         "recordPlayerEvent",
@@ -202,7 +202,7 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
 
   describe("Test C — no JS-side /api/config fetch in the package src", () => {
     const SRC_FILES = [
-      "NativeTraceItX.ts",
+      "NativeEverframe.ts",
       "runtime.ts",
       "index.ts",
       "companion.ts",

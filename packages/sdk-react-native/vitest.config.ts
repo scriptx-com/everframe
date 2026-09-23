@@ -22,9 +22,9 @@ export default mergeConfig(
       alias: {
         // Most specific first — see packages/sdk-react/vitest.config.ts for
         // why: @rollup/plugin-alias matches in insertion order, and a bare
-        // '@traceitx/sdk-core' key (added by a future change) would also
+        // '@everframe/sdk-core' key (added by a future change) would also
         // match this subpath and swallow it.
-        '@traceitx/sdk-core/conformance': fileURLToPath(
+        '@everframe/sdk-core/conformance': fileURLToPath(
           new URL('../sdk-core/src/conformance/host-surface.ts', import.meta.url),
         ),
         'react-native': new URL('./__tests__/stubs/react-native.ts', import.meta.url).pathname,

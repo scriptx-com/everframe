@@ -47,7 +47,7 @@ vi.mock('react-native', () => {
     __listeners: listeners,
     NativeEventEmitter: FakeNativeEventEmitter,
     // Non-undefined so `getEmitter()` doesn't take its __DEV__ warning branch.
-    NativeModules: { TraceItXEventEmitter: {} },
+    NativeModules: { EverframeEventEmitter: {} },
     Platform: { OS: 'ios' },
     TurboModuleRegistry: {
       getEnforcing: () => ({
@@ -69,7 +69,7 @@ import {
   type CompanionAttachChallenge,
 } from '../src/companion.js';
 
-const ATTACH_CHALLENGE_EVENT = 'traceitx.companion.attachChallenge';
+const ATTACH_CHALLENGE_EVENT = 'everframe.companion.attachChallenge';
 
 const listeners = (
   RN as unknown as {
@@ -182,7 +182,7 @@ describe('useCompanion() — attachChallenge', () => {
   it('is independent of the other four hook values', () => {
     const { latest, unmount } = renderCompanion();
 
-    emitNative('traceitx.companion.code', 'TX-4821');
+    emitNative('everframe.companion.code', 'TX-4821');
     emitNative(ATTACH_CHALLENGE_EVENT, SAMPLE_CHALLENGE);
 
     expect(latest().code).toBe('TX-4821');

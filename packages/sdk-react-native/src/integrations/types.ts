@@ -8,7 +8,7 @@
 // subpath export so unused ones never enter the bundle.
 
 /** A host-opt-in capture integration. */
-export interface TraceItXIntegration {
+export interface EverframeIntegration {
   /** Diagnostic name used in warn messages, e.g. 'console'. */
   name: string;
   /**

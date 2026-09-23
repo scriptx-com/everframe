@@ -5,11 +5,11 @@
 // PREVIOUS user installed on React Native.
 //
 // `runtime.ts` used to hand the host's object straight across the TurboModule
-// bridge. `TXUserSpec` is a TypeScript type: it has no runtime existence, and
+// bridge. `EverframeUserSpec` is a TypeScript type: it has no runtime existence, and
 // the bridge parameter is `UnsafeObject` anyway, so ANY value crosses. On
-// Android, `TraceItXModule.setUser` then called `getString(key)` guarded only
+// Android, `EverframeModule.setUser` then called `getString(key)` guarded only
 // by `hasKey(key)` — and `ReadableMap.getString` THROWS on a non-string value.
-// `txGuardVoid` swallowed that exception BEFORE `TraceItX.setUser()` was ever
+// `txGuardVoid` swallowed that exception BEFORE `Everframe.setUser()` was ever
 // reached, so `setUser({ id: 12345 })` was a silent no-op and every subsequent
 // report stayed attributed to whoever was set before.
 //
@@ -29,11 +29,11 @@
 // deliberate difference is the empty return value: web returns `null`, this
 // returns `undefined`, because the TurboModule bridge forbids `T | null` and
 // "call with no argument" is how RN expresses a clear.
-import type { TXUserSpec } from './NativeTraceItX.js';
+import type { EverframeUserSpec } from './NativeEverframe.js';
 
 /**
  * The ONLY keys `setUser` accepts. A runtime array precisely because the
- * `TXUserSpec` type cannot be one — adding a field to the type without adding
+ * `EverframeUserSpec` type cannot be one — adding a field to the type without adding
  * it here means the field is silently dropped, which is the safe direction to
  * fail.
  */
@@ -60,10 +60,10 @@ const USER_KEYS = ['id', 'email', 'displayName'] as const;
  * ingest's call (`normalizeSelfDeclaredUser`), not the SDK's — exactly as on
  * web.
  */
-export function projectUserSpec(value: unknown): TXUserSpec | undefined {
+export function projectUserSpec(value: unknown): EverframeUserSpec | undefined {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const source = value as Record<string, unknown>;
-  const projected: TXUserSpec = {};
+  const projected: EverframeUserSpec = {};
   for (const key of USER_KEYS) {
     try {
       const raw = source[key];

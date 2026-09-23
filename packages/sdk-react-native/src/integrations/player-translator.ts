@@ -195,7 +195,7 @@ export function createPlayerTranslator(
     },
     wrap: (fn) => (...a) => {
       try { fn(...a); } catch (e) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[traceitx] player adapter handler failed', e);
+        if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[everframe] player adapter handler failed', e);
       }
     },
   };

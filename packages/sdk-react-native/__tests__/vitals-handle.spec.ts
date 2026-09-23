@@ -4,11 +4,11 @@
 // Session Vitals — trackPlayer/PlayerHandle/trackVitals unit tests
 // (spec 2026-09-06 §3, Task 3).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { trackPlayer, trackVitals, serializeVitalsData, __resetPlayerTokenCounterForTests } from '../src/vitals.js';
 
 type M = Record<'trackPlayer' | 'detachPlayer' | 'recordPlayerEvent' | 'updatePlayerStats' | 'trackVitals', ReturnType<typeof vi.fn>>;
-const native = NativeTraceItX as unknown as M;
+const native = NativeEverframe as unknown as M;
 
 describe('trackPlayer handle (spec 2026-09-06 §3)', () => {
   beforeEach(() => {

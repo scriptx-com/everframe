@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "TraceItX RN Example",
+    "name": "Everframe RN Example",
     "slug": "examplereactnative",
     "version": "0.0.0",
-    "scheme": "traceitxexample",
+    "scheme": "everframeexample",
     "orientation": "portrait",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "com.traceitx.example",
+      "bundleIdentifier": "dev.everframe.example",
       "supportsTablet": true,
       "deploymentTarget": "16.4"
     },
     "android": {
-      "package": "com.traceitx.example"
+      "package": "dev.everframe.example"
     },
     "plugins": [
       [
@@ -33,9 +33,9 @@
         "@react-native-tvos/config-tv",
         { "tvosDeploymentTarget": "16.4" }
       ],
-      "./plugins/with-traceitx-workspace.js",
-      "./plugins/with-traceitx-tv-prebuild.js",
-      "./plugins/with-traceitx-ios-local.js"
+      "./plugins/with-everframe-workspace.js",
+      "./plugins/with-everframe-tv-prebuild.js",
+      "./plugins/with-everframe-ios-local.js"
     ]
   }
 }

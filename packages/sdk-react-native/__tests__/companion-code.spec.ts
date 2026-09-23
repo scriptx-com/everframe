@@ -20,8 +20,8 @@
 // either subscription in `useCompanion` — or renaming either event constant
 // on one side only — turns these tests red.
 //
-// The three-file event-name lock-step (companion.ts / TraceItXEventEmitter.swift
-// / TraceItXModule.kt) and the `supportedEvents()` trap are covered separately
+// The three-file event-name lock-step (companion.ts / EverframeEventEmitter.swift
+// / EverframeModule.kt) and the `supportedEvents()` trap are covered separately
 // in `companion-bridge-wiring.spec.ts`, which reads the native sources: the
 // native halves of this chain have no runnable test host in this repo.
 
@@ -53,7 +53,7 @@ vi.mock('react-native', () => {
     __listeners: listeners,
     NativeEventEmitter: FakeNativeEventEmitter,
     // Non-undefined so `getEmitter()` doesn't take its __DEV__ warning branch.
-    NativeModules: { TraceItXEventEmitter: {} },
+    NativeModules: { EverframeEventEmitter: {} },
     Platform: { OS: 'ios' },
     TurboModuleRegistry: {
       getEnforcing: () => ({
@@ -76,11 +76,11 @@ import {
   useCompanion,
 } from '../src/companion.js';
 
-const CODE_EVENT = 'traceitx.companion.code';
-const ATTACHED_USER_NAME_EVENT = 'traceitx.companion.attachedUserName';
-const RESOLVED_NAME_EVENT = 'traceitx.companion.resolvedName';
-const PAIR_URL_EVENT = 'traceitx.companion.pairUrl';
-const STATE_EVENT = 'traceitx.companion.state';
+const CODE_EVENT = 'everframe.companion.code';
+const ATTACHED_USER_NAME_EVENT = 'everframe.companion.attachedUserName';
+const RESOLVED_NAME_EVENT = 'everframe.companion.resolvedName';
+const PAIR_URL_EVENT = 'everframe.companion.pairUrl';
+const STATE_EVENT = 'everframe.companion.state';
 
 const listeners = (
   RN as unknown as {

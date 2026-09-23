@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Vitest-only stub for `react-native`. The real RN package is a peerDependency
-// of @traceitx/react-native and is NOT installed in this workspace (it would
+// of @everframe/react-native and is NOT installed in this workspace (it would
 // drag in the entire metro/babel toolchain). For unit tests we alias
 // `import 'react-native'` to this file via vitest.config.ts → resolve.alias.
 //

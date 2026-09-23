@@ -6,7 +6,7 @@
 // positionally to the TurboModule with NO validation/coercion (the native
 // singleton owns all of that — same contract as addBreadcrumb).
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { recordScreen, __setCurrentContext } from '../src/contextSeam.js';
 import { createRuntime } from '../src/runtime.js';
 
@@ -19,7 +19,7 @@ describe('recordScreen', () => {
   it('top-level export is a no-op (no throw, no native call) when unmounted', () => {
     __setCurrentContext(null);
     expect(() => recordScreen('Home')).not.toThrow();
-    expect(NativeTraceItX.recordScreen).not.toHaveBeenCalled();
+    expect(NativeEverframe.recordScreen).not.toHaveBeenCalled();
   });
 
   it('top-level export forwards to the mounted context', () => {
@@ -29,11 +29,11 @@ describe('recordScreen', () => {
     expect(ctx.recordScreen).toHaveBeenCalledWith('Home', { stack: 'root' });
   });
 
-  it('runtime forwards positionally to NativeTraceItX.recordScreen', () => {
+  it('runtime forwards positionally to NativeEverframe.recordScreen', () => {
     const runtime = createRuntime({ apiKey: 'txx_test_key' });
     runtime.recordScreen('Detail', { stack: 'root' });
-    expect(NativeTraceItX.recordScreen).toHaveBeenCalledWith('Detail', { stack: 'root' });
+    expect(NativeEverframe.recordScreen).toHaveBeenCalledWith('Detail', { stack: 'root' });
     runtime.recordScreen('Detail2');
-    expect(NativeTraceItX.recordScreen).toHaveBeenCalledWith('Detail2', undefined);
+    expect(NativeEverframe.recordScreen).toHaveBeenCalledWith('Detail2', undefined);
   });
 });

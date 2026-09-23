@@ -10,7 +10,7 @@
 // handler.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installErrorHandler } from '../src/errors.js';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { createRuntime } from '../src/runtime.js';
 import { __getCurrentContext, __setCurrentContext } from '../src/contextSeam.js';
 
@@ -30,8 +30,8 @@ describe('RN crash error handler (spec 2026-07-18)', () => {
         installed = h;
       },
     };
-    (NativeTraceItX.reportCrash as ReturnType<typeof vi.fn>).mockClear?.();
-    (NativeTraceItX.reportCrash as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (NativeEverframe.reportCrash as ReturnType<typeof vi.fn>).mockClear?.();
+    (NativeEverframe.reportCrash as ReturnType<typeof vi.fn>).mockReturnValue(true);
   });
   afterEach(() => {
     teardown?.();
@@ -44,8 +44,8 @@ describe('RN crash error handler (spec 2026-07-18)', () => {
     err.stack = 'TypeError: boom\n    at f (bundle.js:10:5)';
     installed!(err, true);
 
-    expect(NativeTraceItX.reportCrash).toHaveBeenCalledTimes(1);
-    const facts = JSON.parse((NativeTraceItX.reportCrash as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+    expect(NativeEverframe.reportCrash).toHaveBeenCalledTimes(1);
+    const facts = JSON.parse((NativeEverframe.reportCrash as ReturnType<typeof vi.fn>).mock.calls[0][0]);
     expect(facts).toMatchObject({
       exceptionType: 'TypeError',
       message: 'boom',
@@ -59,7 +59,7 @@ describe('RN crash error handler (spec 2026-07-18)', () => {
   });
 
   it('chains previous handler even when reportCrash throws', () => {
-    (NativeTraceItX.reportCrash as ReturnType<typeof vi.fn>).mockImplementation(() => {
+    (NativeEverframe.reportCrash as ReturnType<typeof vi.fn>).mockImplementation(() => {
       throw new Error('bridge dead');
     });
     teardown = installErrorHandler({});
@@ -74,9 +74,9 @@ describe('RN crash error handler (spec 2026-07-18)', () => {
     err.stack = 'Error: dup\n    at g (b.js:2:2)';
     installed!(err, false);
     installed!(err, false);
-    expect(NativeTraceItX.reportCrash).toHaveBeenCalledTimes(1);
+    expect(NativeEverframe.reportCrash).toHaveBeenCalledTimes(1);
     installed!(err, true); // fatal bypasses the throttle
-    expect(NativeTraceItX.reportCrash).toHaveBeenCalledTimes(2);
+    expect(NativeEverframe.reportCrash).toHaveBeenCalledTimes(2);
   });
 
   it('teardown restores the previous handler', () => {
@@ -144,8 +144,8 @@ describe('runtime crash-handler wiring is fail-soft', () => {
 
 // Controller coverage uses the actual runtime and native boundary only.
 describe('shared capture acceptance and bounded facts', () => {
-  const handled = vi.mocked(NativeTraceItX.captureHandledException);
-  const automatic = vi.mocked(NativeTraceItX.reportCrash);
+  const handled = vi.mocked(NativeEverframe.captureHandledException);
+  const automatic = vi.mocked(NativeEverframe.reportCrash);
   let current: Handler;
   let previous: ReturnType<typeof vi.fn<Handler>>;
   let runtime: ReturnType<typeof createRuntime>;
@@ -244,8 +244,8 @@ describe('shared capture acceptance and bounded facts', () => {
   });
 
   it('legacy automatic true results preserve distinct keys on a reused object', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'captureHandledException')!;
-    Object.defineProperty(NativeTraceItX, 'captureHandledException', { configurable: true, value: undefined });
+    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
+    Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
     try {
       automatic.mockReturnValue(true);
       const thrown = makeError('original');
@@ -265,13 +265,13 @@ describe('shared capture acceptance and bounded facts', () => {
       expect(automatic).toHaveBeenCalledTimes(2);
       expect(handled).not.toHaveBeenCalled();
     } finally {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', descriptor);
+      Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor);
     }
   });
 
   it('legacy automatic attempts consume allowance even on false or throwing reports', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'captureHandledException')!;
-    Object.defineProperty(NativeTraceItX, 'captureHandledException', { configurable: true, value: undefined });
+    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
+    Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
     try {
       automatic.mockReturnValueOnce(false).mockImplementationOnce(() => { throw new Error('bridge'); });
       const first = makeError('first');
@@ -280,7 +280,7 @@ describe('shared capture acceptance and bounded facts', () => {
       current(second, false); current(second, false);
       expect(automatic).toHaveBeenCalledTimes(2);
     } finally {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', descriptor);
+      Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor);
     }
   });
 
@@ -344,13 +344,13 @@ describe('shared capture acceptance and bounded facts', () => {
         return Reflect.getOwnPropertyDescriptor(target, property);
       },
     });
-    const handledDescriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'captureHandledException')!;
+    const handledDescriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
     try {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', { configurable: true, value: undefined });
+      Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
       runtime.captureException(makeError('missing-capability'), options);
       expect(inspections).toBe(0);
     } finally {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', handledDescriptor);
+      Object.defineProperty(NativeEverframe, 'captureHandledException', handledDescriptor);
     }
 
     runtime.captureException(makeError('duplicate1'));
@@ -427,7 +427,7 @@ describe('shared capture acceptance and bounded facts', () => {
       runtime.captureException(makeError('host-call-property'), options);
       expect(callGetterReads).toBe(0);
       expect(handled).toHaveBeenCalledTimes(1);
-      expect(receiver).toBe(NativeTraceItX);
+      expect(receiver).toBe(NativeEverframe);
       expect(JSON.parse(handled.mock.calls[0]![0]).details).toEqual({
         severity: 'error', metadata: { state: 'owned' },
       });
@@ -505,28 +505,28 @@ describe('shared capture acceptance and bounded facts', () => {
   });
 
   it('rechecks ownership after a native automatic method getter unmounts the runtime', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'reportCrash')!;
+    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'reportCrash')!;
     try {
-      Object.defineProperty(NativeTraceItX, 'reportCrash', { configurable: true, get() {
+      Object.defineProperty(NativeEverframe, 'reportCrash', { configurable: true, get() {
         runtime.unmount();
         return automatic;
       } });
       current(makeError('unmount-on-lookup'), false);
       expect(automatic).not.toHaveBeenCalled();
       expect(previous).toHaveBeenCalledTimes(1);
-    } finally { Object.defineProperty(NativeTraceItX, 'reportCrash', descriptor); }
+    } finally { Object.defineProperty(NativeEverframe, 'reportCrash', descriptor); }
   });
 
   it('rechecks ownership after a native handled method getter unmounts before details projection', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'captureHandledException')!;
+    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
     try {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', { configurable: true, get() {
+      Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, get() {
         runtime.unmount();
         return handled;
       } });
       runtime.captureException(makeError('handled-unmount-on-lookup'), { context: 'stale' });
       expect(handled).not.toHaveBeenCalled();
-    } finally { Object.defineProperty(NativeTraceItX, 'captureHandledException', descriptor); }
+    } finally { Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor); }
   });
 
   it('does not call the bridge if a thrown value getter unmounts the owner', () => {
@@ -547,20 +547,20 @@ describe('shared capture acceptance and bounded facts', () => {
   });
 
   it('preserves legacy attempt accounting when reportCrash property lookup throws', () => {
-    const handledDescriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'captureHandledException')!;
-    const automaticDescriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'reportCrash')!;
+    const handledDescriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
+    const automaticDescriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'reportCrash')!;
     const thrown = makeError('legacy-lookup');
     try {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', { configurable: true, value: undefined });
-      Object.defineProperty(NativeTraceItX, 'reportCrash', { configurable: true, get() { throw new Error('lookup'); } });
+      Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
+      Object.defineProperty(NativeEverframe, 'reportCrash', { configurable: true, get() { throw new Error('lookup'); } });
       current(thrown, false);
-      Object.defineProperty(NativeTraceItX, 'reportCrash', automaticDescriptor);
+      Object.defineProperty(NativeEverframe, 'reportCrash', automaticDescriptor);
       current(thrown, false);
       expect(automatic).not.toHaveBeenCalled();
       expect(previous).toHaveBeenCalledTimes(2);
     } finally {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', handledDescriptor);
-      Object.defineProperty(NativeTraceItX, 'reportCrash', automaticDescriptor);
+      Object.defineProperty(NativeEverframe, 'captureHandledException', handledDescriptor);
+      Object.defineProperty(NativeEverframe, 'reportCrash', automaticDescriptor);
     }
   });
 

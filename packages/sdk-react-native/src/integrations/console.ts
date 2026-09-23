@@ -11,10 +11,10 @@
 // Contract: original console method ALWAYS runs first; nothing in the crumb
 // path may throw into host logging; the inHook guard makes a crumb sink
 // that itself logs (the Android stderr-tee recursion of 2026-07-14) a
-// non-event; '[traceitx]'-prefixed lines are skipped so SDK noise never
+// non-event; '[everframe]'-prefixed lines are skipped so SDK noise never
 // self-crumbs.
 import { addBreadcrumb } from '../contextSeam.js';
-import type { TraceItXIntegration } from './types.js';
+import type { EverframeIntegration } from './types.js';
 
 export type ConsoleLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
@@ -33,7 +33,7 @@ const NATIVE_LEVEL: Record<ConsoleLevel, string> = {
 // this just keeps oversized payloads off the bridge.
 const MAX_MESSAGE = 2048;
 
-export function consoleIntegration(opts?: { levels?: ConsoleLevel[] }): TraceItXIntegration {
+export function consoleIntegration(opts?: { levels?: ConsoleLevel[] }): EverframeIntegration {
   const levels = [...new Set<ConsoleLevel>(opts?.levels ?? ['log', 'info', 'warn', 'error'])];
   return {
     name: 'console',
@@ -51,7 +51,7 @@ export function consoleIntegration(opts?: { levels?: ConsoleLevel[] }): TraceItX
           inHook = true;
           try {
             const message = serializeArgs(args);
-            if (message && !message.startsWith('[traceitx]')) {
+            if (message && !message.startsWith('[everframe]')) {
               addBreadcrumb({ message, kind: 'console', level: NATIVE_LEVEL[level] });
             }
           } catch {

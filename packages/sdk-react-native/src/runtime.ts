@@ -7,39 +7,39 @@
 //
 //   - Configure-on-mount call to the TurboModule.
 //   - Sensitive-rect registry: in-memory Map + forward to native.
-//   - Single-line `open()` that delegates to NativeTraceItX.openReporter.
+//   - Single-line `open()` that delegates to NativeEverframe.openReporter.
 //   - Module-level current-context publish/clear via contextSeam.
 //
 // Does NOT own:
-//   - Any React rendering (handled by `TraceItXProvider.tsx`).
+//   - Any React rendering (handled by `EverframeProvider.tsx`).
 //   - Any reporter-UI state machine — there is no JS reporter UI any more.
 //   - Native shake detection (owned by sdk-android/sdk-ios); other triggers stay host-owned.
-// Local copy of the RN fiber walker (was imported from @traceitx/react).
+// Local copy of the RN fiber walker (was imported from @everframe/react).
 // Inlining avoids pulling sdk-react's web-only deps (react-konva, html-to-image)
 // into the RN bundle. Dedupe to sdk-core post-v0.1.0.
-import NativeTraceItX from "./NativeTraceItX.js";
-import type { ConfigOpts, Rect } from "./NativeTraceItX.js";
-import { budgetExtra, EXTRA_MAX_CHARS } from "@traceitx/sdk-core";
-import type { ExtraResolver } from "@traceitx/sdk-core";
+import NativeEverframe from "./NativeEverframe.js";
+import type { ConfigOpts, Rect } from "./NativeEverframe.js";
+import { budgetExtra, EXTRA_MAX_CHARS } from "@everframe/sdk-core";
+import type { ExtraResolver } from "@everframe/sdk-core";
 import { getEmitter } from "./events.js";
 import type { JsBundleConfig } from "./js-bundle.js";
 import { createCaptureController, type CaptureController } from "./errors.js";
 import {
   __setCurrentContext,
   __getCurrentContext,
-  TraceItXNotMountedError,
-  type TraceItXContextValue,
+  EverframeNotMountedError,
+  type EverframeContextValue,
 } from "./contextSeam.js";
 import type { ReporterResult } from "./reporter/types.js";
 import { projectUserSpec } from "./user-projection.js";
-import type { TraceItXIntegration } from "./integrations/types.js";
+import type { EverframeIntegration } from "./integrations/types.js";
 
 /**
- * Runtime configuration — the host-facing `TraceItXProvider config` shape.
+ * Runtime configuration — the host-facing `EverframeProvider config` shape.
  *
  * Extends the bridge ConfigOpts but OMITS `sdkVersion`: the SDK version is not
  * host-defined, it's owned by the SDK and stamped per release on the native
- * side (`TraceItX.SDK_VERSION`). See extractBridgeConfig.
+ * side (`Everframe.SDK_VERSION`). See extractBridgeConfig.
  *
  * External review, finding NN4 — also OMITS `companionBadgeEnabled` /
  * `companionBadgePosition`, the FLAT wire-shaped fields `ConfigOpts` declares
@@ -102,10 +102,10 @@ export interface RuntimeConfig
   jsBundle?: JsBundleConfig;
   /**
    * Opt-in JS-side capture integrations (spec 2026-07-14 RN-iOS parity).
-   * Import from '@traceitx/react-native/integrations/*'; nothing
+   * Import from '@everframe/react-native/integrations/*'; nothing
    * auto-installs. Setups run after configure-on-mount, teardowns on unmount.
    */
-  integrations?: TraceItXIntegration[];
+  integrations?: EverframeIntegration[];
   /**
    * Crash/error reporting (spec 2026-07-18). Installs a default-on global
    * ErrorUtils handler on mount — deliberately NOT gated behind
@@ -121,7 +121,7 @@ export interface RuntimeConfig
    * only: `disabled: true` turns bodies off locally; it can never force them
    * on — the server's per-app `captureBodies` gate is authoritative.
    *
-   * NOTE: RN does not currently attach TraceItX network capture to its own
+   * NOTE: RN does not currently attach Everframe network capture to its own
    * HTTP clients, so this option is correct but inert until that lands.
    */
   networkBodies?: {
@@ -150,7 +150,7 @@ export interface RuntimeConfig
    * `ConfigOpts.attachPinUi?: string` to a literal union here — the flat
    * `string` on `ConfigOpts` is a codegen constraint on the WIRE type only
    * (RN codegen can't express a string-literal union in a struct field, see
-   * `NativeTraceItX.ts`'s D-decision header note); this host-facing surface
+   * `NativeEverframe.ts`'s D-decision header note); this host-facing surface
    * doesn't cross codegen and gets normal DX. `extractBridgeConfig` passes
    * it through unchanged — the union is a subtype of `string`, so no
    * conversion is needed, same as `captureScreenshot` above.
@@ -220,7 +220,7 @@ export interface RuntimeConfig
   };
 }
 
-export interface Runtime extends TraceItXContextValue {
+export interface Runtime extends EverframeContextValue {
   mount(): void;
   unmount(): void;
 }
@@ -241,13 +241,13 @@ export interface Runtime extends TraceItXContextValue {
 // `companion-code.spec.ts`, override the package-wide `react-native` mock to
 // add it), so an unconditional install here would break every other test
 // that mounts a runtime.
-const EXTRA_RESOLVE_REQUESTED_EVENT = "traceitx.extra.resolveRequested";
+const EXTRA_RESOLVE_REQUESTED_EVENT = "everframe.extra.resolveRequested";
 
 let _currentExtraResolver: ExtraResolver | null = null;
 let _extraResolveSub: { remove: () => void } | null = null;
 
 /**
- * Budgets a resolver's return value exactly like `@traceitx/sdk-core`'s
+ * Budgets a resolver's return value exactly like `@everframe/sdk-core`'s
  * `resolveClientExtra` does after calling `extra.resolve()` — same
  * string-length check, same `budgetExtra` call for an object result, same
  * "omit, never truncate" contract on overflow. Deliberately NOT wrapped in
@@ -259,7 +259,7 @@ function resolveExtraForBridge(resolver: ExtraResolver): string {
   if (typeof result === "string") {
     if (result.length > EXTRA_MAX_CHARS) {
       console.warn(
-        `[traceitx] setExtra (resolver): ${result.length} chars exceeds the ${EXTRA_MAX_CHARS} limit; ` +
+        `[everframe] setExtra (resolver): ${result.length} chars exceeds the ${EXTRA_MAX_CHARS} limit; ` +
           "extra will be omitted from this report.",
       );
       return "";
@@ -269,7 +269,7 @@ function resolveExtraForBridge(resolver: ExtraResolver): string {
   const budgeted = budgetExtra(result);
   if (budgeted === null) {
     console.warn(
-      `[traceitx] setExtra (resolver): serialized value exceeds the ${EXTRA_MAX_CHARS}-char limit; ` +
+      `[everframe] setExtra (resolver): serialized value exceeds the ${EXTRA_MAX_CHARS}-char limit; ` +
         "extra will be omitted.",
     );
     return "";
@@ -292,24 +292,24 @@ function resolveExtraForBridge(resolver: ExtraResolver): string {
 async function handleExtraResolveRequested(correlationId: string): Promise<void> {
   try {
     if (_currentExtraResolver) {
-      NativeTraceItX.setExtra(resolveExtraForBridge(_currentExtraResolver));
+      NativeEverframe.setExtra(resolveExtraForBridge(_currentExtraResolver));
     }
   } catch (e) {
     const msg = (e as { message?: string })?.message ?? String(e);
     console.warn(
-      "[traceitx] setExtra: the resolver function threw while building a report; " +
+      "[everframe] setExtra: the resolver function threw while building a report; " +
         "extra will be omitted from this report.",
       msg,
     );
     try {
-      NativeTraceItX.setExtra("");
+      NativeEverframe.setExtra("");
     } catch {
       // Bridge unavailable — nothing more we can do; still ack below so
       // native's wait releases instead of idling out its full timeout.
     }
   } finally {
     try {
-      NativeTraceItX.signalExtraResolverReady(correlationId);
+      NativeEverframe.signalExtraResolverReady(correlationId);
     } catch {
       // Older native SDK without this method — its own bounded wait times
       // out on its own; no harm, the report still ships.
@@ -349,7 +349,7 @@ function installExtraResolveHandler(): boolean {
       _extraResolveHandlerInstallWarned = true;
       const msg = (e as { message?: string })?.message ?? String(e);
       console.warn(
-        '[traceitx] setExtra: could not install the native resolver listener ' +
+        '[everframe] setExtra: could not install the native resolver listener ' +
           '(is the native module linked? did the host run `pod install`?); ' +
           'falling back to resolving the value once now instead of at report time.',
         msg,
@@ -371,7 +371,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
     // Native promise returns NSDictionary / WritableMap with the discriminated
     // status field. The TurboModule spec types it `UnsafeObject`; the cast
     // here is the documented codegen-recursion-shape escape hatch.
-    return NativeTraceItX.openReporter() as unknown as Promise<ReporterResult>;
+    return NativeEverframe.openReporter() as unknown as Promise<ReporterResult>;
   }
 
   const runtime: Runtime = {
@@ -383,7 +383,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
     sensitive: {
       register(tag, rect) {
         sensitiveRegistry.set(tag, rect);
-        NativeTraceItX.registerSensitiveRect(tag, rect);
+        NativeEverframe.registerSensitiveRect(tag, rect);
       },
       unregister(tag) {
         sensitiveRegistry.delete(tag);
@@ -391,7 +391,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
     },
     setExtra(value: string | Record<string, unknown> | ExtraResolver) {
       if (typeof value === "function") {
-        // KEY DESIGN POINT (mirrors @traceitx/sdk-core's client.ts): do NOT
+        // KEY DESIGN POINT (mirrors @everframe/sdk-core's client.ts): do NOT
         // call `value()` here. Store it; native asks for it (bounded round
         // trip via installExtraResolveHandler) at report-assembly time.
         //
@@ -412,18 +412,18 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         if (!installExtraResolveHandler()) {
           _currentExtraResolver = null;
           try {
-            NativeTraceItX.setExtra(resolveExtraForBridge(value));
+            NativeEverframe.setExtra(resolveExtraForBridge(value));
           } catch (e) {
             // Resolver threw, or the bridge itself is unavailable — fail
             // open exactly like `handleExtraResolveRequested`'s own catch.
             const msg = (e as { message?: string })?.message ?? String(e);
             console.warn(
-              "[traceitx] setExtra: the resolver function threw while building a report; " +
+              "[everframe] setExtra: the resolver function threw while building a report; " +
                 "extra will be omitted from this report.",
               msg,
             );
             try {
-              NativeTraceItX.setExtra("");
+              NativeEverframe.setExtra("");
             } catch {
               // Bridge unavailable — nothing more we can do.
             }
@@ -432,7 +432,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         }
         _currentExtraResolver = value;
         try {
-          NativeTraceItX.setExtraResolverActive(true);
+          NativeEverframe.setExtraResolverActive(true);
         } catch {
           // Older native SDK without this method — the round trip simply
           // never fires; setExtra(resolver) behaves like a no-op until the
@@ -441,7 +441,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         return;
       }
       // A plain value supersedes any previously-registered resolver —
-      // matches @traceitx/sdk-core's client.ts REPLACE semantics exactly.
+      // matches @everframe/sdk-core's client.ts REPLACE semantics exactly.
       // Only bridge the "false" flip when a resolver was ACTUALLY active:
       // a host that never calls setExtra(resolver) must never see a single
       // extra bridge call from this feature — requirement 3, "no behaviour
@@ -449,7 +449,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
       if (_currentExtraResolver !== null) {
         _currentExtraResolver = null;
         try {
-          NativeTraceItX.setExtraResolverActive(false);
+          NativeEverframe.setExtraResolverActive(false);
         } catch {
           // See above.
         }
@@ -459,33 +459,33 @@ export function createRuntime(config: RuntimeConfig): Runtime {
           // Warn HERE, at the call site, where the host can still act — the
           // native side truncates at EXTRA_MAX_CHARS with a raw character
           // cut (not JSON-aware), same failure mode object-form budgeting
-          // exists to avoid. Mirrors @traceitx/sdk-core's client.ts.
+          // exists to avoid. Mirrors @everframe/sdk-core's client.ts.
           console.warn(
-            `[traceitx] setExtra: ${value.length} chars exceeds the ${EXTRA_MAX_CHARS} limit. ` +
+            `[everframe] setExtra: ${value.length} chars exceeds the ${EXTRA_MAX_CHARS} limit. ` +
               "It will be truncated by the native side and may not parse. Pass an object " +
               "instead so the SDK can budget it before it crosses the bridge.",
           );
         }
-        NativeTraceItX.setExtra(value);
+        NativeEverframe.setExtra(value);
         return;
       }
       const budgeted = budgetExtra(value);
       if (budgeted === null) {
         console.warn(
-          `[traceitx] setExtra: serialized value exceeds the ${EXTRA_MAX_CHARS}-char limit; ` +
+          `[everframe] setExtra: serialized value exceeds the ${EXTRA_MAX_CHARS}-char limit; ` +
             "extra will be omitted.",
         );
-        NativeTraceItX.setExtra("");
+        NativeEverframe.setExtra("");
         return;
       }
-      NativeTraceItX.setExtra(budgeted);
+      NativeEverframe.setExtra(budgeted);
     },
     setUser(user) {
       // External review, finding 2 (Serious) — PROJECT before the bridge, do
-      // not hand the host's object across raw. `TXUserSpec` is a TypeScript
+      // not hand the host's object across raw. `EverframeUserSpec` is a TypeScript
       // type and the bridge parameter is `UnsafeObject`, so ANY value crossed:
       // on Android `getString()` threw on a non-string, `txGuardVoid` swallowed
-      // it BEFORE `TraceItX.setUser()` was reached, and the PREVIOUS account
+      // it BEFORE `Everframe.setUser()` was reached, and the PREVIOUS account
       // stayed installed — `setUser({ id: 12345 })` silently kept attributing
       // reports to whoever was set before. Projecting here means native never
       // receives a bad type in the first place, and a call that declares a new
@@ -496,14 +496,14 @@ export function createRuntime(config: RuntimeConfig): Runtime {
       // so `setUser()` — the documented clear, since the bridge forbids
       // `T | null` — still crosses as "no argument" and still clears. Mirrors
       // web's `projectUserMetadata` (sdk-core); see user-projection.ts.
-      NativeTraceItX.setUser(projectUserSpec(user));
+      NativeEverframe.setUser(projectUserSpec(user));
     },
     addBreadcrumb(input) {
       // Object-form (web-matching) JS API → positional TurboModule spec call.
       // This is the ONLY place the object→positional conversion happens; no
       // validation/coercion is added here — the native singleton (Tasks 5/9)
       // owns that.
-      NativeTraceItX.addBreadcrumb(
+      NativeEverframe.addBreadcrumb(
         input.message,
         input.kind,
         input.level,
@@ -513,36 +513,36 @@ export function createRuntime(config: RuntimeConfig): Runtime {
     recordScreen(name, data) {
       // Positional forward; the native singleton owns from→to derivation,
       // gating, and coercion (same contract as addBreadcrumb).
-      NativeTraceItX.recordScreen(name, data);
+      NativeEverframe.recordScreen(name, data);
     },
     mount() {
       if (__getCurrentContext()) {
-        throw new TraceItXNotMountedError(
-          "TraceItXProvider already mounted — single-instance enforcement (T-06-05-04)",
+        throw new EverframeNotMountedError(
+          "EverframeProvider already mounted — single-instance enforcement (T-06-05-04)",
         );
       }
       try {
         const bridgeConfig = extractBridgeConfig(config);
-        const configureSync = NativeTraceItX.configureSync;
+        const configureSync = NativeEverframe.configureSync;
         if (typeof configureSync === "function") {
           // Current bridges acknowledge configuration synchronously before the
           // mounted facade becomes visible. A false result or thrown failure
           // stays on this path: falling back would configure the same native
           // runtime twice and would falsely turn a refusal into readiness.
-          Reflect.apply(configureSync, NativeTraceItX, [bridgeConfig]);
+          Reflect.apply(configureSync, NativeEverframe, [bridgeConfig]);
         } else {
           // Older handled-capable bridges predate configureSync. Their retained
           // void configure entry is asynchronous best-effort admission. Mount
           // ownership can be published after this call, but an early handled
           // capture may still be refused until native processes configuration.
-          NativeTraceItX.configure(bridgeConfig);
+          NativeEverframe.configure(bridgeConfig);
         }
       } catch (e) {
         // configureSync is a sequencing boundary. Native keeps its existing
         // guarded configuration error handling; bridge marshaling or a missing
         // TurboModule can still throw synchronously, so surface that loudly.
         const msg = (e as { message?: string })?.message ?? String(e);
-        console.warn(`[traceitx] configure threw: ${msg}`);
+        console.warn(`[everframe] configure threw: ${msg}`);
       }
       const owner: Mount = { teardowns: [] };
       mounted = owner;
@@ -570,7 +570,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         } catch (e) {
           const msg = (e as { message?: string })?.message ?? String(e);
           console.warn(
-            `[traceitx] integration '${integration.name}' setup threw: ${msg}`,
+            `[everframe] integration '${integration.name}' setup threw: ${msg}`,
           );
         }
       }
@@ -592,7 +592,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
       if (_currentExtraResolver !== null) {
         _currentExtraResolver = null;
         try {
-          NativeTraceItX.setExtraResolverActive(false);
+          NativeEverframe.setExtraResolverActive(false);
         } catch {
           // Older native SDK without this method — harmless.
         }
@@ -604,7 +604,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         } catch (e) {
           const msg = (e as { message?: string })?.message ?? String(e);
           console.warn(
-            `[traceitx] integration '${name}' teardown threw: ${msg}`,
+            `[everframe] integration '${name}' teardown threw: ${msg}`,
           );
         }
       }
@@ -618,7 +618,7 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   const bridge: ConfigOpts = {};
   if (config.apiKey !== undefined) bridge.apiKey = config.apiKey;
   // `sdkVersion` is NOT forwarded — the SDK version is owned by the SDK itself
-  // (the native side stamps its own `TraceItX.SDK_VERSION`), never the host.
+  // (the native side stamps its own `Everframe.SDK_VERSION`), never the host.
   if (config.captureScreenshot !== undefined)
     bridge.captureScreenshot = config.captureScreenshot;
   // Flatten the nested host-facing veto for the codegen boundary. Polarity is
@@ -700,7 +700,7 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
       bridge.vitalsSampleRate = sampleRate;
     } else if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.warn(
-        `[traceitx] vitals.sampleRate must be within 0..1; ignoring ${sampleRate}`,
+        `[everframe] vitals.sampleRate must be within 0..1; ignoring ${sampleRate}`,
       );
     }
   }

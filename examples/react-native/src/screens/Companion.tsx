@@ -43,11 +43,11 @@
 import React, { useCallback, useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { companion, useCompanion, useTXScreen } from '@traceitx/react-native';
+import { companion, useCompanion, useEverframeScreen } from '@everframe/react-native';
 import { color, radius, type } from '../theme';
 
 export function Companion(): React.JSX.Element {
-  useTXScreen('Companion');
+  useEverframeScreen('Companion');
   const { state, pairUrl, resolvedName, code, running } = useCompanion();
 
   useEffect(() => {

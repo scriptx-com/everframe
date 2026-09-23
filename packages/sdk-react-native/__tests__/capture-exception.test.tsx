@@ -5,14 +5,14 @@ import * as React from 'react';
 import { Platform } from 'react-native';
 import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { captureException, TraceItXProvider, useTraceItX } from '../src/index.js';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import { captureException, EverframeProvider, useEverframe } from '../src/index.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { createRuntime, type RuntimeConfig, type Runtime } from '../src/runtime.js';
 import { __getCurrentContext, __setCurrentContext } from '../src/contextSeam.js';
 
 type Handler = (error: unknown, fatal?: boolean) => void;
-const handled = vi.mocked(NativeTraceItX.captureHandledException);
-const automatic = vi.mocked(NativeTraceItX.reportCrash);
+const handled = vi.mocked(NativeEverframe.captureHandledException);
+const automatic = vi.mocked(NativeEverframe.reportCrash);
 let current: Handler;
 let predecessor: ReturnType<typeof vi.fn<Handler>>;
 const runtimes: Runtime[] = [];
@@ -27,7 +27,7 @@ function error(frame: string) {
 }
 function provider(config: Partial<RuntimeConfig> = {}) {
   return ({ children }: { children: React.ReactNode }) => (
-    <TraceItXProvider config={{ apiKey: 'txx_test_key', ...config }}>{children}</TraceItXProvider>
+    <EverframeProvider config={{ apiKey: 'txx_test_key', ...config }}>{children}</EverframeProvider>
   );
 }
 beforeEach(() => {
@@ -51,7 +51,7 @@ afterEach(() => {
 
 describe('public captureException ownership', () => {
   it('snapshots deliberate details from the hook and top-level facade', () => {
-    const { result } = renderHook(useTraceItX, { wrapper: provider() });
+    const { result } = renderHook(useEverframe, { wrapper: provider() });
     const nested = { state: 'before' };
     result.current.captureException(error('hook-details'), {
       severity: 'warning',
@@ -75,7 +75,7 @@ describe('public captureException ownership', () => {
   it('routes the real hook and public facade only while mounted and returns void', () => {
     expect(captureException(error('before'))).toBeUndefined();
     expect(handled).not.toHaveBeenCalled();
-    const { result, unmount } = renderHook(useTraceItX, { wrapper: provider() });
+    const { result, unmount } = renderHook(useEverframe, { wrapper: provider() });
     const retained = result.current;
     expect(retained.captureException(error('hook'))).toBeUndefined();
     expect(captureException(error('facade'))).toBeUndefined();
@@ -87,14 +87,14 @@ describe('public captureException ownership', () => {
     unmount();
     retained.captureException(error('stale'));
     captureException(error('after'));
-    const next = renderHook(useTraceItX, { wrapper: provider() });
+    const next = renderHook(useEverframe, { wrapper: provider() });
     retained.captureException(error('still-stale'));
     next.result.current.captureException(error('new'));
     expect(handled).toHaveBeenCalledTimes(3);
     expect(automatic).not.toHaveBeenCalled();
-    expect(NativeTraceItX.openReporter).not.toHaveBeenCalled();
+    expect(NativeEverframe.openReporter).not.toHaveBeenCalled();
     // Only configuration and crash facts crossed the native module boundary.
-    for (const [name, fn] of Object.entries(NativeTraceItX)) {
+    for (const [name, fn] of Object.entries(NativeEverframe)) {
       if (vi.isMockFunction(fn) && !['configureSync', 'captureHandledException'].includes(name)) {
         expect(fn, name).not.toHaveBeenCalled();
       }
@@ -102,7 +102,7 @@ describe('public captureException ownership', () => {
   });
 
   it('disabled reporting gates both hook/facade and automatic capture', () => {
-    const { result } = renderHook(useTraceItX, { wrapper: provider({ crashReporting: { disabled: true } }) });
+    const { result } = renderHook(useEverframe, { wrapper: provider({ crashReporting: { disabled: true } }) });
     result.current.captureException(error('hook'));
     captureException(error('facade'));
     current(error('automatic'), false);
@@ -121,7 +121,7 @@ describe('public captureException ownership', () => {
       setGlobalHandler: () => { throw new Error('set'); },
     });
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { result } = renderHook(useTraceItX, { wrapper: provider() });
+    const { result } = renderHook(useEverframe, { wrapper: provider() });
     result.current.captureException(error('available'));
     expect(handled).toHaveBeenCalledTimes(1);
   });
@@ -131,7 +131,7 @@ describe('public captureException ownership', () => {
     Platform.OS = 'android';
     vi.stubGlobal('HermesInternal', {});
     const jsBundle = { buildId: 'original-build', bundleName: 'index.android.bundle' };
-    const { result } = renderHook(useTraceItX, { wrapper: provider({ jsBundle }) });
+    const { result } = renderHook(useEverframe, { wrapper: provider({ jsBundle }) });
     Platform.OS = platform;
     jsBundle.buildId = 'mutated-build';
     result.current.captureException(error('metadata'), { context: 'loaded-bundle' });
@@ -150,9 +150,9 @@ describe('public captureException ownership', () => {
   it.each(['missing', 'nonfunction', 'lookup', 'call'])('fails softly on %s native handled capability with no legacy explicit fallback', (failure) => {
     const runtime = mount();
     // Define the bridge property directly: RN host-object getters can throw too.
-    const descriptor = Object.getOwnPropertyDescriptor(NativeTraceItX, 'captureHandledException')!;
+    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
     try {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', failure === 'lookup'
+      Object.defineProperty(NativeEverframe, 'captureHandledException', failure === 'lookup'
         ? { configurable: true, get() { throw new Error('lookup'); } }
         : { configurable: true, value: failure === 'missing' ? undefined : failure === 'nonfunction' ? 42 : () => { throw new Error('call'); } });
       expect(() => runtime.captureException(error('explicit'))).not.toThrow();
@@ -161,7 +161,7 @@ describe('public captureException ownership', () => {
       expect(automatic).toHaveBeenCalledTimes(1);
       expect(JSON.parse(automatic.mock.calls[0]![0]).details).toBeUndefined();
     } finally {
-      Object.defineProperty(NativeTraceItX, 'captureHandledException', descriptor);
+      Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor);
     }
   });
 

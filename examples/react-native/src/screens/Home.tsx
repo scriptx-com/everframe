@@ -5,12 +5,12 @@
 // to live here (host Pressable + TV remote listener) moved to the app-global
 // <ReportFab/> (src/components/ReportFab.tsx), which carries the Maestro
 // testIDs `open-reporter-button` and `submitted`. This screen keeps a
-// secondary programmatic-open button to demonstrate useTraceItX().open()
+// secondary programmatic-open button to demonstrate useEverframe().open()
 // from arbitrary host code.
 
 import React, { useCallback } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useTraceItX, useTXScreen } from '@traceitx/react-native';
+import { useEverframe, useEverframeScreen } from '@everframe/react-native';
 import { SpecimenPlate } from '../components/SpecimenPlate';
 import { ErrorTests } from '../components/ErrorTests';
 import { getSpecimen } from '../data/specimens';
@@ -19,8 +19,8 @@ import { color, radius, type } from '../theme';
 const HERO_SPECIMEN = getSpecimen('txx-008')!; // stag beetle
 
 export function Home(): React.JSX.Element {
-  useTXScreen('Desk');
-  const { open } = useTraceItX();
+  useEverframeScreen('Desk');
+  const { open } = useEverframe();
 
   const openViaHook = useCallback(() => {
     void open().catch((err) => {
@@ -31,10 +31,10 @@ export function Home(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Text style={type.eyebrow}>TraceItX RN Example</Text>
+      <Text style={type.eyebrow}>Everframe RN Example</Text>
       <Text style={[type.display, styles.title]}>A field catalog built to be broken</Text>
       <Text style={[type.muted, styles.lede]}>
-        Elytra is a small insect field guide that exists so the TraceItX reporter has something
+        Elytra is a small insect field guide that exists so the Everframe reporter has something
         real to capture: tabs to switch, lists to scroll, plates to screenshot, and seeded PII to
         redact. Wander around, then file a bug about a bug — the report button floats in the
         corner of every tab.
@@ -80,7 +80,7 @@ export function Home(): React.JSX.Element {
             ? Platform.OS === 'ios'
               ? 'Long-press Play/Pause on the Siri Remote to open the reporter — or press OK on the corner button.'
               : 'Press Menu on the remote to open the reporter — or press OK on the corner button.'
-            : 'The SDK ships no visible trigger chrome; the floating corner button and the button below are both host-owned calls to useTraceItX().open().'}
+            : 'The SDK ships no visible trigger chrome; the floating corner button and the button below are both host-owned calls to useEverframe().open().'}
         </Text>
         <Pressable
           testID="open-via-hook"
@@ -91,7 +91,7 @@ export function Home(): React.JSX.Element {
             styles.hookButton,
             (pressed || focused) && styles.hookButtonPressed,
           ]}>
-          <Text style={styles.hookButtonText}>Open reporter via useTraceItX().open()</Text>
+          <Text style={styles.hookButtonText}>Open reporter via useEverframe().open()</Text>
         </Pressable>
       </View>
 

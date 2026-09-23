@@ -13,7 +13,7 @@ const { TypeScriptParser } = require(
 describe("React Native codegen type compatibility", () => {
   it("parses local UnsafeObject aliases without a React Native deep type import", () => {
     const source = readFileSync(
-      new URL("../src/NativeTraceItX.ts", import.meta.url),
+      new URL("../src/NativeEverframe.ts", import.meta.url),
       "utf8",
     );
 
@@ -24,11 +24,11 @@ describe("React Native codegen type compatibility", () => {
 
     const schema = new TypeScriptParser().parseString(
       source,
-      "NativeTraceItX.ts",
+      "NativeEverframe.ts",
     );
     const encoded = JSON.stringify(schema);
 
-    expect(Object.keys(schema.modules)).toEqual(["NativeTraceItX"]);
+    expect(Object.keys(schema.modules)).toEqual(["NativeEverframe"]);
     expect(encoded.match(/GenericObjectTypeAnnotation/g)?.length).toBe(6);
   });
 });

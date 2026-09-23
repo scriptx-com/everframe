@@ -3,21 +3,21 @@
 //
 // Module-level context seam. The top-level `open()` convenience MUST work
 // from non-React call sites (global error handlers, deep-link handlers,
-// native event bridges) where `useTraceItX()` is unavailable. We stash a
+// native event bridges) where `useEverframe()` is unavailable. We stash a
 // single current-runtime reference here. The provider writes on mount /
 // clears on unmount; top-level `open()` reads-or-throws.
 //
 // Single-instance enforcement (T-06-05-04): a second mount throws — two
 // providers in one process would race on this slot and silently spoof the
 // `open()` destination.
-import { type ReporterResult, TraceItXNotMountedError } from './reporter/types.js';
-import type { CaptureExceptionOptions, ExtraResolver } from '@traceitx/sdk-core';
-import type { TXUserSpec } from './NativeTraceItX.js';
+import { type ReporterResult, EverframeNotMountedError } from './reporter/types.js';
+import type { CaptureExceptionOptions, ExtraResolver } from '@everframe/sdk-core';
+import type { EverframeUserSpec } from './NativeEverframe.js';
 
-export { TraceItXNotMountedError };
+export { EverframeNotMountedError };
 
-/** Shape exposed via `useTraceItX()` and the top-level `open` re-export. */
-export interface TraceItXContextValue {
+/** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
+export interface EverframeContextValue {
   /** Capture a handled exception without opening the reporter. No-op outside the owning mount. */
   captureException(error: unknown, options?: CaptureExceptionOptions): void;
   /**
@@ -48,11 +48,11 @@ export interface TraceItXContextValue {
   setExtra(value: Record<string, unknown>): void;
   /**
    * Resolver form (spec 2026-09-17 setExtra-resolver) — matches
-   * `@traceitx/sdk-core`'s `setExtra(resolve: ExtraResolver)` signature
+   * `@everframe/sdk-core`'s `setExtra(resolve: ExtraResolver)` signature
    * exactly. PREFER THIS over the string/object forms above: triggers the
    * SDK owns (native shake on mobile) open the reporter DIRECTLY, with no
    * chance for the host to refresh a pushed snapshot first — see the fuller
-   * rationale on `@traceitx/sdk-core`'s `TraceItXClient.setExtra`. The
+   * rationale on `@everframe/sdk-core`'s `EverframeClient.setExtra`. The
    * resolver is stored, never called at registration time; native ASKS for
    * it (a bounded round trip to JS, mirroring the companion
    * `reportRequested` handshake) right before it drains pending attachments
@@ -74,8 +74,8 @@ export interface TraceItXContextValue {
    *
    * NO validation/coercion happens here or on the bridge — the call is
    * forwarded positionally to the native TurboModule spec method, which
-   * forwards straight to the platform singleton (`TraceItX.shared
-   * .addBreadcrumb` on iOS / `TraceItX.addBreadcrumb` on Android). That
+   * forwards straight to the platform singleton (`Everframe.shared
+   * .addBreadcrumb` on iOS / `Everframe.addBreadcrumb` on Android). That
    * singleton owns ALL coercion (unknown `kind` → `custom`, invalid `level`
    * dropped rather than defaulted, `data` JSON-coerced) and gating (no-op
    * pre-start / while killed).
@@ -86,7 +86,7 @@ export interface TraceItXContextValue {
    * Navigation screen marker (spec 2026-07-14): record "this screen is now
    * visible". The native side derives the `from → to` transition (global
    * chain shared with native auto-capture), gates, and coerces — nothing
-   * happens JS-side. Prefer the `useTXScreen` hook / `<TXScreen>` component;
+   * happens JS-side. Prefer the `useEverframeScreen` hook / `<EverframeScreen>` component;
    * this raw form suits onStateChange-style whole-app wiring.
    */
   recordScreen(name: string, data?: Record<string, unknown>): void;
@@ -95,30 +95,30 @@ export interface TraceItXContextValue {
    * Set or clear the active user for self-declared recognition. Call with no
    * argument to clear. Unverified: a label, never a credential.
    */
-  setUser(user?: TXUserSpec): void;
+  setUser(user?: EverframeUserSpec): void;
 }
 
-let __currentContext: TraceItXContextValue | null = null;
+let __currentContext: EverframeContextValue | null = null;
 
-export function __setCurrentContext(ctx: TraceItXContextValue | null): void {
+export function __setCurrentContext(ctx: EverframeContextValue | null): void {
   __currentContext = ctx;
 }
 
-export function __getCurrentContext(): TraceItXContextValue | null {
+export function __getCurrentContext(): EverframeContextValue | null {
   return __currentContext;
 }
 
 /**
  * Top-level imperative `open` re-export. Inside the React tree, prefer
- * `useTraceItX().open()`. This re-export exists for non-component call
+ * `useEverframe().open()`. This re-export exists for non-component call
  * sites (global error handlers, deep-link handlers, native event bridges).
  */
 export function open(): Promise<ReporterResult> {
   const ctx = __currentContext;
   if (!ctx) {
     return Promise.reject(
-      new TraceItXNotMountedError(
-        'TraceItXProvider not mounted; wrap your root with <TraceItXProvider>.'
+      new EverframeNotMountedError(
+        'EverframeProvider not mounted; wrap your root with <EverframeProvider>.'
       )
     );
   }
@@ -145,7 +145,7 @@ export function setExtra(
  * Top-level `addBreadcrumb` for non-component call sites (global error
  * handlers, deep-link handlers, native event bridges). No-op if no provider
  * mounted — matches `setExtra` above. See
- * `TraceItXContextValue.addBreadcrumb` for the full contract.
+ * `EverframeContextValue.addBreadcrumb` for the full contract.
  */
 export function addBreadcrumb(input: {
   message: string;
@@ -170,7 +170,7 @@ export function recordScreen(name: string, data?: Record<string, unknown>): void
 }
 
 /** Top-level `setUser` for non-component call sites. No-op if no provider mounted. */
-export function setUser(user?: TXUserSpec): void {
+export function setUser(user?: EverframeUserSpec): void {
   __currentContext?.setUser(user);
 }
 
