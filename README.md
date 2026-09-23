@@ -18,8 +18,8 @@ and captured errors.
 | Web and framework-agnostic JavaScript | [`@everframe/web`](https://www.npmjs.com/package/@everframe/web) | [Web SDK](packages/sdk-web/README.md) | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester) |
 | React | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react) | [React SDK](packages/sdk-react/README.md) | [React web](examples/react-web) |
 | React Native, Apple TV, and Android TV | [`@everframe/react-native`](https://www.npmjs.com/package/@everframe/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample) |
-| Android and Android TV | `com.traceitx` Maven modules | [Android SDK](packages/sdk-android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
-| iOS, iPadOS, and tvOS | `TraceItX` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
+| Android and Android TV | `dev.everframe` Maven modules | [Android SDK](packages/sdk-android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
+| iOS, iPadOS, and tvOS | `Everframe` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
 | Server-side identity | [`@everframe/identity`](https://www.npmjs.com/package/@everframe/identity) | [Identity helper](packages/identity/README.md) | Runtime-specific recipes are included in the package documentation |
 
 Each SDK README is the canonical guide for installation, configuration,
@@ -53,8 +53,8 @@ pnpm add @everframe/react
 pnpm add @everframe/react-native
 ```
 
-The Android SDK is distributed as `com.traceitx` Maven modules through GitHub
-Packages. Tagged Apple releases can be consumed with Swift Package Manager
+The Android SDK is distributed as `dev.everframe` Maven modules through Maven
+Central. Tagged Apple releases can be consumed with Swift Package Manager
 from this repository. Their documentation contains the current coordinates,
 products, and setup instructions.
 
@@ -120,8 +120,8 @@ cd packages/sdk-android/android
 ./gradlew test assembleRelease
 
 # Apple, from the repository root
-TRACEITX_DEV_INGEST_URL=http://127.0.0.1:9 \
-  swift test --package-path packages/sdk-ios
+EVERFRAME_DEV_INGEST_URL=http://127.0.0.1:9 \
+  swift test --package-path packages/sdk-ios --no-parallel
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and licensing rules.

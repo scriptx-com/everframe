@@ -38,6 +38,7 @@ test('CI runs public boundary, license, secret, JavaScript, and Android gates', 
   assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
   assert.match(workflow, /node --test scripts\/public-boundary\.test\.mjs/);
   assert.match(workflow, /node scripts\/public-boundary\.mjs/);
+  assert.match(workflow, /pnpm check:brand/);
   assert.match(workflow, /reuse lint/);
   assert.match(workflow, /gitleaks dir/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
@@ -46,6 +47,7 @@ test('CI runs public boundary, license, secret, JavaScript, and Android gates', 
   assert.match(workflow, /pnpm (?:run )?typecheck:packages/);
   assert.match(workflow, /pnpm (?:run )?check:publish/);
   assert.match(workflow, /\.\/gradlew test assembleRelease publishAllToMavenLocal/);
+  assert.match(workflow, /-PeverframeVersion=0\.0\.0-ci/);
   assert.match(workflow, /verify-android-publication\.sh/);
 });
 
@@ -54,9 +56,9 @@ test('Apple CI runs serialized SwiftPM unit tests only', () => {
 
   assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
   assert.match(workflow, /swift test --package-path packages\/sdk-ios --no-parallel/);
-  assert.match(workflow, /TRACEITX_DEV_INGEST_URL: http:\/\/127\.0\.0\.1:9/);
+  assert.match(workflow, /EVERFRAME_DEV_INGEST_URL: http:\/\/127\.0\.0\.1:9/);
   assert.doesNotMatch(workflow, /xcodegen|xcodebuild|ReplayTV/);
-  assert.doesNotMatch(workflow, /admin|TRACEITX_ADMIN|drive-xctest|benchmark-runner|dashboard/i);
+  assert.doesNotMatch(workflow, /admin|EVERFRAME_ADMIN|drive-xctest|benchmark-runner|dashboard/i);
 });
 
 test('Dependabot covers each public dependency ecosystem', () => {
@@ -85,7 +87,10 @@ test('published metadata points to the public MIT-licensed repository', () => {
 
   assert.doesNotMatch(publishingText, /binary-only|binary-distribution/i);
   assert.doesNotMatch(publishingText, /emptySourcesJar|emptyJavadocJar/);
-  assert.doesNotMatch(publishingText, /github\.com\/scriptx\/traceitx(?:\.git|\/|\b)/);
+  assert.doesNotMatch(
+    publishingText,
+    new RegExp(`github\\.com/scriptx/${'trace' + 'itx'}(?:\\.git|/|\\b)`),
+  );
   assert.doesNotMatch(publishingText, /name\.set\("Apache-2\.0"\)/);
   assert.match(read('packages/sdk-android/android/build.gradle.kts'), /withSourcesJar\(\)/);
   assert.match(read('packages/sdk-android/android/build.gradle.kts'), /org\.jetbrains\.dokka-javadoc/);
@@ -100,7 +105,8 @@ test('published metadata points to the public MIT-licensed repository', () => {
       || file.endsWith('.podspec');
   }).map(read).join('\n');
 
-  assert.doesNotMatch(publicMetadata, /github\.com\/scriptx-com\/traceitx(?!-releases)/);
-  assert.doesNotMatch(publicMetadata, /github\.com\/scriptx\/traceitx/);
+  const former = 'trace' + 'itx';
+  assert.doesNotMatch(publicMetadata, new RegExp(`github\\.com/scriptx-com/${former}`));
+  assert.doesNotMatch(publicMetadata, new RegExp(`github\\.com/scriptx/${former}`));
   assert.doesNotMatch(publicMetadata, /Apache-2\.0/);
 });

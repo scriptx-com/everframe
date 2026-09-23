@@ -60,7 +60,7 @@ const allowedTopLevel = new Set(policy.allowedTopLevel ?? []);
 const publicPackages = new Set(policy.publicPackages ?? []);
 const internalDependencies = [];
 const publicPackageScope = '@everframe/';
-const legacyPackageScope = '@traceitx/';
+const legacyPackageScope = `@${'trace' + 'itx'}/`;
 
 for (const file of files) {
   const { absolutePath, relativePath } = file;

@@ -84,6 +84,446 @@
       "path": "packages/sdk-web/CHANGELOG.md",
       "pattern": "<TraceItXProvider>",
       "reason": "Historical release note records the former React provider API"
+    },
+    {
+      "path": "examples/react-native/CHANGELOG.md",
+      "pattern": "@traceitx/react-native",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "examples/react-native/CHANGELOG.md",
+      "pattern": "traceitx-react-native",
+      "reason": "Historical release evidence records the former package slug"
+    },
+    {
+      "path": "examples/react-tv-sample/CHANGELOG.md",
+      "pattern": "@traceitx/example-react-tv",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "examples/react-tv-sample/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "examples/react-tv-sample/CHANGELOG.md",
+      "pattern": "traceitx-react",
+      "reason": "Historical release evidence records the former package slug"
+    },
+    {
+      "path": "examples/react-web/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "examples/react-web/CHANGELOG.md",
+      "pattern": "@traceitx/identity",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "examples/react-web/CHANGELOG.md",
+      "pattern": "traceitx-react",
+      "reason": "Historical release evidence records the former package slug"
+    },
+    {
+      "path": "examples/smarttv-tester/CHANGELOG.md",
+      "pattern": "@traceitx/example-smarttv-tester",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "examples/smarttv-tester/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "examples/vue-web/CHANGELOG.md",
+      "pattern": "@traceitx/web",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/identity/CHANGELOG.md",
+      "pattern": "@traceitx/identity",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "packages/identity/CHANGELOG.md",
+      "pattern": "mint TraceItX identity tokens",
+      "reason": "Historical release evidence records the former product name"
+    },
+    {
+      "path": "packages/identity/CHANGELOG.md",
+      "pattern": "TraceItXProvider",
+      "reason": "Historical release evidence records the former provider API"
+    },
+    {
+      "path": "packages/protocol/CHANGELOG.md",
+      "pattern": "@traceitx/protocol",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "packages/protocol/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-core/CHANGELOG.md",
+      "pattern": "@traceitx/sdk-core",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "packages/sdk-core/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-core/CHANGELOG.md",
+      "pattern": "@traceitx/react-native",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-core/CHANGELOG.md",
+      "pattern": "TraceItXProvider",
+      "reason": "Historical release evidence records the former provider API"
+    },
+    {
+      "path": "packages/sdk-core/CHANGELOG.md",
+      "pattern": "@traceitx/web",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-core/CHANGELOG.md",
+      "pattern": "@traceitx/protocol",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-web/CHANGELOG.md",
+      "pattern": "@traceitx/web",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "packages/sdk-web/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-web/CHANGELOG.md",
+      "pattern": "@traceitx/react-native",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-web/CHANGELOG.md",
+      "pattern": "@traceitx/sdk-core",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-web/CHANGELOG.md",
+      "pattern": "@traceitx/protocol",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "traceitx-react",
+      "reason": "Historical release evidence records the former package slug"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "@traceitx/react-native",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "TraceItXProvider",
+      "reason": "Historical release evidence records the former provider API"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "@traceitx/web",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "@traceitx/sdk-core",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "@traceitx/protocol",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "TraceItX.shared.report.open",
+      "reason": "Historical release evidence records the former notification name"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "traceitx-skip-capture",
+      "reason": "Historical release evidence records the former DOM attribute"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "the `@traceitx` scope",
+      "reason": "Historical release evidence records the former npm scope"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "traceitx-react-native",
+      "reason": "Historical release evidence records the former package slug"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "com.traceitx:core",
+      "reason": "Historical release evidence records the former native namespace"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "pod TraceItX",
+      "reason": "Historical release evidence records the former Apple pod"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "mint TraceItX identity tokens",
+      "reason": "Historical release evidence records the former product name"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "useTraceItX",
+      "reason": "Historical release evidence records the former React hook"
+    },
+    {
+      "path": "packages/sdk-react/CHANGELOG.md",
+      "pattern": "@traceitx/identity",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "traceitx-react-native",
+      "reason": "Historical release evidence records the former package slug"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "@traceitx/react",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "@traceitx/react-native",
+      "reason": "Historical release evidence records the package name published at that time"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItXProvider",
+      "reason": "Historical release evidence records the former provider API"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "@traceitx/web",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "@traceitx/sdk-core",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "com.traceitx.vitals",
+      "reason": "Historical release evidence records the former native namespace"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "traceitx-core",
+      "reason": "Historical release evidence records the former native module name"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItXKit",
+      "reason": "Historical release evidence records the former Apple module"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "@traceitx/sdk-android",
+      "reason": "Historical release evidence records the former package name"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "@traceitx/sdk-ios",
+      "reason": "Historical release evidence records the former package name"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItX.start",
+      "reason": "Historical release evidence records the former native API"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "@traceitx/protocol",
+      "reason": "Historical release evidence records the dependency name published at that time"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItX.shared.report.open",
+      "reason": "Historical release evidence records the former notification name"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "locked `TraceItX`",
+      "reason": "Historical release evidence records the former Apple pod"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "`pod update TraceItX`",
+      "reason": "Historical release evidence records the former Apple pod command"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "native TraceItX iOS SDK",
+      "reason": "Historical release evidence records the former Apple SDK name"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TRACEITX_NATIVE_POD_VERSION",
+      "reason": "Historical release evidence records the former build override"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "traceitxNativeVersion",
+      "reason": "Historical release evidence records the former build property"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "the `@traceitx` scope",
+      "reason": "Historical release evidence records the former npm scope"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "traceitx-react",
+      "reason": "Historical release evidence records the former package slug"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "com.traceitx:core",
+      "reason": "Historical release evidence records the former native namespace"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "pod TraceItX",
+      "reason": "Historical release evidence records the former Apple pod"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItXRN.podspec",
+      "reason": "Historical release evidence records the former podspec name"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItX.podspec",
+      "reason": "Historical release evidence records the former podspec name"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItX.SDK_VERSION",
+      "reason": "Historical release evidence records the former native version API"
+    },
+    {
+      "path": "packages/sdk-react-native/CHANGELOG.md",
+      "pattern": "TraceItXConfig.release",
+      "reason": "Historical release evidence records the former native configuration API"
+    },
+    {
+      "path": "packages/protocol/__tests__/attachment-session-replay.spec.ts",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Regression fixture proves persisted native replay attachments remain readable"
+    },
+    {
+      "path": "packages/protocol/__tests__/fixtures/android-walk-sample.vtree.v1.json",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Cross-SDK fixture preserves a persisted native replay record"
+    },
+    {
+      "path": "packages/protocol/__tests__/fixtures/vtree.v1-fixture.json",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Cross-SDK fixture preserves persisted native replay records"
+    },
+    {
+      "path": "packages/protocol/__tests__/generated-identity.spec.ts",
+      "pattern": "traceitx-video-v1",
+      "reason": "Regression test proves generated readers accept the persisted video discriminator"
+    },
+    {
+      "path": "packages/protocol/__tests__/generated-identity.spec.ts",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Regression test proves generated readers accept the persisted replay discriminator"
+    },
+    {
+      "path": "packages/protocol/__tests__/native-video.spec.ts",
+      "pattern": "traceitx-video-v1",
+      "reason": "Regression fixture proves persisted native video attachments remain readable"
+    },
+    {
+      "path": "packages/protocol/__tests__/native-video.spec.ts",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Regression fixture proves persisted native replay attachments remain readable"
+    },
+    {
+      "path": "packages/protocol/__tests__/vtree.spec.ts",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Regression fixture proves persisted native replay timelines remain readable"
+    },
+    {
+      "path": "packages/protocol/scripts/codegen-swift.sh",
+      "pattern": "traceitx-video-v1",
+      "reason": "Generated Apple reader accepts video attachments persisted before the rename"
+    },
+    {
+      "path": "packages/protocol/scripts/codegen-swift.sh",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Generated Apple reader accepts replay attachments persisted before the rename"
+    },
+    {
+      "path": "packages/protocol/scripts/codegen-vtree-swift.mjs",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Generated Apple reader accepts replay timelines persisted before the rename"
+    },
+    {
+      "path": "packages/sdk-core/__tests__/roundtrip.spec.ts",
+      "pattern": "traceitx-video-v1",
+      "reason": "Regression fixture proves persisted native video attachments remain readable"
+    },
+    {
+      "path": "packages/sdk-core/src/envelope-builder.ts",
+      "pattern": "traceitx-video-v1",
+      "reason": "Envelope reader normalizes video attachments persisted before the rename"
+    },
+    {
+      "path": "packages/sdk-core/src/envelope-builder.ts",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Envelope reader normalizes replay attachments persisted before the rename"
+    },
+    {
+      "path": "packages/sdk-ios/Sources/EverframeProtocol/Generated.swift",
+      "pattern": "traceitx-video-v1",
+      "reason": "Apple protocol reader accepts video attachments persisted before the rename"
+    },
+    {
+      "path": "packages/sdk-ios/Sources/EverframeProtocol/Generated.swift",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Apple protocol reader accepts replay attachments persisted before the rename"
+    },
+    {
+      "path": "packages/sdk-ios/Sources/EverframeProtocol/VTree.swift",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Apple protocol reader accepts replay timelines persisted before the rename"
+    },
+    {
+      "path": "packages/sdk-ios/Tests/EverframeTests/Fixtures/vtree.v1-fixture.json",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Cross-SDK fixture preserves persisted native replay records"
     }
   ]
 }

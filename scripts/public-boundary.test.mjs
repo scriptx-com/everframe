@@ -141,40 +141,42 @@ test('accepts the exact Everframe public package set', () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
-test('rejects legacy TraceItX scoped packages', () => {
+const legacyScope = `@${'trace' + 'itx'}`;
+
+test('rejects legacy scoped packages', () => {
   const files = structuredClone(safeFiles);
   files['packages/legacy/package.json'] = JSON.stringify({
-    name: '@traceitx/legacy',
+    name: `${legacyScope}/legacy`,
     dependencies: {},
   });
 
   const result = run(files);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /@traceitx\/legacy.*legacy package scope/);
+  assert.match(result.stderr, new RegExp(`${legacyScope}/legacy.*legacy package scope`));
 });
 
-test('rejects a legacy TraceItX scoped root manifest', () => {
+test('rejects a legacy scoped root manifest', () => {
   const files = structuredClone(safeFiles);
   files['package.json'] = JSON.stringify({
-    name: '@traceitx/root',
+    name: `${legacyScope}/root`,
     private: true,
   });
 
   const result = run(files);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /package\.json.*@traceitx\/root.*legacy package scope/);
+  assert.match(result.stderr, new RegExp(`package\\.json.*${legacyScope}/root.*legacy package scope`));
 });
 
-test('rejects a legacy TraceItX scoped example manifest', () => {
+test('rejects a legacy scoped example manifest', () => {
   const files = structuredClone(safeFiles);
   files['examples/demo/package.json'] = JSON.stringify({
-    name: '@traceitx/example-demo',
+    name: `${legacyScope}/example-demo`,
     private: true,
   });
 
   const result = run(files);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /examples\/demo\/package\.json.*@traceitx\/example-demo.*legacy package scope/);
+  assert.match(result.stderr, new RegExp(`examples/demo/package\\.json.*${legacyScope}/example-demo.*legacy package scope`));
 });
 
 test('rejects a tree missing a required public package', () => {

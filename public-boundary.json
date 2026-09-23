@@ -86,7 +86,8 @@
     "(^|/)next-env\\.d\\.ts$",
     "(^|/)examples/react-native/(?:android|ios)(?:/|$)",
     "(^|/)examples/tvos-replay/ReplayTV\\.xcodeproj(?:/|$)",
-    "(^|/)packages/sdk-android/android/\\.gradle(?:/|$)"
+    "(^|/)packages/sdk-android/android/\\.gradle(?:/|$)",
+    "^packages/sdk-ios/dev-podspec/Everframe(?:Kit|Protocol|ReporterUI)\\.xcframework$"
   ],
   "forbiddenTextPatterns": [
     {
@@ -115,7 +116,7 @@
       "reason": "admin credential reference"
     },
     {
-      "pattern": "github\\.com/(scriptx-com|scriptx)/traceitx(?:\\.git|/|\\)|$)",
+      "pattern": "github\\.com/scriptx/everframe(?:\\.git|/|\\)|$)",
       "reason": "unrelated repository URL"
     }
   ],
@@ -175,6 +176,8 @@
         "spdx": "Apache-2.0"
       }
     ],
-    "exemptPathPatterns": []
+    "exemptPathPatterns": [
+      "(^|/)(?:SampleApp|Everframe)\\.xcodeproj/(?:project\\.pbxproj|project\\.xcworkspace/contents\\.xcworkspacedata|xcshareddata/xcschemes/[^/]+\\.xcscheme)$"
+    ]
   }
 }

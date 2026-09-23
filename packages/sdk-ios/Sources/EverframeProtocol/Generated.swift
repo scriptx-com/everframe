@@ -199,8 +199,8 @@ public enum EverframeFormat: String, Codable {
     case everframeVideoV1 = "everframe-video-v1"
     case everframeVtreeV1 = "everframe-vtree-v1"
     case rrweb = "rrweb"
-    case traceitxVideoV1 = "traceitx-video-v1"
-    case traceitxVtreeV1 = "traceitx-vtree-v1"
+    case legacyVideoV1 = "traceitx-video-v1"
+    case legacyVtreeV1 = "traceitx-vtree-v1"
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -217,8 +217,8 @@ public enum EverframeFormat: String, Codable {
     public func encode(to encoder: Encoder) throws {
         let encoded: String
         switch self {
-        case .traceitxVideoV1: encoded = "everframe-video-v1"
-        case .traceitxVtreeV1: encoded = "everframe-vtree-v1"
+        case .legacyVideoV1: encoded = "everframe-video-v1"
+        case .legacyVtreeV1: encoded = "everframe-vtree-v1"
         default: encoded = rawValue
         }
         var container = encoder.singleValueContainer()

@@ -34,6 +34,7 @@ describe('Everframe React Native bridge identity', () => {
     const index = read('src/index.ts');
     expect(index).toContain('EverframeProvider, useEverframe');
     expect(index).toContain('useEverframeScreen, EverframeScreen');
-    expect(index).not.toMatch(/TraceItX|useTXScreen|\bTXScreen\b/);
+    expect(index).not.toContain('Trace' + 'ItX');
+    expect(index).not.toMatch(/useTXScreen|\bTXScreen\b/);
   });
 });

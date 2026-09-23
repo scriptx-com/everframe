@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test Swift package
         env:
-          TRACEITX_DEV_INGEST_URL: http://127.0.0.1:9
+          EVERFRAME_DEV_INGEST_URL: http://127.0.0.1:9
         # Swift Testing runs suites concurrently by default, but these SDK tests
         # deliberately exercise shared process-global capture state.
         run: swift test --package-path packages/sdk-ios --no-parallel

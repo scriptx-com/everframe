@@ -26,6 +26,7 @@ jobs:
           node --test scripts/public-boundary.test.mjs
           node --test scripts/public-ci.test.mjs
           node scripts/public-boundary.mjs
+          pnpm check:brand
       - name: Verify REUSE licensing
         run: pipx run --spec 'reuse[charset-normalizer]==6.2.0' reuse lint
       - name: Install Gitleaks 8.30.1
@@ -80,6 +81,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Test, assemble, and publish Android SDK locally
         working-directory: packages/sdk-android/android
-        run: ./gradlew test assembleRelease publishAllToMavenLocal -PtraceitxVersion=0.0.0-ci
+        run: ./gradlew test assembleRelease publishAllToMavenLocal -PeverframeVersion=0.0.0-ci
       - name: Verify Android publication contents
         run: scripts/verify-android-publication.sh 0.0.0-ci

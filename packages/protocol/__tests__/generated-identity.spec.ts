@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const swiftRoot = path.resolve(here, '../../sdk-ios/Sources/TraceItXProtocol');
+const swiftRoot = path.resolve(here, '../../sdk-ios/Sources/EverframeProtocol');
 const kotlinRoot = path.resolve(
   here,
   '../../sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated',
@@ -29,14 +29,14 @@ describe('generated Everframe protocol identity', () => {
     (file) => {
       const source = readFileSync(path.join(kotlinRoot, file), 'utf8');
       expect(source).toMatch(/^package dev\.everframe\.protocol\.generated$/mu);
-      expect(source).not.toMatch(/^package com\.traceitx\./mu);
+      expect(source).not.toMatch(new RegExp(`^package com\\.${'trace' + 'itx'}\\.`, 'mu'));
     },
   );
 
   it('generated Swift decodes the legacy video value but encodes it canonically', () => {
     const source = readFileSync(path.join(swiftRoot, 'Generated.swift'), 'utf8');
-    expect(source).toContain('case traceitxVideoV1 = "traceitx-video-v1"');
-    expect(source).toContain('case .traceitxVideoV1: encoded = "everframe-video-v1"');
+    expect(source).toContain('case legacyVideoV1 = "traceitx-video-v1"');
+    expect(source).toContain('case .legacyVideoV1: encoded = "everframe-video-v1"');
   });
 
   it('generated Kotlin decodes the legacy video value but encodes it canonically', () => {

@@ -20,7 +20,7 @@ export { Breadcrumb, BreadcrumbKind, BreadcrumbLevel } from './breadcrumb.js';
 export * as relay from './relay/index.js';
 // Native session-replay blob contract — namespaced (mirrors relay) and
 // referenced by the envelope via ReplayFormat, never nested in it. The legacy
-// traceitx-vtree-v1 discriminator remains a read-only compatibility value.
+// legacy VTree discriminator remains a read-only compatibility value.
 export * as vtree from './vtree/index.js';
 export * from './network-body.js';
 export * from './crash.js';

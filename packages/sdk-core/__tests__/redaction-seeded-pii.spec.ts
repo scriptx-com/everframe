@@ -36,7 +36,7 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
 
   it.each([
     ['everframe', 'evr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
-    ['traceitx', 'txr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+    ['everframe', 'txr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
   ] as const)('masks %s reporter bearer credentials captured in network headers', (family, deviceToken) => {
     const seeded = buildSeededPIIEnvelope();
     (seeded.payload as { network: unknown }).network = [

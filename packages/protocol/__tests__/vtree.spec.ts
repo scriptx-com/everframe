@@ -364,11 +364,11 @@ describe('VTREE-03 originEpochMs — optional wall-clock anchor', () => {
 describe('VTREE-01 generated native shape guard (Pitfall-1)', () => {
   const swiftPath = path.resolve(
     __dirname,
-    '../../sdk-ios/Sources/TraceItXProtocol/VTree.swift'
+    '../../sdk-ios/Sources/EverframeProtocol/VTree.swift'
   );
   const kotlinPath = path.resolve(
     __dirname,
-    '../../sdk-android/android/traceitx-protocol/src/main/kotlin/com/traceitx/protocol/generated/VTree.kt'
+    '../../sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/VTree.kt'
   );
 
   it('Swift emits exactly one Everframe node struct + operation enum', () => {

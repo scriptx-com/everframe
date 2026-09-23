@@ -13,7 +13,7 @@
 // Consumers reference the binary tag, e.g.
 //
 //     dependencies: [
-//         .package(url: "https://github.com/scriptx-com/everframe", from: "0.1.1"),
+//         .package(url: "https://github.com/scriptx-com/everframe", from: "0.9.0"),
 //     ]
 //
 // **Update these per release — both are now automated; do not hand-edit:**
