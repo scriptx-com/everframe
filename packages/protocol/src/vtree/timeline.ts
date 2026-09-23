@@ -251,7 +251,9 @@ export const VAsset = z
 // coordinate space; the player maps points → CSS px.
 export const VTreeTimeline = z
   .object({
-    version: z.enum(['everframe-vtree-v1', 'traceitx-vtree-v1']),
+    version: z
+      .enum(['everframe-vtree-v1', 'traceitx-vtree-v1'])
+      .transform(() => 'everframe-vtree-v1' as const),
     viewport: z.object({
       width: z.number(),
       height: z.number(),

@@ -253,7 +253,7 @@ public struct EverframeVTreeTimeline: Codable, Equatable {
     public let assets: [String: EverframeVAsset]?
     public let frames: [EverframeVFrame]
     public let originEpochMs: Double?
-    public let version: String
+    public let version: EverframeVTreeVersion
     public let viewport: EverframeVTreeTimelineViewport
 
     public enum CodingKeys: String, CodingKey {
@@ -264,7 +264,7 @@ public struct EverframeVTreeTimeline: Codable, Equatable {
         case viewport
     }
 
-    public init(assets: [String: EverframeVAsset]? = nil, frames: [EverframeVFrame], originEpochMs: Double? = nil, version: String, viewport: EverframeVTreeTimelineViewport) {
+    public init(assets: [String: EverframeVAsset]? = nil, frames: [EverframeVFrame], originEpochMs: Double? = nil, version: EverframeVTreeVersion, viewport: EverframeVTreeTimelineViewport) {
         self.assets = assets
         self.frames = frames
         self.originEpochMs = originEpochMs
@@ -288,5 +288,27 @@ public struct EverframeVTreeTimelineViewport: Codable, Equatable {
         self.height = height
         self.scale = scale
         self.width = width
+    }
+}
+
+public enum EverframeVTreeVersion: String, Codable, Equatable {
+    case everframeV1 = "everframe-vtree-v1"
+    case legacyV1 = "traceitx-vtree-v1"
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        guard let value = EverframeVTreeVersion(rawValue: raw) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown Everframe VTree version '\(raw)'"
+            )
+        }
+        self = value
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode("everframe-vtree-v1")
     }
 }

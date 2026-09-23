@@ -34,7 +34,10 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
     expect(headers['content-type']).toBe('application/json');
   });
 
-  it('masks reporter bearer credentials captured in network headers (recognition spec 2026-08-06)', () => {
+  it.each([
+    ['everframe', 'evr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+    ['traceitx', 'txr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+  ] as const)('masks %s reporter bearer credentials captured in network headers', (family, deviceToken) => {
     const seeded = buildSeededPIIEnvelope();
     (seeded.payload as { network: unknown }).network = [
       {
@@ -43,8 +46,8 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
         status: 200,
         startedAt: 1500,
         headers: {
-          'x-everframe-device-token': 'evr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          'x-everframe-identity-token': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
+          [`x-${family}-device-token`]: deviceToken,
+          [`x-${family}-identity-token`]: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
           'content-type': 'application/json',
         },
       },
@@ -52,8 +55,8 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
     const { envelope } = applyRedaction(seeded, {});
     const headers = (envelope.payload.network as Array<{ headers: Record<string, string> }>)[0]!
       .headers;
-    expect(headers['x-everframe-device-token']).toBe('[REDACTED]');
-    expect(headers['x-everframe-identity-token']).toBe('[REDACTED]');
+    expect(headers[`x-${family}-device-token`]).toBe('[REDACTED]');
+    expect(headers[`x-${family}-identity-token`]).toBe('[REDACTED]');
     expect(headers['content-type']).toBe('application/json');
   });
 

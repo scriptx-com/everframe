@@ -14,6 +14,13 @@ package dev.everframe.protocol.generated
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
@@ -102,7 +109,7 @@ data class VTreeTimeline(
     val assets: Map<String, VAsset>? = null,
     val frames: List<VFrame>,
     val originEpochMs: Double? = null,
-    val version: String,
+    val version: VTreeVersion,
     val viewport: VTreeTimelineViewport
 )
 
@@ -112,3 +119,26 @@ data class VTreeTimelineViewport(
     val scale: Double,
     val width: Double
 )
+
+@Serializable(with = VTreeVersionSerializer::class)
+enum class VTreeVersion(val value: String) {
+    @SerialName("everframe-vtree-v1") EverframeV1("everframe-vtree-v1"),
+    @SerialName("traceitx-vtree-v1") LegacyV1("traceitx-vtree-v1");
+}
+
+object VTreeVersionSerializer : KSerializer<VTreeVersion> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
+        "dev.everframe.protocol.generated.VTreeVersion",
+        PrimitiveKind.STRING,
+    )
+
+    override fun deserialize(decoder: Decoder): VTreeVersion {
+        val wire = decoder.decodeString()
+        return VTreeVersion.values().firstOrNull { it.value == wire }
+            ?: throw SerializationException("Unknown Everframe VTree version: $wire")
+    }
+
+    override fun serialize(encoder: Encoder, value: VTreeVersion) {
+        encoder.encodeString("everframe-vtree-v1")
+    }
+}

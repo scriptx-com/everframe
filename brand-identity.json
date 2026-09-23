@@ -31,6 +31,16 @@
       "reason": "Schema validates native replay timelines in existing stored records"
     },
     {
+      "path": "packages/sdk-core/src/redaction/engine.ts",
+      "pattern": "x-traceitx-device-token",
+      "reason": "Security redaction sentinel masks device credentials captured under the former header spelling"
+    },
+    {
+      "path": "packages/sdk-core/src/redaction/engine.ts",
+      "pattern": "x-traceitx-identity-token",
+      "reason": "Security redaction sentinel masks identity credentials captured under the former header spelling"
+    },
+    {
       "path": "packages/sdk-web/CHANGELOG.md",
       "pattern": "<TraceItXProvider>",
       "reason": "Historical release note records the former React provider API"

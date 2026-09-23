@@ -113,9 +113,35 @@ function isMapSchema(prop) {
 
 const camel = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
+const VTREE_VERSION_TYPE = `public enum EverframeVTreeVersion: String, Codable, Equatable {
+    case everframeV1 = "everframe-vtree-v1"
+    case legacyV1 = "traceitx-vtree-v1"
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        guard let value = EverframeVTreeVersion(rawValue: raw) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown Everframe VTree version '\\(raw)'"
+            )
+        }
+        self = value
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode("everframe-vtree-v1")
+    }
+}
+`;
+
 // Render a Swift type for a JSON-Schema field. For inline nested objects /
 // arrays of objects we emit a fresh nominal type into `extraTypes`.
 function swiftType(prop, ownerName, fieldName, extraTypes) {
+  if (ownerName === 'EverframeVTreeTimeline' && fieldName === 'version') {
+    return 'EverframeVTreeVersion';
+  }
   // $ref → the resolved recursive VNode (Finding B fix: NOT a usage-site name).
   if (prop.$ref === VNODE_REF) {
     return VNODE_NAME;
@@ -308,6 +334,7 @@ ${encodeCases}
 // --- main emit ---------------------------------------------------------
 
 const extraTypes = new Map(); // name → emitted Swift code
+extraTypes.set('EverframeVTreeVersion', VTREE_VERSION_TYPE);
 
 // 1. Resolve the recursive node ONCE under the fixed name `VNode` (Finding A).
 emitStruct(VNODE_NAME, schema.$defs[vnodeDefKey], extraTypes);

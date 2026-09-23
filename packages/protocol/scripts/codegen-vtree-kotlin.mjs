@@ -76,6 +76,13 @@ package dev.everframe.protocol.generated
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonClassDiscriminator
 `;
 
@@ -83,6 +90,30 @@ const snake_to_camel = (s) =>
   s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
 const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const VTREE_VERSION_TYPE = `@Serializable(with = VTreeVersionSerializer::class)
+enum class VTreeVersion(val value: String) {
+    @SerialName("everframe-vtree-v1") EverframeV1("everframe-vtree-v1"),
+    @SerialName("traceitx-vtree-v1") LegacyV1("traceitx-vtree-v1");
+}
+
+object VTreeVersionSerializer : KSerializer<VTreeVersion> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
+        "dev.everframe.protocol.generated.VTreeVersion",
+        PrimitiveKind.STRING,
+    )
+
+    override fun deserialize(decoder: Decoder): VTreeVersion {
+        val wire = decoder.decodeString()
+        return VTreeVersion.values().firstOrNull { it.value == wire }
+            ?: throw SerializationException("Unknown Everframe VTree version: $wire")
+    }
+
+    override fun serialize(encoder: Encoder, value: VTreeVersion) {
+        encoder.encodeString("everframe-vtree-v1")
+    }
+}
+`;
 
 /**
  * True for a JSON Schema object used as an open-ended MAP: `additionalProperties`
@@ -95,6 +126,9 @@ function isMapSchema(prop) {
 }
 
 function kotlinType(prop, ownerName, fieldName, extraTypes) {
+  if (ownerName === 'VTreeTimeline' && fieldName === 'version') {
+    return 'VTreeVersion';
+  }
   if (prop.$ref === VNODE_REF) {
     return VNODE_NAME;
   }
@@ -249,6 +283,7 @@ function emitDataClassSubclass(
 // --- main emit ---------------------------------------------------------
 
 const extraTypes = new Map();
+extraTypes.set('VTreeVersion', VTREE_VERSION_TYPE);
 
 // 1. Resolve the recursive node ONCE under the fixed name `VNode` (Finding A).
 emitDataClass(VNODE_NAME, schema.$defs[vnodeDefKey], extraTypes);

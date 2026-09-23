@@ -28,11 +28,12 @@ export interface RedactionConfig {
 // Reporter bearer credentials (recognition spec 2026-08-06) are included
 // alongside the always-on auth headers: an app that instruments fetch
 // globally captures its OWN calls to /api/reporter/*, so these land in
-// payload.network[].headers unless masked here. `x-everframe-device-token`
-// authorizes thread reads; `x-everframe-identity-token` can bootstrap a device.
+// payload.network[].headers unless masked here. Current and legacy header
+// spellings authorize thread reads or bootstrap a device. The old spellings
+// are security sentinels for captured historical traffic, not public aliases.
 // Keep in parity with the server's redact.ts SENSITIVE_HEADERS.
 const SENSITIVE_HEADERS =
-  /^(authorization|x-api-key|set-cookie|cookie|proxy-authorization|x-everframe-device-token|x-everframe-identity-token)$/i;
+  /^(authorization|x-api-key|set-cookie|cookie|proxy-authorization|x-everframe-device-token|x-everframe-identity-token|x-traceitx-device-token|x-traceitx-identity-token)$/i;
 // Inline JWT match (substring within larger strings).
 const JWT_INLINE = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
 const SSN_US = /\b\d{3}-\d{2}-\d{4}\b/g;

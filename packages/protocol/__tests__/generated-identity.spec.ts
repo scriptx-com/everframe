@@ -44,4 +44,16 @@ describe('generated Everframe protocol identity', () => {
     expect(source).toContain('@SerialName("traceitx-video-v1") TraceitxVideoV1("traceitx-video-v1")');
     expect(source).toContain('Format.TraceitxVideoV1 -> "everframe-video-v1"');
   });
+
+  it('generated Swift decodes the legacy VTree version but encodes it canonically', () => {
+    const source = readFileSync(path.join(swiftRoot, 'VTree.swift'), 'utf8');
+    expect(source).toContain('case legacyV1 = "traceitx-vtree-v1"');
+    expect(source).toContain('try container.encode("everframe-vtree-v1")');
+  });
+
+  it('generated Kotlin decodes the legacy VTree version but encodes it canonically', () => {
+    const source = readFileSync(path.join(kotlinRoot, 'VTree.kt'), 'utf8');
+    expect(source).toContain('@SerialName("traceitx-vtree-v1") LegacyV1("traceitx-vtree-v1")');
+    expect(source).toContain('encoder.encodeString("everframe-vtree-v1")');
+  });
 });
