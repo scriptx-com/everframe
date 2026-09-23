@@ -3,7 +3,7 @@
 
 # examples/vue-web
 
-Vue 3 + Vite dogfood app for `@traceitx/web` — the non-React half of the web
+Vue 3 + Vite dogfood app for `@everframe/web` — the non-React half of the web
 SDK's coverage.
 
 The demo is **Elytra**, a small insect field guide ("file a bug about a bug"),
@@ -18,8 +18,8 @@ pnpm dev:example:vue     # from the repo root
 ```
 
 The `build:web-sdk` step is not optional: the ingest URL is baked into
-`@traceitx/web`'s `dist` at build time, so starting Vite alone against a
-release-built dist posts reports to https://traceitx.com.
+`@everframe/web`'s `dist` at build time, so starting Vite alone against a
+release-built dist posts reports to https://everframe.dev.
 
 Then visit http://127.0.0.1:3020 and click **Report a bug**, or press
 Cmd/Ctrl+Shift+B. http://127.0.0.1:3020/strict-csp.html is the strict-CSP

@@ -1,5 +1,5 @@
 {
-  "name": "@traceitx/example-smarttv-tester",
+  "name": "@everframe/example-smarttv-tester",
   "version": "0.0.5",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@traceitx/react": "workspace:*",
+    "@everframe/react": "workspace:*",
     "html-to-image": "^1.11.11",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",

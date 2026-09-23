@@ -1,8 +1,8 @@
 {
-  "name": "@traceitx/web",
+  "name": "@everframe/web",
   "version": "0.8.2",
   "private": false,
-  "description": "Framework-agnostic web SDK for TraceItX — AI-ready in-app bug reporting for any web framework or plain HTML.",
+  "description": "Framework-agnostic web SDK for Everframe — AI-ready in-app bug reporting for any web framework or plain HTML.",
   "keywords": [
     "bug-report",
     "feedback",
@@ -12,11 +12,11 @@
     "svelte",
     "angular",
     "vanilla-js",
-    "traceitx"
+    "everframe"
   ],
-  "homepage": "https://traceitx.com",
+  "homepage": "https://everframe.dev",
   "bugs": {
-    "url": "https://github.com/scriptx-com/traceitx-releases/issues"
+    "url": "https://github.com/scriptx-com/everframe/issues"
   },
   "type": "module",
   "license": "MIT",
@@ -26,7 +26,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/scriptx-com/traceitx-releases.git",
+    "url": "git+https://github.com/scriptx-com/everframe.git",
     "directory": "packages/sdk-web"
   },
   "publishConfig": {
@@ -95,8 +95,8 @@
     "@size-limit/preset-small-lib": "^11.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.2",
-    "@traceitx/protocol": "workspace:*",
-    "@traceitx/sdk-core": "workspace:*",
+    "@everframe/protocol": "workspace:*",
+    "@everframe/sdk-core": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "hls.js": "^1.7.2",

@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX Android SDK
+# Everframe Android SDK
 
-Native Android SDK workspace for TraceItX reporting, session evidence, and
+Native Android SDK workspace for Everframe reporting, session evidence, and
 playback diagnostics.
 
 The implementation is a Gradle multi-module project under [`android`](android).
@@ -24,16 +24,16 @@ platform limitations.
 | `traceitx-core` | `com.traceitx:core` | Capture, envelope, transport, outbox, and SDK lifecycle |
 | `traceitx-reporter-ui` | `com.traceitx:reporter-ui` | Compose reporter and annotation UI |
 | `traceitx-media3` | `com.traceitx:media3` | Media3 and ExoPlayer session-vitals integration |
-| `traceitx-gradle-plugin` | TraceItX Gradle plugin | Build integration and optimized-build metadata |
+| `traceitx-gradle-plugin` | Everframe Gradle plugin | Build integration and optimized-build metadata |
 
 ## Development
 
 From the repository root, use the workspace scripts:
 
 ```sh
-pnpm --filter @traceitx/sdk-android build
-pnpm --filter @traceitx/sdk-android test
-pnpm --filter @traceitx/sdk-android publish:maven-local
+pnpm --filter @everframe/sdk-android build
+pnpm --filter @everframe/sdk-android test
+pnpm --filter @everframe/sdk-android publish:maven-local
 ```
 
 Or run Gradle directly:

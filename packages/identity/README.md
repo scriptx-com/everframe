@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# @traceitx/identity
+# @everframe/identity
 
-Mint [TraceItX](https://traceitx.com) identity tokens from any runtime.
+Mint [Everframe](https://everframe.dev) identity tokens from any runtime.
 
 One `createIdentityHandler` call returns a standard
 `(Request) => Promise<Response>` — which is simultaneously a Next App Router
@@ -12,7 +12,7 @@ Function and a Deno/Bun handler.
 
 ```ts
 // app/api/traceitx-identity/route.ts
-import { createIdentityHandler } from '@traceitx/identity';
+import { createIdentityHandler } from '@everframe/identity';
 
 const handler = createIdentityHandler({
   secret: process.env.TRACEITX_IDENTITY_SECRET!,
@@ -73,7 +73,7 @@ createIdentityHandler({ …, allowedOrigins: ['https://app.example.com'] })
 ## Node
 
 ```ts
-import { toNodeHandler } from '@traceitx/identity/node';
+import { toNodeHandler } from '@everframe/identity/node';
 const nodeHandler = (req, res) => void toNodeHandler(handler)(req, res);
 
 // Register for BOTH verbs — or use app.all(...) — for the same reason as the

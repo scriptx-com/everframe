@@ -3,7 +3,7 @@
 
 # Contributing
 
-Thanks for contributing to the TraceItX SDKs and examples.
+Thanks for contributing to the Everframe SDKs and examples.
 
 ## Local checks
 

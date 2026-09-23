@@ -1,11 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# @traceitx/web
+# @everframe/web
 
-Framework-agnostic web SDK for TraceItX — AI-ready in-app bug reporting for
+Framework-agnostic web SDK for Everframe — AI-ready in-app bug reporting for
 any web framework or plain HTML. This is the base every web integration is
-built on; `@traceitx/react` is a thin React binding on top of it.
+built on; `@everframe/react` is a thin React binding on top of it.
 
 MIT · ESM · Node 20+ (build tooling only — the shipped bundles
 run in any modern browser)
@@ -16,7 +16,7 @@ run in any modern browser)
 | --- | --- |
 | Has a bundler (Vite, Webpack, Next.js, Nuxt, SvelteKit, Angular CLI, Astro's build) | **ESM install**, below |
 | Plain HTML / Rails / Django / WordPress / no bundler at all | **Script tag (CDN)**, below |
-| React | [`@traceitx/react`](https://www.npmjs.com/package/@traceitx/react) — an idiomatic provider + hook over this same core |
+| React | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react) — an idiomatic provider + hook over this same core |
 
 Both are ES modules and both produce the identical envelope; they differ only
 in what is bundled in. Pick the one that matches your app — see
@@ -25,13 +25,13 @@ in what is bundled in. Pick the one that matches your app — see
 ## Install — ESM (bundler apps)
 
 ```bash
-pnpm add @traceitx/web
+pnpm add @everframe/web
 # or
-npm install @traceitx/web
+npm install @everframe/web
 ```
 
 ```ts
-import { init } from '@traceitx/web';
+import { init } from '@everframe/web';
 
 const traceitx = init({
   apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
@@ -57,7 +57,7 @@ nothing left to resolve. Don't point one at `dist/index.js`.
 
 ```html
 <script type="module">
-  import { init } from 'https://cdn.jsdelivr.net/npm/@traceitx/web@0.7.0/dist/browser/index.js';
+  import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@0.7.0/dist/browser/index.js';
 
   const traceitx = init({
     apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
@@ -70,7 +70,7 @@ nothing left to resolve. Don't point one at `dist/index.js`.
 ```
 
 **jsDelivr is the CDN.** It serves every npm package automatically, so
-`@traceitx/web`'s ordinary `npm publish` *is* the CDN publish — there is no
+`@everframe/web`'s ordinary `npm publish` *is* the CDN publish — there is no
 separate upload, bucket or deploy step. `dist/browser/index.js` is the
 package's browser build: same source as the ESM entry, but with every
 dependency (React, konva, rrweb, modern-screenshot) inlined, so there is
@@ -104,7 +104,7 @@ the reporter opens normally in between.
 
 ## Framework recipes
 
-`@traceitx/web` has no framework bindings beyond the plain `init()` call —
+`@everframe/web` has no framework bindings beyond the plain `init()` call —
 each framework recipe below is the same call from that framework's
 client-side lifecycle hook. All of these assume the ESM install above.
 
@@ -113,7 +113,7 @@ client-side lifecycle hook. All of these assume the ESM install above.
 ```vue
 <script setup>
 import { onMounted } from 'vue';
-import { init } from '@traceitx/web';
+import { init } from '@everframe/web';
 
 onMounted(() => {
   init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
@@ -126,7 +126,7 @@ onMounted(() => {
 ```svelte
 <script>
   import { onMount } from 'svelte';
-  import { init } from '@traceitx/web';
+  import { init } from '@everframe/web';
 
   onMount(() => {
     init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
@@ -138,7 +138,7 @@ onMounted(() => {
 
 ```ts
 import { Component, OnInit } from '@angular/core';
-import { init } from '@traceitx/web';
+import { init } from '@everframe/web';
 
 @Component({ selector: 'app-root', template: '...' })
 export class AppComponent implements OnInit {
@@ -161,7 +161,7 @@ a build-time warning, not a way to make it run there:
 // src/components/TraceItX.astro
 ---
 <script>
-  import { init } from '@traceitx/web';
+  import { init } from '@everframe/web';
   init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
 </script>
 ```
@@ -236,7 +236,7 @@ interface TraceItXHandle {
 | `kill()` | Stops this instance from capturing or submitting anything further; the mounted UI and seams stay in place. A reporter already **open** when this lands is not submitted either: pressing Send discards the report, shows "Reporting is turned off — this report was not sent.", and settles a pending `open()` with `{ status: 'cancelled', reason: 'killed' }`. The same applies to a phone-companion capture or submit in flight. |
 | `destroy()` | Full teardown — hotkey, listeners, thread polling, the mounted host element, and the sdk-core client. Safe to call more than once. A host with client-side routing can `init()`/`destroy()` many times per page load without accumulating listeners. |
 
-There is deliberately **no `markSensitive()`** on the handle. `@traceitx/react`
+There is deliberately **no `markSensitive()`** on the handle. `@everframe/react`
 exposes a method of that name on its hook, but it has never been wired to
 anything — masking is driven entirely by the two surfaces in
 [Marking sensitive content](#marking-sensitive-content) below. Rather than
@@ -271,8 +271,8 @@ fingerprint and ten per SDK instance. Transport retries retain the report ID.
 
 ## Triggers
 
-TraceItX installs no visible "report a bug" button by default — same
-contract as every other TraceItX SDK. What `init()` does install:
+Everframe installs no visible "report a bug" button by default — same
+contract as every other Everframe SDK. What `init()` does install:
 
 - **The app's dashboard-configured hotkey**, defaulting to `Cmd/Ctrl+Shift+B`
   (`Mod+Shift+B`). The dashboard value is authoritative; there is no SDK-side
@@ -300,7 +300,7 @@ by the test suite:
 ```ts
 // 2. Mark an element programmatically — the same registry React's
 // <Sensitive> wrapper calls into, exported directly from this package.
-import { sensitiveRegistry } from '@traceitx/web';
+import { sensitiveRegistry } from '@everframe/web';
 
 const el = document.getElementById('credit-card');
 sensitiveRegistry.addRef(el);
@@ -314,9 +314,9 @@ elements are auto-masked with no action required.
 
 ## Component names in reports are React-only
 
-When `@traceitx/react` captures a report, it resolves the focused element to
+When `@everframe/react` captures a report, it resolves the focused element to
 its actual React component name and ancestor path (`CheckoutForm`, not an
-anonymous `<div>`) using React's fiber tree. `@traceitx/web` has no
+anonymous `<div>`) using React's fiber tree. `@everframe/web` has no
 framework tree to walk, so a Vue, Svelte, Angular or plain-HTML host's
 reports carry **DOM-level** context instead — tag name, CSS selector,
 attributes — never a component name. This is inherent to not having a
@@ -327,7 +327,7 @@ non-React host today.
 
 `companion.start()` opens the relay connection used for TV/phone-companion
 pairing. Its `attachPinUi` option defaults to `'builtin'`, but the built-in
-PIN card (`CompanionPinCard`) is rendered only by `@traceitx/react`'s
+PIN card (`CompanionPinCard`) is rendered only by `@everframe/react`'s
 `TraceItXProvider` — a vanilla `init()` mount renders the FAB, the reporter
 dialog, the inbox and a toast, and nothing else.
 
@@ -343,7 +343,7 @@ yourself:
 ```ts
 // __getCompanionApi is a top-level export, not a member of `companion` —
 // despite what the SDK's own console warning for this case says.
-import { companion, __getCompanionApi } from '@traceitx/web';
+import { companion, __getCompanionApi } from '@everframe/web';
 
 companion.start({
   sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
@@ -372,7 +372,7 @@ move than the rest of this API.
 `companion.start()`'s `companionBadge` option (documented as on by default)
 configures `CompanionBadge`, the small on-device name badge shown while a
 phone or dashboard member is attached. Like the PIN card, that component is
-rendered only by `@traceitx/react`'s `TraceItXProvider`.
+rendered only by `@everframe/react`'s `TraceItXProvider`.
 
 It is a harder limitation than the PIN card's, not an oversight: the badge is
 an **ambient** surface — it has to be visible while the reporter is *closed* —
@@ -390,7 +390,7 @@ option explicitly; the default stays silent.
 If you want a badge on a vanilla host, render your own:
 
 ```ts
-import { companion, __getCompanionApi } from '@traceitx/web';
+import { companion, __getCompanionApi } from '@everframe/web';
 
 companion.start({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx' });
 

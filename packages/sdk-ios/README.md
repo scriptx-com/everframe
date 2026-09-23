@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX for iOS / iPadOS / tvOS
+# Everframe for iOS / iPadOS / tvOS
 
-Native iOS Swift Package for TraceItX — in-app bug reporting with annotated
+Native iOS Swift Package for Everframe — in-app bug reporting with annotated
 screenshots, session replay, log/network ring buffers, and a built-in
 SwiftUI reporter UI. Covers iPhone, iPad, and Apple TV (tvOS).
 
@@ -16,7 +16,7 @@ contributors lives beside this README.
 ## Install via Swift Package Manager
 
 In Xcode → **File → Add Package Dependencies…** add
-`https://github.com/scriptx-com/traceitx-releases.git` with a version constraint
+`https://github.com/scriptx-com/everframe.git` with a version constraint
 matching the SDK version you want. Then add `TraceItX` and
 `TraceItXReporterUI` as dependencies of your app target. For the on-device
 test sample apps see `examples/ios-native/` (three schemes — iPhone, iPad,
@@ -24,10 +24,10 @@ Apple TV).
 
 ```swift
 // Package.swift consumer example
-.package(url: "https://github.com/scriptx-com/traceitx-releases.git", from: "0.8.1"),
+.package(url: "https://github.com/scriptx-com/everframe.git", from: "0.8.1"),
 // Then in your target dependencies:
-.product(name: "TraceItX", package: "traceitx-releases"),
-.product(name: "TraceItXReporterUI", package: "traceitx-releases"),
+.product(name: "TraceItX", package: "everframe"),
+.product(name: "TraceItXReporterUI", package: "everframe"),
 ```
 
 The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
@@ -67,7 +67,7 @@ struct MyApp: App {
 
 ## Triggers are host-app concern
 
-> TraceItX owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
+> Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
 
 Shake-to-report is enabled locally by default on iPhone and iPad and controlled
 authoritatively by the dashboard. Disable it locally with

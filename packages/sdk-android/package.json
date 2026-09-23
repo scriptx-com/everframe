@@ -1,8 +1,8 @@
 {
-  "name": "@traceitx/sdk-android",
+  "name": "@everframe/sdk-android",
   "private": true,
   "version": "1.2.0",
-  "description": "TraceItX native Android SDK — Gradle multi-module build (traceitx-core, traceitx-reporter-ui, traceitx-protocol, traceitx-gradle-plugin). Published to Maven under com.traceitx; not consumed via pnpm.",
+  "description": "Everframe native Android SDK workspace. The Gradle artifacts are not consumed through pnpm.",
   "license": "MIT",
   "scripts": {
     "build": "cd android && ./gradlew assembleRelease",

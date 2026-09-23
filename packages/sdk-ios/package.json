@@ -1,5 +1,5 @@
 {
-  "name": "@traceitx/sdk-ios-marker",
+  "name": "@everframe/sdk-ios-marker",
   "version": "0.0.0",
   "private": true,
   "description": "Workspace marker for the Swift Package at packages/sdk-ios. The actual SDK is consumed via SwiftPM (Package.swift), not Node. This file exists only so pnpm-workspace.yaml's packages/* glob doesn't choke."

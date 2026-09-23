@@ -1,25 +1,25 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# @traceitx/sdk-core
+# @everframe/sdk-core
 
-Shared, platform-independent TypeScript runtime for the TraceItX SDKs.
+Shared, platform-independent TypeScript runtime for the Everframe SDKs.
 
 This package contains the reporting behavior used by the public web and React
 integrations. It is intentionally kept separate from browser capture and UI so
 the same rules can be tested once and applied consistently across hosts.
 
-`@traceitx/sdk-core` is currently a private workspace package and is not meant
+`@everframe/sdk-core` is currently a private workspace package and is not meant
 to be installed directly by applications. Choose
-[`@traceitx/web`](../sdk-web/README.md),
-[`@traceitx/react`](../sdk-react/README.md), or
-[`@traceitx/react-native`](../sdk-react-native/README.md) for an application
+[`@everframe/web`](../sdk-web/README.md),
+[`@everframe/react`](../sdk-react/README.md), or
+[`@everframe/react-native`](../sdk-react-native/README.md) for an application
 integration.
 
 ## Responsibilities
 
 - Client lifecycle and remotely supplied SDK configuration
-- Report-envelope construction using [`@traceitx/protocol`](../protocol)
+- Report-envelope construction using [`@everframe/protocol`](../protocol)
 - Redaction, field budgets, compression, and multipart transport
 - Breadcrumb, log, network-body, replay, and outbox primitives
 - User projection, identity tokens, reporter threads, and replies
@@ -35,10 +35,10 @@ APIs directly.
 From the repository root:
 
 ```sh
-pnpm --filter @traceitx/sdk-core build
-pnpm --filter @traceitx/sdk-core test
-pnpm --filter @traceitx/sdk-core typecheck
-pnpm --filter @traceitx/sdk-core check:publish
+pnpm --filter @everframe/sdk-core build
+pnpm --filter @everframe/sdk-core test
+pnpm --filter @everframe/sdk-core typecheck
+pnpm --filter @everframe/sdk-core check:publish
 ```
 
 The protocol package must be built before SDK Core when running package tools

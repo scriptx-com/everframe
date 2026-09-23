@@ -71,6 +71,9 @@ importers:
 
   examples/react-native:
     dependencies:
+      '@everframe/react-native':
+        specifier: workspace:*
+        version: link:../../packages/sdk-react-native
       '@react-native-tvos/config-tv':
         specifier: 0.1.6
         version: 0.1.6(expo@56.0.0-preview.7)
@@ -80,9 +83,6 @@ importers:
       '@react-navigation/native-stack':
         specifier: ^7.0.0
         version: 7.19.2(@react-navigation/native@7.4.1(react-native-tvos@0.85.3-0)(react@19.2.5))(react-native-safe-area-context@5.5.2(react-native-tvos@0.85.3-0)(react@19.2.5))(react-native-screens@4.16.0(react-native-tvos@0.85.3-0)(react@19.2.5))(react-native-tvos@0.85.3-0)(react@19.2.5)
-      '@traceitx/react-native':
-        specifier: workspace:*
-        version: link:../../packages/sdk-react-native
       expo:
         specifier: 56.0.0-preview.7
         version: 56.0.0-preview.7(@babel/core@7.29.7)(@expo/dom-webview@56.0.6)(react-dom@19.2.5(react@19.2.5))(react-native-tvos@0.85.3-0)(react@19.2.5)(typescript@5.9.3)
@@ -114,7 +114,7 @@ importers:
         specifier: 7.0.0-beta.11
         version: 7.0.0-beta.11(react-dom@19.2.5(react@19.2.5))(react-native-nitro-modules@0.37.1(react-native-tvos@0.85.3-0)(react@19.2.5))(react-native-tvos@0.85.3-0)(react@19.2.5)
     devDependencies:
-      '@traceitx/babel-plugin-displayname':
+      '@everframe/babel-plugin-displayname':
         specifier: workspace:*
         version: link:../../packages/babel-plugin-displayname
       '@types/react':
@@ -129,7 +129,7 @@ importers:
 
   examples/react-tv-sample:
     dependencies:
-      '@traceitx/react':
+      '@everframe/react':
         specifier: workspace:*
         version: link:../../packages/sdk-react
       qrcode.react:
@@ -160,10 +160,10 @@ importers:
 
   examples/react-web:
     dependencies:
-      '@traceitx/identity':
+      '@everframe/identity':
         specifier: workspace:*
         version: link:../../packages/identity
-      '@traceitx/react':
+      '@everframe/react':
         specifier: workspace:*
         version: link:../../packages/sdk-react
       hls.js:
@@ -185,7 +185,7 @@ importers:
         specifier: ^5.2.8
         version: 5.2.11
     devDependencies:
-      '@traceitx/swc-plugin-displayname':
+      '@everframe/swc-plugin-displayname':
         specifier: workspace:*
         version: link:../../packages/swc-plugin-displayname
       '@types/node':
@@ -203,7 +203,7 @@ importers:
 
   examples/smarttv-tester:
     dependencies:
-      '@traceitx/react':
+      '@everframe/react':
         specifier: workspace:*
         version: link:../../packages/sdk-react
       html-to-image:
@@ -246,7 +246,7 @@ importers:
 
   examples/vue-web:
     dependencies:
-      '@traceitx/web':
+      '@everframe/web':
         specifier: workspace:*
         version: link:../../packages/sdk-web
       vue:
@@ -332,12 +332,12 @@ importers:
 
   packages/sdk-core:
     dependencies:
+      '@everframe/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@noble/hashes':
         specifier: ^1.5.0
         version: 1.8.0(patch_hash=avlaf7panokdhlz5flselmziby)
-      '@traceitx/protocol':
-        specifier: workspace:*
-        version: link:../protocol
       fflate:
         specifier: ^0.8.0
         version: 0.8.3
@@ -390,6 +390,15 @@ importers:
       '@arethetypeswrong/cli':
         specifier: ^0.18.0
         version: 0.18.5
+      '@everframe/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@everframe/sdk-core':
+        specifier: workspace:*
+        version: link:../sdk-core
+      '@everframe/web':
+        specifier: workspace:*
+        version: link:../sdk-web
       '@playwright/test':
         specifier: ^1.59.1
         version: 1.63.0
@@ -402,15 +411,6 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@traceitx/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@traceitx/sdk-core':
-        specifier: workspace:*
-        version: link:../sdk-core
-      '@traceitx/web':
-        specifier: workspace:*
-        version: link:../sdk-web
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0
@@ -454,15 +454,15 @@ importers:
       '@arethetypeswrong/cli':
         specifier: ^0.18.0
         version: 0.18.5
+      '@everframe/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@everframe/sdk-core':
+        specifier: workspace:*
+        version: link:../sdk-core
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@traceitx/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@traceitx/sdk-core':
-        specifier: workspace:*
-        version: link:../sdk-core
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0
@@ -500,6 +500,12 @@ importers:
       '@arethetypeswrong/cli':
         specifier: ^0.18.0
         version: 0.18.5
+      '@everframe/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@everframe/sdk-core':
+        specifier: workspace:*
+        version: link:../sdk-core
       '@playwright/test':
         specifier: ^1.59.1
         version: 1.63.0
@@ -512,12 +518,6 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@traceitx/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@traceitx/sdk-core':
-        specifier: workspace:*
-        version: link:../sdk-core
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0

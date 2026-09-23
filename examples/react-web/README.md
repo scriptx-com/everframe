@@ -6,7 +6,7 @@
 This app demonstrates reporter setup, error capture, identity, source-map build
 metadata, and session evidence.
 
-Next.js 16 (app router) dogfood project for `@traceitx/react`.
+Next.js 16 (app router) dogfood project for `@everframe/react`.
 
 Used by the Phase 3 Playwright e2e suite as the SUT.
 
@@ -26,8 +26,8 @@ pnpm dev:example:web
 
 Run both from the repo root. `dev:example:web` shells out to
 `pnpm build:web-sdk` before starting Next, because the ingest URL is baked into
-`@traceitx/react`'s `dist` bundle at build time — starting Next alone against a
-release-built dist silently posts reports to `https://traceitx.com`.
+`@everframe/react`'s `dist` bundle at build time — starting Next alone against a
+release-built dist silently posts reports to `https://everframe.dev`.
 
 Then visit http://localhost:3010 and click the floating **Report a bug**
 button (bottom-right corner of every page) or press Cmd/Ctrl+Shift+B.
@@ -78,7 +78,7 @@ only that key from the root file and does not regenerate `.env.local`.
 
 The build ID and API origin are saved with the output. Upload always uses that
 saved identity, even if your shell variables later change, and delegates to
-the existing TraceItX CLI. After the API acknowledges a ready build, the CLI
+the existing Everframe CLI. After the API acknowledges a ready build, the CLI
 deletes the public `.map` files. A failed upload keeps them for retry and blocks
 preview. Preview starts the same build without rebuilding; ordinary development
 continues to use `.next` on port 3010. Do not run another error-test build while
@@ -87,7 +87,7 @@ build ID (or unset `TRACEITX_BUILD_ID` to generate one), then build/upload/start
 again.
 
 For a deployed app, CDN, or custom asset origin, follow the source-map
-instructions in the TraceItX dashboard.
+instructions in the Everframe dashboard.
 
 ## User recognition (signed identity tokens)
 
@@ -112,7 +112,7 @@ arriving anonymous.
 Two files make up the demo, one per half of the feature:
 
 - `app/api/traceitx-identity/route.ts` — the backend. Uses
-  `createIdentityHandler` from `@traceitx/identity`; `resolveUser` verifies the
+  `createIdentityHandler` from `@everframe/identity`; `resolveUser` verifies the
   bearer token from the `Authorization` header. Returns 503 when the signing
   secret is not configured, so the example still reports anonymously.
 - `app/components/UserSwitcher.tsx` — a fake two-user session with short-lived

@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX Sample App
+# Everframe Sample App
 
-A standalone Xcode project that dogfoods every public TraceItX SDK API across
+A standalone Xcode project that dogfoods every public Everframe SDK API across
 all three locked-decision form factors:
 
 | Scheme              | Platform | Recommended destination          |

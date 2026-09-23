@@ -1,5 +1,5 @@
 {
-  "name": "@traceitx/babel-plugin-displayname",
+  "name": "@everframe/babel-plugin-displayname",
   "version": "0.0.0",
   "private": true,
   "type": "module",

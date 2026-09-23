@@ -1,17 +1,18 @@
 {
   "publicPackages": [
-    "@traceitx/babel-plugin-displayname",
-    "@traceitx/identity",
-    "@traceitx/protocol",
-    "@traceitx/react",
-    "@traceitx/react-native",
-    "@traceitx/sdk-android",
-    "@traceitx/sdk-core",
-    "@traceitx/sdk-ios-marker",
-    "@traceitx/swc-plugin-displayname",
-    "@traceitx/web"
+    "@everframe/babel-plugin-displayname",
+    "@everframe/identity",
+    "@everframe/protocol",
+    "@everframe/react",
+    "@everframe/react-native",
+    "@everframe/sdk-android",
+    "@everframe/sdk-core",
+    "@everframe/sdk-ios-marker",
+    "@everframe/swc-plugin-displayname",
+    "@everframe/web"
   ],
   "allowedTopLevel": [
+    ".changeset",
     ".env.example",
     ".gitattributes",
     ".github",
@@ -44,6 +45,7 @@
     "vitest.base.ts"
   ],
   "requiredPaths": [
+    ".changeset/config.json",
     ".env.example",
     "REUSE.toml",
     "LICENSE",
@@ -88,7 +90,7 @@
   ],
   "forbiddenTextPatterns": [
     {
-      "pattern": "@traceitx/(admin|api|brand-ui|reporter-surface|source-maps)",
+      "pattern": "@everframe/(admin|api|brand-ui|reporter-surface|source-maps)",
       "reason": "out-of-scope package reference"
     },
     {

@@ -1,7 +1,7 @@
 {
-  "name": "@traceitx/react",
+  "name": "@everframe/react",
   "version": "0.8.2",
-  "description": "React SDK for TraceItX — AI-ready in-app bug reporting with screenshots, annotation, session replay, breadcrumbs, and crash capture.",
+  "description": "React SDK for Everframe — AI-ready in-app bug reporting with screenshots, annotation, session replay, breadcrumbs, and crash capture.",
   "keywords": [
     "bug-report",
     "bug-reporting",
@@ -13,11 +13,11 @@
     "crash-reporting",
     "error-reporting",
     "react",
-    "traceitx"
+    "everframe"
   ],
-  "homepage": "https://traceitx.com",
+  "homepage": "https://everframe.dev",
   "bugs": {
-    "url": "https://github.com/scriptx-com/traceitx-releases/issues"
+    "url": "https://github.com/scriptx-com/everframe/issues"
   },
   "type": "module",
   "license": "MIT",
@@ -27,7 +27,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/scriptx-com/traceitx-releases.git",
+    "url": "git+https://github.com/scriptx-com/everframe.git",
     "directory": "packages/sdk-react"
   },
   "publishConfig": {
@@ -78,9 +78,9 @@
     "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.2",
-    "@traceitx/protocol": "workspace:*",
-    "@traceitx/sdk-core": "workspace:*",
-    "@traceitx/web": "workspace:*",
+    "@everframe/protocol": "workspace:*",
+    "@everframe/sdk-core": "workspace:*",
+    "@everframe/web": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@size-limit/preset-small-lib": "^11.0.0",

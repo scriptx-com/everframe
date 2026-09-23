@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# @traceitx/react-native — Sample App (Expo managed)
+# @everframe/react-native — Sample App (Expo managed)
 
 This app demonstrates reporter setup, handled and unhandled error capture,
 session evidence, and TV/mobile host integration.
 
-Expo SDK 56-managed sample that consumes `@traceitx/react-native` via the
+Expo SDK 56-managed sample that consumes `@everframe/react-native` via the
 workspace and demonstrates the canonical integration shape: `<TraceItXProvider>`
 at the root, host-owned triggers calling `useTraceItX().open()`, the
 provider-rendered reporter modal, submit, done.
@@ -72,7 +72,7 @@ Automation testIDs: `trigger-handled-error`, `trigger-handled-hook-error`,
 
 ## Recognition — this app is the self-declared tier
 
-TraceItX has two recognition tiers, and the two sample apps demonstrate one
+Everframe has two recognition tiers, and the two sample apps demonstrate one
 each on purpose:
 
 | | this app | `examples/react-web` |
@@ -111,7 +111,7 @@ testIDs `open-reporter-button` + `submitted`, and owns the TV remote trigger
 > dogfood URLSession/OkHttp interceptor coexistence. That concern is real
 > and remains separate from the error-capture checks here. One sample app
 > is only one cell of the 5×2 coexistence matrix.
-> The matrix `TraceItX × {Sentry, Bugsnag, Datadog, New Relic, Crashlytics}
+> The matrix `Everframe × {Sentry, Bugsnag, Datadog, New Relic, Crashlytics}
 > × {iOS, Android}` moved to Phase 7 hardening (ROADMAP Phase 7 criterion 6,
 > 2026-05-11).
 
@@ -119,7 +119,7 @@ testIDs `open-reporter-button` + `submitted`, and owns the TV remote trigger
 > Expo's prebuild pipeline owns `pod install`, Gradle plugin pinning, and
 > Xcode/Android Studio scaffolding so contributors don't manage native
 > toolchain drift — they run `expo prebuild` + `expo run:ios` and Expo
-> handles the rest. The TraceItX SDK packages themselves stay framework-
+> handles the rest. The Everframe SDK packages themselves stay framework-
 > agnostic; only this sample app is Expo-aware.
 
 The sample exists to **prove the integration boundary**:
@@ -156,7 +156,7 @@ on demand by `expo prebuild` from `app.json` + `plugins/with-traceitx-workspace.
 pnpm install
 
 # Build the SDK package so dist types are visible to the sample's typecheck.
-pnpm turbo run build --filter=@traceitx/react-native
+pnpm turbo run build --filter=@everframe/react-native
 
 # From examples/react-native — generate native dirs once
 pnpm prebuild
@@ -167,7 +167,7 @@ pnpm prebuild
 1. Reads `app.json` → `expo.plugins` and applies each plugin.
 2. `expo-build-properties` sets `use_frameworks! :linkage => :dynamic` in the generated `Podfile` (required — see below).
 3. `./plugins/with-traceitx-workspace.js` appends `includeBuild("../../../packages/sdk-android/android") { name = "traceitx-android" }` to the generated `android/settings.gradle.kts` so `:traceitx-core` / `:traceitx-reporter-ui` resolve from the workspace, not from a published Maven artifact.
-4. React Native autolinking discovers `@traceitx/react-native` via the pnpm-symlinked `node_modules` and wires the iOS pod + Android module automatically.
+4. React Native autolinking discovers `@everframe/react-native` via the pnpm-symlinked `node_modules` and wires the iOS pod + Android module automatically.
 
 > **Why dynamic frameworks?** The `TraceItX` pod consumes `packages/sdk-ios`
 > via `spm_dependency` (a local-path SwiftPM dep). SPM products and the host
@@ -205,7 +205,7 @@ own trigger from the host:
 
 ```tsx
 import { Pressable, Text } from 'react-native';
-import { useTraceItX } from '@traceitx/react-native';
+import { useTraceItX } from '@everframe/react-native';
 
 function ReportButton() {
   const { open } = useTraceItX();
@@ -223,7 +223,7 @@ function ReportButton() {
 // npm install react-native-sensors  (or any equivalent — your choice)
 import { accelerometer } from 'react-native-sensors';
 import { useEffect } from 'react';
-import { useTraceItX } from '@traceitx/react-native';
+import { useTraceItX } from '@everframe/react-native';
 
 function useMotionTrigger() {
   const { open } = useTraceItX();
@@ -242,7 +242,7 @@ function useMotionTrigger() {
 ```tsx
 import { useEffect } from 'react';
 import { HWKeyEvent } from 'your-host-key-lib';
-import { useTraceItX } from '@traceitx/react-native';
+import { useTraceItX } from '@everframe/react-native';
 
 function useKeyComboTrigger() {
   const { open } = useTraceItX();
@@ -261,17 +261,17 @@ key-detection code (Phase 5.1 cleanup; see
 
 ## External integrator path
 
-When you consume `@traceitx/react-native` from outside this monorepo, do
+When you consume `@everframe/react-native` from outside this monorepo, do
 not use the workspace composite-build plugin:
 
 - **iOS:** standard `react-native autolinking` picks up the pod from
-  `node_modules/@traceitx/react-native/ios/TraceItX.podspec`. Your host
+  `node_modules/@everframe/react-native/ios/TraceItX.podspec`. Your host
   Podfile must include `use_frameworks! :linkage => :dynamic` (Expo apps:
   add `expo-build-properties` with `ios.useFrameworks: "dynamic"` to your
   `app.json` plugins; bare RN apps: add the line to your Podfile directly).
-  The pod pulls `@traceitx/ios` from the published SwiftPM mirror.
+  The pod pulls `@everframe/ios` from the published SwiftPM mirror.
 - **Android:** drop `./plugins/with-traceitx-workspace.js` from your
-  `app.json` plugins. Autolinking finds `@traceitx/react-native`'s
+  `app.json` plugins. Autolinking finds `@everframe/react-native`'s
   Android Gradle module via `node_modules`, and that module pulls
   `com.traceitx:core` from the published Maven coordinates.
 
@@ -303,7 +303,7 @@ The flow proves: launch → host button visible → tap → reporter modal opens
 | `src/App.tsx` | Root — `<TraceItXProvider>` mount + configure-on-mount |
 | `src/screens/Home.tsx` | Open Reporter button + submitted label |
 | `src/screens/Form.tsx` | `<TraceItXSensitive>` redaction demo |
-| `babel.config.js` | `babel-preset-expo` + `@traceitx/babel-plugin-displayname` (Pitfall P11) |
+| `babel.config.js` | `babel-preset-expo` + `@everframe/babel-plugin-displayname` (Pitfall P11) |
 | `metro.config.js` | `expo/metro-config` + pnpm-workspace-aware resolver |
 | `maestro/reporter-smoke.yaml` | Maestro flow: launch + reporter + submit |
 | `.gitignore` | Excludes generated `ios/` + `android/` from git |
@@ -361,7 +361,7 @@ The iOS simulator build uses ad hoc signing with Xcode's simulated application
 entitlement. Do not disable signing: Keychain access is required to encrypt the
 crash outbox, even in the simulator.
 
-Launch **TraceItX RN Example → Desk → Error tests**. Confirm the displayed
+Launch **Everframe RN Example → Desk → Error tests**. Confirm the displayed
 `rn-test-android-…` or `rn-test-ios-…` build ID, then trigger each error. In
 admin, confirm the matching `jsBundle` identity and mapped `ErrorTests.tsx`
 throw location. Fully terminate/relaunch after the unhandled test so the
@@ -374,7 +374,7 @@ the native app build is not a substitute. Typical names are
 `index.android.bundle` on Android and `main.jsbundle` on iOS. Leave this optional
 metadata unset for ordinary local development.
 
-Use the TraceItX dashboard's source-map instructions for the exact final
+Use the Everframe dashboard's source-map instructions for the exact final
 bytecode/composed-map paths and trusted CI upload credentials. Upload tokens
 never belong in this example's public config. Physical devices, production
 native SDK configuration and Expo/OTA integration require separate validation.

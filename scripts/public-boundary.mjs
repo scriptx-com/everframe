@@ -59,6 +59,8 @@ const files = walk(root).sort((a, b) => a.relativePath.localeCompare(b.relativeP
 const allowedTopLevel = new Set(policy.allowedTopLevel ?? []);
 const publicPackages = new Set(policy.publicPackages ?? []);
 const internalDependencies = [];
+const publicPackageScope = '@everframe/';
+const legacyPackageScope = '@traceitx/';
 
 for (const file of files) {
   const { absolutePath, relativePath } = file;
@@ -97,12 +99,18 @@ for (const file of files) {
       report(relativePath, `invalid package manifest: ${error.message}`);
       continue;
     }
-    if (relativePath.startsWith('packages/') && manifest.name?.startsWith('@traceitx/') && !publicPackages.has(manifest.name)) {
-      report(relativePath, `${manifest.name} is not in publicPackages`);
+    if (relativePath.startsWith('packages/')) {
+      if (manifest.name?.startsWith(legacyPackageScope)) {
+        report(relativePath, `${manifest.name} uses the legacy package scope`);
+      } else if (manifest.name?.startsWith(publicPackageScope) && !publicPackages.has(manifest.name)) {
+        report(relativePath, `${manifest.name} is not in publicPackages`);
+      }
     }
     for (const section of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
       for (const [name, version] of Object.entries(manifest[section] ?? {})) {
-        if (name.startsWith('@traceitx/')) internalDependencies.push({ relativePath, name, version });
+        if (name.startsWith(publicPackageScope) || name.startsWith(legacyPackageScope)) {
+          internalDependencies.push({ relativePath, name, version });
+        }
       }
     }
   }
@@ -128,7 +136,9 @@ for (const file of files) {
 }
 
 for (const dependency of internalDependencies) {
-  if (!publicPackages.has(dependency.name)) {
+  if (dependency.name.startsWith(legacyPackageScope)) {
+    report(dependency.relativePath, `${dependency.name} uses the legacy package scope`);
+  } else if (!publicPackages.has(dependency.name)) {
     report(dependency.relativePath, `${dependency.name} is not in publicPackages`);
   }
 }
