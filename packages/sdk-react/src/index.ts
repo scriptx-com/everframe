@@ -22,8 +22,8 @@ export type { WebEverframeConfig, ReporterTheme } from '@everframe/web';
 // <EverframeProvider> is mounted.
 export { open, addBreadcrumb, captureException, recordScreen, setUser, setExtra, EverframeNotMountedError } from './contextSeam.js';
 export type { ReporterResult } from '@everframe/web';
-export { useTXScreen, TXScreen } from './TXScreen.js';
-export type { TXScreenProps } from './TXScreen.js';
+export { useEverframeScreen, EverframeScreen } from './EverframeScreen.js';
+export type { EverframeScreenProps } from './EverframeScreen.js';
 
 // Phase 06.2-09 — React-TV companion namespace (Tizen / WebOS browser runtime).
 // Mirrors the RN SDK surface — `companion` namespace plus top-level

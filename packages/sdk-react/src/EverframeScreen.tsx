@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Navigation screen markers — the React twin of
-// @everframe/react-native/src/TXScreen.tsx. Signatures are deliberately
-// identical: a host shipping both platforms writes the same line in both.
+// Navigation screen markers for React. The React Native SDK carries a matching
+// surface; signatures are deliberately identical so a host shipping both
+// platforms writes the same line in both.
 //
 // Host-opt-in and MANUAL. It patches no router, so automatic capture stays a
 // separate concern.
 //
 // Per-router recipes:
 //   react-router (component stays mounted while nested routes change):
-//     useTXScreen(location.pathname);
+//     useEverframeScreen(location.pathname);
 //   hash router (History-API capture is blind to it — the common TV case):
-//     useTXScreen(currentRouteName);
+//     useEverframeScreen(currentRouteName);
 //   tabs that keep hidden panels mounted:
-//     useTXScreen(name, { focused: isActive });
+//     useEverframeScreen(name, { focused: isActive });
 'use client';
 
 import * as React from 'react';
@@ -30,24 +30,24 @@ import { recordScreen } from './contextSeam.js';
  * and refocus re-emits. [name] should be a route identifier, never user
  * content (PII).
  */
-export function useTXScreen(name: string, opts?: { focused?: boolean }): void {
+export function useEverframeScreen(name: string, opts?: { focused?: boolean }): void {
   const focused = opts?.focused ?? true;
   React.useEffect(() => {
     if (focused) recordScreen(name);
   }, [name, focused]);
 }
 
-export interface TXScreenProps {
+export interface EverframeScreenProps {
   name: string;
   focused?: boolean;
 }
 
 /**
- * Declarative form of [useTXScreen] for class components / JSX-only
+ * Declarative form of [useEverframeScreen] for class components / JSX-only
  * placement. Renders nothing.
  */
-export function TXScreen(props: TXScreenProps): null {
+export function EverframeScreen(props: EverframeScreenProps): null {
   const opts = props.focused !== undefined ? { focused: props.focused } : undefined;
-  useTXScreen(props.name, opts);
+  useEverframeScreen(props.name, opts);
   return null;
 }

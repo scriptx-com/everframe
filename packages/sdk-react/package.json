@@ -55,10 +55,11 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check:error-severity-artifacts": "node scripts/check-error-severity-artifacts.mjs",
+    "check:screen-surface-artifacts": "node scripts/check-screen-surface-artifacts.mjs",
     "size-limit": "size-limit",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
-    "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
+    "check:publish": "node scripts/check-screen-surface-artifacts.mjs && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
     "clean": "rm -rf dist .turbo node_modules/.cache"
   },
   "peerDependencies": {

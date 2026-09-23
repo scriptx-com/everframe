@@ -87,7 +87,12 @@ async function sha256OfBytes(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function EverframeProvider({ config, identity, children }: EverframeProviderProps) {
+// Keep this component as a const expression. When the public screen exports are
+// bundled for the Smart TV legacy target, Babel 7.29.8 can mis-resolve a
+// minified function declaration that collides with a nested binding and crash
+// in its for-of type inference. A const has identical React semantics here and
+// gives Babel an unambiguous lexical binding.
+export const EverframeProvider = ({ config, identity, children }: EverframeProviderProps) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({
@@ -811,4 +816,4 @@ export function EverframeProvider({ config, identity, children }: EverframeProvi
       />
     </EverframeContext.Provider>
   );
-}
+};
