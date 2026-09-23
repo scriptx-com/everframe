@@ -9,7 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const swiftRoot = path.resolve(here, '../../sdk-ios/Sources/TraceItXProtocol');
 const kotlinRoot = path.resolve(
   here,
-  '../../sdk-android/android/traceitx-protocol/src/main/kotlin/com/traceitx/protocol/generated',
+  '../../sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated',
 );
 
 describe('generated Everframe protocol identity', () => {
@@ -41,8 +41,8 @@ describe('generated Everframe protocol identity', () => {
 
   it('generated Kotlin decodes the legacy video value but encodes it canonically', () => {
     const source = readFileSync(path.join(kotlinRoot, 'Generated.kt'), 'utf8');
-    expect(source).toContain('@SerialName("traceitx-video-v1") TraceitxVideoV1("traceitx-video-v1")');
-    expect(source).toContain('Format.TraceitxVideoV1 -> "everframe-video-v1"');
+    expect(source).toContain('@SerialName("traceitx-video-v1") LegacyVideoV1("traceitx-video-v1")');
+    expect(source).toContain('Format.LegacyVideoV1 -> "everframe-video-v1"');
   });
 
   it('generated Swift decodes the legacy VTree version but encodes it canonically', () => {

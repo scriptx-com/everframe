@@ -19,12 +19,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.traceitx.TraceItX
-import com.traceitx.config.ReportResult
+import dev.everframe.Everframe
+import dev.everframe.config.ReportResult
 
 @Composable
 fun SampleDetailScreen(itemId: Int, onBack: () -> Unit) {
-    val isPresenting by TraceItX.report.isPresenting.collectAsState()
+    val isPresenting by Everframe.report.isPresenting.collectAsState()
 
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         Text("Sample Detail — Item #$itemId")
@@ -35,7 +35,7 @@ fun SampleDetailScreen(itemId: Int, onBack: () -> Unit) {
         // Host-installed reporter trigger (Plan 05-09) — parity with Login/Payment.
         Button(
             onClick = {
-                TraceItX.report.openAsync(object : TraceItX.Callback<ReportResult> {
+                Everframe.report.openAsync(object : Everframe.Callback<ReportResult> {
                     override fun onResult(value: ReportResult) { /* no-op */ }
                     override fun onError(error: Throwable) { /* no-op */ }
                 })
@@ -43,7 +43,7 @@ fun SampleDetailScreen(itemId: Int, onBack: () -> Unit) {
             enabled = !isPresenting,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Open TraceItX reporter")
+            Text("Open Everframe reporter")
         }
         Spacer(modifier = Modifier.height(8.dp))
 

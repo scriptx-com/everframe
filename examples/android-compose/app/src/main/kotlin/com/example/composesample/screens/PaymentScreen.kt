@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// SamplePaymentScreen — dogfoods TraceItX.markSensitive(view) on an interop
+// SamplePaymentScreen — dogfoods Everframe.markSensitive(view) on an interop
 // EditText (View-tree path), report.openAsync(Callback) for the Java-shim
-// surface, and the OkHttpClient.Builder.addTraceItXInterceptor() network
+// surface, and the OkHttpClient.Builder.addEverframeInterceptor() network
 // demo. Plan 05-08 R8 gate greps for "SamplePaymentScreen".
 package com.example.composesample.screens
 
@@ -27,8 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.composesample.data.NetworkRepo
-import com.traceitx.TraceItX
-import com.traceitx.config.ReportResult
+import dev.everframe.Everframe
+import dev.everframe.config.ReportResult
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
@@ -36,13 +36,13 @@ import kotlinx.coroutines.launch
 fun SamplePaymentScreen(onBack: () -> Unit) {
     val cardEditText = remember { mutableStateOf<EditText?>(null) }
     val openResult = remember { mutableStateOf<String?>(null) }
-    val isPresenting by TraceItX.report.isPresenting.collectAsState()
+    val isPresenting by Everframe.report.isPresenting.collectAsState()
 
     LaunchedEffect(cardEditText.value) {
         cardEditText.value?.let { v ->
             // Mark the credit-card EditText as sensitive — its bounds are masked in
             // captured screenshots.
-            TraceItX.markSensitive(v)
+            Everframe.markSensitive(v)
         }
     }
 
@@ -50,7 +50,7 @@ fun SamplePaymentScreen(onBack: () -> Unit) {
         Text("Sample Payment")
         Spacer(modifier = Modifier.height(8.dp))
 
-        // AndroidView interop — a real EditText that we hand to TraceItX.markSensitive.
+        // AndroidView interop — a real EditText that we hand to Everframe.markSensitive.
         AndroidView(
             factory = { ctx ->
                 EditText(ctx).apply {
@@ -63,9 +63,9 @@ fun SamplePaymentScreen(onBack: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // OkHttp + addTraceItXInterceptor() demo — fires a request the SDK observes.
+        // OkHttp + addEverframeInterceptor() demo — fires a request the SDK observes.
         Button(onClick = { MainScope().launch { NetworkRepo.demoFetch() } }) {
-            Text("Fetch demo URL via OkHttp + addTraceItXInterceptor()")
+            Text("Fetch demo URL via OkHttp + addEverframeInterceptor()")
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -73,7 +73,7 @@ fun SamplePaymentScreen(onBack: () -> Unit) {
         // Plan 05-09: disable while presenting, mirroring ListScreen's two-line idiom.
         Button(
             onClick = {
-                TraceItX.report.openAsync(object : TraceItX.Callback<ReportResult> {
+                Everframe.report.openAsync(object : Everframe.Callback<ReportResult> {
                     override fun onResult(value: ReportResult) {
                         openResult.value = "result=$value"
                     }

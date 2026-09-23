@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// MainActivity (Java) — exercises the @JvmStatic public surface of TraceItX
+// MainActivity (Java) — exercises the @JvmStatic public surface of Everframe
 // from a pure-Java consumer, including the report.openAsync(Callback) shim
 // and the report.isPresenting StateFlow added in Plan 05.1-02.
 package com.example.viewssample;
@@ -12,11 +12,11 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.traceitx.TraceItX;
-import com.traceitx.config.CaptureConfig;
-import com.traceitx.config.Environment;
-import com.traceitx.config.ReportResult;
-import com.traceitx.config.TraceItXConfig;
+import dev.everframe.Everframe;
+import dev.everframe.config.CaptureConfig;
+import dev.everframe.config.Environment;
+import dev.everframe.config.ReportResult;
+import dev.everframe.config.EverframeConfig;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -24,15 +24,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // TraceItX.start — the @JvmStatic surface lets Java callers omit the .Companion shim.
+        // Everframe.start — the @JvmStatic surface lets Java callers omit the .Companion shim.
         // Plan 05.1-02 collapsed BubbleConfig + TriggerConfig away — the constructor now
         // takes the smaller arg list below.
-        TraceItX.start(
+        Everframe.start(
             this,
-            new TraceItXConfig(
+            new EverframeConfig(
                 "views-sample",                                  // appId
                 "http://10.0.2.2:8787/api/ingest",               // endpoint
-                BuildConfig.TRACEITX_SDK_KEY,                    // sdkKey
+                BuildConfig.EVERFRAME_SDK_KEY,                    // sdkKey
                 Environment.development,                          // environment
                 /* release */ null,
                 CaptureConfig.defaults,
@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
             // report.openAsync(...) — the Java callback shim around the suspend fun open().
             // Demonstrates the Callback<ReportResult> surface reaches Java without
             // a Companion / Continuation hop.
-            TraceItX.report.openAsync(new TraceItX.Callback<ReportResult>() {
+            Everframe.report.openAsync(new Everframe.Callback<ReportResult>() {
                 @Override
                 public void onResult(ReportResult value) {
                     result.setText("openAsync result: " + value);

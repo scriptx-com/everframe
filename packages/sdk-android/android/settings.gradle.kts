@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Multi-module declaration for the TraceItX Android SDK (Plan 05-01).
+// Multi-module declaration for the Everframe Android SDK (Plan 05-01).
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -18,10 +18,10 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "traceitx-android"
+rootProject.name = "everframe-android"
 
-include(":traceitx-protocol")
-include(":traceitx-core")
-include(":traceitx-reporter-ui")
-include(":traceitx-media3")
-include(":traceitx-gradle-plugin")
+include(":everframe-protocol")
+include(":everframe-core")
+include(":everframe-reporter-ui")
+include(":everframe-media3")
+include(":everframe-gradle-plugin")

@@ -4,7 +4,7 @@
 <!-- Localhost-only cleartext exception — mirrors iOS's NSAllowsLocalNetworking.
      Required for the sample's dev loop against http://10.0.2.2:8787 (the
      Android emulator's alias for the host's localhost). Production hosts on
-     real ingest URLs must use https:// — TraceItXConfig's ConfigValidator
+     real ingest URLs must use https:// — EverframeConfig's ConfigValidator
      enforces that for `Environment.production`. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />

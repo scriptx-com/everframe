@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// TraceItX Compose sample — phone/tablet entry point (Plan 05-08).
+// Everframe Compose sample — phone/tablet entry point (Plan 05-08).
 //
 // Demonstrates the full public surface:
-//   • TraceItX.start(this, config) in onCreate (synchronous, returns in <5ms)
-//   • Bubble auto-attaches to decor view via :traceitx-reporter-ui's startup Initializer
+//   • Everframe.start(this, config) in onCreate (synchronous, returns in <5ms)
+//   • Bubble auto-attaches to decor view via :everframe-reporter-ui's startup Initializer
 //   • Modifier.txSensitive() in LoginScreen marks the password field as sensitive
 //     (PRIV-03: bake-black redaction in screenshots)
-//   • TraceItX.markSensitive(view) in PaymentScreen marks the credit-card EditText
+//   • Everframe.markSensitive(view) in PaymentScreen marks the credit-card EditText
 //     interop view as sensitive (View-tree path)
-//   • OkHttpClient.Builder.addTraceItXInterceptor() in NetworkRepo demonstrates
+//   • OkHttpClient.Builder.addEverframeInterceptor() in NetworkRepo demonstrates
 //     network capture wiring
 //   • report.open() / report.openAsync(callback) — both forms exercised
 package com.example.composesample
@@ -38,30 +38,30 @@ import com.example.composesample.screens.SampleListScreen
 import com.example.composesample.screens.SampleLoginScreen
 import com.example.composesample.screens.SamplePaymentScreen
 import com.example.composesample.screens.SamplePlaybackScreen
-import com.traceitx.CaptureExceptionOptions
-import com.traceitx.ErrorSeverity
-import com.traceitx.TXScreen
-import com.traceitx.TraceItX
-import com.traceitx.config.Environment
-import com.traceitx.config.TraceItXConfig
+import dev.everframe.CaptureExceptionOptions
+import dev.everframe.ErrorSeverity
+import dev.everframe.TXScreen
+import dev.everframe.Everframe
+import dev.everframe.config.Environment
+import dev.everframe.config.EverframeConfig
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. TraceItX.start — synchronous, must return in <5ms (PERF-01).
+        // 1. Everframe.start — synchronous, must return in <5ms (PERF-01).
         //    Plan 05.1-02 stripped the bubble + shake + TV trigger machinery from
         //    the SDK; trigger detection is host-app responsibility now. The
-        //    `bubble = true` flag below is just a hint (see TraceItXConfig KDoc).
+        //    `bubble = true` flag below is just a hint (see EverframeConfig KDoc).
         // Ingest URL is baked into the SDK at build time per Gradle variant:
-        //   release AAR → https://traceitx.com
-        //   debug AAR   → $TRACEITX_DEV_INGEST_URL env or http://10.0.2.2:8787 (emulator → host)
-        TraceItX.start(
+        //   release AAR → https://everframe.dev
+        //   debug AAR   → $EVERFRAME_DEV_INGEST_URL env or http://10.0.2.2:8787 (emulator → host)
+        Everframe.start(
             this,
-            TraceItXConfig(
+            EverframeConfig(
                 appId = "compose-sample",
-                sdkKey = BuildConfig.TRACEITX_SDK_KEY,
+                sdkKey = BuildConfig.EVERFRAME_SDK_KEY,
                 environment = Environment.development,
                 bubble = true,
             ),
@@ -92,7 +92,7 @@ private fun SampleNav() {
         bottomBar = {
             Button(
                 onClick = {
-                    TraceItX.captureException(
+                    Everframe.captureException(
                         IllegalStateException("Compose sample handled warning"),
                         CaptureExceptionOptions(
                             severity = ErrorSeverity.WARNING,

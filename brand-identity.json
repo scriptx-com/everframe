@@ -41,6 +41,46 @@
       "reason": "Security redaction sentinel masks identity credentials captured under the former header spelling"
     },
     {
+      "path": "packages/protocol/scripts/codegen-kotlin.sh",
+      "pattern": "traceitx-video-v1",
+      "reason": "Generated Android reader accepts video attachments persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/protocol/scripts/codegen-kotlin.sh",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Generated Android reader accepts native replay attachments persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/protocol/scripts/codegen-vtree-kotlin.mjs",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Generated Android reader accepts native replay timelines persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt",
+      "pattern": "traceitx-video-v1",
+      "reason": "Android protocol reader accepts video attachments persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Android protocol reader accepts native replay attachments persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/VTree.kt",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Android protocol reader accepts native replay timelines persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/MultipartUploader.kt",
+      "pattern": "traceitx-video-v1",
+      "reason": "Upload budget reader recognizes video metadata persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/MultipartUploaderTest.kt",
+      "pattern": "traceitx-video-v1",
+      "reason": "Regression fixture proves old persisted video metadata remains readable"
+    },
+    {
       "path": "packages/sdk-web/CHANGELOG.md",
       "pattern": "<TraceItXProvider>",
       "reason": "Historical release note records the former React provider API"

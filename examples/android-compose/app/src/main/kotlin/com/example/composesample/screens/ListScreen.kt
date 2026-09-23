@@ -26,13 +26,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.traceitx.TraceItX
+import dev.everframe.Everframe
 import kotlinx.coroutines.launch
 
 private data class FakeItem(val id: Int, val title: String, val subtitle: String)
 
 private val fakeItems: List<FakeItem> = (1..20).map { i ->
-    FakeItem(id = i, title = "Item #$i", subtitle = "Sample row $i for the TraceItX dogfood demo")
+    FakeItem(id = i, title = "Item #$i", subtitle = "Sample row $i for the Everframe dogfood demo")
 }
 
 @Composable
@@ -46,21 +46,21 @@ fun SampleListScreen(
     // a bubble or shake; sample apps demonstrate the recommended phone recipe —
     // an in-screen Button that calls report.open() and disables itself while
     // the reporter is presenting (via the new isPresenting StateFlow).
-    val isPresenting by TraceItX.report.isPresenting.collectAsState()
+    val isPresenting by Everframe.report.isPresenting.collectAsState()
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-        Text("TraceItX Sample — Phone/Tablet")
+        Text("Everframe Sample — Phone/Tablet")
         Spacer(modifier = Modifier.height(8.dp))
         Button(
-            onClick = { scope.launch { runCatching { TraceItX.report.open() } } },
+            onClick = { scope.launch { runCatching { Everframe.report.open() } } },
             enabled = !isPresenting,
-        ) { Text("Open TraceItX reporter") }
+        ) { Text("Open Everframe reporter") }
         Button(onClick = {
             try {
                 error("Native Android handled error test")
             } catch (error: IllegalStateException) {
-                TraceItX.captureException(error)
+                Everframe.captureException(error)
             }
         }) { Text("Report handled error") }
         Spacer(modifier = Modifier.height(8.dp))

@@ -9,7 +9,7 @@ playback diagnostics.
 The implementation is a Gradle multi-module project under [`android`](android).
 The [`package.json`](package.json) at this level is only a workspace marker: it
 lets the repository-wide pnpm and Turbo commands invoke Gradle consistently.
-Android applications consume the published `com.traceitx` Maven artifacts,
+Android applications consume the published `dev.everframe` Maven artifacts,
 not the pnpm package.
 
 See the [complete Android integration guide](android/README.md) for Maven
@@ -20,11 +20,11 @@ platform limitations.
 
 | Gradle module | Maven artifact | Purpose |
 | --- | --- | --- |
-| `traceitx-protocol` | `com.traceitx:protocol` | Generated wire-protocol models |
-| `traceitx-core` | `com.traceitx:core` | Capture, envelope, transport, outbox, and SDK lifecycle |
-| `traceitx-reporter-ui` | `com.traceitx:reporter-ui` | Compose reporter and annotation UI |
-| `traceitx-media3` | `com.traceitx:media3` | Media3 and ExoPlayer session-vitals integration |
-| `traceitx-gradle-plugin` | Everframe Gradle plugin | Build integration and optimized-build metadata |
+| `everframe-protocol` | `dev.everframe:protocol` | Generated wire-protocol models |
+| `everframe-core` | `dev.everframe:core` | Capture, envelope, transport, outbox, and SDK lifecycle |
+| `everframe-reporter-ui` | `dev.everframe:reporter-ui` | Compose reporter and annotation UI |
+| `everframe-media3` | `dev.everframe:media3` | Media3 and ExoPlayer session-vitals integration |
+| `everframe-gradle-plugin` | Everframe Gradle plugin | Build integration and optimized-build metadata |
 
 ## Development
 
