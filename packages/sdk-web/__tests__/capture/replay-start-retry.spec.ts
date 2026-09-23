@@ -15,7 +15,7 @@
 // The start is a guarded no-op once buffering, so the fix is simply to attempt
 // it wherever config resolves.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { DEFAULT_CONFIG_TTL_MS } from '@traceitx/sdk-core';
+import { DEFAULT_CONFIG_TTL_MS } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 
 const adapters: WebPlatformAdapter[] = [];

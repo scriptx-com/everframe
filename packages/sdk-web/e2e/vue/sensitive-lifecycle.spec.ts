@@ -15,9 +15,9 @@ import { stubIngest } from './_helpers';
 function registrySize(page: Page): Promise<number> {
   return page.evaluate(() => {
     const w = window as unknown as {
-      __traceitxSensitive: { snapshotElements(): Element[] };
+      __everframeSensitive: { snapshotElements(): Element[] };
     };
-    return w.__traceitxSensitive.snapshotElements().length;
+    return w.__everframeSensitive.snapshotElements().length;
   });
 }
 
@@ -31,7 +31,7 @@ test('the attribute-marked fixture is present in the DOM with its marker attribu
   await expect(page.getByTestId('sensitive-attr-block')).toBeVisible();
   // The attribute path is a capture-time scan, not a registry entry — so it is
   // visible in the DOM rather than in snapshotElements().
-  const marked = await page.locator('[data-traceitx-sensitive]').count();
+  const marked = await page.locator('[data-everframe-sensitive]').count();
   expect(marked).toBeGreaterThan(0);
 });
 
@@ -39,7 +39,7 @@ test('the directive registers on mount', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('sensitive-block')).toBeVisible();
   // The registry also holds two pre-existing HomeView fixtures picked up by
-  // the OTHER two feeds into snapshotElements() — the data-traceitx-sensitive
+  // the OTHER two feeds into snapshotElements() — the data-everframe-sensitive
   // scan (sensitive-attr-block) and the SDK's own PRIV-01 auto-mask of
   // input[type=password] (the member-password field). Those two are scanned
   // live from the DOM and need no addRef/removeRef of their own; this

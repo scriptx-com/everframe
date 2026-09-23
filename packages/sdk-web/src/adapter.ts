@@ -17,7 +17,7 @@ import type {
   ThreadClient,
   IdentityTokenReader,
   UserMetadata,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import {
   createConfigProvider,
   createReplayLifecycle,
@@ -41,9 +41,9 @@ import {
   isRepliesEnabled,
   isIdentityEnabled,
   decodeSub,
-} from '@traceitx/sdk-core';
-import type { OutboxItem } from '@traceitx/sdk-core';
-import type { CaptureExceptionOptions } from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
+import type { OutboxItem } from '@everframe/sdk-core';
+import type { CaptureExceptionOptions } from '@everframe/sdk-core';
 import { __setCompanionBadgeServerConfig } from './companion/server-config.js';
 import { __setBrandingServerConfig } from './branding/server-config.js';
 import { __setVitalsServerConfig } from './vitals/server-config.js';
@@ -55,9 +55,9 @@ import {
   __setActiveResources,
   type ResourceRing,
 } from './resources/index.js';
-import type { FocusedNode } from '@traceitx/protocol';
-import { DEFAULT_RESOURCE_WINDOW_SEC } from '@traceitx/protocol';
-import type { WebTraceItXConfig } from './internal/types.js';
+import type { FocusedNode } from '@everframe/protocol';
+import { DEFAULT_RESOURCE_WINDOW_SEC } from '@everframe/protocol';
+import type { WebEverframeConfig } from './internal/types.js';
 import type { ReporterResult } from './reporter-types.js';
 import { sensitiveRegistry } from './sensitive/registry.js';
 import { createReplayRecorder, type ReplayRecorder } from './capture/replay/index.js';
@@ -124,12 +124,12 @@ import { captureUserSnapshot } from './internal/user-snapshot.js';
  *
  * Declared STRUCTURALLY rather than importing the concrete class, and that is
  * load-bearing for publishing, not a style choice. The published `.d.ts` has
- * to be self-contained — `@traceitx/sdk-core` and `@traceitx/protocol` are
+ * to be self-contained — `@everframe/sdk-core` and `@everframe/protocol` are
  * `private: true` and will never exist on npm — which means tsup's
  * `dts.resolve` inlines their declarations into `dist/index.d.ts` and
  * `dist/ui.d.ts`. `IdentityTokenHolder` is a class with `private` members, so
  * it is NOMINALLY typed: an inlined copy and the original stop being mutually
- * assignable, and `@traceitx/react`'s provider.tsx — which imports the holder
+ * assignable, and `@everframe/react`'s provider.tsx — which imports the holder
  * from sdk-core directly and hands it to `__setIdentityTokenHolder` below —
  * fails to typecheck (`Types have separate declarations of a private property
  * 'source'`). It was the ONLY nominal type anywhere in the inlined graph.
@@ -163,7 +163,7 @@ export interface IdentityTokenHolderLike {
  */
 export interface WebPlatformAdapter extends PlatformAdapter {
   /**
-   * Imperative open() invoked by `useTraceItX().open()` / top-level `open()`.
+   * Imperative open() invoked by `useEverframe().open()` / top-level `open()`.
    * Returns a Promise that resolves with the user-facing outcome of the report:
    *   - 'submitted' once submit succeeds,
    *   - 'queued' once the envelope is persisted to the outbox for retry,
@@ -468,7 +468,7 @@ export function createSessionSampler(
 }
 
 export function createWebPlatformAdapter(
-  _config: WebTraceItXConfig,
+  _config: WebEverframeConfig,
   /**
    * Who is hosting this adapter — see internal/sdk-identity.ts. Passed in
    * rather than read from this package's own constants, because the two
@@ -482,18 +482,18 @@ export function createWebPlatformAdapter(
   hostSdk: HostSdkIdentity = {},
 ): WebPlatformAdapter {
   // Codex round-2 finding 2 (P1, attribution). This pair used to default to
-  // `traceitx-react` + THIS package's PKG_VERSION — a combination that cannot
-  // legitimately occur: `@traceitx/react` is independently versioned and its
+  // `everframe-react` + THIS package's PKG_VERSION — a combination that cannot
+  // legitimately occur: `@everframe/react` is independently versioned and its
   // Provider passes BOTH values explicitly (provider.tsx's `useMemo`), so the
   // React name never travels with the web package's version except by way of
   // this default. `createWebPlatformAdapter` is a public export of
-  // `@traceitx/web`, so any non-React host constructing an adapter directly
+  // `@everframe/web`, so any non-React host constructing an adapter directly
   // had its crash stream billed to the React SDK under a version that SDK has
   // never published.
   //
   // Defaulting to the VANILLA pair instead makes the fallback internally
   // coherent — the name and the version now describe the same package, the one
-  // that owns this module — and cannot regress `@traceitx/react`, which never
+  // that owns this module — and cannot regress `@everframe/react`, which never
   // reaches either default. See internal/sdk-identity.ts.
   const sdkName: HostSdkName = hostSdk.sdkName ?? VANILLA_SDK_NAME;
   const sdkVersion: string = hostSdk.sdkVersion ?? PKG_VERSION;
@@ -515,7 +515,7 @@ export function createWebPlatformAdapter(
   // opening the reporter, the crash sink, and the 'online' outbox drain.
   // Deliberately not `killed` above, which F17/F18 define as set once and never
   // reset, because `onKill()` does not actually mean "the host pulled the
-  // consent switch" in `@traceitx/react`:
+  // consent switch" in `@everframe/react`:
   //
   //   React StrictMode (the Next.js dev default) simulates an unmount by
   //   running every effect CLEANUP and then every effect again, against the
@@ -526,7 +526,7 @@ export function createWebPlatformAdapter(
   //   for every StrictMode host (proven by sdk-react's
   //   __tests__/integration/breadcrumbs-strictmode.spec.tsx, which goes red on
   //   exactly that). The underlying bug is provider.tsx killing a live client
-  //   from an effect cleanup; fixing THAT is a change to `@traceitx/react`'s
+  //   from an effect cleanup; fixing THAT is a change to `@everframe/react`'s
   //   own lifecycle and is tracked separately.
   //
   // So this flag is cleared again by `__rebindCrumbHooks()` — the seam a host
@@ -631,7 +631,7 @@ export function createWebPlatformAdapter(
     // remount's `__rebindCrumbHooks()` revived the reporter and the crash sink
     // (round-1 findings 1/2) but not this listener, which stayed gated
     // forever: a report queued while offline never drained on reconnect, in
-    // the PUBLISHED `@traceitx/react`, for the whole of a dev session.
+    // the PUBLISHED `@everframe/react`, for the whole of a dev session.
     //
     // `reportingKilled` is exactly "no live host mount owns this adapter, or
     // the host pulled the consent switch": `onKill()` sets it and ONLY
@@ -1716,7 +1716,7 @@ export function createWebPlatformAdapter(
       // of a blank page.
       if (reportingKilled) {
         return Promise.reject(
-          new Error('TraceItX: capture is disabled — kill() was called on this client.'),
+          new Error('Everframe: capture is disabled — kill() was called on this client.'),
         );
       }
       return captureScreenshot({
@@ -1757,7 +1757,7 @@ export function createWebPlatformAdapter(
         pendingResolve = resolve;
         // Trigger the modal directly — don't reuse __openReporter() here because
         // that path creates the public-facing Promise<ReporterResult> for
-        // `useTraceItX().open()`. sdk-core's report() flow is a distinct caller
+        // `useEverframe().open()`. sdk-core's report() flow is a distinct caller
         // and resolves separately via __resolveReporterUI.
         try {
           showModal();
@@ -1784,7 +1784,7 @@ export function createWebPlatformAdapter(
       // which hosts call for consent withdrawal or a GDPR erasure request —
       // `open()` still mounted the dialog, took a screenshot of the user's
       // screen and could submit it. That is the exact failure the kill switch
-      // exists to prevent, and it shipped in `@traceitx/react` from the first
+      // exists to prevent, and it shipped in `@everframe/react` from the first
       // release of this seam.
       //
       // RESOLVED, never left hanging: a promise that never settles is a host
@@ -1920,7 +1920,7 @@ export function createWebPlatformAdapter(
       // `onKill()` takes away that a live mount has to get back. It is deleted
       // from `globalThis`, so `adoptReplayDebugSeam()` in `__initReplay` (which
       // only re-points the sources) cannot bring it back: a StrictMode dev host
-      // lost `window.__traceitxDebug` on the remount — precisely the
+      // lost `window.__everframeDebug` on the remount — precisely the
       // environment the seam exists for. Re-installed only when this adapter
       // owns a debug config AND nothing is currently installed, so a genuine
       // kill (never followed by a rebind) still ends with no seam.

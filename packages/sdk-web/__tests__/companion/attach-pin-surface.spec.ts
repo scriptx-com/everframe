@@ -7,7 +7,7 @@
 //
 // `attachPinUi` defaults to `'builtin'`, which announces `supportsAttachPin`
 // to the relay (singleton.ts). But the builtin surface is `CompanionPinCard`,
-// and the ONLY thing that mounts it is `TraceItXProvider`. So a vanilla host
+// and the ONLY thing that mounts it is `EverframeProvider`. So a vanilla host
 // that calls `companion.start()` with defaults tells the relay it can show a
 // PIN, a dashboard member requests attach, and the challenge expires with
 // nothing ever shown — burning an attempt from the budget and the member's
@@ -28,7 +28,7 @@ import {
 } from '../../src/companion/singleton.js';
 import { __setCompanionBadgeServerConfig } from '../../src/companion/server-config.js';
 import { __resetDeviceIdForTests } from '../../src/companion/device-id.js';
-import { init, type TraceItXHandle } from '../../src/init.js';
+import { init, type Everframe } from '../../src/init.js';
 
 // The island is never mounted here (nothing opens the reporter), but stub it
 // anyway so a stray open can't drag React into a companion spec.
@@ -56,7 +56,7 @@ function fakeWebSocket(): typeof WebSocket {
   } as unknown as typeof WebSocket;
 }
 
-let handle: TraceItXHandle | null = null;
+let handle: Everframe | null = null;
 let fetchMock: ReturnType<typeof vi.fn>;
 let warn: ReturnType<typeof vi.spyOn>;
 
@@ -145,7 +145,7 @@ describe('attach-PIN capability is only announced when something can render it',
   });
 
   it('leaves the React path alone: no init() means the builtin surface is presumed present', async () => {
-    // @traceitx/react never calls the declaration — TraceItXProvider mounts
+    // @everframe/react never calls the declaration — EverframeProvider mounts
     // CompanionPinCard, so 'builtin' is honest there and must keep announcing.
     companion.start(startOpts);
     expect(__getAttachPinUiMode()).toBe('builtin');
@@ -166,7 +166,7 @@ describe('attach-PIN capability is only announced when something can render it',
 
 // Codex round-2 finding 5 (P2), the same failure one surface over.
 // `companionBadge` is documented as default-ON, but `CompanionBadge` is
-// rendered ONLY by `@traceitx/react`'s Provider. It is an AMBIENT surface — it
+// rendered ONLY by `@everframe/react`'s Provider. It is an AMBIENT surface — it
 // has to be on screen while the reporter is closed — and the vanilla mount's
 // only ambient element is the plain-DOM FAB; the badge lives behind the lazy
 // React island, which by construction is not mounted then. So a Vue or

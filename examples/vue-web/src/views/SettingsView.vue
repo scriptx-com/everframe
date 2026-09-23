@@ -5,9 +5,9 @@
      offers an undo, because the SDK offers none. -->
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useTraceItX } from '../traceitx';
+import { useEverframe } from '../everframe';
 
-const traceitx = useTraceItX();
+const everframe = useEverframe();
 const name = ref('Ada Collector');
 const email = ref('ada@example.com');
 const extra = ref('{"plan":"field-team","build":"demo"}');
@@ -15,17 +15,17 @@ const status = ref<string | null>(null);
 const killed = ref(false);
 
 function applyUser(): void {
-  traceitx.value?.setUser({ displayName: name.value, email: email.value });
+  everframe.value?.setUser({ displayName: name.value, email: email.value });
   status.value = `setUser applied — the next report is attributed to ${name.value}.`;
 }
 
 function applyExtra(): void {
-  traceitx.value?.setExtra(extra.value);
+  everframe.value?.setExtra(extra.value);
   status.value = 'setExtra applied — the string rides along with the next report.';
 }
 
 function killSdk(): void {
-  traceitx.value?.kill();
+  everframe.value?.kill();
   killed.value = true;
   status.value = 'SDK killed. Nothing is captured and nothing leaves the device until reload.';
 }

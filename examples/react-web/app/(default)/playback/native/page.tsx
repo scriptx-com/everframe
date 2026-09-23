@@ -6,7 +6,7 @@
 // and every event in the timeline comes from HTMLMediaElement itself.
 'use client';
 import { useRef } from 'react';
-import { useTrackPlayer } from '@traceitx/react';
+import { useTrackPlayer } from '@everframe/react';
 import { PlayerBench } from '../../../components/PlayerBench';
 import { CLIP_SOURCES } from '../../../lib/media';
 

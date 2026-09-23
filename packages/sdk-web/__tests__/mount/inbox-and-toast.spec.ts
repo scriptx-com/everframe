@@ -21,7 +21,7 @@
 // never stage that promise, so on the two triggers a real user actually uses
 // nobody learns anything.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { __internalClientState } from '@traceitx/sdk-core';
+import { __internalClientState } from '@everframe/sdk-core';
 import type { ReporterCompletePayload } from '../../src/reporter-ui/ReporterDialog.js';
 import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
 import { REPORTER_TOKEN_STORAGE_KEY } from '../../src/reporter/credential-store.js';
@@ -80,9 +80,9 @@ vi.mock('../../src/mount/react-island.js', () => ({
   },
 }));
 
-import { init, type TraceItXHandle, type InternalHandle } from '../../src/init.js';
+import { init, type Everframe, type InternalHandle } from '../../src/init.js';
 
-let handle: TraceItXHandle | null = null;
+let handle: Everframe | null = null;
 
 afterEach(() => {
   handle?.destroy();
@@ -170,13 +170,13 @@ const payload = (): ReporterCompletePayload => ({
 });
 
 function shadow(): ShadowRoot {
-  const root = document.getElementById('traceitx-host')?.shadowRoot;
+  const root = document.getElementById('everframe-host')?.shadowRoot;
   if (!root) throw new Error('no shadow root');
   return root;
 }
 
 async function fabWithThread(): Promise<HTMLButtonElement> {
-  localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `txr_${'0'.repeat(36)}`);
+  localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
   stubFetch({ threads: oneOpenThread });
   handle = init({ apiKey: 'txx_live_test' });
   return await vi.waitFor(

@@ -134,15 +134,15 @@ export function AnnotateScreenshot({
     <>
       <button
         type="button"
-        className="txx-annotate-thumb"
+        className="everframe-annotate-thumb"
         onClick={() => setOpen(true)}
         aria-label="Annotate screenshot (opens fullscreen editor)"
         data-testid="annotate-open"
       >
         {thumbUrl ? (
-          <img src={thumbUrl} alt="Screenshot preview" className="txx-annotate-thumb-img" />
+          <img src={thumbUrl} alt="Screenshot preview" className="everframe-annotate-thumb-img" />
         ) : null}
-        <span className="txx-annotate-thumb-overlay">
+        <span className="everframe-annotate-thumb-overlay">
           <Maximize2 size={20} aria-hidden="true" />
           <span>{annotations.length > 0 ? 'Edit annotations' : 'Annotate screenshot'}</span>
         </span>
@@ -150,17 +150,17 @@ export function AnnotateScreenshot({
 
       {open ? (
         <div
-          className="txx-annotate-overlay"
+          className="everframe-annotate-overlay"
           role="dialog"
           aria-modal="true"
           aria-label="Annotate screenshot"
           data-testid="annotate-overlay"
         >
-          <div className="txx-annotate-overlay-bar">
-            <div className="txx-annotate-overlay-bar-left">
+          <div className="everframe-annotate-overlay-bar">
+            <div className="everframe-annotate-overlay-bar-left">
               <button
                 type="button"
-                className="txx-annotate-cancel"
+                className="everframe-annotate-cancel"
                 onClick={() => setOpen(false)}
                 aria-label="Cancel annotation editor"
                 data-testid="annotate-cancel"
@@ -168,11 +168,11 @@ export function AnnotateScreenshot({
                 Cancel
               </button>
             </div>
-            <span className="txx-annotate-overlay-bar-center">Edit screenshot</span>
-            <div className="txx-annotate-overlay-bar-right">
+            <span className="everframe-annotate-overlay-bar-center">Edit screenshot</span>
+            <div className="everframe-annotate-overlay-bar-right">
               <button
                 type="button"
-                className="txx-annotate-done"
+                className="everframe-annotate-done"
                 onClick={() => setOpen(false)}
                 data-testid="annotate-done"
               >
@@ -180,7 +180,7 @@ export function AnnotateScreenshot({
               </button>
             </div>
           </div>
-          <div className="txx-annotate-overlay-stage">
+          <div className="everframe-annotate-overlay-stage">
             <AnnotateCanvas
               imageBlob={imageBlob}
               onChange={onChange}

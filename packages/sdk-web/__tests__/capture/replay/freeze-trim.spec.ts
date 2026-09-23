@@ -95,10 +95,10 @@ describe('REPLAY-02 freeze + trim', () => {
     emit({ type: FULL, timestamp: 5, data: { html: '<div id="app">hi</div>' } }, true);
     rec.freeze();
     // Reporter mounts AFTER freeze — its emits are dropped.
-    emit({ type: FULL, timestamp: 60, data: { html: '<div data-traceitx-reporter>modal</div>' } }, true);
+    emit({ type: FULL, timestamp: 60, data: { html: '<div data-everframe-reporter>modal</div>' } }, true);
     const capture = await rec.takeFrozen();
     const serialized = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
-    expect(serialized).not.toContain('data-traceitx-reporter');
+    expect(serialized).not.toContain('data-everframe-reporter');
     expect(serialized).not.toContain('modal');
   });
 

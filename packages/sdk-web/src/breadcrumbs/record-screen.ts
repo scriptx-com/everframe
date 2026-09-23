@@ -9,7 +9,7 @@
 //
 // Before this existed, `contextSeam.ts` told hosts to hand-roll the crumb.
 // They did, each slightly differently.
-import type { AddBreadcrumbInput } from '@traceitx/sdk-core';
+import type { AddBreadcrumbInput } from '@everframe/sdk-core';
 import { forwardingCrumbGate, type KindGate } from '../capture/breadcrumbs.js';
 
 export type ScreenRecorder = (name: string, data?: Record<string, unknown>) => void;

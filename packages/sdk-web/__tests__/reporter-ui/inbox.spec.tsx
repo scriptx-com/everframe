@@ -5,8 +5,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { InboxDialog } from '../../src/reporter-ui/inbox/InboxDialog';
 import { ThreadView } from '../../src/reporter-ui/inbox/ThreadView';
-import { MESSAGE_BODY_MAX } from '@traceitx/sdk-core';
-import type { ThreadClientState, ThreadSummary } from '@traceitx/sdk-core';
+import { MESSAGE_BODY_MAX } from '@everframe/sdk-core';
+import type { ThreadClientState, ThreadSummary } from '@everframe/sdk-core';
 
 afterEach(() => cleanup());
 
@@ -65,7 +65,7 @@ describe('InboxDialog list view', () => {
     expect(screen.getByText('Login crash')).toBeInTheDocument();
     expect(screen.getByText(/Report from/)).toBeInTheDocument(); // null title fallback
     expect(screen.getByText('Closed')).toBeInTheDocument();
-    expect(document.querySelectorAll('.txx-inbox-unread-dot')).toHaveLength(1);
+    expect(document.querySelectorAll('.everframe-inbox-unread-dot')).toHaveLength(1);
   });
 
   it('shows the empty state with a New report button', () => {
@@ -80,7 +80,7 @@ describe('InboxDialog list view', () => {
     const { container } = render(
       <InboxDialog open={false} onClose={() => {}} threads={fakeFacade() as never} onNewReport={() => {}} />,
     );
-    expect(container.querySelector('.txx-modal')).toBeNull();
+    expect(container.querySelector('.everframe-modal')).toBeNull();
   });
 });
 
@@ -98,8 +98,8 @@ describe('InboxDialog thread view', () => {
     render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
     fireEvent.click(await screen.findByText('Login crash'));
     expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
-    expect(document.querySelector('.txx-inbox-msg img')).toBeNull();
-    expect(document.querySelector('.txx-inbox-msg a')).toBeNull();
+    expect(document.querySelector('.everframe-inbox-msg img')).toBeNull();
+    expect(document.querySelector('.everframe-inbox-msg a')).toBeNull();
   });
 
   it('shows the author name (Support fallback when null) for team/system messages, and no name for reporter messages', async () => {
@@ -117,9 +117,9 @@ describe('InboxDialog thread view', () => {
     fireEvent.click(await screen.findByText('Login crash'));
     expect(await screen.findByText('Support')).toBeInTheDocument();
     expect(screen.getByText('Acme Support')).toBeInTheDocument();
-    const mine = document.querySelectorAll('.txx-inbox-msg-mine');
+    const mine = document.querySelectorAll('.everframe-inbox-msg-mine');
     expect(mine).toHaveLength(1);
-    expect(mine[0]?.querySelector('.txx-inbox-msg-author')).toBeNull();
+    expect(mine[0]?.querySelector('.everframe-inbox-msg-author')).toBeNull();
   });
 
   it('caps the composer at MESSAGE_BODY_MAX, disables Send while empty, and sends + clears on click', async () => {
@@ -216,7 +216,7 @@ describe('InboxDialog thread view', () => {
     const textarea = await screen.findByPlaceholderText('Write a reply…');
     expect(textarea).toBeDisabled();
     const notice = await screen.findByText("You're sending too fast — try again in a moment.");
-    expect(notice.className).toBe('txx-inbox-cooldown');
+    expect(notice.className).toBe('everframe-inbox-cooldown');
     expect(notice.className).not.toMatch(/error/);
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });

@@ -44,9 +44,9 @@ vi.mock('../../src/mount/react-island.js', async () => {
   };
 });
 
-import { init, type TraceItXHandle } from '../../src/init.js';
+import { init, type Everframe } from '../../src/init.js';
 
-let handle: TraceItXHandle | null = null;
+let handle: Everframe | null = null;
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -103,7 +103,7 @@ describe('lazy React island', () => {
     handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
-    expect(mountCalls[0]?.shadow).toBe(document.getElementById('traceitx-host')?.shadowRoot);
+    expect(mountCalls[0]?.shadow).toBe(document.getElementById('everframe-host')?.shadowRoot);
   });
 
   it('destroy() unmounts the island', async () => {

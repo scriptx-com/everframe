@@ -15,13 +15,13 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
   { label, className, id, rows = 3, ...rest },
   ref,
 ): JSX.Element {
-  const generatedIdRef = useRef<string>(`txx-ta-${Math.random().toString(36).slice(2)}`);
+  const generatedIdRef = useRef<string>(`everframe-ta-${Math.random().toString(36).slice(2)}`);
   const textareaId = id ?? generatedIdRef.current;
-  const cls = ['txx-textarea', className].filter(Boolean).join(' ');
+  const cls = ['everframe-textarea', className].filter(Boolean).join(' ');
   return (
-    <div className="txx-field">
+    <div className="everframe-field">
       {label ? (
-        <label htmlFor={textareaId} className="txx-field-label">
+        <label htmlFor={textareaId} className="everframe-field-label">
           {label}
         </label>
       ) : null}

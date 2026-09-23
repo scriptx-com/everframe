@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it, vi } from 'vitest';
-import type { OutboxAdapter, OutboxItem } from '@traceitx/sdk-core';
+import type { OutboxAdapter, OutboxItem } from '@everframe/sdk-core';
 import { drainOutbox } from '../../src/transport/submit.js';
 
 function fakeOutbox(items: OutboxItem[]): OutboxAdapter & { deleted: string[] } {

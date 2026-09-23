@@ -35,13 +35,13 @@ export function Toast({
   const portalTarget = resolvePortalTarget();
   if (!portalTarget) return null;
   return createPortal(
-    <div className="txx-root" data-traceitx-skip-capture="true">
+    <div className="everframe-root" data-everframe-skip-capture="true">
       <div
-        className={`txx-toast txx-toast-${tone}`}
+        className={`everframe-toast everframe-toast-${tone}`}
         role={tone === 'error' ? 'alert' : 'status'}
         aria-live={tone === 'error' ? 'assertive' : 'polite'}
         onClick={onDismiss}
-        data-testid="traceitx-toast"
+        data-testid="everframe-toast"
       >
         {message}
       </div>

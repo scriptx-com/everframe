@@ -5,7 +5,7 @@
 // active SDK config (apiKey for ingest) + the platform adapter (capture
 // primitives + outbox) at `report.submit` time — but the companion runs from
 // imperative, non-React call sites (`companion.start()`), so it can't read
-// React context. `TraceItXProvider` writes this seam on mount / clears it on
+// React context. `EverframeProvider` writes this seam on mount / clears it on
 // unmount; the companion's default `report.request` / `report.submit` handlers
 // read it.
 //
@@ -16,18 +16,18 @@
 // a silent hang (parity with native CompanionCaptureBridge).
 'use client';
 
-import type { UserMetadata } from '@traceitx/sdk-core';
+import type { UserMetadata } from '@everframe/sdk-core';
 import type { WebPlatformAdapter } from '../adapter.js';
-import type { WebTraceItXConfig } from '../internal/types.js';
+import type { WebEverframeConfig } from '../internal/types.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 
 export interface CompanionHost {
-  config: WebTraceItXConfig;
+  config: WebEverframeConfig;
   adapter: WebPlatformAdapter;
   /**
    * Which SDK is hosting — passed to submitReportFromDraft as envelope
    * `sdk.name`. Optional for back-compat with hand-wired hosts; absent means
-   * the React default, which is what every host was before `@traceitx/web`
+   * the React default, which is what every host was before `@everframe/web`
    * shipped its own `init()`.
    */
   sdkName?: HostSdkName;
@@ -64,7 +64,7 @@ export interface CompanionHost {
    * A GETTER, not a boolean, for the same reason as `getUser`: the seam is
    * written once, and the kill can land at any point afterwards.
    *
-   * OPTIONAL, and absent means "not killed". `@traceitx/react`'s Provider does
+   * OPTIONAL, and absent means "not killed". `@everframe/react`'s Provider does
    * not set it, so its companion behaviour is byte-for-byte unchanged by this
    * seam; that SDK's own kill gap is tracked separately and needs a change to
    * provider.tsx, which is out of bounds here.
@@ -133,7 +133,7 @@ export function __companionSeamTicket(
   return { host, published: host !== null && host === __host, epoch: __epoch };
 }
 
-/** SDK-internal — `TraceItXProvider` / `init()` are the writers (mount sets, unmount clears). */
+/** SDK-internal — `EverframeProvider` / `init()` are the writers (mount sets, unmount clears). */
 export function __setCompanionHost(host: CompanionHost | null): void {
   if (host === null) {
     // Latch only a REAL teardown. A defensive `__setCompanionHost(null)` from

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import type { BreadcrumbInput } from '@traceitx/sdk-core';
+import type { BreadcrumbInput } from '@everframe/sdk-core';
 import { installConsolePatcher } from '../../src/capture/logs.js';
 import { installFetchPatcher, installXHRPatcher } from '../../src/capture/network.js';
 import { __claimCaptureBuffers, consoleBuffer, networkBuffer } from '../../src/capture/buffers.js';

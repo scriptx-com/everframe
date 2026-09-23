@@ -63,7 +63,7 @@ export default defineConfig({
     {
       // `dev`, not `preview`: the specs run against source so a failure points
       // at a file you can edit. The SDK itself is still the BUILT dist/ — Vite
-      // resolves @traceitx/web through the workspace link to its dist.
+      // resolves @everframe/web through the workspace link to its dist.
       command: `pnpm --filter examples-vue-web dev`,
       // Threaded to examples/vue-web/vite.config.ts, which reads this same
       // var for its dev-server port (defaulting to 3020 too) — without this,

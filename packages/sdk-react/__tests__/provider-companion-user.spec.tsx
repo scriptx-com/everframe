@@ -16,7 +16,7 @@
 // into a plain variable AT EFFECT-RUN TIME (pinning whoever was active at
 // mount, forever) would type-check and pass every one of those specs.
 //
-// This spec mounts the REAL TraceItXProvider, reads the REAL seam object it
+// This spec mounts the REAL EverframeProvider, reads the REAL seam object it
 // publishes via `__getCompanionHost()`, and drives two companion submits
 // around a `setUser` call in between — no remount — asserting the SECOND
 // submit carries the SECOND user. That is the one shape of test that fails
@@ -25,11 +25,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-// The submit module now lives in @traceitx/web. It has to be mocked at its
-// own path, not at the `@traceitx/web` barrel: the call under test reaches it
+// The submit module now lives in @everframe/web. It has to be mocked at its
+// own path, not at the `@everframe/web` barrel: the call under test reaches it
 // through `handleCompanionSubmitText` — an INTERNAL sdk-web module that
 // imports it directly — so mocking the barrel would leave that path calling
-// the real thing. sdk-react's vitest config aliases `@traceitx/web` to the
+// the real thing. sdk-react's vitest config aliases `@everframe/web` to the
 // same source tree, so this is the identical module instance.
 vi.mock('../../sdk-web/src/transport/submit.js', () => ({
   submitReportFromDraft: vi.fn(),
@@ -37,8 +37,8 @@ vi.mock('../../sdk-web/src/transport/submit.js', () => ({
 }));
 
 import { submitReportFromDraft } from '../../sdk-web/src/transport/submit.js';
-import { TraceItXProvider } from '../src/provider.js';
-import { useTraceItX } from '../src/hook.js';
+import { EverframeProvider } from '../src/provider.js';
+import { useEverframe } from '../src/hook.js';
 import {
   __getCompanionHost,
   createCompanion,
@@ -46,7 +46,7 @@ import {
   handleCompanionSubmitBinary,
   type RelayWSClient,
   type ReportSubmit,
-} from '@traceitx/web';
+} from '@everframe/web';
 
 const submitMock = vi.mocked(submitReportFromDraft);
 
@@ -111,7 +111,7 @@ const BAKED = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0,
 
 const cfg = { apiKey: 'txx_live_companion_user_test' };
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <TraceItXProvider config={cfg}>{children}</TraceItXProvider>
+  <EverframeProvider config={cfg}>{children}</EverframeProvider>
 );
 
 describe('provider.tsx companion host seam — getUser is a live getter, not a mount-time snapshot', () => {
@@ -125,7 +125,7 @@ describe('provider.tsx companion host seam — getUser is a live getter, not a m
     stubFetch();
     submitMock.mockResolvedValue({ ok: true, retryable: false, reportId: 'r1', threadId: null });
 
-    const { result } = renderHook(() => useTraceItX(), { wrapper });
+    const { result } = renderHook(() => useEverframe(), { wrapper });
 
     // Nobody signed in yet — the seam was published at mount, before this.
     act(() => {

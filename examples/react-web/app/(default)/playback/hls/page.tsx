@@ -12,7 +12,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Hls, { type Level } from 'hls.js';
-import { useTrackPlayer } from '@traceitx/react';
+import { useTrackPlayer } from '@everframe/react';
 import { PlayerBench } from '../../../components/PlayerBench';
 import { HLS_LIVE_URL, HLS_VOD_URL } from '../../../lib/media';
 

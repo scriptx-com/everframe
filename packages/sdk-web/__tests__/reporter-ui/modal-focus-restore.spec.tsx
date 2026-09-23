@@ -107,7 +107,7 @@ describe('<Modal> focus restore', () => {
 
   it('still restores in the React (light-DOM, document.body portal) mount', async () => {
     // No portal target set: `resolvePortalTarget()` falls back to
-    // document.body, which is the shape `@traceitx/react`'s Provider produces.
+    // document.body, which is the shape `@everframe/react`'s Provider produces.
     // This is the "must not regress the published SDK" half.
     const input = hostPageInput();
 

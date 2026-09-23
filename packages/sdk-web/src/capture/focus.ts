@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { FocusedNode } from '@traceitx/protocol';
+import type { FocusedNode } from '@everframe/protocol';
 
-const DISPLAYNAME_ATTR = 'data-traceitx-display-name';
+const DISPLAYNAME_ATTR = 'data-everframe-display-name';
 
 /**
  * Build component path from the focused element up to the root by reading
- * data-traceitx-display-name on each ancestor (Phase-1 plugin reserved attribute).
+ * data-everframe-display-name on each ancestor (Phase-1 plugin reserved attribute).
  *
  * Protocol contract (PAY-02): componentPath is a single string like
  * 'App > CheckoutScreen > CouponInput > TextField' — root-to-leaf.

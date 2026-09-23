@@ -83,7 +83,7 @@ describe('<AnnotateCanvas> — overhaul toolbar', () => {
     );
     const rectBtn = await findByTestId('tool-rect');
     fireEvent.click(rectBtn);
-    expect(rectBtn.className).toContain('txx-tool-btn-active');
+    expect(rectBtn.className).toContain('everframe-tool-btn-active');
     // Style row is present for stroke-styled tools.
     expect(await findByTestId('style-row')).toBeInTheDocument();
   });
@@ -143,7 +143,7 @@ describe('<AnnotateCanvas> — selection editing', () => {
     );
     const pointer = await findByTestId('tool-pointer');
     fireEvent.click(pointer);
-    expect(pointer.className).toContain('txx-tool-btn-active');
+    expect(pointer.className).toContain('everframe-tool-btn-active');
   });
 });
 
@@ -156,7 +156,7 @@ describe('<AnnotateCanvas> — text tool', () => {
     );
     const btn = await findByTestId('tool-text');
     fireEvent.click(btn);
-    expect(btn.className).toContain('txx-tool-btn-active');
+    expect(btn.className).toContain('everframe-tool-btn-active');
   });
 
   it('shows font-size steps (not thickness) in the style row for the text tool', async () => {

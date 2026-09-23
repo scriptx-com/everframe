@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createBreadcrumbBuffer } from '@traceitx/sdk-core';
-import { MAX_ENVELOPE_VITALS_ENTRIES } from '@traceitx/protocol';
+import { createBreadcrumbBuffer } from '@everframe/sdk-core';
+import { MAX_ENVELOPE_VITALS_ENTRIES } from '@everframe/protocol';
 import { createWebPlatformAdapter } from '../src/adapter.js';
 
 // Session Vitals mocks (Codex round-1 finding S2's covering test, below) —

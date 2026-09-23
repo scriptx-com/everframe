@@ -22,10 +22,10 @@ import {
   type ReplayConfig,
   type ReplayState,
   type ReplayTraceEntry,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import type { ReplayRecorderDiagnostics } from '../capture/replay/recorder.js';
 
-export const DEBUG_GLOBAL_KEY = '__traceitxDebug';
+export const DEBUG_GLOBAL_KEY = '__everframeDebug';
 
 export interface ReplayStateSnapshot {
   lifecycle: ReplayState | null;

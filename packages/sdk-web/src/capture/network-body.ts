@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import { redactStringContent } from '@traceitx/sdk-core';
-import type { RedactionConfig } from '@traceitx/sdk-core';
+import { redactStringContent } from '@everframe/sdk-core';
+import type { RedactionConfig } from '@everframe/sdk-core';
 
 /**
  * True iff `contentType` (a raw header value, possibly with `; charset=…`)

@@ -3,26 +3,26 @@
 import { describe, expect, it } from 'vitest';
 import { render, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { TraceItXProvider } from '../src/provider.js';
-import { useTraceItX } from '../src/hook.js';
+import { EverframeProvider } from '../src/provider.js';
+import { useEverframe } from '../src/hook.js';
 
 const cfg = { apiKey: 'txx_live_test' };
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <TraceItXProvider config={cfg}>{children}</TraceItXProvider>
+  <EverframeProvider config={cfg}>{children}</EverframeProvider>
 );
 
-describe('TraceItXProvider', () => {
+describe('EverframeProvider', () => {
   it('renders children without throwing', () => {
     const { getByText } = render(
-      <TraceItXProvider config={cfg}>
+      <EverframeProvider config={cfg}>
         <div>hello world</div>
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     expect(getByText('hello world')).toBeInTheDocument();
   });
 
-  it('useTraceItX returns the public surface inside the Provider', () => {
-    const { result } = renderHook(() => useTraceItX(), { wrapper });
+  it('useEverframe returns the public surface inside the Provider', () => {
+    const { result } = renderHook(() => useEverframe(), { wrapper });
     expect(typeof result.current.open).toBe('function');
     expect(typeof result.current.setUser).toBe('function');
     expect(typeof result.current.setExtra).toBe('function');
@@ -32,7 +32,7 @@ describe('TraceItXProvider', () => {
     expect((result.current as unknown as { report?: unknown }).report).toBeUndefined();
   });
 
-  it('useTraceItX outside Provider throws', () => {
-    expect(() => renderHook(() => useTraceItX())).toThrow(/outside <TraceItXProvider>/);
+  it('useEverframe outside Provider throws', () => {
+    expect(() => renderHook(() => useEverframe())).toThrow(/outside <EverframeProvider>/);
   });
 });

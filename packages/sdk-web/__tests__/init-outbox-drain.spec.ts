@@ -26,15 +26,15 @@
 // TIMING is directly observable against the stubbed ingest endpoint. This is
 // the vanilla port of `sdk-react`'s provider-outbox-drain-identity-gate.spec.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { IDENTITY_PROVIDER_TIMEOUT_MS } from '@traceitx/sdk-core';
-import { init, type TraceItXHandle } from '../src/init.js';
+import { IDENTITY_PROVIDER_TIMEOUT_MS } from '@everframe/sdk-core';
+import { init, type Everframe } from '../src/init.js';
 import { createLocalStorageOutbox } from '../src/outbox/localStorage.js';
 
 const APP_KEY = 'txx_live_web_drain_test';
 const config = { apiKey: APP_KEY };
 
-let handles: TraceItXHandle[] = [];
-function mount(): TraceItXHandle {
+let handles: Everframe[] = [];
+function mount(): Everframe {
   const h = init(config);
   handles.push(h);
   return h;

@@ -105,7 +105,7 @@ describe('installConsolePatcher', () => {
     const u = installConsolePatcher();
     u();
     const slot = globalThis as unknown as Record<symbol, unknown>;
-    expect(slot[Symbol.for('__traceitx_patched_console__')]).toBeUndefined();
+    expect(slot[Symbol.for('__everframe_patched_console__')]).toBeUndefined();
     // After uninstall, re-installing must work cleanly:
     const u2 = installConsolePatcher();
     console.log('post-reinstall');

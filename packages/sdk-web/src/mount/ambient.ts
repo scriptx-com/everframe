@@ -36,11 +36,11 @@ export function createAmbientUI(
   opts: { onOpen(): void },
 ): AmbientUI {
   const wrap = document.createElement('div');
-  wrap.className = 'txx-root txx-fab-wrap';
+  wrap.className = 'everframe-root everframe-fab-wrap';
 
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'txx-fab';
+  button.className = 'everframe-fab';
   button.dataset['testid'] = 'reporter-fab';
   button.addEventListener('click', () => opts.onOpen());
 
@@ -50,7 +50,7 @@ export function createAmbientUI(
     `<path d="${MESSAGE_SQUARE_PATH}"/></svg>`;
 
   const dot = document.createElement('span');
-  dot.className = 'txx-fab-dot';
+  dot.className = 'everframe-fab-dot';
   dot.setAttribute('aria-hidden', 'true');
 
   wrap.appendChild(button);
@@ -71,7 +71,7 @@ export function createAmbientUI(
       unread = n;
       if (n > 0) {
         // The dot lives INSIDE the button, after the glyph — same position
-        // ReporterFab renders it in, so `.txx-fab-dot`'s absolute placement
+        // ReporterFab renders it in, so `.everframe-fab-dot`'s absolute placement
         // resolves against the same offset parent.
         if (!dot.isConnected) button.appendChild(dot);
       } else {

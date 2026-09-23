@@ -17,7 +17,7 @@ export interface NoticeStripProps {
  */
 export function NoticeStrip({ tone = 'degraded', children }: NoticeStripProps): JSX.Element {
   return (
-    <div className={`txx-notice txx-notice-${tone}`} role="status">
+    <div className={`everframe-notice everframe-notice-${tone}`} role="status">
       {children}
     </div>
   );

@@ -19,7 +19,7 @@ export const SCRIPT_TAG_FIXTURE = '/e2e/fixtures/script-tag.html';
 
 /**
  * The ingest origin is baked into dist/ at build time (tsup `define`), so an
- * un-stubbed run reaches the real traceitx.com for /api/config and the reply
+ * un-stubbed run reaches the real everframe.dev for /api/config and the reply
  * poll — making a local e2e depend on the internet and on production's health.
  * Matched by PATH rather than origin so the stub holds whichever URL the local
  * dist/ happens to carry; neither fixture requests anything under /api/. 404 is
@@ -34,7 +34,7 @@ export async function stubIngestApi(page: Page): Promise<void> {
 
 /** Evaluated in-page: has the reporter dialog committed inside the shadow root? */
 export function dialogPresent(): boolean {
-  return !!document.getElementById('traceitx-host')?.shadowRoot?.querySelector('[role=dialog]');
+  return !!document.getElementById('everframe-host')?.shadowRoot?.querySelector('[role=dialog]');
 }
 
 export async function openReporter(page: Page): Promise<void> {
@@ -52,7 +52,7 @@ export async function openReporter(page: Page): Promise<void> {
  * between them is the chrome and nothing else.
  *
  * CALIBRATED, not assumed. Re-running this exact flow with every
- * `data-traceitx-skip-capture` attribute stripped off the host and the portal
+ * `data-everframe-skip-capture` attribute stripped off the host and the portal
  * roots measures 33.6% / 35.3% / 35.5% of pixels differing on
  * chromium / firefox / webkit, against 0 clean — so the 1% threshold is ~35x
  * clear of the regression it guards.
@@ -68,24 +68,24 @@ export async function openReporter(page: Page): Promise<void> {
 export async function expectCaptureExcludesReporterChrome(page: Page): Promise<void> {
   await page.evaluate(async () => {
     const w = window as unknown as {
-      __traceitx: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }> } };
+      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }> } };
       __baselineShot?: Blob;
     };
-    w.__baselineShot = (await w.__traceitx.__adapter.captureScreenshot()).blob;
+    w.__baselineShot = (await w.__everframe.__adapter.captureScreenshot()).blob;
   });
 
   await page.click('#report');
   await page.waitForFunction(
     () =>
-      (document.getElementById('traceitx-host')?.shadowRoot?.querySelectorAll(
-        'img.txx-shot-thumb-img',
+      (document.getElementById('everframe-host')?.shadowRoot?.querySelectorAll(
+        'img.everframe-shot-thumb-img',
       ).length ?? 0) > 0,
     null,
     { timeout: 30_000 },
   );
 
   const diff = await page.evaluate(async () => {
-    const sr = document.getElementById('traceitx-host')!.shadowRoot!;
+    const sr = document.getElementById('everframe-host')!.shadowRoot!;
     const baseline = (window as unknown as { __baselineShot: Blob }).__baselineShot;
 
     type Shot = { w: number; h: number; data: Uint8ClampedArray };
@@ -117,7 +117,7 @@ export async function expectCaptureExcludesReporterChrome(page: Page): Promise<v
      * pass because the dialog quietly was not there.
      */
     const chromeOverCentre = (): boolean => {
-      const backdrop = sr.querySelector('.txx-backdrop');
+      const backdrop = sr.querySelector('.everframe-backdrop');
       if (!backdrop || getComputedStyle(backdrop).visibility === 'hidden') return false;
       const r = backdrop.getBoundingClientRect();
       return (
@@ -145,7 +145,7 @@ export async function expectCaptureExcludesReporterChrome(page: Page): Promise<v
 
     const chromeBefore = chromeOverCentre();
     const shotsBefore = Array.from(
-      sr.querySelectorAll<HTMLImageElement>('img.txx-shot-thumb-img'),
+      sr.querySelectorAll<HTMLImageElement>('img.everframe-shot-thumb-img'),
     );
 
     // "Add" opens the area-capture overlay; take the whole viewport so the
@@ -159,14 +159,14 @@ export async function expectCaptureExcludesReporterChrome(page: Page): Promise<v
     full.click();
     await waitFor(
       () =>
-        sr.querySelectorAll('img.txx-shot-thumb-img').length > shotsBefore.length ? true : null,
+        sr.querySelectorAll('img.everframe-shot-thumb-img').length > shotsBefore.length ? true : null,
       25_000,
       'the second screenshot',
     );
     const chromeAfter = chromeOverCentre();
 
     const shotsAfter = Array.from(
-      sr.querySelectorAll<HTMLImageElement>('img.txx-shot-thumb-img'),
+      sr.querySelectorAll<HTMLImageElement>('img.everframe-shot-thumb-img'),
     );
     const newest = shotsAfter[shotsAfter.length - 1]!;
     const withDialogOpen = await toPixels(await (await fetch(newest.src)).blob());

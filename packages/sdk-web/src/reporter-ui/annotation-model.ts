@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { Rect } from '@traceitx/sdk-core';
+import type { Rect } from '@everframe/sdk-core';
 
 // 5-color palette matching the Android Compose reporter's ColorPickerPalette
 // (FocusedAnnotation.kt). Red leads the order — it's the most-used annotation

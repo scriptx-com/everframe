@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createVitalsTransport } from '../../src/vitals/transport.js';
-import type { SessionSummary, VitalsChunk } from '@traceitx/protocol';
+import type { SessionSummary, VitalsChunk } from '@everframe/protocol';
 import {
   IDENTITY_TOKEN_HEADER,
   IDENTITY_TOKEN_MAX_CHARS,
   createVitalsCollector,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 
 const ENDPOINT = 'https://ingest.example.com/api/ingest/vitals';
 const API_KEY = 'pk_test_123';

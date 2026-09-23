@@ -2,14 +2,14 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
-import { MESSAGE_BODY_MAX } from '@traceitx/sdk-core';
-import type { TraceItXClient, ThreadDetail, ThreadClientState } from '@traceitx/sdk-core';
+import { MESSAGE_BODY_MAX } from '@everframe/sdk-core';
+import type { EverframeClient, ThreadDetail, ThreadClientState } from '@everframe/sdk-core';
 import { Modal } from '../primitives/Modal.js';
 import { Button } from '../primitives/Button.js';
 import { Textarea } from '../primitives/Textarea.js';
 
 export interface ThreadViewProps {
-  threads: TraceItXClient['threads'];
+  threads: EverframeClient['threads'];
   threadId: string;
   onBack: () => void;
   /** Opens the normal capture flow (wired by the host Provider). */
@@ -194,39 +194,39 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
   const trimmedEmpty = body.trim().length === 0;
 
   return (
-    <div className="txx-inbox-thread">
-      <button type="button" className="txx-inbox-back" onClick={onBack}>
+    <div className="everframe-inbox-thread">
+      <button type="button" className="everframe-inbox-back" onClick={onBack}>
         ← Your reports
       </button>
 
       {detail ? (
         <>
           {detail.truncation === 'older-dropped' ? (
-            <p className="txx-inbox-truncated-notice">Earlier messages not shown.</p>
+            <p className="everframe-inbox-truncated-notice">Earlier messages not shown.</p>
           ) : null}
           {detail.truncation === 'incomplete' ? (
-            <p className="txx-inbox-truncated-notice">
+            <p className="everframe-inbox-truncated-notice">
               This conversation couldn't fully load — some messages may be missing.
             </p>
           ) : null}
-          <div className="txx-inbox-msgs">
+          <div className="everframe-inbox-msgs">
             {detail.messages.map((m) => (
               <div
                 key={m.id}
-                className={`txx-inbox-msg ${m.authorKind === 'reporter' ? 'txx-inbox-msg-mine' : 'txx-inbox-msg-theirs'}`}
+                className={`everframe-inbox-msg ${m.authorKind === 'reporter' ? 'everframe-inbox-msg-mine' : 'everframe-inbox-msg-theirs'}`}
               >
                 {m.authorKind !== 'reporter' ? (
-                  <span className="txx-inbox-msg-author">{m.authorName ?? 'Support'}</span>
+                  <span className="everframe-inbox-msg-author">{m.authorName ?? 'Support'}</span>
                 ) : null}
-                <p className="txx-inbox-msg-body">{m.body}</p>
-                <span className="txx-inbox-msg-time">{new Date(m.createdAt).toLocaleString()}</span>
+                <p className="everframe-inbox-msg-body">{m.body}</p>
+                <span className="everframe-inbox-msg-time">{new Date(m.createdAt).toLocaleString()}</span>
               </div>
             ))}
             {detail.pending.map((p) => (
-              <div key={p.localId} className="txx-inbox-msg txx-inbox-msg-mine txx-inbox-pending">
-                <p className="txx-inbox-msg-body">{p.body}</p>
+              <div key={p.localId} className="everframe-inbox-msg everframe-inbox-msg-mine everframe-inbox-pending">
+                <p className="everframe-inbox-msg-body">{p.body}</p>
                 {p.state === 'sending' ? (
-                  <span className="txx-inbox-msg-time">Sending…</span>
+                  <span className="everframe-inbox-msg-time">Sending…</span>
                 ) : retryUnavailable ? (
                   // Finding 3 (round 10, PR review): a read-only client or a
                   // closed thread must not offer Retry at all — every
@@ -235,9 +235,9 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
                   // braces). The failed bubble and its text stay visible so
                   // nothing typed is lost; there's just nothing left to
                   // click.
-                  <span className="txx-inbox-msg-time">Not sent.</span>
+                  <span className="everframe-inbox-msg-time">Not sent.</span>
                 ) : (
-                  <span className="txx-inbox-msg-time">
+                  <span className="everframe-inbox-msg-time">
                     Not sent.{' '}
                     <Button
                       variant="secondary"
@@ -263,9 +263,9 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
           </div>
 
           {closed ? (
-            <p className="txx-inbox-closed-notice">This conversation is closed.</p>
+            <p className="everframe-inbox-closed-notice">This conversation is closed.</p>
           ) : (
-            <div className="txx-inbox-composer">
+            <div className="everframe-inbox-composer">
               <Textarea
                 aria-label="Reply"
                 value={body}
@@ -275,7 +275,7 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
                 placeholder="Write a reply…"
               />
               {cooldownActive ? (
-                <p className="txx-inbox-cooldown">
+                <p className="everframe-inbox-cooldown">
                   You're sending too fast — try again in a moment.
                 </p>
               ) : null}
@@ -286,10 +286,10 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
           )}
 
           {deleteFailed ? (
-            <p className="txx-inbox-delete-error">Couldn't delete — try again.</p>
+            <p className="everframe-inbox-delete-error">Couldn't delete — try again.</p>
           ) : null}
 
-          <div className="txx-inbox-thread-actions">
+          <div className="everframe-inbox-thread-actions">
             <Button variant="secondary" onClick={onNewReport}>
               Send a follow-up report
             </Button>
@@ -305,7 +305,7 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
           </div>
         </>
       ) : (
-        <div className="txx-inbox-loading">Loading…</div>
+        <div className="everframe-inbox-loading">Loading…</div>
       )}
 
       <Modal

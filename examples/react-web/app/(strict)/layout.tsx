@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import type { ReactNode } from 'react';
-import { TraceItXProvider } from '@traceitx/react';
+import { EverframeProvider } from '@everframe/react';
 import { ReportFab } from '../components/ReportFab';
 
-const TRACEITX_KEY = process.env.NEXT_PUBLIC_TRACEITX_KEY ?? 'txx_live_test';
+const EVERFRAME_KEY = process.env.NEXT_PUBLIC_EVERFRAME_KEY ?? 'txx_live_test';
 const STATIC_NONCE = 'STATIC_TEST_NONCE_FOR_PLAYWRIGHT';
 
 /**
@@ -16,11 +16,11 @@ const STATIC_NONCE = 'STATIC_TEST_NONCE_FOR_PLAYWRIGHT';
  */
 export default function StrictCspLayout({ children }: { children: ReactNode }) {
   return (
-    <TraceItXProvider
-      config={{ apiKey: TRACEITX_KEY, appBuild: process.env.NEXT_PUBLIC_TRACEITX_APP_BUILD, cspNonce: STATIC_NONCE, debug: true, vitals: { enabled: true } }}
+    <EverframeProvider
+      config={{ apiKey: EVERFRAME_KEY, appBuild: process.env.NEXT_PUBLIC_EVERFRAME_APP_BUILD, cspNonce: STATIC_NONCE, debug: true, vitals: { enabled: true } }}
     >
       {children}
       <ReportFab />
-    </TraceItXProvider>
+    </EverframeProvider>
   );
 }

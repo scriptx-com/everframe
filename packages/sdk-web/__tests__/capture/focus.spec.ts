@@ -3,14 +3,14 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { captureFocusedNode } from '../../src/capture/focus.js';
-import { FocusedNode as FocusedNodeSchema } from '@traceitx/protocol';
+import { FocusedNode as FocusedNodeSchema } from '@everframe/protocol';
 
 describe('captureFocusedNode', () => {
   beforeEach(() => {
     document.body.innerHTML = `
-      <div id="app" data-traceitx-display-name="App">
-        <div data-traceitx-display-name="Form">
-          <input id="email" data-traceitx-display-name="EmailInput" data-testid="email-field" aria-label="Email address" role="textbox" type="email" />
+      <div id="app" data-everframe-display-name="App">
+        <div data-everframe-display-name="Form">
+          <input id="email" data-everframe-display-name="EmailInput" data-testid="email-field" aria-label="Email address" role="textbox" type="email" />
         </div>
       </div>
     `.trim();

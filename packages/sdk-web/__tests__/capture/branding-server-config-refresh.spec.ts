@@ -6,7 +6,7 @@
 // successful config read, and onKill clears it (the companion-badge Fix B
 // doctrine: a dead adapter's last-read value must never outlive it).
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createClient } from '@traceitx/sdk-core';
+import { createClient } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 import {
   __getBrandingServerConfig,
@@ -65,7 +65,7 @@ describe('branding server-config box', () => {
       urlOf(c[0] as RequestInfo | URL).includes('/api/config'),
     );
     const headers = (call![1] as RequestInit).headers as Record<string, string>;
-    expect(headers['X-TX-SDK-Features']).toContain('branding');
+    expect(headers['X-Everframe-SDK-Features']).toContain('branding');
   });
 
   it('a subscriber is notified when the box value changes, and not on an identical rewrite', () => {

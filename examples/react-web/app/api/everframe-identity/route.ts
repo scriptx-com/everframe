@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Token-minting endpoint for TraceItX user recognition — the BACKEND half.
+// Token-minting endpoint for Everframe user recognition — the BACKEND half.
 // The browser never sees the signing secret; it only ever sees a short-lived
 // token minted here.
 //
@@ -9,8 +9,8 @@
 // (Project settings -> User recognition) and putting both values in the
 // repo-root .env:
 //
-//   TRACEITX_IDENTITY_SECRET=<the one-time-revealed secret>
-//   TRACEITX_IDENTITY_PROJECT_ID=<the project id shown beside it>
+//   EVERFRAME_IDENTITY_SECRET=<the one-time-revealed secret>
+//   EVERFRAME_IDENTITY_PROJECT_ID=<the project id shown beside it>
 //
 // `pnpm gen-web-config` projects them into .env.local WITHOUT a NEXT_PUBLIC_
 // prefix, so they stay server-only.
@@ -21,15 +21,15 @@
 // unverified header) — `sub` is the identity key, and accepting a
 // client-supplied one lets any visitor claim to be any of your users, which is
 // precisely what signing prevents.
-import { createIdentityHandler } from '@traceitx/identity';
+import { createIdentityHandler } from '@everframe/identity';
 import { verifyAccessToken } from '../../lib/session';
 
 // Route handlers with no request-dependent input are eligible for static
 // rendering, which would bake ONE token into the build and serve it forever.
 export const dynamic = 'force-dynamic';
 
-const secret = process.env.TRACEITX_IDENTITY_SECRET;
-const projectId = process.env.TRACEITX_IDENTITY_PROJECT_ID;
+const secret = process.env.EVERFRAME_IDENTITY_SECRET;
+const projectId = process.env.EVERFRAME_IDENTITY_PROJECT_ID;
 
 /**
  * createIdentityHandler VALIDATES AT CONSTRUCTION — which in a route module is
@@ -54,7 +54,7 @@ export const GET =
           JSON.stringify({
             error: 'recognition_not_configured',
             detail:
-              'Set TRACEITX_IDENTITY_SECRET and TRACEITX_IDENTITY_PROJECT_ID in the repo-root .env, then re-run pnpm dev:example:web.',
+              'Set EVERFRAME_IDENTITY_SECRET and EVERFRAME_IDENTITY_PROJECT_ID in the repo-root .env, then re-run pnpm dev:example:web.',
           }),
           { status: 503, headers: { 'cache-control': 'no-store', 'content-type': 'application/json' } },
         );

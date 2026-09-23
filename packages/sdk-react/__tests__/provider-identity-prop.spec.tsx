@@ -9,16 +9,16 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { Suspense, startTransition, useContext, useEffect, useLayoutEffect } from 'react';
-import { TraceItXProvider, TraceItXContext, type InternalContext } from '../src/provider.js';
+import { EverframeProvider, EverframeContext, type InternalContext } from '../src/provider.js';
 
 // Child-component idiom for reaching the adapter/client from a test, matching
 // provider-outbox-drain-identity-gate.spec.tsx: rendered AS A CHILD of
-// TraceItXProvider so its effect commits inside the same tree, and it simply
+// EverframeProvider so its effect commits inside the same tree, and it simply
 // stashes the context in a test-scoped variable for direct assertions below
 // (e.g. forcing a read via `__identityTokenReader.get(...)`).
 let ctxRef: InternalContext | null = null;
 function Ctx() {
-  const ctx = useContext(TraceItXContext);
+  const ctx = useContext(EverframeContext);
   useEffect(() => {
     ctxRef = ctx;
   });
@@ -29,7 +29,7 @@ function Ctx() {
  *  shape a host's real auth-wiring component takes. Used by the
  *  "no identity prop" test to prove a MANUAL integration survives untouched. */
 function ManualIdentitySetter({ token }: { token: string }) {
-  const ctx = useContext(TraceItXContext);
+  const ctx = useContext(EverframeContext);
   useEffect(() => {
     ctx?.client.setIdentityToken(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,9 +115,9 @@ describe('identity prop', () => {
     stubFetch(h, () => mkJwt('u_alice'));
 
     render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -131,9 +131,9 @@ describe('identity prop', () => {
     stubFetch(h, () => mkJwt('u_alice'));
 
     render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -148,12 +148,12 @@ describe('identity prop', () => {
     let nth = 0;
 
     const { rerender } = render(
-      <TraceItXProvider
+      <EverframeProvider
         config={config}
         identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ authorization: `Bearer t${nth++}` }) }}
       >
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
     const first = h.calls.length;
@@ -162,12 +162,12 @@ describe('identity prop', () => {
 
     // A NEW key forces a new mint; the header must be recomputed, not replayed.
     rerender(
-      <TraceItXProvider
+      <EverframeProvider
         config={config}
         identity={{ endpoint: '/mint', key: 'u_bob', headers: () => ({ authorization: `Bearer t${nth++}` }) }}
       >
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -189,24 +189,24 @@ describe('identity prop', () => {
     stubFetch(h, () => mkJwtExpiringIn(10)); // seconds — inside the 30s margin
 
     const { rerender } = render(
-      <TraceItXProvider
+      <EverframeProvider
         config={config}
         identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ authorization: 'Bearer OLD' }) }}
       >
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
     expect(h.calls.at(-1)!.headers.authorization).toBe('Bearer OLD');
 
     // SAME key. Only the callback changes — exactly what a rotating token looks like.
     rerender(
-      <TraceItXProvider
+      <EverframeProvider
         config={config}
         identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ authorization: 'Bearer NEW' }) }}
       >
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -224,18 +224,18 @@ describe('identity prop', () => {
     stubFetch(h, () => mkJwt('u_alice'));
 
     const { rerender } = render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}>
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
     const after = h.calls.length;
 
     for (let i = 0; i < 3; i++) {
       rerender(
-        <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}>
+        <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}>
           <div />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
       await flush();
     }
@@ -248,17 +248,17 @@ describe('identity prop', () => {
     stubFetch(h, () => mkJwt('u_alice'));
 
     const { rerender } = render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
     const after = h.calls.length;
 
     rerender(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint' }}>
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -293,9 +293,9 @@ describe('identity prop', () => {
 
     expect(() =>
       render(
-        <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+        <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
           <div />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       ),
     ).not.toThrow();
     await flush();
@@ -320,9 +320,9 @@ describe('identity prop', () => {
     }));
 
     render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -350,9 +350,9 @@ describe('identity prop', () => {
     }));
 
     render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -376,10 +376,10 @@ describe('identity prop', () => {
     const manualToken = mkJwt('u_manual');
 
     render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <Ctx />
         <ManualIdentitySetter token={manualToken} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -418,18 +418,18 @@ describe('identity prop', () => {
     );
 
     const { rerender } = render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint-alice', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint-alice', key: 'u_alice' }}>
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
     expect(calls.some((u) => u.includes('/mint-alice'))).toBe(true);
     expect(calls.some((u) => u.includes('/mint-bob'))).toBe(false);
 
     rerender(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint-bob', key: 'u_bob' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint-bob', key: 'u_bob' }}>
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -479,12 +479,12 @@ describe('identity prop', () => {
     });
 
     const { rerender } = render(
-      <TraceItXProvider
+      <EverframeProvider
         config={config}
         identity={{ endpoint: '/mint-alice', key: 'u_alice', headers: () => aliceHeadersPromise }}
       >
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     // Let the warm mint begin and reach `await headers()`, but do NOT
     // resolve it yet — it stays pending across the switch below. Nothing has
@@ -494,12 +494,12 @@ describe('identity prop', () => {
 
     // Switch to Bob WHILE Alice's headers() is still pending.
     rerender(
-      <TraceItXProvider
+      <EverframeProvider
         config={config}
         identity={{ endpoint: '/mint-bob', key: 'u_bob', headers: () => ({ authorization: 'Bearer BOB_LIVE' }) }}
       >
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -534,7 +534,7 @@ describe('identity prop', () => {
 
     const observations: Array<{ userId: string; token: string | null }> = [];
     function Observer({ userId }: { userId: string }) {
-      const ctx = useContext(TraceItXContext);
+      const ctx = useContext(EverframeContext);
       useEffect(() => {
         if (!ctx) return;
         void ctx.adapter.__identityTokenReader.get(Date.now()).then((token) => {
@@ -546,10 +546,10 @@ describe('identity prop', () => {
     }
 
     const { rerender } = render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <Ctx />
         <Observer userId="u_alice" />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -562,10 +562,10 @@ describe('identity prop', () => {
     });
 
     rerender(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
         <Ctx />
         <Observer userId="u_bob" />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -592,7 +592,7 @@ describe('identity prop', () => {
 
     const observations: Array<{ userId: string; token: string | null }> = [];
     function LayoutObserver({ userId }: { userId: string }) {
-      const ctx = useContext(TraceItXContext);
+      const ctx = useContext(EverframeContext);
       useLayoutEffect(() => {
         if (!ctx) return;
         void ctx.adapter.__identityTokenReader.get(Date.now()).then((token) => {
@@ -604,10 +604,10 @@ describe('identity prop', () => {
     }
 
     const { rerender } = render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <Ctx />
         <LayoutObserver userId="u_alice" />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -620,10 +620,10 @@ describe('identity prop', () => {
     });
 
     rerender(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
         <Ctx />
         <LayoutObserver userId="u_bob" />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -652,7 +652,7 @@ describe('identity prop', () => {
 
     const observations: Array<string | null> = [];
     function LayoutObserver({ tag }: { tag: string }) {
-      const ctx = useContext(TraceItXContext);
+      const ctx = useContext(EverframeContext);
       useLayoutEffect(() => {
         if (!ctx) return;
         void ctx.adapter.__identityTokenReader.get(Date.now()).then((token) => {
@@ -679,9 +679,9 @@ describe('identity prop', () => {
 
     const { rerender } = render(
       <Suspense fallback={<div>loading</div>}>
-        <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+        <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
           <Ctx />
-        </TraceItXProvider>
+        </EverframeProvider>
       </Suspense>,
     );
     await flush();
@@ -699,11 +699,11 @@ describe('identity prop', () => {
       startTransition(() => {
         rerender(
           <Suspense fallback={<div>loading</div>}>
-            <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
+            <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
               <Ctx />
               <SuspendUntilResolved />
               <LayoutObserver tag="bob" />
-            </TraceItXProvider>
+            </EverframeProvider>
           </Suspense>,
         );
       });
@@ -718,7 +718,7 @@ describe('identity prop', () => {
     });
 
     // NOW resume the transition. React retries the suspended boundary — the
-    // component tree, including TraceItXProvider, renders again — and this
+    // component tree, including EverframeProvider, renders again — and this
     // time SuspendUntilResolved returns instead of throwing, so the retry
     // commits Bob. `LayoutObserver`'s layout effect fires DURING that commit.
     await act(async () => {
@@ -745,7 +745,7 @@ describe('identity prop', () => {
     // tree's guard reads, with no commit ever arriving to resolve it.
     // Reproduced here with a REAL indefinite suspension: a sibling that
     // throws a promise which never resolves, inside a <Suspense> that
-    // already has Alice's tree committed. React runs TraceItXProvider's
+    // already has Alice's tree committed. React runs EverframeProvider's
     // render (mutating the guard's ref) before it reaches the sibling that
     // suspends, then discards the whole attempt without committing — so
     // Alice's tree stays mounted and its context/client object (captured
@@ -786,7 +786,7 @@ describe('identity prop', () => {
     // chance to run.
     const revertObservations: Array<string | null> = [];
     function RevertLayoutObserver({ tag }: { tag: string }) {
-      const ctx = useContext(TraceItXContext);
+      const ctx = useContext(EverframeContext);
       useLayoutEffect(() => {
         if (!ctx) return;
         void ctx.adapter.__identityTokenReader.get(Date.now()).then((token) => {
@@ -799,10 +799,10 @@ describe('identity prop', () => {
 
     const { rerender } = render(
       <Suspense fallback={<div>loading</div>}>
-        <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+        <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
           <Ctx />
           <SuspendForever active={false} />
-        </TraceItXProvider>
+        </EverframeProvider>
       </Suspense>,
     );
     await flush();
@@ -824,7 +824,7 @@ describe('identity prop', () => {
     // so a LATER render back to Alice still has to diff against Bob and
     // re-fires this hook's install/invalidate effects), `startTransition`
     // keeps Alice's ALREADY-COMMITTED tree on screen with NO fallback and NO
-    // commit of Bob's attempt at all: TraceItXProvider's render function
+    // commit of Bob's attempt at all: EverframeProvider's render function
     // still runs for Bob (mutating the SAME `suspectedRef` object the
     // visible Alice fiber reads — `useRef`'s cell is shared between a fiber
     // and its in-progress alternate, so this write is observable immediately
@@ -836,10 +836,10 @@ describe('identity prop', () => {
       startTransition(() => {
         rerender(
           <Suspense fallback={<div>loading</div>}>
-            <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
+            <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_bob' }}>
               <Ctx />
               <SuspendForever active={true} />
-            </TraceItXProvider>
+            </EverframeProvider>
           </Suspense>,
         );
       });
@@ -865,11 +865,11 @@ describe('identity prop', () => {
     // transition — those effects correctly see no change and don't re-fire.
     rerender(
       <Suspense fallback={<div>loading</div>}>
-        <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+        <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
           <Ctx />
           <SuspendForever active={false} />
           <RevertLayoutObserver tag="revert" />
-        </TraceItXProvider>
+        </EverframeProvider>
       </Suspense>,
     );
     await flush();
@@ -901,9 +901,9 @@ describe('identity prop', () => {
     stubFetch(h, () => mkJwt('u_alice'));
 
     const { rerender } = render(
-      <TraceItXProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
+      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 
@@ -916,9 +916,9 @@ describe('identity prop', () => {
     });
 
     rerender(
-      <TraceItXProvider config={config} identity={undefined}>
+      <EverframeProvider config={config} identity={undefined}>
         <Ctx />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush();
 

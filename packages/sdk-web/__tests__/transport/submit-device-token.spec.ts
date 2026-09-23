@@ -3,12 +3,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { submitReportFromDraft, drainOutbox } from '../../src/transport/submit.js';
-import { createInMemoryOutbox } from '@traceitx/sdk-core';
-import type { OutboxAdapter, ReportDraft, ReporterCredentialStore } from '@traceitx/sdk-core';
+import { createInMemoryOutbox } from '@everframe/sdk-core';
+import type { OutboxAdapter, ReportDraft, ReporterCredentialStore } from '@everframe/sdk-core';
 import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 
-const config: WebTraceItXConfig = {
+const config: WebEverframeConfig = {
   apiKey: 'txx_live_test',
   appName: 'test-app',
   appVersion: '1.0.0',
@@ -80,7 +80,7 @@ describe('submitReportFromDraft — device token', () => {
     });
     const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
     const headers = call[1].headers;
-    expect(headers['X-TX-Device-Token']).toMatch(/^txr_[A-Za-z0-9_-]{43}$/); // minted via ensureDeviceToken
+    expect(headers['X-Everframe-Device-Token']).toMatch(/^evr_[A-Za-z0-9_-]{43}$/); // minted via ensureDeviceToken
     expect(saved).toHaveLength(1); // ensureDeviceToken persisted the mint
     expect(result.threadId).toBe('t9');
   });
@@ -88,7 +88,7 @@ describe('submitReportFromDraft — device token', () => {
   it('reports threadId null when the server omits the block', async () => {
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
-      load: async () => 'txr_' + 'b'.repeat(43),
+      load: async () => 'evr_' + 'b'.repeat(43),
       save: async () => {},
       clear: async () => {},
     };
@@ -116,7 +116,7 @@ describe('submitReportFromDraft — device token', () => {
     });
     expect(result.ok).toBe(true);
     const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
-    expect(call[1].headers['X-TX-Device-Token']).toBeUndefined();
+    expect(call[1].headers['X-Everframe-Device-Token']).toBeUndefined();
   });
 
   it('does not set a device token header when credentials is omitted', async () => {
@@ -126,7 +126,7 @@ describe('submitReportFromDraft — device token', () => {
       fetch: fetchImpl as unknown as typeof globalThis.fetch,
     });
     const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
-    expect(call[1].headers['X-TX-Device-Token']).toBeUndefined();
+    expect(call[1].headers['X-Everframe-Device-Token']).toBeUndefined();
   });
 
   // Finding 1-CLIENT — the local veto (`replies: { disabled: true }`) nulls
@@ -142,7 +142,7 @@ describe('submitReportFromDraft — device token', () => {
   it('ignores a server-provisioned thread/device block end-to-end when no credentials store is in play (local veto)', async () => {
     const fetchImpl = makeResponseFetch({
       thread: { id: 't9' },
-      device: { token: 'txr_' + 'c'.repeat(43) },
+      device: { token: 'evr_' + 'c'.repeat(43) },
     });
     const result = await submitReportFromDraft({
       ...baseDeps,
@@ -150,12 +150,12 @@ describe('submitReportFromDraft — device token', () => {
       credentials: null, // the veto already nulls the seam before this call
     });
     expect(result.threadId).toBeNull();
-    // No X-TX-Device-Token header was ever sent (the veto omits it), and
+    // No X-Everframe-Device-Token header was ever sent (the veto omits it), and
     // nothing exists to persist into since the seam itself is null — the
     // fix must not conjure a store to write to just because the server
     // echoed a thread/device block.
     const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
-    expect(call[1].headers['X-TX-Device-Token']).toBeUndefined();
+    expect(call[1].headers['X-Everframe-Device-Token']).toBeUndefined();
   });
 
   // Round-5 PR-review item 6 — the local veto (`replies: { disabled: true }`)
@@ -167,7 +167,7 @@ describe('submitReportFromDraft — device token', () => {
   // decide whether to null out `credentials` in the first place (see
   // adapter.ts's `reporterCredentials` seam), rather than re-derived from
   // `credentials`'s absence.
-  it('sends X-TX-Replies-Opt-Out: 1 when the local veto (config.replies.disabled) is active', async () => {
+  it('sends X-Everframe-Replies-Opt-Out: 1 when the local veto (config.replies.disabled) is active', async () => {
     const fetchImpl = makeResponseFetch({});
     await submitReportFromDraft({
       ...baseDeps,
@@ -176,13 +176,13 @@ describe('submitReportFromDraft — device token', () => {
       credentials: null,
     });
     const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
-    expect(call[1].headers['X-TX-Replies-Opt-Out']).toBe('1');
+    expect(call[1].headers['X-Everframe-Replies-Opt-Out']).toBe('1');
   });
 
-  it('does not send X-TX-Replies-Opt-Out when the local veto is not active', async () => {
+  it('does not send X-Everframe-Replies-Opt-Out when the local veto is not active', async () => {
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
-      load: async () => 'txr_' + 'b'.repeat(43),
+      load: async () => 'evr_' + 'b'.repeat(43),
       save: async () => {},
       clear: async () => {},
     };
@@ -193,7 +193,7 @@ describe('submitReportFromDraft — device token', () => {
       credentials: store,
     });
     const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
-    expect('X-TX-Replies-Opt-Out' in call[1].headers).toBe(false);
+    expect('X-Everframe-Replies-Opt-Out' in call[1].headers).toBe(false);
   });
 });
 
@@ -215,8 +215,8 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
   });
 
   it("propagates a server-minted replacement token to the batch's subsequent items", async () => {
-    const originalToken = 'txr_' + 'a'.repeat(43);
-    const rotatedToken = 'txr_' + 'f'.repeat(43);
+    const originalToken = 'evr_' + 'a'.repeat(43);
+    const rotatedToken = 'evr_' + 'f'.repeat(43);
     let stored = originalToken;
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
@@ -277,16 +277,16 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
 
     // First item presents the original (possibly revoked) token — that's what
     // triggered the server to mint a replacement in the first place.
-    expect(firstHeaders['X-TX-Device-Token']).toBe(originalToken);
+    expect(firstHeaders['X-Everframe-Device-Token']).toBe(originalToken);
     // The SECOND item must present the rotated token the first response
     // handed back, not the stale original.
-    expect(secondHeaders['X-TX-Device-Token']).toBe(rotatedToken);
+    expect(secondHeaders['X-Everframe-Device-Token']).toBe(rotatedToken);
     // And the store must hold exactly the rotated token at the end.
     expect(stored).toBe(rotatedToken);
   });
 
   it('unchanged: with no rotation, both items present the same original token', async () => {
-    const originalToken = 'txr_' + 'a'.repeat(43);
+    const originalToken = 'evr_' + 'a'.repeat(43);
     let stored = originalToken;
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
@@ -326,8 +326,8 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
 
     const firstHeaders = (fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
     const secondHeaders = (fetchImpl.mock.calls[1] as unknown as [string, { headers: Record<string, string> }])[1].headers;
-    expect(firstHeaders['X-TX-Device-Token']).toBe(originalToken);
-    expect(secondHeaders['X-TX-Device-Token']).toBe(originalToken);
+    expect(firstHeaders['X-Everframe-Device-Token']).toBe(originalToken);
+    expect(secondHeaders['X-Everframe-Device-Token']).toBe(originalToken);
     expect(stored).toBe(originalToken);
   });
 });
@@ -344,7 +344,7 @@ describe('drainOutbox — replies opt-out header', () => {
 
   async function drainOneItem(opts: {
     fetchImpl: ReturnType<typeof vi.fn>;
-    driveConfig: WebTraceItXConfig;
+    driveConfig: WebEverframeConfig;
     credentials?: ReporterCredentialStore | null;
   }) {
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -365,7 +365,7 @@ describe('drainOutbox — replies opt-out header', () => {
     });
   }
 
-  it('sends X-TX-Replies-Opt-Out: 1 on a drained item when the local veto is active', async () => {
+  it('sends X-Everframe-Replies-Opt-Out: 1 on a drained item when the local veto is active', async () => {
     const fetchImpl = vi.fn(async () => new Response(
       JSON.stringify({ status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false }),
       { status: 200, headers: { 'content-type': 'application/json' } },
@@ -376,13 +376,13 @@ describe('drainOutbox — replies opt-out header', () => {
       credentials: null,
     });
     const headers = (fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
-    expect(headers['X-TX-Replies-Opt-Out']).toBe('1');
+    expect(headers['X-Everframe-Replies-Opt-Out']).toBe('1');
   });
 
-  it('does not send X-TX-Replies-Opt-Out on a drained item when the local veto is not active', async () => {
+  it('does not send X-Everframe-Replies-Opt-Out on a drained item when the local veto is not active', async () => {
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
-      load: async () => 'txr_' + 'd'.repeat(43),
+      load: async () => 'evr_' + 'd'.repeat(43),
       save: async () => {},
       clear: async () => {},
     };
@@ -392,12 +392,12 @@ describe('drainOutbox — replies opt-out header', () => {
     ));
     await drainOneItem({ fetchImpl, driveConfig: config, credentials: store });
     const headers = (fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
-    expect('X-TX-Replies-Opt-Out' in headers).toBe(false);
+    expect('X-Everframe-Replies-Opt-Out' in headers).toBe(false);
   });
 });
 
 // Round-6 PR-review Finding 1 (HIGH) — the localStorage outbox is
-// origin-wide (every `traceitx:outbox:*` key regardless of which mounted
+// origin-wide (every `everframe:outbox:*` key regardless of which mounted
 // app enqueued it), but each app owns an app-SCOPED reply credential
 // (device token + veto). Pre-fix, `drainOutbox` resolved ONE token and ONE
 // `repliesOptOut` from whichever app happens to be mounted and applied it
@@ -417,7 +417,7 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
 
   const APP_A_KEY = 'txx_live_app_a';
   const APP_B_KEY = 'txx_live_app_b';
-  const configB: WebTraceItXConfig = { ...config, apiKey: APP_B_KEY };
+  const configB: WebEverframeConfig = { ...config, apiKey: APP_B_KEY };
 
   async function seedTwoAppOutbox(): Promise<OutboxAdapter> {
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -441,7 +441,7 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
   }
 
   it("presents app B's token with no opt-out for the B item, and app A's key with NO device token but the opt-out header for the A item", async () => {
-    const bToken = 'txr_' + 'b'.repeat(43);
+    const bToken = 'evr_' + 'b'.repeat(43);
     let storedB = bToken;
     const storeB: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
@@ -476,20 +476,20 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
     expect(aCall).toBeDefined();
 
     // The B item: this app's token presented, no opt-out header.
-    expect(bCall![1].headers['X-TX-Device-Token']).toBe(bToken);
-    expect('X-TX-Replies-Opt-Out' in bCall![1].headers).toBe(false);
+    expect(bCall![1].headers['X-Everframe-Device-Token']).toBe(bToken);
+    expect('X-Everframe-Replies-Opt-Out' in bCall![1].headers).toBe(false);
 
     // The A (foreign) item: NO device token, and the opt-out header IS sent
     // even though app B's own local veto is not active.
-    expect(aCall![1].headers['X-TX-Device-Token']).toBeUndefined();
-    expect(aCall![1].headers['X-TX-Replies-Opt-Out']).toBe('1');
+    expect(aCall![1].headers['X-Everframe-Device-Token']).toBeUndefined();
+    expect(aCall![1].headers['X-Everframe-Replies-Opt-Out']).toBe('1');
 
     // App B's store is unaffected by the foreign item.
     expect(storedB).toBe(bToken);
   });
 
   it("does not persist a foreign item's server-minted device token into this app's store", async () => {
-    const bToken = 'txr_' + 'b'.repeat(43);
+    const bToken = 'evr_' + 'b'.repeat(43);
     let storedB = bToken;
     const storeB: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
@@ -507,7 +507,7 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: APP_A_KEY },
     });
 
-    const foreignMintedToken = 'txr_' + 'f'.repeat(43);
+    const foreignMintedToken = 'evr_' + 'f'.repeat(43);
     const fetchImpl = vi.fn(async () => new Response(
       JSON.stringify({
         status: 'received',

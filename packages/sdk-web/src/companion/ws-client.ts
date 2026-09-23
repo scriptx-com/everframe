@@ -22,7 +22,7 @@
 import { readBlobArrayBuffer } from '../internal/blob.js';
 
 import type { z, ZodType } from 'zod';
-import { relay } from '@traceitx/protocol';
+import { relay } from '@everframe/protocol';
 import { INGEST_URL } from '../constants.js';
 import type { CompanionAPI } from './state.js';
 import { announce } from './announce.js';
@@ -37,7 +37,7 @@ import {
   __companionShouldSettleOnCancel,
 } from './capture-bridge.js';
 
-// `relay.RelayMessage` is type-only in @traceitx/protocol's bundled `.d.ts`
+// `relay.RelayMessage` is type-only in @everframe/protocol's bundled `.d.ts`
 // (tsup namespace re-export collapses const+type aliases to type-only when
 // the identifier appears in both positions — see packages/protocol/dist/
 // index.d.ts:444). The runtime VALUE is exported normally — we reach it via
@@ -82,7 +82,7 @@ const TOTAL_RECONNECT_BUDGET_MS = 5 * 60 * 1_000;
 // the ingest service/docs/relay-threat-model.md.
 const TERMINAL_CLOSE_CODES = new Set<number>([4001, 4002, 4003, 4004]);
 
-const DEVICE_TOKEN_KEY = 'traceitx-companion:device-token';
+const DEVICE_TOKEN_KEY = 'everframe-companion:device-token';
 
 // External review W1: bounds the ENTIRE device-resolution step inside
 // connectWithAnnounce. A host `deviceProvider` that never settles (or throws
@@ -164,7 +164,7 @@ export interface RelayWSClient {
    * Companion attribution token captured off the most recent `pair.bonded`
    * frame that carried one (dashboard-initiated attach only — `null` on an
    * ordinary QR bond). Consumed by the capture-bridge submit path as the
-   * `X-TX-Companion-Attribution` header. SECURITY: never log the return value.
+   * `X-Everframe-Companion-Attribution` header. SECURITY: never log the return value.
    */
   getCompanionAttribution(): string | null;
 }
@@ -409,7 +409,7 @@ export function createRelayWSClient(opts: RelayWSClientOpts): RelayWSClient {
         // Companion attach (spec 2026-08-07): both fields are OPTIONAL and
         // both absent on an ordinary QR bond. SECURITY: never log
         // `attribution_token` — it rides straight to the capture-bridge
-        // submit path as the X-TX-Companion-Attribution header and nowhere
+        // submit path as the X-Everframe-Companion-Attribution header and nowhere
         // else. Explicitly reset to null when absent so a later ordinary
         // bond on the same session can never inherit a stale companion
         // identity from an earlier dashboard attach.

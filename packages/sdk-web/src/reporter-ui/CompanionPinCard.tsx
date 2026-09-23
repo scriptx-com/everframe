@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Built-in attach-PIN surface (spec 2026-08-19). Mounted unconditionally by
-// TraceItXProvider; renders nothing until an attach.challenge is live on the
+// EverframeProvider; renders nothing until an attach.challenge is live on the
 // companion singleton AND the host left attachPinUi at 'builtin'. An attach
 // request can arrive while the user is on ANY screen — this card cannot live
 // on the host's companion screen, which may be unmounted.
@@ -30,12 +30,12 @@ export function CompanionPinCard(): React.ReactElement | null {
   return (
     <div
       role="status"
-      data-traceitx-pin-card=""
+      data-everframe-pin-card=""
       // The code rendered here is a live attach-consent secret — it must
       // never rasterize into a submitted screenshot or serialize into a
-      // replay recording. `data-traceitx-skip-capture="true"` drops this
+      // replay recording. `data-everframe-skip-capture="true"` drops this
       // subtree from both the screenshot clone filter (screenshot.ts) and
-      // the UI-tree DOM walk (ui-tree-dom.ts); `data-traceitx-sensitive`
+      // the UI-tree DOM walk (ui-tree-dom.ts); `data-everframe-sensitive`
       // is the SENSITIVE_ATTR the replay recorder maps onto rrweb's
       // blockSelector (mask-mapping.ts) so the subtree is never serialized
       // into a replay event either. Both are required — they cover
@@ -55,10 +55,10 @@ export function CompanionPinCard(): React.ReactElement | null {
       // ONLY thing standing between a late-mounted card and a raw code in
       // the replay stream.
       className="rr-block"
-      data-traceitx-skip-capture="true"
-      data-traceitx-sensitive=""
+      data-everframe-skip-capture="true"
+      data-everframe-sensitive=""
       style={{
-        // One BELOW --txx-z-modal (reporter.css.ts: 2147483646) — this card
+        // One BELOW --everframe-z-modal (reporter.css.ts: 2147483646) — this card
         // mounts after <ReporterDialog/> in provider.tsx, so a TIE would
         // paint on top of an open reporter. Staying strictly lower is what
         // makes "an open reporter still wins" actually true.
@@ -75,7 +75,7 @@ export function CompanionPinCard(): React.ReactElement | null {
         {challenge.code}
       </div>
       <div style={{ fontSize: 12, opacity: 0.6 }}>
-        Enter this code in the TraceItX dashboard
+        Enter this code in the Everframe dashboard
       </div>
     </div>
   );

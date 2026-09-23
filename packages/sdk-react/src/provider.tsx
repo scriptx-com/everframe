@@ -7,10 +7,10 @@ import {
   __internalClientState,
   IDENTITY_PROVIDER_TIMEOUT_MS,
   resolveClientExtra,
-  type TraceItXClient,
+  type EverframeClient,
   type ThreadClientState,
   type UserMetadata,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import {
   createWebPlatformAdapter,
   __registerDashboardHotkey,
@@ -24,11 +24,11 @@ import {
   INGEST_URL,
   createScreenRecorder,
   type WebPlatformAdapter,
-  type WebTraceItXConfig,
+  type WebEverframeConfig,
   type ReporterResult,
-} from '@traceitx/web';
+} from '@everframe/web';
 import { useIdentityProp, type IdentityProp } from './identity-prop.js';
-// The reporter UI lives in @traceitx/web now (the vanilla SDK has to render
+// The reporter UI lives in @everframe/web now (the vanilla SDK has to render
 // the same dialog). `/ui` is its React entry, built with react/react-dom
 // EXTERNAL — so these components run on the host's React, the one this
 // package already takes as a peer dependency, and not a second bundled copy.
@@ -41,24 +41,24 @@ import {
   InboxDialog,
   Toast,
   type ToastTone,
-} from '@traceitx/web/ui';
+} from '@everframe/web/ui';
 import { PKG_VERSION } from './internal/version.js';
 import { __setCurrentContext } from './contextSeam.js';
 
 export interface InternalContext {
-  client: TraceItXClient;
+  client: EverframeClient;
   adapter: WebPlatformAdapter;
-  config: WebTraceItXConfig;
+  config: WebEverframeConfig;
   /** Freeze-then-open helper — freezes the replay buffer before mounting the modal. */
   openModal: () => void;
 }
 
-export const TraceItXContext = createContext<InternalContext | null>(null);
+export const EverframeContext = createContext<InternalContext | null>(null);
 
-export interface TraceItXProviderProps {
-  config: WebTraceItXConfig;
+export interface EverframeProviderProps {
+  config: WebEverframeConfig;
   /**
-   * Verified recognition via @traceitx/identity. Unlike `config` — which is
+   * Verified recognition via @everframe/identity. Unlike `config` — which is
    * frozen at mount — this prop is LIVE: change `key` on sign-in/switch, drop
    * it on sign-out.
    */
@@ -87,7 +87,7 @@ async function sha256OfBytes(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function TraceItXProvider({ config, identity, children }: TraceItXProviderProps) {
+export function EverframeProvider({ config, identity, children }: EverframeProviderProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({
@@ -125,13 +125,13 @@ export function TraceItXProvider({ config, identity, children }: TraceItXProvide
 
   const ctxValue = useMemo<InternalContext>(() => {
     // The adapter's own crash path stamps `envelope.sdk.name` + `.version`.
-    // It lives in @traceitx/web now — a package with a different name on the
+    // It lives in @everframe/web now — a package with a different name on the
     // wire and an independently versioned PKG_VERSION — so tell it which SDK
     // is actually hosting, as a constructor argument, in the same step that
     // creates the adapter (and therefore installs the crash handlers), so no
     // crash can be observed under the wrong SDK identity.
     const adapter = createWebPlatformAdapter(config, {
-      sdkName: 'traceitx-react',
+      sdkName: 'everframe-react',
       sdkVersion: PKG_VERSION,
     });
     const client = createClient(adapter);
@@ -312,7 +312,7 @@ export function TraceItXProvider({ config, identity, children }: TraceItXProvide
   }, [ctxValue]);
 
   // Session Vitals (spec 2026-09-01), react half — Codex round-1 finding S1.
-  // `@traceitx/web`'s `init.ts` calls `setupVitals()` right after building its
+  // `@everframe/web`'s `init.ts` calls `setupVitals()` right after building its
   // client/adapter; this Provider built the SAME adapter (via
   // `createWebPlatformAdapter`, above in the `ctxValue` memo) but never called
   // `setupVitals()` at all, so every React host shipped zero vitals sessions,
@@ -321,7 +321,7 @@ export function TraceItXProvider({ config, identity, children }: TraceItXProvide
   // single-init `useMemo`), `destroy()` in the cleanup. `isKilled` mirrors
   // init.ts's own predicate — sdk-core's permanent `state.killed`, not the
   // adapter's revivable `reportingKilled` — and `sdkName`/`sdkVersion` are
-  // this provider's own identity (`'traceitx-react'` / this package's
+  // this provider's own identity (`'everframe-react'` / this package's
   // `PKG_VERSION`), matching what `ctxValue`'s adapter was constructed with
   // above, not the vanilla SDK's.
   useEffect(() => {
@@ -556,7 +556,7 @@ export function TraceItXProvider({ config, identity, children }: TraceItXProvide
     ).__resolveReporterUI(payload);
     setModalOpen(false);
 
-    // Host free-form metadata set via useTraceItX().setExtra() — resolved
+    // Host free-form metadata set via useEverframe().setExtra() — resolved
     // HERE, at the in-app submit boundary, through the single
     // `resolveClientExtra` seam (a string or object form's value, or a
     // resolver's return value re-invoked fresh on every submit) so it lands
@@ -774,7 +774,7 @@ export function TraceItXProvider({ config, identity, children }: TraceItXProvide
   };
 
   return (
-    <TraceItXContext.Provider value={ctxValue}>
+    <EverframeContext.Provider value={ctxValue}>
       {children}
       <ReporterDialog
         open={modalOpen}
@@ -809,6 +809,6 @@ export function TraceItXProvider({ config, identity, children }: TraceItXProvide
         message={toast.message}
         onDismiss={() => setToast((prev) => ({ ...prev, open: false }))}
       />
-    </TraceItXContext.Provider>
+    </EverframeContext.Provider>
   );
 }

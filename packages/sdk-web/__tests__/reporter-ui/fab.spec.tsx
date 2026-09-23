@@ -14,12 +14,12 @@ describe('ReporterFab', () => {
     const btn = screen.getByRole('button', { name: 'Your reports' });
     fireEvent.click(btn);
     expect(onOpen).toHaveBeenCalledTimes(1);
-    expect(btn.querySelector('.txx-fab-dot')).toBeNull();
+    expect(btn.querySelector('.everframe-fab-dot')).toBeNull();
   });
 
   it('shows the unread dot and announces the count when unread > 0', () => {
     render(<ReporterFab unreadCount={3} onOpen={() => {}} />);
     const btn = screen.getByRole('button', { name: 'Your reports — 3 unread' });
-    expect(btn.querySelector('.txx-fab-dot')).not.toBeNull();
+    expect(btn.querySelector('.everframe-fab-dot')).not.toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import { createClient, __internalClientState } from '@traceitx/sdk-core';
+import { createClient, __internalClientState } from '@everframe/sdk-core';
 import {
   createWebPlatformAdapter,
   computeBodyCaptureEnabled,

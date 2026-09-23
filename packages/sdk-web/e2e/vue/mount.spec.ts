@@ -15,14 +15,14 @@ test.beforeEach(async ({ page }) => {
 test('a Vue host mounts exactly one ambient SDK host', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('home-heading')).toBeVisible();
-  await expect(page.getByTestId('home-heading')).toHaveText('TraceItX Web SDK Example');
+  await expect(page.getByTestId('home-heading')).toHaveText('Everframe Web SDK Example');
   await expect.poll(() => page.evaluate(hostCount), { timeout: 15_000 }).toBe(1);
 });
 
 test('init() ran from onMounted, so the handle exists after paint', async ({ page }) => {
   await page.goto('/');
   await expect
-    .poll(() => page.evaluate(() => typeof (window as never as Record<string, unknown>)['__traceitx']))
+    .poll(() => page.evaluate(() => typeof (window as never as Record<string, unknown>)['__everframe']))
     .toBe('object');
 });
 
@@ -40,7 +40,7 @@ test('unmount then remount leaves exactly one host, not two', async ({ page }) =
   await expect.poll(() => page.evaluate(hostCount), { timeout: 15_000 }).toBe(1);
 
   await page.evaluate(() => {
-    (window as unknown as { __traceitxRemount: () => void }).__traceitxRemount();
+    (window as unknown as { __everframeRemount: () => void }).__everframeRemount();
   });
 
   await expect.poll(() => page.evaluate(hostCount), { timeout: 15_000 }).toBe(1);

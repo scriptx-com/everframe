@@ -7,18 +7,18 @@
 // path (phase 4) is the remedy. Every access is try/caught because Safari
 // private mode and storage-partitioned iframes throw on touch; a store that
 // cannot persist quietly degrades to "server mints per submit".
-import type { ReporterCredentialStore } from '@traceitx/sdk-core';
-import { deriveInstallId } from '@traceitx/sdk-core';
+import type { ReporterCredentialStore } from '@everframe/sdk-core';
+import { deriveInstallId } from '@everframe/sdk-core';
 
 /**
  * Legacy (pre-scoping) storage key. localStorage is origin-scoped, not
- * app-scoped: multiple TraceItX-integrated apps on the same origin (or
+ * app-scoped: multiple Everframe-integrated apps on the same origin (or
  * multiple environments served off one domain) used to share this single
  * key, so app B's mint would silently overwrite app A's token and orphan
  * A's threads (PR review Finding 4). Kept around ONLY as the source for the
  * one-time migration below and as the legacy fallback name in tests.
  */
-export const LEGACY_REPORTER_TOKEN_STORAGE_KEY = 'txx.reporterDeviceToken';
+export const LEGACY_REPORTER_TOKEN_STORAGE_KEY = 'everframe.reporterDeviceToken';
 
 /** @deprecated Use {@link scopedReporterTokenStorageKey}. Kept for callers that referenced the old unscoped constant. */
 export const REPORTER_TOKEN_STORAGE_KEY = LEGACY_REPORTER_TOKEN_STORAGE_KEY;
@@ -58,7 +58,7 @@ function migrateLegacyToken(scopedKey: string): void {
 /**
  * @param scope App identity the token is namespaced under — pass the
  *   publishable `apiKey` (PR review Finding 4: the storage key is
- *   origin-wide by default, so without a scope, two TraceItX-integrated apps
+ *   origin-wide by default, so without a scope, two Everframe-integrated apps
  *   on one origin stomp each other's device token).
  */
 export function createLocalStorageCredentialStore(scope: string): ReporterCredentialStore | null {
@@ -147,7 +147,7 @@ export function createLocalStorageCredentialStore(scope: string): ReporterCreden
 //      never wipe this seed. Keeping the two entirely separate objects,
 //      under separate storage keys, makes that true by construction: there
 //      is no shared `clear()` for a 401 handler to accidentally reach.
-const INSTALL_SEED_STORAGE_KEY_PREFIX = 'txx.installSeed';
+const INSTALL_SEED_STORAGE_KEY_PREFIX = 'everframe.installSeed';
 /** 16 bytes → 32 lowercase hex chars. Plenty of distinctness for a metering seed; no secrecy requirement to justify more. */
 export const INSTALL_SEED_BYTES = 16;
 const INSTALL_SEED_HEX_RE = /^[0-9a-f]{32}$/;
@@ -243,7 +243,7 @@ export function deriveWebInstallId(scope: string): string | null {
   }
 }
 
-const INSTALL_DAY_STORAGE_KEY_PREFIX = 'txx.installIdDay';
+const INSTALL_DAY_STORAGE_KEY_PREFIX = 'everframe.installIdDay';
 
 export function scopedInstallDayStorageKey(scope: string): string {
   return `${INSTALL_DAY_STORAGE_KEY_PREFIX}.${scope}`;

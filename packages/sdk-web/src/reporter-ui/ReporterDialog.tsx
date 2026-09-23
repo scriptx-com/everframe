@@ -10,7 +10,7 @@ import {
   useSyncExternalStore,
   type JSX,
 } from 'react';
-import type { FocusedNode } from '@traceitx/protocol';
+import type { FocusedNode } from '@everframe/protocol';
 import type {
   LogEntry,
   NetworkEntry,
@@ -19,7 +19,7 @@ import type {
   Rect,
   ScreenshotResult,
   UserMetadata,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import { Modal } from './primitives/Modal.js';
 import { Button } from './primitives/Button.js';
 import { TextInput } from './primitives/TextInput.js';
@@ -300,8 +300,8 @@ export function ReporterDialog({
 
   // Safety net on the focus hold. The real `captureScreenshot` cannot hang —
   // it runs under `withDeadline` (capture-profile.ts) — but `ReporterDialog`
-  // is exported publicly (`@traceitx/web/ui`, re-exported by
-  // `@traceitx/react/preview`), so the adapter handed to it is not always
+  // is exported publicly (`@everframe/web/ui`, re-exported by
+  // `@everframe/react/preview`), so the adapter handed to it is not always
   // ours. A `captureScreenshot` that never settles would otherwise leave the
   // dialog on screen with focus permanently outside it: unreachable by
   // keyboard, unreachable by a TV remote, and unannounced to a screen reader.
@@ -450,7 +450,7 @@ export function ReporterDialog({
     setAddError(null);
     try {
       // Overlay unmounts before this await resolves (addStage left 'selecting'),
-      // and both overlay + modal are data-traceitx-skip-capture'd anyway.
+      // and both overlay + modal are data-everframe-skip-capture'd anyway.
       // The captured blob is VIEWPORT-anchored, so viewport-space CSS rect ×
       // the capture's ratio = image-pixel rect — no scroll math. The ratio is
       // derived from the SHOT (width / viewport width), NOT read off
@@ -522,12 +522,12 @@ export function ReporterDialog({
         deferAutoFocus={captureHoldsFocus}
         footer={
           <>
-            <span className="txx-footer-left">
+            <span className="everframe-footer-left">
               {showWatermark ? <Watermark /> : null}
               {attached.length > 0 ? (
-                <span className="txx-manifest" data-testid="context-manifest">
-                  <span className="txx-manifest-dot" aria-hidden="true" />
-                  <span className="txx-manifest-text">Attached: {attached.join(' · ')}</span>
+                <span className="everframe-manifest" data-testid="context-manifest">
+                  <span className="everframe-manifest-dot" aria-hidden="true" />
+                  <span className="everframe-manifest-text">Attached: {attached.join(' · ')}</span>
                 </span>
               ) : null}
             </span>
@@ -551,10 +551,10 @@ export function ReporterDialog({
           </>
         }
       >
-        <div data-testid="reporter-modal" className="txx-composer">
+        <div data-testid="reporter-modal" className="everframe-composer">
           {/* Form pane first in the DOM: the title input is the first
            * focusable, so the Modal's open-focus lands on it immediately. */}
-          <div className="txx-composer-form">
+          <div className="everframe-composer-form">
             <TextInput
               label="Title"
               value={title}
@@ -575,7 +575,7 @@ export function ReporterDialog({
               data-testid="report-description"
             />
           </div>
-          <div className="txx-composer-media">
+          <div className="everframe-composer-media">
             {activeShot ? (
               <AnnotateScreenshot
                 key={activeShot.id}
@@ -589,7 +589,7 @@ export function ReporterDialog({
                 Couldn&apos;t capture a screenshot. The rest of your report will still be sent.
               </NoticeStrip>
             ) : (
-              <p data-testid="capture-pending" className="txx-capture-pending">
+              <p data-testid="capture-pending" className="everframe-capture-pending">
                 Capturing report context…
               </p>
             )}

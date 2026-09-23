@@ -122,7 +122,7 @@ export function hasActiveStandIn(video: HTMLVideoElement): boolean {
 }
 
 /** Marks the elements we inject, so teardown can find them and never guess. */
-export const STAND_IN_ATTR = 'data-traceitx-video-stand-in';
+export const STAND_IN_ATTR = 'data-everframe-video-stand-in';
 
 /**
  * Ceiling on the poster fetch. The poster is a nicety on the degraded path, so
@@ -210,7 +210,7 @@ export function intersectsViewport(
 export function isExcludedFromCapture(el: Element, maskTargets: readonly Element[] = []): boolean {
   let node: Element | null = el;
   while (node) {
-    if (node.getAttribute?.('data-traceitx-skip-capture') === 'true') return true;
+    if (node.getAttribute?.('data-everframe-skip-capture') === 'true') return true;
     for (const target of maskTargets) {
       if (target === node) return true;
     }

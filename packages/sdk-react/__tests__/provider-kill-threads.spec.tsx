@@ -19,9 +19,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act, waitFor } from '@testing-library/react';
 import { useContext, useEffect } from 'react';
-import { TraceItXProvider, TraceItXContext } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@traceitx/web';
-import type { TraceItXClient } from '@traceitx/sdk-core';
+import { EverframeProvider, EverframeContext } from '../src/provider.js';
+import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
+import type { EverframeClient } from '@everframe/sdk-core';
 
 afterEach(() => {
   cleanup();
@@ -32,8 +32,8 @@ afterEach(() => {
 const config = { apiKey: 'txx_live_test' };
 
 /** Surfaces the sdk-core client to the test without reaching into module internals. */
-function ClientProbe({ onClient }: { onClient: (client: TraceItXClient) => void }) {
-  const ctx = useContext(TraceItXContext);
+function ClientProbe({ onClient }: { onClient: (client: EverframeClient) => void }) {
+  const ctx = useContext(EverframeContext);
   useEffect(() => {
     if (ctx) onClient(ctx.client);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,14 +90,14 @@ async function flush(ms = 20): Promise<void> {
 
 describe('finding 6: client.kill() terminally shuts down thread polling through the Provider', () => {
   it('kill() makes the FAB disappear, and a subsequent visibilitychange to visible does not resurrect polling', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     const { calls } = stubFetch();
 
-    let client: TraceItXClient | undefined;
+    let client: EverframeClient | undefined;
     const { getByTestId, queryByTestId } = render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <ClientProbe onClient={(c) => { client = c; }} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     await flush(30);

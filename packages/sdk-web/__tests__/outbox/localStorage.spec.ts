@@ -40,7 +40,7 @@ describe('createLocalStorageOutbox', () => {
     expect(Array.from(list[0]!.payload)).toEqual(Array.from(new Uint8Array(32).fill(0xab)));
   });
 
-  it('list() iterates only keys with traceitx:outbox: prefix; sorts by enqueuedAt asc', async () => {
+  it('list() iterates only keys with everframe:outbox: prefix; sorts by enqueuedAt asc', async () => {
     localStorage.setItem('unrelated:key', 'noise');
     const ob = createLocalStorageOutbox()!;
     await ob.enqueue(sampleItem('rep-3', 3000));
@@ -48,6 +48,19 @@ describe('createLocalStorageOutbox', () => {
     await ob.enqueue(sampleItem('rep-2', 2000));
     const list = await ob.list();
     expect(list.map((i) => i.reportId)).toEqual(['rep-1', 'rep-2', 'rep-3']);
+  });
+
+  it('starts a fresh queue instead of reading the old product prefix', async () => {
+    const oldPrefix = ['trace', 'itx:outbox:'].join('');
+    localStorage.setItem(`${oldPrefix}legacy`, JSON.stringify({
+      reportId: 'legacy',
+      enqueuedAt: 1,
+      attempts: 0,
+      payloadB64: 'AA==',
+      metadata: {},
+    }));
+    expect(KEY_PREFIX).toBe('everframe:outbox:');
+    expect(await createLocalStorageOutbox()!.list()).toEqual([]);
   });
 
   it('delete(reportId) removes the corresponding entry', async () => {

@@ -15,13 +15,13 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { companion } from "@traceitx/react";
+import { companion } from "@everframe/react";
 
 type CompanionState = companion.CompanionState;
 
-// Relay endpoint is baked into the @traceitx/react build at compile time
-// (Release bundle: https://traceitx.com; Dev bundle: TRACEITX_INGEST_URL
-// build env). For local dev, set `globalThis.__TRACEITX_DEV_INGEST_URL__`
+// Relay endpoint is baked into the @everframe/react build at compile time
+// (Release bundle: https://everframe.dev; Dev bundle: EVERFRAME_INGEST_URL
+// build env). For local dev, set `globalThis.__EVERFRAME_DEV_INGEST_URL__`
 // in this app's bootstrap before <App /> mounts.
 
 export function App(): React.JSX.Element {
@@ -68,7 +68,7 @@ export function App(): React.JSX.Element {
         gap: "32px",
       }}
     >
-      <h1 style={{ fontSize: 48, margin: 0 }}>TraceItX — React TV Sample</h1>
+      <h1 style={{ fontSize: 48, margin: 0 }}>Everframe — React TV Sample</h1>
 
       {state === "unpaired" && pairUrl && (
         <div style={{ background: "#fff", padding: 24, borderRadius: 12 }}>

@@ -12,7 +12,7 @@ import {
   __enableReplayTrace,
   __getReplayTrace,
   __resetReplayTrace,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import { createReplayRecorder } from '../../../src/capture/replay/recorder.js';
 
 const FULL = 2;

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { installFetchPatcher, type BodyCaptureHooks } from '../../src/capture/network.js';
-import { createNetworkBodyBuffer } from '@traceitx/sdk-core';
+import { createNetworkBodyBuffer } from '@everframe/sdk-core';
 
 describe('body capture end-to-end (patcher → buffer → snapshot)', () => {
   afterEach(() => vi.restoreAllMocks());

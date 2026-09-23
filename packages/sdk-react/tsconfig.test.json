@@ -25,7 +25,7 @@
     // own tsconfig.json `include`, and moving them here would be a downgrade.
     "noUncheckedIndexedAccess": false,
     "exactOptionalPropertyTypes": false,
-    // '@traceitx/sdk-core/conformance' is deliberately NOT a published
+    // '@everframe/sdk-core/conformance' is deliberately NOT a published
     // exports subpath (see packages/sdk-core/src/conformance/host-surface.ts's
     // header — it must stay out of the tsup-built artifact), so tsc has no
     // package.json entry to resolve it from. Mirror the vitest alias
@@ -33,7 +33,7 @@
     // SOURCE for the test runner, so `tsc -p tsconfig.test.json` can resolve
     // it too.
     "paths": {
-      "@traceitx/sdk-core/conformance": ["../sdk-core/src/conformance/host-surface.ts"]
+      "@everframe/sdk-core/conformance": ["../sdk-core/src/conformance/host-surface.ts"]
     }
   }
 }

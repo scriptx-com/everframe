@@ -10,7 +10,7 @@
 export function assertBrowser(): void {
   if (typeof window !== 'undefined' && typeof document !== 'undefined') return;
   throw new Error(
-    'TraceItX can only run in a browser. init() touches window, document and ' +
+    'Everframe can only run in a browser. init() touches window, document and ' +
       'localStorage, so call it from a client-side lifecycle hook — Vue: onMounted(), ' +
       'Svelte: onMount(), React: useEffect(), Astro: a client: directive — rather than ' +
       'at module scope in code that is server-rendered.',

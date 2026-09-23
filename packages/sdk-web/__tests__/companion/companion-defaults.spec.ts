@@ -27,7 +27,7 @@ describe('companion start-option defaults', () => {
     expect(resolved.deviceLabel).toBe('Kiosk 4');
   });
 
-  it('leaves fields absent when nothing is registered — standalone @traceitx/web is unchanged', () => {
+  it('leaves fields absent when nothing is registered — standalone @everframe/web is unchanged', () => {
     const resolved = __resolveCompanionStartOptionsForTests({});
     expect(resolved.sdkKey).toBeUndefined();
     expect(resolved.deviceLabel).toBeUndefined();

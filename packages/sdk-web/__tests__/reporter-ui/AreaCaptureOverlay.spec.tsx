@@ -64,7 +64,7 @@ describe('<AreaCaptureOverlay>', () => {
   // the customer's own content and gets painted by THEIR `::selection` rule —
   // then outlives the gesture, leaving their app looking washed in a colour
   // with no cue a selection is involved. `user-select: none` on
-  // `.txx-area-capture` is the other half of the guard; this is the half a
+  // `.everframe-area-capture` is the other half of the guard; this is the half a
   // spec can observe.
   it('prevents the default that anchors a text selection when a drag starts', () => {
     const { getByTestId } = render(

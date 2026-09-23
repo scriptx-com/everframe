@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { Rect } from '@traceitx/sdk-core';
+import type { Rect } from '@everframe/sdk-core';
 import {
   HIGHLIGHTER_OPACITY,
   HIGHLIGHTER_WIDTH_MULTIPLIER,

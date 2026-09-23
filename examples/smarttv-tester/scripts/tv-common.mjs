@@ -64,7 +64,7 @@ export function stageForPackaging(platform, { hostedUrl } = {}) {
       path.join(staging, 'index.html'),
       [
         '<!DOCTYPE html>',
-        '<html><head><meta charset="UTF-8"><title>TraceItX TV Tester</title></head>',
+        '<html><head><meta charset="UTF-8"><title>Everframe TV Tester</title></head>',
         '<body style="background:#0d0d28">',
         `<script>location.replace(${JSON.stringify(hostedUrl)});</script>`,
         '</body></html>',

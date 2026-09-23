@@ -9,8 +9,8 @@ const vanillaEntry = {
   format: ['esm'],
   // `noExternal` below only governs the JS bundle — tsup's dts step is a
   // separate rollup pass that does NOT honour it. Without this `resolve`, the
-  // emitted .d.ts keeps `import … from '@traceitx/sdk-core'` /
-  // '@traceitx/protocol' — packages that are `private: true` and will never
+  // emitted .d.ts keeps `import … from '@everframe/sdk-core'` /
+  // '@everframe/protocol' — packages that are `private: true` and will never
   // exist on npm, so every consumer install either hard-errors TS2307 or
   // (under the default `skipLibCheck: true`) silently degrades every leaked
   // type to `any`. Same reasoning, same fix as sdk-react's config.
@@ -30,14 +30,14 @@ const vanillaEntry = {
   // sdk-core produces fresh local declarations and `IdentityTokenHolder`
   // carries `private` members — making it NOMINALLY typed, so the inlined
   // copy and the original stop being mutually assignable and
-  // `@traceitx/react`'s provider.tsx (which imports the holder from sdk-core
+  // `@everframe/react`'s provider.tsx (which imports the holder from sdk-core
   // directly) fails at `adapter.__setIdentityTokenHolder(...)`. That was true
   // and is verifiable by reverting adapter.ts's `IdentityTokenHolderLike`.
   // It is fixed at the source rather than worked around here: that holder was
   // the ONLY nominal type anywhere in the inlined graph, and the adapter seam
   // now names the structural slice it actually consumes. See
   // `IdentityTokenHolderLike` in src/adapter.ts for the full account.
-  dts: { resolve: ['@traceitx/sdk-core', '@traceitx/protocol'] },
+  dts: { resolve: ['@everframe/sdk-core', '@everframe/protocol'] },
   // NOT `clean: true`. tsup runs an array of configs through `Promise.all`,
   // so a `clean` on either one races the other's write and can delete
   // dist/ui.js (or dist/index.js) that the sibling build just emitted. The
@@ -48,12 +48,12 @@ const vanillaEntry = {
   sourcemap: false,
   target: 'es2022',
   // Build-time URL substitution. The published bundle gets a literal string;
-  // the dev backdoor (the `TRACEITX_INGEST_URL` env var) leaves no trace in
+  // the dev backdoor (the `EVERFRAME_INGEST_URL` env var) leaves no trace in
   // the prod artifact — `define` replaces the placeholder before minify, so
   // there's nothing for `strings(1)` to find but the chosen URL.
   define: {
-    __TRACEITX_INGEST_URL__: JSON.stringify(
-      process.env.TRACEITX_INGEST_URL ?? 'https://traceitx.com',
+    __EVERFRAME_INGEST_URL__: JSON.stringify(
+      process.env.EVERFRAME_INGEST_URL ?? 'https://everframe.dev',
     ),
     // React is BUNDLED into this graph (see `noExternal` below), and both
     // react and react-dom branch on `process.env.NODE_ENV` at module scope.
@@ -76,9 +76,9 @@ const vanillaEntry = {
   // to install is handled positively, in `noExternal` below — see its note.
   external: [],
   // Bundle internal workspace packages into this dist — they are private
-  // workspace deps and don't exist on npm, so the published `@traceitx/web`
+  // workspace deps and don't exist on npm, so the published `@everframe/web`
   // must be a single self-contained bundle. Without this,
-  // the published `import '@traceitx/sdk-core'` would fail to resolve at
+  // the published `import '@everframe/sdk-core'` would fail to resolve at
   // the consumer's install time.
   //
   // `zod` is listed too, but for a different reason. It is a real
@@ -120,8 +120,8 @@ const vanillaEntry = {
   // alone would not reach npm consumers. Splitting keeps it out of page startup;
   // The patched screenshot dependency also stays in a separate lazy chunk.
   noExternal: [
-    '@traceitx/sdk-core',
-    '@traceitx/protocol',
+    '@everframe/sdk-core',
+    '@everframe/protocol',
     'zod',
     'react',
     'react-dom',
@@ -155,10 +155,10 @@ const vanillaEntry = {
   minify: true,
   esbuildOptions(options) {
     // `keepNames` is OFF — we accept the React DevTools cost (customer sees
-    // mangled single-letter names instead of `<TraceItXProvider>` /
+    // mangled single-letter names instead of `<EverframeProvider>` /
     // `<AnnotateCanvas>` / `<DiscardConfirmModal>` in their inspector tree)
     // in exchange for not shipping our internal component names as plain
-    // strings in the bundle. Public *exports* (TraceItXProvider, Sensitive,
+    // strings in the bundle. Public *exports* (EverframeProvider, Sensitive,
     // etc.) stay readable regardless — minify doesn't rename named exports.
     // Internal-only components (sdk-core implementations bundled via
     // `noExternal`) get fully mangled.
@@ -179,7 +179,7 @@ const vanillaEntry = {
   },
 } satisfies Options;
 
-// `src/ui.ts` — the React entry (`@traceitx/web/ui`). A SECOND config object,
+// `src/ui.ts` — the React entry (`@everframe/web/ui`). A SECOND config object,
 // not a second `entry` in the one above, so that the two builds can be given
 // different answers to "who owns React" as soon as that question has an
 // answer worth verifying. Today they are configured alike; what differs is
@@ -198,7 +198,7 @@ const vanillaEntry = {
 //                   packages were real `dependencies` a consumer did install;
 //                   the island is what made the correct set verifiable.
 //   dist/ui.js    — React EXTERNAL, deliberately and permanently.
-//                   `@traceitx/react` consumes this entry and supplies its
+//                   `@everframe/react` consumes this entry and supplies its
 //                   host's React; a second bundled copy would give that host
 //                   two React runtimes, and hooks and context cannot cross
 //                   that boundary.
@@ -216,14 +216,14 @@ const reactEntry = {
   // Same self-contained-declarations requirement as the vanilla entry above —
   // see its note for why `dts.resolve` is mandatory here and why `zod` is
   // excluded from it.
-  dts: { resolve: ['@traceitx/sdk-core', '@traceitx/protocol'] },
+  dts: { resolve: ['@everframe/sdk-core', '@everframe/protocol'] },
   sourcemap: false,
   // Same build-time URL substitution as the vanilla entry — the two builds
   // share source modules, so a placeholder reaching this graph must be
   // replaced here too or it would survive into the bundle as a free variable.
   define: {
-    __TRACEITX_INGEST_URL__: JSON.stringify(
-      process.env.TRACEITX_INGEST_URL ?? 'https://traceitx.com',
+    __EVERFRAME_INGEST_URL__: JSON.stringify(
+      process.env.EVERFRAME_INGEST_URL ?? 'https://everframe.dev',
     ),
   },
   // The React SDK supplies its host's React; bundling a second copy here
@@ -234,7 +234,7 @@ const reactEntry = {
   // moved them to optional peers so the vanilla entry could bundle them, and
   // that placement change would otherwise have flipped them to bundled HERE
   // too, silently doubling this entry's size and shipping a second copy of
-  // everything to `@traceitx/react` (which declares them itself).
+  // everything to `@everframe/react` (which declares them itself).
   external: [
     'react',
     'react-dom',
@@ -244,7 +244,7 @@ const reactEntry = {
     'react-konva',
     'konva',
   ],
-  noExternal: ['@traceitx/sdk-core', '@traceitx/protocol'],
+  noExternal: ['@everframe/sdk-core', '@everframe/protocol'],
   splitting: false,
   treeshake: true,
   // Same release policy as the vanilla entry above — see its esbuildOptions
@@ -258,8 +258,8 @@ const reactEntry = {
   // Same rollup-strips-'use client' workaround sdk-react carries: the bundle
   // pass drops the module-level directive (it warns about it by name), and a
   // React entry without it is not importable from a Next.js app-router server
-  // component. Re-inject it here so `@traceitx/web/ui` behaves like
-  // `@traceitx/react` does for the same consumers.
+  // component. Re-inject it here so `@everframe/web/ui` behaves like
+  // `@everframe/react` does for the same consumers.
   onSuccess: async () => {
     const { readFileSync, writeFileSync } = await import('node:fs');
     const path = 'dist/ui.js';
@@ -274,11 +274,11 @@ const reactEntry = {
 // loaded straight off a CDN by a page with no build step at all:
 //
 //   <script type="module">
-//     import { init } from 'https://cdn.jsdelivr.net/npm/@traceitx/web@0.6.6/dist/browser/index.js';
+//     import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@0.6.6/dist/browser/index.js';
 //     init({ apiKey: 'txx_live_…', appVersion: '1.0.0' });
 //   </script>
 //
-// This REPLACES the IIFE (`dist/traceitx.min.js`, built from a since-deleted
+// This REPLACES the IIFE (`dist/everframe.min.js`, built from a since-deleted
 // `src/cdn.ts`) that used to hold this slot. The IIFE bought nothing and cost
 // 3x. Every build here targets es2022, and every engine that can execute
 // es2022 has supported `<script type="module">` for years — modules shipped
@@ -309,7 +309,7 @@ const reactEntry = {
 // never imported by a TypeScript consumer, so it has no declaration to publish
 // and no entry in `exports`. Bundler consumers get `.` -> `dist/index.js`.
 //
-// No `window.traceitx` global, and no double-inclusion guard. `src/cdn.ts`
+// No `window.everframe` global, and no double-inclusion guard. `src/cdn.ts`
 // existed for both and needs to exist for neither: the browser's module
 // registry is keyed by URL, so the same URL imported twice evaluates once. Two
 // DIFFERENT versions on one page would still be two graphs — but `init()`'s
@@ -337,8 +337,8 @@ const browserEntry = {
   // resolver at all.
   noExternal: [/.*/],
   define: {
-    __TRACEITX_INGEST_URL__: JSON.stringify(
-      process.env.TRACEITX_INGEST_URL ?? 'https://traceitx.com',
+    __EVERFRAME_INGEST_URL__: JSON.stringify(
+      process.env.EVERFRAME_INGEST_URL ?? 'https://everframe.dev',
     ),
     // react and react-dom branch on `process.env.NODE_ENV` at MODULE SCOPE,
     // and a bare `process` reference is a ReferenceError in a browser. Pinned

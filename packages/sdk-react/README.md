@@ -31,15 +31,15 @@ Wrap your app once. The Provider mounts the floating bubble, registers the hotke
 
 ```tsx
 // app/layout.tsx (Next.js app router)
-import { TraceItXProvider } from '@everframe/react';
+import { EverframeProvider } from '@everframe/react';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
-        <TraceItXProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx' }}>
+        <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx' }}>
           {children}
-        </TraceItXProvider>
+        </EverframeProvider>
       </body>
     </html>
   );
@@ -50,17 +50,17 @@ Open the reporter programmatically from anywhere:
 
 ```tsx
 'use client';
-import { useTraceItX } from '@everframe/react';
+import { useEverframe } from '@everframe/react';
 
 export function HelpButton() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   return <button onClick={open}>Report a bug</button>;
 }
 ```
 
 ## Reporting caught exceptions
 
-Use `useTraceItX().captureException(error)` inside components, or the top-level
+Use `useEverframe().captureException(error)` inside components, or the top-level
 export in a catch block or an error boundary:
 
 ```tsx
@@ -98,7 +98,7 @@ By default the SDK installs:
 
 `Mod` resolves to `Cmd` on macOS and `Ctrl` elsewhere.
 
-A visible trigger (bubble, menu item, etc.) is the host app's responsibility — call `useTraceItX().open()` from your own button to bring up the reporter.
+A visible trigger (bubble, menu item, etc.) is the host app's responsibility — call `useEverframe().open()` from your own button to bring up the reporter.
 
 ## Strict-CSP environments
 
@@ -111,9 +111,9 @@ import { headers } from 'next/headers';
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get('x-nonce') ?? '';
   return (
-    <TraceItXProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
+    <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
       {children}
-    </TraceItXProvider>
+    </EverframeProvider>
   );
 }
 ```
@@ -123,19 +123,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 Three equivalent surfaces — pick whichever fits your codebase:
 
 ```tsx
-import { Sensitive, useTraceItX } from '@everframe/react';
+import { Sensitive, useEverframe } from '@everframe/react';
 import { useEffect, useRef } from 'react';
 
 // 1. Component wrapper
 <Sensitive><CreditCardNumber /></Sensitive>
 
 // 2. data-attribute (works on any DOM element)
-<div data-traceitx-sensitive>{value}</div>
+<div data-everframe-sensitive>{value}</div>
 
 // 3. Ref hook
 function MyField({ value }: { value: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { markSensitive } = useTraceItX();
+  const { markSensitive } = useEverframe();
   useEffect(() => {
     if (ref.current) markSensitive(ref);
   }, [markSensitive]);

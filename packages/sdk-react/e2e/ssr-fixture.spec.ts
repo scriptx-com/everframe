@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  * Pitfall 12 — Next.js SSR.
  *
  * `next build` (run once before this suite via examples-react-web) produces a
- * server component layout that imports @traceitx/react. If any module-load
+ * server component layout that imports @everframe/react. If any module-load
  * side-effect references `window` / `document` outside a `'use client'` boundary,
  * the build crashes with "ReferenceError: window is not defined" — this spec
  * proves that did NOT happen by visiting the home page and confirming the
@@ -30,10 +30,10 @@ test('Next.js SSR: home renders without throwing; bubble + hook present after hy
   // This proves SSR ran (the alternative — page rendered client-side after a 200 with empty
   // body — would still show the heading after hydration but the HTML wouldn't contain it).
   const html = await page.content();
-  expect(html).toContain('TraceItX Web SDK Example');
+  expect(html).toContain('Everframe Web SDK Example');
 
   // After hydration, the bubble portal is present.
-  await expect(page.getByTestId('traceitx-bubble')).toBeVisible();
+  await expect(page.getByTestId('everframe-bubble')).toBeVisible();
 
   // No "window is not defined" or React hydration mismatch errors.
   expect(errors.find((e) => e.toLowerCase().includes('window is not defined'))).toBeUndefined();

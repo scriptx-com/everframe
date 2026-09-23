@@ -85,7 +85,7 @@ describe('hasReadableFrame', () => {
 describe('isExcludedFromCapture', () => {
   it('excludes a video nested deep inside a skipped subtree', () => {
     document.body.innerHTML =
-      '<div data-traceitx-skip-capture="true"><section><figure><video></video></figure></section></div>';
+      '<div data-everframe-skip-capture="true"><section><figure><video></video></figure></section></div>';
     expect(isExcludedFromCapture(document.querySelector('video')!)).toBe(true);
   });
 
@@ -102,7 +102,7 @@ describe('isExcludedFromCapture', () => {
   });
 
   it('ignores a skip attribute that is present but not "true"', () => {
-    document.body.innerHTML = '<div data-traceitx-skip-capture="false"><video></video></div>';
+    document.body.innerHTML = '<div data-everframe-skip-capture="false"><video></video></div>';
     expect(isExcludedFromCapture(document.querySelector('video')!)).toBe(false);
   });
 });
@@ -301,7 +301,7 @@ describe('installVideoStandIns', () => {
   it('gives an excluded video a box but no content', async () => {
     // Regression guard for a privacy leak: the stand-in must hold the layout
     // open without reintroducing the frame the customer excluded.
-    document.body.innerHTML = '<div data-traceitx-skip-capture="true"><video></video></div>';
+    document.body.innerHTML = '<div data-everframe-skip-capture="true"><video></video></div>';
     withBox(document.querySelector('video')!);
 
     const restore = await installVideoStandIns(document.body, { pixelRatio: 1 });
@@ -631,7 +631,7 @@ describe('isExcludedFromCapture — shadow boundaries', () => {
     // component; the host is the only element they can tag, so the walk has to
     // cross the boundary via getRootNode().host — parentElement stops dead at
     // a shadow root's top-level children.
-    document.body.innerHTML = '<div id="host" data-traceitx-skip-capture="true"></div>';
+    document.body.innerHTML = '<div id="host" data-everframe-skip-capture="true"></div>';
     const shadow = document.getElementById('host')!.attachShadow({ mode: 'open' });
     shadow.innerHTML = '<video></video>';
     expect(isExcludedFromCapture(shadow.querySelector('video')!)).toBe(true);

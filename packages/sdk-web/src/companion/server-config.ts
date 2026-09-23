@@ -10,7 +10,7 @@
 // Subscribers exist because CompanionBadge only re-renders on companion
 // state changes — a config landing between them must trigger its own
 // re-render or the override would wait for the next attach event.
-import type { CompanionBadgeServerConfig } from '@traceitx/sdk-core';
+import type { CompanionBadgeServerConfig } from '@everframe/sdk-core';
 
 let _serverConfig: CompanionBadgeServerConfig | undefined;
 const _subs = new Set<() => void>();

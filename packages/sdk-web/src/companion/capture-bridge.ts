@@ -18,23 +18,23 @@
 // The full TV-submits-to-ingest handshake mirrors the native
 // CompanionCaptureBridge (iOS/Android Plan 06.2-13). The host config (apiKey)
 // + adapter (capture + outbox) come from the companion host seam, populated by
-// `TraceItXProvider`. When the seam is empty we reply `report.failed`
+// `EverframeProvider`. When the seam is empty we reply `report.failed`
 // ("submit_unavailable") rather than hang — parity with native.
 'use client';
 import { readBlobArrayBuffer } from '../internal/blob.js';
 
 import type { z } from 'zod';
-import type { FocusedNode } from '@traceitx/protocol';
+import type { FocusedNode } from '@everframe/protocol';
 import type {
   LogEntry,
   NetworkEntry,
   DeviceMetadata,
   ReportDraft,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import { captureScreenshot } from '../capture/screenshot.js';
 import { getCaptureProfile } from '../capture/capture-profile.js';
 import { sha256Hex } from '../capture/sha256.js';
-import { relay } from '@traceitx/protocol';
+import { relay } from '@everframe/protocol';
 import { submitReportFromDraft } from '../transport/submit.js';
 import { captureUserSnapshot } from '../internal/user-snapshot.js';
 import type { BundleScreenshot, CaptureBundle } from '../transport/draft-to-envelope.js';
@@ -1014,13 +1014,13 @@ function reportFailed(correlationId: string, reason: string): ReportFailed {
 
 /**
  * Wrap `fetch` so the ingest POST `submitReportFromDraft` performs carries
- * the `X-TX-Companion-Attribution` header (spec 2026-08-07). Returns the
+ * the `X-Everframe-Companion-Attribution` header (spec 2026-08-07). Returns the
  * base `fetch` completely unmodified when there's no token — the ordinary
  * (non-companion, or QR-paired) submit path is byte-for-byte what it was
  * before this feature existed.
  *
  * `submitReportFromDraft` → `submitReport` (sdk-core) already sets its own
- * headers (Authorization, X-TX-Device-Token, Origin) on the `init` it hands
+ * headers (Authorization, X-Everframe-Device-Token, Origin) on the `init` it hands
  * this wrapped fetch; merging via `Headers` here preserves all of them.
  *
  * SECURITY: never log `token`.
@@ -1032,7 +1032,7 @@ function withCompanionAttribution(
   if (!token) return base;
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const headers = new Headers(init?.headers);
-    headers.set('X-TX-Companion-Attribution', token);
+    headers.set('X-Everframe-Companion-Attribution', token);
     return base(input, { ...init, headers });
   }) as typeof fetch;
 }

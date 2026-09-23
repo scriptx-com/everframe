@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import type { JSX } from 'react';
-import type { LogEntry } from '@traceitx/sdk-core';
+import type { LogEntry } from '@everframe/sdk-core';
 import { X } from 'lucide-react';
 import { Button } from '../primitives/Button.js';
 import { CollapsiblePanel } from './CollapsiblePanel.js';
@@ -32,7 +32,7 @@ export function LogsPanel({
     >
       {logs.length === 0 ? <p>No console activity captured</p> : null}
       {logs.map((entry, i) => {
-        const rowCls = ['txx-row', redacted.has(i) && 'txx-row-redacted']
+        const rowCls = ['everframe-row', redacted.has(i) && 'everframe-row-redacted']
           .filter(Boolean)
           .join(' ');
         const verb = redacted.has(i) ? 'Restore' : 'Redact';

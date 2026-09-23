@@ -4,18 +4,18 @@ import { defineConfig } from 'tsup';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// `@traceitx/web` is bundled into this dist from SOURCE, not from its own
+// `@everframe/web` is bundled into this dist from SOURCE, not from its own
 // `dist/index.js`. Resolving it as a package would bundle a SECOND, already-
-// bundled copy of @traceitx/sdk-core, @traceitx/protocol and zod (sdk-web
+// bundled copy of @everframe/sdk-core, @everframe/protocol and zod (sdk-web
 // inlines all three for its own standalone tarball) — ~380 KB of pure
 // duplication, two module instances of every sdk-core singleton, and a
 // `constants.ts` whose INGEST_URL was already baked at sdk-web's build time,
-// so `TRACEITX_INGEST_URL=… pnpm build` here would silently keep shipping
+// so `EVERFRAME_INGEST_URL=… pnpm build` here would silently keep shipping
 // whatever URL that other build chose. Aliasing to source puts sdk-web's
 // modules into this one graph, where `define`, `treeshake` and `noExternal`
 // all apply to them exactly as they did when this code lived in src/.
 //
-// BOTH entries need their own alias. Aliasing only '@traceitx/web' does not
+// BOTH entries need their own alias. Aliasing only '@everframe/web' does not
 // cover the '/ui' subpath — esbuild would rewrite it to `…/src/index.ts/ui`,
 // which resolves to nothing — so the reporter UI would either fail to bundle
 // or (with the alias dropped) come in from sdk-web's built dist/ui.js,
@@ -26,7 +26,7 @@ const SDK_WEB_SRC = fileURLToPath(new URL('../sdk-web/src/index.ts', import.meta
 const SDK_WEB_UI_SRC = fileURLToPath(new URL('../sdk-web/src/ui.ts', import.meta.url));
 
 export default defineConfig({
-  // `preview` is the INTERNAL admin-dashboard entry (`@traceitx/react/preview`
+  // `preview` is the INTERNAL admin-dashboard entry (`@everframe/react/preview`
   // — see src/preview.ts's header): a separate entry rather than root exports
   // so the supported public API surface doesn't widen to include the dialog
   // internals the dashboard preview needs.
@@ -34,8 +34,8 @@ export default defineConfig({
   format: ['esm'],
   // `noExternal` below only governs the JS bundle — tsup's dts step is a
   // separate rollup pass that does NOT honour it. Without this `resolve`, the
-  // emitted index.d.ts keeps `import … from '@traceitx/sdk-core'` /
-  // '@traceitx/protocol' — modules that are `private: true` and will never
+  // emitted index.d.ts keeps `import … from '@everframe/sdk-core'` /
+  // '@everframe/protocol' — modules that are `private: true` and will never
   // exist on npm, so every leaked type silently degrades to `any` under the
   // consumer's default `skipLibCheck: true` (and hard-errors TS2307 without).
   //
@@ -49,20 +49,20 @@ export default defineConfig({
   // does not exist in the tarball. It is a real `dependencies` entry instead,
   // so the `z.infer<typeof relay.*>` types resolve at the consumer.
   //
-  // '@traceitx/web/ui' CANNOT go in `resolve` alongside the others: that list
+  // '@everframe/web/ui' CANNOT go in `resolve` alongside the others: that list
   // is handled by tsup's ts-resolve plugin, which uses the pre-`exports`
   // node10 algorithm (see the NB above) and therefore cannot see a subpath
   // export at all — the import survives into dist/index.d.ts and
-  // dist/preview.d.ts as `import '@traceitx/web/ui'`, a package that will
+  // dist/preview.d.ts as `import '@everframe/web/ui'`, a package that will
   // never exist on npm. `compilerOptions.paths` is the working route: tsup
   // turns each `paths` key into an ignore-rule for ts-resolve AND forwards
   // the options to rollup-plugin-dts, which resolves and inlines the mapped
   // file. Points at sdk-web's DIST .d.ts (turbo's `^build` guarantees it
   // exists) while the JS above bundles sdk-web's SOURCE.
   dts: {
-    resolve: ['@traceitx/sdk-core', '@traceitx/protocol', '@traceitx/web'],
+    resolve: ['@everframe/sdk-core', '@everframe/protocol', '@everframe/web'],
     compilerOptions: {
-      paths: { '@traceitx/web/ui': ['../sdk-web/dist/ui.d.ts'] },
+      paths: { '@everframe/web/ui': ['../sdk-web/dist/ui.d.ts'] },
     },
   },
   clean: true,
@@ -72,12 +72,12 @@ export default defineConfig({
   sourcemap: false,
   target: 'es2022',
   // Build-time URL substitution. The published bundle gets a literal string;
-  // the dev backdoor (the `TRACEITX_INGEST_URL` env var) leaves no trace in
+  // the dev backdoor (the `EVERFRAME_INGEST_URL` env var) leaves no trace in
   // the prod artifact — `define` replaces the placeholder before minify, so
   // there's nothing for `strings(1)` to find but the chosen URL.
   define: {
-    __TRACEITX_INGEST_URL__: JSON.stringify(
-      process.env.TRACEITX_INGEST_URL ?? 'https://traceitx.com',
+    __EVERFRAME_INGEST_URL__: JSON.stringify(
+      process.env.EVERFRAME_INGEST_URL ?? 'https://everframe.dev',
     ),
   },
   outDir: 'dist',
@@ -91,9 +91,9 @@ export default defineConfig({
   platform: 'browser',
   external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'],
   // Bundle internal workspace packages into this dist — they are private
-  // workspace deps and don't exist on npm, so the published `@traceitx/react`
+  // workspace deps and don't exist on npm, so the published `@everframe/react`
   // must be a single self-contained bundle. Without this,
-  // the published `import '@traceitx/sdk-core'` would fail to resolve at
+  // the published `import '@everframe/sdk-core'` would fail to resolve at
   // the consumer's install time.
   //
   // `zod` is listed too, but for a different reason. It is a real
@@ -106,7 +106,7 @@ export default defineConfig({
   // dependency exists purely so the consumer can resolve the type import.
   // Ship the workspace rrweb patch to consumers, but load it only when replay
   // starts. Without splitting, bundling rrweb would put it in the eager entry.
-  noExternal: ['@traceitx/sdk-core', '@traceitx/protocol', '@traceitx/web', '@traceitx/web/ui', 'zod', 'rrweb', 'modern-screenshot'],
+  noExternal: ['@everframe/sdk-core', '@everframe/protocol', '@everframe/web', '@everframe/web/ui', 'zod', 'rrweb', 'modern-screenshot'],
   splitting: true,
   treeshake: true,
   // esbuild minification: dead-code-elim + identifier mangling. NOT full
@@ -118,14 +118,14 @@ export default defineConfig({
   esbuildOptions(options) {
     options.alias = {
       ...options.alias,
-      '@traceitx/web': SDK_WEB_SRC,
-      '@traceitx/web/ui': SDK_WEB_UI_SRC,
+      '@everframe/web': SDK_WEB_SRC,
+      '@everframe/web/ui': SDK_WEB_UI_SRC,
     };
     // `keepNames` is OFF — we accept the React DevTools cost (customer sees
-    // mangled single-letter names instead of `<TraceItXProvider>` /
+    // mangled single-letter names instead of `<EverframeProvider>` /
     // `<AnnotateCanvas>` / `<DiscardConfirmModal>` in their inspector tree)
     // in exchange for not shipping our internal component names as plain
-    // strings in the bundle. Public *exports* (TraceItXProvider, Sensitive,
+    // strings in the bundle. Public *exports* (EverframeProvider, Sensitive,
     // etc.) stay readable regardless — minify doesn't rename named exports.
     // Internal-only components (sdk-core implementations bundled via
     // `noExternal`) get fully mangled.

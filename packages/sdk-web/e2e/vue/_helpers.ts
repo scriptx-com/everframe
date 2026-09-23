@@ -51,11 +51,11 @@ export function stubIngest(page: Page): { body: () => Buffer | null } {
 
 /** Click the host-owned trigger and wait for the dialog inside the shadow root. */
 export async function openReporter(page: Page): Promise<void> {
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible({ timeout: 30_000 });
 }
 
 /** How many ambient SDK hosts are attached to the document. */
 export function hostCount(): number {
-  return document.querySelectorAll('#traceitx-host').length;
+  return document.querySelectorAll('#everframe-host').length;
 }

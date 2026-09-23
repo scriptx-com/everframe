@@ -33,15 +33,15 @@ npm install @everframe/web
 ```ts
 import { init } from '@everframe/web';
 
-const traceitx = init({
+const everframe = init({
   apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
   appVersion: '1.0.0',
 });
 
-// Wire your own trigger — TraceItX installs no visible bubble by default,
+// Wire your own trigger — Everframe installs no visible bubble by default,
 // only the dashboard-configured hotkey. See "Triggers" below.
 document.getElementById('report-bug')?.addEventListener('click', () => {
-  traceitx.open();
+  everframe.open();
 });
 ```
 
@@ -59,12 +59,12 @@ nothing left to resolve. Don't point one at `dist/index.js`.
 <script type="module">
   import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@0.7.0/dist/browser/index.js';
 
-  const traceitx = init({
+  const everframe = init({
     apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
     appVersion: '1.0.0',
   });
   document.getElementById('report-bug').addEventListener('click', () => {
-    traceitx.open();
+    everframe.open();
   });
 </script>
 ```
@@ -158,7 +158,7 @@ a build-time warning, not a way to make it run there:
 
 ```astro
 ---
-// src/components/TraceItX.astro
+// src/components/Everframe.astro
 ---
 <script>
   import { init } from '@everframe/web';
@@ -168,7 +168,7 @@ a build-time warning, not a way to make it run there:
 
 ```astro
 <!-- wherever this component is used — no client: directive -->
-<TraceItX />
+<Everframe />
 ```
 
 ## SSR hosts (Nuxt, SvelteKit, Astro, Next.js)
@@ -178,7 +178,7 @@ actionable error if called where `window` is undefined — i.e. during
 server-side rendering:
 
 ```
-TraceItX can only run in a browser. init() touches window, document and
+Everframe can only run in a browser. init() touches window, document and
 localStorage, so call it from a client-side lifecycle hook — Vue:
 onMounted(), Svelte: onMount(), React: useEffect(), Astro: a client:
 directive — rather than at module scope in code that is server-rendered.
@@ -198,13 +198,13 @@ initialized logs a warning and returns the existing handle rather than
 creating a second instance — safe under hot-reload or a component that
 re-mounts.
 
-## The `TraceItXHandle` API
+## The `Everframe` API
 
 `init()` returns a handle with the imperative surface used across every
 integration above:
 
 ```ts
-interface TraceItXHandle {
+interface Everframe {
   open(): Promise<ReporterResult>;
   setUser(user: UserMetadata | null): void;
   setIdentityToken(source: IdentityTokenSource): void;
@@ -213,7 +213,7 @@ interface TraceItXHandle {
   captureException(error: unknown): void;
   threads: {
     // Two-way replies — list/read/reply/delete, plus subscribe/refresh for
-    // live updates. See TraceItXClient['threads'] for the full shape.
+    // live updates. See EverframeClient['threads'] for the full shape.
     list(): ThreadSummary[];
     get(threadId: string): Promise<ThreadDetail | null>;
     reply(threadId: string, body: string): Promise<void>;
@@ -245,7 +245,7 @@ inherit a privacy call that silently does nothing, this handle omits it.
 ## Reporting caught exceptions
 
 ```ts
-const traceitx = init({
+const everframe = init({
   apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
   appVersion: '2.4.0',
   appBuild: 'web-abc123',
@@ -254,7 +254,7 @@ const traceitx = init({
 try {
   await saveCart();
 } catch (error) {
-  traceitx.captureException(error);
+  everframe.captureException(error);
 }
 ```
 
@@ -281,7 +281,7 @@ contract as every other Everframe SDK. What `init()` does install:
   two-way-reply conversations** (it's an inbox entry point, not a report
   trigger) — nothing shows before that.
 
-A visible "report a bug" trigger is your own UI: call `traceitx.open()` from
+A visible "report a bug" trigger is your own UI: call `everframe.open()` from
 your own button, menu item, or keyboard shortcut.
 
 ## Marking sensitive content
@@ -294,7 +294,7 @@ by the test suite:
 
 ```html
 <!-- 1. Mark an element in markup -->
-<div data-traceitx-sensitive>{value}</div>
+<div data-everframe-sensitive>{value}</div>
 ```
 
 ```ts
@@ -328,7 +328,7 @@ non-React host today.
 `companion.start()` opens the relay connection used for TV/phone-companion
 pairing. Its `attachPinUi` option defaults to `'builtin'`, but the built-in
 PIN card (`CompanionPinCard`) is rendered only by `@everframe/react`'s
-`TraceItXProvider` — a vanilla `init()` mount renders the FAB, the reporter
+`EverframeProvider` — a vanilla `init()` mount renders the FAB, the reporter
 dialog, the inbox and a toast, and nothing else.
 
 **On this package, `'builtin'` silently resolves to `'off'`** rather than
@@ -372,7 +372,7 @@ move than the rest of this API.
 `companion.start()`'s `companionBadge` option (documented as on by default)
 configures `CompanionBadge`, the small on-device name badge shown while a
 phone or dashboard member is attached. Like the PIN card, that component is
-rendered only by `@everframe/react`'s `TraceItXProvider`.
+rendered only by `@everframe/react`'s `EverframeProvider`.
 
 It is a harder limitation than the PIN card's, not an oversight: the badge is
 an **ambient** surface — it has to be visible while the reporter is *closed* —
@@ -422,12 +422,12 @@ from a URL.
 deduplicate anything you already ship. The script tag exists for the apps that
 genuinely have no build step at all, not as a shortcut around adding one.
 
-Until 0.6.6 the script-tag path was an IIFE (`dist/traceitx.min.js`), which
+Until 0.6.6 the script-tag path was an IIFE (`dist/everframe.min.js`), which
 cost 391 KB gz because an IIFE has no module loader and therefore cannot
 code-split — everything was inlined into the entry. It bought no compatibility
 for that: every build here targets es2022, and every browser that can execute
 es2022 has supported `<script type="module">` for years. It is gone, and with
-it the `window.traceitx` global; the named `import` above replaces both.
+it the `window.everframe` global; the named `import` above replaces both.
 
 ## Bundling notes
 

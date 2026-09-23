@@ -11,7 +11,7 @@ import {
   __claimCaptureBuffers,
 } from '../../src/capture/buffers.js';
 import { RingBuffer } from '../../src/internal/ring-buffer.js';
-import type { NetworkEntry } from '@traceitx/sdk-core';
+import type { NetworkEntry } from '@everframe/sdk-core';
 
 describe('network buffer capacity', () => {
   it('defaults to the last 100 requests (memory-bounded)', () => {
@@ -151,6 +151,6 @@ describe('installXHRPatcher', () => {
     u2();
     u1();
     const slot = globalThis as unknown as Record<symbol, unknown>;
-    expect(slot[Symbol.for('__traceitx_patched_xhr__')]).toBeUndefined();
+    expect(slot[Symbol.for('__everframe_patched_xhr__')]).toBeUndefined();
   });
 });

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { OutboxAdapter, OutboxItem } from '@traceitx/sdk-core';
+import type { OutboxAdapter, OutboxItem } from '@everframe/sdk-core';
 
 /**
  * localStorage-backed OutboxAdapter (PIPE-02 reload-survival primary).
  *
- * Storage key shape: `traceitx:outbox:<reportId>` (namespaced + iterable).
+ * Storage key shape: `everframe:outbox:<reportId>` (namespaced + iterable).
  * Aggregate cap: 5 MB (CONTEXT lock); enforced via oldest-first eviction.
  * Uint8Array <-> base64 round-trip uses chunked btoa to avoid call-stack overflow
  * for ~MB-scale payloads (CHUNK = 0x8000 string-fromCharCode batches).
@@ -14,9 +14,9 @@ import type { OutboxAdapter, OutboxItem } from '@traceitx/sdk-core';
  * Returns null when localStorage is unavailable (private mode, quota=0, SSR) — caller
  * (createOutbox factory in ./index.ts) falls back to in-memory and warns once.
  */
-export const KEY_PREFIX = 'traceitx:outbox:';
+export const KEY_PREFIX = 'everframe:outbox:';
 export const QUOTA_BYTES = 5 * 1024 * 1024; // CONTEXT lock: 5 MB aggregate cap
-const PROBE_KEY = '__traceitx_probe__';
+const PROBE_KEY = '__everframe_probe__';
 
 interface SerializedItem {
   reportId: string;

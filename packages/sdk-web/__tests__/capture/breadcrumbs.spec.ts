@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect, afterEach } from 'vitest';
-import type { BreadcrumbInput } from '@traceitx/sdk-core';
+import type { BreadcrumbInput } from '@everframe/sdk-core';
 import {
   installNavigationCrumbs,
   installLifecycleCrumbs,

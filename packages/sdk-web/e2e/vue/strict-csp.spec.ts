@@ -24,8 +24,8 @@
 //    attrNonce === '' and idlNonce === STATIC_TEST_NONCE on the exact same
 //    element, at the exact same time.
 // 2. Watch every shadow root too, not just `document`/`document.head`.
-//    @traceitx/web mounts its reporter UI into an OPEN SHADOW ROOT by default
-//    (`config.__traceitxShadowDom !== false`, see init.ts) — its own CSS
+//    @everframe/web mounts its reporter UI into an OPEN SHADOW ROOT by default
+//    (`config.__everframeShadowDom !== false`, see init.ts) — its own CSS
 //    injection targets that shadow root, not `document`, and a MutationObserver
 //    on `document` (subtree or not) cannot see across a shadow boundary. A
 //    monkey-patched `attachShadow` observes every shadow root synchronously
@@ -113,7 +113,7 @@ test('the SDK threads cspNonce to the reporter stylesheet it injects at mount', 
 
   await page.goto('/strict-csp.html');
   await expect(page.getByTestId('strict-csp-heading')).toBeVisible();
-  await expect(page.getByTestId('traceitx-bubble')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('everframe-bubble')).toBeVisible({ timeout: 15_000 });
 
   await openReporter(page);
   await page.getByTestId('report-title').fill('strict csp test');
@@ -173,11 +173,11 @@ test('the SDK threads cspNonce to the reporter stylesheet it injects at mount', 
   //    connect-src is deliberately narrow (localhost/127.0.0.1 only — see
   //    csp-plugin.ts). This fires only when the local dist/ was built against
   //    a production ingest URL: scripts/dev/build-web-sdk.mjs defaults
-  //    TRACEITX_INGEST_URL to http://localhost:8787, which this fixture's
+  //    EVERFRAME_INGEST_URL to http://localhost:8787, which this fixture's
   //    connect-src explicitly allows, so on the documented `pnpm
   //    dev:example:vue` path this violation does not fire at all. It only
   //    shows up if someone installs a dist built with the real
-  //    https://traceitx.com baked in (constants.ts's INGEST_URL).
+  //    https://everframe.dev baked in (constants.ts's INGEST_URL).
   // 2. style-src-elem, from modern-screenshot.js's scratch-document
   //    font-embedding call specifically (see file header). Anchored to the
   //    `(sourceFile:line)` position at the END of the violation string, not

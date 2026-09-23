@@ -7,7 +7,7 @@
 // worktree:
 //
 //   /dist/**   -> packages/sdk-web/dist   (the built browser bundle — run
-//                 `pnpm --filter @traceitx/web build` first, same as e2e's
+//                 `pnpm --filter @everframe/web build` first, same as e2e's
 //                 static-server.mjs requires for its suite)
 //   /media/**  -> examples/react-web/public/media (the example app's video
 //                 fixture the harness plays to keep the page busy)
@@ -16,7 +16,7 @@
 //                 join — the repo runs `node-linker=hoisted`, so hls.js
 //                 lives at the workspace root's node_modules, not
 //                 packages/sdk-web/node_modules). This is a perf-harness-only
-//                 devDependency of @traceitx/web (see package.json); it is
+//                 devDependency of @everframe/web (see package.json); it is
 //                 never a runtime dependency of the shipped SDK.
 //   (anything else, e.g. /harness.html) -> this perf/ directory
 //

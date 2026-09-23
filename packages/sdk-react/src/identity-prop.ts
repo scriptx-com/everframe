@@ -16,7 +16,7 @@
 //     never captured stale. Putting `headers` in the deps would reintroduce
 //     the exact footgun this file exists to remove.
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { __internalClientState } from '@traceitx/sdk-core';
+import { __internalClientState } from '@everframe/sdk-core';
 import type { InternalContext } from './provider.js';
 
 // SSR-safe: useLayoutEffect warns during server rendering, and this package is
@@ -24,7 +24,7 @@ import type { InternalContext } from './provider.js';
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export interface IdentityProp {
-  /** URL of your @traceitx/identity endpoint. */
+  /** URL of your @everframe/identity endpoint. */
   endpoint: string;
   /**
    * Your signed-in user's id. When it CHANGES the SDK re-mints; when it

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 
-import { captureException } from '@traceitx/react';
+import { captureException } from '@everframe/react';
 
 function captureSourceMapCheck() {
   try {
@@ -34,7 +34,7 @@ export default function SourceMapCheckPage() {
     <main className="shell">
       <p className="eyebrow">SDK surface</p>
       <h1 className="display">Error test</h1>
-      <p className="lede">Trigger an error to check capture and source maps in TraceItX.</p>
+      <p className="lede">Trigger an error to check capture and source maps in Everframe.</p>
       <section className="card">
         <h2 className="section-title">Send a handled error</h2>
         <p className="muted">
@@ -44,7 +44,7 @@ export default function SourceMapCheckPage() {
         <button className="btn btn-primary" onClick={captureSourceMapCheck}>Capture source-map-check</button>
         <button className="btn" onClick={captureSourceMapCheckWithCauses}>Capture source-map-check with causes</button>
         <p className="fixture-note">
-          Build: <code>{process.env.NEXT_PUBLIC_TRACEITX_APP_BUILD || 'development (no build ID)'}</code>
+          Build: <code>{process.env.NEXT_PUBLIC_EVERFRAME_APP_BUILD || 'development (no build ID)'}</code>
         </p>
         <p className="muted">
           With source maps uploaded for this build, the stack should point to

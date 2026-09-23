@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 
 /** Attribute screenshot.ts's `filterNode` uses to drop nodes from a capture. */
-const SKIP_CAPTURE_ATTR = 'data-traceitx-skip-capture';
+const SKIP_CAPTURE_ATTR = 'data-everframe-skip-capture';
 
 export interface HostElement {
   host: HTMLElement;
@@ -15,7 +15,7 @@ export interface HostElement {
  * One tagged host element, with an open shadow root unless `useShadow` is
  * `false`.
  *
- * `data-traceitx-skip-capture` on the HOST is the entire capture-exclusion
+ * `data-everframe-skip-capture` on the HOST is the entire capture-exclusion
  * story: `filterNode` drops the host and the whole shadow subtree goes with
  * it, so the reporter never photographs itself. Measured in the spike at 0 of
  * 1,024,000 pixels differing between a clean capture and one taken with the
@@ -34,7 +34,7 @@ export interface HostElement {
  */
 export function createHostElement(doc: Document = document, useShadow = true): HostElement {
   const host = doc.createElement('div');
-  host.id = 'traceitx-host';
+  host.id = 'everframe-host';
   host.setAttribute(SKIP_CAPTURE_ATTR, 'true');
 
   // Codex round-2 finding 4 (P2) — `doc.body` is NULL for a plain,

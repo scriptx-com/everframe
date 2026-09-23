@@ -23,13 +23,13 @@ import { stubIngest } from './_helpers';
 async function navigationCrumbs(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const w = window as unknown as {
-      __traceitx: {
+      __everframe: {
         __adapter: {
           __getBreadcrumbBuffer(): { snapshot(): { kind: string; message: string }[] } | undefined;
         };
       };
     };
-    return (w.__traceitx.__adapter.__getBreadcrumbBuffer()?.snapshot() ?? [])
+    return (w.__everframe.__adapter.__getBreadcrumbBuffer()?.snapshot() ?? [])
       .filter((c) => c.kind === 'navigation')
       .map((c) => c.message);
   });
@@ -46,12 +46,12 @@ test('History-API navigation produces navigation crumbs', async ({ page }) => {
 
   await page.getByTestId('nav-specimens').click();
   await expect(page).toHaveURL(/\/specimens$/);
-  await page.getByTestId('specimen-link-txx-001').click();
-  await expect(page).toHaveURL(/\/specimens\/txx-001$/);
+  await page.getByTestId('specimen-link-everframe-001').click();
+  await expect(page).toHaveURL(/\/specimens\/everframe-001$/);
 
   const crumbs = await navigationCrumbs(page);
   expect(crumbs.some((m) => m.includes('/specimens'))).toBe(true);
-  expect(crumbs.some((m) => m.includes('/specimens/txx-001'))).toBe(true);
+  expect(crumbs.some((m) => m.includes('/specimens/everframe-001'))).toBe(true);
 });
 
 test('back navigation is recorded too', async ({ page }) => {

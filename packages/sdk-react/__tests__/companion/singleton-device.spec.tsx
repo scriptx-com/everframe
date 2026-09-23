@@ -17,7 +17,7 @@ import {
   start, stop,
   __getCompanionApi, __getCompanionBadgeConfig,
   __resetDeviceIdForTests,
-} from '@traceitx/web';
+} from '@everframe/web';
 import { useCompanion } from '../../src/companion/use-companion.js';
 
 function makeNoopWSCtor(): typeof WebSocket {

@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 //
 // `envelope.sdk` must name the SDK that actually hosts the adapter. This
-// package is shared by `@traceitx/react` and `@traceitx/web`, which have
+// package is shared by `@everframe/react` and `@everframe/web`, which have
 // different names on the wire and independent versions — a hardcoded name
 // here files every Vue/Svelte/plain-HTML report under the React SDK.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -46,24 +46,24 @@ describe('envelope.sdk identity', () => {
   };
 
   it('stamps the host SDK the adapter was constructed with (vanilla)', async () => {
-    mk({ apiKey: 'pk_test' }, { sdkName: 'traceitx-web', sdkVersion: '9.9.9' });
+    mk({ apiKey: 'pk_test' }, { sdkName: 'everframe-web', sdkVersion: '9.9.9' });
     const envelope = await crashEnvelope(fetchMock);
-    expect(envelope.sdk.name).toBe('traceitx-web');
+    expect(envelope.sdk.name).toBe('everframe-web');
     expect(envelope.sdk.version).toBe('9.9.9');
   });
 
   it('stamps the React SDK when the React Provider constructs it', async () => {
-    mk({ apiKey: 'pk_test' }, { sdkName: 'traceitx-react', sdkVersion: '1.2.3' });
+    mk({ apiKey: 'pk_test' }, { sdkName: 'everframe-react', sdkVersion: '1.2.3' });
     const envelope = await crashEnvelope(fetchMock);
-    expect(envelope.sdk.name).toBe('traceitx-react');
+    expect(envelope.sdk.name).toBe('everframe-react');
     expect(envelope.sdk.version).toBe('1.2.3');
   });
 
   // Codex round-2 finding 2 (P1, attribution). This default used to be
-  // `traceitx-react` + THIS package's PKG_VERSION — a pair that cannot occur
-  // legitimately, because `@traceitx/react` is versioned separately and its
+  // `everframe-react` + THIS package's PKG_VERSION — a pair that cannot occur
+  // legitimately, because `@everframe/react` is versioned separately and its
   // Provider passes both values explicitly (the test above). Since
-  // `createWebPlatformAdapter` is a PUBLIC export of `@traceitx/web`, a Vue /
+  // `createWebPlatformAdapter` is a PUBLIC export of `@everframe/web`, a Vue /
   // Svelte / plain-HTML host that constructed an adapter directly had its
   // whole crash stream billed to the React SDK under a version React has
   // never published. The fallback now names the package that owns the module.
@@ -74,7 +74,7 @@ describe('envelope.sdk identity', () => {
   it('defaults to the vanilla SDK and this package version when unspecified', async () => {
     mk({ apiKey: 'pk_test' });
     const envelope = await crashEnvelope(fetchMock);
-    expect(envelope.sdk.name).toBe('traceitx-web');
+    expect(envelope.sdk.name).toBe('everframe-web');
     expect(envelope.sdk.version).toBe(PKG_VERSION);
   });
 });

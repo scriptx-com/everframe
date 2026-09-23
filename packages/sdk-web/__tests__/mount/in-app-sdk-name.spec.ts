@@ -3,7 +3,7 @@
 /** @vitest-environment jsdom */
 //
 // RULING 18 — `submitReportFromDraft`'s `sdkName` defaults to
-// `traceitx-react` (every caller predated `@traceitx/web`'s own `init()`), and
+// `everframe-react` (every caller predated `@everframe/web`'s own `init()`), and
 // nothing on the vanilla handle carries the name for it. If `init()`'s in-app
 // submit path omits the argument, EVERY report a Vue / Svelte / plain-HTML
 // host files through the reporter dialog — the highest-volume path there is —
@@ -41,9 +41,9 @@ vi.mock('../../src/mount/react-island.js', () => ({
   },
 }));
 
-import { init, type TraceItXHandle } from '../../src/init.js';
+import { init, type Everframe } from '../../src/init.js';
 
-let handle: TraceItXHandle | null = null;
+let handle: Everframe | null = null;
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -110,7 +110,7 @@ async function submittedEnvelope(): Promise<{ sdk: { name: string; version: stri
 }
 
 describe('in-app report submitted from the island', () => {
-  it("stamps envelope.sdk.name as 'traceitx-web', not the traceitx-react default", async () => {
+  it("stamps envelope.sdk.name as 'everframe-web', not the everframe-react default", async () => {
     handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
@@ -118,7 +118,7 @@ describe('in-app report submitted from the island', () => {
     mountCalls[0]!.handlers.onComplete(payload());
 
     const envelope = await submittedEnvelope();
-    expect(envelope.sdk.name).toBe('traceitx-web');
+    expect(envelope.sdk.name).toBe('everframe-web');
   });
 
   it('settles the pending open() with the submitted report id', async () => {

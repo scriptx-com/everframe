@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useEffect, useRef, type ReactNode, type CSSProperties, type JSX } from 'react';
-import { sensitiveRegistry } from '@traceitx/web';
+import { sensitiveRegistry } from '@everframe/web';
 
 export interface SensitiveProps {
   children: ReactNode;
@@ -35,7 +35,7 @@ export function Sensitive({ children, className, style }: SensitiveProps): JSX.E
   }, []);
   const wrapperStyle: CSSProperties = style ?? { display: 'contents' };
   return (
-    <div ref={ref} className={className} style={wrapperStyle} data-traceitx-sensitive="">
+    <div ref={ref} className={className} style={wrapperStyle} data-everframe-sensitive="">
       {children}
     </div>
   );

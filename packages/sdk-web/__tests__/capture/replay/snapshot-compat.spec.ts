@@ -93,13 +93,13 @@ describe('rrweb snapshot compatibility and hot paths', () => {
 
   it('records without Custom Elements support and still identifies registered custom elements', () => {
     const registry = window.customElements;
-    registry.define('txx-snapshot-card', class extends HTMLElement {});
-    document.body.innerHTML = '<txx-snapshot-card id="custom">Card</txx-snapshot-card>';
+    registry.define('everframe-snapshot-card', class extends HTMLElement {});
+    document.body.innerHTML = '<everframe-snapshot-card id="custom">Card</everframe-snapshot-card>';
     const { latest } = capture();
     expect(find(latest(), 'custom')?.isCustom).toBe(true);
     vi.stubGlobal('customElements', undefined);
     record.takeFullSnapshot();
-    expect(find(latest(), 'custom')?.tagName).toBe('txx-snapshot-card');
+    expect(find(latest(), 'custom')?.tagName).toBe('everframe-snapshot-card');
     expect(find(latest(), 'custom')?.isCustom).toBeUndefined();
   });
 });

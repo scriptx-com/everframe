@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { DeviceMetadata } from '@traceitx/sdk-core';
+import type { DeviceMetadata } from '@everframe/sdk-core';
 
 /**
  * Parse OS + version from navigator.userAgent. Best-effort; UA strings are unreliable

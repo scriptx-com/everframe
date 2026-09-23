@@ -36,7 +36,7 @@ export function strictCspPlugin(): Plugin {
     next();
   };
   return {
-    name: 'traceitx:strict-csp',
+    name: 'everframe:strict-csp',
     configureServer(server) {
       server.middlewares.use(middleware);
     },

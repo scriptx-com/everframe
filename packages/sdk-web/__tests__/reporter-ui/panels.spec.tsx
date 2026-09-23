@@ -6,7 +6,7 @@ import { cleanup, render, fireEvent, act } from '@testing-library/react';
 import { LogsPanel } from '../../src/reporter-ui/panels/LogsPanel.js';
 import { NetworkPanel } from '../../src/reporter-ui/panels/NetworkPanel.js';
 import { MetadataPanel } from '../../src/reporter-ui/panels/MetadataPanel.js';
-import type { LogEntry, NetworkEntry } from '@traceitx/sdk-core';
+import type { LogEntry, NetworkEntry } from '@everframe/sdk-core';
 
 afterEach(() => cleanup());
 
@@ -49,7 +49,7 @@ describe('Advanced panels', () => {
     // Panel is still open from the first expand — useState in CollapsiblePanel
     // survives rerender — so the row is still in the DOM.
     const row = getByTestId('log-row-0');
-    expect(row.className).toContain('txx-row-redacted');
+    expect(row.className).toContain('everframe-row-redacted');
   });
 
   it('NetworkPanel: renders rows when expanded; no per-row redact (display-only)', () => {

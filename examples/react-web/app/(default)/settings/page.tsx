@@ -2,14 +2,14 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Settings — the SDK-surface page: setUser / setExtra / kill wired to real
-// controls, so the example demonstrates the full useTraceItX() API, not just
+// controls, so the example demonstrates the full useEverframe() API, not just
 // open().
 "use client";
 import { useState } from "react";
-import { useTraceItX } from "@traceitx/react";
+import { useEverframe } from "@everframe/react";
 
 export default function SettingsPage() {
-  const { setUser, setExtra, kill } = useTraceItX();
+  const { setUser, setExtra, kill } = useEverframe();
   const [name, setName] = useState("Ada Collector");
   const [email, setEmail] = useState("ada@example.com");
   const [extra, setExtra_] = useState('{"plan":"field-team","build":"demo"}');
@@ -40,7 +40,7 @@ export default function SettingsPage() {
       <h1 className="display">Settings</h1>
       <p className="lede">
         The reporter is one call; this page wires up the rest of the
-        useTraceItX() API so you can watch each one land in the next report.
+        useEverframe() API so you can watch each one land in the next report.
       </p>
 
       {status ? (

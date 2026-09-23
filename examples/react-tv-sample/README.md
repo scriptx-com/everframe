@@ -38,7 +38,7 @@ on the oldest supported emulator before changing the SDK capture path.
 2. `pnpm --filter @everframe/example-react-tv build` → produces `dist/`.
 3. `ares-package dist/` → `.ipk` file.
 4. `ares-install --device emulator <file>.ipk` → installs into the emulator.
-5. `ares-launch --device emulator com.traceitx.example.reacttv` → launches.
+5. `ares-launch --device emulator com.everframe.example.reacttv` → launches.
 
 ## QR library — host choice, not SDK
 

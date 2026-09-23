@@ -37,11 +37,11 @@ describe('ambient UI (no React)', () => {
   it('shows an unread dot only when the count is above zero', () => {
     const ui = createAmbientUI(makeShadow(), { onOpen: () => undefined });
     ui.setVisible(true);
-    expect(shadow.querySelector('.txx-fab-dot')).toBeNull();
+    expect(shadow.querySelector('.everframe-fab-dot')).toBeNull();
     ui.setUnread(3);
-    expect(shadow.querySelector('.txx-fab-dot')).not.toBeNull();
+    expect(shadow.querySelector('.everframe-fab-dot')).not.toBeNull();
     ui.setUnread(0);
-    expect(shadow.querySelector('.txx-fab-dot')).toBeNull();
+    expect(shadow.querySelector('.everframe-fab-dot')).toBeNull();
   });
 
   it('labels the button for screen readers, including the unread count', () => {
@@ -63,9 +63,9 @@ describe('ambient UI (no React)', () => {
   it('matches ReporterFab.tsx markup — same wrapper, button classes and default label', () => {
     const ui = createAmbientUI(makeShadow(), { onOpen: () => undefined });
     ui.setVisible(true);
-    const wrap = shadow.querySelector('.txx-root.txx-fab-wrap');
+    const wrap = shadow.querySelector('.everframe-root.everframe-fab-wrap');
     expect(wrap).not.toBeNull();
-    const button = wrap?.querySelector('button.txx-fab') as HTMLButtonElement;
+    const button = wrap?.querySelector('button.everframe-fab') as HTMLButtonElement;
     expect(button.getAttribute('type')).toBe('button');
     expect(button.getAttribute('aria-label')).toBe('Your reports');
     // The MessageSquare glyph, inlined so no icon package reaches this graph.

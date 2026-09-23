@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { OutboxAdapter } from '@traceitx/sdk-core';
-import { createInMemoryOutbox } from '@traceitx/sdk-core';
+import type { OutboxAdapter } from '@everframe/sdk-core';
+import { createInMemoryOutbox } from '@everframe/sdk-core';
 import { createLocalStorageOutbox } from './localStorage.js';
 
 let warnedFallback = false;
@@ -27,7 +27,7 @@ export function createOutbox(): OutboxAdapter {
     warnedFallback = true;
     // eslint-disable-next-line no-console
     console.warn(
-      '[traceitx] localStorage unavailable; outbox falling back to in-memory (reports will NOT survive page reload).',
+      '[everframe] localStorage unavailable; outbox falling back to in-memory (reports will NOT survive page reload).',
     );
   }
   return createInMemoryOutbox();

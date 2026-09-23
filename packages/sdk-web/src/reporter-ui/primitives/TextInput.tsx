@@ -16,14 +16,14 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
   { label, errorText, className, id, ...rest },
   ref,
 ): JSX.Element {
-  const generatedIdRef = useRef<string>(`txx-input-${Math.random().toString(36).slice(2)}`);
+  const generatedIdRef = useRef<string>(`everframe-input-${Math.random().toString(36).slice(2)}`);
   const inputId = id ?? generatedIdRef.current;
   const helperId = errorText ? `${inputId}-helper` : undefined;
-  const cls = ['txx-input', errorText && 'txx-input-error', className].filter(Boolean).join(' ');
+  const cls = ['everframe-input', errorText && 'everframe-input-error', className].filter(Boolean).join(' ');
   return (
-    <div className="txx-field">
+    <div className="everframe-field">
       {label ? (
-        <label htmlFor={inputId} className="txx-field-label">
+        <label htmlFor={inputId} className="everframe-field-label">
           {label}
         </label>
       ) : null}
@@ -36,7 +36,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
         {...rest}
       />
       {errorText ? (
-        <span id={helperId} className="txx-helper-error">
+        <span id={helperId} className="everframe-helper-error">
           {errorText}
         </span>
       ) : null}

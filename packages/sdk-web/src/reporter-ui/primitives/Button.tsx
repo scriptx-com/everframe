@@ -23,13 +23,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   ref,
 ): JSX.Element {
   const cls = [
-    'txx-btn',
-    variant === 'primary' && 'txx-btn-primary',
-    variant === 'secondary' && 'txx-btn-secondary',
-    variant === 'outline-destructive' && 'txx-btn-outline-destructive',
-    variant === 'icon' && 'txx-btn-icon',
-    size === 'sm' && 'txx-btn-sm',
-    iconOnly && 'txx-btn-icon',
+    'everframe-btn',
+    variant === 'primary' && 'everframe-btn-primary',
+    variant === 'secondary' && 'everframe-btn-secondary',
+    variant === 'outline-destructive' && 'everframe-btn-outline-destructive',
+    variant === 'icon' && 'everframe-btn-icon',
+    size === 'sm' && 'everframe-btn-sm',
+    iconOnly && 'everframe-btn-icon',
     className,
   ]
     .filter(Boolean)
@@ -42,7 +42,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     !rest['aria-labelledby']
   ) {
     // eslint-disable-next-line no-console
-    console.warn('[traceitx] iconOnly Button missing aria-label');
+    console.warn('[everframe] iconOnly Button missing aria-label');
   }
   return (
     <button

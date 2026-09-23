@@ -5,7 +5,7 @@
 // approximation of a TV browser engine (Tizen ships ~47–94, webOS ~38–94
 // depending on model year). Downloads the snapshot from Google's
 // chromium-browser-snapshots bucket on first use and caches it under
-// ~/.traceitx/chromium/<version>.
+// ~/.everframe/chromium/<version>.
 //
 //   pnpm run:chromium 69              # vite build + preview, launch Chromium 69 at it
 //   pnpm run:chromium 63 --dev        # against the dev server (modern ESM — needs >=63)
@@ -79,7 +79,7 @@ function findApp(root) {
 }
 
 async function ensureBinary() {
-  const root = path.join(os.homedir(), '.traceitx', 'chromium', String(version));
+  const root = path.join(os.homedir(), '.everframe', 'chromium', String(version));
   let app = findApp(root);
   if (app) return app;
 
@@ -154,7 +154,7 @@ log(`launching Chromium ${version} at ${url}`);
 // bundles automatically ("incorrect executable format").
 const chromium = spawn(
   'arch',
-  ['-x86_64', bin, `--user-data-dir=${path.join(os.tmpdir(), `traceitx-chromium-${version}`)}`, '--no-first-run', url],
+  ['-x86_64', bin, `--user-data-dir=${path.join(os.tmpdir(), `everframe-chromium-${version}`)}`, '--no-first-run', url],
   { stdio: 'ignore', detached: !server },
 );
 

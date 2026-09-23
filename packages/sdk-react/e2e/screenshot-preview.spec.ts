@@ -22,7 +22,7 @@ test('screenshot is rendered inside the annotation canvas after capture complete
 }) => {
   await page.goto('/');
   await expect(page.getByTestId('home-heading')).toBeVisible();
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
 
   // Wait for capture to finish (capture-pending → thumbnail swap), then enter

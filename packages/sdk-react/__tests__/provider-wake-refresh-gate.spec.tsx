@@ -22,10 +22,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import { useContext, useEffect } from 'react';
-import { useTraceItX } from '../src/hook.js';
-import { TraceItXProvider, TraceItXContext } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@traceitx/web';
-import type { ThreadClient } from '@traceitx/sdk-core';
+import { useEverframe } from '../src/hook.js';
+import { EverframeProvider, EverframeContext } from '../src/provider.js';
+import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
+import type { ThreadClient } from '@everframe/sdk-core';
 
 afterEach(() => {
   cleanup();
@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 function OpenButton() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   return (
     <button type="button" data-testid="host-open" onClick={open}>
       open
@@ -43,7 +43,7 @@ function OpenButton() {
 
 /** Surfaces the adapter's thread client to the test without reaching into module internals. */
 function AdapterProbe({ onAdapter }: { onAdapter: (threads: ThreadClient | undefined) => void }) {
-  const ctx = useContext(TraceItXContext);
+  const ctx = useContext(EverframeContext);
   useEffect(() => {
     onAdapter(ctx?.adapter.threads);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -108,10 +108,10 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
     try {
       const { findByTestId, queryByTestId } = render(
-        <TraceItXProvider config={{ apiKey: 'txx_live_wake_gate_test', appName: 'test', appVersion: '1.0.0' }}>
+        <EverframeProvider config={{ apiKey: 'txx_live_wake_gate_test', appName: 'test', appVersion: '1.0.0' }}>
           <div>app</div>
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       // Let mount settle: the single config fetch resolves OFF, so the
@@ -150,7 +150,7 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
   });
 
   it('a mount-time config fetch failure followed by a wake() recovers once the config endpoint is healthy', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     const originalFetch = globalThis.fetch;
     let configCalls = 0;
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
@@ -183,13 +183,13 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
     try {
       const seen: ThreadClient[] = [];
       render(
-        <TraceItXProvider config={{ apiKey: 'txx_live_wake_gate_recover_test', appName: 'test', appVersion: '1.0.0' }}>
+        <EverframeProvider config={{ apiKey: 'txx_live_wake_gate_recover_test', appName: 'test', appVersion: '1.0.0' }}>
           <AdapterProbe
             onAdapter={(threads) => {
               if (threads) seen.push(threads);
             }}
           />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       await waitFor(() => expect(configCalls).toBeGreaterThanOrEqual(1));

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect, afterEach } from 'vitest';
-import { createBreadcrumbBuffer, BREADCRUMBS_CONFIG_DEFAULT } from '@traceitx/sdk-core';
+import { createBreadcrumbBuffer, BREADCRUMBS_CONFIG_DEFAULT } from '@everframe/sdk-core';
 import { createWebPlatformAdapter } from '../../src/adapter.js';
 import { applyBreadcrumbsConfigToBuffer } from '../../src/capture/breadcrumbs.js';
 

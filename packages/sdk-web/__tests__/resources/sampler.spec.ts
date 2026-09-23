@@ -8,8 +8,8 @@
 // visibilitychange/pageshow baseline-reset behaviour from that file as a
 // REFERENCE, independently, so the two features stay decoupled.
 import { describe, expect, it, vi } from 'vitest';
-import { RESOURCE_SAMPLE_INTERVAL_MS } from '@traceitx/protocol';
-import type { ResourceSampleT } from '@traceitx/protocol';
+import { RESOURCE_SAMPLE_INTERVAL_MS } from '@everframe/protocol';
+import type { ResourceSampleT } from '@everframe/protocol';
 import { startResourceSampler } from '../../src/resources/sampler.js';
 
 describe('startResourceSampler', () => {

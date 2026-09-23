@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import type { JSX } from 'react';
-import type { NetworkEntry } from '@traceitx/sdk-core';
+import type { NetworkEntry } from '@everframe/sdk-core';
 import { CollapsiblePanel } from './CollapsiblePanel.js';
 
 function trunc(s: string, n: number): string {
@@ -31,7 +31,7 @@ export function NetworkPanel({ entries, included, onToggle }: NetworkPanelProps)
     >
       {entries.length === 0 ? <p>No network requests captured</p> : null}
       {entries.map((entry, i) => (
-        <div key={i} className="txx-row" data-testid={`net-row-${i}`}>
+        <div key={i} className="everframe-row" data-testid={`net-row-${i}`}>
           <span>{entry.method}</span>
           <span title={entry.url}>{trunc(entry.url, 48)}</span>
           <span>{entry.status ?? '-'}</span>

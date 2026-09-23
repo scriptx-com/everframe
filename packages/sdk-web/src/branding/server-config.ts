@@ -8,7 +8,7 @@
 // provider.tsx). Copy of companion/server-config.ts's pattern — see its
 // header for why the subscribers exist (a config landing between renders
 // must trigger its own re-render).
-import type { BrandingServerConfig } from '@traceitx/sdk-core';
+import type { BrandingServerConfig } from '@everframe/sdk-core';
 
 let _serverConfig: BrandingServerConfig | undefined;
 const _subs = new Set<() => void>();

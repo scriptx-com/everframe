@@ -3,13 +3,13 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from 'vitest';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { ReportDraft, UserMetadata } from '@traceitx/sdk-core';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { ReportDraft, UserMetadata } from '@everframe/sdk-core';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 
 // Fixture shapes mirror draft-to-envelope.spec.ts's baseConfig/baseBundle/baseDraft
 // (this package has no shared __helpers__ module to import from).
 
-function baseConfig(): WebTraceItXConfig {
+function baseConfig(): WebEverframeConfig {
   return {
     apiKey: 'txx_live_test',
     appName: 'test-app',

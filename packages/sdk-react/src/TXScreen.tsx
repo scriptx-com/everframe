@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Navigation screen markers — the React twin of
-// @traceitx/react-native/src/TXScreen.tsx. Signatures are deliberately
+// @everframe/react-native/src/TXScreen.tsx. Signatures are deliberately
 // identical: a host shipping both platforms writes the same line in both.
 //
 // Host-opt-in and MANUAL. It patches no router, so automatic capture stays a

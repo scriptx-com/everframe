@@ -12,7 +12,7 @@
 //     buffer-start (not per-event).
 //   - 0 ⇒ never buffers; 1 ⇒ always buffers; below the gate ⇒ no attachment.
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createReplayLifecycle, type ReplayConfig } from '@traceitx/sdk-core';
+import { createReplayLifecycle, type ReplayConfig } from '@everframe/sdk-core';
 import { createReplayRecorder } from '../../../src/capture/replay/recorder.js';
 
 function cfg(over: Partial<ReplayConfig> = {}): ReplayConfig {

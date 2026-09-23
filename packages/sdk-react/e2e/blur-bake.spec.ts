@@ -36,7 +36,7 @@ test('blur-bake: when a blur rect exists, only annotated-screenshot ships', asyn
   });
 
   await page.goto('/');
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
 
   // Post report-window overhaul: the reporter modal shows a thumbnail; the
@@ -57,11 +57,11 @@ test('blur-bake: when a blur rect exists, only annotated-screenshot ships', asyn
   await page.getByTestId('tool-blur').click();
 
   // Clicking the toolbar button auto-scrolls the overlay's own scroll region
-  // (.txx-annotate-overlay-stage) to reveal the below-the-fold button, which
+  // (.everframe-annotate-overlay-stage) to reveal the below-the-fold button, which
   // pushes the canvas TOP out of view — raw page.mouse.* gets no such
   // auto-scroll, so reset to the top before coordinate-based canvas input.
   await page.evaluate(() => {
-    document.querySelector('.txx-annotate-overlay-stage')?.scrollTo(0, 0);
+    document.querySelector('.everframe-annotate-overlay-stage')?.scrollTo(0, 0);
   });
 
   // Drag a blur rect on the Konva Stage's <canvas> (fractional coords keep it

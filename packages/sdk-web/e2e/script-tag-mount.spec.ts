@@ -18,7 +18,7 @@
 // HTML page as shipped.
 //
 // WHAT CHANGED, and why the first assertion below inverted. This slot used to
-// hold an IIFE (`dist/traceitx.min.js`, from a since-deleted `src/cdn.ts`)
+// hold an IIFE (`dist/everframe.min.js`, from a since-deleted `src/cdn.ts`)
 // loaded by a bare `<script src>`, and this spec asserted `moduleScripts: 0`
 // to prove the page was bundler-free. An IIFE has no module loader and so
 // cannot code-split: React, konva, rrweb and modern-screenshot all downloaded
@@ -48,27 +48,27 @@ test('one module script, no import map, and one tagged host', async ({ page }) =
   await page.goto(FIXTURE);
 
   const state = await page.evaluate(() => {
-    const host = document.getElementById('traceitx-host');
+    const host = document.getElementById('everframe-host');
     return {
-      hosts: document.querySelectorAll('#traceitx-host').length,
+      hosts: document.querySelectorAll('#everframe-host').length,
       shadow: !!host?.shadowRoot,
       // The capture-exclusion contract starts here: filterNode drops the host,
       // and the whole shadow subtree goes with it.
-      skipCapture: host?.getAttribute('data-traceitx-skip-capture'),
+      skipCapture: host?.getAttribute('data-everframe-skip-capture'),
       // One module block and NO import map — the point of this fixture. The
       // browser resolved nothing; it fetched a URL out of a versioned
       // directory, exactly as it would from cdn.jsdelivr.net.
       moduleScripts: document.querySelectorAll('script[type=module]').length,
       importMaps: document.querySelectorAll('script[type=importmap]').length,
-      // No `window.traceitx`. The IIFE installed one and guarded against double
+      // No `window.everframe`. The IIFE installed one and guarded against double
       // inclusion; the module registry dedupes by URL, so the guard has nothing
       // left to guard and the global is gone. Asserted rather than merely
       // dropped, so a resurrected global is a failure and not a silent
       // re-expansion of the public surface.
-      global: typeof (window as unknown as { traceitx?: unknown }).traceitx,
+      global: typeof (window as unknown as { everframe?: unknown }).everframe,
       // …while the handle init() returned is real, which is what makes the line
       // above a statement about the global and not about a dead page.
-      handle: typeof (window as unknown as { __traceitx?: { open?: unknown } }).__traceitx?.open,
+      handle: typeof (window as unknown as { __everframe?: { open?: unknown } }).__everframe?.open,
     };
   });
 
@@ -101,7 +101,7 @@ test('React is fetched only when the reporter opens', async ({ page }) => {
 
   await page.goto(FIXTURE);
   await page.waitForFunction(
-    () => !!(window as unknown as { __traceitx?: unknown }).__traceitx,
+    () => !!(window as unknown as { __everframe?: unknown }).__everframe,
     null,
     { timeout: 30_000 },
   );
@@ -142,11 +142,11 @@ test('the dialog opens inside the shadow root, styled, and does not leak', async
   await openReporter(page);
 
   const state = await page.evaluate(() => {
-    const sr = document.getElementById('traceitx-host')!.shadowRoot!;
-    const modal = sr.querySelector('.txx-modal') as HTMLElement;
+    const sr = document.getElementById('everframe-host')!.shadowRoot!;
+    const modal = sr.querySelector('.everframe-modal') as HTMLElement;
     const cs = getComputedStyle(modal);
     return {
-      leaked: !!document.body.querySelector('.txx-modal'),
+      leaked: !!document.body.querySelector('.everframe-modal'),
       leakedDialogs: document.querySelectorAll('[role=dialog]').length,
       bgImage: cs.backgroundImage,
       radius: cs.borderRadius,
@@ -156,7 +156,7 @@ test('the dialog opens inside the shadow root, styled, and does not leak', async
   expect(state.leaked).toBe(false);
   expect(state.leakedDialogs).toBe(0);
   // Proves the shadow-root stylesheet actually applied rather than the tree
-  // rendering unstyled — .txx-modal's background is a gradient, so
+  // rendering unstyled — .everframe-modal's background is a gradient, so
   // backgroundColor is legitimately transparent and must NOT be asserted on.
   expect(state.bgImage).toContain('gradient');
   expect(state.radius).toBe('18px');
@@ -176,9 +176,9 @@ test('a capture taken with the dialog open excludes the reporter chrome', async 
 
 test('destroy() removes the host entirely', async ({ page }) => {
   await page.goto(FIXTURE);
-  await expect(page.locator('#traceitx-host')).toHaveCount(1);
+  await expect(page.locator('#everframe-host')).toHaveCount(1);
   await page.evaluate(() =>
-    (window as unknown as { __traceitx: { destroy(): void } }).__traceitx.destroy(),
+    (window as unknown as { __everframe: { destroy(): void } }).__everframe.destroy(),
   );
-  expect(await page.locator('#traceitx-host').count()).toBe(0);
+  expect(await page.locator('#everframe-host').count()).toBe(0);
 });

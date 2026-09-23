@@ -5,7 +5,7 @@
 /**
  * Branding vars for the shadow-root mount.
  *
- * In the React path the resolved `--txx-*` values are spread onto the portal
+ * In the React path the resolved `--everframe-*` values are spread onto the portal
  * root as inline styles. Inside a shadow tree that is not enough: layers that
  * portal separately (the annotate overlay, toasts) are siblings, not children,
  * of the modal, so the vars have to sit on the shadow HOST where they cascade

@@ -23,7 +23,7 @@
 // provider.tsx wires up), not a hand-rolled BodyCaptureHooks stub, so they
 // exercise the actual production post-kill path end to end.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createClient, __internalClientState } from '@traceitx/sdk-core';
+import { createClient, __internalClientState } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 
 const adapters: WebPlatformAdapter[] = [];
@@ -356,7 +356,7 @@ describe('F37 (round-8 review): body capture survives a Provider remount', () =>
     expect(B.buf().size).toBe(1); // the committed (last-bound) adapter is the live one
 
     const slot = globalThis as unknown as Record<symbol, unknown>;
-    expect(slot[Symbol.for('__traceitx_patched_fetch__')]).toBe(true); // installed exactly once
+    expect(slot[Symbol.for('__everframe_patched_fetch__')]).toBe(true); // installed exactly once
   });
 });
 

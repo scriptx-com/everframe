@@ -124,7 +124,7 @@ describe('config read: install identifier', () => {
       '000102030405060708090a0b0c0d0e0f',
     );
     expect(credentialStore.deriveWebInstallId(scope)).toBe(
-      'iYgxBgJiRf1n_ekekB7M9g03ulCzNx2O4jfL8PWLegA',
+      'Y-N2TWwZlc4nzHb_E5vm-jifrOdAUikwMj-oPf_dxHs',
     );
   });
 });

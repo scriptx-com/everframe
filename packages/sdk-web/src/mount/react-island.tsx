@@ -13,7 +13,7 @@
 // CompanionPinCard / CompanionBadge are still React-path-only.
 //
 // RULING 11 — the dialog is imported by the RELATIVE path '../ui.js', never by
-// the package subpath '@traceitx/web/ui'. The two look interchangeable and are
+// the package subpath '@everframe/web/ui'. The two look interchangeable and are
 // not:
 //
 //   '../ui.js'            keeps this module in the SAME esbuild build graph as
@@ -23,7 +23,7 @@
 //                         sensitive registry) into a chunk SHARED by the eager
 //                         entry and this island. One instance of each.
 //
-//   '@traceitx/web/ui'    resolves to the SEPARATELY built dist/ui.js, which
+//   '@everframe/web/ui'    resolves to the SEPARATELY built dist/ui.js, which
 //                         shares no chunk with dist/index.js. A vanilla host
 //                         would get TWO copies of every seam: init() writes the
 //                         portal target and the theme host on copy A, the
@@ -44,7 +44,7 @@ import {
   type ToastTone,
 } from '../ui.js';
 import type { WebPlatformAdapter } from '../adapter.js';
-import type { TraceItXClient } from '@traceitx/sdk-core';
+import type { EverframeClient } from '@everframe/sdk-core';
 
 export interface Island {
   /** Show/hide the reporter dialog. */
@@ -58,7 +58,7 @@ export interface Island {
 
 export interface IslandHandlers {
   /** The public `tx.threads.*` facade the inbox reads — never a side channel. */
-  threads: TraceItXClient['threads'];
+  threads: EverframeClient['threads'];
   onComplete(payload: ReporterCompletePayload): void;
   onCancel(): void;
   /**

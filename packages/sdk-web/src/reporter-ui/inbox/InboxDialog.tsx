@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useState, type JSX } from 'react';
-import type { TraceItXClient } from '@traceitx/sdk-core';
+import type { EverframeClient } from '@everframe/sdk-core';
 import { Modal } from '../primitives/Modal.js';
 import { ThreadListView } from './ThreadListView.js';
 import { ThreadView } from './ThreadView.js';
@@ -11,7 +11,7 @@ export interface InboxDialogProps {
   open: boolean;
   onClose: () => void;
   /** The public `tx.threads.*` facade (spec 2026-07-31) — nothing else. */
-  threads: TraceItXClient['threads'];
+  threads: EverframeClient['threads'];
   /** Opens the normal capture flow (wired by the host Provider). */
   onNewReport: () => void;
 }

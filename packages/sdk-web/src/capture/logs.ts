@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { LogEntry } from '@traceitx/sdk-core';
+import type { LogEntry } from '@everframe/sdk-core';
 import { pushLogEntry } from './buffers.js';
 import type { CrumbSink, KindGate, CrashSink } from './breadcrumbs.js';
 
-const PATCH_MARKER = Symbol.for('__traceitx_patched_console__');
+const PATCH_MARKER = Symbol.for('__everframe_patched_console__');
 const ALL_LEVELS = ['log', 'info', 'warn', 'error', 'debug'] as const;
 type Level = (typeof ALL_LEVELS)[number];
 
@@ -100,7 +100,7 @@ function pushEntry(level: LogEntry['level'], args: unknown[]): void {
  * window.onerror + unhandledrejection so the rolling buffer reflects activity from
  * before the reporter was opened.
  *
- * Idempotent: a second install no-ops via `Symbol.for('__traceitx_patched_console__')`.
+ * Idempotent: a second install no-ops via `Symbol.for('__everframe_patched_console__')`.
  *
  * Sentry coexistence: chains to whatever console wrapper was installed before us, so
  * Sentry breadcrumbs / Bugsnag breadcrumbs continue to receive every call.

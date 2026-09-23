@@ -43,8 +43,8 @@
 // contract this module exists to provide. `safeSerialize` below is the single
 // place `JSON.stringify` is called; every call site treats `undefined` as
 // "drop this send silently" rather than letting the exception propagate.
-import type { VitalsChunk, SessionSummary } from '@traceitx/protocol';
-import { IDENTITY_TOKEN_HEADER, presentableIdentityToken } from '@traceitx/sdk-core';
+import type { VitalsChunk, SessionSummary } from '@everframe/protocol';
+import { IDENTITY_TOKEN_HEADER, presentableIdentityToken } from '@everframe/sdk-core';
 
 const RETRY_DELAY_MS = 5_000;
 // Codex round-1 finding S3 — the cap on how long a 429's `Retry-After` can

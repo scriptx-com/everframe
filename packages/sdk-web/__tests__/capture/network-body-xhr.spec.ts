@@ -3,7 +3,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { installXHRPatcher, type BodyCaptureHooks } from '../../src/capture/network.js';
 import * as networkBodyModule from '../../src/capture/network-body.js';
-import type { NetworkBodyEntry } from '@traceitx/protocol';
+import type { NetworkBodyEntry } from '@everframe/protocol';
 
 // See network-body-fetch.spec.ts's `bigBody` for why this isn't one giant
 // unbroken run of word characters (avoids quadratic backtracking in the

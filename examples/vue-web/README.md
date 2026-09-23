@@ -46,14 +46,14 @@ test the shared capture core rather than anything the Web SDK does differently.
 
 `packages/sdk-web/e2e/vue/` pins these — keep them intact when editing:
 
-- `home-heading` with the literal text `TraceItX Web SDK Example`
+- `home-heading` with the literal text `Everframe Web SDK Example`
 - the canonical PII strings under `cc-number` and `bearer-token`
 - `password-input` — the `input[type=password]` the SDK's own PRIV-01
   auto-mask picks up; one of the three elements `sensitive-lifecycle.spec.ts`
   counts in the registry
 - `sensitive-attr-block` (the attribute surface) and `sensitive-block` (the
   registry surface, via `v-sensitive`) — the second MUST unregister on unmount
-- `traceitx-bubble` opens the reporter on `/` and on `/strict-csp.html`
+- `everframe-bubble` opens the reporter on `/` and on `/strict-csp.html`
 - `nav-home`, `nav-specimens`, `nav-settings`
 - `kill-sdk` and `settings-status` on `/settings`
 - `strict-csp-heading` on the strict-CSP document

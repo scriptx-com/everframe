@@ -13,7 +13,7 @@
 //
 //   Ruling 11  The lazily-imported island must reach the dialog by the
 //              RELATIVE path '../ui.js', never the package subpath
-//              '@traceitx/web/ui'. The subpath resolves to the separately
+//              '@everframe/web/ui'. The subpath resolves to the separately
 //              built dist/ui.js, which shares no chunk with dist/index.js —
 //              giving a vanilla host TWO copies of every module-level
 //              singleton (portal target, theme host, inline theme, companion
@@ -119,13 +119,13 @@ describe('the lazy island (Ruling 11)', () => {
     expect(staticSpecifiers(island)).toContain('../ui.js');
   });
 
-  it("never imports the package subpath '@traceitx/web/ui'", () => {
+  it("never imports the package subpath '@everframe/web/ui'", () => {
     // The subpath resolves to the separately-built dist/ui.js: a second copy
     // of every seam, in a chunk that shares nothing with dist/index.js.
     // (Checked over the SPECIFIERS, not the raw text — the header comment
     // names the forbidden path in order to explain why it is forbidden.)
     expect(
-      staticSpecifiers(island).filter((s) => s.startsWith('@traceitx/web')),
+      staticSpecifiers(island).filter((s) => s.startsWith('@everframe/web')),
     ).toEqual([]);
   });
 });

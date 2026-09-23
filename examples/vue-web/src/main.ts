@@ -17,7 +17,7 @@ let app = mount();
 // Spec hook: unmount and remount the whole app, so
 // e2e/vue/mount.spec.ts can prove destroy()/init() do not accumulate hosts.
 // This package is private and never ships.
-(window as unknown as Record<string, unknown>)['__traceitxRemount'] = (): void => {
+(window as unknown as Record<string, unknown>)['__everframeRemount'] = (): void => {
   app.unmount();
   app = mount();
 };

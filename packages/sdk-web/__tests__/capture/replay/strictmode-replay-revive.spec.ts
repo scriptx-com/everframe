@@ -5,7 +5,7 @@
 // Codex round-4 finding 2 (P1) — React StrictMode permanently disabled session
 // replay, and it took TWO latches to do it.
 //
-// `TraceItXProvider`'s unmount cleanup calls `client.kill()`. StrictMode (the
+// `EverframeProvider`'s unmount cleanup calls `client.kill()`. StrictMode (the
 // Next.js dev default) simulates an unmount by running every effect cleanup and
 // then every effect again against the SAME client and adapter — so that kill
 // lands on a Provider that is about to go on living. Round 3 made `onKill()`

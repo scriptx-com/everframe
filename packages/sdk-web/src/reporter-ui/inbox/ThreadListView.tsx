@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useEffect, useState, type JSX } from 'react';
-import type { TraceItXClient } from '@traceitx/sdk-core';
+import type { EverframeClient } from '@everframe/sdk-core';
 
 export interface ThreadListViewProps {
-  threads: TraceItXClient['threads'];
+  threads: EverframeClient['threads'];
   onOpenThread: (threadId: string) => void;
   onNewReport: () => void;
 }
@@ -24,9 +24,9 @@ export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadLis
 
   if (rows.length === 0) {
     return (
-      <div className="txx-inbox-empty">
+      <div className="everframe-inbox-empty">
         <p>No reports yet.</p>
-        <button type="button" className="txx-btn txx-btn-primary" onClick={onNewReport}>
+        <button type="button" className="everframe-btn everframe-btn-primary" onClick={onNewReport}>
           New report
         </button>
       </div>
@@ -36,7 +36,7 @@ export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadLis
   return (
     <>
       {state.readOnly ? (
-        <div className="txx-notice txx-notice-degraded">
+        <div className="everframe-notice everframe-notice-degraded">
           Replies are turned off. Existing conversations are read-only.
         </div>
       ) : null}
@@ -44,20 +44,20 @@ export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadLis
        * no ARIA role overrides. A `role="listitem"` on the `<button>` itself
        * (the prior shape here) replaces its implicit button role for AT
        * users, which is why this was restructured. */}
-      <ul className="txx-inbox-list">
+      <ul className="everframe-inbox-list">
         {rows.map((t) => (
           <li key={t.id}>
-            <button type="button" className="txx-inbox-row" onClick={() => onOpenThread(t.id)}>
-              <span className="txx-inbox-row-title">
+            <button type="button" className="everframe-inbox-row" onClick={() => onOpenThread(t.id)}>
+              <span className="everframe-inbox-row-title">
                 {t.reportTitle ?? `Report from ${new Date(t.createdAt).toLocaleDateString()}`}
               </span>
               <span
-                className={`txx-inbox-chip ${t.status === 'open' ? 'txx-inbox-chip-open' : 'txx-inbox-chip-closed'}`}
+                className={`everframe-inbox-chip ${t.status === 'open' ? 'everframe-inbox-chip-open' : 'everframe-inbox-chip-closed'}`}
               >
                 {t.status === 'open' ? 'Open' : 'Closed'}
               </span>
               {t.unreadCount > 0 ? (
-                <span className="txx-inbox-unread-dot" aria-label={`${t.unreadCount} unread`} />
+                <span className="everframe-inbox-unread-dot" aria-label={`${t.unreadCount} unread`} />
               ) : null}
             </button>
           </li>

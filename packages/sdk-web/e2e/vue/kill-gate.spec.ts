@@ -26,7 +26,7 @@ test('a report written before kill() is NOT submitted after it', async ({ page }
   // Kill through the SDK surface the settings page wires up, not through a
   // test-only backdoor — the whole point is to exercise what a host calls.
   await page.evaluate(() => {
-    (window as unknown as { __traceitx: { kill(): void } }).__traceitx.kill();
+    (window as unknown as { __everframe: { kill(): void } }).__everframe.kill();
   });
 
   await page.getByTestId('submit-report').click();
@@ -81,7 +81,7 @@ test('the settings page kill button stops the bubble opening the reporter, prove
   // Same page, same SDK instance: the bubble that just proved itself live
   // must now refuse to open the reporter at all.
   await page.getByTestId('nav-home').click();
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await page.waitForTimeout(2000);
   await expect(page.getByTestId('reporter-modal')).not.toBeVisible();
 

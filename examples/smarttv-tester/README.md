@@ -66,7 +66,7 @@ HOSTED_URL=http://<lan-ip>:4174 DEVICE=<name> pnpm run:webos
 ### In a selected Chromium milestone
 
 Approximate a TV engine on your desk (macOS; snapshots cached under
-`~/.traceitx/chromium/`):
+`~/.everframe/chromium/`):
 
 ```sh
 pnpm run:chromium 69                  # build + preview + launch Chromium 69
@@ -88,18 +88,18 @@ Disconnect twin closes) the app-level relay session — `src/companion/useCompan
 drives the SDK's `companion.start()` singleton and reports live status (and
 the dashboard pairing code) next to the button. The "Pair phone" tile reuses
 that session (connecting first if needed) and opens the QR overlay.
-`main.tsx` mounts `TraceItXProvider`, which supplies the companion host seam —
+`main.tsx` mounts `EverframeProvider`, which supplies the companion host seam —
 that's what enables the phone's **live view**, multi-shot capture, and real
 report submission from the TV.
 
 Two build-time inputs, both read from the repo-root `.env` (a real env var
 overrides):
 
-- `TRACEITX_KEY_WEB` — the Web app's SDK key (`txx_live_…` from the
+- `EVERFRAME_KEY_WEB` — the Web app's SDK key (`txx_live_…` from the
   dashboard). With it the device announces itself and **appears on the
   project's companion page**; without it the relay still pairs but the
   device is invisible to the dashboard (the sidebar warns about this).
-- `TRACEITX_INGEST_URL` — optional endpoint override. Unset, the URL baked
+- `EVERFRAME_INGEST_URL` — optional endpoint override. Unset, the URL baked
   into `@everframe/react` at its build applies — run `pnpm build:web-sdk` at
   the repo root for local dev, or the SDK dist points at production. On a
   real TV set it to your dev machine's LAN address

@@ -11,7 +11,7 @@
 // The KindGate is a LIVE predicate (reads the latest server config on every
 // event) so a kind disabled by config stops being captured the moment config
 // resolves — "disabled kinds are not captured at all" (spec §6).
-import type { BreadcrumbInput, BreadcrumbBuffer } from '@traceitx/sdk-core';
+import type { BreadcrumbInput, BreadcrumbBuffer } from '@everframe/sdk-core';
 
 export type CrumbSink = (input: BreadcrumbInput) => void;
 export type BreadcrumbKindName = BreadcrumbInput['kind'];
@@ -92,7 +92,7 @@ export function applyBreadcrumbsConfigToBuffer(
   buffer.setMaxCount(config.maxCount);
 }
 
-const HISTORY_MARKER = Symbol.for('__traceitx_patched_history__');
+const HISTORY_MARKER = Symbol.for('__everframe_patched_history__');
 
 /**
  * installNavigationCrumbs — patches history.pushState/replaceState and listens
@@ -146,7 +146,7 @@ export function installNavigationCrumbs(sink: CrumbSink, gate: KindGate): () => 
  * (`visibility: hidden` / `visibility: visible`). Tab switches and app
  * backgrounding are the web's lifecycle signal (spec §5).
  */
-const LIFECYCLE_MARKER = Symbol.for('__traceitx_patched_lifecycle__');
+const LIFECYCLE_MARKER = Symbol.for('__everframe_patched_lifecycle__');
 
 export function installLifecycleCrumbs(sink: CrumbSink, gate: KindGate): () => void {
   if (typeof document === 'undefined') return () => undefined;
@@ -223,7 +223,7 @@ export function describeEventTarget(
  * frozen before the modal opens, so the shipped snapshot never contains them
  * (same doctrine as replay).
  */
-const TAP_MARKER = Symbol.for('__traceitx_patched_tap__');
+const TAP_MARKER = Symbol.for('__everframe_patched_tap__');
 
 export function installTapCrumbs(
   sink: CrumbSink,

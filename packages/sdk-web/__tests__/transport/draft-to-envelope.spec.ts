@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 import { describe, expect, it } from 'vitest';
-import { ReportEnvelope } from '@traceitx/protocol';
+import { ReportEnvelope } from '@everframe/protocol';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { ReportDraft } from '@traceitx/sdk-core';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { ReportDraft } from '@everframe/sdk-core';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 
 /** Minimal fixture config, reused (and overridden via spread) across the suite. */
-function baseConfig(): WebTraceItXConfig {
+function baseConfig(): WebEverframeConfig {
   return {
     apiKey: 'txx_live_test',
     appName: 'test-app',
@@ -62,10 +62,10 @@ describe('draftToEnvelope', () => {
     });
   });
 
-  it('produces envelope with sdk.platform=web and sdk.name=traceitx-react + version', () => {
+  it('produces envelope with sdk.platform=web and sdk.name=everframe-react + version', () => {
     const { envelope } = draftToEnvelope(baseDraft, baseBundle(), baseConfig(), '0.1.0');
     expect(envelope.sdk.platform).toBe('web');
-    expect(envelope.sdk.name).toBe('traceitx-react');
+    expect(envelope.sdk.name).toBe('everframe-react');
     expect(envelope.sdk.version).toBe('0.1.0');
     // schema round-trip
     expect(ReportEnvelope.safeParse(envelope).success).toBe(true);

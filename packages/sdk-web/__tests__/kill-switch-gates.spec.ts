@@ -7,8 +7,8 @@
 // captured or sent. It reaches this adapter through `onKill()`, which flips
 // the `killed` flag eight other paths already consult (bodyCapture.enabled,
 // the periodic config refresh, applyLiveConfig, the 'online' drain listener…).
-// Two paths did not consult it, in BOTH `@traceitx/web` and the published
-// `@traceitx/react` that shares this file:
+// Two paths did not consult it, in BOTH `@everframe/web` and the published
+// `@everframe/react` that shares this file:
 //
 //   1. `__openReporter()` — `open()` (and, through the registered show-modal
 //      callback, the hotkey) still mounted the dialog and captured a
@@ -151,7 +151,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     // Codex round-2 finding 3 (P1) — a REGRESSION this branch introduced in
-    // the PUBLISHED `@traceitx/react`, not a gap in the vanilla SDK. Round 1
+    // the PUBLISHED `@everframe/react`, not a gap in the vanilla SDK. Round 1
     // gated the 'online' outbox-drain listener on `killed`, which is set once
     // and never reset; `__rebindCrumbHooks()` revives `reportingKilled` but
     // deliberately not `killed`. So under React 18 StrictMode — i.e. every

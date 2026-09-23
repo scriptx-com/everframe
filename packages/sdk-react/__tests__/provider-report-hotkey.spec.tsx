@@ -4,7 +4,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@traceitx/web/ui', () => ({
+vi.mock('@everframe/web/ui', () => ({
   ReporterDialog: ({ open }: { open: boolean }) =>
     open ? <div data-testid="reporter-modal" /> : null,
   ReporterFab: () => null,
@@ -14,7 +14,7 @@ vi.mock('@traceitx/web/ui', () => ({
   Toast: () => null,
 }));
 
-import { TraceItXProvider } from '../src/provider.js';
+import { EverframeProvider } from '../src/provider.js';
 
 afterEach(() => {
   cleanup();
@@ -41,9 +41,9 @@ describe('dashboard-owned report hotkey', () => {
     Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Linux x86_64' });
     stubFetch('Alt+R');
     render(
-      <TraceItXProvider config={{ apiKey: 'txx_live_test' }}>
+      <EverframeProvider config={{ apiKey: 'txx_live_test' }}>
         <div>host</div>
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     await act(async () => {

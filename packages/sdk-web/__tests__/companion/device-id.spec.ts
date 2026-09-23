@@ -36,7 +36,7 @@ describe('resolveCompanionDeviceId', () => {
 
   // Locks the exact algorithm (not just its shape/determinism, which the
   // first test above already covers) to the SAME literal computed
-  // out-of-band as the two native suites: SHA-256("traceitx-test-vector"),
+  // out-of-band as the two native suites: SHA-256("everframe-test-vector"),
   // first 16 bytes, byte 6 -> (b & 0x0f) | 0x40, byte 8 -> (b & 0x3f) | 0x80,
   // hex-formatted 8-4-4-4-12. Same pinned vector as
   // `CompanionDeviceTests.swift.hashToUuid_knownVector` (iOS) and
@@ -44,8 +44,8 @@ describe('resolveCompanionDeviceId', () => {
   // files' own comments already claimed this file pinned it too; this test
   // is what makes that claim true.
   it('pins the SAME cross-platform known vector as the iOS/Android suites', async () => {
-    const id = await resolveCompanionDeviceId({ explicit: 'traceitx-test-vector' });
-    expect(id).toBe('069517e3-5bd7-4012-b70c-f7a35e011fc9');
+    const id = await resolveCompanionDeviceId({ explicit: 'everframe-test-vector' });
+    expect(id).toBe('abb64861-9a56-4d83-9384-9c6559a5599e');
   });
 
   it('explicit accepts an async provider', async () => {
@@ -66,7 +66,7 @@ describe('resolveCompanionDeviceId', () => {
     const again = await resolveCompanionDeviceId();
     expect(again).toBe(id);
     // And it beat the localStorage path: nothing was persisted.
-    expect(localStorage.getItem('txx.companionDeviceId')).toBeNull();
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBeNull();
   });
 
   it('uses the webOS LGUDID via the Luna bridge', async () => {
@@ -94,7 +94,7 @@ describe('resolveCompanionDeviceId', () => {
   it('falls back to a persisted localStorage UUID and reuses it', async () => {
     const first = await resolveCompanionDeviceId();
     expect(first).toMatch(UUID_RE);
-    expect(localStorage.getItem('txx.companionDeviceId')).toBe(first);
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBe(first);
     __resetDeviceIdForTests();
     const second = await resolveCompanionDeviceId();
     expect(second).toBe(first);
@@ -106,7 +106,7 @@ describe('resolveCompanionDeviceId', () => {
     };
     const id = await resolveCompanionDeviceId();
     expect(id).toMatch(UUID_RE);              // localStorage fallback won
-    expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
   });
 
   // Fix round 1, Finding 1: opts are honored only on the call that creates
@@ -139,7 +139,7 @@ describe('resolveCompanionDeviceId', () => {
       await vi.advanceTimersByTimeAsync(2_000);
       const id = await pending;
       expect(id).toMatch(UUID_RE);
-      expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
+      expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
     } finally {
       vi.useRealTimers();
     }
@@ -160,7 +160,7 @@ describe('resolveCompanionDeviceId', () => {
     };
     const id = await resolveCompanionDeviceId();
     expect(id).toMatch(UUID_RE);
-    expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
   });
 
   // Fix round 1, Finding 3: with no crypto AND no usable storage, every
@@ -189,12 +189,12 @@ describe('resolveCompanionDeviceId', () => {
   // stranding the SDK on the ticketless path until site data is cleared.
   // This module owns the only legitimate writer, so regenerating is safe.
   it('regenerates a malformed stored device id rather than returning it as-is', async () => {
-    localStorage.setItem('txx.companionDeviceId', 'not-a-uuid');
+    localStorage.setItem('everframe.companionDeviceId', 'not-a-uuid');
     const id = await resolveCompanionDeviceId();
     expect(id).toMatch(STORED_UUID_RE);
     expect(id).not.toBe('not-a-uuid');
-    expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
-    expect(localStorage.getItem('txx.companionDeviceId')).not.toBe('not-a-uuid');
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
+    expect(localStorage.getItem('everframe.companionDeviceId')).not.toBe('not-a-uuid');
   });
 
   // Scoped re-review: the original UUID_RE's third group was `{3,4}`,
@@ -203,11 +203,11 @@ describe('resolveCompanionDeviceId', () => {
   // Item 1. UUID_RE is now strict 8-4-4-4-12.
   it('regenerates a near-UUID with a short third group (not RFC 4122)', async () => {
     const seed = '12345678-1234-123-1234-123456789012';
-    localStorage.setItem('txx.companionDeviceId', seed);
+    localStorage.setItem('everframe.companionDeviceId', seed);
     const id = await resolveCompanionDeviceId();
     expect(id).toMatch(STORED_UUID_RE);
     expect(id).not.toBe(seed);
-    expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
   });
 
   // External review W4: correct 8-4-4-4-12 shape but the wrong version/
@@ -216,11 +216,11 @@ describe('resolveCompanionDeviceId', () => {
   // value like this must be regenerated rather than shipped as-is.
   it('regenerates a valid-shape stored id with the wrong version/variant nibble', async () => {
     const seed = '12345678-1234-9234-c234-123456789012';
-    localStorage.setItem('txx.companionDeviceId', seed);
+    localStorage.setItem('everframe.companionDeviceId', seed);
     const id = await resolveCompanionDeviceId();
     expect(id).toMatch(STORED_UUID_RE);
     expect(id).not.toBe(seed);
-    expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
   });
 
   // External review W1(c): a malformed Luna onSuccess payload (e.g. the
@@ -243,7 +243,7 @@ describe('resolveCompanionDeviceId', () => {
     };
     const id = await resolveCompanionDeviceId();
     expect(id).toMatch(UUID_RE);
-    expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
+    expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
   });
 
   // External review W5: older TV WebViews ship `crypto.getRandomValues`
@@ -259,7 +259,7 @@ describe('resolveCompanionDeviceId', () => {
     try {
       const id = await resolveCompanionDeviceId();
       expect(id).toMatch(UUID_RE);
-      expect(localStorage.getItem('txx.companionDeviceId')).toBe(id);
+      expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
     } finally {
       vi.unstubAllGlobals();
     }

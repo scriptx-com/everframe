@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useEffect, type RefObject } from 'react';
-import { trackPlayer, type TrackPlayerOptions } from '@traceitx/web';
+import { trackPlayer, type TrackPlayerOptions } from '@everframe/web';
 
 /**
  * Session Vitals phase 4: attach the media element behind `ref` for

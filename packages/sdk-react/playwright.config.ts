@@ -39,10 +39,10 @@ export default defineConfig({
           url: BASE_URL,
           timeout: 120_000,
           reuseExistingServer: !process.env.CI,
-          // Ingest URL is baked into @traceitx/react via tsup `define`
-          // (TRACEITX_INGEST_URL env at sdk-react build time). E2E inherits
+          // Ingest URL is baked into @everframe/react via tsup `define`
+          // (EVERFRAME_INGEST_URL env at sdk-react build time). E2E inherits
           // whatever the local sdk-react `dist/` was built with — point it
           // at the stub server by rebuilding sdk-react with
-          // TRACEITX_INGEST_URL=http://127.0.0.1:8787 before running E2E.
+          // EVERFRAME_INGEST_URL=http://127.0.0.1:8787 before running E2E.
         },
 });

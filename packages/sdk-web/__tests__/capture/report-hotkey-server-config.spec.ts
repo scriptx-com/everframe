@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createClient } from '@traceitx/sdk-core';
+import { createClient } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 
 const adapters: WebPlatformAdapter[] = [];
@@ -39,7 +39,7 @@ describe('dashboard report hotkey', () => {
 
     expect(bindings).toEqual(['Mod+Shift+B', 'Alt+R']);
     const request = fetchMock.mock.calls[0]?.[1];
-    expect((request?.headers as Record<string, string>)['X-TX-SDK-Features'])
+    expect((request?.headers as Record<string, string>)['X-Everframe-SDK-Features'])
       .toContain('reporthotkey');
     unsubscribe();
   });

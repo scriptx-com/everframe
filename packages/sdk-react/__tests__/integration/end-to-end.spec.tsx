@@ -19,12 +19,12 @@ vi.mock('react-konva', () => ({
   Image: () => <div data-testid="konva-image" />,
 }));
 
-import { TraceItXProvider } from '../../src/provider.js';
-import { useTraceItX } from '../../src/hook.js';
-import { scopedReporterTokenStorageKey } from '@traceitx/web';
+import { EverframeProvider } from '../../src/provider.js';
+import { useEverframe } from '../../src/hook.js';
+import { scopedReporterTokenStorageKey } from '@everframe/web';
 
 function OpenButton() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   return (
     <button type="button" data-testid="host-open" onClick={open}>
       open
@@ -34,14 +34,14 @@ function OpenButton() {
 
 /**
  * Reporter identity recognition (spec 2026-08-06) — the ONLY publicly
- * reachable way a host can supply a token is `useTraceItX().setIdentityToken`
+ * reachable way a host can supply a token is `useEverframe().setIdentityToken`
  * (Critical 2 of the task-14 review: hook.ts didn't expose it at all, so no
- * host on `@traceitx/react` could reach the sdk-core client
+ * host on `@everframe/react` could reach the sdk-core client
  * method by any route). Calling it in a mount effect, same shape as
  * `OpenButton` above, mirrors how a real host would call it near app init.
  */
 function IdentitySetter({ token }: { token: string }) {
-  const { setIdentityToken } = useTraceItX();
+  const { setIdentityToken } = useEverframe();
   useEffect(() => {
     setIdentityToken(token);
   }, [setIdentityToken, token]);
@@ -61,7 +61,7 @@ function IdentityController({
   initial: string;
   onReady: (set: (token: string) => void) => void;
 }) {
-  const { setIdentityToken } = useTraceItX();
+  const { setIdentityToken } = useEverframe();
   useEffect(() => {
     setIdentityToken(initial);
     onReady(setIdentityToken);
@@ -115,7 +115,7 @@ describe('Provider end-to-end (jsdom)', () => {
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
     try {
       const { findByTestId } = render(
-        <TraceItXProvider
+        <EverframeProvider
           config={{
             apiKey: 'txx_live_test',
             appName: 'test',
@@ -124,7 +124,7 @@ describe('Provider end-to-end (jsdom)', () => {
         >
           <div>app</div>
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       const opener = await findByTestId('host-open');
@@ -186,7 +186,7 @@ describe('Provider end-to-end (jsdom)', () => {
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
 
     const rendered = render(
-      <TraceItXProvider
+      <EverframeProvider
         config={{
           apiKey: 'txx_live_test',
           appName: 'test',
@@ -195,7 +195,7 @@ describe('Provider end-to-end (jsdom)', () => {
       >
         <div>app</div>
         <OpenButton />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     const opener = await rendered.findByTestId('host-open');
@@ -220,7 +220,7 @@ describe('Provider end-to-end (jsdom)', () => {
     const originalFetch = globalThis.fetch;
     try {
       const { findByTestId } = await renderOpenAndSubmit('{"thread":{"id":"t1"}}');
-      const toast = await findByTestId('traceitx-toast', {}, { timeout: 5000 });
+      const toast = await findByTestId('everframe-toast', {}, { timeout: 5000 });
       expect(toast.textContent).toBe('Report sent — the team can reply here.');
     } finally {
       globalThis.fetch = originalFetch;
@@ -231,7 +231,7 @@ describe('Provider end-to-end (jsdom)', () => {
     const originalFetch = globalThis.fetch;
     try {
       const { findByTestId } = await renderOpenAndSubmit('{}');
-      const toast = await findByTestId('traceitx-toast', {}, { timeout: 5000 });
+      const toast = await findByTestId('everframe-toast', {}, { timeout: 5000 });
       expect(toast.textContent).toBe('Report sent');
     } finally {
       globalThis.fetch = originalFetch;
@@ -263,7 +263,7 @@ describe('Provider end-to-end (jsdom)', () => {
         // Assert the header at the point of the real network call, not on a mock.
         const headers = init?.headers as Record<string, string> | Headers | undefined;
         const tokenHeader =
-          headers instanceof Headers ? headers.get('X-TX-Device-Token') : headers?.['X-TX-Device-Token'];
+          headers instanceof Headers ? headers.get('X-Everframe-Device-Token') : headers?.['X-Everframe-Device-Token'];
         expect(tokenHeader).toBeFalsy();
         return new Response('{}', { status: 200 });
       }
@@ -272,7 +272,7 @@ describe('Provider end-to-end (jsdom)', () => {
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
     try {
       const { findByTestId } = render(
-        <TraceItXProvider
+        <EverframeProvider
           config={{
             apiKey,
             appName: 'test',
@@ -282,7 +282,7 @@ describe('Provider end-to-end (jsdom)', () => {
         >
           <div>app</div>
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       const opener = await findByTestId('host-open');
@@ -353,7 +353,7 @@ describe('Provider end-to-end (jsdom)', () => {
         // Server behaves per its documented no-token fallback: mints a
         // thread + device token even though the client sent no header.
         return new Response(
-          JSON.stringify({ thread: { id: 't9' }, device: { token: 'txr_' + 'd'.repeat(43) } }),
+          JSON.stringify({ thread: { id: 't9' }, device: { token: 'evr_' + 'd'.repeat(43) } }),
           { status: 200 },
         );
       }
@@ -362,7 +362,7 @@ describe('Provider end-to-end (jsdom)', () => {
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
     try {
       const { findByTestId } = render(
-        <TraceItXProvider
+        <EverframeProvider
           config={{
             apiKey,
             appName: 'test',
@@ -372,7 +372,7 @@ describe('Provider end-to-end (jsdom)', () => {
         >
           <div>app</div>
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       const opener = await findByTestId('host-open');
@@ -390,7 +390,7 @@ describe('Provider end-to-end (jsdom)', () => {
         fireEvent.click(submit);
       });
 
-      const toast = await findByTestId('traceitx-toast', {}, { timeout: 5000 });
+      const toast = await findByTestId('everframe-toast', {}, { timeout: 5000 });
       // The plain copy, NOT "Report sent — the team can reply here." — a
       // vetoed client can never display that thread.
       expect(toast.textContent).toBe('Report sent');
@@ -406,7 +406,7 @@ describe('Provider end-to-end (jsdom)', () => {
    * Task 14 review, CRITICAL 1 + 2 — the load-bearing end-to-end assertion.
    * Unit tests on `IdentityTokenHolder` alone (task-14's original submission)
    * proved the holder's expiry/timeout logic but NOT that a real submit
-   * through the shipped path (Provider → useTraceItX().setIdentityToken →
+   * through the shipped path (Provider → useEverframe().setIdentityToken →
    * adapter → submit.ts → sdk-core's submitReport → fetch) ever attaches the
    * header — nothing wired the holder into any live call site. This exercises
    * the REAL pipeline end to end, mocking only `fetch`, exactly like the
@@ -424,7 +424,7 @@ describe('Provider end-to-end (jsdom)', () => {
    * the test body, AFTER the `waitFor` confirms the call happened.
    */
   describe('reporter identity recognition (spec 2026-08-06)', () => {
-    it('a real ingest submit carries X-TX-Identity-Token when a token is set and recognition is enabled', async () => {
+    it('a real ingest submit carries X-Everframe-Identity-Token when a token is set and recognition is enabled', async () => {
       const originalFetch = globalThis.fetch;
       const jwt = mkJwt(Date.now() / 1000 + 300);
       let observedHeader: string | null | undefined;
@@ -437,8 +437,8 @@ describe('Provider end-to-end (jsdom)', () => {
           const headers = init?.headers as Record<string, string> | Headers | undefined;
           observedHeader =
             headers instanceof Headers
-              ? headers.get('X-TX-Identity-Token')
-              : headers?.['X-TX-Identity-Token'];
+              ? headers.get('X-Everframe-Identity-Token')
+              : headers?.['X-Everframe-Identity-Token'];
           return new Response('{}', { status: 200 });
         }
         return new Response('', { status: 200 });
@@ -446,13 +446,13 @@ describe('Provider end-to-end (jsdom)', () => {
       globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
       try {
         const { findByTestId } = render(
-          <TraceItXProvider
+          <EverframeProvider
             config={{ apiKey: 'txx_live_identity_on', appName: 'test', appVersion: '1.0.0' }}
           >
             <div>app</div>
             <IdentitySetter token={jwt} />
             <OpenButton />
-          </TraceItXProvider>,
+          </EverframeProvider>,
         );
 
         // Let the mount-time /api/config fetch (which carries identity.enabled)
@@ -503,8 +503,8 @@ describe('Provider end-to-end (jsdom)', () => {
           const headers = init?.headers as Record<string, string> | Headers | undefined;
           observedHeader =
             headers instanceof Headers
-              ? headers.get('X-TX-Identity-Token')
-              : headers?.['X-TX-Identity-Token'];
+              ? headers.get('X-Everframe-Identity-Token')
+              : headers?.['X-Everframe-Identity-Token'];
           return new Response('{}', { status: 200 });
         }
         return new Response('', { status: 200 });
@@ -512,12 +512,12 @@ describe('Provider end-to-end (jsdom)', () => {
       globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
       try {
         const { findByTestId } = render(
-          <TraceItXProvider
+          <EverframeProvider
             config={{ apiKey: 'txx_live_identity_no_token', appName: 'test', appVersion: '1.0.0' }}
           >
             <div>app</div>
             <OpenButton />
-          </TraceItXProvider>,
+          </EverframeProvider>,
         );
 
         await waitFor(() => {
@@ -567,8 +567,8 @@ describe('Provider end-to-end (jsdom)', () => {
           const headers = init?.headers as Record<string, string> | Headers | undefined;
           observedHeader =
             headers instanceof Headers
-              ? headers.get('X-TX-Identity-Token')
-              : headers?.['X-TX-Identity-Token'];
+              ? headers.get('X-Everframe-Identity-Token')
+              : headers?.['X-Everframe-Identity-Token'];
           return new Response('{}', { status: 200 });
         }
         return new Response('', { status: 200 });
@@ -576,13 +576,13 @@ describe('Provider end-to-end (jsdom)', () => {
       globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
       try {
         const { findByTestId } = render(
-          <TraceItXProvider
+          <EverframeProvider
             config={{ apiKey: 'txx_live_identity_disabled', appName: 'test', appVersion: '1.0.0' }}
           >
             <div>app</div>
             <IdentitySetter token={jwt} />
             <OpenButton />
-          </TraceItXProvider>,
+          </EverframeProvider>,
         );
 
         await waitFor(() => {
@@ -657,8 +657,8 @@ describe('Provider end-to-end (jsdom)', () => {
           const headers = init?.headers as Record<string, string> | Headers | undefined;
           observedHeader =
             headers instanceof Headers
-              ? headers.get('X-TX-Identity-Token')
-              : headers?.['X-TX-Identity-Token'];
+              ? headers.get('X-Everframe-Identity-Token')
+              : headers?.['X-Everframe-Identity-Token'];
           return new Response('{}', { status: 200 });
         }
         return new Response('', { status: 200 });
@@ -688,7 +688,7 @@ describe('Provider end-to-end (jsdom)', () => {
 
       try {
         const { findByTestId } = render(
-          <TraceItXProvider
+          <EverframeProvider
             config={{ apiKey: 'txx_live_identity_boundary', appName: 'test', appVersion: '1.0.0' }}
           >
             <div>app</div>
@@ -697,7 +697,7 @@ describe('Provider end-to-end (jsdom)', () => {
               onReady={(set) => { liveSetIdentityToken = set; }}
             />
             <OpenButton />
-          </TraceItXProvider>,
+          </EverframeProvider>,
         );
 
         await waitFor(() => {

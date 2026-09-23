@@ -10,7 +10,7 @@
     "start": "next start -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "build:source-maps": "TRACEITX_SOURCE_MAPS=1 next build --webpack"
+    "build:source-maps": "EVERFRAME_SOURCE_MAPS=1 next build --webpack"
   },
   "dependencies": {
     "@everframe/identity": "workspace:*",

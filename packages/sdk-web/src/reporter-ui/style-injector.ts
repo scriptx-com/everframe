@@ -23,7 +23,7 @@ export function injectReporterStyles(target: Document | ShadowRoot, nonce?: stri
       : (target.ownerDocument ?? (typeof document !== 'undefined' ? document : (null as unknown as Document)));
   if (!ownerDocument || typeof ownerDocument.createElement !== 'function') return;
   const styleEl = ownerDocument.createElement('style');
-  styleEl.dataset['traceitxStyles'] = 'reporter';
+  styleEl.dataset['everframeStyles'] = 'reporter';
   if (nonce) {
     styleEl.nonce = nonce;
     styleEl.setAttribute('nonce', nonce);

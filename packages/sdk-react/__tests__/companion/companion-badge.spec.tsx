@@ -8,13 +8,13 @@
 // indicator.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { CompanionBadge } from '@traceitx/web/ui';
+import { CompanionBadge } from '@everframe/web/ui';
 import {
   start,
   stop,
   __getCompanionApi,
   __setCompanionBadgeServerConfig,
-} from '@traceitx/web';
+} from '@everframe/web';
 
 function attachSession(): void {
   act(() => {
@@ -56,13 +56,13 @@ afterEach(() => {
 describe('CompanionBadge', () => {
   it('hidden by default; appears on attach with name + code; gone on detach', () => {
     render(<CompanionBadge />);
-    expect(screen.queryByTestId('traceitx-companion-badge')).toBeNull();
+    expect(screen.queryByTestId('everframe-companion-badge')).toBeNull();
     attachSession();
-    const badge = screen.getByTestId('traceitx-companion-badge');
+    const badge = screen.getByTestId('everframe-companion-badge');
     expect(badge.textContent).toContain('Pixel 7 · Android 14 · Emulator');
     expect(badge.textContent).toContain('7K2Q');
     act(() => { __getCompanionApi().__setAttachedUserName(null); });
-    expect(screen.queryByTestId('traceitx-companion-badge')).toBeNull();
+    expect(screen.queryByTestId('everframe-companion-badge')).toBeNull();
   });
 
   it('falls back to the code alone when no resolvedName exists', () => {
@@ -71,7 +71,7 @@ describe('CompanionBadge', () => {
       __getCompanionApi().__setAttachedUserName('Aurimas');
       __getCompanionApi().__setCode('7K2Q');
     });
-    expect(screen.getByTestId('traceitx-companion-badge').textContent).toContain('7K2Q');
+    expect(screen.getByTestId('everframe-companion-badge').textContent).toContain('7K2Q');
   });
 
   it('is excluded from screenshot, uiTree, sensitive registry, and replay', () => {
@@ -79,9 +79,9 @@ describe('CompanionBadge', () => {
     // 'is excluded from capture and replay via both mechanisms'.
     render(<CompanionBadge />);
     attachSession();
-    const badge = screen.getByTestId('traceitx-companion-badge');
-    expect(badge.getAttribute('data-traceitx-skip-capture')).toBe('true'); // screenshot filter + uiTree walks
-    expect(badge.hasAttribute('data-traceitx-sensitive')).toBe(true);      // registry masking
+    const badge = screen.getByTestId('everframe-companion-badge');
+    expect(badge.getAttribute('data-everframe-skip-capture')).toBe('true'); // screenshot filter + uiTree walks
+    expect(badge.hasAttribute('data-everframe-sensitive')).toBe(true);      // registry masking
     expect(badge.className).toContain('rr-block');                          // rrweb blockClass (late-mount safe)
   });
 
@@ -90,8 +90,8 @@ describe('CompanionBadge', () => {
     // __tests__/capture/screenshot.spec.ts's technique.
     render(<CompanionBadge />);
     attachSession();
-    const { __filterNodeForTests } = await import('@traceitx/web');
-    expect(__filterNodeForTests(screen.getByTestId('traceitx-companion-badge'))).toBe(false);
+    const { __filterNodeForTests } = await import('@everframe/web');
+    expect(__filterNodeForTests(screen.getByTestId('everframe-companion-badge'))).toBe(false);
   });
 
   it('renders nothing when companionBadge.enabled is false', () => {
@@ -100,7 +100,7 @@ describe('CompanionBadge', () => {
       start({ companionBadge: { enabled: false } });
       render(<CompanionBadge />);
       attachSession();
-      expect(screen.queryByTestId('traceitx-companion-badge')).toBeNull();
+      expect(screen.queryByTestId('everframe-companion-badge')).toBeNull();
     } finally {
       // Restore the default so this module-scope config doesn't leak into
       // other test files sharing the same singleton within this worker —
@@ -124,11 +124,11 @@ describe('server config overlay', () => {
       start({});
       render(<CompanionBadge />);
       attachSession();
-      expect(screen.getByTestId('traceitx-companion-badge')).toBeTruthy();
+      expect(screen.getByTestId('everframe-companion-badge')).toBeTruthy();
       act(() => {
         __setCompanionBadgeServerConfig({ enabled: false });
       });
-      expect(screen.queryByTestId('traceitx-companion-badge')).toBeNull();
+      expect(screen.queryByTestId('everframe-companion-badge')).toBeNull();
     } finally {
       stop();
     }
@@ -140,11 +140,11 @@ describe('server config overlay', () => {
       start({ companionBadge: { enabled: false } });
       render(<CompanionBadge />);
       attachSession();
-      expect(screen.queryByTestId('traceitx-companion-badge')).toBeNull();
+      expect(screen.queryByTestId('everframe-companion-badge')).toBeNull();
       act(() => {
         __setCompanionBadgeServerConfig({ enabled: true });
       });
-      expect(screen.getByTestId('traceitx-companion-badge')).toBeTruthy();
+      expect(screen.getByTestId('everframe-companion-badge')).toBeTruthy();
     } finally {
       stop();
     }
@@ -160,12 +160,12 @@ describe('server config overlay', () => {
       start({ companionBadge: { enabled: false, position: 'top-right' } });
       render(<CompanionBadge />);
       attachSession();
-      expect(screen.queryByTestId('traceitx-companion-badge')).toBeNull(); // inline enabled:false
+      expect(screen.queryByTestId('everframe-companion-badge')).toBeNull(); // inline enabled:false
 
       act(() => {
         __setCompanionBadgeServerConfig({ enabled: true, position: 'bottom-left' });
       });
-      let badge = screen.getByTestId('traceitx-companion-badge');
+      let badge = screen.getByTestId('everframe-companion-badge');
       expect(badge.style.left).toBe('24px');
       expect(badge.style.bottom).toBe('24px');
 
@@ -173,7 +173,7 @@ describe('server config overlay', () => {
         __setCompanionBadgeServerConfig(undefined); // the clear-on-kill helper path
       });
       // Inline enabled:false must win again once the override clears entirely.
-      expect(screen.queryByTestId('traceitx-companion-badge')).toBeNull();
+      expect(screen.queryByTestId('everframe-companion-badge')).toBeNull();
     } finally {
       stop();
     }
@@ -185,21 +185,21 @@ describe('server config overlay', () => {
       start({ companionBadge: { position: 'top-right' } });
       render(<CompanionBadge />);
       attachSession();
-      let badge = screen.getByTestId('traceitx-companion-badge');
+      let badge = screen.getByTestId('everframe-companion-badge');
       expect(badge.style.right).toBe('24px');
       expect(badge.style.top).toBe('24px');
 
       act(() => {
         __setCompanionBadgeServerConfig({ enabled: true, position: 'bottom-left' });
       });
-      badge = screen.getByTestId('traceitx-companion-badge');
+      badge = screen.getByTestId('everframe-companion-badge');
       expect(badge.style.left).toBe('24px');
       expect(badge.style.bottom).toBe('24px');
 
       act(() => {
         __setCompanionBadgeServerConfig({ enabled: true });
       });
-      badge = screen.getByTestId('traceitx-companion-badge');
+      badge = screen.getByTestId('everframe-companion-badge');
       expect(badge.style.right).toBe('24px');
       expect(badge.style.top).toBe('24px');
     } finally {

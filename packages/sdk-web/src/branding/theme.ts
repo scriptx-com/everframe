@@ -5,7 +5,7 @@
 //
 // Eight semantic color roles, resolved PER-FIELD server → inline → default
 // (the companionBadge precedence doctrine), then expanded into the concrete
-// --txx-* custom-property overrides reporter.css.ts consumes. Derived shades
+// --everframe-* custom-property overrides reporter.css.ts consumes. Derived shades
 // are computed here in plain sRGB hex — the stylesheet's header explains why
 // the SDK must not depend on oklch()/color-mix() in arbitrary host pages.
 //
@@ -19,7 +19,7 @@
 // style declarations on an element in the CUSTOMER'S page, so only values
 // this module itself produced (validated hex, or rgba()/hex strings derived
 // from validated hex) may ever appear in the returned map.
-import type { BrandingServerConfig } from '@traceitx/sdk-core';
+import type { BrandingServerConfig } from '@everframe/sdk-core';
 
 export interface ReporterTheme {
   background?: string;
@@ -68,7 +68,7 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 /**
- * Resolve the effective --txx-* overrides. Returns {} when unentitled or when
+ * Resolve the effective --everframe-* overrides. Returns {} when unentitled or when
  * no valid role value was provided anywhere. Mix ratios reproduce the shipped
  * palette's own ramps (e.g. bg → bg-2 is ≈3.5% toward white in the defaults).
  */
@@ -98,48 +98,48 @@ export function resolveThemeVars(
   const effText = p.text ?? DEFAULT_TEXT;
 
   if (p.background) {
-    vars['--txx-bg'] = p.background;
-    vars['--txx-bg-2'] = mixHex(p.background, '#FFFFFF', 0.035);
-    vars['--txx-bg-3'] = mixHex(p.background, '#FFFFFF', 0.07);
-    vars['--txx-modal-grad-top'] = mixHex(p.background, '#FFFFFF', 0.055);
-    if (!p.surface) vars['--txx-surface'] = mixHex(p.background, '#FFFFFF', 0.07);
+    vars['--everframe-bg'] = p.background;
+    vars['--everframe-bg-2'] = mixHex(p.background, '#FFFFFF', 0.035);
+    vars['--everframe-bg-3'] = mixHex(p.background, '#FFFFFF', 0.07);
+    vars['--everframe-modal-grad-top'] = mixHex(p.background, '#FFFFFF', 0.055);
+    if (!p.surface) vars['--everframe-surface'] = mixHex(p.background, '#FFFFFF', 0.07);
   }
-  if (p.surface) vars['--txx-surface'] = p.surface;
-  if (p.text) vars['--txx-text'] = p.text;
+  if (p.surface) vars['--everframe-surface'] = p.surface;
+  if (p.text) vars['--everframe-text'] = p.text;
   if (p.background || p.text) {
-    vars['--txx-divider'] = hexToRgba(effText, 0.08);
-    vars['--txx-row-hover'] = hexToRgba(effText, 0.04);
-    vars['--txx-modal-border'] = hexToRgba(effText, 0.1);
-    vars['--txx-text-faint'] = mixHex(effText, effBg, 0.5);
-    if (!p.textMuted) vars['--txx-text-muted'] = mixHex(effText, effBg, 0.26);
-    if (!p.border) vars['--txx-border'] = mixHex(effBg, effText, 0.15);
+    vars['--everframe-divider'] = hexToRgba(effText, 0.08);
+    vars['--everframe-row-hover'] = hexToRgba(effText, 0.04);
+    vars['--everframe-modal-border'] = hexToRgba(effText, 0.1);
+    vars['--everframe-text-faint'] = mixHex(effText, effBg, 0.5);
+    if (!p.textMuted) vars['--everframe-text-muted'] = mixHex(effText, effBg, 0.26);
+    if (!p.border) vars['--everframe-border'] = mixHex(effBg, effText, 0.15);
   }
-  if (p.textMuted) vars['--txx-text-muted'] = p.textMuted;
-  if (p.border) vars['--txx-border'] = p.border;
+  if (p.textMuted) vars['--everframe-text-muted'] = p.textMuted;
+  if (p.border) vars['--everframe-border'] = p.border;
   if (p.accent) {
-    vars['--txx-accent'] = p.accent;
-    vars['--txx-accent-hover'] = mixHex(p.accent, '#FFFFFF', 0.08);
-    vars['--txx-accent-2'] = mixHex(p.accent, '#FFFFFF', 0.35);
-    vars['--txx-ring'] = hexToRgba(p.accent, 0.22);
-    vars['--txx-border-focus'] = hexToRgba(p.accent, 0.45);
-    vars['--txx-status-success-bg'] = hexToRgba(p.accent, 0.12);
-    vars['--txx-status-success-fg'] = p.accent;
-    vars['--txx-accent-grad-top'] = mixHex(p.accent, '#FFFFFF', 0.06);
-    vars['--txx-accent-grad-bottom'] = mixHex(p.accent, '#000000', 0.04);
-    vars['--txx-accent-grad-top-hover'] = mixHex(p.accent, '#FFFFFF', 0.12);
-    vars['--txx-accent-grad-bottom-hover'] = p.accent;
-    vars['--txx-accent-glow'] = hexToRgba(p.accent, 0.2);
-    vars['--txx-accent-bg-soft'] = hexToRgba(p.accent, 0.14);
+    vars['--everframe-accent'] = p.accent;
+    vars['--everframe-accent-hover'] = mixHex(p.accent, '#FFFFFF', 0.08);
+    vars['--everframe-accent-2'] = mixHex(p.accent, '#FFFFFF', 0.35);
+    vars['--everframe-ring'] = hexToRgba(p.accent, 0.22);
+    vars['--everframe-border-focus'] = hexToRgba(p.accent, 0.45);
+    vars['--everframe-status-success-bg'] = hexToRgba(p.accent, 0.12);
+    vars['--everframe-status-success-fg'] = p.accent;
+    vars['--everframe-accent-grad-top'] = mixHex(p.accent, '#FFFFFF', 0.06);
+    vars['--everframe-accent-grad-bottom'] = mixHex(p.accent, '#000000', 0.04);
+    vars['--everframe-accent-grad-top-hover'] = mixHex(p.accent, '#FFFFFF', 0.12);
+    vars['--everframe-accent-grad-bottom-hover'] = p.accent;
+    vars['--everframe-accent-glow'] = hexToRgba(p.accent, 0.2);
+    vars['--everframe-accent-bg-soft'] = hexToRgba(p.accent, 0.14);
   }
-  if (p.accentForeground) vars['--txx-accent-fg'] = p.accentForeground;
+  if (p.accentForeground) vars['--everframe-accent-fg'] = p.accentForeground;
   if (p.destructive) {
-    vars['--txx-destructive'] = p.destructive;
-    vars['--txx-error'] = p.destructive;
-    vars['--txx-destructive-border'] = hexToRgba(p.destructive, 0.5);
-    vars['--txx-destructive-hover-bg'] = hexToRgba(p.destructive, 0.1);
-    vars['--txx-destructive-ring'] = hexToRgba(p.destructive, 0.25);
-    vars['--txx-destructive-ring-soft'] = hexToRgba(p.destructive, 0.22);
-    vars['--txx-destructive-bg-soft'] = hexToRgba(p.destructive, 0.12);
+    vars['--everframe-destructive'] = p.destructive;
+    vars['--everframe-error'] = p.destructive;
+    vars['--everframe-destructive-border'] = hexToRgba(p.destructive, 0.5);
+    vars['--everframe-destructive-hover-bg'] = hexToRgba(p.destructive, 0.1);
+    vars['--everframe-destructive-ring'] = hexToRgba(p.destructive, 0.25);
+    vars['--everframe-destructive-ring-soft'] = hexToRgba(p.destructive, 0.22);
+    vars['--everframe-destructive-bg-soft'] = hexToRgba(p.destructive, 0.12);
   }
   return vars;
 }

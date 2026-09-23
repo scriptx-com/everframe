@@ -28,7 +28,7 @@
 // with no `identityToken`, even though `identityTokenReader` was already in
 // scope in that closure. A recognized user's crash would ship anonymously.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createClient, __internalClientState, ensureDeviceToken } from '@traceitx/sdk-core';
+import { createClient, __internalClientState, ensureDeviceToken } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 
 const adapters: WebPlatformAdapter[] = [];
@@ -46,8 +46,8 @@ function urlOf(input: RequestInfo | URL): string {
 function tokenHeaderOf(init: RequestInit | undefined): string | null | undefined {
   const headers = init?.headers as Record<string, string> | Headers | undefined;
   return headers instanceof Headers
-    ? headers.get('X-TX-Identity-Token')
-    : headers?.['X-TX-Identity-Token'];
+    ? headers.get('X-Everframe-Identity-Token')
+    : headers?.['X-Everframe-Identity-Token'];
 }
 
 const mkJwt = (expSec: number): string => {
@@ -57,7 +57,7 @@ const mkJwt = (expSec: number): string => {
 };
 
 describe('adapter.ts thread-client reporterApi — identity token wiring', () => {
-  it('a real /api/reporter/threads poll carries X-TX-Identity-Token when a token is set and recognition is enabled', async () => {
+  it('a real /api/reporter/threads poll carries X-Everframe-Identity-Token when a token is set and recognition is enabled', async () => {
     const jwt = mkJwt(Date.now() / 1000 + 300);
     let observedHeader: string | null | undefined;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -147,7 +147,7 @@ describe('adapter.ts thread-client reporterApi — identity token wiring', () =>
 });
 
 describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', () => {
-  it('a real crash-report drain carries X-TX-Identity-Token when a token is set and recognition is enabled', async () => {
+  it('a real crash-report drain carries X-Everframe-Identity-Token when a token is set and recognition is enabled', async () => {
     const jwt = mkJwt(Date.now() / 1000 + 300);
     let observedHeader: string | null | undefined;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

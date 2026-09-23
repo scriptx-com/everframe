@@ -12,9 +12,9 @@
 //
 // CAPTURE EXCLUSION (hard requirement, spec §4): all three markers, per the
 // CompanionPinCard precedent (see reporter-ui/CompanionPinCard.tsx) —
-//   • data-traceitx-skip-capture → screenshot clone filter (screenshot.ts
+//   • data-everframe-skip-capture → screenshot clone filter (screenshot.ts
 //     filterNode) + the UI-tree DOM walk (ui-tree-dom.ts)
-//   • data-traceitx-sensitive    → SENSITIVE_ATTR, the replay recorder's
+//   • data-everframe-sensitive    → SENSITIVE_ATTR, the replay recorder's
 //     sensitive-registry masking (mask-mapping.ts)
 //   • className "rr-block"       → rrweb blockClass (recorder.ts
 //     RR_BLOCK_CLASS); STATIC because the recorder's sensitiveElements()
@@ -84,16 +84,16 @@ export function CompanionBadge(): React.ReactElement | null {
 
   return (
     <div
-      data-testid="traceitx-companion-badge"
+      data-testid="everframe-companion-badge"
       role="status"
       // See the CAPTURE EXCLUSION note above — all three markers required.
-      data-traceitx-skip-capture="true"
-      data-traceitx-sensitive=""
+      data-everframe-skip-capture="true"
+      data-everframe-sensitive=""
       className="rr-block"
       style={{
         position: 'fixed',
         ...POSITION_STYLE[config.position],
-        // One BELOW --txx-z-modal (reporter.css.ts: 2147483646), matching
+        // One BELOW --everframe-z-modal (reporter.css.ts: 2147483646), matching
         // CompanionPinCard's own layering — a tie would paint over an open
         // reporter; staying strictly lower keeps "an open reporter still
         // wins" true for the badge too.

@@ -8,7 +8,7 @@ import { startStubIngest, type StubServer } from './_fixtures/test-server.js';
  *
  * Loads /strict-csp (which serves Content-Security-Policy: default-src 'self'; ...
  * with a static nonce, and the example's StrictCspLayout passes the same nonce
- * into TraceItXProvider.cspNonce).
+ * into EverframeProvider.cspNonce).
  *
  * Asserts: opening the reporter, capturing screenshot + UI tree, and submitting
  * produces ZERO `securitypolicyviolation` events on the page (both console-level
@@ -69,7 +69,7 @@ test('strict-CSP: SDK threads cspNonce to dynamically-injected <style> tags duri
 
   await page.goto('/strict-csp');
   await expect(page.getByTestId('strict-csp-heading')).toBeVisible();
-  await expect(page.getByTestId('traceitx-bubble')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('everframe-bubble')).toBeVisible({ timeout: 10_000 });
 
   // Reset captured styles AFTER hydration so we measure ONLY the capture-path injections
   await page.evaluate(() => {
@@ -79,7 +79,7 @@ test('strict-CSP: SDK threads cspNonce to dynamically-injected <style> tags duri
     (window as unknown as InspectWindow).__sdkInjectedStyles = [];
   });
 
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
   await page.getByTestId('report-title').fill('strict csp test');
   await page.getByTestId('submit-report').click();

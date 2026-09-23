@@ -45,7 +45,7 @@ export function CompanionControls({
       {error && <p style={{ fontSize: 15, color: '#ff9c9c', margin: '4px 0 0' }}>{error}</p>}
       {!discoverable && (
         <p style={{ fontSize: 14, color: '#ffcf8f', margin: '4px 0 0' }}>
-          No SDK key baked — device won't appear on the dashboard. Set TRACEITX_KEY_WEB in
+          No SDK key baked — device won't appear on the dashboard. Set EVERFRAME_KEY_WEB in
           the repo-root .env and restart the dev server / rebuild.
         </p>
       )}

@@ -17,8 +17,8 @@
 // Constraints), and `resources.ts` (protocol) is itself a deliberately
 // separate block from `vitals.ts` for the same reason (see that file's
 // header). This module owns its OWN box.
-import { MAX_RESOURCE_SAMPLES } from '@traceitx/protocol';
-import type { ReportEnvelope, ResourceSampleT } from '@traceitx/protocol';
+import { MAX_RESOURCE_SAMPLES } from '@everframe/protocol';
+import type { ReportEnvelope, ResourceSampleT } from '@everframe/protocol';
 
 /** What `__getActiveResources()` hands back while sampling is running. */
 export interface ActiveResourcesBox {

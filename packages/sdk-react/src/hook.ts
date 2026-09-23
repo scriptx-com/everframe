@@ -2,16 +2,16 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useContext, useEffect, useState } from 'react';
-import { TraceItXContext } from './provider.js';
-import type { TraceItXClient } from '@traceitx/sdk-core';
-import { trackPlayer, trackVitals } from '@traceitx/web';
-import type { ReporterResult } from '@traceitx/web';
+import { EverframeContext } from './provider.js';
+import type { EverframeClient } from '@everframe/sdk-core';
+import { trackPlayer, trackVitals } from '@everframe/web';
+import type { ReporterResult } from '@everframe/web';
 
 /**
- * Public surface returned by `useTraceItX()`. Matches the RN SDK shape —
+ * Public surface returned by `useEverframe()`. Matches the RN SDK shape —
  * flat `open()` returning a Promise that resolves with the report outcome.
  */
-export interface UseTraceItXReturn {
+export interface UseEverframeReturn {
   /**
    * Open the reporter modal. Resolves with the user-facing outcome:
    *   - 'submitted' — envelope shipped successfully (reportId populated).
@@ -19,15 +19,15 @@ export interface UseTraceItXReturn {
    *   - 'cancelled' — user dismissed without submitting.
    */
   open: () => Promise<ReporterResult>;
-  setUser: TraceItXClient['setUser'];
+  setUser: EverframeClient['setUser'];
   /**
    * Reporter identity recognition (spec 2026-08-06). Pass a signed JWT, a
    * provider function the SDK re-asks as the token nears expiry, or `null`
-   * on sign-out. See `TraceItXClient['setIdentityToken']`'s doc comment
+   * on sign-out. See `EverframeClient['setIdentityToken']`'s doc comment
    * (sdk-core) for the full contract — recognition never blocks or fails a
    * report.
    *
-   * CALL IT ONCE, not on every render. `useTraceItX()` returns a freshly
+   * CALL IT ONCE, not on every render. `useEverframe()` returns a freshly
    * `.bind()`-ed function on every call, so `setIdentityToken` is a new
    * function identity each render — a `useEffect(() => setIdentityToken(x),
    * [setIdentityToken, x])` dependent on it re-runs every render. With a
@@ -39,9 +39,9 @@ export interface UseTraceItXReturn {
    * init (e.g. inside a `useEffect` with an empty dependency array, or right
    * after sign-in) with a reference that's stable across renders.
    */
-  setIdentityToken: TraceItXClient['setIdentityToken'];
+  setIdentityToken: EverframeClient['setIdentityToken'];
   /** Attach host free-form metadata (opaque string) to the next report. Mirrors the RN SDK. */
-  setExtra: TraceItXClient['setExtra'];
+  setExtra: EverframeClient['setExtra'];
   /**
    * Drop a host-supplied marker into the action timeline (`payload.breadcrumbs`)
    * — redaction-passed and size-capped exactly like automatic crumbs.
@@ -52,24 +52,24 @@ export interface UseTraceItXReturn {
    * its own. See the top-level `addBreadcrumb` export for non-component call
    * sites such as a router subscription.
    */
-  addBreadcrumb: TraceItXClient['addBreadcrumb'];
+  addBreadcrumb: EverframeClient['addBreadcrumb'];
   /** Report a caught exception without opening the reporter. */
-  captureException: TraceItXClient['captureException'];
-  markSensitive: TraceItXClient['markSensitive'];
-  kill: TraceItXClient['kill'];
+  captureException: EverframeClient['captureException'];
+  markSensitive: EverframeClient['markSensitive'];
+  kill: EverframeClient['kill'];
   /** Two-way replies facade (spec 2026-07-31) — inert when the platform adapter didn't wire a thread client. */
-  threads: TraceItXClient['threads'];
+  threads: EverframeClient['threads'];
   /** Live-updating unread count across all threads; mirrors `threads.subscribe()`. */
   unreadCount: number;
-  /** Session Vitals phase 4 — attach a media element for per-player playback tracing. Re-exported from `@traceitx/web`. */
+  /** Session Vitals phase 4 — attach a media element for per-player playback tracing. Re-exported from `@everframe/web`. */
   trackPlayer: typeof trackPlayer;
-  /** Session Vitals phase 4 — emit a vitals event, optionally scoped to a player handle. Re-exported from `@traceitx/web`. */
+  /** Session Vitals phase 4 — emit a vitals event, optionally scoped to a player handle. Re-exported from `@everframe/web`. */
   trackVitals: typeof trackVitals;
 }
 
-export function useTraceItX(): UseTraceItXReturn {
-  const ctx = useContext(TraceItXContext);
-  if (!ctx) throw new Error('useTraceItX called outside <TraceItXProvider>');
+export function useEverframe(): UseEverframeReturn {
+  const ctx = useContext(EverframeContext);
+  if (!ctx) throw new Error('useEverframe called outside <EverframeProvider>');
 
   // Two-way replies (Task 8) — live unread count, same useCompanion-style
   // bridge (companion/singleton.ts): seed from the current snapshot, then
