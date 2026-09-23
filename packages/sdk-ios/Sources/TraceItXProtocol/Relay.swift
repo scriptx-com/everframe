@@ -10,7 +10,7 @@
 
 import Foundation
 
-public struct AttachChallenge: Codable, Equatable {
+public struct EverframeAttachChallenge: Codable, Equatable {
     public let code: String
     public let correlationId: String?
     public let requestedByName: String
@@ -34,7 +34,7 @@ public struct AttachChallenge: Codable, Equatable {
     }
 }
 
-public struct AttachChallengeCleared: Codable, Equatable {
+public struct EverframeAttachChallengeCleared: Codable, Equatable {
     public let correlationId: String?
     public let reason: String
     public let type: String
@@ -52,7 +52,7 @@ public struct AttachChallengeCleared: Codable, Equatable {
     }
 }
 
-public struct CompanionName: Codable, Equatable {
+public struct EverframeCompanionName: Codable, Equatable {
     public let correlationId: String?
     public let name: String
     public let type: String
@@ -70,9 +70,9 @@ public struct CompanionName: Codable, Equatable {
     }
 }
 
-public struct PairBonded: Codable, Equatable {
+public struct EverframePairBonded: Codable, Equatable {
     public let attributionToken: String?
-    public let companionUser: PairBondedCompanionUser?
+    public let companionUser: EverframePairBondedCompanionUser?
     public let correlationId: String?
     public let deviceToken: String?
     public let deviceTokenExpiresAt: String?
@@ -89,7 +89,7 @@ public struct PairBonded: Codable, Equatable {
         case type
     }
 
-    public init(attributionToken: String? = nil, companionUser: PairBondedCompanionUser? = nil, correlationId: String? = nil, deviceToken: String? = nil, deviceTokenExpiresAt: String? = nil, pairId: String, type: String) {
+    public init(attributionToken: String? = nil, companionUser: EverframePairBondedCompanionUser? = nil, correlationId: String? = nil, deviceToken: String? = nil, deviceTokenExpiresAt: String? = nil, pairId: String, type: String) {
         self.attributionToken = attributionToken
         self.companionUser = companionUser
         self.correlationId = correlationId
@@ -100,7 +100,7 @@ public struct PairBonded: Codable, Equatable {
     }
 }
 
-public struct PairBondedCompanionUser: Codable, Equatable {
+public struct EverframePairBondedCompanionUser: Codable, Equatable {
     public let displayName: String
     public let email: String?
 
@@ -115,7 +115,7 @@ public struct PairBondedCompanionUser: Codable, Equatable {
     }
 }
 
-public struct PairCreated: Codable, Equatable {
+public struct EverframePairCreated: Codable, Equatable {
     public let correlationId: String?
     public let pairId: String
     public let pairToken: String
@@ -136,7 +136,7 @@ public struct PairCreated: Codable, Equatable {
     }
 }
 
-public struct PairExpired: Codable, Equatable {
+public struct EverframePairExpired: Codable, Equatable {
     public let correlationId: String?
     public let pairId: String
     public let reason: String
@@ -157,7 +157,7 @@ public struct PairExpired: Codable, Equatable {
     }
 }
 
-public struct PhoneDisconnected: Codable, Equatable {
+public struct EverframePhoneDisconnected: Codable, Equatable {
     public let correlationId: String?
     public let pairId: String
     public let type: String
@@ -175,7 +175,7 @@ public struct PhoneDisconnected: Codable, Equatable {
     }
 }
 
-public struct PreviewFrame: Codable, Equatable {
+public struct EverframePreviewFrame: Codable, Equatable {
     public let correlationId: String
     public let height: Int
     public let mime: String
@@ -202,7 +202,7 @@ public struct PreviewFrame: Codable, Equatable {
     }
 }
 
-public struct PreviewStart: Codable, Equatable {
+public struct EverframePreviewStart: Codable, Equatable {
     public let correlationId: String
     public let type: String
 
@@ -217,7 +217,7 @@ public struct PreviewStart: Codable, Equatable {
     }
 }
 
-public struct PreviewStop: Codable, Equatable {
+public struct EverframePreviewStop: Codable, Equatable {
     public let correlationId: String
     public let reason: String
     public let type: String
@@ -235,13 +235,13 @@ public struct PreviewStop: Codable, Equatable {
     }
 }
 
-public struct ReportAssembled: Codable, Equatable {
+public struct EverframeReportAssembled: Codable, Equatable {
     public let correlationId: String
-    public let counts: ReportAssembledCounts
+    public let counts: EverframeReportAssembledCounts
     public let mime: String
     public let size: Int
-    public let toggles: ReportAssembledToggles
-    public let tree: ReportAssembledTree?
+    public let toggles: EverframeReportAssembledToggles
+    public let tree: EverframeReportAssembledTree?
     public let type: String
 
     public enum CodingKeys: String, CodingKey {
@@ -254,7 +254,7 @@ public struct ReportAssembled: Codable, Equatable {
         case type
     }
 
-    public init(correlationId: String, counts: ReportAssembledCounts, mime: String, size: Int, toggles: ReportAssembledToggles, tree: ReportAssembledTree? = nil, type: String) {
+    public init(correlationId: String, counts: EverframeReportAssembledCounts, mime: String, size: Int, toggles: EverframeReportAssembledToggles, tree: EverframeReportAssembledTree? = nil, type: String) {
         self.correlationId = correlationId
         self.counts = counts
         self.mime = mime
@@ -265,7 +265,7 @@ public struct ReportAssembled: Codable, Equatable {
     }
 }
 
-public struct ReportAssembledCounts: Codable, Equatable {
+public struct EverframeReportAssembledCounts: Codable, Equatable {
     public let breadcrumbs: Int?
     public let logs: Int
     public let network: Int
@@ -286,7 +286,7 @@ public struct ReportAssembledCounts: Codable, Equatable {
     }
 }
 
-public struct ReportAssembledToggles: Codable, Equatable {
+public struct EverframeReportAssembledToggles: Codable, Equatable {
     public let logs: Bool
     public let metadata: Bool
     public let network: Bool
@@ -310,7 +310,7 @@ public struct ReportAssembledToggles: Codable, Equatable {
     }
 }
 
-public struct ReportAssembledTree: Codable, Equatable {
+public struct EverframeReportAssembledTree: Codable, Equatable {
     public let gzippedSize: Int
     public let nodeCount: Int
     public let rawSize: Int
@@ -328,7 +328,7 @@ public struct ReportAssembledTree: Codable, Equatable {
     }
 }
 
-public struct ReportCancelled: Codable, Equatable {
+public struct EverframeReportCancelled: Codable, Equatable {
     public let correlationId: String
     public let type: String
 
@@ -343,7 +343,7 @@ public struct ReportCancelled: Codable, Equatable {
     }
 }
 
-public struct ReportCompleted: Codable, Equatable {
+public struct EverframeReportCompleted: Codable, Equatable {
     public let correlationId: String
     public let eventId: String
     public let type: String
@@ -361,9 +361,9 @@ public struct ReportCompleted: Codable, Equatable {
     }
 }
 
-public struct ReportDraftUpdate: Codable, Equatable {
+public struct EverframeReportDraftUpdate: Codable, Equatable {
     public let correlationId: String
-    public let descriptionPartial: ReportDraftUpdateDescriptionPartial?
+    public let descriptionPartial: EverframeReportDraftUpdateDescriptionPartial?
     public let title: String?
     public let type: String
 
@@ -374,7 +374,7 @@ public struct ReportDraftUpdate: Codable, Equatable {
         case type
     }
 
-    public init(correlationId: String, descriptionPartial: ReportDraftUpdateDescriptionPartial? = nil, title: String? = nil, type: String) {
+    public init(correlationId: String, descriptionPartial: EverframeReportDraftUpdateDescriptionPartial? = nil, title: String? = nil, type: String) {
         self.correlationId = correlationId
         self.descriptionPartial = descriptionPartial
         self.title = title
@@ -382,8 +382,8 @@ public struct ReportDraftUpdate: Codable, Equatable {
     }
 }
 
-public struct ReportDraftUpdateDescriptionPartial: Codable, Equatable {
-    public let redactions: [ReportDraftUpdateDescriptionPartialRedaction]
+public struct EverframeReportDraftUpdateDescriptionPartial: Codable, Equatable {
+    public let redactions: [EverframeReportDraftUpdateDescriptionPartialRedaction]
     public let text: String
 
     public enum CodingKeys: String, CodingKey {
@@ -391,13 +391,13 @@ public struct ReportDraftUpdateDescriptionPartial: Codable, Equatable {
         case text
     }
 
-    public init(redactions: [ReportDraftUpdateDescriptionPartialRedaction], text: String) {
+    public init(redactions: [EverframeReportDraftUpdateDescriptionPartialRedaction], text: String) {
         self.redactions = redactions
         self.text = text
     }
 }
 
-public struct ReportDraftUpdateDescriptionPartialRedaction: Codable, Equatable {
+public struct EverframeReportDraftUpdateDescriptionPartialRedaction: Codable, Equatable {
     public let end: Int
     public let start: Int
 
@@ -412,7 +412,7 @@ public struct ReportDraftUpdateDescriptionPartialRedaction: Codable, Equatable {
     }
 }
 
-public struct ReportFailed: Codable, Equatable {
+public struct EverframeReportFailed: Codable, Equatable {
     public let correlationId: String
     public let reason: String
     public let type: String
@@ -430,7 +430,7 @@ public struct ReportFailed: Codable, Equatable {
     }
 }
 
-public struct ReportRejected: Codable, Equatable {
+public struct EverframeReportRejected: Codable, Equatable {
     public let correlationId: String?
     public let reason: String
     public let type: String
@@ -448,7 +448,7 @@ public struct ReportRejected: Codable, Equatable {
     }
 }
 
-public struct ReportRequest: Codable, Equatable {
+public struct EverframeReportRequest: Codable, Equatable {
     public let attributionToken: String?
     public let correlationId: String
     public let type: String
@@ -466,12 +466,12 @@ public struct ReportRequest: Codable, Equatable {
     }
 }
 
-public struct ReportSubmit: Codable, Equatable {
-    public let annotations: [ReportSubmitAnnotationItem]
+public struct EverframeReportSubmit: Codable, Equatable {
+    public let annotations: [EverframeReportSubmitAnnotationItem]
     public let correlationId: String
-    public let description: ReportSubmitDescription
-    public let includes: ReportSubmitIncludes
-    public let shots: [ReportSubmitShot]?
+    public let description: EverframeReportSubmitDescription
+    public let includes: EverframeReportSubmitIncludes
+    public let shots: [EverframeReportSubmitShot]?
     public let title: String
     public let type: String
 
@@ -485,7 +485,7 @@ public struct ReportSubmit: Codable, Equatable {
         case type
     }
 
-    public init(annotations: [ReportSubmitAnnotationItem], correlationId: String, description: ReportSubmitDescription, includes: ReportSubmitIncludes, shots: [ReportSubmitShot]? = nil, title: String, type: String) {
+    public init(annotations: [EverframeReportSubmitAnnotationItem], correlationId: String, description: EverframeReportSubmitDescription, includes: EverframeReportSubmitIncludes, shots: [EverframeReportSubmitShot]? = nil, title: String, type: String) {
         self.annotations = annotations
         self.correlationId = correlationId
         self.description = description
@@ -496,10 +496,10 @@ public struct ReportSubmit: Codable, Equatable {
     }
 }
 
-public enum ReportSubmitAnnotationItem: Codable, Equatable {
-    case stroke(ReportSubmitAnnotationItemStroke)
-    case arrow(ReportSubmitAnnotationItemArrow)
-    case blur(ReportSubmitAnnotationItemBlur)
+public enum EverframeReportSubmitAnnotationItem: Codable, Equatable {
+    case stroke(EverframeReportSubmitAnnotationItemStroke)
+    case arrow(EverframeReportSubmitAnnotationItemArrow)
+    case blur(EverframeReportSubmitAnnotationItemBlur)
 
     private enum DiscKey: String, CodingKey { case kind }
 
@@ -507,13 +507,13 @@ public enum ReportSubmitAnnotationItem: Codable, Equatable {
         let c = try decoder.container(keyedBy: DiscKey.self)
         let kind = try c.decode(String.self, forKey: .kind)
         switch kind {
-        case "stroke": self = .stroke(try ReportSubmitAnnotationItemStroke(from: decoder))
-        case "arrow": self = .arrow(try ReportSubmitAnnotationItemArrow(from: decoder))
-        case "blur": self = .blur(try ReportSubmitAnnotationItemBlur(from: decoder))
+        case "stroke": self = .stroke(try EverframeReportSubmitAnnotationItemStroke(from: decoder))
+        case "arrow": self = .arrow(try EverframeReportSubmitAnnotationItemArrow(from: decoder))
+        case "blur": self = .blur(try EverframeReportSubmitAnnotationItemBlur(from: decoder))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .kind, in: c,
-                debugDescription: "Unknown ReportSubmitAnnotationItem kind '\(kind)'"
+                debugDescription: "Unknown EverframeReportSubmitAnnotationItem kind '\(kind)'"
             )
         }
     }
@@ -527,7 +527,7 @@ public enum ReportSubmitAnnotationItem: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitAnnotationItemArrow: Codable, Equatable {
+public struct EverframeReportSubmitAnnotationItemArrow: Codable, Equatable {
     public let color: String
     public let from: [Double]
     public let kind: String
@@ -551,22 +551,22 @@ public struct ReportSubmitAnnotationItemArrow: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitAnnotationItemBlur: Codable, Equatable {
+public struct EverframeReportSubmitAnnotationItemBlur: Codable, Equatable {
     public let kind: String
-    public let rect: ReportSubmitAnnotationItemBlurRect
+    public let rect: EverframeReportSubmitAnnotationItemBlurRect
 
     public enum CodingKeys: String, CodingKey {
         case kind
         case rect
     }
 
-    public init(kind: String, rect: ReportSubmitAnnotationItemBlurRect) {
+    public init(kind: String, rect: EverframeReportSubmitAnnotationItemBlurRect) {
         self.kind = kind
         self.rect = rect
     }
 }
 
-public struct ReportSubmitAnnotationItemBlurRect: Codable, Equatable {
+public struct EverframeReportSubmitAnnotationItemBlurRect: Codable, Equatable {
     public let h: Double
     public let w: Double
     public let x: Double
@@ -587,7 +587,7 @@ public struct ReportSubmitAnnotationItemBlurRect: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitAnnotationItemStroke: Codable, Equatable {
+public struct EverframeReportSubmitAnnotationItemStroke: Codable, Equatable {
     public let color: String
     public let kind: String
     public let points: [[Double]]
@@ -608,8 +608,8 @@ public struct ReportSubmitAnnotationItemStroke: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitDescription: Codable, Equatable {
-    public let redactions: [ReportSubmitDescriptionRedaction]
+public struct EverframeReportSubmitDescription: Codable, Equatable {
+    public let redactions: [EverframeReportSubmitDescriptionRedaction]
     public let text: String
 
     public enum CodingKeys: String, CodingKey {
@@ -617,13 +617,13 @@ public struct ReportSubmitDescription: Codable, Equatable {
         case text
     }
 
-    public init(redactions: [ReportSubmitDescriptionRedaction], text: String) {
+    public init(redactions: [EverframeReportSubmitDescriptionRedaction], text: String) {
         self.redactions = redactions
         self.text = text
     }
 }
 
-public struct ReportSubmitDescriptionRedaction: Codable, Equatable {
+public struct EverframeReportSubmitDescriptionRedaction: Codable, Equatable {
     public let end: Int
     public let start: Int
 
@@ -638,7 +638,7 @@ public struct ReportSubmitDescriptionRedaction: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitIncludes: Codable, Equatable {
+public struct EverframeReportSubmitIncludes: Codable, Equatable {
     public let logs: Bool
     public let metadata: Bool
     public let network: Bool
@@ -662,8 +662,8 @@ public struct ReportSubmitIncludes: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitShot: Codable, Equatable {
-    public let annotations: [ReportSubmitShotAnnotationItem]
+public struct EverframeReportSubmitShot: Codable, Equatable {
+    public let annotations: [EverframeReportSubmitShotAnnotationItem]
     public let shotId: String
 
     public enum CodingKeys: String, CodingKey {
@@ -671,16 +671,16 @@ public struct ReportSubmitShot: Codable, Equatable {
         case shotId = "shot_id"
     }
 
-    public init(annotations: [ReportSubmitShotAnnotationItem], shotId: String) {
+    public init(annotations: [EverframeReportSubmitShotAnnotationItem], shotId: String) {
         self.annotations = annotations
         self.shotId = shotId
     }
 }
 
-public enum ReportSubmitShotAnnotationItem: Codable, Equatable {
-    case stroke(ReportSubmitShotAnnotationItemStroke)
-    case arrow(ReportSubmitShotAnnotationItemArrow)
-    case blur(ReportSubmitShotAnnotationItemBlur)
+public enum EverframeReportSubmitShotAnnotationItem: Codable, Equatable {
+    case stroke(EverframeReportSubmitShotAnnotationItemStroke)
+    case arrow(EverframeReportSubmitShotAnnotationItemArrow)
+    case blur(EverframeReportSubmitShotAnnotationItemBlur)
 
     private enum DiscKey: String, CodingKey { case kind }
 
@@ -688,13 +688,13 @@ public enum ReportSubmitShotAnnotationItem: Codable, Equatable {
         let c = try decoder.container(keyedBy: DiscKey.self)
         let kind = try c.decode(String.self, forKey: .kind)
         switch kind {
-        case "stroke": self = .stroke(try ReportSubmitShotAnnotationItemStroke(from: decoder))
-        case "arrow": self = .arrow(try ReportSubmitShotAnnotationItemArrow(from: decoder))
-        case "blur": self = .blur(try ReportSubmitShotAnnotationItemBlur(from: decoder))
+        case "stroke": self = .stroke(try EverframeReportSubmitShotAnnotationItemStroke(from: decoder))
+        case "arrow": self = .arrow(try EverframeReportSubmitShotAnnotationItemArrow(from: decoder))
+        case "blur": self = .blur(try EverframeReportSubmitShotAnnotationItemBlur(from: decoder))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .kind, in: c,
-                debugDescription: "Unknown ReportSubmitShotAnnotationItem kind '\(kind)'"
+                debugDescription: "Unknown EverframeReportSubmitShotAnnotationItem kind '\(kind)'"
             )
         }
     }
@@ -708,7 +708,7 @@ public enum ReportSubmitShotAnnotationItem: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitShotAnnotationItemArrow: Codable, Equatable {
+public struct EverframeReportSubmitShotAnnotationItemArrow: Codable, Equatable {
     public let color: String
     public let from: [Double]
     public let kind: String
@@ -732,22 +732,22 @@ public struct ReportSubmitShotAnnotationItemArrow: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitShotAnnotationItemBlur: Codable, Equatable {
+public struct EverframeReportSubmitShotAnnotationItemBlur: Codable, Equatable {
     public let kind: String
-    public let rect: ReportSubmitShotAnnotationItemBlurRect
+    public let rect: EverframeReportSubmitShotAnnotationItemBlurRect
 
     public enum CodingKeys: String, CodingKey {
         case kind
         case rect
     }
 
-    public init(kind: String, rect: ReportSubmitShotAnnotationItemBlurRect) {
+    public init(kind: String, rect: EverframeReportSubmitShotAnnotationItemBlurRect) {
         self.kind = kind
         self.rect = rect
     }
 }
 
-public struct ReportSubmitShotAnnotationItemBlurRect: Codable, Equatable {
+public struct EverframeReportSubmitShotAnnotationItemBlurRect: Codable, Equatable {
     public let h: Double
     public let w: Double
     public let x: Double
@@ -768,7 +768,7 @@ public struct ReportSubmitShotAnnotationItemBlurRect: Codable, Equatable {
     }
 }
 
-public struct ReportSubmitShotAnnotationItemStroke: Codable, Equatable {
+public struct EverframeReportSubmitShotAnnotationItemStroke: Codable, Equatable {
     public let color: String
     public let kind: String
     public let points: [[Double]]
@@ -789,7 +789,7 @@ public struct ReportSubmitShotAnnotationItemStroke: Codable, Equatable {
     }
 }
 
-public struct ShotAssembled: Codable, Equatable {
+public struct EverframeShotAssembled: Codable, Equatable {
     public let correlationId: String
     public let height: Int
     public let mime: String
@@ -819,7 +819,7 @@ public struct ShotAssembled: Codable, Equatable {
     }
 }
 
-public struct ShotBinary: Codable, Equatable {
+public struct EverframeShotBinary: Codable, Equatable {
     public let correlationId: String
     public let shotId: String
     public let type: String
@@ -837,7 +837,7 @@ public struct ShotBinary: Codable, Equatable {
     }
 }
 
-public struct ShotFailed: Codable, Equatable {
+public struct EverframeShotFailed: Codable, Equatable {
     public let correlationId: String
     public let reason: String
     public let shotId: String
@@ -858,9 +858,9 @@ public struct ShotFailed: Codable, Equatable {
     }
 }
 
-public struct ShotRequest: Codable, Equatable {
+public struct EverframeShotRequest: Codable, Equatable {
     public let correlationId: String
-    public let rect: ShotRequestRect?
+    public let rect: EverframeShotRequestRect?
     public let shotId: String
     public let type: String
 
@@ -871,7 +871,7 @@ public struct ShotRequest: Codable, Equatable {
         case type
     }
 
-    public init(correlationId: String, rect: ShotRequestRect? = nil, shotId: String, type: String) {
+    public init(correlationId: String, rect: EverframeShotRequestRect? = nil, shotId: String, type: String) {
         self.correlationId = correlationId
         self.rect = rect
         self.shotId = shotId
@@ -879,7 +879,7 @@ public struct ShotRequest: Codable, Equatable {
     }
 }
 
-public struct ShotRequestRect: Codable, Equatable {
+public struct EverframeShotRequestRect: Codable, Equatable {
     public let h: Double
     public let w: Double
     public let x: Double
@@ -900,29 +900,29 @@ public struct ShotRequestRect: Codable, Equatable {
     }
 }
 
-public enum RelayMessage: Codable, Equatable {
-    case attachChallenge(AttachChallenge)
-    case attachChallengeCleared(AttachChallengeCleared)
-    case companionName(CompanionName)
-    case pairBonded(PairBonded)
-    case pairCreated(PairCreated)
-    case pairExpired(PairExpired)
-    case phoneDisconnected(PhoneDisconnected)
-    case previewFrame(PreviewFrame)
-    case previewStart(PreviewStart)
-    case previewStop(PreviewStop)
-    case reportAssembled(ReportAssembled)
-    case reportCancelled(ReportCancelled)
-    case reportCompleted(ReportCompleted)
-    case reportDraftUpdate(ReportDraftUpdate)
-    case reportFailed(ReportFailed)
-    case reportRejected(ReportRejected)
-    case reportRequest(ReportRequest)
-    case reportSubmit(ReportSubmit)
-    case shotAssembled(ShotAssembled)
-    case shotBinary(ShotBinary)
-    case shotFailed(ShotFailed)
-    case shotRequest(ShotRequest)
+public enum EverframeRelayMessage: Codable, Equatable {
+    case attachChallenge(EverframeAttachChallenge)
+    case attachChallengeCleared(EverframeAttachChallengeCleared)
+    case companionName(EverframeCompanionName)
+    case pairBonded(EverframePairBonded)
+    case pairCreated(EverframePairCreated)
+    case pairExpired(EverframePairExpired)
+    case phoneDisconnected(EverframePhoneDisconnected)
+    case previewFrame(EverframePreviewFrame)
+    case previewStart(EverframePreviewStart)
+    case previewStop(EverframePreviewStop)
+    case reportAssembled(EverframeReportAssembled)
+    case reportCancelled(EverframeReportCancelled)
+    case reportCompleted(EverframeReportCompleted)
+    case reportDraftUpdate(EverframeReportDraftUpdate)
+    case reportFailed(EverframeReportFailed)
+    case reportRejected(EverframeReportRejected)
+    case reportRequest(EverframeReportRequest)
+    case reportSubmit(EverframeReportSubmit)
+    case shotAssembled(EverframeShotAssembled)
+    case shotBinary(EverframeShotBinary)
+    case shotFailed(EverframeShotFailed)
+    case shotRequest(EverframeShotRequest)
 
     private enum DiscKey: String, CodingKey { case type }
 
@@ -930,32 +930,32 @@ public enum RelayMessage: Codable, Equatable {
         let c = try decoder.container(keyedBy: DiscKey.self)
         let type = try c.decode(String.self, forKey: .type)
         switch type {
-        case "attach.challenge": self = .attachChallenge(try AttachChallenge(from: decoder))
-        case "attach.challenge.cleared": self = .attachChallengeCleared(try AttachChallengeCleared(from: decoder))
-        case "companion.name": self = .companionName(try CompanionName(from: decoder))
-        case "pair.bonded": self = .pairBonded(try PairBonded(from: decoder))
-        case "pair.created": self = .pairCreated(try PairCreated(from: decoder))
-        case "pair.expired": self = .pairExpired(try PairExpired(from: decoder))
-        case "phone.disconnected": self = .phoneDisconnected(try PhoneDisconnected(from: decoder))
-        case "preview.frame": self = .previewFrame(try PreviewFrame(from: decoder))
-        case "preview.start": self = .previewStart(try PreviewStart(from: decoder))
-        case "preview.stop": self = .previewStop(try PreviewStop(from: decoder))
-        case "report.assembled": self = .reportAssembled(try ReportAssembled(from: decoder))
-        case "report.cancelled": self = .reportCancelled(try ReportCancelled(from: decoder))
-        case "report.completed": self = .reportCompleted(try ReportCompleted(from: decoder))
-        case "report.draft.update": self = .reportDraftUpdate(try ReportDraftUpdate(from: decoder))
-        case "report.failed": self = .reportFailed(try ReportFailed(from: decoder))
-        case "report.rejected": self = .reportRejected(try ReportRejected(from: decoder))
-        case "report.request": self = .reportRequest(try ReportRequest(from: decoder))
-        case "report.submit": self = .reportSubmit(try ReportSubmit(from: decoder))
-        case "shot.assembled": self = .shotAssembled(try ShotAssembled(from: decoder))
-        case "shot.binary": self = .shotBinary(try ShotBinary(from: decoder))
-        case "shot.failed": self = .shotFailed(try ShotFailed(from: decoder))
-        case "shot.request": self = .shotRequest(try ShotRequest(from: decoder))
+        case "attach.challenge": self = .attachChallenge(try EverframeAttachChallenge(from: decoder))
+        case "attach.challenge.cleared": self = .attachChallengeCleared(try EverframeAttachChallengeCleared(from: decoder))
+        case "companion.name": self = .companionName(try EverframeCompanionName(from: decoder))
+        case "pair.bonded": self = .pairBonded(try EverframePairBonded(from: decoder))
+        case "pair.created": self = .pairCreated(try EverframePairCreated(from: decoder))
+        case "pair.expired": self = .pairExpired(try EverframePairExpired(from: decoder))
+        case "phone.disconnected": self = .phoneDisconnected(try EverframePhoneDisconnected(from: decoder))
+        case "preview.frame": self = .previewFrame(try EverframePreviewFrame(from: decoder))
+        case "preview.start": self = .previewStart(try EverframePreviewStart(from: decoder))
+        case "preview.stop": self = .previewStop(try EverframePreviewStop(from: decoder))
+        case "report.assembled": self = .reportAssembled(try EverframeReportAssembled(from: decoder))
+        case "report.cancelled": self = .reportCancelled(try EverframeReportCancelled(from: decoder))
+        case "report.completed": self = .reportCompleted(try EverframeReportCompleted(from: decoder))
+        case "report.draft.update": self = .reportDraftUpdate(try EverframeReportDraftUpdate(from: decoder))
+        case "report.failed": self = .reportFailed(try EverframeReportFailed(from: decoder))
+        case "report.rejected": self = .reportRejected(try EverframeReportRejected(from: decoder))
+        case "report.request": self = .reportRequest(try EverframeReportRequest(from: decoder))
+        case "report.submit": self = .reportSubmit(try EverframeReportSubmit(from: decoder))
+        case "shot.assembled": self = .shotAssembled(try EverframeShotAssembled(from: decoder))
+        case "shot.binary": self = .shotBinary(try EverframeShotBinary(from: decoder))
+        case "shot.failed": self = .shotFailed(try EverframeShotFailed(from: decoder))
+        case "shot.request": self = .shotRequest(try EverframeShotRequest(from: decoder))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: c,
-                debugDescription: "Unknown RelayMessage type '\(type)'"
+                debugDescription: "Unknown EverframeRelayMessage type '\(type)'"
             )
         }
     }

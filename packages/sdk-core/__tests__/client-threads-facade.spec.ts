@@ -71,7 +71,7 @@ describe('tx.threads facade', () => {
     } as unknown as ReporterApi;
     const credentials = {
       randomBytes: (n: number) => new Uint8Array(n),
-      load: async () => 'txr_' + 'a'.repeat(43),
+      load: async () => 'evr_' + 'a'.repeat(43),
       save: async () => {},
       clear: async () => {},
     };
@@ -109,7 +109,7 @@ describe('tx.threads facade', () => {
     } as unknown as ReporterApi;
     const credentials = {
       randomBytes: (n: number) => new Uint8Array(n),
-      load: async () => 'txr_' + 'a'.repeat(43),
+      load: async () => 'evr_' + 'a'.repeat(43),
       save: async () => {},
       clear: async () => {},
     };
@@ -142,7 +142,7 @@ describe('tx.threads facade', () => {
       markRead: vi.fn(),
       deleteThread,
     } as unknown as ReporterApi;
-    let token: string | null = 'txr_' + 'a'.repeat(43);
+    let token: string | null = 'evr_' + 'a'.repeat(43);
     const credentials = {
       randomBytes: (n: number) => new Uint8Array(n),
       load: async () => token,

@@ -7,12 +7,22 @@ import {
   type AttachmentRef,
   type Breadcrumb,
   type NetworkBodyEntry,
-} from '@traceitx/protocol';
+} from '@everframe/protocol';
 import type { LogEntry, NetworkEntry, DeviceMetadata, ReportDraft } from './types/platform.js';
 import type { UserMetadata } from './types/config.js';
 import { trimBreadcrumbs } from './breadcrumbs/trim.js';
 import { deriveLogsFromBreadcrumbs, deriveNetworkFromBreadcrumbs } from './breadcrumbs/derive.js';
 import { EXTRA_MAX_CHARS } from './extra-budget.js';
+
+function canonicalAttachment(attachment: AttachmentRef): AttachmentRef {
+  if (attachment.format === 'traceitx-video-v1') {
+    return { ...attachment, format: 'everframe-video-v1' };
+  }
+  if (attachment.format === 'traceitx-vtree-v1') {
+    return { ...attachment, format: 'everframe-vtree-v1' };
+  }
+  return attachment;
+}
 
 export interface BuildEnvelopeInput {
   reportId: string;
@@ -140,7 +150,7 @@ export function buildEnvelope(input: BuildEnvelopeInput): ReportEnvelope {
       device: input.device,
       ...(input.route ? { route: input.route } : {}),
     },
-    attachments: input.attachments,
+    attachments: input.attachments.map(canonicalAttachment),
   } as unknown as ReportEnvelope;
 
   return envelope;

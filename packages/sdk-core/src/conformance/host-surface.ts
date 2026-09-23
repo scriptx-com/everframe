@@ -10,7 +10,7 @@
 // bundles it into the published artifact.
 //
 // Platform-bound members stay OUT rather than being faked into false
-// symmetry: native shake, Sensitive vs TraceItXSensitive, web's cspNonce.
+// symmetry: native shake, Sensitive vs EverframeSensitive, web's cspNonce.
 //
 // SCOPE — read before "improving" this file:
 // This guard pins MEMBERSHIP, not SIGNATURES. It asserts that each name

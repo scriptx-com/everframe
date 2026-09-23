@@ -16,7 +16,7 @@ const frozenChain = (client: ReturnType<typeof freshClient>) => {
   return buf.takeFrozen() ?? [];
 };
 
-describe('TraceItXClient.addBreadcrumb', () => {
+describe('EverframeClient.addBreadcrumb', () => {
   it('pushes a custom crumb by default', () => {
     const client = freshClient();
     client.addBreadcrumb({ message: 'checkout started' });

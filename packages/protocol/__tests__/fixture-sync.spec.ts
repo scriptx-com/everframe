@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Guards the physical copies of each cross-SDK-parity fixture against
-// drift. Runs in `pnpm --filter @traceitx/protocol test`, which the main
+// drift. Runs in `pnpm --filter @everframe/protocol test`, which the main
 // ci.yml protocol lane executes on every PR — so a PR editing any copy
 // without syncing the others fails there. (The swift/android codegen-drift
 // jobs don't run this suite; ci.yml is the guard.)

@@ -73,6 +73,7 @@ const dot_to_pascal = (s) =>
     .join('');
 
 const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const prefixed = (name) => name.startsWith('Everframe') ? name : `Everframe${name}`;
 const camel = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
 // Render a Swift type for a JSON-Schema field. For inline nested objects /
@@ -238,7 +239,7 @@ const branches = schema.oneOf.map((b) => {
   if (!b.$id) {
     throw new Error('branch missing $id: ' + JSON.stringify(b).slice(0, 80));
   }
-  const branchName = b.$id;
+  const branchName = prefixed(b.$id);
   emitStruct(branchName, b, extraTypes);
   // Pull the const value of the `type` field as the wire discriminator.
   const disc = b.properties.type.const;
@@ -263,7 +264,7 @@ const encodeCases = branches
   )
   .join('\n');
 
-const enumBlock = `public enum RelayMessage: Codable, Equatable {
+const enumBlock = `public enum EverframeRelayMessage: Codable, Equatable {
 ${enumCases}
 
     private enum DiscKey: String, CodingKey { case type }
@@ -276,7 +277,7 @@ ${decodeCases}
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: c,
-                debugDescription: "Unknown RelayMessage type '\\(type)'"
+                debugDescription: "Unknown EverframeRelayMessage type '\\(type)'"
             )
         }
     }

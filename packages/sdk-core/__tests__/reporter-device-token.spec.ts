@@ -39,6 +39,10 @@ function memoryStore(initial: string | null = null): ReporterCredentialStore & {
 }
 
 describe('reporter device token (client-minted)', () => {
+  it('uses the fresh Everframe reporter credential prefix', () => {
+    expect(DEVICE_TOKEN_PREFIX).toBe('evr_');
+  });
+
   it('emits the server-accepted shape', () => {
     const token = generateDeviceToken(realRandom);
     expect(token.startsWith(DEVICE_TOKEN_PREFIX)).toBe(true);
@@ -98,9 +102,9 @@ describe('reporter device token (client-minted)', () => {
       // The server refuses to adopt a malformed token and mints over it, so
       // presenting one buys nothing; replacing locally keeps client and server
       // agreeing on which token is current.
-      const store = memoryStore('txr_truncated');
+      const store = memoryStore('evr_truncated');
       const token = await ensureDeviceToken(store);
-      expect(token).not.toBe('txr_truncated');
+      expect(token).not.toBe('evr_truncated');
       expect(isWellFormedDeviceToken(token)).toBe(true);
       expect(store.value).toBe(token);
     });

@@ -12,7 +12,7 @@ import {
   isTrimMarker,
   MAX_TRIMMED_ENTRIES,
 } from '../src/breadcrumbs/trim.js';
-import type { Breadcrumb } from '@traceitx/protocol';
+import type { Breadcrumb } from '@everframe/protocol';
 
 const mk = (over: Partial<Breadcrumb> & { kind: Breadcrumb['kind'] }): Breadcrumb => ({
   t: 1, seq: 0, message: 'm', ...over,

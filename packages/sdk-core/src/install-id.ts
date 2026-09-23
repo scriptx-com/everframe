@@ -54,7 +54,7 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha2';
 
 /** Versioned so the derivation can change later without silently reinterpreting old identifiers. */
-export const INSTALL_ID_DOMAIN_SEPARATOR = 'traceitx-install-id-v1';
+export const INSTALL_ID_DOMAIN_SEPARATOR = 'everframe-install-id-v1';
 
 const BASE64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 

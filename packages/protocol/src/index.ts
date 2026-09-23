@@ -18,8 +18,9 @@ export { Breadcrumb, BreadcrumbKind, BreadcrumbLevel } from './breadcrumb.js';
 // envelope-side names (e.g. ReportAssembled, ReportSubmit are relay-specific
 // control frames, distinct from any envelope payload concepts).
 export * as relay from './relay/index.js';
-// traceitx-vtree-v1 native session-replay blob contract — namespaced (mirrors
-// relay) and referenced by the envelope via ReplayFormat, never nested in it.
+// Native session-replay blob contract — namespaced (mirrors relay) and
+// referenced by the envelope via ReplayFormat, never nested in it. The legacy
+// traceitx-vtree-v1 discriminator remains a read-only compatibility value.
 export * as vtree from './vtree/index.js';
 export * from './network-body.js';
 export * from './crash.js';

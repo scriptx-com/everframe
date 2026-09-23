@@ -5,7 +5,7 @@
 //
 // Mirrors `cross-sdk-proto-02.spec.ts` (PROTO-02 pattern). The same
 // `v1-relay-fixture.json` will be round-tripped through:
-//   - TS    (this spec — `RelayMessage.parse` from @traceitx/protocol)
+//   - TS    (this spec — `RelayMessage.parse` from @everframe/protocol)
 //   - Swift (Plan 06.2-07 lands the iOS test target)
 //   - Kotlin (Plan 06.2-08 lands the Android test target)
 //

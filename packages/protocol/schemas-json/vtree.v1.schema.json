@@ -4,7 +4,10 @@
   "properties": {
     "version": {
       "type": "string",
-      "const": "traceitx-vtree-v1"
+      "enum": [
+        "everframe-vtree-v1",
+        "traceitx-vtree-v1"
+      ]
     },
     "viewport": {
       "type": "object",

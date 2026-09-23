@@ -14,7 +14,7 @@ export interface RedactionConfig {
   customRules?: CustomRule[];
 }
 
-export interface TraceItXConfig {
+export interface EverframeConfig {
   /**
    * Per-app SDK key (publishable, not secret). Mirrors the React Native SDK's
    * `apiKey` field so both SDKs share one config shape.
@@ -28,7 +28,7 @@ export interface TraceItXConfig {
   /** Disable everything (DEFE-03). */
   disabled?: boolean;
   /** Surface SDK-internal errors to host app. */
-  onError?: (err: TraceItXError) => void;
+  onError?: (err: EverframeError) => void;
   /** Redaction overrides. Defaults are default-deny. */
   redaction?: RedactionConfig;
   /**
@@ -101,7 +101,7 @@ export interface TraceItXConfig {
   debug?: boolean;
 }
 
-export interface TraceItXError {
+export interface EverframeError {
   name: string;
   message: string;
   stack?: string;

@@ -7,7 +7,7 @@
 // Custom emitter (not quicktype): quicktype@23's Kotlin backend crashes on
 // this schema (upstream bug). See header of codegen-relay-kotlin.mjs.
 
-package com.traceitx.protocol.generated
+package dev.everframe.protocol.generated
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

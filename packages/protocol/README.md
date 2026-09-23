@@ -60,7 +60,7 @@ these historical fields. No current producer emits them. `captures.uiTree`
 remains a required capability flag, emitted as `false`.
 
 Standalone `UITree` / `UINode` schemas remain for privacy handling of historical
-raw data and fixture tools. Web rrweb and Android's separate `traceitx-vtree-v1`
+raw data and fixture tools. Web rrweb and native `everframe-vtree-v1`
 replay format are unaffected.
 
 `PROTOCOL_VERSION` is the literal `'1.0'`.

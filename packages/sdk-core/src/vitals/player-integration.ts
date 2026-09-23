@@ -7,7 +7,7 @@
 // license timing, library errors); transport/buffer state stays with the
 // element listeners in the platform adapter. Adding a player library = one
 // file implementing this interface; the protocol never changes.
-import type { VitalsPlayerEventType } from '@traceitx/protocol';
+import type { VitalsPlayerEventType } from '@everframe/protocol';
 
 export type PlayerEmit = (
   type: VitalsPlayerEventType,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import { UITree } from '@traceitx/protocol';
+import { UITree } from '@everframe/protocol';
 import { applyRedaction } from '../src/redaction/engine.js';
 import { buildSeededPIIEnvelope, TEST_PII } from '../src/__test-helpers__/seeded-pii.js';
 
@@ -39,12 +39,12 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
     (seeded.payload as { network: unknown }).network = [
       {
         method: 'GET',
-        url: 'https://api.traceitx.com/api/reporter/threads',
+        url: 'https://everframe.dev/api/reporter/threads',
         status: 200,
         startedAt: 1500,
         headers: {
-          'x-tx-device-token': 'txr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          'x-tx-identity-token': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
+          'x-everframe-device-token': 'evr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          'x-everframe-identity-token': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
           'content-type': 'application/json',
         },
       },
@@ -52,8 +52,8 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
     const { envelope } = applyRedaction(seeded, {});
     const headers = (envelope.payload.network as Array<{ headers: Record<string, string> }>)[0]!
       .headers;
-    expect(headers['x-tx-device-token']).toBe('[REDACTED]');
-    expect(headers['x-tx-identity-token']).toBe('[REDACTED]');
+    expect(headers['x-everframe-device-token']).toBe('[REDACTED]');
+    expect(headers['x-everframe-identity-token']).toBe('[REDACTED]');
     expect(headers['content-type']).toBe('application/json');
   });
 

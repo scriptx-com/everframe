@@ -3,7 +3,7 @@
   "reportId": "7b9f4c2e-8d31-4a6b-9c05-2f1e6a8d4b70",
   "submittedAt": "2026-04-29T16:00:00.000Z",
   "sdk": {
-    "name": "traceitx-react",
+    "name": "everframe-react",
     "version": "0.0.0",
     "platform": "web",
     "formFactor": "desktop"

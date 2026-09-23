@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { FocusedNode } from '@traceitx/protocol';
+import type { FocusedNode } from '@everframe/protocol';
 import type { ThreadClient } from '../reporter/thread-client.js';
 import type { CaptureExceptionOptions } from '../crash/options.js';
 
@@ -167,7 +167,7 @@ export interface PlatformAdapter {
    * already flipped true and the network-body buffer's own `kill()` has run,
    * so the adapter learns about teardown even though `createClient` never
    * otherwise calls back into the adapter it was constructed with. Mirrors
-   * `TraceItX.kill()` calling `ReplaySession.teardown()` on iOS (7a047bdd):
+   * `Everframe.kill()` calling `ReplaySession.teardown()` on iOS (7a047bdd):
    * the web adapter uses this to (a) make its own capture-gate checks
    * (`bodyCapture.enabled()`) start returning false, and (b) cancel any
    * periodic config-refresh timer it owns, so a kill() mid-flight can never
@@ -182,7 +182,8 @@ export interface PlatformAdapter {
  * A serialized, compressed session-replay capture ready to ride as a tagged
  * attachment (`kind: 'session-replay'`) through the existing ingest pipeline.
  * `format` is the playback discriminator: web uses the value below; native
- * phases will add their own `traceitx-vtree-v1` value (protocol already ships both).
+ * native producers use `everframe-vtree-v1`; protocol readers also accept the
+ * persisted legacy discriminator.
  */
 export interface ReplayCapture {
   format: 'rrweb';

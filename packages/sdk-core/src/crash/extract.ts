@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { CrashFrame } from '@traceitx/protocol';
+import type { CrashFrame } from '@everframe/protocol';
 
-/** Protocol caps (see @traceitx/protocol ReportEnvelope crash payload schema). */
+/** Protocol caps (see @everframe/protocol ReportEnvelope crash payload schema). */
 export const MAX_MESSAGE = 4096;
 const MAX_FRAMES = 256;
 export const MAX_RAW = 1024;

@@ -322,7 +322,7 @@ export const VitalsIngestRequest = z.object({
    * The verified identity token, on the beacon path only.
    *
    * `navigator.sendBeacon` cannot set headers — which is exactly why `apiKey`
-   * above already rides in the body — so the `x-tx-identity-token` header's
+   * above already rides in the body — so the `x-everframe-identity-token` header's
    * value comes through here instead when a summary is flushed on unload. The
    * ingest route prefers the header when both are present.
    *

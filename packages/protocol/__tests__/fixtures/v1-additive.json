@@ -4,7 +4,7 @@
   "submittedAt": "2026-04-29T16:00:00.000Z",
   "futureFieldX": "this is not in v1 schema",
   "sdk": {
-    "name": "traceitx-react",
+    "name": "everframe-react",
     "version": "0.0.0",
     "platform": "web",
     "formFactor": "desktop",

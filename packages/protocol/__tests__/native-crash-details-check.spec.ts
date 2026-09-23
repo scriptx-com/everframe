@@ -8,7 +8,7 @@ import { expect, it } from 'vitest';
 
 // Synthetic inputs test the verifier only; SDK proof comes from the native exporter.
 it('checks native export shape, required cases, limits and decoded semantics', () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'traceitx-details-check-'));
+  const dir = mkdtempSync(path.join(tmpdir(), 'everframe-details-check-'));
   const file = path.join(dir, 'cases.json');
   const run = (input: unknown) => {
     writeFileSync(file, JSON.stringify(input));

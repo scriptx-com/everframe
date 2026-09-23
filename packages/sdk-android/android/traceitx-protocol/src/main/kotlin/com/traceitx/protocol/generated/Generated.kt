@@ -9,7 +9,7 @@
 // val json           = Json { allowStructuredMapKeys = true }
 // val reportEnvelope = json.parse(ReportEnvelope.serializer(), jsonString)
 
-package com.traceitx.protocol.generated
+package dev.everframe.protocol.generated
 
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
@@ -58,11 +58,35 @@ data class Attachment (
     val width: Double? = null
 )
 
-@Serializable
+@Serializable(with = EverframeFormatSerializer::class)
 enum class Format(val value: String) {
+    @SerialName("everframe-video-v1") EverframeVideoV1("everframe-video-v1"),
+    @SerialName("everframe-vtree-v1") EverframeVtreeV1("everframe-vtree-v1"),
     @SerialName("rrweb") Rrweb("rrweb"),
     @SerialName("traceitx-video-v1") TraceitxVideoV1("traceitx-video-v1"),
     @SerialName("traceitx-vtree-v1") TraceitxVtreeV1("traceitx-vtree-v1");
+}
+
+object EverframeFormatSerializer : KSerializer<Format> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
+        "dev.everframe.protocol.generated.Format",
+        PrimitiveKind.STRING,
+    )
+
+    override fun deserialize(decoder: Decoder): Format {
+        val wire = decoder.decodeString()
+        return Format.values().firstOrNull { it.value == wire }
+            ?: throw SerializationException("Unknown Everframe replay format: $wire")
+    }
+
+    override fun serialize(encoder: Encoder, value: Format) {
+        val encoded = when (value) {
+            Format.TraceitxVideoV1 -> "everframe-video-v1"
+            Format.TraceitxVtreeV1 -> "everframe-vtree-v1"
+            else -> value.value
+        }
+        encoder.encodeString(encoded)
+    }
 }
 
 @Serializable
@@ -447,11 +471,11 @@ enum class FormFactor(val value: String) {
 
 @Serializable
 enum class Name(val value: String) {
-    @SerialName("traceitx-android") TraceitxAndroid("traceitx-android"),
-    @SerialName("traceitx-ios") TraceitxIos("traceitx-ios"),
-    @SerialName("traceitx-react") TraceitxReact("traceitx-react"),
-    @SerialName("traceitx-react-native") TraceitxReactNative("traceitx-react-native"),
-    @SerialName("traceitx-web") TraceitxWeb("traceitx-web");
+    @SerialName("everframe-android") EverframeAndroid("everframe-android"),
+    @SerialName("everframe-ios") EverframeIos("everframe-ios"),
+    @SerialName("everframe-react") EverframeReact("everframe-react"),
+    @SerialName("everframe-react-native") EverframeReactNative("everframe-react-native"),
+    @SerialName("everframe-web") EverframeWeb("everframe-web");
 }
 
 /**

@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import { createClient, __internalClientState } from '../src/client.js';
 import { projectUserMetadata } from '../src/user-projection.js';
 import type { PlatformAdapter } from '../src/types/platform.js';
-import type { TraceItXClient } from '../src/client.js';
+import type { EverframeClient } from '../src/client.js';
 import type { UserMetadata } from '../src/types/config.js';
 
 /** Minimal adapter — `setUser` touches no adapter method at all. */
@@ -23,13 +23,13 @@ function stubAdapter(): PlatformAdapter {
   return {} as unknown as PlatformAdapter;
 }
 
-function started(): TraceItXClient {
+function started(): EverframeClient {
   const client = createClient(stubAdapter());
   client.init({ apiKey: 'pk_test' });
   return client;
 }
 
-const storedUser = (client: TraceItXClient): UserMetadata | null =>
+const storedUser = (client: EverframeClient): UserMetadata | null =>
   __internalClientState.get(client)?.user ?? null;
 
 describe('projectUserMetadata', () => {

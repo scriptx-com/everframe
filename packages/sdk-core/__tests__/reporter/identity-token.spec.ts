@@ -374,7 +374,7 @@ describe('IdentityTokenHolder.hasUnresolvedSource', () => {
   });
 });
 
-// PR review, Serious finding (feat/traceitx-identity) — a non-destructive
+// PR review, Serious finding (identity recognition) — a non-destructive
 // validity predicate consulted at the top of BOTH get() and peek(). See
 // src/reporter/identity-token.ts's `setGuard` doc for the design: a refusal
 // must never clear the cache or touch the source, so a spurious refusal
@@ -444,7 +444,7 @@ describe('IdentityTokenHolder guard', () => {
     expect(h.peek(now)).toBeNull();
   });
 
-  // PR review (Serious, feat/traceitx-identity) — the guard was previously
+  // PR review (Serious, identity recognition) — the guard was previously
   // consulted only ONCE, at the top of get(), before the provider await. A
   // guard flip that happens WHILE a provider mint is in flight (e.g. the
   // app switching from Alice to Bob mid-request) must still block the

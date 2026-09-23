@@ -79,7 +79,7 @@ try {
   process.exit(1);
 }
 
-const artifact = path.join(__dirname, 'target', 'wasm32-wasip1', 'release', 'traceitx_swc_plugin_displayname.wasm');
+const artifact = path.join(__dirname, 'target', 'wasm32-wasip1', 'release', 'everframe_swc_plugin_displayname.wasm');
 if (!existsSync(artifact)) {
   console.error(`[swc-plugin] expected artifact at ${artifact} not found`);
   process.exit(1);

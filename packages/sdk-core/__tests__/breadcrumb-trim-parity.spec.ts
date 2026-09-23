@@ -6,7 +6,7 @@
 // three suites must change together.
 import { describe, it, expect } from 'vitest';
 import { trimBreadcrumbs } from '../src/breadcrumbs/trim.js';
-import type { Breadcrumb } from '@traceitx/protocol';
+import type { Breadcrumb } from '@everframe/protocol';
 import fixture from '../../protocol/__tests__/fixtures/breadcrumb-trim.v1.json';
 
 interface Case {

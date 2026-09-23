@@ -7,7 +7,7 @@ import { ReporterApiError } from '../src/reporter/api.js';
 import type { ReporterApi, ThreadSummary } from '../src/reporter/api.js';
 import type { ThreadClientState } from '../src/reporter/thread-client.js';
 
-const TOKEN = 'txr_' + 'a'.repeat(43);
+const TOKEN = 'evr_' + 'a'.repeat(43);
 const OPEN: ThreadSummary = { id: 't1', status: 'open', reportTitle: 'Crash', createdAt: '2026-08-01T00:00:00.000Z', lastMessageAt: null, unreadCount: 3 };
 
 function memoryStore(initial: string | null = TOKEN) {

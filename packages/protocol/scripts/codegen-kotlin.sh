@@ -27,7 +27,7 @@ npx --yes quicktype@23 \
   --lang kotlin \
   --top-level ReportEnvelope \
   --framework kotlinx \
-  --package com.traceitx.protocol.generated \
+  --package dev.everframe.protocol.generated \
   --out "$OUT_PATH"
 
 # quicktype alphabetizes Kotlin properties, which would insert new optional
@@ -105,10 +105,45 @@ const compatibilityBody = ` {
     )
 }`;
 
-const rewritten = source.replace(
+let rewritten = source.replace(
   blockPattern,
   `data class Crash (\n${properties.join('\n')}\n)${compatibilityBody}`
 );
+const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
+if (!formatPattern.test(rewritten)) {
+  throw new Error('codegen-kotlin: Format block shape changed');
+}
+rewritten = rewritten.replace(formatPattern, `@Serializable(with = EverframeFormatSerializer::class)
+enum class Format(val value: String) {
+    @SerialName("everframe-video-v1") EverframeVideoV1("everframe-video-v1"),
+    @SerialName("everframe-vtree-v1") EverframeVtreeV1("everframe-vtree-v1"),
+    @SerialName("rrweb") Rrweb("rrweb"),
+    @SerialName("traceitx-video-v1") TraceitxVideoV1("traceitx-video-v1"),
+    @SerialName("traceitx-vtree-v1") TraceitxVtreeV1("traceitx-vtree-v1");
+}
+
+object EverframeFormatSerializer : KSerializer<Format> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
+        "dev.everframe.protocol.generated.Format",
+        PrimitiveKind.STRING,
+    )
+
+    override fun deserialize(decoder: Decoder): Format {
+        val wire = decoder.decodeString()
+        return Format.values().firstOrNull { it.value == wire }
+            ?: throw SerializationException("Unknown Everframe replay format: $wire")
+    }
+
+    override fun serialize(encoder: Encoder, value: Format) {
+        val encoded = when (value) {
+            Format.TraceitxVideoV1 -> "everframe-video-v1"
+            Format.TraceitxVtreeV1 -> "everframe-vtree-v1"
+            else -> value.value
+        }
+        encoder.encodeString(encoded)
+    }
+}
+`);
 writeFileSync(path, rewritten);
 NODE
 

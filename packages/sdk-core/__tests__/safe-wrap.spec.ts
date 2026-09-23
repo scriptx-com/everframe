@@ -71,7 +71,7 @@ describe('DEFE-02: safeWrap', () => {
     expect(onError).toHaveBeenCalledWith('oops-string');
   });
 
-  it('logs to console.error with [traceitx] prefix', () => {
+  it('logs to console.error with [everframe] prefix', () => {
     const wrapped = safeWrap(
       () => {
         throw new Error('x');
@@ -80,7 +80,7 @@ describe('DEFE-02: safeWrap', () => {
     );
     wrapped();
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('[traceitx]'),
+      expect.stringContaining('[everframe]'),
       expect.any(Error)
     );
   });

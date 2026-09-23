@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Reporter identity recognition (spec 2026-08-06) — the two transport
-// surfaces (ingest submit + /api/reporter/*) attach `X-TX-Identity-Token`
+// surfaces (ingest submit + /api/reporter/*) attach `X-Everframe-Identity-Token`
 // when an `IdentityTokenHolder` is supplied and resolves a token. Both
 // surfaces `await holder.get(Date.now())` internally and never fail the
 // underlying call over identity work.
@@ -17,10 +17,14 @@ const mkJwt = (expSec: number): string => {
   return `${b64({ alg: 'HS256' })}.${b64({ sub: 'u1', exp: expSec })}.sig`;
 };
 
-const TOKEN = 'txr_' + 'a'.repeat(43);
+const TOKEN = 'evr_' + 'a'.repeat(43);
 
 describe('submitReport identity token', () => {
-  it('sends X-TX-Identity-Token when the holder resolves a token', async () => {
+  it('uses the Everframe identity header name', () => {
+    expect(IDENTITY_TOKEN_HEADER).toBe('X-Everframe-Identity-Token');
+  });
+
+  it('sends X-Everframe-Identity-Token when the holder resolves a token', async () => {
     const jwt = mkJwt(Date.now() / 1000 + 300);
     const holder = new IdentityTokenHolder();
     holder.set(jwt);
@@ -91,14 +95,14 @@ describe('createReporterApi identity token', () => {
     });
   }
 
-  it('sends X-TX-Identity-Token alongside the device token when the holder resolves', async () => {
+  it('sends X-Everframe-Identity-Token alongside the device token when the holder resolves', async () => {
     const jwt = mkJwt(Date.now() / 1000 + 300);
     const holder = new IdentityTokenHolder();
     holder.set(jwt);
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ threads: [] }), { status: 200 }));
     await apiWith(fetchImpl, holder).listThreads(TOKEN, null);
     const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
-    expect(headers['X-TX-Device-Token']).toBe(TOKEN);
+    expect(headers['X-Everframe-Device-Token']).toBe(TOKEN);
     expect(headers[IDENTITY_TOKEN_HEADER]).toBe(jwt);
   });
 

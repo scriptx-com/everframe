@@ -5,22 +5,22 @@
 // `state.config` and nothing else, so a second `init()` under a DIFFERENT
 // apiKey left project A's self-declared user, extra, breadcrumb chain,
 // captured bodies and — worst — its signed identity token live for project B.
-// Unreachable through TraceItXProvider (fresh client per mount), but
+// Unreachable through EverframeProvider (fresh client per mount), but
 // `createClient` is a public export, so a direct-SDK host can do exactly this.
 import { describe, it, expect } from 'vitest';
 import { createClient, __internalClientState, resolveClientExtra } from '../src/client.js';
 import type { PlatformAdapter } from '../src/types/platform.js';
-import type { TraceItXClient } from '../src/client.js';
+import type { EverframeClient } from '../src/client.js';
 
 /** Minimal adapter — none of these paths touch an adapter method. */
 function stubAdapter(): PlatformAdapter {
   return {} as unknown as PlatformAdapter;
 }
 
-const stateOf = (c: TraceItXClient) => __internalClientState.get(c)!;
+const stateOf = (c: EverframeClient) => __internalClientState.get(c)!;
 
 /** Populate every tenant-scoped field the reset is responsible for. */
-function populate(client: TraceItXClient): void {
+function populate(client: EverframeClient): void {
   client.setUser({ id: 'u_1', email: 'alice@a.com', displayName: 'Alice' });
   client.setExtra('order-4417');
   client.setIdentityToken('signed.jwt.for.project.a');

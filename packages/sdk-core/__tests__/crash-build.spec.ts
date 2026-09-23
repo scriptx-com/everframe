@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
-import { ReportEnvelope } from '@traceitx/protocol';
+import { ReportEnvelope } from '@everframe/protocol';
 import { buildCrashEnvelope } from '../src/crash/index.js';
 
 const base = () => ({
@@ -22,7 +22,7 @@ const base = () => ({
   occurredAt: '2026-07-18T12:00:00.000Z',
   reportId: '123e4567-e89b-42d3-a456-426614174000',
   submittedAt: '2026-07-18T12:00:00.100Z',
-  sdk: { name: 'traceitx-react' as const, version: '1.0.0', platform: 'web' as const, formFactor: 'desktop' as const },
+  sdk: { name: 'everframe-react' as const, version: '1.0.0', platform: 'web' as const, formFactor: 'desktop' as const },
   breadcrumbs: [{ kind: 'error' as const, message: 'two', seq: 1, t: 999 }],
   device: {
     os: 'macOS', osVersion: '15', screenSize: { width: 1280, height: 800 },

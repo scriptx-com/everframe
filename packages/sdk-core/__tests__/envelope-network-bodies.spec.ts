@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
 import { buildEnvelope } from '../src/envelope-builder.js';
-import type { NetworkBodyEntry, Breadcrumb } from '@traceitx/protocol';
+import type { NetworkBodyEntry, Breadcrumb } from '@everframe/protocol';
 
 const base = {
   reportId: '00000000-0000-4000-8000-000000000000',
   submittedAt: new Date(0).toISOString(),
-  sdk: { name: 'traceitx-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' } as const,
+  sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' } as const,
   reporter: { title: 't', description: 'd' },
   draft: { title: 't', description: 'd', excludedArtifacts: [], annotations: [], redactions: [] },
   device: { os: 'x', osVersion: '1', screenSize: { width: 1, height: 1 }, pixelRatio: 1, locale: 'en', timezone: 'UTC' },

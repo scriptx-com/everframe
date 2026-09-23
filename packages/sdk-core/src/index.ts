@@ -10,8 +10,8 @@ export {
   REPLAY_TRACE_MAX,
 } from './debug/replay-trace.js';
 export type { ReplayTraceEntry } from './debug/replay-trace.js';
-export { createClient, __internalClientState, toTraceItXError, resolveClientExtra } from './client.js';
-export type { TraceItXClient, ExtraResolver, ExtraState } from './client.js';
+export { createClient, __internalClientState, toEverframeError, resolveClientExtra } from './client.js';
+export type { EverframeClient, ExtraResolver, ExtraState } from './client.js';
 export { trimLogs, MAX_LOG_CHARS, TRIMMED_LOGS_MESSAGE } from './trim-logs.js';
 export {
   createBreadcrumbBuffer,
@@ -67,6 +67,8 @@ export {
   GZIP_THRESHOLD,
   submitReport,
   DEFAULT_RETRY_SCHEDULE_MS,
+  DEVICE_TOKEN_HEADER,
+  REPLIES_OPT_OUT_HEADER,
 } from './transport/index.js';
 export type { MultipartParts, SubmitOptions, SubmitResult } from './transport/index.js';
 export { createInMemoryOutbox } from './queue/outbox.js';
@@ -124,6 +126,7 @@ export {
   ReplayConfigResponse,
   REPLAY_CONFIG_OFF,
   DEFAULT_CONFIG_TTL_MS,
+  SDK_FEATURES_HEADER,
   createReplayLifecycle,
   BreadcrumbsConfig,
   BREADCRUMBS_CONFIG_DEFAULT,
@@ -165,4 +168,4 @@ export type {
   PlayerEmit, PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings,
 } from './vitals/player-integration.js';
 // Re-export protocol types so platform packages can import everything from sdk-core.
-export * from '@traceitx/protocol';
+export * from '@everframe/protocol';

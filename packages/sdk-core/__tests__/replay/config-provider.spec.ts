@@ -19,6 +19,7 @@ import {
   getBreadcrumbsConfig,
   isRepliesEnabled,
   isIdentityEnabled,
+  SDK_FEATURES_HEADER,
   type ReplayConfig,
 } from '../../src/types/replay/config-provider.js';
 
@@ -305,7 +306,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     });
     await cp.refresh();
     const headers = fetchImpl.mock.calls[0]![1].headers as Record<string, string>;
-    expect(headers['X-TX-SDK-Features']).toBe('networkbodies');
+    expect(headers['X-Everframe-SDK-Features']).toBe('networkbodies');
   });
 
   // The web adapter declares BOTH features on the one shared config fetch
@@ -325,7 +326,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     });
     await cp.refresh();
     const headers = fetchImpl.mock.calls[0]![1].headers as Record<string, string>;
-    expect(headers['X-TX-SDK-Features']).toBe('replies, networkbodies');
+    expect(headers['X-Everframe-SDK-Features']).toBe('replies, networkbodies');
   });
 
   it('a transient error after a good resolution does NOT flip ON→OFF (stays last-good)', async () => {
@@ -828,6 +829,10 @@ describe('replies config (two-way replies server core)', () => {
 });
 
 describe('sdkFeatures negotiation', () => {
+  it('uses the Everframe SDK features header name', () => {
+    expect(SDK_FEATURES_HEADER).toBe('X-Everframe-SDK-Features');
+  });
+
   it('carries the negotiated dashboard report hotkey through the config cache', async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       replayEnabled: false,
@@ -847,7 +852,7 @@ describe('sdkFeatures negotiation', () => {
     expect(provider.get().reportHotkey).toEqual({ binding: 'Alt+R' });
   });
 
-  it('sends X-TX-SDK-Features when features are supplied', async () => {
+  it('sends X-Everframe-SDK-Features when features are supplied', async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0,
       replies: { enabled: true },
@@ -860,7 +865,7 @@ describe('sdkFeatures negotiation', () => {
     await provider.refresh();
     const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
     const headers = callArgs[1].headers as Record<string, string>;
-    expect(headers['X-TX-SDK-Features']).toBe('replies');
+    expect(headers[SDK_FEATURES_HEADER]).toBe('replies');
     expect(isRepliesEnabled(provider.get())).toBe(true);
   });
 
@@ -875,7 +880,7 @@ describe('sdkFeatures negotiation', () => {
     await provider.refresh();
     const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
     const headers = callArgs[1].headers as Record<string, string>;
-    expect('X-TX-SDK-Features' in headers).toBe(false);
+    expect(SDK_FEATURES_HEADER in headers).toBe(false);
     expect(isRepliesEnabled(provider.get())).toBe(false);
   });
 
@@ -898,7 +903,7 @@ describe('sdkFeatures negotiation', () => {
     await provider.refresh();
     const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
     const headers = callArgs[1].headers as Record<string, string>;
-    expect(headers['X-TX-SDK-Features']).toBe('identity');
+    expect(headers[SDK_FEATURES_HEADER]).toBe('identity');
     expect(isIdentityEnabled(provider.get())).toBe(true);
   });
 

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MAX_PLAYER_EVENT_DATA_BYTES, utf8ByteLength } from '@traceitx/protocol';
+import { MAX_PLAYER_EVENT_DATA_BYTES, utf8ByteLength } from '@everframe/protocol';
 import { createVitalsCollector } from '../../src/vitals/collector.js';
 import { IdentityTokenHolder } from '../../src/reporter/identity-token.js';
 

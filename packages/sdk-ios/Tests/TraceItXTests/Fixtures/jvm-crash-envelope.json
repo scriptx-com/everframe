@@ -3,7 +3,7 @@
   "reportId": "01939c34-7b8f-7000-8000-000000000002",
   "submittedAt": "2026-09-09T12:00:00.000Z",
   "sdk": {
-    "name": "traceitx-android",
+    "name": "everframe-android",
     "version": "0.7.0",
     "platform": "android",
     "formFactor": "phone"

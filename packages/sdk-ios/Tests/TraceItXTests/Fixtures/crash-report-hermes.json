@@ -3,7 +3,7 @@
   "reportId": "01939c34-7b8f-7000-8000-000000000001",
   "submittedAt": "2026-09-08T12:00:00.000Z",
   "sdk": {
-    "name": "traceitx-react-native",
+    "name": "everframe-react-native",
     "version": "0.7.0",
     "platform": "android",
     "formFactor": "phone"

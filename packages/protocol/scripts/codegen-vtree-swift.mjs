@@ -55,7 +55,7 @@ if (schema.type !== 'object' || !schema.properties) {
 // pointer). The emitter resolves that same ref by `$id` and looks the def up by
 // its stable `$defs` key.
 const VNODE_REF = 'VNode';
-const VNODE_NAME = 'VNode';
+const VNODE_NAME = 'EverframeVNode';
 const vnodeDefKey = '__schema0';
 if (!schema.$defs || !schema.$defs[vnodeDefKey]) {
   console.error(`vtree schema missing recursive $defs.${vnodeDefKey}; aborts`);
@@ -90,7 +90,7 @@ const snake_to_camel = (s) =>
 // (22-RESEARCH Pitfall 1) so it is NOT expressible in this generated type. The
 // comment is the load-bearing contract surface for native producers + player.
 const FIELD_DOC_COMMENTS = {
-  'VNode.masked': [
+  'EverframeVNode.masked': [
     '    /// INVARIANT (producer-enforced, NOT type-enforced): when `masked == true`',
     '    /// the node MUST carry NO `text` and NO image payload (the screenshot-blackout',
     '    /// PII parity guarantee). The dashboard player (Phase 25) defensively ignores',
@@ -100,6 +100,7 @@ const FIELD_DOC_COMMENTS = {
 };
 
 const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const prefixed = (name) => name.startsWith('Everframe') ? name : `Everframe${name}`;
 
 /**
  * True for a JSON Schema object used as an open-ended MAP: `additionalProperties`
@@ -143,12 +144,13 @@ function swiftType(prop, ownerName, fieldName, extraTypes) {
       return `[${VNODE_NAME}]`;
     }
     if (items && items.$id) {
+      const typeName = prefixed(items.$id);
       if (items.oneOf) {
-        emitInlineOneOf(items.$id, items, extraTypes);
+        emitInlineOneOf(typeName, items, extraTypes);
       } else if (items.type === 'object') {
-        emitStruct(items.$id, items, extraTypes);
+        emitStruct(typeName, items, extraTypes);
       }
-      return `[${items.$id}]`;
+      return `[${typeName}]`;
     }
     const singular = fieldName.endsWith('s')
       ? fieldName.slice(0, -1)
@@ -161,7 +163,9 @@ function swiftType(prop, ownerName, fieldName, extraTypes) {
     // the generic object path built an EMPTY struct with no storage, so the
     // SDK could not carry the map's contents, and it compiled clean.
     const value = prop.additionalProperties;
-    const valueType = value.$id || ownerName + pascal(snake_to_camel(fieldName)) + 'Value';
+    const valueType = value.$id
+      ? prefixed(value.$id)
+      : ownerName + pascal(snake_to_camel(fieldName)) + 'Value';
     if (value.type === 'object') emitStruct(valueType, value, extraTypes);
     return `[String: ${valueType}]`;
   }
@@ -171,12 +175,14 @@ function swiftType(prop, ownerName, fieldName, extraTypes) {
     // VNodeFrame + VOpSetFrame (and so the Pitfall-1 grep for the recursive
     // node stays clean).
     const typeName =
-      fieldName === 'frame' ? 'VRect' : ownerName + pascal(snake_to_camel(fieldName));
+      fieldName === 'frame' ? 'EverframeVRect' : ownerName + pascal(snake_to_camel(fieldName));
     emitStruct(typeName, prop, extraTypes);
     return typeName;
   }
   if (prop.oneOf) {
-    const typeName = prop.$id || ownerName + pascal(snake_to_camel(fieldName)) + 'Item';
+    const typeName = prop.$id
+      ? prefixed(prop.$id)
+      : ownerName + pascal(snake_to_camel(fieldName)) + 'Item';
     emitInlineOneOf(typeName, prop, extraTypes);
     return typeName;
   }
@@ -247,7 +253,7 @@ function emitInlineOneOf(name, prop, extraTypes) {
     .map((b) => {
       const disc = b.properties.op.const;
       // Each branch carries its own $id (VOpSet/VOpAdd/VOpRemove).
-      const branchName = b.$id || name + pascal(snake_to_camel(disc));
+      const branchName = b.$id ? prefixed(b.$id) : name + pascal(snake_to_camel(disc));
       emitStruct(branchName, b, extraTypes);
       return { disc, branchName, caseName: camel(snake_to_camel(disc)) };
     })
@@ -309,7 +315,7 @@ emitStruct(VNODE_NAME, schema.$defs[vnodeDefKey], extraTypes);
 // 2. Emit the root VTreeTimeline struct. Its `frames`/`viewport`/`version`
 //    props recurse through swiftType, which emits VFrame (via frames.items.$id),
 //    VOp (via ops.items.$id), VOpSet/VOpAdd/VOpRemove, and the nested viewport.
-emitStruct('VTreeTimeline', schema, extraTypes);
+emitStruct('EverframeVTreeTimeline', schema, extraTypes);
 
 // Sort extraTypes by name for deterministic output.
 const sortedExtras = [...extraTypes.entries()]

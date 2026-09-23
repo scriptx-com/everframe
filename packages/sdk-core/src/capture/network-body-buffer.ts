@@ -7,7 +7,7 @@
 // buffer so it never perturbs the parity-locked crumb trim. Mirrors the
 // breadcrumb buffer's freeze/takeFrozen/discardAndResume/clear lifecycle so
 // bodies snapshot at reporter-open in lockstep with the frozen crumb chain.
-import type { NetworkBodyEntry } from '@traceitx/protocol';
+import type { NetworkBodyEntry } from '@everframe/protocol';
 
 /** Default summed-body-bytes budget (spec §4.1 `bodyTotalBudget`). */
 export const DEFAULT_BODY_TOTAL_BUDGET = 262144;

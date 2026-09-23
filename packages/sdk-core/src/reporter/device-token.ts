@@ -31,7 +31,8 @@
 // lives in a platform package.
 import type { ReporterCredentialStore } from '../types/platform.js';
 
-export const DEVICE_TOKEN_PREFIX = 'txr_';
+export const DEVICE_TOKEN_HEADER = 'X-Everframe-Device-Token';
+export const DEVICE_TOKEN_PREFIX = 'evr_';
 /** 32 random bytes → 43 base64url chars. Must match the server's constant. */
 export const DEVICE_TOKEN_BODY_LENGTH = 43;
 export const DEVICE_TOKEN_BYTES = 32;

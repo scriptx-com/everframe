@@ -12,7 +12,7 @@
 
 import Foundation
 
-public struct VAsset: Codable, Equatable {
+public struct EverframeVAsset: Codable, Equatable {
     public let b64: String
     public let h: Double
     public let mime: String
@@ -33,8 +33,8 @@ public struct VAsset: Codable, Equatable {
     }
 }
 
-public struct VFrame: Codable, Equatable {
-    public let ops: [VOp]
+public struct EverframeVFrame: Codable, Equatable {
+    public let ops: [EverframeVOp]
     public let timestamp: Double
 
     public enum CodingKeys: String, CodingKey {
@@ -42,22 +42,22 @@ public struct VFrame: Codable, Equatable {
         case timestamp
     }
 
-    public init(ops: [VOp], timestamp: Double) {
+    public init(ops: [EverframeVOp], timestamp: Double) {
         self.ops = ops
         self.timestamp = timestamp
     }
 }
 
-public struct VNode: Codable, Equatable {
+public struct EverframeVNode: Codable, Equatable {
     public let alpha: Double?
     public let bg: String?
     public let borderColor: String?
     public let borderWidth: Double?
-    public let children: [VNode]
+    public let children: [EverframeVNode]
     public let cornerRadius: Double?
     public let fontSize: Double?
     public let fontWeight: Int?
-    public let frame: VRect
+    public let frame: EverframeVRect
     public let id: String
     public let imageRef: String?
     /// INVARIANT (producer-enforced, NOT type-enforced): when `masked == true`
@@ -90,7 +90,7 @@ public struct VNode: Codable, Equatable {
         case textColor
     }
 
-    public init(alpha: Double? = nil, bg: String? = nil, borderColor: String? = nil, borderWidth: Double? = nil, children: [VNode], cornerRadius: Double? = nil, fontSize: Double? = nil, fontWeight: Int? = nil, frame: VRect, id: String, imageRef: String? = nil, masked: Bool? = nil, role: String, text: String? = nil, textAlign: String? = nil, textColor: String? = nil) {
+    public init(alpha: Double? = nil, bg: String? = nil, borderColor: String? = nil, borderWidth: Double? = nil, children: [EverframeVNode], cornerRadius: Double? = nil, fontSize: Double? = nil, fontWeight: Int? = nil, frame: EverframeVRect, id: String, imageRef: String? = nil, masked: Bool? = nil, role: String, text: String? = nil, textAlign: String? = nil, textColor: String? = nil) {
         self.alpha = alpha
         self.bg = bg
         self.borderColor = borderColor
@@ -110,10 +110,10 @@ public struct VNode: Codable, Equatable {
     }
 }
 
-public enum VOp: Codable, Equatable {
-    case add(VOpAdd)
-    case remove(VOpRemove)
-    case set(VOpSet)
+public enum EverframeVOp: Codable, Equatable {
+    case add(EverframeVOpAdd)
+    case remove(EverframeVOpRemove)
+    case set(EverframeVOpSet)
 
     private enum DiscKey: String, CodingKey { case op }
 
@@ -121,13 +121,13 @@ public enum VOp: Codable, Equatable {
         let c = try decoder.container(keyedBy: DiscKey.self)
         let op = try c.decode(String.self, forKey: .op)
         switch op {
-        case "add": self = .add(try VOpAdd(from: decoder))
-        case "remove": self = .remove(try VOpRemove(from: decoder))
-        case "set": self = .set(try VOpSet(from: decoder))
+        case "add": self = .add(try EverframeVOpAdd(from: decoder))
+        case "remove": self = .remove(try EverframeVOpRemove(from: decoder))
+        case "set": self = .set(try EverframeVOpSet(from: decoder))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .op, in: c,
-                debugDescription: "Unknown VOp op '\(op)'"
+                debugDescription: "Unknown EverframeVOp op '\(op)'"
             )
         }
     }
@@ -141,9 +141,9 @@ public enum VOp: Codable, Equatable {
     }
 }
 
-public struct VOpAdd: Codable, Equatable {
+public struct EverframeVOpAdd: Codable, Equatable {
     public let index: Int
-    public let node: VNode
+    public let node: EverframeVNode
     public let op: String
     public let parent: String
 
@@ -154,7 +154,7 @@ public struct VOpAdd: Codable, Equatable {
         case parent
     }
 
-    public init(index: Int, node: VNode, op: String, parent: String) {
+    public init(index: Int, node: EverframeVNode, op: String, parent: String) {
         self.index = index
         self.node = node
         self.op = op
@@ -162,7 +162,7 @@ public struct VOpAdd: Codable, Equatable {
     }
 }
 
-public struct VOpRemove: Codable, Equatable {
+public struct EverframeVOpRemove: Codable, Equatable {
     public let id: String
     public let op: String
 
@@ -177,7 +177,7 @@ public struct VOpRemove: Codable, Equatable {
     }
 }
 
-public struct VOpSet: Codable, Equatable {
+public struct EverframeVOpSet: Codable, Equatable {
     public let alpha: Double?
     public let bg: String?
     public let borderColor: String?
@@ -185,7 +185,7 @@ public struct VOpSet: Codable, Equatable {
     public let cornerRadius: Double?
     public let fontSize: Double?
     public let fontWeight: Int?
-    public let frame: VRect?
+    public let frame: EverframeVRect?
     public let id: String
     public let imageRef: String?
     public let op: String
@@ -210,7 +210,7 @@ public struct VOpSet: Codable, Equatable {
         case textColor
     }
 
-    public init(alpha: Double? = nil, bg: String? = nil, borderColor: String? = nil, borderWidth: Double? = nil, cornerRadius: Double? = nil, fontSize: Double? = nil, fontWeight: Int? = nil, frame: VRect? = nil, id: String, imageRef: String? = nil, op: String, text: String? = nil, textAlign: String? = nil, textColor: String? = nil) {
+    public init(alpha: Double? = nil, bg: String? = nil, borderColor: String? = nil, borderWidth: Double? = nil, cornerRadius: Double? = nil, fontSize: Double? = nil, fontWeight: Int? = nil, frame: EverframeVRect? = nil, id: String, imageRef: String? = nil, op: String, text: String? = nil, textAlign: String? = nil, textColor: String? = nil) {
         self.alpha = alpha
         self.bg = bg
         self.borderColor = borderColor
@@ -228,7 +228,7 @@ public struct VOpSet: Codable, Equatable {
     }
 }
 
-public struct VRect: Codable, Equatable {
+public struct EverframeVRect: Codable, Equatable {
     public let h: Double
     public let w: Double
     public let x: Double
@@ -249,12 +249,12 @@ public struct VRect: Codable, Equatable {
     }
 }
 
-public struct VTreeTimeline: Codable, Equatable {
-    public let assets: [String: VAsset]?
-    public let frames: [VFrame]
+public struct EverframeVTreeTimeline: Codable, Equatable {
+    public let assets: [String: EverframeVAsset]?
+    public let frames: [EverframeVFrame]
     public let originEpochMs: Double?
     public let version: String
-    public let viewport: VTreeTimelineViewport
+    public let viewport: EverframeVTreeTimelineViewport
 
     public enum CodingKeys: String, CodingKey {
         case assets
@@ -264,7 +264,7 @@ public struct VTreeTimeline: Codable, Equatable {
         case viewport
     }
 
-    public init(assets: [String: VAsset]? = nil, frames: [VFrame], originEpochMs: Double? = nil, version: String, viewport: VTreeTimelineViewport) {
+    public init(assets: [String: EverframeVAsset]? = nil, frames: [EverframeVFrame], originEpochMs: Double? = nil, version: String, viewport: EverframeVTreeTimelineViewport) {
         self.assets = assets
         self.frames = frames
         self.originEpochMs = originEpochMs
@@ -273,7 +273,7 @@ public struct VTreeTimeline: Codable, Equatable {
     }
 }
 
-public struct VTreeTimelineViewport: Codable, Equatable {
+public struct EverframeVTreeTimelineViewport: Codable, Equatable {
     public let height: Double
     public let scale: Double
     public let width: Double

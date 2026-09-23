@@ -28,7 +28,7 @@ describe('toNodeHandler', () => {
     const url = await listen(
       createIdentityHandler({ secret: SECRET, projectId: PROJECT_ID, resolveUser: () => ({ id: 'u_alice' }) }),
     );
-    const res = await fetch(`${url}/api/traceitx-identity`);
+    const res = await fetch(`${url}/api/everframe-identity`);
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect((await res.json() as { token: string }).token).toBeTypeOf('string');

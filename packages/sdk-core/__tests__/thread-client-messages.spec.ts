@@ -5,7 +5,7 @@ import { createThreadClient, MAX_SEND_ATTEMPTS, MESSAGE_FETCH_WINDOW } from '../
 import { ReporterApiError } from '../src/reporter/api.js';
 import type { ReporterApi, ThreadSummary, ThreadMessage } from '../src/reporter/api.js';
 
-const TOKEN = 'txr_' + 'a'.repeat(43);
+const TOKEN = 'evr_' + 'a'.repeat(43);
 const OPEN: ThreadSummary = { id: 't1', status: 'open', reportTitle: 'Crash', createdAt: '2026-08-01T00:00:00.000Z', lastMessageAt: null, unreadCount: 2 };
 const TEAM_MSG: ThreadMessage = { id: 'm1', authorKind: 'team', authorName: 'Acme Support', body: 'On it', createdAt: '2026-08-01T01:00:00.000Z' };
 

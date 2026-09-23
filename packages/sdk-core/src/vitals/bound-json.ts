@@ -15,7 +15,7 @@
 // payload there can never fail validation downstream. We never throw to
 // enforce this: boundJson sits on the SDK's safe path, where a throw would
 // surface as a host-visible crash from a customer's own log line.
-import { MAX_CUSTOM_DATA_BYTES, utf8ByteLength } from '@traceitx/protocol';
+import { MAX_CUSTOM_DATA_BYTES, utf8ByteLength } from '@everframe/protocol';
 
 export interface BoundedJson {
   data: unknown;

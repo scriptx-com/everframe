@@ -50,7 +50,7 @@ export const PairBonded = Base.extend({
     })
     .optional(),
   // Opaque HMAC blob minted at bond; the device echoes it on submit as
-  // X-TX-Companion-Attribution. Never logged.
+  // X-Everframe-Companion-Attribution. Never logged.
   attribution_token: z.string().max(512).optional(),
 }).meta({ $id: 'PairBonded' });
 

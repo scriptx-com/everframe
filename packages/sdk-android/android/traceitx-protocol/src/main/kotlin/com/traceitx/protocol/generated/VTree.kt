@@ -10,7 +10,7 @@
 // emitter resolves the recursive ref to a single VNode declaration and emits
 // VOp as a sealed class. See header of codegen-vtree-kotlin.mjs.
 
-package com.traceitx.protocol.generated
+package dev.everframe.protocol.generated
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // The ONE file allowed to know Node exists. It is on its own export path
-// (@traceitx/identity/node) so importing the main entry never pulls Node types
+// (@everframe/identity/node) so importing the main entry never pulls Node types
 // into a Worker build.
 //
 // Note it imports no `node:` MODULE — only Node's TYPES. A request body is read
@@ -58,7 +58,7 @@ async function readBody(req: IncomingMessage): Promise<Uint8Array | undefined> {
  * node:http.
  *
  *   const handler = toNodeHandler(createIdentityHandler({ … }));
- *   app.get('/api/traceitx-identity', (req, res) => void handler(req, res));
+ *   app.get('/api/everframe-identity', (req, res) => void handler(req, res));
  */
 export function toNodeHandler(
   handler: FetchHandler,

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
 import { buildMultipart } from '../src/transport/multipart.js';
-import type { ReportEnvelope } from '@traceitx/protocol';
+import type { ReportEnvelope } from '@everframe/protocol';
 
 /** Minimal envelope stub — buildMultipart only reads `.attachments` and
  *  serializes the rest verbatim. */

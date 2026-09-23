@@ -16,14 +16,14 @@ function sha256(value: Buffer): string {
 }
 
 function fixture(candidateHasLegacy = true) {
-  const directory = mkdtempSync(join(tmpdir(), 'traceitx-crash-compat-'));
+  const directory = mkdtempSync(join(tmpdir(), 'everframe-crash-compat-'));
   scratch.push(directory);
   const baseline = join(directory, 'baseline.javap');
   const candidate = join(directory, 'candidate.javap');
   const caller = join(directory, 'OldCaller.class');
-  const legacy = `  public com.traceitx.protocol.generated.Crash(java.lang.String);\n    descriptor: (Ljava/lang/String;)V\n`;
-  writeFileSync(baseline, `public final class com.traceitx.protocol.generated.Crash {\n${legacy}}\n`);
-  writeFileSync(candidate, `public final class com.traceitx.protocol.generated.Crash {\n${candidateHasLegacy ? legacy : ''}  public final java.lang.String getCauseChain();\n    descriptor: ()Ljava/lang/String;\n}\n`);
+  const legacy = `  public dev.everframe.protocol.generated.Crash(java.lang.String);\n    descriptor: (Ljava/lang/String;)V\n`;
+  writeFileSync(baseline, `public final class dev.everframe.protocol.generated.Crash {\n${legacy}}\n`);
+  writeFileSync(candidate, `public final class dev.everframe.protocol.generated.Crash {\n${candidateHasLegacy ? legacy : ''}  public final java.lang.String getCauseChain();\n    descriptor: ()Ljava/lang/String;\n}\n`);
   const callerBytes = Buffer.from('unchanged-old-caller');
   writeFileSync(caller, callerBytes);
   return { baseline, candidate, caller, callerHash: sha256(callerBytes) };

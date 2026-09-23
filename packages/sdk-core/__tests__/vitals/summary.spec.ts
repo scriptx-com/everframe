@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 import { describe, expect, it } from 'vitest';
-import { SessionSummary } from '@traceitx/protocol';
+import { SessionSummary } from '@everframe/protocol';
 import { createSummaryAccumulator } from '../../src/vitals/summary.js';
 
 const DIMS = { platform: 'web' as const, appVersion: '1.0.0', sdkVersion: '0.7.0' };

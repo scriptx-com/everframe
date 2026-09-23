@@ -6,7 +6,7 @@ import {
   createCrashCauseChainFitter,
   type CrashCauseChain,
   type CrashCauseChainFitter,
-} from '@traceitx/protocol';
+} from '@everframe/protocol';
 
 type OwnDataRead =
   | { kind: 'data'; value: unknown }

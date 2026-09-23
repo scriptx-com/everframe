@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createNetworkBodyBuffer } from '../src/capture/network-body-buffer.js';
-import type { NetworkBodyEntry } from '@traceitx/protocol';
+import type { NetworkBodyEntry } from '@everframe/protocol';
 
 function entry(ref: number, bytes: number): NetworkBodyEntry {
   return { ref, t: ref, resBody: 'x'.repeat(bytes) };

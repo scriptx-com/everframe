@@ -33,15 +33,15 @@ export const ReportEnvelope = z
         // Which SDK produced this envelope. Widened AHEAD of SDK delivery,
         // the same way SDKPlatform reserved 'tizen'/'webos' for v1.1
         // (PLAT-04): a receiver must accept the value before any sender can
-        // emit it. 'traceitx-web' is the framework-agnostic web SDK
-        // (@traceitx/web — Vue, Svelte, Angular, plain HTML), distinct from
-        // 'traceitx-react' so a report's host framework stays attributable.
+        // emit it. 'everframe-web' is the framework-agnostic web SDK
+        // (@everframe/web — Vue, Svelte, Angular, plain HTML), distinct from
+        // 'everframe-react' so a report's host framework stays attributable.
         name: z.enum([
-          'traceitx-react',
-          'traceitx-web',
-          'traceitx-react-native',
-          'traceitx-ios',
-          'traceitx-android',
+          'everframe-react',
+          'everframe-web',
+          'everframe-react-native',
+          'everframe-ios',
+          'everframe-android',
         ]),
         version: z.string(),
         platform: SDKPlatform,
