@@ -136,6 +136,27 @@ test('rejects generic name and empty-reason exceptions', () => {
   assert.match(result.stderr, /missing reason/);
 });
 
+for (const [name, pattern] of [
+  ['display punctuation', `${formerDisplay}.`],
+  ['display whitespace', ` ${formerDisplay} `],
+  ['lowercase punctuation', `${former}!`],
+  ['generated-case punctuation', `Trace${former.slice(5)}.`],
+  ['package-scope punctuation', `@${former},`],
+  ['native-namespace punctuation', `com.${former}.`],
+  ['environment-prefix punctuation', `${former.toUpperCase()}_.`],
+  ['HTTP-header-prefix punctuation', `X-${formerDisplay}-.`],
+]) {
+  test(`rejects ${name} around a generic exception`, () => {
+    const result = run(
+      { 'docs/history.md': `${pattern}\n${pattern}\n` },
+      [{ path: 'docs/history.md', pattern, reason: 'Historical text' }],
+    );
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /invalid exception pattern/);
+    assert.match(result.stderr, /active identity in text/);
+  });
+}
+
 test('scans tracked text only and orders diagnostics by path', () => {
   const root = fixture({
     'src/z.ts': `export const name = '${formerDisplay}';\n`,

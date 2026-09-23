@@ -48,7 +48,8 @@ function oldMatches(text) {
 
 function validPattern(pattern) {
   if (typeof pattern !== 'string' || !pattern || /[\n\r*?\[\]{}()|^$\\]/.test(pattern)) return false;
-  if ([former, formerDisplay, formerGenerated, `@${former}`, `com.${former}`, `${formerUpper}_`, `X-${formerDisplay}-`].includes(pattern)) return false;
+  const normalized = pattern.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+  if ([former, `com${former}`, `x${former}`].includes(normalized)) return false;
   const matches = [...oldMatches(pattern)];
   return matches.length === 1;
 }
