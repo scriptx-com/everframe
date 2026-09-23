@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 ScriptX
 #
-# Build TraceItXProtocol.xcframework + TraceItXKit.xcframework +
-# TraceItXReporterUI.xcframework for iOS device, iOS simulator, tvOS device,
+# Build EverframeProtocol.xcframework + EverframeKit.xcframework +
+# EverframeReporterUI.xcframework for iOS device, iOS simulator, tvOS device,
 # tvOS simulator. Output under `dist/` is THREE zipped xcframeworks plus their
-# SHA256 sidecars, AND the combined `TraceItX-<version>.zip` (+ sidecar) that
-# TraceItX.podspec's single `spec.source` fetches — four release assets in
+# SHA256 sidecars, AND the combined `Everframe-<version>.zip` (+ sidecar) that
+# Everframe.podspec's single `spec.source` fetches — four release assets in
 # total. PUBLISHING.md §6 uploads `dist/*.xcframework.zip` plus that combined
 # zip by glob rather than by name for exactly that reason; an earlier revision
-# of this comment said "two xcframeworks", named a `TraceItX.xcframework` that
+# of this comment said "two xcframeworks", named a `Everframe.xcframework` that
 # has never existed, and is the most likely origin of the hand-written
 # two-asset upload list that shipped a release SwiftPM could not resolve.
 #
@@ -42,12 +42,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DIST_DIR="${PKG_DIR}/dist"
 ARCHIVE_DIR="${DIST_DIR}/archives"
-PROJECT="${PKG_DIR}/TraceItX.xcodeproj"
+PROJECT="${PKG_DIR}/Everframe.xcodeproj"
 
 # A DerivedData root this script OWNS, passed to every `xcodebuild archive`
 # below. Without it the archives land in Xcode's shared DerivedData, where
 # `patch_swiftinterface_into_framework` has to go looking for their
-# intermediates among every other TraceItX build tree on the machine — the
+# intermediates among every other Everframe build tree on the machine — the
 # checkout's own IDE builds, other worktrees, and last release's leftovers.
 # That search is how v0.6.6 shipped a tvOS-simulator slice whose
 # .swiftinterface predated the branding API (ReporterThemeOptions et al):
@@ -58,20 +58,20 @@ PROJECT="${PKG_DIR}/TraceItX.xcodeproj"
 # is what keeps xcodebuild's incremental rebuild working across releases.
 # Freshness is not what makes the copy correct — reading the archive's own
 # scheme-scoped intermediates is.
-DERIVED_DATA="${TRACEITX_XCFRAMEWORK_DERIVED_DATA:-${HOME}/Library/Developer/Xcode/DerivedData/TraceItX-xcframework}"
+DERIVED_DATA="${EVERFRAME_XCFRAMEWORK_DERIVED_DATA:-${HOME}/Library/Developer/Xcode/DerivedData/Everframe-xcframework}"
 
 # Build configuration. Release (the default) is what ships: it compiles out
 # the `#if DEBUG` dev-ingest-URL override in IngestEndpoint.swift, so the
 # binary is hardwired to production. Dev runners (scripts/dev/rn.mjs) set
-# TRACEITX_XCFRAMEWORK_CONFIGURATION=Debug so the vendored xcframework keeps
-# the TRACEITX_DEV_INGEST_URL runtime override and local example apps can
+# EVERFRAME_XCFRAMEWORK_CONFIGURATION=Debug so the vendored xcframework keeps
+# the EVERFRAME_DEV_INGEST_URL runtime override and local example apps can
 # submit to local ingest. NEVER publish a Debug artifact — the release
 # workflow leaves this unset.
-CONFIGURATION="${TRACEITX_XCFRAMEWORK_CONFIGURATION:-Release}"
+CONFIGURATION="${EVERFRAME_XCFRAMEWORK_CONFIGURATION:-Release}"
 case "${CONFIGURATION}" in
     Release|Debug) ;;
     *)
-        echo "error: TRACEITX_XCFRAMEWORK_CONFIGURATION must be Release or Debug (got '${CONFIGURATION}')" 1>&2
+        echo "error: EVERFRAME_XCFRAMEWORK_CONFIGURATION must be Release or Debug (got '${CONFIGURATION}')" 1>&2
         exit 1
         ;;
 esac
@@ -88,10 +88,10 @@ require_cmd xcodebuild "Install Xcode + command-line tools."
 
 cd "${PKG_DIR}"
 
-# Propagate `TraceItX.podspec`'s `spec.version` to Generated/SDKVersion.swift
+# Propagate `Everframe.podspec`'s `spec.version` to Generated/SDKVersion.swift
 # and Package.binary.swift before anything compiles. Idempotent — no-op if
 # the source files already match the podspec.
-echo "==> sync version from TraceItX.podspec"
+echo "==> sync version from Everframe.podspec"
 "${SCRIPT_DIR}/sync-version.sh"
 
 # The SDK version doubles as MARKETING_VERSION for every framework target.
@@ -99,7 +99,7 @@ echo "==> sync version from TraceItX.podspec"
 # only contains CFBundleShortVersionString when MARKETING_VERSION is set —
 # without it, App Store validation rejects any app embedding the framework
 # (ITMS error 90057, "missing plist key CFBundleShortVersionString").
-# The podspec is the SOLE source, and `TRACEITX_VERSION` is an assertion about
+# The podspec is the SOLE source, and `EVERFRAME_VERSION` is an assertion about
 # it — not an override. It used to be documented as "env wins", which was never
 # true and was actively harmful: `sync-version.sh` has already rewritten
 # `binaryVersion` and `Generated/SDKVersion.swift` from the podspec by this
@@ -110,15 +110,15 @@ echo "==> sync version from TraceItX.podspec"
 # the end of `sync_binary_checksums` for a reason that had nothing to do with
 # the checksums: that check derives the asset name from the podspec, so it went
 # looking for a zip this script had named after the env var. Nothing in the repo
-# sets `TRACEITX_VERSION`; keeping it as an equality assertion means a caller
+# sets `EVERFRAME_VERSION`; keeping it as an equality assertion means a caller
 # who does set it gets told, rather than shipping the split-brain build.
-SDK_VERSION="$(awk -F'"' '/^[[:space:]]*spec\.version[[:space:]]*=/ { print $2; exit }' "${PKG_DIR}/TraceItX.podspec")"
+SDK_VERSION="$(awk -F'"' '/^[[:space:]]*spec\.version[[:space:]]*=/ { print $2; exit }' "${PKG_DIR}/Everframe.podspec")"
 if [[ -z "${SDK_VERSION}" ]]; then
     echo "error: could not determine SDK version for MARKETING_VERSION" 1>&2
     exit 1
 fi
-if [[ -n "${TRACEITX_VERSION:-}" && "${TRACEITX_VERSION}" != "${SDK_VERSION}" ]]; then
-    echo "error: TRACEITX_VERSION='${TRACEITX_VERSION}' disagrees with TraceItX.podspec spec.version='${SDK_VERSION}'." 1>&2
+if [[ -n "${EVERFRAME_VERSION:-}" && "${EVERFRAME_VERSION}" != "${SDK_VERSION}" ]]; then
+    echo "error: EVERFRAME_VERSION='${EVERFRAME_VERSION}' disagrees with Everframe.podspec spec.version='${SDK_VERSION}'." 1>&2
     echo "       The podspec is the single source of truth (scripts/sync-version.sh drives" 1>&2
     echo "       Package.binary.swift and Generated/SDKVersion.swift from it). Bump the" 1>&2
     echo "       podspec instead of overriding the environment." 1>&2
@@ -149,7 +149,7 @@ echo "==> swift package name ${SWIFT_PACKAGE_NAME} (-package-name)"
 # under `set -u` a definition that lives below its first reader is a second
 # ordering bug waiting behind the first one.
 COMBINED_VERSION="${SDK_VERSION}"
-COMBINED_ZIP="${DIST_DIR}/TraceItX-${COMBINED_VERSION}.zip"
+COMBINED_ZIP="${DIST_DIR}/Everframe-${COMBINED_VERSION}.zip"
 
 echo "==> regenerate ${PROJECT}"
 rm -rf "${PROJECT}"
@@ -219,27 +219,27 @@ patch_swiftinterface_into_framework() {
 
     # Xcode lays archive intermediates out as
     #   <DerivedData>/Build/Intermediates.noindex/ArchiveIntermediates/
-    #     <scheme>/IntermediateBuildFilesPath/TraceItX.build/
+    #     <scheme>/IntermediateBuildFilesPath/Everframe.build/
     #     <Configuration>-<sdk>/<product>.build/Objects-normal/<arch>/
     #     <product>.swiftinterface
     #
     # THREE filters, and every one of them has shipped a broken release when
     # it was missing:
     #
-    #   * `<Configuration>-<sdk>` — all four SDKs share the TraceItX.build
+    #   * `<Configuration>-<sdk>` — all four SDKs share the Everframe.build
     #     prefix (the archive_path name carries no sdk token), so without it
     #     the find picks a leftover from a previous archive and ships a
     #     tvOS-target interface inside the iOS-simulator slice. Consumers get
-    #     "no type named 'UITree' in module 'TraceItXProtocol'" on import.
+    #     "no type named 'UITree' in module 'EverframeProtocol'" on import.
     #     Shipped v0.1.1, corrected v0.1.2. It tracks CONFIGURATION for the
     #     same reason — a Debug build must not scavenge Release intermediates.
     #
     #   * `ArchiveIntermediates/<product>` — a scheme's DEPENDENCIES get their
     #     own <dep>.build tree under the DEPENDENT's archive, so for
-    #     (product=TraceItXKit, sdk=appletvsimulator) there are at least two
-    #     matching dirs: TraceItXKit's own archive, and the copy rebuilt under
-    #     ArchiveIntermediates/TraceItXReporterUI. The outer loop archives
-    #     TraceItXKit BEFORE TraceItXReporterUI, so at that moment the nested
+    #     (product=EverframeKit, sdk=appletvsimulator) there are at least two
+    #     matching dirs: EverframeKit's own archive, and the copy rebuilt under
+    #     ArchiveIntermediates/EverframeReporterUI. The outer loop archives
+    #     EverframeKit BEFORE EverframeReporterUI, so at that moment the nested
     #     copy still holds the PREVIOUS RELEASE's output. Right product, right
     #     arch, right sdk, stale contents — and since `archive()` always calls
     #     us with product_name == scheme, the scheme's own subtree is the only
@@ -249,7 +249,7 @@ patch_swiftinterface_into_framework() {
     #     and .abi.json in the same slice had them.
     #
     #   * DERIVED_DATA as the search root — the old root was ALL of
-    #     ~/Library/Developer/Xcode/DerivedData with a `*TraceItX-*` path
+    #     ~/Library/Developer/Xcode/DerivedData with a `*Everframe-*` path
     #     match, which also swept in IDE builds and sibling worktrees.
     #
     # And `head -1` is gone. It is what turned each of the above from a build
@@ -369,7 +369,7 @@ package_xcframework() {
 # to 0.5.0 (its manifest carried verified-identical 0.4.5 hashes). The fix is
 # to stop asking a human to remember.
 #
-# Release-only, deliberately: a Debug build (TRACEITX_XCFRAMEWORK_CONFIGURATION
+# Release-only, deliberately: a Debug build (EVERFRAME_XCFRAMEWORK_CONFIGURATION
 # =Debug, used by scripts/dev/rn.mjs) produces artifacts that must NEVER be
 # published, so its hashes must never reach the distribution manifest.
 # ORDERING: this must run AFTER the combined CocoaPods zip exists. The
@@ -403,7 +403,7 @@ sync_binary_checksums() {
     local sums="${DIST_DIR}/.checksums.tsv"
     : > "${sums}"
     local s
-    for s in TraceItXProtocol TraceItXKit TraceItXReporterUI; do
+    for s in EverframeProtocol EverframeKit EverframeReporterUI; do
         printf '%s\t%s\n' "${s}" "$(cat "${DIST_DIR}/${s}.xcframework.zip.sha256")" >> "${sums}"
     done
 
@@ -430,7 +430,7 @@ sync_binary_checksums() {
 # Each scheme must be archived once per (sdk, platform) combination.
 # XcodeGen with `platform: [iOS, tvOS]` generates the target for both —
 # the scheme name stays the same; -destination picks the slice.
-for scheme in TraceItXProtocol TraceItXKit TraceItXReporterUI; do
+for scheme in EverframeProtocol EverframeKit EverframeReporterUI; do
     archive "${scheme}" iphoneos          "generic/platform=iOS"                "${ARCHIVE_DIR}/${scheme}-iphoneos.xcarchive"
     archive "${scheme}" iphonesimulator   "generic/platform=iOS Simulator"      "${ARCHIVE_DIR}/${scheme}-iphonesimulator.xcarchive"
     archive "${scheme}" appletvos         "generic/platform=tvOS"               "${ARCHIVE_DIR}/${scheme}-appletvos.xcarchive"
@@ -452,15 +452,15 @@ done
 #
 # RELEASE-ONLY, and this is a safety property rather than an optimisation.
 # A Debug build's zip carries the SAME filename as a release one —
-# TraceItX-<podspec version>.zip — while containing an xcframework compiled
-# with `#if DEBUG` live: it reads TRACEITX_DEV_INGEST_URL from the process
-# env and TraceItXDevIngestURL from the host Info.plist. Publish that by
+# Everframe-<podspec version>.zip — while containing an xcframework compiled
+# with `#if DEBUG` live: it reads EVERFRAME_DEV_INGEST_URL from the process
+# env and EverframeDevIngestURL from the host Info.plist. Publish that by
 # mistake and every consumer's reports go wherever the developer's shell
 # pointed. `spec.source` is fetched by checksum from a public URL and
 # CocoaPods versions are immutable, so it cannot be taken back.
 #
 # The dev loop leaves exactly that state behind: scripts/dev/rn.mjs builds
-# dist/ with TRACEITX_XCFRAMEWORK_CONFIGURATION=Debug on every RN iOS run.
+# dist/ with EVERFRAME_XCFRAMEWORK_CONFIGURATION=Debug on every RN iOS run.
 # Before this guard the only thing separating that dist/ from a publishable
 # one was the .xcframework-config sentinel and the maintainer remembering to
 # rebuild. Emitting nothing publishable in Debug replaces "remember" with
@@ -468,10 +468,10 @@ done
 # sync_binary_checksums below returns early for non-Release — so this closes
 # the CocoaPods half of the same hole.)
 if [[ "${CONFIGURATION}" == "Release" ]]; then
-    echo "==> combined CocoaPods zip → TraceItX-${COMBINED_VERSION}.zip"
-    (cd "${DIST_DIR}" && rm -f "TraceItX-${COMBINED_VERSION}.zip" \
-        && zip -q -r "TraceItX-${COMBINED_VERSION}.zip" \
-            TraceItXProtocol.xcframework TraceItXKit.xcframework TraceItXReporterUI.xcframework)
+    echo "==> combined CocoaPods zip → Everframe-${COMBINED_VERSION}.zip"
+    (cd "${DIST_DIR}" && rm -f "Everframe-${COMBINED_VERSION}.zip" \
+        && zip -q -r "Everframe-${COMBINED_VERSION}.zip" \
+            EverframeProtocol.xcframework EverframeKit.xcframework EverframeReporterUI.xcframework)
     shasum -a 256 "${COMBINED_ZIP}" | awk '{print $1}' > "${COMBINED_ZIP}.sha256"
 else
     echo "==> skip combined CocoaPods zip (configuration=${CONFIGURATION}, not publishable)"
@@ -480,7 +480,7 @@ fi
 sync_binary_checksums
 
 # Sentinel for staleness checks in dev tooling (scripts/dev/rn.mjs and the
-# with-traceitx-ios-local Expo plugin): records which configuration dist/
+# with-everframe-ios-local Expo plugin): records which configuration dist/
 # was built with, so a config switch forces a rebuild even when Sources/
 # mtimes say "fresh". Written LAST so an aborted build (dist/ wiped above)
 # leaves no sentinel and always reads as stale.
@@ -497,7 +497,7 @@ else
     ls -ld "${DIST_DIR}"/*.xcframework
     echo ""
     echo "  Debug build: no .zip / .sha256 emitted — these artifacts are not publishable."
-    echo "  Rebuild without TRACEITX_XCFRAMEWORK_CONFIGURATION to produce release assets."
+    echo "  Rebuild without EVERFRAME_XCFRAMEWORK_CONFIGURATION to produce release assets."
 fi
 
 # Checksums exist only for release assets. In Debug there are no zips to hash,
@@ -506,8 +506,8 @@ fi
 if [[ "${CONFIGURATION}" == "Release" ]]; then
     echo ""
     echo "Checksums:"
-    for s in TraceItXProtocol TraceItXKit TraceItXReporterUI; do
+    for s in EverframeProtocol EverframeKit EverframeReporterUI; do
         printf "  %-30s  %s\n" "${s}.xcframework.zip" "$(cat "${DIST_DIR}/${s}.xcframework.zip.sha256")"
     done
-    printf "  %-30s  %s\n" "TraceItX-${COMBINED_VERSION}.zip" "$(cat "${COMBINED_ZIP}.sha256")"
+    printf "  %-30s  %s\n" "Everframe-${COMBINED_VERSION}.zip" "$(cat "${COMBINED_ZIP}.sha256")"
 fi

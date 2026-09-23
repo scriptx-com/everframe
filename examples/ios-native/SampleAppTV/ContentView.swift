@@ -6,13 +6,13 @@
 // phone-side reporter SPA. The on-device modal reporter was removed.
 
 import SwiftUI
-import TraceItXKit
+import EverframeKit
 
 struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 32) {
-                Text("TraceItX Sample (Apple TV)")
+                Text("Everframe Sample (Apple TV)")
                     .font(.largeTitle)
                 Text("To file a report, open Companion QR below and scan it with your phone.")
                     .foregroundStyle(.secondary)

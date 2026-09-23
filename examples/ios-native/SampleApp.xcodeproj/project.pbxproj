@@ -1,6 +1,4 @@
 // !$*UTF8*$!
-// SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: 2026 ScriptX
 {
 	archiveVersion = 1;
 	classes = {
@@ -16,7 +14,7 @@
 		456ADADF6976ADBB107506BC /* ListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A25CD0997C026E86A6D7685 /* ListScreen.swift */; };
 		5CE6EADB5543BF29D5B6C0CF /* SampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B000572271DEE9F248CCAB22 /* SampleApp.swift */; };
 		6BB772A3C486FBAABA051BFF /* TVPlaybackScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552F8BB5A9E8A11B367F08A /* TVPlaybackScreen.swift */; };
-		7FBA65107DC599647212F756 /* TraceItXKit in Frameworks */ = {isa = PBXBuildFile; productRef = 95962B04FE8EE8EC47027BC6 /* TraceItXKit */; };
+		7FBA65107DC599647212F756 /* Everframe in Frameworks */ = {isa = PBXBuildFile; productRef = 760CBBE2ED17DA97C465DE24 /* Everframe */; };
 		8F77C545DAAEE435B25474D8 /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6703E9DBC8D1ADD82213083 /* LoginScreen.swift */; };
 		9D841CE74913AAC918A763F5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC130F77C76D7E76DC3B24F7 /* ContentView.swift */; };
 		A2E5640E2D50011BA4F05054 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 093CEBBB01CD64323274BA44 /* ContentView.swift */; };
@@ -24,10 +22,10 @@
 		BED75CB7DCC0D37628D9711E /* PlaybackScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AA6079E2DD8674D596EAB57 /* PlaybackScreen.swift */; };
 		C121AF039D3E7DD1DCCFAEBB /* PaymentScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 277D07DC820AD66B9CDC2B31 /* PaymentScreen.swift */; };
 		D7F9A4124CE67E4FB42DFC70 /* SampleAppTV.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E88B6F5B0B9F9123B8C4318 /* SampleAppTV.swift */; };
-		DE2999F6FB10010A085FECC2 /* TraceItXKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7F7083A5A44417FC0D9AA135 /* TraceItXKit */; };
+		DE2999F6FB10010A085FECC2 /* Everframe in Frameworks */ = {isa = PBXBuildFile; productRef = 592A2FA17495240103C794BB /* Everframe */; };
 		EB3E4EC8EF2A2F849D0DB73B /* BubbleOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5302100DB446EF06A9F8E3B4 /* BubbleOverlay.swift */; };
-		F744840EF6CBECF2FC82F37A /* TraceItXReporterUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6BA0D7B36D3AC04DD2830A62 /* TraceItXReporterUI */; };
-		FB163ACBC60F3BBEC1B15386 /* TraceItXReporterUI in Frameworks */ = {isa = PBXBuildFile; productRef = 358868467E61DF8280393612 /* TraceItXReporterUI */; };
+		F744840EF6CBECF2FC82F37A /* EverframeReporterUI in Frameworks */ = {isa = PBXBuildFile; productRef = B0BA19B6985CC8E955B5F61C /* EverframeReporterUI */; };
+		FB163ACBC60F3BBEC1B15386 /* EverframeReporterUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5C8247C7F800E42DDD1902CC /* EverframeReporterUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,8 +55,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DE2999F6FB10010A085FECC2 /* TraceItXKit in Frameworks */,
-				F744840EF6CBECF2FC82F37A /* TraceItXReporterUI in Frameworks */,
+				DE2999F6FB10010A085FECC2 /* Everframe in Frameworks */,
+				F744840EF6CBECF2FC82F37A /* EverframeReporterUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,8 +64,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7FBA65107DC599647212F756 /* TraceItXKit in Frameworks */,
-				FB163ACBC60F3BBEC1B15386 /* TraceItXReporterUI in Frameworks */,
+				7FBA65107DC599647212F756 /* Everframe in Frameworks */,
+				FB163ACBC60F3BBEC1B15386 /* EverframeReporterUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -165,8 +163,8 @@
 			);
 			name = SampleAppTV;
 			packageProductDependencies = (
-				95962B04FE8EE8EC47027BC6 /* TraceItXKit */,
-				358868467E61DF8280393612 /* TraceItXReporterUI */,
+				760CBBE2ED17DA97C465DE24 /* Everframe */,
+				5C8247C7F800E42DDD1902CC /* EverframeReporterUI */,
 			);
 			productName = SampleAppTV;
 			productReference = 77BBBB63F099AE6B2DBF1124 /* SampleAppTV.app */;
@@ -187,8 +185,8 @@
 			);
 			name = SampleApp;
 			packageProductDependencies = (
-				7F7083A5A44417FC0D9AA135 /* TraceItXKit */,
-				6BA0D7B36D3AC04DD2830A62 /* TraceItXReporterUI */,
+				592A2FA17495240103C794BB /* Everframe */,
+				B0BA19B6985CC8E955B5F61C /* EverframeReporterUI */,
 			);
 			productName = SampleApp;
 			productReference = DD0E01F9D77DC91660EB290F /* SampleApp.app */;
@@ -274,7 +272,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "#!/usr/bin/env bash\n# SPDX-License-Identifier: MIT\n# SPDX-FileCopyrightText: 2026 ScriptX\n#\n# Materialize examples/ios-native/Config/Local.xcconfig from the repo-root .env.\n# Idempotent. Reads TRACEITX_KEY_IOS (this probe's own dashboard app key) and\n# hard-fails if it's missing or malformed, rather than baking an empty key that\n# would throw .missingAppId at SampleApp launch.\n#\n# The ingest URL is no longer projected here — the SDK bakes it at compile\n# time via #if DEBUG / Release. To override locally for the SDK build itself,\n# set TRACEITX_DEV_INGEST_URL in your Xcode scheme env.\nset -euo pipefail\n\n# Locate the sample-app directory (examples/ios-native), from which the repo\n# root and the output path are both derived.\n#\n# `$SRCROOT` FIRST, and BASH_SOURCE only as the fallback. Xcode does not execute\n# this file in place: it inlines the script's text into a generated\n# `Script-<uuid>.sh` under DerivedData and runs THAT, so inside a build phase\n# `${BASH_SOURCE[0]}` points at\n# …/Build/Intermediates.noindex/…/IntermediateBuildFilesPath/, and\n# `${SCRIPT_DIR}/../../..` resolves to a DerivedData ancestor rather than the\n# checkout. The script then looked for `.env` inside DerivedData, never found\n# it, and — now that a missing file is fatal rather than a warning — failed the\n# build outright with a path no one recognises.\n#\n# The older, permissive version of this script had the identical bug and hid\n# it: it warned, continued, and emitted an EMPTY INGEST_SDK_KEY, so the sample\n# app built fine and then threw `.missingAppId` at launch. \"Build succeeds,\n# app dies on start\" was the bug; the hard-fail exposed it rather than causing\n# it.\n#\n# Xcode always sets SRCROOT to the .xcodeproj's directory (examples/ios-native),\n# which is exactly the anchor needed. Direct CLI runs (`pnpm gen-ios-config`,\n# or invoking this file by hand) have no SRCROOT and fall back to the\n# file-relative path, which is correct in that context.\nif [[ -n \"${SRCROOT:-}\" ]]; then\n    APP_DIR=\"${SRCROOT}\"\nelse\n    APP_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"\nfi\nREPO_ROOT=\"$(cd \"${APP_DIR}/../..\" && pwd)\"\nENV_FILE=\"${REPO_ROOT}/.env\"\nOUT_FILE=\"${APP_DIR}/Config/Local.xcconfig\"\n\nSRC_VAR=\"TRACEITX_KEY_IOS\"\nINGEST_SDK_KEY=\"\"\n\nif [[ ! -f \"${ENV_FILE}\" ]]; then\n    echo \"error: ${ENV_FILE} not found. Copy .env.example → .env and set ${SRC_VAR} to the iOS app's SDK key.\" 1>&2\n    exit 1\nfi\n\n# Extract the value, stripping any inline `# comment` and surrounding\n# whitespace (matches dotenv semantics used by the ingest service).\nINGEST_SDK_KEY=\"$(grep -E \"^${SRC_VAR}=\" \"${ENV_FILE}\" | tail -1 | cut -d= -f2- | sed -E 's/[[:space:]]+#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//')\"\n\nif [[ ! \"${INGEST_SDK_KEY}\" =~ ^txx_live_.{32}$ ]]; then\n    echo \"error: ${SRC_VAR} in ${ENV_FILE} is missing or malformed (need 'txx_live_' + 32-char body = 41 chars).\" 1>&2\n    echo \"       Create an 'iOS' app in the dashboard (http://localhost:8787/admin/), generate its SDK key,\" 1>&2\n    echo \"       and paste it as ${SRC_VAR}=txx_live_… in the repo-root .env.\" 1>&2\n    exit 1\nfi\n\nmkdir -p \"$(dirname \"${OUT_FILE}\")\"\ncat > \"${OUT_FILE}\" <<EOF\n// GENERATED BY scripts/gen-local-xcconfig.sh — DO NOT EDIT BY HAND.\n// Source of truth: repo-root .env. Regenerate via 'pnpm gen-ios-config'.\nINGEST_SDK_KEY = ${INGEST_SDK_KEY}\nEOF\n\necho \"wrote ${OUT_FILE}\"\n";
+			shellScript = "#!/usr/bin/env bash\n# SPDX-License-Identifier: MIT\n# SPDX-FileCopyrightText: 2026 ScriptX\n#\n# Materialize examples/ios-native/Config/Local.xcconfig from the repo-root .env.\n# Idempotent. Reads EVERFRAME_KEY_IOS (this probe's own dashboard app key) and\n# hard-fails if it's missing or malformed, rather than baking an empty key that\n# would throw .missingAppId at SampleApp launch.\n#\n# The ingest URL is no longer projected here — the SDK bakes it at compile\n# time via #if DEBUG / Release. To override locally for the SDK build itself,\n# set EVERFRAME_DEV_INGEST_URL in your Xcode scheme env.\nset -euo pipefail\n\n# Locate the sample-app directory (examples/ios-native), from which the repo\n# root and the output path are both derived.\n#\n# `$SRCROOT` FIRST, and BASH_SOURCE only as the fallback. Xcode does not execute\n# this file in place: it inlines the script's text into a generated\n# `Script-<uuid>.sh` under DerivedData and runs THAT, so inside a build phase\n# `${BASH_SOURCE[0]}` points at\n# …/Build/Intermediates.noindex/…/IntermediateBuildFilesPath/, and\n# `${SCRIPT_DIR}/../../..` resolves to a DerivedData ancestor rather than the\n# checkout. The script then looked for `.env` inside DerivedData, never found\n# it, and — now that a missing file is fatal rather than a warning — failed the\n# build outright with a path no one recognises.\n#\n# The older, permissive version of this script had the identical bug and hid\n# it: it warned, continued, and emitted an EMPTY INGEST_SDK_KEY, so the sample\n# app built fine and then threw `.missingAppId` at launch. \"Build succeeds,\n# app dies on start\" was the bug; the hard-fail exposed it rather than causing\n# it.\n#\n# Xcode always sets SRCROOT to the .xcodeproj's directory (examples/ios-native),\n# which is exactly the anchor needed. Direct CLI runs (`pnpm gen-ios-config`,\n# or invoking this file by hand) have no SRCROOT and fall back to the\n# file-relative path, which is correct in that context.\nif [[ -n \"${SRCROOT:-}\" ]]; then\n    APP_DIR=\"${SRCROOT}\"\nelse\n    APP_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"\nfi\nREPO_ROOT=\"$(cd \"${APP_DIR}/../..\" && pwd)\"\nENV_FILE=\"${REPO_ROOT}/.env\"\nOUT_FILE=\"${APP_DIR}/Config/Local.xcconfig\"\n\nSRC_VAR=\"EVERFRAME_KEY_IOS\"\nINGEST_SDK_KEY=\"\"\n\nif [[ ! -f \"${ENV_FILE}\" ]]; then\n    echo \"error: ${ENV_FILE} not found. Copy .env.example → .env and set ${SRC_VAR} to the iOS app's SDK key.\" 1>&2\n    exit 1\nfi\n\n# Extract the value, stripping any inline `# comment` and surrounding\n# whitespace (matches dotenv semantics used by the ingest service).\nINGEST_SDK_KEY=\"$(grep -E \"^${SRC_VAR}=\" \"${ENV_FILE}\" | tail -1 | cut -d= -f2- | sed -E 's/[[:space:]]+#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//')\"\n\nif [[ ! \"${INGEST_SDK_KEY}\" =~ ^txx_live_.{32}$ ]]; then\n    echo \"error: ${SRC_VAR} in ${ENV_FILE} is missing or malformed (need 'txx_live_' + 32-char body = 41 chars).\" 1>&2\n    echo \"       Create an 'iOS' app in the dashboard (http://localhost:8787/admin/), generate its SDK key,\" 1>&2\n    echo \"       and paste it as ${SRC_VAR}=txx_live_… in the repo-root .env.\" 1>&2\n    exit 1\nfi\n\nmkdir -p \"$(dirname \"${OUT_FILE}\")\"\ncat > \"${OUT_FILE}\" <<EOF\n// GENERATED BY scripts/gen-local-xcconfig.sh — DO NOT EDIT BY HAND.\n// Source of truth: repo-root .env. Regenerate via 'pnpm gen-ios-config'.\nINGEST_SDK_KEY = ${INGEST_SDK_KEY}\nEOF\n\necho \"wrote ${OUT_FILE}\"\n";
 		};
 		A320E29443EA321AC09E104E /* Generate Local.xcconfig from root .env */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -293,7 +291,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "#!/usr/bin/env bash\n# SPDX-License-Identifier: MIT\n# SPDX-FileCopyrightText: 2026 ScriptX\n#\n# Materialize examples/ios-native/Config/Local.xcconfig from the repo-root .env.\n# Idempotent. Reads TRACEITX_KEY_IOS (this probe's own dashboard app key) and\n# hard-fails if it's missing or malformed, rather than baking an empty key that\n# would throw .missingAppId at SampleApp launch.\n#\n# The ingest URL is no longer projected here — the SDK bakes it at compile\n# time via #if DEBUG / Release. To override locally for the SDK build itself,\n# set TRACEITX_DEV_INGEST_URL in your Xcode scheme env.\nset -euo pipefail\n\n# Locate the sample-app directory (examples/ios-native), from which the repo\n# root and the output path are both derived.\n#\n# `$SRCROOT` FIRST, and BASH_SOURCE only as the fallback. Xcode does not execute\n# this file in place: it inlines the script's text into a generated\n# `Script-<uuid>.sh` under DerivedData and runs THAT, so inside a build phase\n# `${BASH_SOURCE[0]}` points at\n# …/Build/Intermediates.noindex/…/IntermediateBuildFilesPath/, and\n# `${SCRIPT_DIR}/../../..` resolves to a DerivedData ancestor rather than the\n# checkout. The script then looked for `.env` inside DerivedData, never found\n# it, and — now that a missing file is fatal rather than a warning — failed the\n# build outright with a path no one recognises.\n#\n# The older, permissive version of this script had the identical bug and hid\n# it: it warned, continued, and emitted an EMPTY INGEST_SDK_KEY, so the sample\n# app built fine and then threw `.missingAppId` at launch. \"Build succeeds,\n# app dies on start\" was the bug; the hard-fail exposed it rather than causing\n# it.\n#\n# Xcode always sets SRCROOT to the .xcodeproj's directory (examples/ios-native),\n# which is exactly the anchor needed. Direct CLI runs (`pnpm gen-ios-config`,\n# or invoking this file by hand) have no SRCROOT and fall back to the\n# file-relative path, which is correct in that context.\nif [[ -n \"${SRCROOT:-}\" ]]; then\n    APP_DIR=\"${SRCROOT}\"\nelse\n    APP_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"\nfi\nREPO_ROOT=\"$(cd \"${APP_DIR}/../..\" && pwd)\"\nENV_FILE=\"${REPO_ROOT}/.env\"\nOUT_FILE=\"${APP_DIR}/Config/Local.xcconfig\"\n\nSRC_VAR=\"TRACEITX_KEY_IOS\"\nINGEST_SDK_KEY=\"\"\n\nif [[ ! -f \"${ENV_FILE}\" ]]; then\n    echo \"error: ${ENV_FILE} not found. Copy .env.example → .env and set ${SRC_VAR} to the iOS app's SDK key.\" 1>&2\n    exit 1\nfi\n\n# Extract the value, stripping any inline `# comment` and surrounding\n# whitespace (matches dotenv semantics used by the ingest service).\nINGEST_SDK_KEY=\"$(grep -E \"^${SRC_VAR}=\" \"${ENV_FILE}\" | tail -1 | cut -d= -f2- | sed -E 's/[[:space:]]+#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//')\"\n\nif [[ ! \"${INGEST_SDK_KEY}\" =~ ^txx_live_.{32}$ ]]; then\n    echo \"error: ${SRC_VAR} in ${ENV_FILE} is missing or malformed (need 'txx_live_' + 32-char body = 41 chars).\" 1>&2\n    echo \"       Create an 'iOS' app in the dashboard (http://localhost:8787/admin/), generate its SDK key,\" 1>&2\n    echo \"       and paste it as ${SRC_VAR}=txx_live_… in the repo-root .env.\" 1>&2\n    exit 1\nfi\n\nmkdir -p \"$(dirname \"${OUT_FILE}\")\"\ncat > \"${OUT_FILE}\" <<EOF\n// GENERATED BY scripts/gen-local-xcconfig.sh — DO NOT EDIT BY HAND.\n// Source of truth: repo-root .env. Regenerate via 'pnpm gen-ios-config'.\nINGEST_SDK_KEY = ${INGEST_SDK_KEY}\nEOF\n\necho \"wrote ${OUT_FILE}\"\n";
+			shellScript = "#!/usr/bin/env bash\n# SPDX-License-Identifier: MIT\n# SPDX-FileCopyrightText: 2026 ScriptX\n#\n# Materialize examples/ios-native/Config/Local.xcconfig from the repo-root .env.\n# Idempotent. Reads EVERFRAME_KEY_IOS (this probe's own dashboard app key) and\n# hard-fails if it's missing or malformed, rather than baking an empty key that\n# would throw .missingAppId at SampleApp launch.\n#\n# The ingest URL is no longer projected here — the SDK bakes it at compile\n# time via #if DEBUG / Release. To override locally for the SDK build itself,\n# set EVERFRAME_DEV_INGEST_URL in your Xcode scheme env.\nset -euo pipefail\n\n# Locate the sample-app directory (examples/ios-native), from which the repo\n# root and the output path are both derived.\n#\n# `$SRCROOT` FIRST, and BASH_SOURCE only as the fallback. Xcode does not execute\n# this file in place: it inlines the script's text into a generated\n# `Script-<uuid>.sh` under DerivedData and runs THAT, so inside a build phase\n# `${BASH_SOURCE[0]}` points at\n# …/Build/Intermediates.noindex/…/IntermediateBuildFilesPath/, and\n# `${SCRIPT_DIR}/../../..` resolves to a DerivedData ancestor rather than the\n# checkout. The script then looked for `.env` inside DerivedData, never found\n# it, and — now that a missing file is fatal rather than a warning — failed the\n# build outright with a path no one recognises.\n#\n# The older, permissive version of this script had the identical bug and hid\n# it: it warned, continued, and emitted an EMPTY INGEST_SDK_KEY, so the sample\n# app built fine and then threw `.missingAppId` at launch. \"Build succeeds,\n# app dies on start\" was the bug; the hard-fail exposed it rather than causing\n# it.\n#\n# Xcode always sets SRCROOT to the .xcodeproj's directory (examples/ios-native),\n# which is exactly the anchor needed. Direct CLI runs (`pnpm gen-ios-config`,\n# or invoking this file by hand) have no SRCROOT and fall back to the\n# file-relative path, which is correct in that context.\nif [[ -n \"${SRCROOT:-}\" ]]; then\n    APP_DIR=\"${SRCROOT}\"\nelse\n    APP_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"\nfi\nREPO_ROOT=\"$(cd \"${APP_DIR}/../..\" && pwd)\"\nENV_FILE=\"${REPO_ROOT}/.env\"\nOUT_FILE=\"${APP_DIR}/Config/Local.xcconfig\"\n\nSRC_VAR=\"EVERFRAME_KEY_IOS\"\nINGEST_SDK_KEY=\"\"\n\nif [[ ! -f \"${ENV_FILE}\" ]]; then\n    echo \"error: ${ENV_FILE} not found. Copy .env.example → .env and set ${SRC_VAR} to the iOS app's SDK key.\" 1>&2\n    exit 1\nfi\n\n# Extract the value, stripping any inline `# comment` and surrounding\n# whitespace (matches dotenv semantics used by the ingest service).\nINGEST_SDK_KEY=\"$(grep -E \"^${SRC_VAR}=\" \"${ENV_FILE}\" | tail -1 | cut -d= -f2- | sed -E 's/[[:space:]]+#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//')\"\n\nif [[ ! \"${INGEST_SDK_KEY}\" =~ ^txx_live_.{32}$ ]]; then\n    echo \"error: ${SRC_VAR} in ${ENV_FILE} is missing or malformed (need 'txx_live_' + 32-char body = 41 chars).\" 1>&2\n    echo \"       Create an 'iOS' app in the dashboard (http://localhost:8787/admin/), generate its SDK key,\" 1>&2\n    echo \"       and paste it as ${SRC_VAR}=txx_live_… in the repo-root .env.\" 1>&2\n    exit 1\nfi\n\nmkdir -p \"$(dirname \"${OUT_FILE}\")\"\ncat > \"${OUT_FILE}\" <<EOF\n// GENERATED BY scripts/gen-local-xcconfig.sh — DO NOT EDIT BY HAND.\n// Source of truth: repo-root .env. Regenerate via 'pnpm gen-ios-config'.\nINGEST_SDK_KEY = ${INGEST_SDK_KEY}\nEOF\n\necho \"wrote ${OUT_FILE}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -340,7 +338,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.scriptx.traceitx.sample;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.sample;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -425,7 +423,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.scriptx.traceitx.sample.tv;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.sample.tv;
 				SDKROOT = appletvos;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
@@ -444,7 +442,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.scriptx.traceitx.sample.tv;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.sample.tv;
 				SDKROOT = appletvos;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
@@ -464,7 +462,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.scriptx.traceitx.sample;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.sample;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -570,21 +568,21 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		358868467E61DF8280393612 /* TraceItXReporterUI */ = {
+		592A2FA17495240103C794BB /* Everframe */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = TraceItXReporterUI;
+			productName = Everframe;
 		};
-		6BA0D7B36D3AC04DD2830A62 /* TraceItXReporterUI */ = {
+		5C8247C7F800E42DDD1902CC /* EverframeReporterUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = TraceItXReporterUI;
+			productName = EverframeReporterUI;
 		};
-		7F7083A5A44417FC0D9AA135 /* TraceItXKit */ = {
+		760CBBE2ED17DA97C465DE24 /* Everframe */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = TraceItXKit;
+			productName = Everframe;
 		};
-		95962B04FE8EE8EC47027BC6 /* TraceItXKit */ = {
+		B0BA19B6985CC8E955B5F61C /* EverframeReporterUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = TraceItXKit;
+			productName = EverframeReporterUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

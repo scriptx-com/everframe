@@ -3,8 +3,8 @@
 //
 // Phase 06.2-07 — Sample tvOS host-rendered QR view.
 //
-// This file lives in the SAMPLE APP, not the SDK. The TraceItX SDK exposes
-// `TraceItX.shared.companion.pairUrl` and `companion.state` and ships zero
+// This file lives in the sample app, not the Everframe SDK. The SDK exposes
+// `Everframe.shared.companion.pairUrl` and `companion.state` and ships zero
 // QR-rendering or indicator chrome (SPEC §3; Phase 05.1 precedent — hosts
 // own all chrome). Customers can pick any QR library they want; this sample
 // uses `CIQRCodeGenerator` (Foundation built-in, zero dependencies).
@@ -17,7 +17,7 @@
 
 import SwiftUI
 import Combine
-import TraceItXKit
+import EverframeKit
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -27,7 +27,7 @@ import CoreImage.CIFilterBuiltins
 #endif
 
 struct CompanionQRView: View {
-    @ObservedObject private var companion = TraceItX.shared.companion
+    @ObservedObject private var companion = Everframe.shared.companion
 
     var body: some View {
         VStack(spacing: 24) {

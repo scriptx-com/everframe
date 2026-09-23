@@ -3,13 +3,13 @@
 # SPDX-FileCopyrightText: 2026 ScriptX
 #
 # Materialize examples/ios-native/Config/Local.xcconfig from the repo-root .env.
-# Idempotent. Reads TRACEITX_KEY_IOS (this probe's own dashboard app key) and
+# Idempotent. Reads EVERFRAME_KEY_IOS (this probe's own dashboard app key) and
 # hard-fails if it's missing or malformed, rather than baking an empty key that
 # would throw .missingAppId at SampleApp launch.
 #
 # The ingest URL is no longer projected here — the SDK bakes it at compile
 # time via #if DEBUG / Release. To override locally for the SDK build itself,
-# set TRACEITX_DEV_INGEST_URL in your Xcode scheme env.
+# set EVERFRAME_DEV_INGEST_URL in your Xcode scheme env.
 set -euo pipefail
 
 # Locate the sample-app directory (examples/ios-native), from which the repo
@@ -44,7 +44,7 @@ REPO_ROOT="$(cd "${APP_DIR}/../.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
 OUT_FILE="${APP_DIR}/Config/Local.xcconfig"
 
-SRC_VAR="TRACEITX_KEY_IOS"
+SRC_VAR="EVERFRAME_KEY_IOS"
 INGEST_SDK_KEY=""
 
 if [[ ! -f "${ENV_FILE}" ]]; then

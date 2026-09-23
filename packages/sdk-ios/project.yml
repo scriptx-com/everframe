@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 ScriptX
 #
-# XcodeGen project spec for producing the published TraceItX.xcframework +
-# TraceItXReporterUI.xcframework. `Package.swift` stays the working manifest
+# XcodeGen project spec for producing the published Everframe.xcframework +
+# EverframeReporterUI.xcframework. `Package.swift` stays the working manifest
 # for development; this file is consumed at release time by
 # scripts/build-xcframework.sh:
 #
-#   xcodegen generate          # → TraceItX.xcodeproj (gitignored)
+#   xcodegen generate          # → Everframe.xcodeproj (gitignored)
 #   xcodebuild archive …       # per-platform archives
 #   xcodebuild -create-xcframework …
 #
@@ -19,10 +19,10 @@
 # `BUILD_LIBRARIES_FOR_DISTRIBUTION: YES` is mandatory — the emitted
 # .swiftinterface must be stable across consumer Swift compiler versions.
 
-name: TraceItX
+name: Everframe
 
 options:
-  bundleIdPrefix: com.traceitx
+  bundleIdPrefix: dev.everframe
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -41,7 +41,7 @@ settings:
     DEFINES_MODULE: YES
     SWIFT_VERSION: "5.10"
     # `package`-scoped declarations (CompanionAPI.__builtinPinUiInstalled /
-    # __builtinPinUiSuppressed, written from the TraceItXReporterUI module)
+    # __builtinPinUiSuppressed, written from the EverframeReporterUI module)
     # need swiftc's `-package-name`. SwiftPM derives it from Package.swift, so
     # `swift build` / `swift test` were fine while the xcodegen project — which
     # has no notion of a package — failed to compile at all:
@@ -50,7 +50,7 @@ settings:
     # Every target here belongs to the one Swift package, so a single
     # project-level value is correct; it must match across them or `package`
     # access stops resolving.
-    SWIFT_PACKAGE_NAME: TraceItX
+    SWIFT_PACKAGE_NAME: Everframe
     SWIFT_OPTIMIZATION_LEVEL: "-O"
     SWIFT_COMPILATION_MODE: wholemodule
     DEBUG_INFORMATION_FORMAT: dwarf
@@ -92,78 +92,78 @@ settings:
 
 targets:
 
-  TraceItXProtocol:
+  EverframeProtocol:
     type: framework
     platform: iOS
     sources:
-      - path: Sources/TraceItXProtocol
+      - path: Sources/EverframeProtocol
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.traceitx.TraceItXProtocol
-        PRODUCT_MODULE_NAME: TraceItXProtocol
+        PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.EverframeProtocol
+        PRODUCT_MODULE_NAME: EverframeProtocol
 
-  # Module name `TraceItXKit` avoids the Swift library-evolution collision
-  # where `module TraceItX` + `public class TraceItX` makes .swiftinterface
-  # references `TraceItX.CompanionState` unparseable (parser resolves the
-  # leftmost `TraceItX` to the class, then fails). Apple convention reserves
+  # Module name `EverframeKit` avoids the Swift library-evolution collision
+  # where `module Everframe` + `public class Everframe` makes .swiftinterface
+  # references `Everframe.CompanionState` unparseable (parser resolves the
+  # leftmost `Everframe` to the class, then fails). Apple convention reserves
   # "Kit" suffix for framework modules whose primary classes drop it
-  # (UIKit/UIScreen, MapKit/MKMapView). Customer code: `import TraceItXKit`
-  # then `TraceItX.shared.start(...)` — class API unchanged.
-  TraceItXKit:
+  # (UIKit/UIScreen, MapKit/MKMapView). Customer code: `import EverframeKit`
+  # then `Everframe.shared.start(...)` — class API unchanged.
+  EverframeKit:
     type: framework
     platform: iOS
     sources:
-      - path: Sources/TraceItX
+      - path: Sources/Everframe
         excludes:
           - "PrivacyInfo.xcprivacy"
           - "Resources/**"
-      - path: Sources/TraceItX/PrivacyInfo.xcprivacy
+      - path: Sources/Everframe/PrivacyInfo.xcprivacy
         buildPhase: resources
-      - path: Sources/TraceItX/Resources
+      - path: Sources/Everframe/Resources
         buildPhase: resources
     dependencies:
-      - target: TraceItXProtocol
+      - target: EverframeProtocol
         embed: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.traceitx.TraceItXKit
-        PRODUCT_MODULE_NAME: TraceItXKit
+        PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.EverframeKit
+        PRODUCT_MODULE_NAME: EverframeKit
         SWIFT_STRICT_CONCURRENCY: complete
 
-  TraceItXReporterUI:
+  EverframeReporterUI:
     type: framework
     platform: iOS
     sources:
-      - path: Sources/TraceItXReporterUI
+      - path: Sources/EverframeReporterUI
     dependencies:
-      - target: TraceItXKit
+      - target: EverframeKit
         embed: false
-      - target: TraceItXProtocol
+      - target: EverframeProtocol
         embed: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.traceitx.TraceItXReporterUI
-        PRODUCT_MODULE_NAME: TraceItXReporterUI
+        PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.EverframeReporterUI
+        PRODUCT_MODULE_NAME: EverframeReporterUI
 
 schemes:
-  TraceItXProtocol:
+  EverframeProtocol:
     build:
       targets:
-        TraceItXProtocol: all
+        EverframeProtocol: all
     archive:
       config: Release
-  TraceItXKit:
+  EverframeKit:
     build:
       targets:
-        TraceItXKit: all
-        TraceItXProtocol: all
+        EverframeKit: all
+        EverframeProtocol: all
     archive:
       config: Release
-  TraceItXReporterUI:
+  EverframeReporterUI:
     build:
       targets:
-        TraceItXReporterUI: all
-        TraceItXKit: all
-        TraceItXProtocol: all
+        EverframeReporterUI: all
+        EverframeKit: all
+        EverframeProtocol: all
     archive:
       config: Release

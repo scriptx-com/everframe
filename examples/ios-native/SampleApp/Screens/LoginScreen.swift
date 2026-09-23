@@ -3,13 +3,13 @@
 //
 // Demonstrates two of the three sensitive-content idioms:
 //   1) UITextField.isSecureTextEntry → auto-detected, blacked out at capture time.
-//   2) TXSensitiveView wrapper around an arbitrary subtree (PRIV-01).
+//   2) EFSensitiveView wrapper around an arbitrary subtree (PRIV-01).
 //
-// PaymentScreen demonstrates the third (TraceItX.shared.markSensitive(_:)).
+// PaymentScreen demonstrates the third (Everframe.shared.markSensitive(_:)).
 
 import SwiftUI
 import UIKit
-import TraceItXKit
+import EverframeKit
 
 struct LoginScreen: View {
     @State private var username = ""
@@ -25,8 +25,8 @@ struct LoginScreen: View {
             Section("Auto-detected secure (UITextField.isSecureTextEntry)") {
                 SecureField("Password", text: $password)
             }
-            Section("Explicit TXSensitiveView wrapper") {
-                TXSensitiveBox {
+            Section("Explicit EFSensitiveView wrapper") {
+                EFSensitiveBox {
                     HStack {
                         Text("OTP")
                         Spacer()
@@ -40,17 +40,17 @@ struct LoginScreen: View {
     }
 }
 
-/// Bridges UIKit's `TXSensitiveView` into SwiftUI. Any SwiftUI subview hosted
+/// Bridges UIKit's `EFSensitiveView` into SwiftUI. Any SwiftUI subview hosted
 /// inside this wrapper is reported as sensitive at screenshot capture time.
-struct TXSensitiveBox<Content: View>: UIViewRepresentable {
+struct EFSensitiveBox<Content: View>: UIViewRepresentable {
     let content: () -> Content
 
     init(@ViewBuilder content: @escaping () -> Content) {
         self.content = content
     }
 
-    func makeUIView(context: Context) -> TXSensitiveView {
-        let container = TXSensitiveView()
+    func makeUIView(context: Context) -> EFSensitiveView {
+        let container = EFSensitiveView()
         container.backgroundColor = .clear
         let host = UIHostingController(rootView: content())
         host.view.backgroundColor = .clear
@@ -63,15 +63,15 @@ struct TXSensitiveBox<Content: View>: UIViewRepresentable {
             host.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
         // Retain host controller for the lifetime of the container view.
-        objc_setAssociatedObject(container, &TXSensitiveBoxHostKey, host, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        objc_setAssociatedObject(container, &EFSensitiveBoxHostKey, host, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         return container
     }
 
-    func updateUIView(_ uiView: TXSensitiveView, context: Context) {
-        if let host = objc_getAssociatedObject(uiView, &TXSensitiveBoxHostKey) as? UIHostingController<Content> {
+    func updateUIView(_ uiView: EFSensitiveView, context: Context) {
+        if let host = objc_getAssociatedObject(uiView, &EFSensitiveBoxHostKey) as? UIHostingController<Content> {
             host.rootView = content()
         }
     }
 }
 
-private var TXSensitiveBoxHostKey: UInt8 = 0
+private var EFSensitiveBoxHostKey: UInt8 = 0
