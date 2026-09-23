@@ -1,0 +1,39 @@
+{
+  "exceptions": [
+    {
+      "path": "packages/protocol/src/attachments.ts",
+      "pattern": "traceitx-video-v1",
+      "reason": "Reader accepts video attachments persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/protocol/src/attachments.ts",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Reader accepts native replay attachments persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/protocol/src/vtree/timeline.ts",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Reader accepts native replay timelines persisted before the Everframe rename"
+    },
+    {
+      "path": "packages/protocol/schemas-json/envelope.v1.schema.json",
+      "pattern": "traceitx-video-v1",
+      "reason": "Schema validates video attachments in existing stored envelopes"
+    },
+    {
+      "path": "packages/protocol/schemas-json/envelope.v1.schema.json",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Schema validates native replay attachments in existing stored envelopes"
+    },
+    {
+      "path": "packages/protocol/schemas-json/vtree.v1.schema.json",
+      "pattern": "traceitx-vtree-v1",
+      "reason": "Schema validates native replay timelines in existing stored records"
+    },
+    {
+      "path": "packages/sdk-web/CHANGELOG.md",
+      "pattern": "<TraceItXProvider>",
+      "reason": "Historical release note records the former React provider API"
+    }
+  ]
+}

@@ -20,6 +20,7 @@
     ".gitleaksignore",
     ".npmrc",
     ".reuse",
+    "brand-identity.json",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "LICENSE",

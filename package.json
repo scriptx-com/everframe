@@ -20,6 +20,7 @@
     "test:examples": "turbo run test --filter='./examples/*'",
     "typecheck:examples": "turbo run typecheck --filter='./examples/*'",
     "check:boundary": "node scripts/public-boundary.mjs",
+    "check:brand": "node scripts/brand-identity.mjs",
     "test:boundary": "node --test scripts/public-boundary.test.mjs",
     "gen-web-config": "pnpm --filter examples-react-web gen-web-config",
     "gen-rn-config": "pnpm --filter examples-react-native sync-env",
