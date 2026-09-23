@@ -1,14 +1,14 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX for Android (v1.2)
+# Everframe for Android (v1.2)
 
-Native Android SDK for TraceItX — in-app bug reporting with annotated screenshots,
+Native Android SDK for Everframe — in-app bug reporting with annotated screenshots,
 session replay, log/network ring buffers, and a built-in Compose reporter UI.
 Covers phone, tablet, and Android TV.
 
 > **Status:** Phase 5 (Plans 01–08) complete. Maven artifacts published to
-> [GitHub Packages](https://github.com/scriptx-com/traceitx-releases/packages). Public Maven
+> [GitHub Packages](https://github.com/scriptx-com/everframe/packages). Public Maven
 > Central is deferred to v1.3.
 
 ---
@@ -46,7 +46,7 @@ environment variables (already set inside GitHub Actions runners; for other
 CI systems, set them manually):
 
 ```yaml
-- name: Build with TraceItX
+- name: Build with Everframe
   env:
     GITHUB_ACTOR: ${{ github.actor }}
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,7 +62,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven {
-            url = uri("https://maven.pkg.github.com/scriptx-com/traceitx-releases")
+            url = uri("https://maven.pkg.github.com/scriptx-com/everframe")
             credentials {
                 username = System.getenv("GITHUB_ACTOR") ?: providers.gradleProperty("gpr.user").orNull
                 password = System.getenv("GITHUB_TOKEN") ?: providers.gradleProperty("gpr.token").orNull
@@ -122,7 +122,7 @@ identity and upload the matching mapping only from trusted CI.
 
 ## Triggers are host-app concern
 
-> TraceItX owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
+> Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
 
 Shake-to-report is enabled locally by default on Android phones and tablets and
 controlled authoritatively by the dashboard. Disable it locally with
@@ -420,7 +420,7 @@ What it does:
 - Auto-applies `traceitx-keep.pro` (a copy of `:traceitx-core`'s
   `consumer-rules.pro`) to the host module's R8 keep set.
 - Adds `-Xandroidx-compose-runtime-keep-all-composables` to KotlinCompile so
-  composable function names survive R8 minification (used by TraceItX's
+  composable function names survive R8 minification (used by Everframe's
   `componentPath` reflection).
 - Optionally embeds and uploads the exact final mapping for selected minified
   application variants:
@@ -500,7 +500,7 @@ release R8 config when you depend on the AAR. It preserves:
 - kotlinx.serialization companion serializers (envelope JSON).
 - The OkHttp interceptor entry surface.
 
-To verify your release APK preserves the names TraceItX needs, run:
+To verify your release APK preserves the names Everframe needs, run:
 
 ```bash
 ./gradlew :app:assembleRelease

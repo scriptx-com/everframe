@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 # Vitals perf harness
 
-Re-runs the measurement that produced [PR #169](https://github.com/scriptx-com/traceitx-releases/pull/169)'s
+Re-runs the measurement that produced [PR #169](https://github.com/scriptx-com/everframe/pull/169)'s
 perf numbers (session vitals, Phase 1) as a repo script, per
 `the public behavior contract` §5, so the gate
 can be re-taken before each release instead of living only in a session
@@ -11,8 +11,8 @@ scratch directory.
 ## Run it
 
 ```sh
-pnpm --filter @traceitx/web build
-pnpm --filter @traceitx/web perf:vitals
+pnpm --filter @everframe/web build
+pnpm --filter @everframe/web perf:vitals
 ```
 
 The build step is required — the harness loads the **built** browser bundle
@@ -26,7 +26,7 @@ re-measuring against a real adaptive stream rather than assuming the
 webm-only numbers still hold:
 
 ```sh
-MODES=off,on,hls pnpm --filter @traceitx/web perf:vitals
+MODES=off,on,hls pnpm --filter @everframe/web perf:vitals
 ```
 
 This is a **manual run, not CI** — it needs outbound network access to the
@@ -38,7 +38,7 @@ signal on its own — add `hls-off` (same page, vitals gate off) alongside
 `hls` for an honest `hls − hls-off` vitals-attributable delta:
 
 ```sh
-MODES=hls,hls-off pnpm --filter @traceitx/web perf:vitals
+MODES=hls,hls-off pnpm --filter @everframe/web perf:vitals
 ```
 
 Env overrides:
@@ -53,7 +53,7 @@ Env overrides:
 ## What it measures
 
 Headless Chromium (Playwright's bundled build) drives `harness.html`, a
-static page whose only JavaScript is the built `@traceitx/web` browser
+static page whose only JavaScript is the built `@everframe/web` browser
 bundle's `init()` plus one muted, looping `<video>` (the example app's
 `examples/react-web/public/media/field-loop.webm`). Every `/api/**` request
 is answered by a Playwright route stub: `GET /api/config` returns
@@ -71,7 +71,7 @@ so the delta is steady-state retention rather than pre-GC garbage.
 
 `static-server.mjs` serves `/dist/**` from `packages/sdk-web/dist`,
 `/media/**` from `examples/react-web/public/media`, `/vendor/hls.js` from
-hls.js's own minified dist build (a devDependency of `@traceitx/web` used
+hls.js's own minified dist build (a devDependency of `@everframe/web` used
 only by this harness — never a runtime dependency of the shipped SDK), and
 everything else (`/harness.html`, `/harness-hls.html`) from this `perf/`
 directory; `vitals-harness.mjs` starts it in-process and shuts it down (and
@@ -90,15 +90,15 @@ From the session-vitals spec:
 - **Vitals-attributable steady-state heap growth under 64 KB** — the `on`
   mode's post-GC heap delta minus the `off` mode's, over the run window. 64
   KB is the vitals collector's own byte cap (see `VitalsCollector` in
-  `@traceitx/sdk-core`), so this checks the collector isn't retaining beyond
+  `@everframe/sdk-core`), so this checks the collector isn't retaining beyond
   its own budget.
 
 ## Last run (2026-09-02)
 
 Chromium 147.0.7727.15 (Playwright 1.59.1's bundled build), headless, on the
 `feature/session-vitals-phase-3` branch, `RUN_MS=60000` (default),
-`MODES=off,on` (default). Table pasted verbatim from `pnpm --filter
-@traceitx/web perf:vitals`'s own printed output.
+`MODES=off,on` (default). Table pasted verbatim from the historical perf
+command's own printed output.
 
 | | vitals **off** | vitals **on** |
 |---|---|---|
@@ -127,8 +127,8 @@ rather than assuming the phase-3 webm-only numbers still hold. `hls-off` was
 added because the raw `hls` mode's heap delta is dominated by hls.js's own
 buffered-segment retention (see the negative deltas below — normal player
 memory churn, not an SDK leak), so `hls − hls-off` is the only reading that
-isolates the SDK's own contribution. Table pasted verbatim from `pnpm
---filter @traceitx/web perf:vitals`'s own printed output.
+isolates the SDK's own contribution. Table pasted verbatim from the historical
+perf command's own printed output.
 
 | | vitals **off** | vitals **on** | vitals **on** (hls) | vitals **off** (hls) |
 |---|---|---|---|---|

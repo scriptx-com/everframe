@@ -27,7 +27,7 @@ const publicPackages = [
 
 const policy = {
   publicPackages,
-  allowedTopLevel: ['.env.example', 'package.json', 'packages'],
+  allowedTopLevel: ['.env.example', 'examples', 'package.json', 'packages'],
   requiredPaths: ['.env.example', 'packages/sdk-core/package.json'],
   forbiddenPathPatterns: [
     '(^|/)apps/',
@@ -151,6 +151,30 @@ test('rejects legacy TraceItX scoped packages', () => {
   const result = run(files);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /@traceitx\/legacy.*legacy package scope/);
+});
+
+test('rejects a legacy TraceItX scoped root manifest', () => {
+  const files = structuredClone(safeFiles);
+  files['package.json'] = JSON.stringify({
+    name: '@traceitx/root',
+    private: true,
+  });
+
+  const result = run(files);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /package\.json.*@traceitx\/root.*legacy package scope/);
+});
+
+test('rejects a legacy TraceItX scoped example manifest', () => {
+  const files = structuredClone(safeFiles);
+  files['examples/demo/package.json'] = JSON.stringify({
+    name: '@traceitx/example-demo',
+    private: true,
+  });
+
+  const result = run(files);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /examples\/demo\/package\.json.*@traceitx\/example-demo.*legacy package scope/);
 });
 
 test('rejects a tree missing a required public package', () => {

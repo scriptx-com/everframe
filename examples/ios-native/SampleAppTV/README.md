@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# SampleAppTV — TraceItX tvOS demo
+# SampleAppTV — Everframe tvOS demo
 
-This is the **sample** Apple TV host app used to exercise the TraceItX SDK on
+This is the **sample** Apple TV host app used to exercise the Everframe SDK on
 tvOS. It is NOT part of the SDK — it lives under `examples/` so customers can
 see idiomatic host wiring.
 

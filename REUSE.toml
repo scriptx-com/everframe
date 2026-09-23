@@ -1,6 +1,6 @@
 version = 1
-SPDX-PackageName = "TraceItX SDKs"
-SPDX-PackageDownloadLocation = "https://github.com/scriptx-com/traceitx-releases"
+SPDX-PackageName = "Everframe SDKs"
+SPDX-PackageDownloadLocation = "https://github.com/scriptx-com/everframe"
 
 [[annotations]]
 path = ["*.json", "**/*.json", "patches/*.patch"]

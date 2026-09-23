@@ -13,7 +13,7 @@ frames and matching platform/build identity.
 
 Use only a separately owned local Debug host with a collision-checked unique
 application/bundle ID and explicit loopback ingest. Rebuild
-`pnpm --filter @traceitx/react-native build` first, because the example resolves
+`pnpm --filter @everframe/react-native build` first, because the example resolves
 `dist/index.js`. Record source, JS artifact, native artifact and installed
 binary hashes. Back up any generated host/entry file before substituting this
 `App`. Metro excludes `__tests__`, so copy this file unchanged into a temporary

@@ -99,12 +99,14 @@ for (const file of files) {
       report(relativePath, `invalid package manifest: ${error.message}`);
       continue;
     }
-    if (relativePath.startsWith('packages/')) {
-      if (manifest.name?.startsWith(legacyPackageScope)) {
-        report(relativePath, `${manifest.name} uses the legacy package scope`);
-      } else if (manifest.name?.startsWith(publicPackageScope) && !publicPackages.has(manifest.name)) {
-        report(relativePath, `${manifest.name} is not in publicPackages`);
-      }
+    if (manifest.name?.startsWith(legacyPackageScope)) {
+      report(relativePath, `${manifest.name} uses the legacy package scope`);
+    } else if (
+      relativePath.startsWith('packages/')
+      && manifest.name?.startsWith(publicPackageScope)
+      && !publicPackages.has(manifest.name)
+    ) {
+      report(relativePath, `${manifest.name} is not in publicPackages`);
     }
     for (const section of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
       for (const [name, version] of Object.entries(manifest[section] ?? {})) {

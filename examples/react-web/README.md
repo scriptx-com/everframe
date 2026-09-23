@@ -17,7 +17,7 @@ interactive lists, generative SVG imagery, forms, and seeded PII.
 ## Local dogfood
 
 ```bash
-# Terminal 1 — TraceItX ingest service (separate package)
+# Terminal 1 — Everframe ingest service (separate package)
 pnpm dev:api
 
 # Terminal 2 — Elytra (rebuilds the web SDK against localhost, then next dev)
