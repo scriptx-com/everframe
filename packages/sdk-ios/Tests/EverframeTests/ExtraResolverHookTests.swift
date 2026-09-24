@@ -206,13 +206,18 @@ final class ExtraResolverHookTests {
         }
 
         let taskA = Task { await Everframe.shared.__consumePendingAttachments() }
+
+        // Task creation order is not execution order. Wait until A has
+        // actually entered the hook before starting B so the values below
+        // describe the named tasks rather than whichever task the executor
+        // happened to schedule first.
+        await waitUntil { await recorder.events.count >= 1 }
         let taskB = Task { await Everframe.shared.__consumePendingAttachments() }
 
-        // Let both tasks run as far as they can WITHOUT JS answering either
-        // one yet. If the two calls were NOT serialized, B's hook would
-        // already have entered here (both would suspend inside the hook
-        // concurrently, which is exactly the race this fix closes).
-        await waitUntil { await recorder.events.count >= 1 }
+        // Let B run as far as it can WITHOUT JS answering A yet. If the two
+        // calls were NOT serialized, B's hook would already have entered
+        // here (both would suspend inside the hook concurrently, which is
+        // exactly the race this fix closes).
         var midEvents = await recorder.events
         #expect(midEvents == ["enter-1"], "B's hook must not start while A's ask-and-wait + drain is still in flight")
 
