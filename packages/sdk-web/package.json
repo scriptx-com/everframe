@@ -3,6 +3,11 @@
   "version": "0.8.2",
   "private": false,
   "description": "Framework-agnostic web SDK for Everframe — AI-ready in-app bug reporting for any web framework or plain HTML.",
+  "author": {
+    "name": "Scriptx, UAB",
+    "email": "support@everframe.dev",
+    "url": "https://everframe.dev"
+  },
   "keywords": [
     "bug-report",
     "feedback",

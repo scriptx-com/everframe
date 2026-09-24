@@ -2,6 +2,11 @@
   "name": "@everframe/identity",
   "version": "0.2.0",
   "description": "Mint Everframe identity tokens from any runtime — one handler that works as a Next route, a Cloudflare Worker, an Edge function or a Node server.",
+  "author": {
+    "name": "Scriptx, UAB",
+    "email": "support@everframe.dev",
+    "url": "https://everframe.dev"
+  },
   "keywords": [
     "everframe",
     "identity",

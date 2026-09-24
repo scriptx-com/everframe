@@ -74,6 +74,50 @@ test('Dependabot covers each public dependency ecosystem', () => {
   }
 });
 
+test('publishable npm packages carry canonical Everframe ownership and support metadata', () => {
+  const packages = [
+    ['packages/identity/package.json', 'packages/identity'],
+    ['packages/sdk-web/package.json', 'packages/sdk-web'],
+    ['packages/sdk-react/package.json', 'packages/sdk-react'],
+    ['packages/sdk-react-native/package.json', 'packages/sdk-react-native'],
+  ];
+  const author = {
+    name: 'Scriptx, UAB',
+    email: 'support@everframe.dev',
+    url: 'https://everframe.dev',
+  };
+
+  for (const [manifestPath, directory] of packages) {
+    const manifest = JSON.parse(read(manifestPath));
+    const publicMetadata = {
+      author: manifest.author,
+      bugs: manifest.bugs,
+      homepage: manifest.homepage,
+      license: manifest.license,
+      publishConfig: manifest.publishConfig,
+      repository: manifest.repository,
+    };
+
+    assert.deepEqual(manifest.author, author, `${manifestPath} must identify the real publisher`);
+    assert.equal(manifest.license, 'MIT', `${manifestPath} must publish as MIT`);
+    assert.equal(manifest.homepage, 'https://everframe.dev');
+    assert.deepEqual(manifest.bugs, {
+      url: 'https://github.com/scriptx-com/everframe/issues',
+    });
+    assert.deepEqual(manifest.repository, {
+      type: 'git',
+      url: 'git+https://github.com/scriptx-com/everframe.git',
+      directory,
+    });
+    assert.deepEqual(manifest.publishConfig, { access: 'public' });
+    assert.doesNotMatch(
+      JSON.stringify(publicMetadata),
+      /traceitx|example\.com|localhost|placeholder|\btodo\b/i,
+      `${manifestPath} must not publish legacy or placeholder metadata`,
+    );
+  }
+});
+
 test('published metadata points to the public MIT-licensed repository', () => {
   const manifests = filesUnder('packages', (file) => path.basename(file) === 'package.json');
 
