@@ -32,6 +32,27 @@ function scan(root) {
   return spawnSync(process.execPath, [scanner, '--root', root], { encoding: 'utf8' });
 }
 
+function commitFixture(root) {
+  const commit = spawnSync(
+    'git',
+    ['-C', root, '-c', 'user.name=Everframe Test', '-c', 'user.email=test@everframe.dev', 'commit', '--quiet', '-m', 'fixture'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(commit.status, 0, commit.stderr);
+  return spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+}
+
+function historicalFingerprintFixture(fingerprint) {
+  const historicalPath = `legacy/${former}-client.ts`;
+  const root = fixture({ [historicalPath]: "export const apiKey = 'synthetic';\n" });
+  const commit = commitFixture(root);
+  rmSync(path.join(root, historicalPath));
+  writeFileSync(path.join(root, '.gitleaksignore'), `${fingerprint({ commit, historicalPath })}\n`);
+  const add = spawnSync('git', ['-C', root, 'add', '--all'], { encoding: 'utf8' });
+  assert.equal(add.status, 0, add.stderr);
+  return { root, commit, historicalPath };
+}
+
 function run(files, exceptions = [], untrackedFiles = {}) {
   const root = fixture(files, exceptions);
   try {
@@ -100,6 +121,52 @@ test('accepts one contextual historical phrase without suppressing other uses', 
   assert.doesNotMatch(result.stderr, new RegExp(`${formerDisplay}.*active identity`));
   assert.match(result.stderr, new RegExp(`@${former}.*active identity`));
 });
+
+test('accepts a commit-scoped Gitleaks fingerprint for a historical path and line', () => {
+  const { root } = historicalFingerprintFixture(
+    ({ commit, historicalPath }) => `${commit}:${historicalPath}:generic-api-key:1`,
+  );
+  try {
+    const result = scan(root);
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a valid historical fingerprint does not exempt adjacent old identity text', () => {
+  const { root } = historicalFingerprintFixture(
+    ({ commit, historicalPath }) =>
+      `${commit}:${historicalPath}:generic-api-key:1\n# Do not restore ${former} branding`,
+  );
+  try {
+    const result = scan(root);
+    assert.equal(result.status, 1, result.stderr);
+    assert.doesNotMatch(result.stderr, /\.gitleaksignore:1:.*active identity/);
+    assert.match(result.stderr, /\.gitleaksignore:2:.*active identity/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+for (const [name, fingerprint] of [
+  ['path-only fingerprint', ({ historicalPath }) => `${historicalPath}:generic-api-key:1`],
+  ['unknown commit', ({ historicalPath }) => `${'0'.repeat(40)}:${historicalPath}:generic-api-key:1`],
+  ['missing historical path', ({ commit }) => `${commit}:legacy/${former}-missing.ts:generic-api-key:1`],
+  ['out-of-range historical line', ({ commit, historicalPath }) => `${commit}:${historicalPath}:generic-api-key:2`],
+  ['malformed rule', ({ commit, historicalPath }) => `${commit}:${historicalPath}:Generic API Key:1`],
+]) {
+  test(`rejects a ${name} containing an old identity`, () => {
+    const { root } = historicalFingerprintFixture(fingerprint);
+    try {
+      const result = scan(root);
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /\.gitleaksignore:1:.*active identity/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
 
 test('rejects stale exceptions after the old reader is removed', () => {
   const legacy = `${former}-video-v1`;

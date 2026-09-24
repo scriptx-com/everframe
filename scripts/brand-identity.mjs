@@ -29,6 +29,8 @@ const diagnosticByKey = new Map();
 const exceptions = new Map();
 const exceptionsByFile = new Map();
 const seen = new Set();
+const historicalCommitCache = new Map();
+const historicalBlobCache = new Map();
 
 function report(file, match, reason, location = '') {
   const key = `${file}\0${match}\0${reason}`;
@@ -66,6 +68,62 @@ function allowed(file, source, match) {
     }
   }
   return false;
+}
+
+function historicalCommitExists(commit) {
+  if (!historicalCommitCache.has(commit)) {
+    const result = spawnSync('git', ['-C', root, 'cat-file', '-e', `${commit}^{commit}`]);
+    historicalCommitCache.set(commit, result.status === 0);
+  }
+  return historicalCommitCache.get(commit);
+}
+
+function historicalBlobLines(commit, historicalPath) {
+  const key = `${commit}\0${historicalPath}`;
+  if (!historicalBlobCache.has(key)) {
+    const result = spawnSync('git', ['-C', root, 'cat-file', '-p', `${commit}:${historicalPath}`], {
+      encoding: 'buffer',
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    let lines = null;
+    if (result.status === 0) {
+      try {
+        lines = new TextDecoder('utf-8', { fatal: true }).decode(result.stdout).split(/\r?\n/);
+      } catch {
+        // A Gitleaks fingerprint carrying a brand identity must resolve to
+        // historical text, not merely to an arbitrary Git object.
+      }
+    }
+    historicalBlobCache.set(key, lines);
+  }
+  return historicalBlobCache.get(key);
+}
+
+function validHistoricalGitleaksFingerprint(line) {
+  const fingerprint = line.match(/^([0-9a-f]{40}):([^:\r\n]+):([a-z0-9][a-z0-9-]*):([1-9][0-9]*)$/);
+  if (!fingerprint) return false;
+  const [, commit, historicalPath, , lineText] = fingerprint;
+  if (
+    historicalPath.includes('\\') ||
+    historicalPath.startsWith('/') ||
+    path.posix.normalize(historicalPath) !== historicalPath
+  ) return false;
+  if (!historicalCommitExists(commit)) return false;
+  const lines = historicalBlobLines(commit, historicalPath);
+  const historicalLine = lines?.[Number(lineText) - 1];
+  return typeof historicalLine === 'string' && historicalLine.trim().length > 0;
+}
+
+function historicalGitleaksFingerprintRanges(source) {
+  const ranges = [];
+  let offset = 0;
+  for (const lineWithBreak of source.match(/[^\n]*(?:\n|$)/g) ?? []) {
+    if (!lineWithBreak) continue;
+    const line = lineWithBreak.endsWith('\n') ? lineWithBreak.slice(0, -1).replace(/\r$/, '') : lineWithBreak;
+    if (validHistoricalGitleaksFingerprint(line)) ranges.push({ start: offset, end: offset + line.length });
+    offset += lineWithBreak.length;
+  }
+  return ranges;
 }
 
 const tracked = spawnSync('git', ['-C', root, 'ls-files', '--cached', '-z'], { encoding: 'buffer' });
@@ -139,6 +197,9 @@ for (const file of files) {
   } catch {
     continue;
   }
+  const historicalFingerprintRanges = file === '.gitleaksignore'
+    ? historicalGitleaksFingerprintRanges(content)
+    : [];
 
   let line = 1;
   let previous = 0;
@@ -147,6 +208,9 @@ for (const file of files) {
       if (content[cursor] === '\n') line += 1;
     }
     previous = match.index;
+    if (historicalFingerprintRanges.some(({ start, end }) =>
+      match.index >= start && match.index + match[0].length <= end
+    )) continue;
     if (!allowed(file, content, match)) {
       report(file, match[0], 'active identity in text', `:${line}:${match.index - content.lastIndexOf('\n', match.index - 1)}`);
     }
