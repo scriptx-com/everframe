@@ -4,7 +4,7 @@
 // ingest endpoint is loopback. Import the built public package, not src/.
 import React, { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { captureException, TraceItXProvider, useTraceItX } from '@traceitx/react-native';
+import { captureException, EverframeProvider, useEverframe } from '@everframe/react-native';
 
 const config = {
   // Syntactically valid, nonsecret fixture key (native iOS validates length).
@@ -17,7 +17,7 @@ const config = {
 };
 
 function Probes() {
-  const hook = useTraceItX();
+  const hook = useEverframe();
   const attempted = useRef(false);
   useEffect(() => {
     if (attempted.current) return;
@@ -43,5 +43,5 @@ function Probes() {
 }
 
 export function App() {
-  return <TraceItXProvider config={config}><Probes /></TraceItXProvider>;
+  return <EverframeProvider config={config}><Probes /></EverframeProvider>;
 }

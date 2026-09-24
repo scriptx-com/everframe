@@ -4,11 +4,11 @@
 // setUser JS plumbing (spec 2026-08-12): top-level seam export is a safe
 // no-op when no provider is mounted, and the runtime forwards straight to
 // the TurboModule with NO validation/coercion — the native singleton
-// (iOS TraceItX.shared.setUser / Android TraceItX.setUser, Tasks 8-9) owns
+// (iOS Everframe.shared.setUser / Android Everframe.setUser, Tasks 8-9) owns
 // storage and gating. Mirrors record-screen.test.ts's shape.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { projectUserMetadata } from '@traceitx/sdk-core';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import { projectUserMetadata } from '@everframe/sdk-core';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { setUser, __setCurrentContext } from '../src/contextSeam.js';
 import { createRuntime } from '../src/runtime.js';
 import { projectUserSpec } from '../src/user-projection.js';
@@ -16,11 +16,11 @@ import { projectUserSpec } from '../src/user-projection.js';
 interface MockedNative {
   setUser: ReturnType<typeof vi.fn>;
 }
-const nativeMock = NativeTraceItX as unknown as MockedNative;
+const nativeMock = NativeEverframe as unknown as MockedNative;
 
 /**
  * Mount a real runtime as the module-level current context, mirroring what
- * <TraceItXProvider> does on mount (runtime.mount() calls
+ * <EverframeProvider> does on mount (runtime.mount() calls
  * __setCurrentContext(runtime) — see src/runtime.ts). No shared test helper
  * of this name exists elsewhere in this package; this is a local equivalent
  * scoped to this file.
@@ -57,12 +57,12 @@ describe('setUser', () => {
 
 /**
  * External review, finding 2 (Serious). The facade used to hand the host's
- * object across the bridge verbatim. `TXUserSpec` is a TypeScript type with no
+ * object across the bridge verbatim. `EverframeUserSpec` is a TypeScript type with no
  * runtime existence, and the bridge parameter is `UnsafeObject`, so any value
- * crossed — and on Android `TraceItXModule.setUser` called
+ * crossed — and on Android `EverframeModule.setUser` called
  * `ReadableMap.getString(key)` guarded only by `hasKey(key)`. `getString`
  * THROWS on a non-string value; `txGuardVoid` swallowed that exception BEFORE
- * `TraceItX.setUser()` was reached, so the call became a silent no-op and the
+ * `Everframe.setUser()` was reached, so the call became a silent no-op and the
  * PREVIOUS account stayed installed. Every subsequent report — including
  * crashes — was then attributed to someone the host had explicitly replaced.
  *

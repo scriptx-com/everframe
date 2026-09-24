@@ -1,17 +1,17 @@
 {
-  "name": "@traceitx/identity",
+  "name": "@everframe/identity",
   "version": "0.2.0",
-  "description": "Mint TraceItX identity tokens from any runtime — one handler that works as a Next route, a Cloudflare Worker, an Edge function or a Node server.",
+  "description": "Mint Everframe identity tokens from any runtime — one handler that works as a Next route, a Cloudflare Worker, an Edge function or a Node server.",
   "keywords": [
-    "traceitx",
+    "everframe",
     "identity",
     "jwt",
     "authentication",
     "bug-reporting"
   ],
-  "homepage": "https://traceitx.com",
+  "homepage": "https://everframe.dev",
   "bugs": {
-    "url": "https://github.com/scriptx-com/traceitx-releases/issues"
+    "url": "https://github.com/scriptx-com/everframe/issues"
   },
   "type": "module",
   "license": "MIT",
@@ -21,7 +21,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/scriptx-com/traceitx-releases.git",
+    "url": "git+https://github.com/scriptx-com/everframe.git",
     "directory": "packages/identity"
   },
   "publishConfig": {

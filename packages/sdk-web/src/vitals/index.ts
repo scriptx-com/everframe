@@ -25,8 +25,8 @@
 // it. This file adds its OWN `destroyed` guard on top so a host calling
 // destroy() twice — or a flip-stop followed by destroy() — never re-enters
 // the stop sequence at all.
-import type { VitalsEntry } from '@traceitx/protocol';
-import { MAX_CUSTOM_NAME_LENGTH, utf8ByteLength } from '@traceitx/protocol';
+import type { VitalsEntry } from '@everframe/protocol';
+import { MAX_CUSTOM_NAME_LENGTH, utf8ByteLength } from '@everframe/protocol';
 import {
   createVitalsCollector,
   type VitalsCollector,
@@ -34,7 +34,7 @@ import {
   type PlayerIntegration,
   safeWrap,
   presentableIdentityToken,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import { startResourceSampler } from './resource-sampler.js';
 import { attachPlayerVitals, type PlayerVitalsAdapter } from './player-adapter.js';
 import { createVitalsTransport } from './transport.js';
@@ -42,10 +42,10 @@ import { __getVitalsServerConfig, __subscribeVitalsServerConfig } from './server
 import { createPlayerRegistry } from './registry.js';
 import { hlsIntegration } from './integrations/hls.js';
 import { shakaIntegration } from './integrations/shaka.js';
-import type { WebTraceItXConfig } from '../internal/types.js';
+import type { WebEverframeConfig } from '../internal/types.js';
 
 export interface SetupVitalsDeps {
-  config: WebTraceItXConfig;
+  config: WebEverframeConfig;
   apiKey: string;
   /** Ingest base URL — `${apiUrl}/api/ingest/vitals` is the transport endpoint. */
   apiUrl: string;
@@ -364,7 +364,7 @@ function resolveIntegration(opts: TrackPlayerOptions): PlayerIntegration | undef
  * Inert handle returned when trackPlayer itself fails. `safeWrap` returns
  * `undefined` on a throw, so wrapping this function and casting the result to
  * `PlayerHandle` would lie to the host: a caller doing
- * `traceitx.trackPlayer(...).detach()` would get a TypeError from OUR bug —
+ * `everframe.trackPlayer(...).detach()` would get a TypeError from OUR bug —
  * exactly what the safe-wrap discipline exists to prevent. Explicit try/catch
  * keeps the signature honest.
  *

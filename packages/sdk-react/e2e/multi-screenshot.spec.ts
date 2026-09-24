@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 
 test('add screenshot via area select, then delete it', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
   await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: 15_000 });
   await expect(page.getByTestId('screenshot-thumb-0')).toBeVisible();
@@ -35,7 +35,7 @@ test('add screenshot via area select, then delete it', async ({ page }) => {
 
 test('Esc cancels area capture without adding', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: 15_000 });
   await page.getByTestId('screenshot-add').click();
   await expect(page.getByTestId('area-capture-overlay')).toBeVisible();
@@ -73,7 +73,7 @@ test.describe('area capture pads when the source bitmap is shorter than the view
       document.body.appendChild(el);
     });
 
-    await page.getByTestId('traceitx-bubble').click();
+    await page.getByTestId('everframe-bubble').click();
     await expect(page.getByTestId('reporter-modal')).toBeVisible();
     await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: 15_000 });
     await page.getByTestId('screenshot-add').click();
@@ -162,7 +162,7 @@ test('area capture aligns IN-FLOW content pixel-exactly (clone-drift regression)
     return { top: r.top, left: r.left, width: r.width, height: r.height };
   });
 
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
   await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: 15_000 });
   await page.getByTestId('screenshot-add').click();
@@ -214,7 +214,7 @@ test('annotate editor upscales a small area-captured shot to fill the overlay (Ã
   page,
 }) => {
   await page.goto('/');
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
   await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: 15_000 });
   await expect(page.getByTestId('screenshot-thumb-0')).toBeVisible();
@@ -255,7 +255,7 @@ test('full-page capture appends up to the 5-shot cap, then hides the add tile', 
   page,
 }) => {
   await page.goto('/');
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: 15_000 });
   for (let i = 1; i <= 4; i++) {
     await page.getByTestId('screenshot-add').click();

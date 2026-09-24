@@ -3,9 +3,9 @@
 //
 // Phase 06.2-09 Task 1 — React-TV companion runtime state surface.
 //
-// Mirrors iOS `CompanionState` (packages/sdk-ios/Sources/TraceItX/Companion/
+// Mirrors iOS `CompanionState` (packages/sdk-ios/Sources/Everframe/Companion/
 // CompanionState.swift) and Android `CompanionState` (packages/sdk-android/
-// android/traceitx-core/src/main/kotlin/com/traceitx/companion/CompanionState.kt)
+// android/everframe-core/src/main/kotlin/com/everframe/companion/CompanionState.kt)
 // for cross-runtime parity per SPEC Req 3 + Req 4.
 //
 // Subscription pattern mirrors `adapter.ts`'s TS-callback observable shape —
@@ -134,7 +134,7 @@ export interface CompanionAPI {
 
 /**
  * Create a fresh companion state surface. One per SDK instance; not a
- * singleton — multiple TraceItX clients on the same page each carry their own
+ * singleton — multiple Everframe clients on the same page each carry their own
  * companion state (matches `createWebPlatformAdapter` factory shape).
  */
 export function createCompanion(): CompanionAPI {

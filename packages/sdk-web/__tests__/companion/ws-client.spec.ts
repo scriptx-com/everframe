@@ -186,7 +186,7 @@ describe('companion/ws-client', () => {
     // pairUrl is RETAINED on bond — nulled only on socket close. Hosts hide
     // the QR off `state === 'paired'`, not off a null pairUrl.
     expect(companion.getPairUrl()).toBe('https://relay.example.com/r/tok-abc');
-    expect(storage.getItem('traceitx-companion:device-token')).toBe('dev-xyz');
+    expect(storage.getItem('everframe-companion:device-token')).toBe('dev-xyz');
   });
 
   it('surfaces inbound binary to onBinary as ArrayBuffer (incl. Blob delivery)', async () => {
@@ -322,7 +322,7 @@ describe('companion/ws-client', () => {
   it('close code 4002 drops to unpaired and clears device_token', () => {
     const companion = createCompanion();
     const storage = makeStorage();
-    storage.setItem('traceitx-companion:device-token', 'stale');
+    storage.setItem('everframe-companion:device-token', 'stale');
     const client = createRelayWSClient({
       endpoint: 'https://relay.example.com',
       companion,
@@ -353,7 +353,7 @@ describe('companion/ws-client', () => {
     expect(companion.getState()).toBe('unpaired');
     // Socket close is the one place pairUrl is nulled.
     expect(companion.getPairUrl()).toBeNull();
-    expect(storage.getItem('traceitx-companion:device-token')).toBeNull();
+    expect(storage.getItem('everframe-companion:device-token')).toBeNull();
   });
 
   it('drops malformed text frames silently (zod safeParse failure)', () => {
@@ -679,7 +679,7 @@ describe('companion/ws-client', () => {
     expect(lastWS!.url).toBe('wss://relay.example.com/relay/tv/t1');
 
     delete (window as { webOS?: unknown }).webOS;
-    localStorage.removeItem('txx.companionDeviceId');
+    localStorage.removeItem('everframe.companionDeviceId');
     __resetDeviceIdForTests();
   });
 
@@ -834,7 +834,7 @@ describe('companion/ws-client', () => {
   it('resolvedName clears on terminal close, same lifecycle as code', () => {
     const companion = createCompanion();
     const storage = makeStorage();
-    storage.setItem('traceitx-companion:device-token', 'stale');
+    storage.setItem('everframe-companion:device-token', 'stale');
     const client = createRelayWSClient({
       endpoint: 'https://relay.example.com',
       companion,

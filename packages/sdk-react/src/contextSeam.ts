@@ -3,28 +3,28 @@
 //
 // Module-level context seam. The top-level `open()` convenience MUST work
 // from non-React call sites (global error handlers, route handlers, third-
-// party event bridges) where `useTraceItX()` is unavailable. We stash a
+// party event bridges) where `useEverframe()` is unavailable. We stash a
 // single current-runtime reference here; the provider writes on mount /
 // clears on unmount; top-level `open()` reads-or-throws.
 //
-// Mirrors @traceitx/react-native/src/contextSeam.ts so the two
+// Mirrors @everframe/react-native/src/contextSeam.ts so the two
 // SDKs share an identical public surface — flat `open()` (no `report.*`
 // nesting) returning Promise<ReporterResult>.
 //
 // Single-instance enforcement: a second mount throws — two providers in one
 // process would race on this slot and silently spoof the `open()` destination.
-import type { AddBreadcrumbInput, CaptureExceptionOptions, ExtraResolver, UserMetadata } from '@traceitx/sdk-core';
-import { type ReporterResult, TraceItXNotMountedError } from '@traceitx/web';
+import type { AddBreadcrumbInput, CaptureExceptionOptions, ExtraResolver, UserMetadata } from '@everframe/sdk-core';
+import { type ReporterResult, EverframeNotMountedError } from '@everframe/web';
 
-export { TraceItXNotMountedError };
+export { EverframeNotMountedError };
 export type { ReporterResult };
 
 /**
- * Shape exposed via `useTraceItX()` and the top-level `open` re-export.
+ * Shape exposed via `useEverframe()` and the top-level `open` re-export.
  * Kept minimal so the seam can be shared across renders without re-creating
  * function identities on every Provider state change.
  */
-export interface TraceItXContextSeamValue {
+export interface EverframeContextSeamValue {
   open(): Promise<ReporterResult>;
   addBreadcrumb(input: AddBreadcrumbInput): void;
   captureException(error: unknown, options?: CaptureExceptionOptions): void;
@@ -33,13 +33,13 @@ export interface TraceItXContextSeamValue {
   recordScreen(name: string, data?: Record<string, unknown>): void;
 }
 
-let __currentContext: TraceItXContextSeamValue | null = null;
+let __currentContext: EverframeContextSeamValue | null = null;
 
-export function __setCurrentContext(ctx: TraceItXContextSeamValue | null): void {
+export function __setCurrentContext(ctx: EverframeContextSeamValue | null): void {
   if (ctx !== null && __currentContext !== null) {
     // eslint-disable-next-line no-console
     console.error(
-      '[traceitx] A second <TraceItXProvider> was mounted while one was already active. ' +
+      '[everframe] A second <EverframeProvider> was mounted while one was already active. ' +
         'Only one provider may be mounted per process. The new provider is being ignored ' +
         'for top-level `open()` routing.',
     );
@@ -48,20 +48,20 @@ export function __setCurrentContext(ctx: TraceItXContextSeamValue | null): void 
   __currentContext = ctx;
 }
 
-export function __getCurrentContext(): TraceItXContextSeamValue | null {
+export function __getCurrentContext(): EverframeContextSeamValue | null {
   return __currentContext;
 }
 
 /**
  * Top-level imperative `open` re-export. Inside the React tree, prefer
- * `useTraceItX().open()`. This exists for non-component call sites.
+ * `useEverframe().open()`. This exists for non-component call sites.
  */
 export function open(): Promise<ReporterResult> {
   const ctx = __currentContext;
   if (!ctx) {
     return Promise.reject(
-      new TraceItXNotMountedError(
-        'TraceItXProvider not mounted; wrap your root with <TraceItXProvider>.',
+      new EverframeNotMountedError(
+        'EverframeProvider not mounted; wrap your root with <EverframeProvider>.',
       ),
     );
   }
@@ -71,7 +71,7 @@ export function open(): Promise<ReporterResult> {
 /**
  * Top-level `addBreadcrumb` for non-component call sites — router listeners,
  * global error handlers, analytics bridges. Mirrors
- * `@traceitx/react-native`'s seam of the same name, including its no-op-when-
+ * `@everframe/react-native`'s seam of the same name, including its no-op-when-
  * unmounted contract: only `open()` above rejects, because a caller awaiting a
  * report needs to know it never happened, whereas a marker dropped before mount
  * is simply a marker for a session that isn't being recorded.
@@ -112,7 +112,7 @@ export function recordScreen(name: string, data?: Record<string, unknown>): void
 /**
  * Set or clear the active user. Call with NO ARGUMENT to clear — a sign-out
  * must detach the account rather than leave it attached to whoever reports
- * next. Mirrors `@traceitx/react-native`'s `setUser`.
+ * next. Mirrors `@everframe/react-native`'s `setUser`.
  */
 export function setUser(user?: UserMetadata): void {
   __currentContext?.setUser(user ?? null);
@@ -131,7 +131,7 @@ export function setUser(user?: UserMetadata): void {
  * report because the refresh effect fired on route change but not on an
  * in-screen channel switch). The resolver is evaluated when the SDK
  * assembles the report, so it always sees current values with no effect to
- * write or keep in sync. See `TraceItXClient['setExtra']` (sdk-core) for the
+ * write or keep in sync. See `EverframeClient['setExtra']` (sdk-core) for the
  * full contract, including throw safety.
  *
  * String/object forms are still supported; pass a string or an object — the

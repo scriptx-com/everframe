@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import { ReportEnvelope, type Breadcrumb } from '@traceitx/protocol';
+import { ReportEnvelope, type Breadcrumb } from '@everframe/protocol';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { ReportDraft } from '@traceitx/sdk-core';
+import type { ReportDraft } from '@everframe/sdk-core';
 
 const draft: ReportDraft = {
   title: 't',

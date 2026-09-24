@@ -6,7 +6,7 @@ import {
   deriveNetworkFromBreadcrumbs,
 } from '../src/breadcrumbs/derive.js';
 import { buildEnvelope, type BuildEnvelopeInput } from '../src/envelope-builder.js';
-import { ReportEnvelope, type Breadcrumb } from '@traceitx/protocol';
+import { ReportEnvelope, type Breadcrumb } from '@everframe/protocol';
 
 const chain: Breadcrumb[] = [
   { t: 1000, seq: 0, kind: 'navigation', message: '/a → /b', data: { from: '/a', to: '/b' } },
@@ -52,7 +52,7 @@ describe('deriveNetworkFromBreadcrumbs', () => {
 const baseInput = (): BuildEnvelopeInput => ({
   reportId: '7b9f4c2e-8d31-4a6b-9c05-2f1e6a8d4b70',
   submittedAt: '2026-07-07T12:00:00.000Z',
-  sdk: { name: 'traceitx-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
+  sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
   reporter: { title: 't', description: 'd' },
   draft: { title: 't', description: 'd', excludedArtifacts: [], annotations: [], redactions: [] },
   device: {

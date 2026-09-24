@@ -6,9 +6,9 @@
 // JS-facing result shape and the not-mounted error class.
 
 /**
- * Resolved by `useTraceItX().open()` / top-level `open()`.
+ * Resolved by `useEverframe().open()` / top-level `open()`.
  * Mirrors the native NSDictionary / WritableMap shape produced by the iOS
- * (`TraceItXBridge.openReporter`) and Android (`TraceItXModule.openReporter`)
+ * (`EverframeBridge.openReporter`) and Android (`EverframeModule.openReporter`)
  * bridges. The `status` field is one of:
  *   - 'submitted' — envelope shipped successfully (reportId populated)
  *   - 'queued'    — envelope persisted for retry (reportId populated)
@@ -21,12 +21,12 @@ export type ReporterResult =
 
 /**
  * Thrown when `open()` is called from a top-level (non-component) site
- * before a `<TraceItXProvider>` has mounted. Components reading via
- * `useTraceItX()` see a same-class error.
+ * before a `<EverframeProvider>` has mounted. Components reading via
+ * `useEverframe()` see a same-class error.
  */
-export class TraceItXNotMountedError extends Error {
-  override readonly name = 'TraceItXNotMountedError';
+export class EverframeNotMountedError extends Error {
+  override readonly name = 'EverframeNotMountedError';
   constructor(message?: string) {
-    super(message ?? 'TraceItXProvider is not mounted; wrap your app root.');
+    super(message ?? 'EverframeProvider is not mounted; wrap your app root.');
   }
 }

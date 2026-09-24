@@ -13,7 +13,7 @@
 # which is a directory layout and eight lines of text, not a binary.
 #
 # Case 4 is the one to keep. The tempting version of this check compares ALL
-# slices to each other, and that is WRONG — TraceItXReporterUI's `PresentToken`
+# slices to each other, and that is WRONG — EverframeReporterUI's `PresentToken`
 # is genuinely iOS-only (no on-device modal reporter on tvOS), so an all-slices
 # check goes red on a perfectly good build. Every future widening of this guard
 # has to keep case 4 green.
@@ -139,7 +139,7 @@ expect_status 1 && expect_output "does not match ios-arm64" && ok "${CASE_NAME}"
 
 # ---------------------------------------------------------------------------
 # 4. REGRESSION GUARD. iOS declares a type tvOS does not (the real
-#    TraceItXReporterUI.PresentToken case). Each platform's simulator matches
+#    EverframeReporterUI.PresentToken case). Each platform's simulator matches
 #    its own device slice, so this artifact is correct and must pass.
 # ---------------------------------------------------------------------------
 X="${WORK}/4/CrossPlatform.xcframework"

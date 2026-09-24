@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { RingBuffer } from '../internal/ring-buffer.js';
-import type { LogEntry, NetworkEntry } from '@traceitx/sdk-core';
+import type { LogEntry, NetworkEntry } from '@everframe/sdk-core';
 
 export const DEFAULT_CONSOLE_CAP = 100;
 export const DEFAULT_NETWORK_CAP = 100;
@@ -28,7 +28,7 @@ export const networkBuffer = new RingBuffer<NetworkEntry>(DEFAULT_NETWORK_CAP);
  * The console/fetch/XHR patchers are page-global and install-once behind
  * Symbol markers: `destroy()` deliberately leaves them installed (they are
  * shared with anything else on the page and uninstalling them has its own
- * hazards — see `TraceItXHandle.destroy`'s doc and `installFetchPatcher`'s
+ * hazards — see `Everframe.destroy`'s doc and `installFetchPatcher`'s
  * FETCH_MARKER), and their writes used to be UNCONDITIONAL. So between one
  * instance's teardown and the next instance's `init()` — and, worse, after a
  * `kill()` that withdrew consent without tearing anything down — every

@@ -57,12 +57,12 @@ vi.mock('../../src/mount/react-island.js', () => ({
   },
 }));
 
-import { init, type TraceItXHandle, type InternalHandle } from '../../src/init.js';
+import { init, type Everframe, type InternalHandle } from '../../src/init.js';
 
 let handle: InternalHandle | null = null;
 
 afterEach(() => {
-  (handle as TraceItXHandle | null)?.destroy();
+  (handle as Everframe | null)?.destroy();
   handle = null;
   islands.length = 0;
   document.body.innerHTML = '';

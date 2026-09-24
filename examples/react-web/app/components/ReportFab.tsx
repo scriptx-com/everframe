@@ -4,8 +4,8 @@
 // ReportFab — the HOST-owned floating "report a bug" trigger, pinned to the
 // bottom-right corner of every page. The SDK deliberately ships no visible
 // trigger chrome (removed in "drop built-in bubble trigger"); hosts wire
-// their own button and call useTraceItX().open(). This is that button, and
-// it carries data-testid="traceitx-bubble" — the id the e2e suite clicks.
+// their own button and call useEverframe().open(). This is that button, and
+// it carries data-testid="everframe-bubble" — the id the e2e suite clicks.
 //
 // Styling lives in ReportFab.module.css (NOT inline styles / globals.css):
 // the /strict-csp route group also mounts this component, and its CSP
@@ -14,11 +14,11 @@
 // button stays styled even under the strict fixture.
 "use client";
 import { useRef, useState } from "react";
-import { useTraceItX } from "@traceitx/react";
+import { useEverframe } from "@everframe/react";
 import styles from "./ReportFab.module.css";
 
 export function ReportFab() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   const [opening, setOpening] = useState(false);
   // open() resolves when the reporter closes; the ref guards the re-render
   // gap so a double-click can't stack two dialogs.
@@ -40,7 +40,7 @@ export function ReportFab() {
     <button
       type="button"
       className={styles.fab}
-      data-testid="traceitx-bubble"
+      data-testid="everframe-bubble"
       aria-label="Report a bug"
       title="Report a bug (Cmd/Ctrl+Shift+B)"
       onClick={onClick}

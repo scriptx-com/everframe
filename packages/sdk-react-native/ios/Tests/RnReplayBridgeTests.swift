@@ -7,32 +7,32 @@
 //   • #2 (no new surface): the bridge exposes NO replay-config entry point
 //     (no `configureReplay`/`setReplayConfig`); `configure(appId:endpoint:)`
 //     ignores `endpoint` and never reads a JS replay config — replay arming is
-//     keyed entirely on the forwarded SDK key inside `TraceItX.shared.start()`.
+//     keyed entirely on the forwarded SDK key inside `Everframe.shared.start()`.
 //   • #1 (armed-at-start path): `openReporter` is GATED on `start()`
-//     (captureGate) and routes through the SAME `TraceItX.shared.report.open()`
+//     (captureGate) and routes through the SAME `Everframe.shared.report.open()`
 //     seam the presenter freezes/attaches the native replay on. Calling it
 //     before configure() resolves with the captureGate=false error (code 1100),
 //     pinning that report.open() is the bridge's only reporter entry.
 //
 // The actual replay attachment composition (criterion #3) is locked by
-// packages/sdk-ios/Tests/TraceItXTests/RnReplayAttachmentTests.swift via the
+// packages/sdk-ios/Tests/EverframeTests/RnReplayAttachmentTests.swift via the
 // DEBUG-only timeline override. The LIVE frozen→attach end-to-end through a real
 // modal open is device/UIWindow-tier and reserved for the human smoke
 // (24-03 / 24-VALIDATION.md, Pitfall 3) — NOT driven here.
 #if canImport(UIKit) && canImport(XCTest)
 import XCTest
 import UIKit
-@testable import TraceItX_ReactNative
-// Task 14's addBreadcrumb test drives `TraceItX.shared` + `BreadcrumbRingBuffer
+@testable import Everframe_ReactNative
+// Task 14's addBreadcrumb test drives `Everframe.shared` + `BreadcrumbRingBuffer
 // .shared` directly (both public API) to prove the bridge reaches the native
 // singleton — explicit import since this module isn't re-exported by
-// `TraceItX_ReactNative`.
-import TraceItXKit
+// `Everframe_ReactNative`.
+import EverframeKit
 
 final class RnReplayBridgeTests: XCTestCase {
 
-    // Mirror TraceItXModuleTests' host-window setUp so any capture-context needs
-    // have a concrete key window. DO NOT modify TraceItXModuleTests.
+    // Mirror EverframeModuleTests' host-window setUp so any capture-context needs
+    // have a concrete key window. DO NOT modify EverframeModuleTests.
     private var hostWindow: UIWindow?
 
     override func setUp() {
@@ -63,7 +63,7 @@ final class RnReplayBridgeTests: XCTestCase {
         // The TurboModule surface is the fixed 5-method set; there is NO
         // replay-config entry point to call. ObjC runtime reflection confirms
         // no `configureReplay`/`setReplayConfig` selector was added.
-        let cls: AnyClass = TraceItXBridge.self
+        let cls: AnyClass = EverframeBridge.self
         let metaCls: AnyClass = object_getClass(cls)!
 
         XCTAssertFalse(
@@ -81,7 +81,7 @@ final class RnReplayBridgeTests: XCTestCase {
     }
 
     private func classResponds(_ cls: AnyClass, to selector: Selector) -> Bool {
-        class_getClassMethod(TraceItXBridge.self, selector) != nil
+        class_getClassMethod(EverframeBridge.self, selector) != nil
             || class_getInstanceMethod(cls, selector) != nil
     }
 
@@ -89,10 +89,10 @@ final class RnReplayBridgeTests: XCTestCase {
 
     func testOpenReporterIsGatedOnStart() throws {
         // Without a prior configure() the captureGate is false, so openReporter
-        // must call back with the captureGate guard error (TraceItXBridge.swift
+        // must call back with the captureGate guard error (EverframeBridge.swift
         // :100-106, code 1100) — proving the bridge's ONLY reporter entry is the
         // start()-gated report.open() path the presenter freezes/attaches on.
-        guard !TraceItX.shared.captureGate else {
+        guard !Everframe.shared.captureGate else {
             // A prior test in the shared process started the SDK; the gate-false
             // contract can't be exercised here. The structural #1 link
             // (report.open() is the single reporter entry) is documented in the
@@ -101,7 +101,7 @@ final class RnReplayBridgeTests: XCTestCase {
         }
 
         let exp = expectation(description: "openReporter completion")
-        TraceItXBridge.openReporter { dict, err in
+        EverframeBridge.openReporter { dict, err in
             XCTAssertNil(dict, "gated openReporter must not return a result dict")
             let nsErr = err as NSError?
             XCTAssertNotNil(nsErr, "openReporter before start() must error")
@@ -118,17 +118,17 @@ final class RnReplayBridgeTests: XCTestCase {
     // MARK: - Test E: addBreadcrumb forwards to the native singleton (Task 14)
 
     /// The bridge does NO coercion — it forwards straight to
-    /// `TraceItX.shared.addBreadcrumb`, which owns kind coercion (Task 5).
+    /// `Everframe.shared.addBreadcrumb`, which owns kind coercion (Task 5).
     /// Proves the crumb lands in `BreadcrumbRingBuffer.shared` AND that an
     /// unrecognized kind coerces to `.custom` — i.e., that coercion is
     /// happening in the singleton reached through the bridge, not (because
     /// there isn't any) in the bridge itself.
     func testAddBreadcrumbForwardsToNativeSingletonWithKindCoercion() throws {
-        if !TraceItX.shared.captureGate {
-            try TraceItX.shared.start(config: TraceItXConfig(appId: "txx_live_rnbridgetest"))
+        if !Everframe.shared.captureGate {
+            try Everframe.shared.start(config: EverframeConfig(appId: "txx_live_rnbridgetest"))
         }
         let marker = "rn-bridge-\(UUID().uuidString)"
-        TraceItXBridge.addBreadcrumb(
+        EverframeBridge.addBreadcrumb(
             marker as NSString,
             kind: "totally-unknown-kind" as NSString,
             level: nil,
@@ -140,7 +140,7 @@ final class RnReplayBridgeTests: XCTestCase {
         XCTAssertNotNil(crumb, "addBreadcrumb bridge must reach BreadcrumbRingBuffer.shared")
         XCTAssertEqual(
             crumb?.kind.rawValue, "custom",
-            "unknown kind must coerce to custom — proving TraceItX.shared (Task 5), not the bridge, owns coercion"
+            "unknown kind must coerce to custom — proving Everframe.shared (Task 5), not the bridge, owns coercion"
         )
     }
 }

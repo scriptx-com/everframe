@@ -43,11 +43,11 @@ vi.mock('../src/mount/react-island.js', () => ({
   },
 }));
 
-import { init, type TraceItXHandle, type InternalHandle } from '../src/init.js';
-import { __internalClientState } from '@traceitx/sdk-core';
+import { init, type Everframe, type InternalHandle } from '../src/init.js';
+import { __internalClientState } from '@everframe/sdk-core';
 import { REPORTER_TOKEN_STORAGE_KEY } from '../src/reporter/credential-store.js';
 
-let handles: TraceItXHandle[] = [];
+let handles: Everframe[] = [];
 function mount(): InternalHandle {
   const h = init({ apiKey: 'txx_live_island_failure' });
   handles.push(h);
@@ -122,7 +122,7 @@ async function watchUnhandledRejections(fn: () => void | Promise<void>): Promise
 
 /** The shadow root init() mounted into. */
 function shadow(): ShadowRoot {
-  const root = document.getElementById('traceitx-host')?.shadowRoot;
+  const root = document.getElementById('everframe-host')?.shadowRoot;
   if (!root) throw new Error('no shadow root');
   return root;
 }
@@ -134,7 +134,7 @@ function shadow(): ShadowRoot {
  * the click a user actually performs.
  */
 async function fabWithThread(): Promise<HTMLButtonElement> {
-  localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `txr_${'0'.repeat(36)}`);
+  localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {

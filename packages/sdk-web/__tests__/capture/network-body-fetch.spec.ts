@@ -3,8 +3,8 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { installFetchPatcher, type BodyCaptureHooks } from '../../src/capture/network.js';
 import * as networkBodyModule from '../../src/capture/network-body.js';
-import { createNetworkBodyBuffer } from '@traceitx/sdk-core';
-import type { NetworkBodyEntry } from '@traceitx/protocol';
+import { createNetworkBodyBuffer } from '@everframe/sdk-core';
+import type { NetworkBodyEntry } from '@everframe/protocol';
 
 // A large body used by the F29 bounded-prefix tests below. Deliberately NOT
 // one giant unbroken run of word characters: the redaction engine's

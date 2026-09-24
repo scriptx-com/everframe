@@ -8,7 +8,7 @@
 // server-config refresh that changes the window takes effect without a
 // restart.
 import { describe, expect, it } from 'vitest';
-import { MAX_RESOURCE_SAMPLES } from '@traceitx/protocol';
+import { MAX_RESOURCE_SAMPLES } from '@everframe/protocol';
 import { createResourceRing } from '../../src/resources/ring.js';
 
 describe('createResourceRing', () => {

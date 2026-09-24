@@ -11,7 +11,7 @@
 //   taps don't pollute it; discardAndResume() on cancel drops the snapshot
 //   (live capture never stopped); takeFrozen() on submit hands the snapshot
 //   to the envelope build. clear() zeroizes on logout/identity change.
-import type { Breadcrumb } from '@traceitx/protocol';
+import type { Breadcrumb } from '@everframe/protocol';
 import { redactStringContent } from '../redaction/index.js';
 import type { RedactionConfig } from '../redaction/index.js';
 

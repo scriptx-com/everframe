@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// TraceItX View XML sample app (Plan 05-08).
+// Everframe View XML sample app (Plan 05-08).
 //
 // Demonstrates:
-//   • Java MainActivity calling TraceItX.start(...)
+//   • Java MainActivity calling Everframe.start(...)
 //   • TXSensitiveView wrapping a password EditText in login_screen.xml
 //   • app:tx_sensitive="true" custom XML attribute (resolved by
 //     SensitiveLayoutInflaterFactory; PRIV-03 redaction)
 //   • android:inputType="textPassword" auto-detect path (Plan 03)
-//   • TraceItX.report.openAsync(Callback<ReportResult>) — Java callback shim
+//   • Everframe.report.openAsync(Callback<ReportResult>) — Java callback shim
 import java.util.Properties
 
 plugins {
@@ -19,7 +19,7 @@ plugins {
 
 // Host-specific local.properties (gitignored). Gradle auto-loads only
 // sdk.dir/ndk.dir; custom keys must be parsed by hand. Source of truth:
-// repo-root .env → scripts/gen-local-properties.sh writes traceitx.sample.sdkKey.
+// repo-root .env → scripts/gen-local-properties.sh writes everframe.sample.sdkKey.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -35,10 +35,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-        val sampleSdkKey = localProps.getProperty("traceitx.sample.sdkKey")
-            ?: (project.findProperty("traceitx.sample.sdkKey") as String?)
+        val sampleSdkKey = localProps.getProperty("everframe.sample.sdkKey")
+            ?: (project.findProperty("everframe.sample.sdkKey") as String?)
             ?: "txx_dev_sample_throwaway"
-        buildConfigField("String", "TRACEITX_SDK_KEY", "\"$sampleSdkKey\"")
+        buildConfigField("String", "EVERFRAME_SDK_KEY", "\"$sampleSdkKey\"")
     }
 
     buildFeatures {
@@ -67,12 +67,21 @@ android {
     }
 }
 
+val everframeVersion: String =
+    (project.findProperty("everframeVersion") as String?)
+        ?: rootProject.file("../../packages/sdk-android/android/gradle.properties")
+            .readLines()
+            .firstNotNullOfOrNull { line ->
+                line.trim().removePrefix("everframeVersion=").takeIf { it != line.trim() }
+            }
+        ?: error("Could not determine everframeVersion")
+
 dependencies {
-    implementation("com.traceitx:core:1.2.0-SNAPSHOT")
-    implementation("com.traceitx:reporter-ui:1.2.0-SNAPSHOT")
+    implementation("dev.everframe:core:$everframeVersion")
+    implementation("dev.everframe:reporter-ui:$everframeVersion")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    // Plan 05.1-02: PresentingObserver collects TraceItX.report.isPresenting on
+    // Plan 05.1-02: PresentingObserver collects Everframe.report.isPresenting on
     // the Activity's lifecycleScope (per plan-checker W2 — never GlobalScope).
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

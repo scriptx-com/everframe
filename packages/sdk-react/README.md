@@ -1,28 +1,28 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# @traceitx/react
+# @everframe/react
 
-React (web) SDK for TraceItX — AI-ready bug reporting embedded in your app.
+React (web) SDK for Everframe — AI-ready bug reporting embedded in your app.
 
 MIT · React 18 || 19 · ESM-only · Node 20+
 
 ## Install
 
 ```bash
-pnpm add @traceitx/react
+pnpm add @everframe/react
 # or
-npm install @traceitx/react
+npm install @everframe/react
 ```
 
 Optional but recommended: install the `displayName` preservation plugin so component names survive minification:
 
 ```bash
 # Babel users (Webpack / CRA / Next.js with Babel config)
-pnpm add -D @traceitx/babel-plugin-displayname
+pnpm add -D @everframe/babel-plugin-displayname
 
 # SWC users (Next.js default since 12+)
-pnpm add -D @traceitx/swc-plugin-displayname
+pnpm add -D @everframe/swc-plugin-displayname
 ```
 
 ## Quickstart
@@ -31,15 +31,15 @@ Wrap your app once. The Provider mounts the floating bubble, registers the hotke
 
 ```tsx
 // app/layout.tsx (Next.js app router)
-import { TraceItXProvider } from '@traceitx/react';
+import { EverframeProvider } from '@everframe/react';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
-        <TraceItXProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx' }}>
+        <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx' }}>
           {children}
-        </TraceItXProvider>
+        </EverframeProvider>
       </body>
     </html>
   );
@@ -50,21 +50,21 @@ Open the reporter programmatically from anywhere:
 
 ```tsx
 'use client';
-import { useTraceItX } from '@traceitx/react';
+import { useEverframe } from '@everframe/react';
 
 export function HelpButton() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   return <button onClick={open}>Report a bug</button>;
 }
 ```
 
 ## Reporting caught exceptions
 
-Use `useTraceItX().captureException(error)` inside components, or the top-level
+Use `useEverframe().captureException(error)` inside components, or the top-level
 export in a catch block or an error boundary:
 
 ```tsx
-import { captureException } from '@traceitx/react';
+import { captureException } from '@everframe/react';
 
 try {
   await saveCart();
@@ -98,7 +98,7 @@ By default the SDK installs:
 
 `Mod` resolves to `Cmd` on macOS and `Ctrl` elsewhere.
 
-A visible trigger (bubble, menu item, etc.) is the host app's responsibility — call `useTraceItX().open()` from your own button to bring up the reporter.
+A visible trigger (bubble, menu item, etc.) is the host app's responsibility — call `useEverframe().open()` from your own button to bring up the reporter.
 
 ## Strict-CSP environments
 
@@ -111,9 +111,9 @@ import { headers } from 'next/headers';
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get('x-nonce') ?? '';
   return (
-    <TraceItXProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
+    <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
       {children}
-    </TraceItXProvider>
+    </EverframeProvider>
   );
 }
 ```
@@ -123,19 +123,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 Three equivalent surfaces — pick whichever fits your codebase:
 
 ```tsx
-import { Sensitive, useTraceItX } from '@traceitx/react';
+import { Sensitive, useEverframe } from '@everframe/react';
 import { useEffect, useRef } from 'react';
 
 // 1. Component wrapper
 <Sensitive><CreditCardNumber /></Sensitive>
 
 // 2. data-attribute (works on any DOM element)
-<div data-traceitx-sensitive>{value}</div>
+<div data-everframe-sensitive>{value}</div>
 
 // 3. Ref hook
 function MyField({ value }: { value: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { markSensitive } = useTraceItX();
+  const { markSensitive } = useEverframe();
   useEffect(() => {
     if (ref.current) markSensitive(ref);
   }, [markSensitive]);
@@ -151,11 +151,11 @@ The SDK is ESM-only. Some Next.js + monorepo setups need to transpile workspace 
 
 ```ts
 // next.config.ts
-transpilePackages: ['@traceitx/react', '@traceitx/sdk-core', '@traceitx/protocol'],
+transpilePackages: ['@everframe/react', '@everframe/sdk-core', '@everframe/protocol'],
 ```
 
 The always-loaded entry measures ~136 KB gzip (`pnpm size-limit`, budget 240 KB). The heavy capture and annotation dependencies — rrweb, react-konva, and modern-screenshot — are lazy-imported and are not in that number; they load only when the reporter is actually opened.
 
 ## Example
 
-See [`examples/react-web/`](https://github.com/scriptx-com/traceitx-releases/tree/main/examples/react-web) for a Next.js dogfood project covering both the strict-CSP fixture and the standard SSR fixture.
+See [`examples/react-web/`](https://github.com/scriptx-com/everframe/tree/main/examples/react-web) for a Next.js dogfood project covering both the strict-CSP fixture and the standard SSR fixture.

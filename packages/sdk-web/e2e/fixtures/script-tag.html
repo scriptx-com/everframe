@@ -4,7 +4,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>TraceItX script-tag e2e fixture</title>
+<title>Everframe script-tag e2e fixture</title>
 <style>
   body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e8ee; }
   main { padding: 32px; display: grid; gap: 16px; max-width: 720px; }
@@ -23,7 +23,7 @@
   <!-- The DOCUMENTED no-bundler integration, structurally character for
        character: ONE <script type="module"> that imports the browser entry by
        URL and calls init(). In the README that URL is a version-pinned
-       jsDelivr path (…/@traceitx/web@0.6.6/dist/browser/index.js); here it is
+       jsDelivr path (…/@everframe/web@0.6.6/dist/browser/index.js); here it is
        the same artifact served locally out of the same versioned directory.
 
        NO IMPORT MAP — that is the point of this fixture and the one thing
@@ -36,14 +36,14 @@
 
        ONE <script> block, not two. `type="module"` is DEFERRED, so a classic
        inline <script> placed after it would run FIRST — which is exactly why
-       the old two-tag `window.traceitx` idiom could not survive the move off
+       the old two-tag `window.everframe` idiom could not survive the move off
        the IIFE, and why the documented snippet is a single module block. -->
   <script type="module">
     import { init } from '/dist/browser/index.js';
-    window.__traceitx = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
     document.getElementById('report').addEventListener('click', () => {
       // Swallowed for the same reason as plain.html's — see that fixture.
-      window.__traceitx.open().catch(() => {});
+      window.__everframe.open().catch(() => {});
     });
   </script>
 </body>

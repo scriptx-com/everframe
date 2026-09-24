@@ -19,8 +19,8 @@
 //     (getVariantTracks(), drmInfo(), getStats()) rather than putting it on
 //     event payloads, so several handlers re-query the player instead of
 //     reading the event.
-import type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings } from '@traceitx/sdk-core';
-import { safeWrap } from '@traceitx/sdk-core';
+import type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings } from '@everframe/sdk-core';
+import { safeWrap } from '@everframe/sdk-core';
 
 export const SHAKA_EVENTS = {
   LOADING: 'loading',

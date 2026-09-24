@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createVitalsCollector } from '@traceitx/sdk-core';
-import type { PlayerIntegration, PlayerIntegrationContext } from '@traceitx/sdk-core';
+import { createVitalsCollector } from '@everframe/sdk-core';
+import type { PlayerIntegration, PlayerIntegrationContext } from '@everframe/sdk-core';
 import {
   attachPlayerVitals,
   type PlayerVitalsAdapter,
   type PlayerVitalsDeps,
 } from '../../src/vitals/player-adapter.js';
 import { shakaIntegration, SHAKA_EVENTS } from '../../src/vitals/integrations/shaka.js';
-import { MAX_PLAYER_LIBRARY_LENGTH } from '@traceitx/protocol';
+import { MAX_PLAYER_LIBRARY_LENGTH } from '@everframe/protocol';
 
 type Emitted = { t: number; type: string; data?: Record<string, unknown>; playerId?: string };
 

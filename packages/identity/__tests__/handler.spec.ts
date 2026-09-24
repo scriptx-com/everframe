@@ -12,7 +12,7 @@ const ALICE: IdentityUser = { id: 'u_alice', email: 'alice@example.com', name: '
 const handlerFor = (resolveUser: (req: Request) => IdentityUser | null | Promise<IdentityUser | null>) =>
   createIdentityHandler({ secret: SECRET, projectId: PROJECT_ID, resolveUser });
 
-const GET = () => new Request('https://app.example.com/api/traceitx-identity');
+const GET = () => new Request('https://app.example.com/api/everframe-identity');
 
 describe('createIdentityHandler — construction', () => {
   const base = { projectId: PROJECT_ID, resolveUser: () => ALICE };

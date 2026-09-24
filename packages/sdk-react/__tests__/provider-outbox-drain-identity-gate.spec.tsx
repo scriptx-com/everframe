@@ -33,9 +33,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { useContext, useEffect } from 'react';
-import { TraceItXProvider, TraceItXContext } from '../src/provider.js';
-import { createLocalStorageOutbox } from '@traceitx/web';
-import { IDENTITY_PROVIDER_TIMEOUT_MS } from '@traceitx/sdk-core';
+import { EverframeProvider, EverframeContext } from '../src/provider.js';
+import { createLocalStorageOutbox } from '@everframe/web';
+import { IDENTITY_PROVIDER_TIMEOUT_MS } from '@everframe/sdk-core';
 
 afterEach(() => {
   cleanup();
@@ -55,11 +55,11 @@ function mkJwt(): string {
 }
 
 /** Calls `client.setIdentityToken` from ITS OWN mount effect. Rendered as a
- *  CHILD of TraceItXProvider so its effect commits before the Provider's own
+ *  CHILD of EverframeProvider so its effect commits before the Provider's own
  *  (React runs child effects before parent effects in the same commit) —
  *  the ordering a real host's auth-wiring component would also produce. */
 function IdentitySetter({ token }: { token: string }) {
-  const ctx = useContext(TraceItXContext);
+  const ctx = useContext(EverframeContext);
   useEffect(() => {
     ctx?.client.setIdentityToken(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,9 +130,9 @@ describe('PR review Finding 2 (second half) — mount drain waits for config whe
     const { ingestCalls, resolveConfig } = stubDeferredConfigFetch();
 
     render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <IdentitySetter token={mkJwt()} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     // Shortly after mount, config is still pending — the drain must not have
@@ -151,9 +151,9 @@ describe('PR review Finding 2 (second half) — mount drain waits for config whe
     const { ingestCalls } = stubDeferredConfigFetch(); // resolveConfig deliberately never called
 
     render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <IdentitySetter token={mkJwt()} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     await flush(20);
@@ -175,7 +175,7 @@ describe('PR review Finding 2 (second half) — mount drain waits for config whe
     await seedOutboxItem('r1', APP_KEY);
     const { ingestCalls } = stubDeferredConfigFetch(); // never resolved, and never should matter here
 
-    render(<TraceItXProvider config={config}>{null}</TraceItXProvider>);
+    render(<EverframeProvider config={config}>{null}</EverframeProvider>);
 
     await flush(20);
     expect(ingestCalls.length).toBe(1); // drained immediately, no source to protect

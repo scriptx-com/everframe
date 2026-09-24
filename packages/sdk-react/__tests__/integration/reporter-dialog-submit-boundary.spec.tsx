@@ -19,7 +19,7 @@
 // .capturedIdentityToken`, which `onComplete` now prefers over its own
 // (later, fallback-only) capture.
 //
-// This test drives the real `TraceItXProvider` + `ReporterDialog` pipeline,
+// This test drives the real `EverframeProvider` + `ReporterDialog` pipeline,
 // adds a real annotation to the captured screenshot (via a mocked
 // `AnnotateScreenshot` — real Konva canvas interaction is out of scope for
 // this test; the "Annotate screenshot" UI is fully covered elsewhere), and
@@ -71,11 +71,11 @@ vi.mock('../../../sdk-web/src/reporter-ui/AnnotateScreenshot.js', () => ({
   ),
 }));
 
-import { TraceItXProvider } from '../../src/provider.js';
-import { useTraceItX } from '../../src/hook.js';
+import { EverframeProvider } from '../../src/provider.js';
+import { useEverframe } from '../../src/hook.js';
 
 function OpenButton() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   return (
     <button type="button" data-testid="host-open" onClick={open}>
       open
@@ -92,7 +92,7 @@ function IdentityController({
   initial: string;
   onReady: (set: (token: string) => void) => void;
 }) {
-  const { setIdentityToken } = useTraceItX();
+  const { setIdentityToken } = useEverframe();
   useEffect(() => {
     setIdentityToken(initial);
     onReady(setIdentityToken);
@@ -116,7 +116,7 @@ function UserController({
   initial: { id: string };
   onReady: (set: (u: { id: string }) => void) => void;
 }) {
-  const { setUser } = useTraceItX();
+  const { setUser } = useEverframe();
   useEffect(() => {
     setUser(initial);
     onReady(setUser);
@@ -193,8 +193,8 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
         const headers = init?.headers as Record<string, string> | Headers | undefined;
         observedHeader =
           headers instanceof Headers
-            ? headers.get('X-TX-Identity-Token')
-            : headers?.['X-TX-Identity-Token'];
+            ? headers.get('X-Everframe-Identity-Token')
+            : headers?.['X-Everframe-Identity-Token'];
         return new Response('{}', { status: 200 });
       }
       return new Response('', { status: 200 });
@@ -204,13 +204,13 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
 
     try {
       const { findByTestId } = render(
-        <TraceItXProvider
+        <EverframeProvider
           config={{ apiKey: 'txx_live_dialog_boundary', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <IdentityController initial={alice} onReady={(set) => { liveSetIdentityToken = set; }} />
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       await waitFor(() => {
@@ -304,13 +304,13 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
 
     try {
       const { findByTestId } = render(
-        <TraceItXProvider
+        <EverframeProvider
           config={{ apiKey: 'txx_live_dialog_user_boundary', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <UserController initial={{ id: 'alice' }} onReady={(set) => { liveSetUser = set; }} />
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       await waitFor(() => {
@@ -386,13 +386,13 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
 
     try {
       const { findByTestId } = render(
-        <TraceItXProvider
+        <EverframeProvider
           config={{ apiKey: 'txx_live_dialog_user_clone', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <UserController initial={hostUser} onReady={() => undefined} />
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       await waitFor(() => {
@@ -464,13 +464,13 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
 
     try {
       const { findByTestId } = render(
-        <TraceItXProvider
+        <EverframeProvider
           config={{ apiKey: 'txx_live_dialog_user_projection', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <UserController initial={hostUser} onReady={() => undefined} />
           <OpenButton />
-        </TraceItXProvider>,
+        </EverframeProvider>,
       );
 
       await waitFor(() => {

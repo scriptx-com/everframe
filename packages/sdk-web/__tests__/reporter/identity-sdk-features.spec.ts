@@ -3,7 +3,7 @@
 //
 // Reporter identity recognition (spec 2026-08-06) — capability negotiation.
 // The server only emits the `identity` config block (Task 7) when the
-// request declares `identity` in `X-TX-SDK-Features`. Missing this token
+// request declares `identity` in `X-Everframe-SDK-Features`. Missing this token
 // means `identity.enabled` is always undefined and the whole feature looks
 // broken client-side with nothing in the logs to explain why — see the
 // task-14 brief's "Capability negotiation — do not miss this" section.
@@ -42,7 +42,7 @@ describe('web adapter — identity capability negotiation', () => {
     const configCall = fetchMock.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'));
     expect(configCall).toBeDefined();
     const headers = configCall![1]?.headers as Record<string, string>;
-    const features = headers['X-TX-SDK-Features']!.split(',').map((s) => s.trim());
+    const features = headers['X-Everframe-SDK-Features']!.split(',').map((s) => s.trim());
     expect(features).toContain('identity');
   });
 });

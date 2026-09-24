@@ -22,7 +22,7 @@ function renderModal() {
 }
 
 function portalRoot(): HTMLElement {
-  const el = document.querySelector('.txx-root');
+  const el = document.querySelector('.everframe-root');
   expect(el).not.toBeNull();
   return el as HTMLElement;
 }
@@ -31,29 +31,29 @@ describe('Modal theme vars (branding spec 2026-08-25)', () => {
   it('applies resolved vars inline on the portal root when entitled', () => {
     __setBrandingServerConfig({ watermark: false, theme: { accent: '#336699' } });
     renderModal();
-    expect(portalRoot().style.getPropertyValue('--txx-accent')).toBe('#336699');
+    expect(portalRoot().style.getPropertyValue('--everframe-accent')).toBe('#336699');
   });
 
   it('applies NOTHING when unentitled, even with an inline theme (fail closed)', () => {
     __setInlineReporterTheme({ accent: '#336699' });
     renderModal();
-    expect(portalRoot().style.getPropertyValue('--txx-accent')).toBe('');
+    expect(portalRoot().style.getPropertyValue('--everframe-accent')).toBe('');
   });
 
   it('inline theme applies once the server confirms entitlement — live, mid-open', () => {
     __setInlineReporterTheme({ accent: '#336699' });
     renderModal();
-    expect(portalRoot().style.getPropertyValue('--txx-accent')).toBe('');
+    expect(portalRoot().style.getPropertyValue('--everframe-accent')).toBe('');
     act(() => __setBrandingServerConfig({ watermark: false }));
-    expect(portalRoot().style.getPropertyValue('--txx-accent')).toBe('#336699');
+    expect(portalRoot().style.getPropertyValue('--everframe-accent')).toBe('#336699');
   });
 
   it('server theme field beats the inline one per-field', () => {
     __setInlineReporterTheme({ accent: '#00ff00', accentForeground: '#111111' });
     __setBrandingServerConfig({ watermark: false, theme: { accent: '#ff0000' } });
     renderModal();
-    expect(portalRoot().style.getPropertyValue('--txx-accent')).toBe('#ff0000');
-    expect(portalRoot().style.getPropertyValue('--txx-accent-fg')).toBe('#111111');
+    expect(portalRoot().style.getPropertyValue('--everframe-accent')).toBe('#ff0000');
+    expect(portalRoot().style.getPropertyValue('--everframe-accent-fg')).toBe('#111111');
   });
 
   it('the hidden prop still hides the modal when themed', () => {
@@ -64,6 +64,6 @@ describe('Modal theme vars (branding spec 2026-08-25)', () => {
       </Modal>,
     );
     expect(portalRoot().style.visibility).toBe('hidden');
-    expect(portalRoot().style.getPropertyValue('--txx-accent')).toBe('#336699');
+    expect(portalRoot().style.getPropertyValue('--everframe-accent')).toBe('#336699');
   });
 });

@@ -23,8 +23,8 @@
 // tab was hidden the entire time.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act, waitFor } from '@testing-library/react';
-import { TraceItXProvider } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@traceitx/web';
+import { EverframeProvider } from '../src/provider.js';
+import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
 
 afterEach(() => {
   cleanup();
@@ -83,14 +83,14 @@ async function flush(ms = 20): Promise<void> {
 
 describe('finding 5: a Provider mounted while the document is hidden does not start background polling', () => {
   it('mounted with visibilityState=hidden: no poll fires after config settles; a later visible transition starts it', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     const { calls } = stubFetch();
 
     const { getByTestId, queryByTestId } = render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <div>host</div>
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     await flush(30);
@@ -123,15 +123,15 @@ describe('finding 5: a Provider mounted while the document is hidden does not st
   });
 
   it('unchanged: mounted with the default (visible) state still polls after config settles', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     // jsdom's default visibilityState is 'visible' — no explicit stub here,
     // proving the fix doesn't regress the ordinary foreground-mount path.
     const { calls } = stubFetch();
 
     const { getByTestId } = render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <div>host</div>
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     await flush(30);

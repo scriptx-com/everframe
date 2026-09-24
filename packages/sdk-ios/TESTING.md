@@ -19,18 +19,18 @@ UIKit-gated. They can only be verified on a simulator.
 
 ## Simulator tests (UIKit-gated suites)
 
-A git-ignored `TraceItX.xcodeproj` in this directory shadows `Package.swift` for
-xcodebuild, so `-scheme TraceItX-Package` will not resolve while it exists. Move
+A git-ignored `Everframe.xcodeproj` in this directory shadows `Package.swift` for
+xcodebuild, so `-scheme Everframe-Package` will not resolve while it exists. Move
 it aside for the run, then move it back explicitly afterward and verify:
 
     cd packages/sdk-ios
     SIM_UDID=$(xcrun simctl list devices available -j \
       | python3 -c 'import json,sys; ds=json.load(sys.stdin)["devices"]; print(next((d["udid"] for rt in sorted(ds) if "iOS" in rt for d in ds[rt] if d.get("isAvailable") and d["name"].startswith("iPhone")), ""))')
-    [ -d TraceItX.xcodeproj ] && mv TraceItX.xcodeproj /tmp/TraceItX.xcodeproj.shadow
-    xcodebuild test -scheme TraceItX-Package -destination "id=$SIM_UDID" \
-      -only-testing:TraceItXTests/VTreeProducerRoleTests
-    mv /tmp/TraceItX.xcodeproj.shadow TraceItX.xcodeproj
-    ls -d TraceItX.xcodeproj   # verify it's actually back
+    [ -d Everframe.xcodeproj ] && mv Everframe.xcodeproj /tmp/Everframe.xcodeproj.shadow
+    xcodebuild test -scheme Everframe-Package -destination "id=$SIM_UDID" \
+      -only-testing:EverframeTests/VTreeProducerRoleTests
+    mv /tmp/Everframe.xcodeproj.shadow Everframe.xcodeproj
+    ls -d Everframe.xcodeproj   # verify it's actually back
 
 A `trap … EXIT` on the `mv` looks tempting but only fires within the shell
 invocation that set it — if the `mv` and the `xcodebuild` end up split across

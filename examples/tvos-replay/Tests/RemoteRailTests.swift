@@ -8,15 +8,15 @@ final class RemoteRailTests: XCTestCase {
     /// temporary xctestrun file made by drive-xctest.mjs, never the project.
     func testConfiguredReplayWorkload() throws {
         let env = ProcessInfo.processInfo.environment
-        guard let key = env["TRACEITX_E2E_SDK_KEY"], let endpoint = env["TRACEITX_DEV_INGEST_URL"],
+        guard let key = env["EVERFRAME_E2E_SDK_KEY"], let endpoint = env["EVERFRAME_DEV_INGEST_URL"],
               let host = URL(string: endpoint)?.host, ["localhost", "127.0.0.1"].contains(host)
         else { throw XCTSkip("Local replay integration environment not supplied") }
         let app = XCUIApplication()
         for name in ["REPLAY_TV_RUN", "REPLAY_TV_MODE", "REPLAY_TV_SWIFTUI"] {
             app.launchEnvironment[name] = env[name] ?? ""
         }
-        app.launchEnvironment["TRACEITX_E2E_SDK_KEY"] = key
-        app.launchEnvironment["TRACEITX_DEV_INGEST_URL"] = endpoint
+        app.launchEnvironment["EVERFRAME_E2E_SDK_KEY"] = key
+        app.launchEnvironment["EVERFRAME_DEV_INGEST_URL"] = endpoint
         app.launchEnvironment["REPLAY_TV_AUTOSCROLL"] = "0"
         app.launch()
         XCTAssertTrue(app.cells["poster-0-0"].waitForExistence(timeout: 15))
@@ -27,7 +27,7 @@ final class RemoteRailTests: XCTestCase {
             Thread.sleep(forTimeInterval: 3)
             app.activate()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
-            emit("TRACEITX_TV_RESUMED epochMs=\(Date().timeIntervalSince1970 * 1000)")
+            emit("EVERFRAME_TV_RESUMED epochMs=\(Date().timeIntervalSince1970 * 1000)")
         }
         let seconds = try XCTUnwrap(Double(env["REPLAY_RUN_SECONDS"] ?? "75"))
         XCTAssertTrue((15...120).contains(seconds))
@@ -48,7 +48,7 @@ final class RemoteRailTests: XCTestCase {
             keys += 1
         }
         XCTAssertEqual(app.state, .runningForeground)
-        emit("TRACEITX_REMOTE_DONE keys=\(keys)")
+        emit("EVERFRAME_REMOTE_DONE keys=\(keys)")
         // Keep ownership until the browser finishes, not an unrelated timer.
         // The driver writes only into this test runner's own cache container.
         let controlName = try XCTUnwrap(env["REPLAY_TV_CONTROL_NAME"])

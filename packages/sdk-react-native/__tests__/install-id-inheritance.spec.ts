@@ -3,7 +3,7 @@
 //
 // MAI meter Plan 2b-i — RN sends the install identifier by INHERITANCE: both
 // bridges call the native `start()`, which resolves and threads the
-// identifier (sdk-ios TraceItX.swift / sdk-android TraceItX.kt). There is no
+// identifier (sdk-ios Everframe.swift / sdk-android Everframe.kt). There is no
 // RN-side derivation to test, which is exactly why this gate exists: if a
 // bridge ever stopped routing through native start() — building its own
 // ReplaySession or ReplayConfigProvider instead — RN would silently stop
@@ -22,10 +22,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 describe('RN install-identifier inheritance', () => {
   it('the iOS bridge configures through the native start()', () => {
     const src = readFileSync(
-      path.join(__dirname, '..', 'ios', 'Sources', 'TraceItXBridge.swift'),
+      path.join(__dirname, '..', 'ios', 'Sources', 'EverframeBridge.swift'),
       'utf8',
     );
-    expect(src).toContain('TraceItX.shared.start(config:');
+    expect(src).toContain('Everframe.shared.start(config:');
     expect(src).not.toContain('ReplayConfigProvider(');
     // A regressed bridge could build its own provider through the factory
     // (`ReplayConfigProvider.make(`, ReplayConfigProvider.swift:549) instead
@@ -60,14 +60,14 @@ describe('RN install-identifier inheritance', () => {
         'src',
         'main',
         'java',
-        'com',
-        'traceitx',
+        'dev',
+        'everframe',
         'rn',
-        'TraceItXModule.kt',
+        'EverframeModule.kt',
       ),
       'utf8',
     );
-    expect(src).toContain('TraceItX.start(');
+    expect(src).toContain('Everframe.start(');
     expect(src).not.toContain('ReplayConfigProvider(');
     // Same factory-form gap as the iOS case above: Kotlin's
     // `ReplayConfigProvider.make(` (ReplayConfigProvider.kt:882) contains no
@@ -75,11 +75,11 @@ describe('RN install-identifier inheritance', () => {
     expect(src).not.toContain('ReplayConfigProvider.make(');
     expect(src).not.toContain('ReplaySession(');
     // Unlike the iOS case above, Android's `configure()` path IS reachable
-    // from a unit test: `android/src/test/java/com/traceitx/rn/
-    // TraceItXModuleConfigureTest.kt` (a Robolectric suite CI runs via
+    // from a unit test: `android/src/test/java/dev/everframe/rn/
+    // EverframeModuleConfigureTest.kt` (a Robolectric suite CI runs via
     // `./gradlew testDebugUnitTest`, react-native.yml) drives
-    // `TraceItXModule.configure()` directly and asserts on
-    // `TraceItX.currentConfig!!.installIdentifierEnabled` for both veto
+    // `EverframeModule.configure()` directly and asserts on
+    // `Everframe.currentConfig!!.installIdentifierEnabled` for both veto
     // directions plus the absent-flag default. That behavioural coverage is
     // the primary guard against the fail-OPEN risk this regex describes; the
     // regex below stays as a second, cheaper check — it pins the polarity of

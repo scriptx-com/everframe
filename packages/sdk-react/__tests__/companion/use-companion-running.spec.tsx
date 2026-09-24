@@ -13,7 +13,7 @@
 // a real `RelayWSClient`, and jsdom has no native WebSocket.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { start, stop } from '@traceitx/web';
+import { start, stop } from '@everframe/web';
 import { useCompanion } from '../../src/companion/use-companion.js';
 
 function makeNoopWSCtor(): typeof WebSocket {

@@ -12,7 +12,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type shaka from 'shaka-player';
-import { useTrackPlayer } from '@traceitx/react';
+import { useTrackPlayer } from '@everframe/react';
 import { PlayerBench } from '../../../components/PlayerBench';
 import { DASH_URL } from '../../../lib/media';
 

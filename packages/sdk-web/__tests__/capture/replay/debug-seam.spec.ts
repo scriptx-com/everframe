@@ -6,7 +6,7 @@
 // live replay state, since the lifecycle is reachable from nothing global.
 // Absent unless the host opts in, and gone again when the adapter is killed.
 import { describe, it, expect, afterEach } from 'vitest';
-import { __getReplayTrace, __isReplayTraceEnabled, __resetReplayTrace } from '@traceitx/sdk-core';
+import { __getReplayTrace, __isReplayTraceEnabled, __resetReplayTrace } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../../src/adapter.js';
 import { DEBUG_GLOBAL_KEY, type ReplayDebugSeam } from '../../../src/debug/seam.js';
 
@@ -169,7 +169,7 @@ describe('replay debug seam', () => {
   // Round-4 latch audit (alongside codex finding 2). `onKill()` DELETES the
   // global, and `adoptReplayDebugSeam()` — all `__initReplay()` does on a
   // remount — only re-points the sources behind it. So React StrictMode's
-  // simulated unmount took `window.__traceitxDebug` away for the life of the
+  // simulated unmount took `window.__everframeDebug` away for the life of the
   // page, in the one environment the seam exists to serve. Same revive
   // doctrine as `reportingKilled` and the recorder: only `__rebindCrumbHooks()`
   // brings it back, and a host that genuinely killed the client never calls it.

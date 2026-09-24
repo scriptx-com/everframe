@@ -20,7 +20,7 @@ export interface Specimen {
 
 export const SPECIMENS: Specimen[] = [
   {
-    id: 'txx-001',
+    id: 'everframe-001',
     commonName: 'Seven-spot ladybird',
     latinName: 'Coccinella septempunctata',
     order: 'Coleoptera',
@@ -31,7 +31,7 @@ export const SPECIMENS: Specimen[] = [
     color: '#b5452f',
   },
   {
-    id: 'txx-002',
+    id: 'everframe-002',
     commonName: 'Green tiger beetle',
     latinName: 'Cicindela campestris',
     order: 'Coleoptera',
@@ -42,7 +42,7 @@ export const SPECIMENS: Specimen[] = [
     color: '#3e7b57',
   },
   {
-    id: 'txx-003',
+    id: 'everframe-003',
     commonName: 'Peacock butterfly',
     latinName: 'Aglais io',
     order: 'Lepidoptera',
@@ -53,7 +53,7 @@ export const SPECIMENS: Specimen[] = [
     color: '#8a4130',
   },
   {
-    id: 'txx-004',
+    id: 'everframe-004',
     commonName: 'Common blue damselfly',
     latinName: 'Enallagma cyathigerum',
     order: 'Odonata',
@@ -64,7 +64,7 @@ export const SPECIMENS: Specimen[] = [
     color: '#3e6f9e',
   },
   {
-    id: 'txx-005',
+    id: 'everframe-005',
     commonName: 'European firefly',
     latinName: 'Lampyris noctiluca',
     order: 'Coleoptera',
@@ -75,7 +75,7 @@ export const SPECIMENS: Specimen[] = [
     color: '#57503c',
   },
   {
-    id: 'txx-006',
+    id: 'everframe-006',
     commonName: 'European mantis',
     latinName: 'Mantis religiosa',
     order: 'Mantodea',
@@ -86,7 +86,7 @@ export const SPECIMENS: Specimen[] = [
     color: '#5f7f3f',
   },
   {
-    id: 'txx-007',
+    id: 'everframe-007',
     commonName: 'Buff-tailed bumblebee',
     latinName: 'Bombus terrestris',
     order: 'Hymenoptera',
@@ -97,7 +97,7 @@ export const SPECIMENS: Specimen[] = [
     color: '#3a3428',
   },
   {
-    id: 'txx-008',
+    id: 'everframe-008',
     commonName: 'Stag beetle',
     latinName: 'Lucanus cervus',
     order: 'Coleoptera',

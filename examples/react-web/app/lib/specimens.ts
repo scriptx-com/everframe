@@ -3,7 +3,7 @@
 
 /**
  * Catalog data for the Elytra demo. All species occur in the Baltics
- * (TraceItX is built in Vilnius); facts are field-guide accurate enough
+ * (Everframe is built in Vilnius); facts are field-guide accurate enough
  * for a fixture. Rendered as generative SVG by <SpecimenPlate/> — the
  * example ships zero binary image assets.
  */
@@ -34,7 +34,7 @@ export interface Specimen {
 
 export const SPECIMENS: Specimen[] = [
   {
-    id: "txx-001",
+    id: "everframe-001",
     commonName: "Seven-spot ladybird",
     latinName: "Coccinella septempunctata",
     order: "Coleoptera",
@@ -45,7 +45,7 @@ export const SPECIMENS: Specimen[] = [
     plate: { kind: "beetle", color: "#b5452f", color2: "#20241c", spots: 7 },
   },
   {
-    id: "txx-002",
+    id: "everframe-002",
     commonName: "Green tiger beetle",
     latinName: "Cicindela campestris",
     order: "Coleoptera",
@@ -56,7 +56,7 @@ export const SPECIMENS: Specimen[] = [
     plate: { kind: "beetle", color: "#3e7b57", color2: "#e9e4c9", spots: 4 },
   },
   {
-    id: "txx-003",
+    id: "everframe-003",
     commonName: "Peacock butterfly",
     latinName: "Aglais io",
     order: "Lepidoptera",
@@ -67,7 +67,7 @@ export const SPECIMENS: Specimen[] = [
     plate: { kind: "butterfly", color: "#8a4130", color2: "#3e5f8a" },
   },
   {
-    id: "txx-004",
+    id: "everframe-004",
     commonName: "Common blue damselfly",
     latinName: "Enallagma cyathigerum",
     order: "Odonata",
@@ -78,7 +78,7 @@ export const SPECIMENS: Specimen[] = [
     plate: { kind: "damselfly", color: "#3e6f9e", color2: "#20241c" },
   },
   {
-    id: "txx-005",
+    id: "everframe-005",
     commonName: "European firefly",
     latinName: "Lampyris noctiluca",
     order: "Coleoptera",
@@ -89,7 +89,7 @@ export const SPECIMENS: Specimen[] = [
     plate: { kind: "beetle", color: "#57503c", color2: "#3d3729", glow: true },
   },
   {
-    id: "txx-006",
+    id: "everframe-006",
     commonName: "European mantis",
     latinName: "Mantis religiosa",
     order: "Mantodea",
@@ -100,7 +100,7 @@ export const SPECIMENS: Specimen[] = [
     plate: { kind: "mantis", color: "#5f7f3f", color2: "#8aa35e" },
   },
   {
-    id: "txx-007",
+    id: "everframe-007",
     commonName: "Buff-tailed bumblebee",
     latinName: "Bombus terrestris",
     order: "Hymenoptera",
@@ -111,7 +111,7 @@ export const SPECIMENS: Specimen[] = [
     plate: { kind: "bee", color: "#3a3428", color2: "#c9a227" },
   },
   {
-    id: "txx-008",
+    id: "everframe-008",
     commonName: "Stag beetle",
     latinName: "Lucanus cervus",
     order: "Coleoptera",

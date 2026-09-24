@@ -13,7 +13,7 @@ function baseEnvelopeInput(): BuildEnvelopeInput {
   return {
     reportId: '01939c34-7b8f-7000-8000-000000000123',
     submittedAt: '2026-04-29T16:00:00.000Z',
-    sdk: { name: 'traceitx-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
+    sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
     reporter: { title: 'T', description: 'D' },
     draft: { title: 'T', description: 'D', excludedArtifacts: [], annotations: [], redactions: [] },
     device: {
@@ -43,7 +43,7 @@ function baseCrashInput(): BuildCrashEnvelopeInput {
     occurredAt: '2026-07-18T12:00:00.000Z',
     reportId: '123e4567-e89b-42d3-a456-426614174000',
     submittedAt: '2026-07-18T12:00:00.100Z',
-    sdk: { name: 'traceitx-react', version: '1.0.0', platform: 'web', formFactor: 'desktop' },
+    sdk: { name: 'everframe-react', version: '1.0.0', platform: 'web', formFactor: 'desktop' },
     breadcrumbs: [{ kind: 'error', message: 'two', seq: 1, t: 999 }],
     device: {
       os: 'macOS',

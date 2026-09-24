@@ -19,8 +19,8 @@
 // growing at runtime) must never be allowed to grow the buffer without
 // bound — the cap is enforced at push time, on every push, regardless of
 // what the window says.
-import { MAX_RESOURCE_SAMPLES } from '@traceitx/protocol';
-import type { ResourceSampleT } from '@traceitx/protocol';
+import { MAX_RESOURCE_SAMPLES } from '@everframe/protocol';
+import type { ResourceSampleT } from '@everframe/protocol';
 
 export interface ResourceRingDeps {
   /** Live window length in ms — re-read on every snapshot(), never cached. */

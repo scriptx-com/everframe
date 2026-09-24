@@ -7,7 +7,7 @@
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex } from '@noble/hashes/utils';
 import { gzipBytes } from './compression.js';
-import type { ReportEnvelope, AttachmentRef } from '@traceitx/protocol';
+import type { ReportEnvelope, AttachmentRef } from '@everframe/protocol';
 
 export const HARD_CAP_BYTES = 25 * 1024 * 1024; // PIPE-03
 export const GZIP_THRESHOLD = 8 * 1024; // CONTEXT.md locked

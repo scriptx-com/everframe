@@ -27,7 +27,7 @@ export const MAX_TTL_SECONDS = 600;
 export const DEFAULT_TTL_SECONDS = 300;
 
 /**
- * Minimum accepted secret length. TraceItX mints 64 hex characters
+ * Minimum accepted secret length. Everframe mints 64 hex characters
  * (`randomBytes(32).toString('hex')`, the ingest API/src/reporter/identity-secret.ts).
  * 32 rejects "", "changeme", and an unset env var read with a non-null
  * assertion, without being brittle about a format the generator could

@@ -43,7 +43,7 @@ import {
 } from '../../src/companion/capture-bridge.js';
 import type { RelayWSClient, ReportSubmit } from '../../src/companion/ws-client.js';
 import type { CompanionHost } from '../../src/companion/host-seam.js';
-import type { UITree } from '@traceitx/protocol';
+import type { UITree } from '@everframe/protocol';
 
 const submitMock = vi.mocked(submitReportFromDraft);
 

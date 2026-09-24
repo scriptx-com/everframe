@@ -24,7 +24,7 @@
 
     <!-- Surface (1): Wrap the password field in TXSensitiveView. The whole
          subtree is treated as sensitive by SensitiveRectRegistry. -->
-    <com.traceitx.sensitive.TXSensitiveView
+    <dev.everframe.sensitive.TXSensitiveView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp">
@@ -35,11 +35,11 @@
             android:layout_height="wrap_content"
             android:hint="Password"
             android:inputType="textPassword" />
-    </com.traceitx.sensitive.TXSensitiveView>
+    </dev.everframe.sensitive.TXSensitiveView>
 
     <!-- OTP / secret token — wrapped in TXSensitiveView (same surface as the
          password above). Avoids the dropped XML-attribute path. -->
-    <com.traceitx.sensitive.TXSensitiveView
+    <dev.everframe.sensitive.TXSensitiveView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp">
@@ -48,7 +48,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="OTP / secret token" />
-    </com.traceitx.sensitive.TXSensitiveView>
+    </dev.everframe.sensitive.TXSensitiveView>
 
     <Button
         android:id="@+id/openReporter"

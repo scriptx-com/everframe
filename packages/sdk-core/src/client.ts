@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { safeWrap } from './safe-wrap.js';
 import type { PlatformAdapter } from './types/platform.js';
-import type { TraceItXConfig, UserMetadata, TraceItXError } from './types/config.js';
+import type { EverframeConfig, UserMetadata, EverframeError } from './types/config.js';
 import { createBreadcrumbBuffer, type BreadcrumbBuffer } from './breadcrumbs/buffer.js';
 import { createNetworkBodyBuffer, type NetworkBodyBuffer } from './capture/network-body-buffer.js';
-import { BreadcrumbKind, BreadcrumbLevel, type Breadcrumb } from '@traceitx/protocol';
+import { BreadcrumbKind, BreadcrumbLevel, type Breadcrumb } from '@everframe/protocol';
 import type { ThreadClient, ThreadClientState, ThreadDetail } from './reporter/thread-client.js';
 import type { ThreadSummary } from './reporter/api.js';
 import { IdentityTokenHolder, type IdentityTokenSource } from './reporter/identity-token.js';
@@ -33,9 +33,9 @@ export interface AddBreadcrumbInput {
  */
 export type ExtraResolver = () => string | Record<string, unknown>;
 
-export interface TraceItXClient {
+export interface EverframeClient {
   /** Lazy init — stores config; no I/O, no patching. DEFE-01. */
-  init(config: TraceItXConfig): void;
+  init(config: EverframeConfig): void;
   setUser(user: UserMetadata | null): void;
   /**
    * Identify the person using your app. Pass a signed JWT, or a provider the
@@ -133,7 +133,7 @@ export type ExtraState =
   | { kind: 'resolver'; resolve: ExtraResolver };
 
 interface ClientState {
-  config: TraceItXConfig | null;
+  config: EverframeConfig | null;
   user: UserMetadata | null;
   extra: ExtraState;
   killed: boolean;
@@ -160,9 +160,9 @@ interface ClientState {
  * client's safeWrap chain here, the web reporter's lazy tree walk) speaks the
  * same shape rather than each inventing one.
  */
-export function toTraceItXError(err: unknown): TraceItXError {
+export function toEverframeError(err: unknown): EverframeError {
   if (err instanceof Error) {
-    const e: TraceItXError = { name: err.name, message: err.message };
+    const e: EverframeError = { name: err.name, message: err.message };
     if (err.stack) e.stack = err.stack;
     return e;
   }
@@ -173,7 +173,7 @@ export function toTraceItXError(err: unknown): TraceItXError {
 function warnExtraStringOverBudget(source: string, length: number): void {
   // eslint-disable-next-line no-console
   console.warn(
-    `[traceitx] ${source}: ${length} chars exceeds the ${EXTRA_MAX_CHARS} limit. ` +
+    `[everframe] ${source}: ${length} chars exceeds the ${EXTRA_MAX_CHARS} limit. ` +
       'It will be omitted from the report.',
   );
 }
@@ -197,7 +197,7 @@ function budgetExtraObjectOrWarn(source: string, value: Record<string, unknown>)
   }
   // eslint-disable-next-line no-console
   console.warn(
-    `[traceitx] ${source}: serialized value (${serializedLength} chars) exceeds the ` +
+    `[everframe] ${source}: serialized value (${serializedLength} chars) exceeds the ` +
       `${EXTRA_MAX_CHARS}-char limit; extra will be omitted.`,
   );
   return '';
@@ -206,7 +206,7 @@ function budgetExtraObjectOrWarn(source: string, value: Record<string, unknown>)
 /**
  * THE single resolve seam for `payload.extra` (spec 2026-09-17
  * setExtra-resolver). Every reader that needs the current `extra` value —
- * `@traceitx/web`'s in-app + companion report-build paths, `@traceitx/react`'s
+ * `@everframe/web`'s in-app + companion report-build paths, `@everframe/react`'s
  * equivalents — MUST call this rather than reading `ClientState.extra`
  * directly, or it gets the unresolved `{ kind: 'resolver' }` record instead
  * of a value.
@@ -217,7 +217,7 @@ function budgetExtraObjectOrWarn(source: string, value: Record<string, unknown>)
  * abort the diagnostic it's attached to; the report proceeds with `extra`
  * omitted rather than failing.
  */
-export function resolveClientExtra(client: TraceItXClient): string {
+export function resolveClientExtra(client: EverframeClient): string {
   const state = __internalClientState.get(client);
   if (!state) return '';
   const extra = state.extra;
@@ -229,7 +229,7 @@ export function resolveClientExtra(client: TraceItXClient): string {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(
-      '[traceitx] setExtra: the resolver function threw while building a report; ' +
+      '[everframe] setExtra: the resolver function threw while building a report; ' +
         'extra will be omitted from this report.',
       err,
     );
@@ -246,7 +246,7 @@ export function resolveClientExtra(client: TraceItXClient): string {
   return budgetExtraObjectOrWarn('setExtra (resolver)', result);
 }
 
-export function createClient(adapter: PlatformAdapter): TraceItXClient {
+export function createClient(adapter: PlatformAdapter): EverframeClient {
   const state: ClientState = {
     config: null,
     user: null,
@@ -263,7 +263,7 @@ export function createClient(adapter: PlatformAdapter): TraceItXClient {
   state.identityToken = new IdentityTokenHolder();
 
   const handlers = {
-    init(config: TraceItXConfig): void {
+    init(config: EverframeConfig): void {
       if (state.killed) return;
       const prior = state.config;
       state.config = config;
@@ -275,7 +275,7 @@ export function createClient(adapter: PlatformAdapter): TraceItXClient {
       // (config refresh, hot reload) does not silently discard a crumb trail.
       //
       // `apiKey` alone is the tenant identity here: unlike the natives, web
-      // has no endpoint in TraceItXConfig — INGEST_URL is a build-time
+      // has no endpoint in EverframeConfig — INGEST_URL is a build-time
       // constant (sdk-react constants.ts) and cannot differ between two
       // init() calls in one process.
       //
@@ -433,7 +433,7 @@ export function createClient(adapter: PlatformAdapter): TraceItXClient {
     },
   };
 
-  const onError = (err: unknown): void => state.config?.onError?.(toTraceItXError(err));
+  const onError = (err: unknown): void => state.config?.onError?.(toEverframeError(err));
 
   const inertThreads = {
     list: () => [] as ThreadSummary[],
@@ -456,7 +456,7 @@ export function createClient(adapter: PlatformAdapter): TraceItXClient {
     return adapter.threads ?? null;
   }
 
-  const client: TraceItXClient = {
+  const client: EverframeClient = {
     init: safeWrap(handlers.init, { name: 'init', onError }),
     setUser: safeWrap(handlers.setUser, { name: 'setUser', onError }),
     setIdentityToken: safeWrap(handlers.setIdentityToken, { name: 'setIdentityToken', onError }),
@@ -555,4 +555,4 @@ export function createClient(adapter: PlatformAdapter): TraceItXClient {
 }
 
 // Internal accessor for tests + Plan 04 (transport calls). Not part of public API.
-export const __internalClientState = new WeakMap<TraceItXClient, ClientState>();
+export const __internalClientState = new WeakMap<EverframeClient, ClientState>();

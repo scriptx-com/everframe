@@ -35,12 +35,12 @@ vi.mock('react-konva', () => {
 import { mountIsland } from '../../src/mount/react-island.js';
 import { __setPortalTarget } from '../../src/reporter-ui/portal-target.js';
 import type { WebPlatformAdapter } from '../../src/adapter.js';
-import type { TraceItXClient } from '@traceitx/sdk-core';
+import type { EverframeClient } from '@everframe/sdk-core';
 
 /** The inert public threads facade — the shape sdk-core hands a host with no threads. */
 function mockThreads(
-  overrides: Partial<TraceItXClient['threads']> = {},
-): TraceItXClient['threads'] {
+  overrides: Partial<EverframeClient['threads']> = {},
+): EverframeClient['threads'] {
   return {
     list: () => [],
     get: async () => null,

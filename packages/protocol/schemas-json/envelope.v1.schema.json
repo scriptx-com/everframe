@@ -35,11 +35,11 @@
         "name": {
           "type": "string",
           "enum": [
-            "traceitx-react",
-            "traceitx-web",
-            "traceitx-react-native",
-            "traceitx-ios",
-            "traceitx-android"
+            "everframe-react",
+            "everframe-web",
+            "everframe-react-native",
+            "everframe-ios",
+            "everframe-android"
           ]
         },
         "version": {
@@ -1171,6 +1171,8 @@
             "type": "string",
             "enum": [
               "rrweb",
+              "everframe-vtree-v1",
+              "everframe-video-v1",
               "traceitx-vtree-v1",
               "traceitx-video-v1"
             ]

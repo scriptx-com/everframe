@@ -35,16 +35,16 @@ export interface IncludeCardProps {
 export function IncludeCard({ rows }: IncludeCardProps): JSX.Element {
   return (
     <>
-      <span className="txx-include-label">Include in this report</span>
-      <div className="txx-include-card" data-testid="include-card">
+      <span className="everframe-include-label">Include in this report</span>
+      <div className="everframe-include-card" data-testid="include-card">
         {rows.map((row) => (
           <div
             key={row.key}
-            className="txx-include-row"
+            className="everframe-include-row"
             data-testid={`include-row-${row.key}`}
           >
-            <span className="txx-include-row-name">{row.name}</span>
-            <span className="txx-include-row-count">{row.count}</span>
+            <span className="everframe-include-row-name">{row.name}</span>
+            <span className="everframe-include-row-count">{row.count}</span>
             <Toggle
               checked={row.included}
               onCheckedChange={() => row.onToggle?.()}

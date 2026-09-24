@@ -21,14 +21,14 @@ export const SEED_ENTRIES: LogEntry[] = [
   {
     id: "seed-1",
     note: "Two ladybirds on the office windowsill — the dogfood kind of bug.",
-    specimenId: "txx-001",
+    specimenId: "everframe-001",
     site: "Vilnius, office",
     confirmed: true,
   },
   {
     id: "seed-2",
     note: "Faint green glow by the path after dusk. Almost certainly Lampyris.",
-    specimenId: "txx-005",
+    specimenId: "everframe-005",
     site: "Neris riverbank",
     confirmed: false,
   },

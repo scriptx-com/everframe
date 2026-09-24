@@ -3,7 +3,7 @@
 <!--
   Home ("Field desk") — the e2e anchor page. These fixtures MUST survive any
   redesign; packages/sdk-web/e2e/vue/* assert them:
-    - data-testid="home-heading" with the literal "TraceItX Web SDK Example"
+    - data-testid="home-heading" with the literal "Everframe Web SDK Example"
     - data-testid="cc-number" / "bearer-token" with the canonical PII strings
     - the two masking surfaces, and the password input
   The strings are byte-identical to examples/react-web so a divergence between
@@ -12,24 +12,24 @@
 <script setup lang="ts">
 import { getSpecimen } from '../data/specimens';
 import SpecimenPlate from '../components/SpecimenPlate.vue';
-import { useTraceItX } from '../traceitx';
+import { useEverframe } from '../everframe';
 
-const hero = getSpecimen('txx-001');
-const traceitx = useTraceItX();
+const hero = getSpecimen('everframe-001');
+const everframe = useEverframe();
 </script>
 
 <template>
   <main class="shell">
-    <p data-testid="home-heading">TraceItX Web SDK Example</p>
+    <p data-testid="home-heading">Everframe Web SDK Example</p>
     <h1>A field catalog built to be broken</h1>
     <p>
-      Elytra is a small insect field guide that exists so the TraceItX reporter has
+      Elytra is a small insect field guide that exists so the Everframe reporter has
       something real to capture: pages to navigate, lists to mutate, images to
       screenshot, and seeded PII to redact. File a bug about a bug — the report button
       is in the corner of every page, or press Cmd/Ctrl+Shift+B.
     </p>
     <SpecimenPlate v-if="hero" :specimen="hero" />
-    <button type="button" data-testid="open-via-handle" @click="traceitx?.open().catch(() => {})">
+    <button type="button" data-testid="open-via-handle" @click="everframe?.open().catch(() => {})">
       Open reporter via handle.open()
     </button>
 
@@ -58,8 +58,8 @@ const traceitx = useTraceItX();
 
       <!-- Surface 1 of 2: the attribute. Scanned from the live DOM at capture
            time, so it works in any template with nothing imported. -->
-      <p data-traceitx-sensitive data-testid="sensitive-attr-block">
-        Marked with the data-traceitx-sensitive attribute
+      <p data-everframe-sensitive data-testid="sensitive-attr-block">
+        Marked with the data-everframe-sensitive attribute
       </p>
 
       <!-- Surface 2 of 2: the registry, through the v-sensitive directive.

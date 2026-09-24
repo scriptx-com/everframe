@@ -17,7 +17,13 @@ export const AttachmentKind = z
   .meta({ $id: 'AttachmentKind' });
 
 // Keep vtree until the Android capture replacement is complete.
-export const ReplayFormat = z.enum(['rrweb', 'traceitx-vtree-v1', 'traceitx-video-v1']);
+export const ReplayFormat = z.enum([
+  'rrweb',
+  'everframe-vtree-v1',
+  'everframe-video-v1',
+  'traceitx-vtree-v1',
+  'traceitx-video-v1',
+]);
 export type ReplayFormat = z.infer<typeof ReplayFormat>;
 
 export const AttachmentRef = z.object({
@@ -34,7 +40,7 @@ export const AttachmentRef = z.object({
   durationMs: z.number().optional(),
   replayStartEpochMs: z.number().nonnegative().optional(),
 }).superRefine((attachment, ctx) => {
-  if (attachment.format !== 'traceitx-video-v1') return;
+  if (attachment.format !== 'everframe-video-v1' && attachment.format !== 'traceitx-video-v1') return;
   const reject = (field: string, message: string) =>
     ctx.addIssue({ code: 'custom', path: [field], message });
   if (attachment.kind !== 'session-replay') reject('kind', 'Video replay must be a session-replay attachment');

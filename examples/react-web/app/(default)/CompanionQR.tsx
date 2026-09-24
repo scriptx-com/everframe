@@ -16,14 +16,14 @@
 "use client";
 import { useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { companion } from "@traceitx/react";
+import { companion } from "@everframe/react";
 
 export function CompanionQR() {
   const { state, pairUrl, resolvedName } = companion.useCompanion();
 
   useEffect(() => {
     // Opens the relay WS (idempotent). Requires the ingest service running and
-    // the SDK built against it (TRACEITX_INGEST_URL). Until it connects, state
+    // the SDK built against it (EVERFRAME_INGEST_URL). Until it connects, state
     // stays 'unpaired' with a null pairUrl → "Connecting to relay…".
     companion.start();
     return () => companion.stop();

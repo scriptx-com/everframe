@@ -22,7 +22,7 @@ const freshClient = () => {
   return client;
 };
 
-describe('TraceItXClient.setIdentityToken', () => {
+describe('EverframeClient.setIdentityToken', () => {
   it('a one-shot string is retrievable through the shared holder', async () => {
     const client = freshClient();
     const jwt = mkJwt(Date.now() / 1000 + 300);

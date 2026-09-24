@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 
 import SwiftUI
-import TraceItXKit
+import EverframeKit
 import os
 
 struct DetailScreen: View {
@@ -13,12 +13,12 @@ struct DetailScreen: View {
         self.title = title
     }
 
-    /// URLSession routed through TraceItX's opt-in URLProtocol so requests
+    /// URLSession routed through Everframe's opt-in URLProtocol so requests
     /// land in `NetworkRingBuffer.shared` and surface in the reporter's
-    /// Network disclosure + envelope. The SDK explicitly does NOT swizzle
+    /// Network disclosure + envelope. The Everframe SDK explicitly does NOT swizzle
     /// URLSession globally (Pitfall 3), so hosts must opt in per session.
     private static let capturedSession: URLSession = {
-        URLSession(configuration: TraceItX.shared.networkCaptureConfiguration())
+        URLSession(configuration: Everframe.shared.networkCaptureConfiguration())
     }()
 
     var body: some View {
@@ -31,11 +31,11 @@ struct DetailScreen: View {
             }
             Section("Log capture (LOG-01)") {
                 Button("Emit os_log info") {
-                    Logger(subsystem: "com.scriptx.traceitx.sample", category: "DetailScreen")
+                    Logger(subsystem: "dev.everframe.sample", category: "DetailScreen")
                         .info("user tapped emit-log")
                 }
                 Button("Emit os_log error") {
-                    Logger(subsystem: "com.scriptx.traceitx.sample", category: "DetailScreen")
+                    Logger(subsystem: "dev.everframe.sample", category: "DetailScreen")
                         .error("simulated error from sample app")
                 }
             }

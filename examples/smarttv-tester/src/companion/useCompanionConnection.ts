@@ -5,16 +5,16 @@
 // (`companion.start()` / `stop()` / `useCompanion()`). The singleton wires
 // the full device-side contract — announce (dashboard discovery), report
 // capture + submit through the companion host seam (mounted by
-// TraceItXProvider in main.tsx), and the live-preview / multi-shot loops —
+// EverframeProvider in main.tsx), and the live-preview / multi-shot loops —
 // so the tester exercises exactly what a production TV host would run.
 import { useCallback, useEffect, useState } from 'react';
-import { companion } from '@traceitx/react';
+import { companion } from '@everframe/react';
 
 // Baked by vite `define` (see vite.config.ts). The typeof guards keep the
 // module loadable where define didn't run (vitest).
-export const SDK_KEY = typeof __TRACEITX_SDK_KEY__ !== 'undefined' ? __TRACEITX_SDK_KEY__ : '';
+export const SDK_KEY = typeof __EVERFRAME_SDK_KEY__ !== 'undefined' ? __EVERFRAME_SDK_KEY__ : '';
 export const INGEST_OVERRIDE =
-  typeof __TRACEITX_TESTER_INGEST_URL__ !== 'undefined' ? __TRACEITX_TESTER_INGEST_URL__ : '';
+  typeof __EVERFRAME_TESTER_INGEST_URL__ !== 'undefined' ? __EVERFRAME_TESTER_INGEST_URL__ : '';
 
 /** 'disconnected' | 'connecting' before the relay answers, then the SDK's own CompanionState. */
 export type ConnectionStatus = 'disconnected' | 'connecting' | companion.CompanionState;
@@ -48,7 +48,7 @@ export function useCompanionConnection(): CompanionConnection {
       companion.start({
         deviceLabel: 'Smart-TV Tester',
         // The key makes the device discoverable (announce -> companion page);
-        // the endpoint override beats the URL baked into @traceitx/react —
+        // the endpoint override beats the URL baked into @everframe/react —
         // needed on a real TV, where localhost is the TV itself.
         ...(SDK_KEY ? { sdkKey: SDK_KEY } : {}),
         ...(INGEST_OVERRIDE ? { endpoint: INGEST_OVERRIDE } : {}),

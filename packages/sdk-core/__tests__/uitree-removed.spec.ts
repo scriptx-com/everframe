@@ -7,13 +7,13 @@
 // envelope fail validation at ingest.
 import { describe, it, expect } from 'vitest';
 import { buildEnvelope } from '../src/envelope-builder.js';
-import { ReportEnvelope } from '@traceitx/protocol';
+import { ReportEnvelope } from '@everframe/protocol';
 
 const baseInput = {
   reportId: '01939c34-7b8f-7000-8000-000000000001',
   submittedAt: '2026-04-29T16:00:00.000Z',
   sdk: {
-    name: 'traceitx-react' as const,
+    name: 'everframe-react' as const,
     version: '0.0.0',
     platform: 'web' as const,
     formFactor: 'desktop' as const,

@@ -13,7 +13,7 @@
 // point — `companion.stop()` then `companion.start()`, a deliberate
 // companion-only session with no Provider and no `init()` — answered
 // `submit_unavailable` to every `report.request` until the page reloaded. That
-// degraded the published `@traceitx/react` package too, which re-exports this
+// degraded the published `@everframe/react` package too, which re-exports this
 // singleton.
 //
 // The seam carries identity now: `companion.start()` takes a ticket, so the
@@ -54,7 +54,7 @@ import * as companion from '../../src/companion/singleton.js';
 import { __resetPinSurfaceStateForTests } from '../../src/companion/singleton.js';
 import { __resetDeviceIdForTests } from '../../src/companion/device-id.js';
 import { __resetCompanionHostForTests } from '../../src/companion/host-seam.js';
-import { init, type TraceItXHandle } from '../../src/init.js';
+import { init, type Everframe } from '../../src/init.js';
 
 const screenshotMock = vi.mocked(captureScreenshot);
 
@@ -128,7 +128,7 @@ async function requestReport(correlationId: string): Promise<string[]> {
     .map((c) => (JSON.parse(c[0] as string) as { type: string }).type);
 }
 
-let handle: TraceItXHandle | null = null;
+let handle: Everframe | null = null;
 
 beforeEach(() => {
   lastWS = null;

@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "TraceItX Web SDK Example",
-  description: "Dogfood + Playwright fixture for @traceitx/react",
+  title: "Everframe Web SDK Example",
+  description: "Dogfood + Playwright fixture for @everframe/react",
 };
 
 /**
- * Root layout owns ONLY the html+body shell. The TraceItXProvider lives one level
+ * Root layout owns ONLY the html+body shell. The EverframeProvider lives one level
  * down, in either `(default)/layout.tsx` (standard) or `(strict)/layout.tsx`
  * (strict-CSP nonce path). This avoids mounting two nested providers (which would
  * render two bubbles and break Playwright's strict-mode locator resolution).

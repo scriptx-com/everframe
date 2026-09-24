@@ -147,7 +147,7 @@ module.exports = function babelPluginDisplayName(babel) {
   }
 
   return {
-    name: '@traceitx/babel-plugin-displayname',
+    name: '@everframe/babel-plugin-displayname',
     visitor: {
       VariableDeclarator(path, state) {
         const opts = state.opts || {};

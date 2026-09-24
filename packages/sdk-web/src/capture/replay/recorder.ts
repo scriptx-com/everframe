@@ -20,8 +20,8 @@
 //
 // `import('rrweb')` is referenced ONLY inside start() so the lazy-load grep gate
 // holds and a static `import … from 'rrweb'` never appears in this file.
-import { gzipBytes, __traceReplay, type RedactionEngineConfig } from '@traceitx/sdk-core';
-import type { ReplayCapture } from '@traceitx/sdk-core';
+import { gzipBytes, __traceReplay, type RedactionEngineConfig } from '@everframe/sdk-core';
+import type { ReplayCapture } from '@everframe/sdk-core';
 
 import {
   createRollingBuffer,

@@ -7,7 +7,7 @@
 // instead of living only in a session scratch directory.
 //
 // Drives a static page (`harness.html`) that loads the BUILT
-// `@traceitx/web` browser bundle and plays a looping muted `<video>` in
+// `@everframe/web` browser bundle and plays a looping muted `<video>` in
 // headless Chromium, once with the server-driven vitals gate reporting
 // `vitalsEnabled: false` and once `true`. Every `/api/**` call is answered by
 // a Playwright route stub — no real backend involved. See README.md for the
@@ -23,7 +23,7 @@
 // itself retains buffered segments — that's normal player memory, not an
 // SDK leak, and only a hls-vs-hls-off comparison can tell them apart).
 //
-// Usage: `pnpm --filter @traceitx/web build && pnpm --filter @traceitx/web perf:vitals`
+// Usage: `pnpm --filter @everframe/web build && pnpm --filter @everframe/web perf:vitals`
 // Env: RUN_MS (default 60000), MODES (default "off,on"), PERF_PORT (default 8931),
 //      HLS_URL (default a public Mux HLS test stream; used by `hls`/`hls-off`).
 import { chromium } from '@playwright/test';

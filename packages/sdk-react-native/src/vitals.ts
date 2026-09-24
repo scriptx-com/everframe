@@ -7,8 +7,8 @@
 // mount/configure. After detach() a handle is inert and never crosses the
 // bridge again.
 import { useEffect, useMemo, useRef } from 'react';
-import type { VitalsPlayerEventType } from '@traceitx/protocol';
-import NativeTraceItX from './NativeTraceItX.js';
+import type { VitalsPlayerEventType } from '@everframe/protocol';
+import NativeEverframe from './NativeEverframe.js';
 
 export interface PlayerStats {
   bufferAheadMs: number;
@@ -48,7 +48,7 @@ export function __resetPlayerTokenCounterForTests(): void { tokenCounter = 0; }
 
 function guarded(fn: () => void): void {
   try { fn(); } catch (e) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[traceitx] vitals bridge call failed', e);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[everframe] vitals bridge call failed', e);
   }
 }
 
@@ -59,7 +59,7 @@ export function serializeVitalsData(data: unknown): string | undefined {
     const s = JSON.stringify(data);
     return s === undefined ? undefined : s;
   } catch (e) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[traceitx] trackVitals data is not JSON-serialisable; sent without data', e);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[everframe] trackVitals data is not JSON-serialisable; sent without data', e);
     return undefined;
   }
 }
@@ -67,34 +67,34 @@ export function serializeVitalsData(data: unknown): string | undefined {
 export function trackPlayer(opts: TrackPlayerOptions): PlayerHandle {
   const token = `rp${++tokenCounter}`;
   let detached = false;
-  guarded(() => NativeTraceItX.trackPlayer(token, opts.library, opts.name, opts.libraryVersion));
+  guarded(() => NativeEverframe.trackPlayer(token, opts.library, opts.name, opts.libraryVersion));
   return {
     token,
     get detached() { return detached; },
     emit(type, data, t) {
       if (detached) return;
       const at = t ?? Date.now();
-      guarded(() => NativeTraceItX.recordPlayerEvent(token, type, at, data));
+      guarded(() => NativeEverframe.recordPlayerEvent(token, type, at, data));
     },
     updateStats(stats) {
       if (detached) return;
-      guarded(() => NativeTraceItX.updatePlayerStats(token, stats as unknown as Record<string, unknown>));
+      guarded(() => NativeEverframe.updatePlayerStats(token, stats as unknown as Record<string, unknown>));
     },
     track(name, data) {
       if (detached) return;
-      guarded(() => NativeTraceItX.trackVitals(name, serializeVitalsData(data), token));
+      guarded(() => NativeEverframe.trackVitals(name, serializeVitalsData(data), token));
     },
     detach() {
       if (detached) return;
       detached = true;
-      guarded(() => NativeTraceItX.detachPlayer(token));
+      guarded(() => NativeEverframe.detachPlayer(token));
     },
   };
 }
 
 export function trackVitals(name: string, data?: unknown, player?: PlayerHandle): void {
   if (player) { player.track(name, data); return; }
-  guarded(() => NativeTraceItX.trackVitals(name, serializeVitalsData(data), undefined));
+  guarded(() => NativeEverframe.trackVitals(name, serializeVitalsData(data), undefined));
 }
 
 /**

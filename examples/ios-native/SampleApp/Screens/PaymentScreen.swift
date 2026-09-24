@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Demonstrates `TraceItX.shared.markSensitive(_:)` — the public passthrough
+// Demonstrates `Everframe.shared.markSensitive(_:)` — the public passthrough
 // for marking any UIView (including ones whose class you don't own) as
-// sensitive without subclassing TXSensitiveView.
+// sensitive without subclassing EFSensitiveView.
 
 import SwiftUI
 import UIKit
-import TraceItXKit
+import EverframeKit
 
 struct PaymentScreen: View {
     var body: some View {
         VStack(spacing: 16) {
-            Text("Demo of TraceItX.shared.markSensitive(_:) for views you don't own")
+            Text("Demo of Everframe.shared.markSensitive(_:) for views you don't own")
                 .multilineTextAlignment(.center)
                 .padding()
             CreditCardInputBridge()
@@ -25,7 +25,7 @@ struct PaymentScreen: View {
 }
 
 /// A custom UIKit view that we don't subclass; the underlying UIView is
-/// instead marked via `TraceItX.shared.markSensitive(_:)` after creation.
+/// instead marked via `Everframe.shared.markSensitive(_:)` after creation.
 struct CreditCardInputBridge: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let card = UIView()
@@ -45,7 +45,7 @@ struct CreditCardInputBridge: UIViewRepresentable {
         ])
 
         // Public-API demo: mark the entire card view as sensitive at runtime.
-        TraceItX.shared.markSensitive(card)
+        Everframe.shared.markSensitive(card)
         return card
     }
 

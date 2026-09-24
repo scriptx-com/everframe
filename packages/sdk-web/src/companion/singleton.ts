@@ -8,9 +8,9 @@
 //   • companion.stop()         — close the WS; state retained.
 //
 // Framework-free on purpose: this module is reachable from
-// `@traceitx/web`'s always-loaded entry, so nothing here may import react.
+// `@everframe/web`'s always-loaded entry, so nothing here may import react.
 // The matching `companion.useCompanion()` React hook lives in
-// `@traceitx/react` (src/companion/use-companion.ts) and reads this
+// `@everframe/react` (src/companion/use-companion.ts) and reads this
 // module's singleton through the `__getCompanionApi()` seam below.
 //
 // Hosts that need multiple companion instances or custom capture wiring
@@ -41,9 +41,9 @@ import { __getCompanionBadgeServerConfig } from './server-config.js';
  * Controls how a live attach-PIN challenge (spec 2026-08-19) is surfaced:
  *
  * - `'builtin'` (default) — the SDK's own `CompanionPinCard` renders the
- *   code unconditionally (mounted by `TraceItXProvider`). A host with no
+ *   code unconditionally (mounted by `EverframeProvider`). A host with no
  *   builtin surface declares that through
- *   `__setBuiltinPinSurfaceAvailable(false)` — `@traceitx/web`'s `init()`
+ *   `__setBuiltinPinSurfaceAvailable(false)` — `@everframe/web`'s `init()`
  *   does, since the vanilla mount does not render `CompanionPinCard` — and
  *   `start()` then resolves `'builtin'` down to `'off'` and warns once
  *   instead of announcing a capability nothing can honour. See
@@ -74,7 +74,7 @@ export type BadgePosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-
  * (2026-08-13) and must never be cited as a privacy mitigation.
  * First-start()-wins, same contract as `attachPinUi`.
  *
- * NOT AVAILABLE ON `@traceitx/web` (codex round-2 finding 5). The badge is an
+ * NOT AVAILABLE ON `@everframe/web` (codex round-2 finding 5). The badge is an
  * AMBIENT surface — it has to be on screen while the reporter is CLOSED — and
  * the vanilla mount's only ambient element is the FAB (plain DOM, so React
  * stays out of the always-loaded bundle). `CompanionBadge` is a React
@@ -190,9 +190,9 @@ export function __getAttachPinUiMode(): AttachPinUiMode {
 /**
  * Whether THIS host can render the builtin `CompanionPinCard`.
  *
- * Defaults to `true` so `@traceitx/react` is untouched: `TraceItXProvider`
+ * Defaults to `true` so `@everframe/react` is untouched: `EverframeProvider`
  * mounts the card unconditionally, so `'builtin'` is an honest promise there
- * and must keep announcing. `@traceitx/web`'s `init()` sets it `false` — the
+ * and must keep announcing. `@everframe/web`'s `init()` sets it `false` — the
  * vanilla mount renders the FAB, the reporter dialog, the inbox and a toast,
  * and nothing else — and restores it on `destroy()`.
  */
@@ -202,10 +202,10 @@ let _builtinPinSurface = true;
  * Declare whether this host renders the builtin `CompanionPinCard`.
  *
  * RESIDUAL GAP, deliberately not closed here: a page that calls
- * `companion.start()` without EITHER mounting `TraceItXProvider` or calling
+ * `companion.start()` without EITHER mounting `EverframeProvider` or calling
  * `init()` — a companion-only smart-TV build, say — still defaults to `true`
  * and still announces. Closing that needs a POSITIVE signal from the React
- * side, which means either editing `@traceitx/react` or registering from
+ * side, which means either editing `@everframe/react` or registering from
  * `CompanionPinCard`'s render (ordering-fragile: a host child's `useEffect`
  * runs before a sibling card's, so a `start()` from host code would race the
  * registration). Flipping this default to `false` instead would reach the
@@ -221,8 +221,8 @@ export function __setBuiltinPinSurfaceAvailable(available: boolean): void {
  * counterpart of `_builtinPinSurface` above, for the ambient name badge
  * (codex round-2 finding 5).
  *
- * Defaults to `true` so `@traceitx/react` is untouched: `TraceItXProvider`
- * renders `CompanionBadge` unconditionally. `@traceitx/web`'s `init()` sets it
+ * Defaults to `true` so `@everframe/react` is untouched: `EverframeProvider`
+ * renders `CompanionBadge` unconditionally. `@everframe/web`'s `init()` sets it
  * `false` and restores it on `destroy()`.
  *
  * A SECOND flag rather than one shared "no builtin companion surfaces" switch:
@@ -239,11 +239,11 @@ export function __setBuiltinBadgeSurfaceAvailable(available: boolean): void {
 
 /**
  * Start-option defaults registered by a host that already declared them once.
- * `@traceitx/react`'s provider registers `apiKey` / `appName` here on mount,
+ * `@everframe/react`'s provider registers `apiKey` / `appName` here on mount,
  * so `companion.start()` matches the RN SDK's zero-argument call instead of
  * making the host repeat a key the provider is already holding.
  *
- * Framework-free hosts using `@traceitx/web` directly register nothing and
+ * Framework-free hosts using `@everframe/web` directly register nothing and
  * are wholly unaffected — there is no provider to read, which is exactly why
  * `start()` required the argument in the first place.
  */
@@ -342,12 +342,12 @@ export function start(opts: CompanionStartOptions = {}): void {
   if (noSurfaceForBuiltin && !_warnedNoPinSurface) {
     _warnedNoPinSurface = true;
     console.warn(
-      '[TraceItX] companion.start(): attachPinUi is "builtin", but this host has no ' +
-        'built-in PIN surface (CompanionPinCard is mounted only by @traceitx/react\'s ' +
-        'TraceItXProvider). Attach-PIN support will NOT be announced, so the dashboard ' +
+      '[Everframe] companion.start(): attachPinUi is "builtin", but this host has no ' +
+        'built-in PIN surface (CompanionPinCard is mounted only by @everframe/react\'s ' +
+        'EverframeProvider). Attach-PIN support will NOT be announced, so the dashboard ' +
         'falls back to one-click attach. To support it, pass attachPinUi: \'custom\' and ' +
         'render the challenge yourself from __getCompanionApi().onAttachChallenge() ' +
-        '(import it as a top-level export from \'@traceitx/web\'), ' +
+        '(import it as a top-level export from \'@everframe/web\'), ' +
         'or pass attachPinUi: \'off\' to silence this.',
     );
   }
@@ -367,9 +367,9 @@ export function start(opts: CompanionStartOptions = {}): void {
   if (resolved.companionBadge !== undefined && !_builtinBadgeSurface && !_warnedNoBadgeSurface) {
     _warnedNoBadgeSurface = true;
     console.warn(
-      '[TraceItX] companion.start(): companionBadge was configured, but this host has no ' +
-        'built-in badge surface (CompanionBadge is rendered only by @traceitx/react\'s ' +
-        'TraceItXProvider — it is an ambient surface, and the vanilla mount\'s only ambient ' +
+      '[Everframe] companion.start(): companionBadge was configured, but this host has no ' +
+        'built-in badge surface (CompanionBadge is rendered only by @everframe/react\'s ' +
+        'EverframeProvider — it is an ambient surface, and the vanilla mount\'s only ambient ' +
         'element is the FAB). The badge will NOT be shown. Render your own from ' +
         '__getCompanionApi().onAttachedUserName() + .onResolvedName() if you need it.',
     );

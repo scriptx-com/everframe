@@ -30,8 +30,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.traceitx.TraceItX
-import com.traceitx.media3.trackPlayer
+import dev.everframe.Everframe
+import dev.everframe.media3.trackPlayer
 
 private const val MAIN_STREAM = "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8"
 private const val THROTTLED_STREAM = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
@@ -50,7 +50,7 @@ fun SamplePlaybackScreen(onBack: () -> Unit) {
         }
     }
     DisposableEffect(player) {
-        val handle = TraceItX.trackPlayer(player, name = "main")
+        val handle = Everframe.trackPlayer(player, name = "main")
         onDispose {
             player.release()   // Media3 fires onPlayerReleased → player_detach
             handle.detach()    // idempotent; harmless after the release hook
@@ -71,7 +71,7 @@ fun SamplePlaybackScreen(onBack: () -> Unit) {
             }) { Text(if (throttled) "Restore stream" else "Throttle") }
             OutlinedButton(onClick = {
                 adBreaks++
-                TraceItX.trackVitals("ad_break", mapOf("position" to "midroll", "index" to adBreaks, "positionMs" to player.currentPosition))
+                Everframe.trackVitals("ad_break", mapOf("position" to "midroll", "index" to adBreaks, "positionMs" to player.currentPosition))
             }) { Text("Log ad break") }
         }
         OutlinedButton(onClick = onBack) { Text("Back") }

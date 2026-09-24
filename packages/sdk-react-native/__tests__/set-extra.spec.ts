@@ -2,29 +2,29 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // setExtra object-form parity (react-sdk-surface-parity follow-up). The
-// object overload landed in @traceitx/sdk-core and reached @traceitx/web /
-// @traceitx/react, but NOT React Native: `setExtra` stayed string-only here,
+// object overload landed in @everframe/sdk-core and reached @everframe/web /
+// @everframe/react, but NOT React Native: `setExtra` stayed string-only here,
 // and the NATIVE side truncates a too-long string at EXTRA_MAX_CHARS with a
 // raw character cut — exactly the "slice serialized JSON" bug the core fix
 // set out to kill, reintroduced on native the moment a host JSON.stringifies
 // an object itself. This gives RN's `setExtra` the same object overload,
 // budgeted in JS BEFORE the value crosses the bridge, using
-// @traceitx/sdk-core's `budgetExtra` — the same function the web/React
+// @everframe/sdk-core's `budgetExtra` — the same function the web/React
 // client uses. Mirrors set-user.spec.ts's shape.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { setExtra, __setCurrentContext } from '../src/contextSeam.js';
 import { createRuntime } from '../src/runtime.js';
-import { EXTRA_MAX_CHARS } from '@traceitx/sdk-core';
+import { EXTRA_MAX_CHARS } from '@everframe/sdk-core';
 
 interface MockedNative {
   setExtra: ReturnType<typeof vi.fn>;
 }
-const nativeMock = NativeTraceItX as unknown as MockedNative;
+const nativeMock = NativeEverframe as unknown as MockedNative;
 
 /**
  * Mount a real runtime as the module-level current context, mirroring what
- * <TraceItXProvider> does on mount (runtime.mount() calls
+ * <EverframeProvider> does on mount (runtime.mount() calls
  * __setCurrentContext(runtime) — see src/runtime.ts). Same local helper
  * set-user.spec.ts/record-screen.test.ts use, scoped to this file.
  */

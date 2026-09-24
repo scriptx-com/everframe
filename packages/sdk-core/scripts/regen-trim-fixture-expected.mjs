@@ -5,7 +5,7 @@
 // by running the ALGORITHM OF RECORD (sdk-core trim.ts, built to dist/).
 // The oracle stays mechanical: never hand-compute an expected. Existing
 // cases regenerating byte-identically is itself a regression check.
-// Usage: pnpm --filter @traceitx/sdk-core build && node packages/sdk-core/scripts/regen-trim-fixture-expected.mjs
+// Usage: pnpm --filter @everframe/sdk-core build && node packages/sdk-core/scripts/regen-trim-fixture-expected.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { trimBreadcrumbs } from '../dist/index.js';
 

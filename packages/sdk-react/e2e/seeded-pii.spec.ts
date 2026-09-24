@@ -36,7 +36,7 @@ test('seeded-PII: envelope JSON does NOT contain canonical PII verbatim', async 
 
   await page.goto('/');
   await expect(page.getByTestId('cc-number')).toBeVisible();
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
   await page.getByTestId('report-title').fill('seeded pii test');
   await page.getByTestId('submit-report').click();

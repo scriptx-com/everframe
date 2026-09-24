@@ -94,7 +94,7 @@ describe('captureScreenshot', () => {
     vi.doUnmock('modern-screenshot');
   });
 
-  it('passes a filter that excludes nodes tagged data-traceitx-skip-capture', async () => {
+  it('passes a filter that excludes nodes tagged data-everframe-skip-capture', async () => {
     let capturedFilter: ((node: HTMLElement) => boolean) | undefined;
     const { stub } = makeCanvasStub();
     vi.doMock('modern-screenshot', () => ({
@@ -110,7 +110,7 @@ describe('captureScreenshot', () => {
     expect(typeof capturedFilter).toBe('function');
     // SDK root nodes are filtered out:
     const sdkRoot = document.createElement('div');
-    sdkRoot.setAttribute('data-traceitx-skip-capture', 'true');
+    sdkRoot.setAttribute('data-everframe-skip-capture', 'true');
     expect(capturedFilter!(sdkRoot)).toBe(false);
     // Customer-app nodes pass through:
     const userNode = document.createElement('div');

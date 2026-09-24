@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Plan 06-05 Task 2 — <TraceItXSensitive> uses a pure helper
+// Plan 06-05 Task 2 — <EverframeSensitive> uses a pure helper
 // `handleSensitiveLayout(node, register, event)` that reads the dual-shape
 // native tag (Paper: node._nativeTag; Fabric: node.canonical._nativeTag) and
 // forwards (tag, rect) to the provider's sensitive registry. Testing the
@@ -18,7 +18,7 @@ function evt(): LayoutEvent {
   return { nativeEvent: { layout: { x: 1, y: 2, width: 3, height: 4 } } };
 }
 
-describe('<TraceItXSensitive> handleSensitiveLayout (Plan 06-05 Task 2)', () => {
+describe('<EverframeSensitive> handleSensitiveLayout (Plan 06-05 Task 2)', () => {
   it('reads Paper _nativeTag and calls register(tag, rect)', () => {
     const register = vi.fn();
     handleSensitiveLayout({ _nativeTag: 4242 } as unknown, register, evt());

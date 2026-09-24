@@ -4,35 +4,35 @@
 // Home ("Field desk") — the e2e anchor page. These fixtures MUST survive any
 // redesign (packages/sdk-react/e2e/* assert them):
 //   - data-testid="home-heading" with the literal SSR text
-//     "TraceItX Web SDK Example" (ssr-fixture.spec.ts)
+//     "Everframe Web SDK Example" (ssr-fixture.spec.ts)
 //   - the component name `Home` (ui-tree-noise-filter.spec.ts)
 //   - data-testid="cc-number" / "bearer-token" with the canonical PII strings
 //     (seeded-pii.spec.ts), plus the Sensitive block and password input
 //   - the companion section testids (CompanionQR)
 "use client";
 import Link from "next/link";
-import { useTraceItX, Sensitive } from "@traceitx/react";
+import { useEverframe, Sensitive } from "@everframe/react";
 import { CompanionQR } from "./CompanionQR";
 import { SpecimenPlate } from "../components/SpecimenPlate";
 import { getSpecimen } from "../lib/specimens";
 
-const HERO_SPECIMEN = getSpecimen("txx-008")!; // stag beetle
+const HERO_SPECIMEN = getSpecimen("everframe-008")!; // stag beetle
 
 export default function Home() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
 
   return (
     <main className="shell">
       <section className="hero">
         <div>
           <p className="eyebrow" data-testid="home-heading">
-            TraceItX Web SDK Example
+            Everframe Web SDK Example
           </p>
           <h1 className="display">
             A field catalog built to be broken
           </h1>
           <p className="lede">
-            Elytra is a small insect field guide that exists so the TraceItX
+            Elytra is a small insect field guide that exists so the Everframe
             reporter has something real to capture: pages to navigate, lists to
             mutate, images to screenshot, and seeded PII to redact. Wander
             around, then file a bug about a bug — the report button floats in
@@ -47,7 +47,7 @@ export default function Home() {
               data-testid="open-via-hook"
               onClick={() => open()}
             >
-              Open reporter via useTraceItX().open()
+              Open reporter via useEverframe().open()
             </button>
           </div>
         </div>
@@ -145,10 +145,10 @@ export default function Home() {
       </section>
 
       <footer className="site-footer">
-        <span>Elytra — the @traceitx/react example app</span>
+        <span>Elytra — the @everframe/react example app</span>
         <Link href="/strict-csp">Strict-CSP fixture</Link>
-        <a href="https://traceitx.com" rel="noreferrer" target="_blank">
-          traceitx.com
+        <a href="https://everframe.dev" rel="noreferrer" target="_blank">
+          everframe.dev
         </a>
       </footer>
     </main>

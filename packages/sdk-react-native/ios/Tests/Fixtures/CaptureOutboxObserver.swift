@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import Foundation
-import TraceItXKit
+import EverframeKit
 
 // Copy into an owned generated Debug host target and call start() at launch.
 // Reads the real encrypted outbox in the app/keychain context; never enqueues,

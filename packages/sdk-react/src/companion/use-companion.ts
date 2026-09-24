@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // The React half of the companion singleton. `start`, `stop` and the
-// `__get*` seams are framework-free and live in `@traceitx/web`
+// `__get*` seams are framework-free and live in `@everframe/web`
 // (src/companion/singleton.ts); only this hook needs React, so only this
 // hook stayed behind — keeping react out of the web SDK's always-loaded
 // entry. Surfaced as `companion.useCompanion()` (and as a top-level
@@ -16,7 +16,7 @@ import {
   __onCompanionRunning,
   type CompanionState,
   type CompanionAttachChallenge,
-} from '@traceitx/web';
+} from '@everframe/web';
 
 /**
  * React hook returning the latest `{ state, pairUrl, code, attachedUserName,

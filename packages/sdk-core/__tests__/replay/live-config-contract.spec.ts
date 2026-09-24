@@ -5,7 +5,7 @@
 // survive the `.strict()` schema. A field the server adds and the schema does
 // not know about fails the parse, and every consumer then fail-closes to
 // REPLAY_CONFIG_OFF — replay silently never starts, with a clean 200 in the
-// network trace. Captured from traceitx.com on 2026-08-27.
+// network trace. Captured from the production service on 2026-08-27.
 import { describe, it, expect } from 'vitest';
 import { ReplayConfigResponse } from '../../src/types/replay/config-provider.js';
 

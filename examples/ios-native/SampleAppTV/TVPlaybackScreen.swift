@@ -10,7 +10,7 @@
 // release sentinel.
 import AVKit
 import SwiftUI
-import TraceItXKit
+import EverframeKit
 
 private let mainStream = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
 
@@ -32,7 +32,7 @@ struct TVPlaybackScreen: View {
                 Button("Log ad break") {
                     adBreaks += 1
                     let positionMs = Int((player.currentTime().seconds * 1000).rounded())
-                    TraceItX.shared.trackVitals("ad_break", data: ["position": "midroll", "index": adBreaks, "positionMs": positionMs])
+                    Everframe.shared.trackVitals("ad_break", data: ["position": "midroll", "index": adBreaks, "positionMs": positionMs])
                 }
             }
             .buttonStyle(.bordered)
@@ -41,7 +41,7 @@ struct TVPlaybackScreen: View {
         .padding()
         .navigationTitle("Playback")
         .onAppear {
-            handle = TraceItX.shared.trackPlayer(player, name: "main")
+            handle = Everframe.shared.trackPlayer(player, name: "main")
             player.play()
         }
         .onDisappear {

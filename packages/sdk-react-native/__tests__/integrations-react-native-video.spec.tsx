@@ -8,7 +8,7 @@ import { render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { attachVideoPlayerVitals, useVideoPlayerVitals, type VideoPlayerLike } from '../src/integrations/react-native-video.js';
 import { __resetPlayerTokenCounterForTests } from '../src/vitals.js';
 
@@ -17,7 +17,7 @@ import { __resetPlayerTokenCounterForTests } from '../src/vitals.js';
 // install-id-inheritance.spec.ts) — `new URL(x, import.meta.url)` throws
 // under the jsdom environment this spec needs for @testing-library/react.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const native = NativeTraceItX as unknown as Record<string, ReturnType<typeof vi.fn>>;
+const native = NativeEverframe as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const fixture = JSON.parse(readFileSync(path.join(__dirname, 'fixtures/vitals/react-native-video/session.json'), 'utf8'));
 
 // `addEventListener` does NOT throw on a released react-native-video player

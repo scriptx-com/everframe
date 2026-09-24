@@ -69,7 +69,7 @@ export function Modal({
   deferAutoFocus = false,
 }: ModalProps): JSX.Element | null {
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const titleIdRef = useRef<string>(`txx-modal-title-${Math.random().toString(36).slice(2)}`);
+  const titleIdRef = useRef<string>(`everframe-modal-title-${Math.random().toString(36).slice(2)}`);
   const titleId = labelledBy ?? titleIdRef.current;
   // Mirror onClose into a ref so the keydown effect doesn't have to depend on it. Without
   // this, the focus-on-open effect re-runs on every parent re-render that produces a new
@@ -179,7 +179,7 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  // Resolved --txx-* theme overrides (branding spec 2026-08-25) — called
+  // Resolved --everframe-* theme overrides (branding spec 2026-08-25) — called
   // BEFORE the early return below so hook order stays stable regardless of
   // `open`. {} when unentitled, so the spread below is a no-op by default.
   const themeVars = useReporterThemeVars();
@@ -189,29 +189,29 @@ export function Modal({
   if (!portalTarget) return null;
   return createPortal(
     <div
-      className="txx-root"
-      data-traceitx-skip-capture="true"
+      className="everframe-root"
+      data-everframe-skip-capture="true"
       style={{
         ...(themeVars as import('react').CSSProperties),
         ...(hidden ? { visibility: 'hidden' as const } : {}),
       }}
     >
-      <div className="txx-backdrop" onClick={onClose}>
+      <div className="everframe-backdrop" onClick={onClose}>
         <div
           ref={modalRef}
-          className={compact ? 'txx-modal txx-modal-compact' : 'txx-modal'}
+          className={compact ? 'everframe-modal everframe-modal-compact' : 'everframe-modal'}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="txx-modal-header">
-            <span id={titleId} className="txx-modal-title">
+          <div className="everframe-modal-header">
+            <span id={titleId} className="everframe-modal-title">
               {title}
             </span>
           </div>
-          <div className="txx-modal-body">{children}</div>
-          {footer ? <div className="txx-modal-footer">{footer}</div> : null}
+          <div className="everframe-modal-body">{children}</div>
+          {footer ? <div className="everframe-modal-footer">{footer}</div> : null}
         </div>
       </div>
     </div>,

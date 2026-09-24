@@ -3,7 +3,7 @@
   SPDX-License-Identifier: MIT
 SPDX-FileCopyrightText: 2026 ScriptX
   Plan 06.2-08 — companion QR layout. Centered ImageView for the QR
-  bitmap plus a status TextView mirroring TraceItX.companion.state.
+  bitmap plus a status TextView mirroring Everframe.companion.state.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -16,7 +16,7 @@ SPDX-FileCopyrightText: 2026 ScriptX
         android:id="@+id/qr_image"
         android:layout_width="400dp"
         android:layout_height="400dp"
-        android:contentDescription="TraceItX pairing QR code"
+        android:contentDescription="Everframe pairing QR code"
         android:scaleType="fitCenter"
         android:background="@android:color/white"
         app:layout_constraintTop_toTopOf="parent"

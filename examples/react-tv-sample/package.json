@@ -1,5 +1,5 @@
 {
-  "name": "@traceitx/example-react-tv",
+  "name": "@everframe/example-react-tv",
   "version": "0.0.10",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@traceitx/react": "workspace:*",
+    "@everframe/react": "workspace:*",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

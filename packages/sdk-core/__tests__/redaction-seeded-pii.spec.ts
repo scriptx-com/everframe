@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import { UITree } from '@traceitx/protocol';
+import { UITree } from '@everframe/protocol';
 import { applyRedaction } from '../src/redaction/engine.js';
 import { buildSeededPIIEnvelope, TEST_PII } from '../src/__test-helpers__/seeded-pii.js';
 
@@ -34,17 +34,20 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
     expect(headers['content-type']).toBe('application/json');
   });
 
-  it('masks reporter bearer credentials captured in network headers (recognition spec 2026-08-06)', () => {
+  it.each([
+    ['everframe', 'evr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+    ['everframe', 'txr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+  ] as const)('masks %s reporter bearer credentials captured in network headers', (family, deviceToken) => {
     const seeded = buildSeededPIIEnvelope();
     (seeded.payload as { network: unknown }).network = [
       {
         method: 'GET',
-        url: 'https://api.traceitx.com/api/reporter/threads',
+        url: 'https://everframe.dev/api/reporter/threads',
         status: 200,
         startedAt: 1500,
         headers: {
-          'x-tx-device-token': 'txr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          'x-tx-identity-token': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
+          [`x-${family}-device-token`]: deviceToken,
+          [`x-${family}-identity-token`]: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
           'content-type': 'application/json',
         },
       },
@@ -52,8 +55,8 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
     const { envelope } = applyRedaction(seeded, {});
     const headers = (envelope.payload.network as Array<{ headers: Record<string, string> }>)[0]!
       .headers;
-    expect(headers['x-tx-device-token']).toBe('[REDACTED]');
-    expect(headers['x-tx-identity-token']).toBe('[REDACTED]');
+    expect(headers[`x-${family}-device-token`]).toBe('[REDACTED]');
+    expect(headers[`x-${family}-identity-token`]).toBe('[REDACTED]');
     expect(headers['content-type']).toBe('application/json');
   });
 

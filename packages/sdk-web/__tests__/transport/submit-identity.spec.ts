@@ -19,12 +19,12 @@
 // silently swallow a failing in-mock assertion.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { submitReportFromDraft, drainOutbox } from '../../src/transport/submit.js';
-import { createInMemoryOutbox } from '@traceitx/sdk-core';
-import type { OutboxAdapter, ReportDraft, IdentityTokenReader } from '@traceitx/sdk-core';
+import { createInMemoryOutbox } from '@everframe/sdk-core';
+import type { OutboxAdapter, ReportDraft, IdentityTokenReader } from '@everframe/sdk-core';
 import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 
-const config: WebTraceItXConfig = {
+const config: WebEverframeConfig = {
   apiKey: 'txx_live_test',
   appName: 'test-app',
   appVersion: '1.0.0',
@@ -115,7 +115,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
     let observedHeader: string | undefined;
     const drainFetch = vi.fn(async (_url: unknown, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
-      observedHeader = headers['X-TX-Identity-Token'];
+      observedHeader = headers['X-Everframe-Identity-Token'];
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
 
@@ -155,7 +155,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
     let observedHeader: string | undefined;
     const drainFetch = vi.fn(async (_url: unknown, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
-      observedHeader = headers['X-TX-Identity-Token'];
+      observedHeader = headers['X-Everframe-Identity-Token'];
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
 
@@ -192,7 +192,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
     let observedHeader: string | undefined;
     const drainFetch = vi.fn(async (_url: unknown, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
-      observedHeader = headers['X-TX-Identity-Token'];
+      observedHeader = headers['X-Everframe-Identity-Token'];
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
 
@@ -276,7 +276,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
     let observedHeader: string | undefined;
     const drainFetch = vi.fn(async (_url: unknown, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
-      observedHeader = headers['X-TX-Identity-Token'];
+      observedHeader = headers['X-Everframe-Identity-Token'];
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
 
@@ -318,7 +318,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
     let observedHeader: string | undefined;
     const drainFetch = vi.fn(async (_url: unknown, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
-      observedHeader = headers['X-TX-Identity-Token'];
+      observedHeader = headers['X-Everframe-Identity-Token'];
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
 
@@ -362,7 +362,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
     let observedHeader: string | undefined;
     const drainFetch = vi.fn(async (_url: unknown, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
-      observedHeader = headers['X-TX-Identity-Token'];
+      observedHeader = headers['X-Everframe-Identity-Token'];
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
 
@@ -413,7 +413,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
     let observedHeader: string | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
-      observedHeader = headers['X-TX-Identity-Token'];
+      observedHeader = headers['X-Everframe-Identity-Token'];
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
 

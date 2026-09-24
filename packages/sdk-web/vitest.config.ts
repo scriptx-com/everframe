@@ -17,8 +17,8 @@ export default mergeConfig(
     // transform time. Tests that need to assert on the URL just compare against
     // this same constant; tests that want a custom URL set the env var.
     define: {
-      __TRACEITX_INGEST_URL__: JSON.stringify(
-        process.env.TRACEITX_INGEST_URL ?? 'http://localhost:8787',
+      __EVERFRAME_INGEST_URL__: JSON.stringify(
+        process.env.EVERFRAME_INGEST_URL ?? 'http://localhost:8787',
       ),
     },
   }),

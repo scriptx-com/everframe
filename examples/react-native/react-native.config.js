@@ -10,11 +10,11 @@
 //   `node_modules/@scope/name -> ../../../packages/name`. Some autolinking
 //   codepaths skip these symlinks silently — the result is the SDK pod
 //   never lands in `Podfile.lock`, and `TurboModuleRegistry
-//   .getEnforcing('TraceItX')` throws at runtime.
+//   .getEnforcing('Everframe')` throws at runtime.
 //
 // This file forces the discovery by hand. The `root` path points at the
 // real source location (not the symlink) so autolinking reads the
-// `ios/TraceItX.podspec` + `android/build.gradle.kts` directly. Empty
+// `ios/Everframe.podspec` + `android/build.gradle.kts` directly. Empty
 // platform blocks tell autolinking: "use the package's defaults — no
 // overrides for codegen, components, or library name."
 
@@ -24,7 +24,7 @@ const workspaceRoot = path.resolve(__dirname, '../..');
 
 module.exports = {
   dependencies: {
-    '@traceitx/react-native': {
+    '@everframe/react-native': {
       root: path.resolve(workspaceRoot, 'packages/sdk-react-native'),
       platforms: {
         ios: {},

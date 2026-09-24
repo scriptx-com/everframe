@@ -18,10 +18,10 @@
 // crypto — e.g. an opaque-origin iframe), and the announce simply omits the
 // device block, degrading to legacy behavior. Memoized per page load.
 
-/** Single unscoped key: two TraceItX apps on one origin are the same physical
+/** Single unscoped key: two Everframe apps on one origin are the same physical
  *  device, so sharing the id is correct (rows are per-project server-side).
- *  Key style follows credential-store.ts's `txx.` prefix. */
-const STORAGE_KEY = 'txx.companionDeviceId';
+ *  Key style follows credential-store.ts's `everframe.` prefix. */
+const STORAGE_KEY = 'everframe.companionDeviceId';
 
 /** Lowercase-canonical UUID shape, RESTRICTED to v4 + RFC-4122 variant — the
  *  only shape this module's two writers (`hashToUuid`'s SHA-256 nibble-stamp

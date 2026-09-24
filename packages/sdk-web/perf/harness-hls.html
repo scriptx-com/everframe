@@ -10,7 +10,7 @@
 <script type="module">
   import { init } from '/dist/browser/index.js';
   const h = init({ apiKey: 'pk_perf', appVersion: '0.0.0-perf' });
-  window.__traceitx = h;
+  window.__everframe = h;
   const v = document.getElementById('v');
   const hls = new Hls();
   hls.loadSource(window.__HLS_URL || 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8');

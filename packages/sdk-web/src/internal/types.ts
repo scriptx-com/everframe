@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { TraceItXConfig } from '@traceitx/sdk-core';
+import type { EverframeConfig } from '@everframe/sdk-core';
 import type { ReporterTheme } from '../branding/theme.js';
 
-export interface WebTraceItXConfig extends TraceItXConfig {
+export interface WebEverframeConfig extends EverframeConfig {
   /** CSP nonce threaded into screenshot lib + injected styles. Required under strict CSP. */
   cspNonce?: string;
   /** Console patcher overrides — capacity defaults to 250; levels defaults to all 5. */
@@ -18,13 +18,13 @@ export interface WebTraceItXConfig extends TraceItXConfig {
    * affected by it. Provided for hosts whose tooling cannot pierce shadow roots
    * (some e2e frameworks, some screen-reader automation).
    *
-   * SCOPE: honoured by `@traceitx/web`'s `init()` only. `WebTraceItXConfig` is
-   * re-exported as public type surface by `@traceitx/react`, where nothing
+   * SCOPE: honoured by `@everframe/web`'s `init()` only. `WebEverframeConfig` is
+   * re-exported as public type surface by `@everframe/react`, where nothing
    * reads this flag — that Provider portals the reporter into `document.body`
    * unconditionally, as it always has, so setting it there has no effect in
    * either direction.
    */
-  __traceitxShadowDom?: boolean;
+  __everframeShadowDom?: boolean;
   /**
    * Reporter window theme (branding spec 2026-08-25) — 8 semantic color
    * roles, #rrggbb strings only. Applies ONLY once the server confirms a

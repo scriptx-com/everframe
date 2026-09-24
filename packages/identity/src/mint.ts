@@ -18,7 +18,7 @@ import {
 export function assertValidSecret(secret: unknown): asserts secret is string {
   if (typeof secret !== 'string' || secret.trim().length < MIN_SECRET_LENGTH) {
     throw new Error(
-      `@traceitx/identity: secret must be a string of at least ${MIN_SECRET_LENGTH} characters. ` +
+      `@everframe/identity: secret must be a string of at least ${MIN_SECRET_LENGTH} characters. ` +
         'Generate one in Project settings -> User recognition and read it from your environment.',
     );
   }
@@ -26,15 +26,15 @@ export function assertValidSecret(secret: unknown): asserts secret is string {
 
 export function assertValidProjectId(projectId: unknown): asserts projectId is string {
   if (typeof projectId !== 'string' || projectId.trim() === '') {
-    throw new Error('@traceitx/identity: projectId must be a non-empty string.');
+    throw new Error('@everframe/identity: projectId must be a non-empty string.');
   }
 }
 
 export function assertValidTtl(ttlSeconds: number): void {
   if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0 || ttlSeconds > MAX_TTL_SECONDS) {
     throw new Error(
-      `@traceitx/identity: ttlSeconds must be a positive integer <= ${MAX_TTL_SECONDS}. ` +
-        'TraceItX rejects longer-lived tokens as ttl_too_long.',
+      `@everframe/identity: ttlSeconds must be a positive integer <= ${MAX_TTL_SECONDS}. ` +
+        'Everframe rejects longer-lived tokens as ttl_too_long.',
     );
   }
 }
@@ -62,7 +62,7 @@ export function normalizeUser(user: IdentityUser): NormalizedUser {
   const sub = typeof user?.id === 'string' ? user.id.trim() : '';
   if (sub === '' || sub.length > SUBJECT_MAX) {
     throw new SubjectError(
-      `@traceitx/identity: user.id must be a non-empty string of at most ${SUBJECT_MAX} characters.`,
+      `@everframe/identity: user.id must be a non-empty string of at most ${SUBJECT_MAX} characters.`,
     );
   }
   return { sub, email: optionalClaim(user.email), name: optionalClaim(user.name) };

@@ -15,7 +15,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { appRoot, buildWeb, fail, log, run, stageForPackaging } from './tv-common.mjs';
 
-const APP_ID = 'com.traceitx.smarttv.tester';
+const APP_ID = 'com.everframe.smarttv.tester';
 const shouldRun = process.argv.includes('--run');
 
 if (spawnSync('which', ['ares-package'], { encoding: 'utf8' }).status !== 0) {

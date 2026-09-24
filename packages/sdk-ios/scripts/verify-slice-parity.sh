@@ -20,7 +20,7 @@
 # artifacts. Device-vs-simulator is a legitimate comparison because both slices
 # compile the same sources with the same conditionals — `#if targetEnvironment
 # (simulator)` is not used to gate public API anywhere in this SDK. iOS-vs-tvOS
-# is NOT: TraceItXReporterUI's `PresentToken` is iOS-only by design (the tvOS
+# is NOT: EverframeReporterUI's `PresentToken` is iOS-only by design (the tvOS
 # on-device modal reporter was removed; tvOS routes through the phone
 # companion), so a cross-platform check would fail on correct artifacts.
 #

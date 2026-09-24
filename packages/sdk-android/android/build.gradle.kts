@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Root Gradle build for the TraceItX Android SDK (Plan 05-01 + 05-08).
+// Root Gradle build for the Everframe Android SDK (Plan 05-01 + 05-08).
 // Plugins are declared at the root with `apply false` so each subproject opts in.
 //
 // Plan 05-08: Maven publish coordination — every Android library subproject
 // auto-applies `maven-publish` + a release `MavenPublication`. Customers consume via
-// `com.traceitx:<module>:<version>` after authenticating with a fine-grained PAT
-// (see `android/README.md` for the recipe).
+// `dev.everframe:<module>:<version>` from Maven Central.
 
 plugins {
     alias(libs.plugins.android.library) apply false
@@ -20,21 +19,21 @@ plugins {
 }
 
 // Single publish version for every module. Source of truth is
-// `gradle.properties:traceitxVersion`; override per-build with
-// `-PtraceitxVersion=X.Y.Z`. The 0.0.0-LOCAL default only fires if both are
+// `gradle.properties:everframeVersion`; override per-build with
+// `-PeverframeVersion=X.Y.Z`. The 0.0.0-LOCAL default only fires if both are
 // missing — a deliberately-invalid SemVer so an unconfigured environment
 // produces an obviously-broken artifact instead of a silent SNAPSHOT push.
 // --- Local-dev publishing gate ------------------------------------------
-// `-PtraceitxDevLocal=true` is the ONE switch that distinguishes "I am
+// `-PeverframeDevLocal=true` is the ONE switch that distinguishes "I am
 // dogfooding against my laptop" from "this artifact is going to consumers".
 // It changes two things together, and they must move together:
 //
 //   1. the published VARIANT flips release -> debug, and
 //   2. the version gains a `-DEV` suffix.
 //
-// (1) is the point. `traceitx-core`'s release variant hardcodes
-// INGEST_URL = https://traceitx.com and deliberately refuses to read
-// TRACEITX_DEV_INGEST_URL — an env-var fallback there once let a maintainer
+// (1) is the point. `everframe-core`'s release variant hardcodes
+// INGEST_URL = https://everframe.dev and deliberately refuses to read
+// EVERFRAME_DEV_INGEST_URL — an env-var fallback there once let a maintainer
 // publish an AAR pointing at their own laptop to Maven Central, which cannot
 // be rewritten. Only the DEBUG variant honours the override. Publishing
 // release-only therefore made local Android dogfooding impossible: every
@@ -46,50 +45,35 @@ plugins {
 // version in ~/.m2, consumers must ask for it by name, and a `-DEV` string
 // escaping into a release POM is glaring in review.
 //
-// SAFETY — why this cannot leak to Maven Central: the flag swaps which
-// component the SINGLE publication is built from; it never adds a second
-// publication. `publishAllToSonatype` runs `publishAllPublicationsTo…` with
-// no flag set, so the only publication that exists in that build is the
-// release one, exactly as before. Do not "improve" this by declaring both
-// publications at once — that is precisely how a debug AAR reaches consumers.
-val traceitxDevLocal: Boolean =
-    (project.findProperty("traceitxDevLocal") as String?)?.toBoolean() ?: false
-val traceitxPublishVariant: String = if (traceitxDevLocal) "debug" else "release"
-val traceitxVersionResolved: String =
-    ((project.findProperty("traceitxVersion") as String?) ?: "0.0.0-LOCAL")
-        .let { if (traceitxDevLocal) "$it-DEV" else it }
+// The flag swaps which component the SINGLE publication is built from; it
+// never adds a second publication. Central bundles reject dev-local variants.
+val everframeDevLocal: Boolean =
+    (project.findProperty("everframeDevLocal") as String?)?.toBoolean() ?: false
+val everframePublishVariant: String = if (everframeDevLocal) "debug" else "release"
+val everframeVersionResolved: String =
+    ((project.findProperty("everframeVersion") as String?) ?: "0.0.0-LOCAL")
+        .let { if (everframeDevLocal) "$it-DEV" else it }
 allprojects {
-    group = "com.traceitx"
-    version = traceitxVersionResolved
+    group = "dev.everframe"
+    version = everframeVersionResolved
     // Read by each module's MavenPublication. Kept here rather than recomputed
     // per module so the variant and the version can never disagree.
-    extra["traceitxPublishVariant"] = traceitxPublishVariant
+    extra["everframePublishVariant"] = everframePublishVariant
 }
-if (traceitxDevLocal) {
+if (everframeDevLocal) {
     logger.lifecycle(
-        "[traceitx] DEV-LOCAL publish: variant=$traceitxPublishVariant version=$traceitxVersionResolved " +
-            "(ingest URL comes from TRACEITX_DEV_INGEST_URL; NOT publishable to Maven Central)",
+        "[everframe] DEV-LOCAL publish: variant=$everframePublishVariant version=$everframeVersionResolved " +
+            "(ingest URL comes from EVERFRAME_DEV_INGEST_URL; NOT publishable to Maven Central)",
     )
-    // HARD STOP on the remote path. The gate above only changes which component
-    // the publication is built from — the publication is still NAMED 'release',
-    // so `publishReleasePublicationToSonatypeRepository` stays enabled and would
-    // happily upload the debug AAR: unminified, and carrying whatever ingest URL
-    // the developer had exported. Maven Central cannot be rewritten, so that is
-    // permanent. "CI never passes the flag" is not a safeguard — a developer
-    // with credentials and the flag in their shell or ~/.gradle.properties is
-    // exactly the situation the release variant's own comment was written about.
-    //
-    // Fails when the graph is READY rather than in a doFirst, so the build stops
-    // before any task runs instead of part-way through a publish.
     gradle.taskGraph.whenReady {
-        val remote = allTasks.filter { it.name.contains("ToSonatypeRepository") }
-        if (remote.isNotEmpty()) {
+        val bundleTasks = allTasks.filter { it.name.contains("CentralBundle", ignoreCase = true) }
+        if (bundleTasks.isNotEmpty()) {
             error(
-                "Refusing to publish a dev-local build to Sonatype.\n" +
-                    "  -PtraceitxDevLocal=true selects the DEBUG variant (unminified, dev ingest URL) " +
+                "Refusing to include a dev-local build in a Central Portal bundle.\n" +
+                    "  -PeverframeDevLocal=true selects the DEBUG variant (unminified, dev ingest URL) " +
                     "and a -DEV version; neither belongs on Maven Central, and it cannot be unpublished.\n" +
-                    "  Offending task(s): ${remote.joinToString(", ") { it.path }}\n" +
-                    "  Drop -PtraceitxDevLocal (and any traceitxDevLocal in ~/.gradle/gradle.properties) " +
+                    "  Offending task(s): ${bundleTasks.joinToString(", ") { it.path }}\n" +
+                    "  Drop -PeverframeDevLocal (and any everframeDevLocal in ~/.gradle/gradle.properties) " +
                     "to publish a real release.",
             )
         }
@@ -97,6 +81,17 @@ if (traceitxDevLocal) {
 }
 
 subprojects {
+    pluginManager.withPlugin("maven-publish") {
+        extensions.configure<org.gradle.api.publish.PublishingExtension> {
+            repositories {
+                maven {
+                    name = "CentralBundle"
+                    url = rootProject.layout.buildDirectory.dir("central-bundle/repository").get().asFile.toURI()
+                }
+            }
+        }
+    }
+
     pluginManager.withPlugin("com.android.library") {
         // AGP 8.7's built-in `withJavadocJar()` runs an older embedded Dokka
         // that cannot read Kotlin 2.1 sealed-class bytecode. Use current Dokka
@@ -141,10 +136,10 @@ subprojects {
             // Publish source and API documentation alongside each AAR. The SDK
             // source is MIT-licensed and lives in the public repository.
             publishing {
-                // `release` normally; `debug` under -PtraceitxDevLocal=true, which
+                // `release` normally; `debug` under -PeverframeDevLocal=true, which
                 // is the only variant that carries a local ingest URL. See the
                 // gate's comment at the top of this file.
-                singleVariant(traceitxPublishVariant) {
+                singleVariant(everframePublishVariant) {
                     withSourcesJar()
                 }
             }
@@ -159,46 +154,44 @@ subprojects {
     }
 }
 
-// Convenience aggregate task: publishes every subproject's release publication
-// to the shared remote Maven repository.
-//
-// Renamed from `publishAllToGitHubPackages` on 2026-08-10. Each module's
-// publishing block now declares a repository named **Sonatype**
-// (central.sonatype.com — see the `publishing { repositories { maven { ... } } }`
-// block in each module's build.gradle.kts), so the per-project task this
-// aggregate depended on —
-// `:<module>:publishAllPublicationsToGitHubPackagesRepository` — no longer
-// exists under any module. Gradle cannot resolve a dependsOn to a
-// non-existent task path, so the aggregate failed at configuration time with
-// "Could not determine the dependencies of task ':publishAllToGitHubPackages'"
-// and android.yml's publish-dry-run job could not even build its task graph.
-//
-// The publishing target moved and this aggregate was never updated with it;
-// the workflow had been disabled since 2026-05-11, so nothing reported it.
-// The dependency is a lazily-resolved TaskCollection per subproject, NOT a
-// hardcoded task path. Only :traceitx-protocol, :traceitx-core,
-// :traceitx-reporter-ui and :traceitx-media3 declare the Sonatype repository;
-// :traceitx-gradle-plugin does not publish there, so a literal
-// ":traceitx-gradle-plugin:publishAllPublicationsToSonatypeRepository" is an
-// unresolvable path and Gradle fails the whole aggregate at configuration time
-// — the same class of breakage as the stale GitHub Packages name, just one
-// module further along. `tasks.matching {}` contributes nothing for a
-// subproject that has no such task, so adding or removing a publishable module
-// needs no edit here.
-tasks.register("publishAllToSonatype") {
+val cleanCentralBundleRepository = tasks.register<Delete>("cleanCentralBundleRepository") {
+    delete(layout.buildDirectory.dir("central-bundle"))
+}
+
+val publishAllToCentralBundle = tasks.register("publishAllToCentralBundle") {
     group = "publishing"
-    description = "Publish every publishable TraceItX Android module to the Sonatype (Maven Central) repository."
+    description = "Write signed Everframe publications into a local Central Portal Maven-layout bundle."
     dependsOn(
         subprojects.map { sub ->
-            sub.tasks.matching { it.name == "publishAllPublicationsToSonatypeRepository" }
+            sub.tasks.matching { it.name == "publishAllPublicationsToCentralBundleRepository" }
         },
     )
+}
+
+subprojects {
+    tasks.matching {
+        it.name.startsWith("publish") &&
+            it.name.endsWith("PublicationToCentralBundleRepository")
+    }.configureEach {
+        dependsOn(cleanCentralBundleRepository)
+    }
+}
+
+tasks.register<Zip>("centralPortalBundle") {
+    group = "publishing"
+    description = "Create the signed Maven-layout zip accepted by the Central Portal Publisher API."
+    dependsOn(publishAllToCentralBundle)
+    from(layout.buildDirectory.dir("central-bundle/repository"))
+    destinationDirectory.set(layout.buildDirectory.dir("central-bundle"))
+    archiveFileName.set("everframe-android-${everframeVersionResolved}.zip")
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
 }
 
 // Plan 05-08 — convenience aggregate task: dry-run for CI without credentials.
 // `--dry-run` skips upload; verifies the publish task graph is wired correctly.
 tasks.register("publishAllToMavenLocal") {
     group = "publishing"
-    description = "Publish every TraceItX Android module to mavenLocal (dev)."
+    description = "Publish every Everframe Android module to mavenLocal (dev)."
     dependsOn(subprojects.map { it.path + ":publishToMavenLocal" })
 }

@@ -10,9 +10,9 @@
 // (time-to-first-frame), not a rebuffer, so the `waiting` that can precede it
 // must NOT open a buffer span. Every subsequent `waiting` (including one
 // immediately after a `seeking`) opens a span that the next `playing` closes.
-import { safeWrap } from '@traceitx/sdk-core';
-import type { PlayerEmit, PlayerIntegration } from '@traceitx/sdk-core';
-import { MAX_PLAYER_LIBRARY_LENGTH, type VitalsPlayerEventType } from '@traceitx/protocol';
+import { safeWrap } from '@everframe/sdk-core';
+import type { PlayerEmit, PlayerIntegration } from '@everframe/sdk-core';
+import { MAX_PLAYER_LIBRARY_LENGTH, type VitalsPlayerEventType } from '@everframe/protocol';
 import { sanitizeSource, scrubUrlsInText, type SourceProtocol } from './sanitize-source.js';
 
 export interface AdapterPlayerEvent {

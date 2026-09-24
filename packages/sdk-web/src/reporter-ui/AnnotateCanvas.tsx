@@ -431,7 +431,7 @@ export function AnnotateCanvas({
     return (
       <div
         ref={containerRef}
-        className="txx-canvas-loading"
+        className="everframe-canvas-loading"
         data-testid="annotate-canvas-loading"
       >
         Loading annotation canvas…
@@ -762,7 +762,7 @@ export function AnnotateCanvas({
       data-testid="annotate-canvas-stage"
     >
       <div
-        className="txx-annotate-canvas-frame"
+        className="everframe-annotate-canvas-frame"
         style={{ width: dispW, maxWidth: '100%', position: 'relative' }}
       >
       <Stage
@@ -868,7 +868,7 @@ export function AnnotateCanvas({
             key={editing.id}
             ref={textEditRef}
             data-testid="text-editor"
-            className="txx-text-editor"
+            className="everframe-text-editor"
             defaultValue={editing.text}
             style={{
               left: editing.x * scale,
@@ -901,116 +901,116 @@ export function AnnotateCanvas({
         );
       })()}
       </div>
-      <div className="txx-annotation-toolbar" role="toolbar" aria-label="Annotation tools">
+      <div className="everframe-annotation-toolbar" role="toolbar" aria-label="Annotation tools">
         <button
           type="button"
           aria-label="Select and move annotations"
           onClick={() => setToolState('pointer')}
-          className={tool === 'pointer' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'pointer' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-pointer"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">➤</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">➤</span>
         </button>
         <button
           type="button"
           aria-label="Draw freehand on screenshot"
           onClick={() => setTool('pen')}
-          className={tool === 'pen' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'pen' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-pen"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">✎</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">✎</span>
         </button>
         <button
           type="button"
           aria-label="Highlight a region of the screenshot"
           onClick={() => setTool('highlighter')}
-          className={tool === 'highlighter' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'highlighter' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-highlighter"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">▰</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">▰</span>
         </button>
         <button
           type="button"
           aria-label="Draw a rectangle outline"
           onClick={() => setTool('rect')}
-          className={tool === 'rect' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'rect' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-rect"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">□</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">□</span>
         </button>
         <button
           type="button"
           aria-label="Draw an ellipse outline"
           onClick={() => setTool('ellipse')}
-          className={tool === 'ellipse' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'ellipse' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-ellipse"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">○</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">○</span>
         </button>
         <button
           type="button"
           aria-label="Draw an arrow on the screenshot"
           onClick={() => setTool('arrow')}
-          className={tool === 'arrow' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'arrow' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-arrow"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">→</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">→</span>
         </button>
         <button
           type="button"
           aria-label="Add text to screenshot"
           onClick={() => setTool('text')}
-          className={tool === 'text' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'text' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-text"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">T</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">T</span>
         </button>
         <button
           type="button"
           aria-label="Redact a region of the screenshot"
           onClick={() => setTool('blur')}
-          className={tool === 'blur' ? 'txx-tool-btn txx-tool-btn-active' : 'txx-tool-btn'}
+          className={tool === 'blur' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
           data-testid="tool-blur"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">▭</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">▭</span>
         </button>
-        <span className="txx-palette-sep" aria-hidden="true" />
+        <span className="everframe-palette-sep" aria-hidden="true" />
         <button
           type="button"
           aria-label="Undo last change"
           disabled={history.past.length === 0}
           onClick={undo}
-          className="txx-tool-btn"
+          className="everframe-tool-btn"
           data-testid="tool-undo"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">↶</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">↶</span>
         </button>
         <button
           type="button"
           aria-label="Redo change"
           disabled={history.future.length === 0}
           onClick={redo}
-          className="txx-tool-btn"
+          className="everframe-tool-btn"
           data-testid="tool-redo"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">↷</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">↷</span>
         </button>
         <button
           type="button"
           aria-label="Delete selected annotation"
           disabled={!selectedId}
           onClick={deleteSelected}
-          className="txx-tool-btn"
+          className="everframe-tool-btn"
           data-testid="tool-delete"
         >
-          <span aria-hidden="true" className="txx-tool-glyph">⌫</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">⌫</span>
         </button>
       </div>
       {(STROKE_TOOLS.includes(tool) ||
         tool === 'text' ||
         (selectedShape !== null && selectedShape.kind !== 'blur')) && (
         <div
-          className="txx-annotation-subtoolbar"
+          className="everframe-annotation-subtoolbar"
           role="toolbar"
           aria-label="Color and thickness"
           data-testid="style-row"
@@ -1023,8 +1023,8 @@ export function AnnotateCanvas({
               onClick={() => applyStyle({ color: c })}
               className={
                 (selectedShape && 'color' in selectedShape ? selectedShape.color : color) === c
-                  ? 'txx-swatch txx-swatch-selected'
-                  : 'txx-swatch'
+                  ? 'everframe-swatch everframe-swatch-selected'
+                  : 'everframe-swatch'
               }
               style={{ background: c }}
             />
@@ -1047,8 +1047,8 @@ export function AnnotateCanvas({
                   }}
                   className={
                     (selectedShape?.kind === 'text' ? selectedShape.fontSize : fontSize) === s
-                      ? 'txx-thickness txx-thickness-selected'
-                      : 'txx-thickness'
+                      ? 'everframe-thickness everframe-thickness-selected'
+                      : 'everframe-thickness'
                   }
                   data-testid={`fontsize-${s}`}
                 >
@@ -1065,8 +1065,8 @@ export function AnnotateCanvas({
                     (selectedShape && 'thickness' in selectedShape
                       ? selectedShape.thickness
                       : thickness) === t
-                      ? 'txx-thickness txx-thickness-selected'
-                      : 'txx-thickness'
+                      ? 'everframe-thickness everframe-thickness-selected'
+                      : 'everframe-thickness'
                   }
                 >
                   {t}

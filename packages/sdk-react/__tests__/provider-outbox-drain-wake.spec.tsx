@@ -28,9 +28,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { useContext, useEffect } from 'react';
-import { TraceItXProvider, TraceItXContext } from '../src/provider.js';
-import { createLocalStorageOutbox } from '@traceitx/web';
-import type { ThreadClient } from '@traceitx/sdk-core';
+import { EverframeProvider, EverframeContext } from '../src/provider.js';
+import { createLocalStorageOutbox } from '@everframe/web';
+import type { ThreadClient } from '@everframe/sdk-core';
 
 afterEach(() => {
   cleanup();
@@ -43,7 +43,7 @@ const config = { apiKey: APP_KEY };
 
 /** Surfaces the adapter's thread client synchronously, before any drain promise settles. */
 function AdapterProbe({ onAdapter }: { onAdapter: (threads: ThreadClient | undefined) => void }) {
-  const ctx = useContext(TraceItXContext);
+  const ctx = useContext(EverframeContext);
   useEffect(() => {
     onAdapter(ctx?.adapter.threads);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,9 +112,9 @@ describe('round-6 Finding 2: outbox-drain-provisioned thread wakes the poller', 
 
     const seen: ThreadClient[] = [];
     render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <AdapterProbe onAdapter={(threads) => { if (threads) seen.push(threads); }} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     const threads = seen[0];
     expect(threads).toBeDefined();
@@ -131,9 +131,9 @@ describe('round-6 Finding 2: outbox-drain-provisioned thread wakes the poller', 
 
     const seen: ThreadClient[] = [];
     render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <AdapterProbe onAdapter={(threads) => { if (threads) seen.push(threads); }} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     const threads = seen[0];
     expect(threads).toBeDefined();
@@ -151,9 +151,9 @@ describe('round-6 Finding 2: outbox-drain-provisioned thread wakes the poller', 
 
     const seen: ThreadClient[] = [];
     render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <AdapterProbe onAdapter={(threads) => { if (threads) seen.push(threads); }} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     const threads = seen[0];
     expect(threads).toBeDefined();

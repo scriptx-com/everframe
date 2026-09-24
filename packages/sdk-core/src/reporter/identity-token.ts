@@ -18,7 +18,7 @@
 // or expired-looking token is simply treated as ABSENT, exactly like a host
 // that never called setIdentityToken at all, so the report still submits
 // (anonymously). Recognition must never fail or stall a report.
-export const IDENTITY_TOKEN_HEADER = 'X-TX-Identity-Token';
+export const IDENTITY_TOKEN_HEADER = 'X-Everframe-Identity-Token';
 
 /**
  * Longest identity token this SDK will ever present — the SERVER'S ceiling,
@@ -487,7 +487,7 @@ export class IdentityTokenHolder implements IdentityTokenReader {
       return null;
     }
     if (!this.guardAllows()) {
-      // PR review (Serious, feat/traceitx-identity) — the guard was consulted
+      // PR review (Serious, identity recognition) — the guard was consulted
       // at the top of this method, before the await above. A concurrent
       // identity switch (e.g. the app's render-phase signal flipping from
       // Alice to Bob) while the provider call was in flight must not let

@@ -23,7 +23,7 @@ function renderModal() {
 describe('portal target', () => {
   it('defaults to document.body so the React path is unchanged', () => {
     renderModal();
-    expect(document.body.querySelector('.txx-modal')).not.toBeNull();
+    expect(document.body.querySelector('.everframe-modal')).not.toBeNull();
   });
 
   it('renders into a shadow root when one is set, and NOT into document.body', () => {
@@ -34,8 +34,8 @@ describe('portal target', () => {
 
     renderModal();
 
-    expect(shadow.querySelector('.txx-modal')).not.toBeNull();
-    expect(document.body.querySelector('.txx-modal')).toBeNull();
+    expect(shadow.querySelector('.everframe-modal')).not.toBeNull();
+    expect(document.body.querySelector('.everframe-modal')).toBeNull();
   });
 
   it('restores the document.body default when reset to null', () => {
@@ -44,6 +44,6 @@ describe('portal target', () => {
     __setPortalTarget(host.attachShadow({ mode: 'open' }));
     __setPortalTarget(null);
     renderModal();
-    expect(document.body.querySelector('.txx-modal')).not.toBeNull();
+    expect(document.body.querySelector('.everframe-modal')).not.toBeNull();
   });
 });

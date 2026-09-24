@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="TraceItX Views Sample"
+        android:label="Everframe Views Sample"
         android:icon="@android:drawable/sym_def_app_icon"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -27,7 +27,7 @@
         <activity android:name=".LoginActivity" android:exported="false" />
 
         <!-- Plan 06.2-08: companion-runtime QR display activity. Renders the
-             pair_url from TraceItX.companion.pairUrl via a host-supplied QR
+             pair_url from Everframe.companion.pairUrl via a host-supplied QR
              library (ZXing in app/build.gradle.kts). No permissions needed. -->
         <activity android:name=".CompanionQRActivity" android:exported="false" />
     </application>

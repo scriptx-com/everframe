@@ -4,9 +4,9 @@
 // PROTO-02 cross-SDK fixture parity — TS side of the three-decoder gate.
 //
 // The same `v1-cross-sdk-proto-02.json` is round-tripped through:
-//   - TS  (this spec — `ReportEnvelope.parse` from @traceitx/protocol)
-//   - Swift (packages/sdk-ios/Tests/TraceItXTests/CrossSDKProto02Tests.swift)
-//   - Kotlin (packages/sdk-android/android/traceitx-protocol/src/test/.../CrossSDKProto02Test.kt)
+//   - TS  (this spec — `ReportEnvelope.parse` from @everframe/protocol)
+//   - Swift (packages/sdk-ios/Tests/EverframeTests/CrossSDKProto02Tests.swift)
+//   - Kotlin (packages/sdk-android/android/everframe-protocol/src/test/.../CrossSDKProto02Test.kt)
 //
 // All three MUST decode → re-encode → equal the canonical fixture's
 // normalized (sorted-keys) JSON. Failure of any blocks Phase 6 sign-off.

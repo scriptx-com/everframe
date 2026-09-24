@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { captureJsBundleMetadata, type JsBundleConfig } from './js-bundle.js';
-import NativeTraceItX from './NativeTraceItX.js';
+import NativeEverframe from './NativeEverframe.js';
 import { extractFacts } from './error-facts.js';
-import { normalizeCrashDetails } from '@traceitx/protocol';
-import { redactStringContent, type CaptureExceptionOptions } from '@traceitx/sdk-core';
+import { normalizeCrashDetails } from '@everframe/protocol';
+import { redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
 
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
 interface ErrorUtilsLike {
@@ -50,9 +50,9 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     capturing = true;
     try {
       // Older native binaries may omit the distinct method or throw on lookup.
-      let handledMethod: typeof NativeTraceItX.captureHandledException | undefined;
+      let handledMethod: typeof NativeEverframe.captureHandledException | undefined;
       try {
-        const method = NativeTraceItX.captureHandledException;
+        const method = NativeEverframe.captureHandledException;
         if (typeof method === 'function') handledMethod = method;
       } catch { /* automatic capture keeps its legacy path */ }
       if (explicit && !handledMethod) return;
@@ -80,10 +80,10 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       const legacyAttempt = !explicit && !handledMethod;
       // Preserve old-binary attempt accounting, including a failed lookup.
       if (!fatal && legacyAttempt) keys.add(key);
-      const method = explicit ? handledMethod : NativeTraceItX.reportCrash;
+      const method = explicit ? handledMethod : NativeEverframe.reportCrash;
       // Bridge property reads may themselves reenter teardown.
       if (typeof method !== 'function' || !ownsCapture()) return;
-      const accepted = applyFunction(method, NativeTraceItX, [payload]) === true;
+      const accepted = applyFunction(method, NativeEverframe, [payload]) === true;
       if (!fatal && !legacyAttempt && accepted) {
         keys.add(key);
         if (identity) acceptedObjects.add(identity);
@@ -121,14 +121,14 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       }
     }
   } catch {
-    console.warn('[traceitx] crash handler install threw');
+    console.warn('[everframe] crash handler install threw');
   }
   return {
     captureException(error, options) { capture(error, true, false, options); },
     dispose() {
       if (!active) return;
       active = false;
-      try { restore?.(); } catch { console.warn('[traceitx] crash handler teardown threw'); }
+      try { restore?.(); } catch { console.warn('[everframe] crash handler teardown threw'); }
     },
   };
 }

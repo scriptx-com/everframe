@@ -11,8 +11,8 @@ import android.widget.Button;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.traceitx.TraceItX;
-import com.traceitx.config.ReportResult;
+import dev.everframe.Everframe;
+import dev.everframe.config.ReportResult;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -23,14 +23,14 @@ public class LoginActivity extends AppCompatActivity {
 
         Button btn = findViewById(R.id.openReporter);
         btn.setOnClickListener(v -> {
-            TraceItX.report.openAsync(new TraceItX.Callback<ReportResult>() {
+            Everframe.report.openAsync(new Everframe.Callback<ReportResult>() {
                 @Override public void onResult(ReportResult value) { finish(); }
                 @Override public void onError(Throwable error) { error.printStackTrace(); }
             });
         });
 
         // Plan 05-09: disable the trigger while the reporter is presenting.
-        // Mirrors MainActivity.java line 77 — observe TraceItX.report.isPresenting
+        // Mirrors MainActivity.java line 77 — observe Everframe.report.isPresenting
         // via the lifecycle-scoped helper so the button greys out during the modal.
         PresentingObserver.observe(this, btn);
     }

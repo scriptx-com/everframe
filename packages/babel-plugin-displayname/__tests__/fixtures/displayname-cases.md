@@ -3,7 +3,7 @@
 
 # DisplayName Cases — Single Source of Truth
 
-This table enumerates every input pattern both `@traceitx/babel-plugin-displayname` and `@traceitx/swc-plugin-displayname` MUST handle. Snapshot tests in BOTH plugins reference these cases; CI lints for case-count parity.
+This table enumerates every input pattern both `@everframe/babel-plugin-displayname` and `@everframe/swc-plugin-displayname` MUST handle. Snapshot tests in BOTH plugins reference these cases; CI lints for case-count parity.
 
 | Case ID | Input pattern | Expected displayName insertion | Notes |
 |---------|---------------|-------------------------------|-------|

@@ -3,7 +3,7 @@
 //
 // The imperative lifecycle: `init(config)` -> handle -> `destroy()`.
 //
-// This is the vanilla counterpart of `@traceitx/react`'s `TraceItXProvider`,
+// This is the vanilla counterpart of `@everframe/react`'s `EverframeProvider`,
 // ported effect for effect. React's Provider spreads the same work across ~15
 // `useEffect`s whose ORDER encodes several hard-won fixes; the ordering is
 // reproduced here deliberately, and every constraint is commented where it
@@ -19,10 +19,10 @@ import {
   __internalClientState,
   IDENTITY_PROVIDER_TIMEOUT_MS,
   resolveClientExtra,
-  type TraceItXClient,
+  type EverframeClient,
   type ThreadClientState,
   type UserMetadata,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from './adapter.js';
 import { injectReporterStyles } from './reporter-ui/style-injector.js';
 import { __setPortalTarget } from './reporter-ui/portal-target.js';
@@ -56,40 +56,40 @@ import type { Island } from './mount/react-island.js';
 import type { ReporterCompletePayload } from './reporter-ui/ReporterDialog.js';
 import type { ToastTone } from './reporter-ui/primitives/Toast.js';
 import { assertBrowser } from './ssr.js';
-import type { WebTraceItXConfig } from './internal/types.js';
-import { TraceItXNotMountedError } from './reporter-types.js';
+import type { WebEverframeConfig } from './internal/types.js';
+import { EverframeNotMountedError } from './reporter-types.js';
 import type { ReporterResult } from './reporter-types.js';
 
 /**
  * What `init()` hands back: the client facade a React host reaches through
- * `useTraceItX()`, plus the teardown the Provider gets for free from React
+ * `useEverframe()`, plus the teardown the Provider gets for free from React
  * unmounting it.
  */
-export interface TraceItXHandle {
+export interface Everframe {
   /**
    * Open the reporter. Resolves with the outcome, exactly like the React
-   * `open()`. Rejects with `TraceItXNotMountedError` if the reporter UI is not
+   * `open()`. Rejects with `EverframeNotMountedError` if the reporter UI is not
    * mounted, or if this handle has been destroyed — the same failure the React
    * SDK's top-level `open()` raises with no Provider mounted.
    */
   open(): Promise<ReporterResult>;
-  setUser: TraceItXClient['setUser'];
-  setIdentityToken: TraceItXClient['setIdentityToken'];
-  setExtra: TraceItXClient['setExtra'];
-  addBreadcrumb: TraceItXClient['addBreadcrumb'];
-  captureException: TraceItXClient['captureException'];
+  setUser: EverframeClient['setUser'];
+  setIdentityToken: EverframeClient['setIdentityToken'];
+  setExtra: EverframeClient['setExtra'];
+  addBreadcrumb: EverframeClient['addBreadcrumb'];
+  captureException: EverframeClient['captureException'];
   recordScreen: ScreenRecorder;
   // NO `markSensitive`. sdk-core's method of that name is a literal no-op
   // (client.ts's body is a comment saying the adapter resolves target ->
   // rect at capture time; nothing ever wired it). Redaction acts on
-  // `node.sensitive`, which is fed ONLY by the `data-traceitx-sensitive`
+  // `node.sensitive`, which is fed ONLY by the `data-everframe-sensitive`
   // DOM scan and by `sensitiveRegistry.addRef()` — both exported from this
-  // package. `@traceitx/react` still carries the dead method on its hook
+  // package. `@everframe/react` still carries the dead method on its hook
   // for compatibility with released versions; this handle is new surface
   // with no consumers, so it does not inherit a privacy API that silently
   // does nothing.
-  threads: TraceItXClient['threads'];
-  kill: TraceItXClient['kill'];
+  threads: EverframeClient['threads'];
+  kill: EverframeClient['kill'];
   /** Session Vitals phase 4: attach a player (optionally an hls.js / Shaka instance) for per-player playback tracing. */
   trackPlayer(opts: TrackPlayerOptions): PlayerHandle;
   /** Session Vitals phase 4: a customer log line on the session timeline (≤ 2 KB data, truncated over the cap). */
@@ -117,14 +117,14 @@ export interface TraceItXHandle {
  * `__root` against `__adapter`. Not product API; `init()`'s declared return
  * type hides all of it from consumers.
  *
- * `__root` (not `__shadow`) because `__traceitxShadowDom: false` makes it a
+ * `__root` (not `__shadow`) because `__everframeShadowDom: false` makes it a
  * plain `HTMLElement` rather than a `ShadowRoot` — see mount/host-element.ts.
  */
-export interface InternalHandle extends TraceItXHandle {
+export interface InternalHandle extends Everframe {
   __setShowModal(fn: () => void): void;
   readonly __adapter: WebPlatformAdapter;
-  readonly __client: TraceItXClient;
-  readonly __config: WebTraceItXConfig;
+  readonly __client: EverframeClient;
+  readonly __config: WebEverframeConfig;
   readonly __root: ShadowRoot | HTMLElement;
 }
 
@@ -137,7 +137,7 @@ const TOAST_RETRY = "Saved offline — will retry when you're back online.";
 const TOAST_ERROR = "Couldn't send report. Check your SDK key configuration.";
 // The ONE outcome with no counterpart in provider.tsx, and deliberately so:
 // it belongs to the kill gate in `submitFromIsland` below, which is a
-// `@traceitx/web` addition (the React Provider's `onComplete` is out of bounds
+// `@everframe/web` addition (the React Provider's `onComplete` is out of bounds
 // for this change — see that gate's comment). Worded as a statement of fact
 // about the app, not an error the user can act on, because the host turning
 // reporting off is not a failure: the alternative — dropping a report the user
@@ -161,12 +161,12 @@ async function sha256OfBytes(bytes: Uint8Array): Promise<string> {
 
 /**
  * The live instance, or null. One reporter per page — the same single-instance
- * rule `contextSeam` already enforces for `@traceitx/react`'s top-level
+ * rule `contextSeam` already enforces for `@everframe/react`'s top-level
  * `open()`, and the reason every seam this file writes can be a module global.
  */
 let current: InternalHandle | null = null;
 
-export function init(config: WebTraceItXConfig): TraceItXHandle {
+export function init(config: WebEverframeConfig): Everframe {
   assertBrowser();
 
   // One reporter per page. Returning the live handle beats throwing: a
@@ -175,7 +175,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
   // would be baffling, so it warns.
   if (current) {
     console.warn(
-      '[TraceItX] init() called more than once; returning the existing instance. ' +
+      '[Everframe] init() called more than once; returning the existing instance. ' +
         'Call destroy() first if you meant to re-initialise.',
     );
     return current;
@@ -184,7 +184,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
   // The mount comes first: the seams below hand the root (shadow or, opted
   // out, the plain host div) to the UI layer, so it has to exist before
   // anything can be pointed at it.
-  const useShadow = config.__traceitxShadowDom !== false;
+  const useShadow = config.__everframeShadowDom !== false;
   const { host, root, remove } = createHostElement(document, useShadow);
   // Into the SHADOW root, not `document.head` — the React path injects into
   // the document because its portals land in `document.body`; here every
@@ -207,7 +207,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
   // provider.tsx's `useMemo` body, in the same order and for the same reasons.
   // The adapter installs the crash handlers as it is constructed, so its SDK
   // identity is passed IN (not set through a seam afterwards): no crash can
-  // ever be observed under the wrong sdk name/version. `traceitx-web` is what
+  // ever be observed under the wrong sdk name/version. `everframe-web` is what
   // distinguishes a Vue/Svelte/plain-HTML host's reports from a React host's.
   const adapter: WebPlatformAdapter = createWebPlatformAdapter(config, {
     sdkName: VANILLA_SDK_NAME,
@@ -315,7 +315,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
   });
 
   // This host has NO builtin attach-PIN surface: `CompanionPinCard` is
-  // mounted only by `@traceitx/react`'s Provider, and the vanilla mount
+  // mounted only by `@everframe/react`'s Provider, and the vanilla mount
   // renders the FAB, the reporter dialog, the inbox and a toast — nothing
   // else. Declared BEFORE any host code can call `companion.start()`, so
   // `attachPinUi`'s `'builtin'` default resolves to `'off'` instead of
@@ -485,7 +485,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
    *
    * The one thing that is NOT a straight copy is RULING 18: `sdkName` is
    * passed explicitly. `submitReportFromDraft` (and `draftToEnvelope` under
-   * it) default to `traceitx-react` because every caller predating this file
+   * it) default to `everframe-react` because every caller predating this file
    * was React — so an omitted argument here would file EVERY vanilla in-app
    * report under the React SDK's name, on the highest-volume path there is,
    * invisibly.
@@ -516,7 +516,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
     // runs BEFORE the `__resolveReporterUI(payload)` below, which would
     // otherwise consume that same one-shot resolver with a live draft.
     //
-    // NOT applied to `@traceitx/react`: provider.tsx has the identical hole
+    // NOT applied to `@everframe/react`: provider.tsx has the identical hole
     // and is out of bounds for this change. Reported separately.
     if (isKilled()) {
       toast('warning', TOAST_KILLED);
@@ -636,7 +636,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
         const outcome = await submitReportFromDraft({
           config,
           // RULING 18 — the vanilla name, passed EXPLICITLY. Omitting it
-          // defaults to `traceitx-react` and mislabels this host's entire
+          // defaults to `everframe-react` and mislabels this host's entire
           // in-app report stream. Same constant the adapter's crash path and
           // the companion host seam are constructed with, above.
           sdkName: VANILLA_SDK_NAME,
@@ -924,7 +924,7 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
     // The reviewer's observation is CORRECT for the vanilla lifecycle: called
     // synchronously from inside `init()`, `holder.hasSource()` above is
     // necessarily false. The client was constructed a few lines up, nothing
-    // but `client.init(config)` has touched it, and `WebTraceItXConfig`
+    // but `client.init(config)` has touched it, and `WebEverframeConfig`
     // carries no identity token — the only way to set a source is
     // `handle.setIdentityToken()`, and the host cannot have called it yet
     // because `init()` has not returned the handle. So the bounded wait this
@@ -963,14 +963,14 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
       // with the error the React SDK already raises when nothing is mounted.
       if (disposed) {
         return Promise.reject(
-          new TraceItXNotMountedError(
-            'TraceItX was destroyed; call init() again before open().',
+          new EverframeNotMountedError(
+            'Everframe was destroyed; call init() again before open().',
           ),
         );
       }
       if (!showModal) {
         return Promise.reject(
-          new TraceItXNotMountedError('The TraceItX reporter UI is not mounted.'),
+          new EverframeNotMountedError('The Everframe reporter UI is not mounted.'),
         );
       }
       return adapter.__openReporter();
@@ -1019,16 +1019,16 @@ export function init(config: WebTraceItXConfig): TraceItXHandle {
       island?.unmount();
       ambient.destroy();
       // Codex round-1 finding 5 (P2) — settle an `open()` that is ALREADY in
-      // flight. A later `open()` rejects with `TraceItXNotMountedError` (see
+      // flight. A later `open()` rejects with `EverframeNotMountedError` (see
       // `handle.open` above), but a promise staged before teardown had nothing
       // left that could ever resolve it once the island was unmounted: the
       // host's `await open()` hung for the life of the page.
       //
       // Resolved, not rejected — deliberately, and not an oversight of the
-      // `TraceItXNotMountedError` the post-destroy call raises. The pending
+      // `EverframeNotMountedError` the post-destroy call raises. The pending
       // promise lives in the SHARED adapter (`pendingOpenResolve`), which
       // stores a resolve function and no reject function; giving it one would
-      // add a seam to machinery `@traceitx/react` also consumes for the sake
+      // add a seam to machinery `@everframe/react` also consumes for the sake
       // of a single caller. `cancelled` + a reason is the shape that adapter
       // already settles every non-open outcome with ('superseded', 'killed',
       // and 'error' from a fatal submit), and a caller that branches on

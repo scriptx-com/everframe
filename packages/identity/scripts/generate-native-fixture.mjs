@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Generates packages/protocol/__tests__/fixtures/identity-token-native.v1.json
-// — real tokens minted through @traceitx/identity's ACTUAL entry point
+// — real tokens minted through @everframe/identity's ACTUAL entry point
 // (mintIdentityToken), the same one a customer's backend calls. Minting
 // through the real function rather than hand-rolling JWTs is the whole point:
 // claim-shape drift between the minter and the two native decoders

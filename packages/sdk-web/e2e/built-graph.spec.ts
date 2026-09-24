@@ -5,7 +5,7 @@
 // eager-graph-guard.spec.ts, which reads the SOURCE graph.
 //
 // The source guard catches the realistic source regression (someone adds a
-// static import of './ui.js', or the island reaches for '@traceitx/web/ui').
+// static import of './ui.js', or the island reaches for '@everframe/web/ui').
 // It cannot catch a CONFIG regression — flipping `splitting` off, or dropping
 // react/react-dom from tsup's `noExternal` — because the source is unchanged
 // and every jsdom test still passes; only the shipped bundle moves. That gap
@@ -83,7 +83,7 @@ test('the eager entry reaches React only through a dynamic import, and shares th
   ).toContain(core);
 
   // Dropping react/react-dom (or konva) from tsup's `noExternal`, or reaching
-  // the dialog by the '@traceitx/web/ui' subpath, all show up the same way:
+  // the dialog by the '@everframe/web/ui' subpath, all show up the same way:
   // as a BARE static import in the island, which a vanilla host would then
   // have to install — or, for the subpath, a second copy of every seam.
   const forbidden = [
@@ -95,7 +95,7 @@ test('the eager entry reaches React only through a dynamic import, and shares th
     'react-konva',
     'konva',
   ];
-  expect(island.static.filter((s) => forbidden.includes(s) || s.startsWith('@traceitx/'))).toEqual(
+  expect(island.static.filter((s) => forbidden.includes(s) || s.startsWith('@everframe/'))).toEqual(
     [],
   );
 
@@ -126,7 +126,7 @@ const BROWSER = join(DIST, 'browser');
  *
  * `specifiers()` above is deliberately loose and, on both entries,
  * false-positives on an English error message containing the phrase
- * `from '@traceitx/web'` (with spaces). That is harmless there, because every
+ * `from '@everframe/web'` (with spaces). That is harmless there, because every
  * assertion up there filters down to `./`-prefixed siblings. It is not
  * harmless here: the check below is precisely "is any BARE specifier left", so
  * one prose match would fail it forever. esbuild never puts a space there;

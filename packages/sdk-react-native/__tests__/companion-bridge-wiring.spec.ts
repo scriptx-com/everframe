@@ -8,13 +8,13 @@
 //
 //   • iOS — `packages/sdk-react-native/ios/Tests/*.swift` compile only under
 //     the podspec's `test_spec`. No `Package.swift` declares a
-//     `TraceItX_ReactNative` target, and no CI workflow runs `pod lib lint`,
+//     `Everframe_ReactNative` target, and no CI workflow runs `pod lib lint`,
 //     so those files are never built by anything. `.github/workflows/swift.yml`
 //     does not even glob `packages/sdk-react-native/**`.
 //   • Android — `packages/sdk-react-native/android` ships no Gradle wrapper
 //     and is not a module of `packages/sdk-android/android/settings.gradle.kts`;
 //     it is only ever configured through the Expo example app's composite
-//     build. `TraceItXCompanionModuleTest.kt` is additionally excluded from
+//     build. `EverframeCompanionModuleTest.kt` is additionally excluded from
 //     `compileDebugUnitTestKotlin` (see that module's build.gradle.kts).
 //
 // So these assertions read the native sources as text. That is weaker than
@@ -34,20 +34,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const read = (rel: string): string => readFileSync(path.join(__dirname, '..', rel), 'utf8');
 
-const IOS_MODULE = 'ios/Sources/TraceItXModule.mm';
+const IOS_MODULE = 'ios/Sources/EverframeModule.mm';
 const iosModuleSrc = read(IOS_MODULE);
 
 const FACADE = 'src/companion.ts';
 // `runtime.ts` is the JS facade for the non-companion event this shared
 // emitter grew (spec 2026-09-17 setExtra-resolver's
-// `traceitx.extra.resolveRequested`) — read alongside `companion.ts` so the
+// `everframe.extra.resolveRequested`) — read alongside `companion.ts` so the
 // three-file lock-step check below covers EVERY event, not just the
 // companion ones (finding F7).
 const RUNTIME_FACADE = 'src/runtime.ts';
-const IOS_EMITTER = 'ios/Sources/TraceItXEventEmitter.swift';
-const IOS_BRIDGE = 'ios/Sources/TraceItXBridge.swift';
+const IOS_EMITTER = 'ios/Sources/EverframeEventEmitter.swift';
+const IOS_BRIDGE = 'ios/Sources/EverframeBridge.swift';
 const ANDROID_MODULE =
-  'android/src/main/java/com/traceitx/rn/TraceItXModule.kt';
+  'android/src/main/java/dev/everframe/rn/EverframeModule.kt';
 
 const facadeSrc = read(FACADE);
 const runtimeFacadeSrc = read(RUNTIME_FACADE);
@@ -56,32 +56,32 @@ const iosBridgeSrc = read(IOS_BRIDGE);
 const androidSrc = read(ANDROID_MODULE);
 
 const NEW_EVENTS = [
-  'traceitx.companion.code',
-  'traceitx.companion.attachedUserName',
-  'traceitx.companion.resolvedName',
+  'everframe.companion.code',
+  'everframe.companion.attachedUserName',
+  'everframe.companion.resolvedName',
 ] as const;
 
-/** `const FOO_EVENT = 'traceitx.companion.foo';` in the JS facade. */
+/** `const FOO_EVENT = 'everframe.companion.foo';` in the JS facade. */
 function facadeEventNames(): string[] {
   return [
     ...facadeSrc.matchAll(
-      /^const\s+\w+\s*=\s*'(traceitx\.companion\.[^']+)';$/gm,
+      /^const\s+\w+\s*=\s*'(everframe\.companion\.[^']+)';$/gm,
     ),
   ].map((m) => m[1]!);
 }
 
 /**
- * Every `const FOO_EVENT = 'traceitx....';` / `"traceitx....";` declared
+ * Every `const FOO_EVENT = 'everframe....';` / `"everframe....";` declared
  * across BOTH JS event-declaring facades — `companion.ts` (single-quoted)
  * and `runtime.ts` (double-quoted; `EXTRA_RESOLVE_REQUESTED_EVENT`, spec
  * 2026-09-17 setExtra-resolver). Unlike `facadeEventNames()` above, not
- * scoped to the `traceitx.companion.` prefix — this feeds the full
+ * scoped to the `everframe.companion.` prefix — this feeds the full
  * three-file lock-step check (finding F7), which must catch a drift on
  * ANY event this shared native emitter carries, not just the companion
  * ones.
  */
 function allFacadeEventNames(): string[] {
-  const pattern = /^const\s+\w+\s*=\s*['"](traceitx\.[^'"]+)['"];$/gm;
+  const pattern = /^const\s+\w+\s*=\s*['"](everframe\.[^'"]+)['"];$/gm;
   return [
     ...[...facadeSrc.matchAll(pattern)].map((m) => m[1]!),
     ...[...runtimeFacadeSrc.matchAll(pattern)].map((m) => m[1]!),
@@ -89,14 +89,14 @@ function allFacadeEventNames(): string[] {
 }
 
 /**
- * `public static let fooEvent = "traceitx.foo.bar"` — name → value. NOT
- * scoped to `traceitx.companion.*`: `supportedEvents()`'s silent-drop trap
+ * `public static let fooEvent = "everframe.foo.bar"` — name → value. NOT
+ * scoped to `everframe.companion.*`: `supportedEvents()`'s silent-drop trap
  * (below) applies to EVERY event this shared emitter declares, companion or
  * not — spec 2026-09-17 setExtra-resolver added the first non-companion one
  * (`extraResolveRequestedEvent`, fired for the plain in-app openReporter()
  * path and native shake too, not just the phone-companion flow). The
  * companion-only lock-step comparison further down filters this map's
- * values back down to the `traceitx.companion.` prefix itself, since THAT
+ * values back down to the `everframe.companion.` prefix itself, since THAT
  * check is deliberately companion-scoped (three-file parity), not a
  * general "is this constant declared" gate.
  */
@@ -104,7 +104,7 @@ function iosEventConstants(): Map<string, string> {
   return new Map(
     [
       ...iosEmitterSrc.matchAll(
-        /^\s*public static let (\w+) = "(traceitx\.[^"]+)"$/gm,
+        /^\s*public static let (\w+) = "(everframe\.[^"]+)"$/gm,
       ),
     ].map((m) => [m[1]!, m[2]!]),
   );
@@ -123,24 +123,24 @@ function iosSupportedEventIdentifiers(): string[] {
   return [...body[1]!.matchAll(/Self\.(\w+)/g)].map((m) => m[1]!);
 }
 
-/** `internal const val FOO: String = "traceitx.companion.foo"` (Kotlin). */
+/** `internal const val FOO: String = "everframe.companion.foo"` (Kotlin). */
 function androidEventNames(): string[] {
   return [
     ...androidSrc.matchAll(
-      /const val\s+\w+\s*:\s*String\s*=\s*\n?\s*"(traceitx\.companion\.[^"]+)"/g,
+      /const val\s+\w+\s*:\s*String\s*=\s*\n?\s*"(everframe\.companion\.[^"]+)"/g,
     ),
   ].map((m) => m[1]!);
 }
 
 /**
- * Every `const val FOO: String = "traceitx...."` declared in the Android
- * module — not scoped to `traceitx.companion.`, mirrors
+ * Every `const val FOO: String = "everframe...."` declared in the Android
+ * module — not scoped to `everframe.companion.`, mirrors
  * `allFacadeEventNames()` above (finding F7).
  */
 function allAndroidEventNames(): string[] {
   return [
     ...androidSrc.matchAll(
-      /const val\s+\w+\s*:\s*String\s*=\s*\n?\s*"(traceitx\.[^"]+)"/g,
+      /const val\s+\w+\s*:\s*String\s*=\s*\n?\s*"(everframe\.[^"]+)"/g,
     ),
   ].map((m) => m[1]!);
 }
@@ -151,7 +151,7 @@ function allAndroidEventNames(): string[] {
  * comment explaining the avoidance.
  *
  * Handles `//` line comments AND `/* … *\/` block comments — Kotlin's
- * `TraceItXModule.kt` documents nearly every declaration with a `/** … *\/`
+ * `EverframeModule.kt` documents nearly every declaration with a `/** … *\/`
  * KDoc block, so a line-only stripper leaves most of that file's prose in play.
  * Today's gates were checked and are unaffected either way; this closes the
  * trap for whatever gate is added next.
@@ -211,7 +211,7 @@ describe('the comment stripper this file\'s gates depend on', () => {
     );
   });
 
-  it('strips Kotlin KDoc blocks, which TraceItXModule.kt uses on nearly every declaration', () => {
+  it('strips Kotlin KDoc blocks, which EverframeModule.kt uses on nearly every declaration', () => {
     const src = ['/**', ' * sdkKey = configuredSdkKey()', ' */', 'val real = 1'].join('\n');
     const stripped = stripLineComments(src);
     expect(stripped).not.toContain('configuredSdkKey');
@@ -265,11 +265,11 @@ describe('iOS supportedEvents() — the silent-drop trap', () => {
 describe('event names stay in lock-step across the three files', () => {
   it('the JS facades, the iOS emitter and the Android module declare the same set', () => {
     // Unfiltered (finding F7): a rename on any one side — companion or the
-    // non-companion `traceitx.extra.resolveRequested` — must fail this
+    // non-companion `everframe.extra.resolveRequested` — must fail this
     // check. Previously the iOS/Android lists were sliced down to the
-    // `traceitx.companion.` prefix, which is exactly what let
+    // `everframe.companion.` prefix, which is exactly what let
     // `extraResolveRequestedEvent` drift silently: it was verified against
-    // NOTHING outside `TraceItXEventEmitter.swift` itself.
+    // NOTHING outside `EverframeEventEmitter.swift` itself.
     const js = [...allFacadeEventNames()].sort();
     const ios = [...iosEventConstants().values()].sort();
     const android = [...allAndroidEventNames()].sort();
@@ -293,17 +293,17 @@ describe('event names stay in lock-step across the three files', () => {
     });
   }
 
-  it('all three files declare `traceitx.extra.resolveRequested` (finding F7 — no longer excepted from lock-step)', () => {
-    expect(allFacadeEventNames()).toContain('traceitx.extra.resolveRequested');
-    expect([...iosEventConstants().values()]).toContain('traceitx.extra.resolveRequested');
-    expect(allAndroidEventNames()).toContain('traceitx.extra.resolveRequested');
+  it('all three files declare `everframe.extra.resolveRequested` (finding F7 — no longer excepted from lock-step)', () => {
+    expect(allFacadeEventNames()).toContain('everframe.extra.resolveRequested');
+    expect([...iosEventConstants().values()]).toContain('everframe.extra.resolveRequested');
+    expect(allAndroidEventNames()).toContain('everframe.extra.resolveRequested');
   });
 });
 
 describe('iOS send* methods — every declared event has a matching sender (finding F2)', () => {
   // F1 shipped `extraResolveRequestedEvent` (declared + listed in
   // supportedEvents()) with NO `sendExtraResolveRequested` method backing
-  // it — `TraceItXBridge.swift` called a method that did not exist, a
+  // it — `EverframeBridge.swift` called a method that did not exist, a
   // straight build-breaker for any host that links this pod. The gates
   // above only ever checked the constant/supportedEvents() pair; neither
   // one reads as far as whether a sender exists at all. This closes that
@@ -323,7 +323,7 @@ describe('iOS send* methods — every declared event has a matching sender (find
     );
   }
 
-  it('every event constant has a `send*` function defined in TraceItXEventEmitter.swift', () => {
+  it('every event constant has a `send*` function defined in EverframeEventEmitter.swift', () => {
     const declared = iosEventConstants();
     expect(declared.size).toBeGreaterThan(0);
     const senders = iosSendFunctionNames();
@@ -335,7 +335,7 @@ describe('iOS send* methods — every declared event has a matching sender (find
       missing,
       `${IOS_EMITTER}: these event constants have no matching send*() method, so ` +
         `sendEvent(withName:) is never called for them — any caller of the expected ` +
-        `sender (e.g. TraceItXBridge.swift) fails to compile: ${missing.join(', ')}`,
+        `sender (e.g. EverframeBridge.swift) fails to compile: ${missing.join(', ')}`,
     ).toEqual([]);
   });
 });
@@ -365,8 +365,8 @@ describe('Part A — the SDK key reaches the relay client on both platforms', ()
   it('iOS sources the key from the config the host already provided', () => {
     expect(
       iosBridgeSrc,
-      `${IOS_BRIDGE}: the key must come from TraceItX.shared.currentConfig — never a second place a key can be configured`,
-    ).toMatch(/TraceItX\.shared\.currentConfig\?\.appId/);
+      `${IOS_BRIDGE}: the key must come from Everframe.shared.currentConfig — never a second place a key can be configured`,
+    ).toMatch(/Everframe\.shared\.currentConfig\?\.appId/);
   });
 
   it('android passes configuredSdkKey() and companionDeviceLabel() to RelayWSClient', () => {
@@ -384,8 +384,8 @@ describe('Part A — the SDK key reaches the relay client on both platforms', ()
   it('android sources the key from the config the host already provided', () => {
     expect(
       androidSrc,
-      `${ANDROID_MODULE}: the key must come from TraceItX.currentConfig — never a second place a key can be configured`,
-    ).toMatch(/TraceItX\.currentConfig\?\.sdkKey/);
+      `${ANDROID_MODULE}: the key must come from Everframe.currentConfig — never a second place a key can be configured`,
+    ).toMatch(/Everframe\.currentConfig\?\.sdkKey/);
   });
 
   it('a blank configured key degrades to nil/null rather than announcing with it', () => {
@@ -424,8 +424,8 @@ describe('Part B — each value is actually FORWARDED to the emitter', () => {
   // event and never sending it is indistinguishable from a working bridge
   // until you put a TV in front of it.
   //
-  // Comment-stripped: both files name these symbols in prose (TraceItXBridge
-  // .swift's "posts .traceItXCompanionCodeChange" note, TraceItXModule.kt's
+  // Comment-stripped: both files name these symbols in prose (EverframeBridge
+  // .swift's "posts .everframeCompanionCodeChange" note, EverframeModule.kt's
   // event-list header), so an un-stripped gate would pass on the comment
   // alone — the same trap that bit the deviceLabel gate in the first draft.
   const iosCode = stripLineComments(iosBridgeSrc);
@@ -434,64 +434,64 @@ describe('Part B — each value is actually FORWARDED to the emitter', () => {
   it('iOS sinks companion.$code into sendCode', () => {
     expect(
       iosCode,
-      `${IOS_BRIDGE}: nothing forwards companion.$code to TraceItXEventEmitter.sendCode — the code never reaches JS`,
+      `${IOS_BRIDGE}: nothing forwards companion.$code to EverframeEventEmitter.sendCode — the code never reaches JS`,
     ).toMatch(/companion\.\$code[\s\S]{0,120}sendCode/);
   });
 
   it('iOS sinks companion.$attachedUserName into sendAttachedUserName', () => {
     expect(
       iosCode,
-      `${IOS_BRIDGE}: nothing forwards companion.$attachedUserName to TraceItXEventEmitter.sendAttachedUserName`,
+      `${IOS_BRIDGE}: nothing forwards companion.$attachedUserName to EverframeEventEmitter.sendAttachedUserName`,
     ).toMatch(/companion\.\$attachedUserName[\s\S]{0,120}sendAttachedUserName/);
   });
 
   it('android collects companion.code into an emit of COMPANION_CODE_EVENT', () => {
     expect(
       androidCode,
-      `${ANDROID_MODULE}: nothing collects TraceItX.companion.code into emitter.emit(COMPANION_CODE_EVENT, …) — the code never reaches JS`,
+      `${ANDROID_MODULE}: nothing collects Everframe.companion.code into emitter.emit(COMPANION_CODE_EVENT, …) — the code never reaches JS`,
     ).toMatch(
-      /TraceItX\.companion\.code\.collect[\s\S]{0,300}emit\(\s*COMPANION_CODE_EVENT/,
+      /Everframe\.companion\.code\.collect[\s\S]{0,300}emit\(\s*COMPANION_CODE_EVENT/,
     );
   });
 
   it('android collects companion.attachedUserName into an emit of COMPANION_ATTACHED_USER_NAME_EVENT', () => {
     expect(
       androidCode,
-      `${ANDROID_MODULE}: nothing collects TraceItX.companion.attachedUserName into emitter.emit(COMPANION_ATTACHED_USER_NAME_EVENT, …)`,
+      `${ANDROID_MODULE}: nothing collects Everframe.companion.attachedUserName into emitter.emit(COMPANION_ATTACHED_USER_NAME_EVENT, …)`,
     ).toMatch(
-      /TraceItX\.companion\.attachedUserName\.collect[\s\S]{0,300}emit\(\s*COMPANION_ATTACHED_USER_NAME_EVENT/,
+      /Everframe\.companion\.attachedUserName\.collect[\s\S]{0,300}emit\(\s*COMPANION_ATTACHED_USER_NAME_EVENT/,
     );
   });
 
   it('iOS sinks companion.$attachChallenge into sendAttachChallenge', () => {
     expect(
       iosCode,
-      `${IOS_BRIDGE}: nothing forwards companion.$attachChallenge to TraceItXEventEmitter.sendAttachChallenge — the challenge never reaches JS`,
+      `${IOS_BRIDGE}: nothing forwards companion.$attachChallenge to EverframeEventEmitter.sendAttachChallenge — the challenge never reaches JS`,
     ).toMatch(/companion\.\$attachChallenge[\s\S]{0,200}sendAttachChallenge/);
   });
 
   it('android collects companion.attachChallenge into an emit of COMPANION_ATTACH_CHALLENGE_EVENT', () => {
     expect(
       androidCode,
-      `${ANDROID_MODULE}: nothing collects TraceItX.companion.attachChallenge into emitter.emit(COMPANION_ATTACH_CHALLENGE_EVENT, …)`,
+      `${ANDROID_MODULE}: nothing collects Everframe.companion.attachChallenge into emitter.emit(COMPANION_ATTACH_CHALLENGE_EVENT, …)`,
     ).toMatch(
-      /TraceItX\.companion\.attachChallenge\.collect[\s\S]{0,400}emit\(\s*COMPANION_ATTACH_CHALLENGE_EVENT/,
+      /Everframe\.companion\.attachChallenge\.collect[\s\S]{0,400}emit\(\s*COMPANION_ATTACH_CHALLENGE_EVENT/,
     );
   });
 
   it('iOS sinks companion.$resolvedName into sendResolvedName', () => {
     expect(
       iosCode,
-      `${IOS_BRIDGE}: nothing forwards companion.$resolvedName to TraceItXEventEmitter.sendResolvedName — the resolved name never reaches JS`,
+      `${IOS_BRIDGE}: nothing forwards companion.$resolvedName to EverframeEventEmitter.sendResolvedName — the resolved name never reaches JS`,
     ).toMatch(/companion\.\$resolvedName[\s\S]{0,120}sendResolvedName/);
   });
 
   it('android collects companion.resolvedName into an emit of COMPANION_RESOLVED_NAME_EVENT', () => {
     expect(
       androidCode,
-      `${ANDROID_MODULE}: nothing collects TraceItX.companion.resolvedName into emitter.emit(COMPANION_RESOLVED_NAME_EVENT, …)`,
+      `${ANDROID_MODULE}: nothing collects Everframe.companion.resolvedName into emitter.emit(COMPANION_RESOLVED_NAME_EVENT, …)`,
     ).toMatch(
-      /TraceItX\.companion\.resolvedName\.collect[\s\S]{0,300}emit\(\s*COMPANION_RESOLVED_NAME_EVENT/,
+      /Everframe\.companion\.resolvedName\.collect[\s\S]{0,300}emit\(\s*COMPANION_RESOLVED_NAME_EVENT/,
     );
   });
 
@@ -501,10 +501,10 @@ describe('Part B — each value is actually FORWARDED to the emitter', () => {
     expect(iosCode).toMatch(/companion\.\$pairUrl[\s\S]{0,120}sendPairUrl/);
     expect(iosCode).toMatch(/companion\.\$state[\s\S]{0,300}sendState/);
     expect(androidCode).toMatch(
-      /TraceItX\.companion\.pairUrl\.collect[\s\S]{0,300}emit\(\s*COMPANION_PAIR_URL_EVENT/,
+      /Everframe\.companion\.pairUrl\.collect[\s\S]{0,300}emit\(\s*COMPANION_PAIR_URL_EVENT/,
     );
     expect(androidCode).toMatch(
-      /TraceItX\.companion\.state\.collect[\s\S]{0,300}emit\(\s*COMPANION_STATE_EVENT/,
+      /Everframe\.companion\.state\.collect[\s\S]{0,300}emit\(\s*COMPANION_STATE_EVENT/,
     );
   });
 });
@@ -527,11 +527,11 @@ describe('Part C — the built-in PIN presenter is suppressed at runtime, not ga
     ).toMatch(/__setBuiltinPinUiSuppressed\(companionAttachPinUi\s*!=\s*\.builtin\)/);
   });
 
-  it('android sets TraceItX.__attachPinUiSuppressed from the configured mode at startCompanion', () => {
+  it('android sets Everframe.__attachPinUiSuppressed from the configured mode at startCompanion', () => {
     expect(
       androidCode,
-      `${ANDROID_MODULE}: startCompanion must set TraceItX.__attachPinUiSuppressed = companionAttachPinUi != AttachPinUi.BUILTIN — otherwise a custom/off host still gets the built-in PIN dialog`,
-    ).toMatch(/TraceItX\.__attachPinUiSuppressed\s*=\s*companionAttachPinUi\s*!=\s*AttachPinUi\.BUILTIN/);
+      `${ANDROID_MODULE}: startCompanion must set Everframe.__attachPinUiSuppressed = companionAttachPinUi != AttachPinUi.BUILTIN — otherwise a custom/off host still gets the built-in PIN dialog`,
+    ).toMatch(/Everframe\.__attachPinUiSuppressed\s*=\s*companionAttachPinUi\s*!=\s*AttachPinUi\.BUILTIN/);
   });
 });
 
@@ -588,7 +588,7 @@ describe('the attribution token never crosses the RN bridge', () => {
 describe('a companion report is attributed to whoever asked for THAT report', () => {
   // PR-fix 1. The attribution token must be the one the relay minted for this
   // report's `report.request`, snapshotted there and carried forward. The
-  // Android submit provider installed by `TraceItXModule` is the last hop: the
+  // Android submit provider installed by `EverframeModule` is the last hop: the
   // bridge hands it the snapshot and it must put THAT value into
   // `CompanionSubmissionComposer.Inputs`.
   //
@@ -601,7 +601,7 @@ describe('a companion report is attributed to whoever asked for THAT report', ()
   //
   // Source gate for the reason the file header gives: `packages/sdk-react-
   // native/android` has no runnable test host. The Kotlin-side behaviour is
-  // covered end-to-end by `CompanionAttributionFlowTest` in :traceitx-core.
+  // covered end-to-end by `CompanionAttributionFlowTest` in :everframe-core.
 
   /**
    * The body of the INSTALLED submit provider closure. `__submitProvider` is
@@ -660,7 +660,7 @@ describe('a companion report is attributed to whoever asked for THAT report', ()
 });
 
 describe('companionDeviceId (naming spec 2026-08-24) reaches RelayWSClient on both platforms', () => {
-  // The explicit device-identity override rides `TraceItX(.shared)?.currentConfig`
+  // The explicit device-identity override rides `Everframe(.shared)?.currentConfig`
   // — the SAME config snapshot `configuredSdkKey()`/`configuredSdkKey()`-equivalent
   // already reads, never a second configuration surface. A missing wire here
   // means a host that sets `companionDeviceId` gets silently ignored: the
@@ -671,31 +671,31 @@ describe('companionDeviceId (naming spec 2026-08-24) reaches RelayWSClient on bo
     const args = relayClientConstructionArgs(iosBridgeSrc, IOS_BRIDGE);
     expect(
       args,
-      `${IOS_BRIDGE}: RelayWSClient must be built with companionDeviceId: TraceItX.shared.currentConfig?.companionDeviceId — otherwise a host-configured override never reaches the announce call`,
-    ).toMatch(/companionDeviceId:\s*TraceItX\.shared\.currentConfig\?\.companionDeviceId/);
+      `${IOS_BRIDGE}: RelayWSClient must be built with companionDeviceId: Everframe.shared.currentConfig?.companionDeviceId — otherwise a host-configured override never reaches the announce call`,
+    ).toMatch(/companionDeviceId:\s*Everframe\.shared\.currentConfig\?\.companionDeviceId/);
   });
 
   it('android threads companionDeviceId from the host config into RelayWSClient', () => {
     const args = relayClientConstructionArgs(androidSrc, ANDROID_MODULE);
     expect(
       args,
-      `${ANDROID_MODULE}: RelayWSClient must be built with a deviceProvider reading TraceItX.currentConfig?.companionDeviceId — otherwise a host-configured override never reaches the announce call`,
-    ).toMatch(/TraceItX\.currentConfig\?\.companionDeviceId/);
+      `${ANDROID_MODULE}: RelayWSClient must be built with a deviceProvider reading Everframe.currentConfig?.companionDeviceId — otherwise a host-configured override never reaches the announce call`,
+    ).toMatch(/Everframe\.currentConfig\?\.companionDeviceId/);
   });
 });
 
 describe('the JS facade parses companionDeviceId out of ConfigOpts for both native configure() calls', () => {
   // Source gate mirroring the Part A "the key reaches the relay client"
   // style, one level up the chain: `companionDeviceId` must survive
-  // `NativeTraceItX.ts`'s `ConfigOpts` type and `runtime.ts`'s
+  // `NativeEverframe.ts`'s `ConfigOpts` type and `runtime.ts`'s
   // `extractBridgeConfig`, or a host-set value never leaves JS at all.
-  const nativeTraceItXSrc = read('src/NativeTraceItX.ts');
+  const nativeEverframeSrc = read('src/NativeEverframe.ts');
   const runtimeSrc = read('src/runtime.ts');
 
   it('ConfigOpts declares an optional companionDeviceId field', () => {
     expect(
-      nativeTraceItXSrc,
-      'src/NativeTraceItX.ts: ConfigOpts must declare companionDeviceId?: string — the flat bridge field the host-facing config passes through',
+      nativeEverframeSrc,
+      'src/NativeEverframe.ts: ConfigOpts must declare companionDeviceId?: string — the flat bridge field the host-facing config passes through',
     ).toMatch(/companionDeviceId\?:\s*string/);
   });
 
@@ -724,11 +724,11 @@ describe('companionBadge (naming spec 2026-08-24, controller ruling / Task 6b) r
     ).toMatch(/companionBadge:\s*CompanionBadgeOptions\(/);
     expect(
       args,
-      `${IOS_BRIDGE}: the CompanionBadgeOptions passed to RelayWSClient must read enabled off TraceItX.shared.currentConfig?.companionBadgeEnabled`,
+      `${IOS_BRIDGE}: the CompanionBadgeOptions passed to RelayWSClient must read enabled off Everframe.shared.currentConfig?.companionBadgeEnabled`,
     ).toMatch(/currentConfig\?\.companionBadgeEnabled/);
     expect(
       args,
-      `${IOS_BRIDGE}: the CompanionBadgeOptions passed to RelayWSClient must read position off TraceItX.shared.currentConfig?.companionBadgePosition`,
+      `${IOS_BRIDGE}: the CompanionBadgeOptions passed to RelayWSClient must read position off Everframe.shared.currentConfig?.companionBadgePosition`,
     ).toMatch(/currentConfig\?\.companionBadgePosition/);
   });
 
@@ -740,11 +740,11 @@ describe('companionBadge (naming spec 2026-08-24, controller ruling / Task 6b) r
     ).toMatch(/companionBadge\s*=\s*CompanionBadgeOptions\(/);
     expect(
       args,
-      `${ANDROID_MODULE}: the CompanionBadgeOptions passed to RelayWSClient must read enabled off TraceItX.currentConfig?.companionBadgeEnabled`,
+      `${ANDROID_MODULE}: the CompanionBadgeOptions passed to RelayWSClient must read enabled off Everframe.currentConfig?.companionBadgeEnabled`,
     ).toMatch(/currentConfig\?\.companionBadgeEnabled/);
     expect(
       args,
-      `${ANDROID_MODULE}: the CompanionBadgeOptions passed to RelayWSClient must read position off TraceItX.currentConfig?.companionBadgePosition`,
+      `${ANDROID_MODULE}: the CompanionBadgeOptions passed to RelayWSClient must read position off Everframe.currentConfig?.companionBadgePosition`,
     ).toMatch(/currentConfig\?\.companionBadgePosition/);
   });
 });
@@ -754,12 +754,12 @@ describe('D1 — a stale teardown must not clear a hook a newer configure() inst
   // queue, so a STALE module instance's `-invalidate` can be delivered AFTER
   // a reloaded bundle's fresh module instance has already run `configure()`
   // and installed a new resolver hook. The old code unconditionally nil'd
-  // `TraceItX.__pendingExtraResolveHook` and cleared `extraResolverActive`
+  // `Everframe.__pendingExtraResolveHook` and cleared `extraResolverActive`
   // on every `-invalidate`, with no way to tell "mine" from "a successor's" —
   // the stale call would silently disable the feature for the rest of the
   // process. Android already defends against exactly this with an identity
-  // check (`TraceItXModule.kt:570-574`, `TraceItX.__pendingExtraResolveHook
-  // === extraResolveHook`). `TraceItXBridge` has no per-instance object to
+  // check (`EverframeModule.kt:570-574`, `Everframe.__pendingExtraResolveHook
+  // === extraResolveHook`). `EverframeBridge` has no per-instance object to
   // compare by reference (every method on it is `static`), so iOS's
   // equivalent is a monotonically increasing "generation" token: bumped on
   // every (re)install, captured by the ObjC caller right after ITS OWN
@@ -847,18 +847,18 @@ describe('D1 — a stale teardown must not clear a hook a newer configure() inst
     ).toMatch(/extraResolveHookGeneration\s*\+=\s*1/);
   });
 
-  it('TraceItXModule.mm captures the live generation after its own configure() call', () => {
+  it('EverframeModule.mm captures the live generation after its own configure() call', () => {
     expect(
       moduleCode,
-      `${IOS_MODULE}: -configure: must capture [TraceItXBridge currentExtraResolveHookGeneration] onto an instance ivar — otherwise -invalidate has no way to prove which installation it corresponds to`,
-    ).toMatch(/_extraResolveHookGeneration\s*=\s*\[TraceItXBridge currentExtraResolveHookGeneration\]/);
+      `${IOS_MODULE}: -configure: must capture [EverframeBridge currentExtraResolveHookGeneration] onto an instance ivar — otherwise -invalidate has no way to prove which installation it corresponds to`,
+    ).toMatch(/_extraResolveHookGeneration\s*=\s*\[EverframeBridge currentExtraResolveHookGeneration\]/);
   });
 
-  it('TraceItXModule.mm -invalidate hands that captured generation back, not a bare no-arg call', () => {
+  it('EverframeModule.mm -invalidate hands that captured generation back, not a bare no-arg call', () => {
     expect(
       moduleCode,
-      `${IOS_MODULE}: -invalidate must call [TraceItXBridge resetExtraResolverForTeardown:_extraResolveHookGeneration] — a bare no-arg call gives the Swift side nothing to check identity against`,
-    ).toMatch(/\[TraceItXBridge resetExtraResolverForTeardown:_extraResolveHookGeneration\]/);
+      `${IOS_MODULE}: -invalidate must call [EverframeBridge resetExtraResolverForTeardown:_extraResolveHookGeneration] — a bare no-arg call gives the Swift side nothing to check identity against`,
+    ).toMatch(/\[EverframeBridge resetExtraResolverForTeardown:_extraResolveHookGeneration\]/);
     expect(
       moduleCode,
       `${IOS_MODULE}: -invalidate must not call the bare no-arg resetExtraResolverForTeardown selector`,
@@ -868,25 +868,25 @@ describe('D1 — a stale teardown must not clear a hook a newer configure() inst
 
 describe('the JS facade parses companionBadge out of ConfigOpts for both native configure() calls', () => {
   // Source gate mirroring the companionDeviceId block above, one level up
-  // the chain: `companionBadge` must survive `NativeTraceItX.ts`'s
+  // the chain: `companionBadge` must survive `NativeEverframe.ts`'s
   // `ConfigOpts` type and `runtime.ts`'s `extractBridgeConfig`, or a
   // host-set value never leaves JS at all. Flat fields, not a nested
   // object — RN codegen cannot express `{ enabled, position }` in a struct
-  // field (see NativeTraceItX.ts's file-header D-decision notes for
+  // field (see NativeEverframe.ts's file-header D-decision notes for
   // `attachPinUi`/`networkBodiesDisabled`, the same codegen ceiling this
   // rides), so `RuntimeConfig.companionBadge`'s nested host-facing shape is
   // flattened by `extractBridgeConfig` before it crosses.
-  const nativeTraceItXSrc = read('src/NativeTraceItX.ts');
+  const nativeEverframeSrc = read('src/NativeEverframe.ts');
   const runtimeSrc = read('src/runtime.ts');
 
   it('ConfigOpts declares flat optional companionBadgeEnabled/companionBadgePosition fields', () => {
     expect(
-      nativeTraceItXSrc,
-      'src/NativeTraceItX.ts: ConfigOpts must declare companionBadgeEnabled?: boolean — the flat bridge field the host-facing companionBadge.enabled flattens onto',
+      nativeEverframeSrc,
+      'src/NativeEverframe.ts: ConfigOpts must declare companionBadgeEnabled?: boolean — the flat bridge field the host-facing companionBadge.enabled flattens onto',
     ).toMatch(/companionBadgeEnabled\?:\s*boolean/);
     expect(
-      nativeTraceItXSrc,
-      'src/NativeTraceItX.ts: ConfigOpts must declare companionBadgePosition?: string — the flat bridge field the host-facing companionBadge.position flattens onto (codegen cannot express the position string-literal union in a struct field)',
+      nativeEverframeSrc,
+      'src/NativeEverframe.ts: ConfigOpts must declare companionBadgePosition?: string — the flat bridge field the host-facing companionBadge.position flattens onto (codegen cannot express the position string-literal union in a struct field)',
     ).toMatch(/companionBadgePosition\?:\s*string/);
   });
 

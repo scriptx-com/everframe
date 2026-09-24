@@ -8,7 +8,7 @@ import { __getInlineReporterTheme, __subscribeInlineReporterTheme } from './inli
 import { getThemeHost, applyThemeVarsToHost } from './theme-host.js';
 
 /**
- * Resolved --txx-* overrides for the current branding state, or {} when the
+ * Resolved --everframe-* overrides for the current branding state, or {} when the
  * server has not confirmed paid entitlement (fail closed to the default
  * look). Subscribes to BOTH boxes so a config read landing mid-open re-themes
  * the window without waiting for an unrelated re-render.

@@ -1,6 +1,6 @@
 version = 1
-SPDX-PackageName = "TraceItX SDKs"
-SPDX-PackageDownloadLocation = "https://github.com/scriptx-com/traceitx-releases"
+SPDX-PackageName = "Everframe SDKs"
+SPDX-PackageDownloadLocation = "https://github.com/scriptx-com/everframe"
 
 [[annotations]]
 path = ["*.json", "**/*.json", "patches/*.patch"]
@@ -10,6 +10,12 @@ SPDX-License-Identifier = "MIT"
 
 [[annotations]]
 path = ["examples/react-native/assets/field-photo.png", "examples/react-web/public/media/field-loop.mp4", "examples/react-web/public/media/field-loop.webm", "examples/smarttv-tester/platforms/tizen/icon.png", "examples/smarttv-tester/platforms/webos/icon-80.png", "examples/smarttv-tester/platforms/webos/icon-130.png"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 ScriptX"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ["examples/ios-native/SampleApp.xcodeproj/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 ScriptX"
 SPDX-License-Identifier = "MIT"

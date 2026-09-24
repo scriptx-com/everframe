@@ -3,12 +3,12 @@
 //
 // Specimens — catalog grid + in-place detail. Order-filter chips and card
 // taps feed tap breadcrumbs; the SVG plates give screenshot capture real
-// imagery. Detail view includes a <TraceItXSensitive> region so redaction
+// imagery. Detail view includes a <EverframeSensitive> region so redaction
 // can be inspected outside the Profile form too.
 
 import React, { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { TraceItXSensitive, useTXScreen } from '@traceitx/react-native';
+import { EverframeSensitive, useEverframeScreen } from '@everframe/react-native';
 import { SpecimenPlate } from '../components/SpecimenPlate';
 import { ORDERS, SPECIMENS, type Specimen } from '../data/specimens';
 import { color, font, radius, type } from '../theme';
@@ -65,18 +65,18 @@ function SpecimenDetail({
 
       <Text style={[type.body, styles.note]}>{specimen.note}</Text>
 
-      <TraceItXSensitive>
+      <EverframeSensitive>
         <Text style={[type.monoNote, styles.sensitiveNote]} testID="collector-notes">
           Collector’s private note: exact sighting coordinates withheld — this block is wrapped in
-          TraceItXSensitive and must be masked in captures.
+          EverframeSensitive and must be masked in captures.
         </Text>
-      </TraceItXSensitive>
+      </EverframeSensitive>
     </View>
   );
 }
 
 export function Specimens(): React.JSX.Element {
-  useTXScreen('Specimens');
+  useEverframeScreen('Specimens');
   const [order, setOrder] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 

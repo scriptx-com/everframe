@@ -30,8 +30,8 @@ import type {
   VitalsEntry,
   VitalsPlayerEvent,
   VitalsSample,
-} from '@traceitx/protocol';
-import { MAX_PLAYER_EVENT_DATA_BYTES, utf8ByteLength } from '@traceitx/protocol';
+} from '@everframe/protocol';
+import { MAX_PLAYER_EVENT_DATA_BYTES, utf8ByteLength } from '@everframe/protocol';
 import { safeWrap } from '../safe-wrap.js';
 import { projectUserMetadata } from '../user-projection.js';
 import { boundStructuredJson } from './bound-json.js';
@@ -43,7 +43,7 @@ import { createSummaryAccumulator, type SummaryAccumulator } from './summary.js'
  * self-declared-identity.ts`'s `SELF_DECLARED_SUBJECT_MAX` (255) for the
  * subject key, `SELF_DECLARED_ATTR_MAX` (320) for the stored attributes.
  * Duplicated rather than imported because the SDK cannot depend on the API,
- * and deliberately NOT put in `@traceitx/protocol`: these are not wire
+ * and deliberately NOT put in `@everframe/protocol`: these are not wire
  * validation and must never become it (see `boundClaimedUser`). A value past
  * one of them is DROPPED, never shortened — see that function for why.
  */

@@ -39,8 +39,8 @@ export type { ReportCounts } from './capture-bridge.js';
 //
 // `useCompanion` is deliberately ABSENT here: it is the one React-coupled
 // member of this namespace, and this barrel is reachable from
-// `@traceitx/web`'s always-loaded entry, which must never pull react into
-// its module graph. `@traceitx/react` re-composes the namespace — these
+// `@everframe/web`'s always-loaded entry, which must never pull react into
+// its module graph. `@everframe/react` re-composes the namespace — these
 // exports plus its own `useCompanion` — in its own src/companion/index.ts.
 export { start, stop, __setCompanionDefaults } from './singleton.js';
 export type {

@@ -12,8 +12,11 @@
 //   408 / 429 / 5xx / network / parse err→ retry on schedule (default 1/2/4/8/16s, ±20% jitter)
 //   exhausted                             → reason=transient-exhausted
 import { IDENTITY_TOKEN_HEADER, type IdentityTokenReader } from '../reporter/identity-token.js';
+import { DEVICE_TOKEN_HEADER } from '../reporter/device-token.js';
 
 export const DEFAULT_RETRY_SCHEDULE_MS = [1000, 2000, 4000, 8000, 16000] as const;
+export { DEVICE_TOKEN_HEADER } from '../reporter/device-token.js';
+export const REPLIES_OPT_OUT_HEADER = 'X-Everframe-Replies-Opt-Out';
 
 export interface SubmitOptions {
   signal?: AbortSignal;
@@ -27,14 +30,14 @@ export interface SubmitOptions {
    * Set when the local `replies: { disabled: true }` veto is active — no
    * device token is being sent (see `deviceToken` above), so the server must
    * not fall back to minting one and provisioning a thread anyway. Sends
-   * `X-TX-Replies-Opt-Out: 1`; see ingest-service's route.ts
+   * `X-Everframe-Replies-Opt-Out: 1`; see ingest-service's route.ts
    * REPLIES_OPT_OUT_HEADER doc-comment for the server side of this contract.
    */
   repliesOptOut?: boolean;
   /**
    * Reporter identity recognition (spec 2026-08-06). When supplied, the token
    * to present (if any) is resolved via `reader.get(Date.now())` and sent as
-   * `X-TX-Identity-Token`. Omitted entirely when the reader resolves `null`
+   * `X-Everframe-Identity-Token`. Omitted entirely when the reader resolves `null`
    * (no source set, undecodable, near-expiry, project has no signing secret,
    * or the host's provider threw/timed out) — identity is strictly
    * best-effort and never blocks or fails the submit. Pass the web adapter's
@@ -83,8 +86,8 @@ export async function submitReport(
   const headers: Record<string, string> = {
     Authorization: `Bearer ${sdkKey}`,
   };
-  if (opts.deviceToken) headers['X-TX-Device-Token'] = opts.deviceToken;
-  if (opts.repliesOptOut) headers['X-TX-Replies-Opt-Out'] = '1';
+  if (opts.deviceToken) headers[DEVICE_TOKEN_HEADER] = opts.deviceToken;
+  if (opts.repliesOptOut) headers[REPLIES_OPT_OUT_HEADER] = '1';
   if (opts.identityToken) {
     // Never let identity work fail or delay a submit — the holder itself
     // already never throws, but this belt-and-braces catch keeps that

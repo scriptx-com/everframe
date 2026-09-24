@@ -4,24 +4,24 @@
 // Locks the TurboModule surface for the JS↔native bridge. After the D-05/D-07
 // flip (2026-05-11) the bridge is THREE methods — native owns the report UI.
 // Plan 4 / Task 14 adds a 6th (non-companion) report method — `addBreadcrumb`
-// — a deliberate, documented D-decision (see NativeTraceItX.ts header).
+// — a deliberate, documented D-decision (see NativeEverframe.ts header).
 // `reportCrash` (spec 2026-07-18) is the 8th — the ONLY sync method on the
 // spec at that time (non-void return forces sync codegen; see errors.ts). `setUser`
 // (spec 2026-08-12) is the self-declared identity surface. The distinct
 // captureHandledException method supplies explicit capture acknowledgement.
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { UnsafeObject } from "../src/codegen-types.js";
-import NativeTraceItX from "../src/NativeTraceItX.js";
+import NativeEverframe from "../src/NativeEverframe.js";
 import {
   captureException,
   type CaptureExceptionOptions,
-  type TraceItXContextValue,
+  type EverframeContextValue,
 } from "../src/index.js";
-import type { Spec, ConfigOpts } from "../src/NativeTraceItX.js";
+import type { Spec, ConfigOpts } from "../src/NativeEverframe.js";
 
-describe("NativeTraceItX TurboModule spec (post D-05/D-07 flip)", () => {
+describe("NativeEverframe TurboModule spec (post D-05/D-07 flip)", () => {
   it("exposes exactly the 17 locked methods — no more, no fewer", () => {
-    expect(Object.keys(NativeTraceItX).sort()).toEqual([
+    expect(Object.keys(NativeEverframe).sort()).toEqual([
       "addBreadcrumb",
       "captureHandledException",
       "configure",
@@ -48,9 +48,9 @@ describe("NativeTraceItX TurboModule spec (post D-05/D-07 flip)", () => {
     >();
     expectTypeOf<typeof captureException>().returns.toBeVoid();
     expectTypeOf<
-      TraceItXContextValue["captureException"]
+      EverframeContextValue["captureException"]
     >().parameters.toEqualTypeOf<[unknown, CaptureExceptionOptions?]>();
-    expectTypeOf<TraceItXContextValue["captureException"]>().returns.toBeVoid();
+    expectTypeOf<EverframeContextValue["captureException"]>().returns.toBeVoid();
   });
 
   it("retains configure void compatibility and adds a synchronous configure acknowledgement", () => {
@@ -125,7 +125,7 @@ describe("NativeTraceItX TurboModule spec (post D-05/D-07 flip)", () => {
     >().returns.toEqualTypeOf<boolean>();
   });
 
-  it("Spec.setUser takes an optional UnsafeObject and returns void — NOT the named TXUserSpec alias, whose optionality codegen ignores", () => {
+  it("Spec.setUser takes an optional UnsafeObject and returns void — NOT the named EverframeUserSpec alias, whose optionality codegen ignores", () => {
     expectTypeOf<Spec["setUser"]>().parameters.toEqualTypeOf<[UnsafeObject?]>();
     expectTypeOf<Spec["setUser"]>().returns.toBeVoid();
   });

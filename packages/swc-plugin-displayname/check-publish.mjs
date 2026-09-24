@@ -38,7 +38,7 @@ if (!existsSync(wasm)) {
     console.error('[check:publish]   A skip here would pass an unverified package; refusing.');
     process.exit(1);
   }
-  console.log('[check:publish] SKIP @traceitx/swc-plugin-displayname —');
+  console.log('[check:publish] SKIP @everframe/swc-plugin-displayname —');
   console.log('[check:publish]   swc_plugin_displayname.wasm was not built (no cargo in this');
   console.log('[check:publish]   environment; see build-wasm.mjs). The package declares that');
   console.log('[check:publish]   file as a subpath export, so publint cannot verify the');

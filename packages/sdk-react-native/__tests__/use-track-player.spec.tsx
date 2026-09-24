@@ -6,10 +6,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { useTrackPlayer, __resetPlayerTokenCounterForTests, type PlayerHandle } from '../src/vitals.js';
 
-const native = NativeTraceItX as unknown as Record<string, ReturnType<typeof vi.fn>>;
+const native = NativeEverframe as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
 function Probe({ name, onHandle }: { name: string; onHandle: (h: PlayerHandle) => void }) {
   const h = useTrackPlayer({ library: 'test-lib', name });

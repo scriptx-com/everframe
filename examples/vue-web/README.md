@@ -3,7 +3,7 @@
 
 # examples/vue-web
 
-Vue 3 + Vite dogfood app for `@traceitx/web` — the non-React half of the web
+Vue 3 + Vite dogfood app for `@everframe/web` — the non-React half of the web
 SDK's coverage.
 
 The demo is **Elytra**, a small insect field guide ("file a bug about a bug"),
@@ -18,8 +18,8 @@ pnpm dev:example:vue     # from the repo root
 ```
 
 The `build:web-sdk` step is not optional: the ingest URL is baked into
-`@traceitx/web`'s `dist` at build time, so starting Vite alone against a
-release-built dist posts reports to https://traceitx.com.
+`@everframe/web`'s `dist` at build time, so starting Vite alone against a
+release-built dist posts reports to https://everframe.dev.
 
 Then visit http://127.0.0.1:3020 and click **Report a bug**, or press
 Cmd/Ctrl+Shift+B. http://127.0.0.1:3020/strict-csp.html is the strict-CSP
@@ -46,14 +46,14 @@ test the shared capture core rather than anything the Web SDK does differently.
 
 `packages/sdk-web/e2e/vue/` pins these — keep them intact when editing:
 
-- `home-heading` with the literal text `TraceItX Web SDK Example`
+- `home-heading` with the literal text `Everframe Web SDK Example`
 - the canonical PII strings under `cc-number` and `bearer-token`
 - `password-input` — the `input[type=password]` the SDK's own PRIV-01
   auto-mask picks up; one of the three elements `sensitive-lifecycle.spec.ts`
   counts in the registry
 - `sensitive-attr-block` (the attribute surface) and `sensitive-block` (the
   registry surface, via `v-sensitive`) — the second MUST unregister on unmount
-- `traceitx-bubble` opens the reporter on `/` and on `/strict-csp.html`
+- `everframe-bubble` opens the reporter on `/` and on `/strict-csp.html`
 - `nav-home`, `nav-specimens`, `nav-settings`
 - `kill-sdk` and `settings-status` on `/settings`
 - `strict-csp-heading` on the strict-CSP document

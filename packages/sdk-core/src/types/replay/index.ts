@@ -10,6 +10,7 @@ export {
   ReplayConfigResponse,
   REPLAY_CONFIG_OFF,
   DEFAULT_CONFIG_TTL_MS,
+  SDK_FEATURES_HEADER,
   BreadcrumbsConfig,
   BREADCRUMBS_CONFIG_DEFAULT,
   getBreadcrumbsConfig,

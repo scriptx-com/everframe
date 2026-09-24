@@ -4,17 +4,17 @@
 // Form ("Profile") — the redaction + metadata tab. Keeps the original
 // fixture surface intact and extends it Elytra-style:
 //   - `public-field` / `secret-field` testIDs preserved (Plan 06-05
-//     <TraceItXSensitive> comparison — one TextInput wrapped, one not).
+//     <EverframeSensitive> comparison — one TextInput wrapped, one not).
 //   - Seeded PII text (test card + bearer token, same canonical strings as
 //     the web example) for the native redaction engine to scrub.
 //   - setExtra() wired to a real control — the RN SDK surface beyond open().
 //   - setUser() wired to a sign-in/switch/sign-out control (spec 2026-08-12).
 //
 // WHY THIS SAMPLE USES setUser AND THE WEB ONE USES setIdentityToken.
-// TraceItX has two recognition tiers and the two dogfood apps deliberately
+// Everframe has two recognition tiers and the two dogfood apps deliberately
 // demonstrate one each:
 //
-//   examples/react-web  → VERIFIED. Its `identity` prop on TraceItXProvider fetches a
+//   examples/react-web  → VERIFIED. Its `identity` prop on EverframeProvider fetches a
 //     short-lived JWT from its own backend, which the server verifies against
 //     the project's signing secret. Proven, and the only tier allowed to
 //     unlock a person's conversations on another device.
@@ -30,7 +30,7 @@
 
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { TraceItXSensitive, useTraceItX, useTXScreen } from '@traceitx/react-native';
+import { EverframeSensitive, useEverframe, useEverframeScreen } from '@everframe/react-native';
 import { color, font, radius, type } from '../theme';
 
 // Two collectors so the sample can demonstrate an account SWITCH, not just a
@@ -43,8 +43,8 @@ const COLLECTORS = [
 ] as const;
 
 export function Form(): React.JSX.Element {
-  useTXScreen('Profile');
-  const { setExtra, setUser } = useTraceItX();
+  useEverframeScreen('Profile');
+  const { setExtra, setUser } = useEverframe();
   const [extra, setExtraDraft] = useState('{"plan":"field-team","build":"demo"}');
   const [applied, setApplied] = useState(false);
   const [recognizedAs, setRecognizedAs] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export function Form(): React.JSX.Element {
     setApplied(true);
   };
 
-  // Called from a button, so it necessarily runs after <TraceItXProvider> has
+  // Called from a button, so it necessarily runs after <EverframeProvider> has
   // mounted and started the SDK. That ordering is required, not incidental:
   // a `setUser` issued before start is DROPPED on every platform, silently,
   // leaving every report anonymous for the session. Wire it to your own
@@ -104,7 +104,7 @@ export function Form(): React.JSX.Element {
       <View style={styles.card}>
         <Text style={type.sectionTitle}>Redaction demo</Text>
         <Text style={[type.muted, styles.cardBody]}>
-          The first field is captured normally; the second is wrapped in TraceItXSensitive and
+          The first field is captured normally; the second is wrapped in EverframeSensitive and
           must be masked in the captured screenshot. Compare both in the produced envelope.
         </Text>
 
@@ -117,8 +117,8 @@ export function Form(): React.JSX.Element {
           placeholderTextColor={color.inkFaint}
         />
 
-        <Text style={styles.inputLabel}>Secret field (wrapped in TraceItXSensitive)</Text>
-        <TraceItXSensitive>
+        <Text style={styles.inputLabel}>Secret field (wrapped in EverframeSensitive)</Text>
+        <EverframeSensitive>
           <TextInput
             testID="secret-field"
             accessibilityLabel="secret-field"
@@ -127,7 +127,7 @@ export function Form(): React.JSX.Element {
             placeholderTextColor={color.inkFaint}
             secureTextEntry
           />
-        </TraceItXSensitive>
+        </EverframeSensitive>
       </View>
 
       <View style={styles.card}>

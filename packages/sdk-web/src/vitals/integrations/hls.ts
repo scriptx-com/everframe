@@ -6,8 +6,8 @@
 // event-name strings below (stable since hls.js 1.0: `Hls.Events.X` are the
 // literal 'hlsX' strings). Timings use ctx.now() rather than hls.js `stats`
 // so they survive shape changes between minor versions.
-import type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings } from '@traceitx/sdk-core';
-import { safeWrap } from '@traceitx/sdk-core';
+import type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings } from '@everframe/sdk-core';
+import { safeWrap } from '@everframe/sdk-core';
 
 export const HLS_EVENTS = {
   MANIFEST_LOADING: 'hlsManifestLoading',

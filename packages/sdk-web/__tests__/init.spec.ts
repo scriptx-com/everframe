@@ -3,6 +3,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { init } from '../src/init.js';
+import type { Everframe } from '../src/init.js';
 
 let handles: Array<{ destroy(): void }> = [];
 
@@ -26,7 +27,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function mount() {
+function mount(): Everframe {
   const h = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
   handles.push(h);
   return h;
@@ -35,17 +36,17 @@ function mount() {
 describe('init()', () => {
   it('creates one shadow host tagged so capture skips it', () => {
     mount();
-    const host = document.getElementById('traceitx-host');
+    const host = document.getElementById('everframe-host');
     expect(host).not.toBeNull();
-    expect(host?.getAttribute('data-traceitx-skip-capture')).toBe('true');
+    expect(host?.getAttribute('data-everframe-skip-capture')).toBe('true');
     expect(host?.shadowRoot).not.toBeNull();
   });
 
   it('injects the reporter stylesheet into the shadow root, not the document', () => {
     mount();
-    const shadow = document.getElementById('traceitx-host')?.shadowRoot;
-    expect(shadow?.querySelector('style[data-traceitx-styles]')).not.toBeNull();
-    expect(document.head.querySelector('style[data-traceitx-styles]')).toBeNull();
+    const shadow = document.getElementById('everframe-host')?.shadowRoot;
+    expect(shadow?.querySelector('style[data-everframe-styles]')).not.toBeNull();
+    expect(document.head.querySelector('style[data-everframe-styles]')).toBeNull();
   });
 
   it('is idempotent per page — a second call returns the same handle and warns', () => {
@@ -54,16 +55,16 @@ describe('init()', () => {
     const b = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
     expect(b).toBe(a);
     expect(warn).toHaveBeenCalled();
-    expect(document.querySelectorAll('#traceitx-host')).toHaveLength(1);
+    expect(document.querySelectorAll('#everframe-host')).toHaveLength(1);
   });
 
   it('destroy() removes the host and allows a clean re-init', () => {
     const h = mount();
     h.destroy();
-    expect(document.getElementById('traceitx-host')).toBeNull();
+    expect(document.getElementById('everframe-host')).toBeNull();
     const again = mount();
     expect(again).not.toBe(h);
-    expect(document.getElementById('traceitx-host')).not.toBeNull();
+    expect(document.getElementById('everframe-host')).not.toBeNull();
   });
 
   // Codex round-1 finding 7, second site. `expect.any(Function)` asserted only
@@ -104,7 +105,7 @@ describe('init()', () => {
   // sdk-core's `markSensitive` is a no-op that has never reached the sensitive
   // registry, so this brand-new handle deliberately does not carry it: a
   // privacy method that silently does nothing is worse than none at all.
-  // Masking is `data-traceitx-sensitive` + `sensitiveRegistry.addRef` only.
+  // Masking is `data-everframe-sensitive` + `sensitiveRegistry.addRef` only.
   it('does not expose the dead markSensitive privacy call', () => {
     const h = mount() as unknown as Record<string, unknown>;
     expect('markSensitive' in h).toBe(false);

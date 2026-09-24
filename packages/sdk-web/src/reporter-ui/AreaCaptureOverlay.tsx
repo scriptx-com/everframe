@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useEffect, useState, type JSX } from 'react';
-import type { Rect } from '@traceitx/sdk-core';
+import type { Rect } from '@everframe/sdk-core';
 import { pushEscapeHandler } from './primitives/escapeStack.js';
 
 export interface AreaCaptureOverlayProps {
@@ -25,7 +25,7 @@ const MIN_DRAG_EDGE = 8;
 
 /**
  * AreaCaptureOverlay — fullscreen drag-to-select surface shown while the
- * reporter modal is hidden. Tagged data-traceitx-skip-capture as defense in
+ * reporter modal is hidden. Tagged data-everframe-skip-capture as defense in
  * depth (the overlay also unmounts before capture runs). Esc cancels via the
  * shared escapeStack so it composes with the modal's own Esc handling.
  */
@@ -45,14 +45,14 @@ export function AreaCaptureOverlay({ onSelect, onCancel }: AreaCaptureOverlayPro
 
   return (
     <div
-      className="txx-area-capture"
-      data-traceitx-skip-capture="true"
+      className="everframe-area-capture"
+      data-everframe-skip-capture="true"
       data-testid="area-capture-overlay"
       onPointerDown={(e) => {
         // Toolbar buttons handle their own clicks; only start drags on the surface.
-        if ((e.target as HTMLElement).closest('.txx-area-capture-bar')) return;
+        if ((e.target as HTMLElement).closest('.everframe-area-capture-bar')) return;
         // Stops the compatibility mousedown that anchors a native text
-        // selection — see `.txx-area-capture`'s own comment in reporter.css.ts
+        // selection — see `.everframe-area-capture`'s own comment in reporter.css.ts
         // for why a selection here bleeds into the CUSTOMER's page. Paired
         // with `user-select: none` there rather than replacing it: neither
         // guard covers every engine alone, and this one ships into pages we
@@ -83,13 +83,13 @@ export function AreaCaptureOverlay({ onSelect, onCancel }: AreaCaptureOverlayPro
         onSelect({ x: sel.x, y: sel.y, width: sel.width, height: sel.height });
       }}
     >
-      <div className="txx-area-capture-bar">
-        <span className="txx-area-capture-hint">
+      <div className="everframe-area-capture-bar">
+        <span className="everframe-area-capture-hint">
           Drag to select an area — Esc to cancel
         </span>
         <button
           type="button"
-          className="txx-area-capture-btn"
+          className="everframe-area-capture-btn"
           onClick={() => onSelect(null)}
           data-testid="area-capture-full"
         >
@@ -97,7 +97,7 @@ export function AreaCaptureOverlay({ onSelect, onCancel }: AreaCaptureOverlayPro
         </button>
         <button
           type="button"
-          className="txx-area-capture-btn"
+          className="everframe-area-capture-btn"
           onClick={onCancel}
           data-testid="area-capture-cancel"
         >
@@ -106,11 +106,11 @@ export function AreaCaptureOverlay({ onSelect, onCancel }: AreaCaptureOverlayPro
       </div>
       {sel && sel.width >= MIN_DRAG_EDGE && sel.height >= MIN_DRAG_EDGE ? (
         <div
-          className="txx-area-capture-selection"
+          className="everframe-area-capture-selection"
           data-testid="area-capture-selection"
           style={{ left: sel.x, top: sel.y, width: sel.width, height: sel.height }}
         >
-          <span className="txx-area-capture-size">
+          <span className="everframe-area-capture-size">
             {Math.round(sel.width)} × {Math.round(sel.height)}
           </span>
         </div>

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
-import type { PlayerIntegrationContext } from '@traceitx/sdk-core';
+import type { PlayerIntegrationContext } from '@everframe/sdk-core';
 import { hlsIntegration, HLS_EVENTS } from '../../../src/vitals/integrations/hls.js';
 
 type Emitted = { type: string; data?: Record<string, unknown>; t?: number };

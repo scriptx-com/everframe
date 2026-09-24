@@ -1,15 +1,15 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# SampleAppTV — TraceItX tvOS demo
+# SampleAppTV — Everframe tvOS demo
 
-This is the **sample** Apple TV host app used to exercise the TraceItX SDK on
+This is the **sample** Apple TV host app used to exercise the Everframe SDK on
 tvOS. It is NOT part of the SDK — it lives under `examples/` so customers can
 see idiomatic host wiring.
 
 ## Phase 06.2-07 — Phone-companion reporter
 
-The SDK exposes two read-only properties on `TraceItX.shared.companion`:
+The SDK exposes two read-only properties on `Everframe.shared.companion`:
 
 | Property | Type                     | Description                                                                  |
 | -------- | ------------------------ | ---------------------------------------------------------------------------- |
@@ -25,7 +25,7 @@ chrome — see `grep -rE "QRCode|qr-code" packages/sdk-ios/Sources/`).
 The sample uses `CIQRCodeGenerator` (Foundation built-in, zero dependencies)
 to render the pair URL as a QR. Hosts may swap in any QR library
 (EFQRCode, swift-qrcode-generator, etc.) without touching SDK code. The view
-binds to `TraceItX.shared.companion` via `@ObservedObject` and re-renders on
+binds to `Everframe.shared.companion` via `@ObservedObject` and re-renders on
 every `state` / `pairUrl` change.
 
 Reachable from the Apple TV sample via the "Companion QR" focused button on
@@ -33,7 +33,7 @@ the home screen.
 
 ### Wiring autostart
 
-The phone-companion WS client is not auto-started on `TraceItX.shared.start(_:)`
+The phone-companion WS client is not auto-started on `Everframe.shared.start(_:)`
 — hosts opt in. The current sample does NOT wire the autostart (it's a
 focused demo of the QR-rendering API surface); the orchestration plan
 (06.2-09) wires `enableCompanion` into the config struct and starts
@@ -41,7 +41,7 @@ focused demo of the QR-rendering API surface); the orchestration plan
 
 ## Existing demos (Phase 05.1)
 
-* Focused button → `TraceItX.shared.report.open()`.
+* Focused button → `Everframe.shared.report.open()`.
 * PressForwarder × 3 play/pause within 1.5 s → trigger combo.
 * `markSensitive` demo on the Payment mock screen.
 

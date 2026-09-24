@@ -3,18 +3,18 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { submitReportFromDraft, drainOutbox } from '../../src/transport/submit.js';
-import { createInMemoryOutbox } from '@traceitx/sdk-core';
-import type { OutboxAdapter, ReportDraft } from '@traceitx/sdk-core';
+import { createInMemoryOutbox } from '@everframe/sdk-core';
+import type { OutboxAdapter, ReportDraft } from '@everframe/sdk-core';
 import { draftToEnvelope } from '../../src/transport/draft-to-envelope.js';
 import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 
-const config: WebTraceItXConfig = {
+const config: WebEverframeConfig = {
   apiKey: 'txx_live_test',
   appName: 'test-app',
   appVersion: '1.0.0',
 };
-// Mirrors the vitest.config `define`'d `__TRACEITX_INGEST_URL__`. Tests that
+// Mirrors the vitest.config `define`'d `__EVERFRAME_INGEST_URL__`. Tests that
 // assert on the outbound URL compare against this constant.
 const INGEST_URL = 'http://localhost:8787';
 
@@ -149,7 +149,7 @@ describe('drainOutbox', () => {
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
     });
     const fetch = vi.fn(async () => new Response(
-      JSON.stringify({ thread: { id: 't9' }, device: { token: 'txr_' + 'e'.repeat(43) } }),
+      JSON.stringify({ thread: { id: 't9' }, device: { token: 'evr_' + 'e'.repeat(43) } }),
       { status: 200, headers: { 'content-type': 'application/json' } },
     )) as unknown as typeof globalThis.fetch;
     const result = await drainOutbox({

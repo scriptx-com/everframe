@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Smart-TV tester shell: focus grid + key log + device info, plus the
-// TraceItX companion QR behind a tile. Back closes the overlay when open,
+// Everframe companion QR behind a tile. Back closes the overlay when open,
 // otherwise attempts a platform exit (Tizen application API / window.close).
 import * as React from 'react';
 import { useCallback, useState } from 'react';
@@ -44,7 +44,7 @@ function PairTile({ onOpen }: { onOpen: () => void }): React.JSX.Element {
         border: focused ? '4px solid #7ab8ff' : '4px solid transparent',
       }}
     >
-      Pair phone (TraceItX QR)
+      Pair phone (Everframe QR)
     </div>
   );
 }
@@ -78,7 +78,7 @@ export function App(): React.JSX.Element {
           boxSizing: 'border-box',
         }}
       >
-        <h1 style={{ fontSize: 34, margin: '0 0 20px' }}>TraceItX — Smart-TV Tester</h1>
+        <h1 style={{ fontSize: 34, margin: '0 0 20px' }}>Everframe — Smart-TV Tester</h1>
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           <aside style={{ width: 380, marginRight: 40 }}>
             <DeviceInfo />

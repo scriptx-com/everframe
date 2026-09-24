@@ -19,7 +19,7 @@
 // BEFORE `client.kill()`. A reversible stop would be undone by that ordering.
 import { describe, it, expect } from 'vitest';
 import { gzipSync } from 'node:zlib';
-import { createReplayLifecycle, type ReplayConfig } from '@traceitx/sdk-core';
+import { createReplayLifecycle, type ReplayConfig } from '@everframe/sdk-core';
 import { createReplayRecorder } from '../../../src/capture/replay/recorder.js';
 
 const testGzip = async (input: Uint8Array): Promise<Uint8Array> =>
@@ -164,7 +164,7 @@ describe('ReplayRecorder.kill() — the consent switch', () => {
 // Codex round-4 finding 2 (P1) — the latch above was TERMINAL, and that broke
 // React.
 //
-// `TraceItXProvider`'s unmount cleanup calls `client.kill()`, and React
+// `EverframeProvider`'s unmount cleanup calls `client.kill()`, and React
 // StrictMode (the Next.js dev default) simulates an unmount by running every
 // effect cleanup and then every effect again against the SAME client. So the
 // kill above lands on a Provider that is about to go on living: with an

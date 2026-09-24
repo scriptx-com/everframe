@@ -125,7 +125,10 @@ describe('VTREE-01 golden fixture — round-trip', () => {
   it('parse → re-encode → canonical-equal (byte-equal round-trip)', () => {
     const parsed = vtree.VTreeTimeline.parse(fixture.timeline);
     const reencoded = JSON.parse(JSON.stringify(parsed));
-    expect(canonicalize(reencoded)).toEqual(canonicalize(fixture.timeline));
+    expect(canonicalize(reencoded)).toEqual(canonicalize({
+      ...fixture.timeline,
+      version: 'everframe-vtree-v1',
+    }));
   });
 
   it('fixture has a frame-0 snapshot + set/add/remove diff frames', () => {
@@ -361,17 +364,17 @@ describe('VTREE-03 originEpochMs — optional wall-clock anchor', () => {
 describe('VTREE-01 generated native shape guard (Pitfall-1)', () => {
   const swiftPath = path.resolve(
     __dirname,
-    '../../sdk-ios/Sources/TraceItXProtocol/VTree.swift'
+    '../../sdk-ios/Sources/EverframeProtocol/VTree.swift'
   );
   const kotlinPath = path.resolve(
     __dirname,
-    '../../sdk-android/android/traceitx-protocol/src/main/kotlin/com/traceitx/protocol/generated/VTree.kt'
+    '../../sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/VTree.kt'
   );
 
-  it('Swift emits exactly one `struct VNode` + an `enum VOp`', () => {
+  it('Swift emits exactly one Everframe node struct + operation enum', () => {
     const swift = readFileSync(swiftPath, 'utf8');
-    expect((swift.match(/struct VNode/g) || []).length).toBe(1);
-    expect(/enum VOp/.test(swift)).toBe(true);
+    expect((swift.match(/struct EverframeVNode/g) || []).length).toBe(1);
+    expect(/enum EverframeVOp/.test(swift)).toBe(true);
   });
 
   it('Kotlin emits exactly one `data class VNode` + a `sealed class VOp`', () => {
@@ -388,14 +391,14 @@ describe('VTREE-01 generated native shape guard (Pitfall-1)', () => {
   // compiled clean, so nothing downstream would have caught it until the 4c/4d
   // producers had nowhere to put bytes. These pin the map shape.
 
-  it('Swift emits VAsset with its four fields and types `assets` as a dictionary', () => {
+  it('Swift emits EverframeVAsset with its four fields and types `assets` as a dictionary', () => {
     const swift = readFileSync(swiftPath, 'utf8');
-    expect((swift.match(/struct VAsset\b/g) || []).length).toBe(1);
+    expect((swift.match(/struct EverframeVAsset\b/g) || []).length).toBe(1);
     for (const field of ['mime', 'w', 'h', 'b64']) {
       expect(swift).toMatch(new RegExp(`public let ${field}:`));
     }
-    expect(swift).toMatch(/assets: \[String: VAsset\]\?/);
-    expect(swift).not.toMatch(/VTreeTimelineAssets/);
+    expect(swift).toMatch(/assets: \[String: EverframeVAsset\]\?/);
+    expect(swift).not.toMatch(/EverframeVTreeTimelineAssets/);
   });
 
   it('Kotlin emits VAsset with its four fields and types `assets` as a Map', () => {
@@ -465,7 +468,7 @@ describe('vtree v1 — textAlign + fontWeight (stage 2a, additive)', () => {
 
   it('a timeline carrying both fields round-trips canonical-equal', () => {
     const timeline = {
-      version: 'traceitx-vtree-v1' as const,
+      version: 'everframe-vtree-v1' as const,
       viewport: { width: 100, height: 200, scale: 2 },
       frames: [
         {
@@ -510,7 +513,7 @@ describe('VTREE-04 image asset table (stage 4a)', () => {
   });
 
   const timelineWith = (extra: Record<string, unknown>) => ({
-    version: 'traceitx-vtree-v1' as const,
+    version: 'everframe-vtree-v1' as const,
     viewport: { width: 100, height: 200, scale: 2 },
     frames: [
       {
@@ -589,5 +592,20 @@ describe('VTREE-04 image asset table (stage 4a)', () => {
       );
       expect(result.success).toBe(true);
     }
+  });
+});
+
+describe('VTree version compatibility', () => {
+  it('decodes the legacy version and serializes only the Everframe version', () => {
+    const legacy = {
+      ...fixture.timeline,
+      version: 'traceitx-vtree-v1' as const,
+    };
+
+    const parsed = vtree.VTreeTimeline.parse(legacy);
+
+    expect(parsed.version).toBe('everframe-vtree-v1');
+    expect(JSON.stringify(parsed)).toContain('"version":"everframe-vtree-v1"');
+    expect(JSON.stringify(parsed)).not.toContain('traceitx-vtree-v1');
   });
 });

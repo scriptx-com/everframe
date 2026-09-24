@@ -10,11 +10,11 @@
     "start": "next start -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "build:source-maps": "TRACEITX_SOURCE_MAPS=1 next build --webpack"
+    "build:source-maps": "EVERFRAME_SOURCE_MAPS=1 next build --webpack"
   },
   "dependencies": {
-    "@traceitx/identity": "workspace:*",
-    "@traceitx/react": "workspace:*",
+    "@everframe/identity": "workspace:*",
+    "@everframe/react": "workspace:*",
     "hls.js": "^1.7.2",
     "next": "^16.2.4",
     "qrcode.react": "^4.2.0",
@@ -23,7 +23,7 @@
     "shaka-player": "^5.2.8"
   },
   "devDependencies": {
-    "@traceitx/swc-plugin-displayname": "workspace:*",
+    "@everframe/swc-plugin-displayname": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

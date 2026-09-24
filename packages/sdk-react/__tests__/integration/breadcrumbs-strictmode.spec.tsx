@@ -27,11 +27,11 @@ vi.mock('react-konva', () => ({
   Image: () => <div data-testid="konva-image" />,
 }));
 
-import { TraceItXProvider } from '../../src/provider.js';
-import { useTraceItX } from '../../src/hook.js';
+import { EverframeProvider } from '../../src/provider.js';
+import { useEverframe } from '../../src/hook.js';
 
 function OpenButton() {
-  const { open } = useTraceItX();
+  const { open } = useEverframe();
   return (
     <button type="button" data-testid="host-open" onClick={open}>
       open
@@ -75,10 +75,10 @@ async function submitReportAndCaptureEnvelope(wrapInStrictMode: boolean) {
   globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
 
   const app = (
-    <TraceItXProvider config={{ apiKey: 'txx_live_test', appName: 't', appVersion: '1' }}>
+    <EverframeProvider config={{ apiKey: 'txx_live_test', appName: 't', appVersion: '1' }}>
       <div data-testid="surface">app</div>
       <OpenButton />
-    </TraceItXProvider>
+    </EverframeProvider>
   );
   const { findByTestId } = render(wrapInStrictMode ? <StrictMode>{app}</StrictMode> : app);
 

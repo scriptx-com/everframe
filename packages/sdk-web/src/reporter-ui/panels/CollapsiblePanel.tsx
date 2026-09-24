@@ -37,16 +37,16 @@ export function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps): JSX.Element {
   const [open, setOpen] = useState(false);
-  const cls = ['txx-panel', !included && 'txx-panel-excluded'].filter(Boolean).join(' ');
+  const cls = ['everframe-panel', !included && 'everframe-panel-excluded'].filter(Boolean).join(' ');
   return (
     <section className={cls} data-testid={testId}>
-      <div className="txx-panel-header">
+      <div className="everframe-panel-header">
         {headerOnly ? (
-          <span className="txx-panel-title">{title}</span>
+          <span className="everframe-panel-title">{title}</span>
         ) : (
           <button
             type="button"
-            className="txx-panel-disclosure"
+            className="everframe-panel-disclosure"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
             data-testid={`${testId}-disclosure`}
@@ -54,17 +54,17 @@ export function CollapsiblePanel({
             <ChevronDown
               size={14}
               aria-hidden="true"
-              className={['txx-panel-chevron', open && 'txx-panel-chevron-open']
+              className={['everframe-panel-chevron', open && 'everframe-panel-chevron-open']
                 .filter(Boolean)
                 .join(' ')}
             />
-            <span className="txx-panel-title">{title}</span>
+            <span className="everframe-panel-title">{title}</span>
           </button>
         )}
-        {count !== undefined ? <span className="txx-panel-count">{count}</span> : null}
+        {count !== undefined ? <span className="everframe-panel-count">{count}</span> : null}
         <Toggle checked={included} onCheckedChange={onToggle} disabled={toggleDisabled} />
       </div>
-      {!headerOnly && open ? <div className="txx-panel-body">{children}</div> : null}
+      {!headerOnly && open ? <div className="everframe-panel-body">{children}</div> : null}
     </section>
   );
 }

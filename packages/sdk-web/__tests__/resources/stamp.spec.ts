@@ -11,9 +11,9 @@
 // here for the resources block (a DIFFERENT block — Session Vitals itself
 // is untouched by this work).
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildEnvelope, type BuildEnvelopeInput } from '@traceitx/sdk-core';
-import { MAX_RESOURCE_SAMPLES } from '@traceitx/protocol';
-import type { ReportEnvelope } from '@traceitx/protocol';
+import { buildEnvelope, type BuildEnvelopeInput } from '@everframe/sdk-core';
+import { MAX_RESOURCE_SAMPLES } from '@everframe/protocol';
+import type { ReportEnvelope } from '@everframe/protocol';
 import { stampResources, __setActiveResources } from '../../src/resources/stamp.js';
 
 /** Minimal fixture envelope, built via the same sdk-core builder every real
@@ -22,7 +22,7 @@ function baseEnvelope(): ReportEnvelope {
   const input: BuildEnvelopeInput = {
     reportId: '00000000-0000-4000-8000-000000000000',
     submittedAt: new Date(0).toISOString(),
-    sdk: { name: 'traceitx-web', version: '0.1.0', platform: 'web', formFactor: 'desktop' },
+    sdk: { name: 'everframe-web', version: '0.1.0', platform: 'web', formFactor: 'desktop' },
     reporter: { title: 'X', description: 'Y' },
     draft: { title: 'X', description: 'Y', excludedArtifacts: [], annotations: [], redactions: [] },
     device: {

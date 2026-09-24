@@ -64,10 +64,10 @@ describe('consoleIntegration', () => {
     expect(crumbs).toHaveBeenCalledTimes(1);
   });
 
-  it("skips the SDK's own '[traceitx]' lines", () => {
+  it("skips the SDK's own '[everframe]' lines", () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     teardown = consoleIntegration().setup();
-    console.warn('[traceitx] configure threw: x');
+    console.warn('[everframe] configure threw: x');
     expect(crumbs).not.toHaveBeenCalled();
   });
 

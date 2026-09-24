@@ -53,7 +53,7 @@ describe('DEFE-01: init is pure (no I/O, no side effects)', () => {
 describe('DEFE-01: importing sdk-core adds no globalThis keys', () => {
   // Mirror scripts/smoke-import.mjs UPSTREAM_ALLOWED_GLOBALS — Zod 4 lazily creates
   // `__zod_globalRegistry` on first module init when sdk-core re-exports from
-  // @traceitx/protocol. Locked + audited at protocol package; sdk-core inherits.
+  // @everframe/protocol. Locked + audited at protocol package; sdk-core inherits.
   const UPSTREAM_ALLOWED_GLOBALS = new Set(['__zod_globalRegistry']);
 
   it('snapshot before/after dynamic import', async () => {

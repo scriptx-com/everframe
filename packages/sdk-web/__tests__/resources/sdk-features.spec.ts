@@ -4,7 +4,7 @@
 // Report Resource Window (spec 2026-09-05) — capability negotiation. The
 // server only emits the `resources` config block (the ingest API's
 // config-route.ts) when the request declares `resources` in
-// `X-TX-SDK-Features`. Missing this token means `resources.enabled` is
+// `X-Everframe-SDK-Features`. Missing this token means `resources.enabled` is
 // always undefined and the whole feature is permanently, SILENTLY off —
 // every other test in this suite would still pass. Mirrors
 // `__tests__/reporter/identity-sdk-features.spec.ts`'s pattern for the
@@ -44,7 +44,7 @@ describe('web adapter — resources capability negotiation', () => {
     const configCall = fetchMock.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'));
     expect(configCall).toBeDefined();
     const headers = configCall![1]?.headers as Record<string, string>;
-    const features = headers['X-TX-SDK-Features']!.split(',').map((s) => s.trim());
+    const features = headers['X-Everframe-SDK-Features']!.split(',').map((s) => s.trim());
     expect(features).toContain('resources');
   });
 
@@ -88,11 +88,11 @@ describe('web adapter — resources capability negotiation', () => {
     vi.advanceTimersByTime(2_000);
 
     const { stampResources } = await import('../../src/resources/stamp.js');
-    const { buildEnvelope } = await import('@traceitx/sdk-core');
+    const { buildEnvelope } = await import('@everframe/sdk-core');
     const envelope = buildEnvelope({
       reportId: '00000000-0000-4000-8000-000000000000',
       submittedAt: new Date(0).toISOString(),
-      sdk: { name: 'traceitx-web', version: '0.1.0', platform: 'web', formFactor: 'desktop' },
+      sdk: { name: 'everframe-web', version: '0.1.0', platform: 'web', formFactor: 'desktop' },
       reporter: { title: 'X', description: 'Y' },
       draft: { title: 'X', description: 'Y', excludedArtifacts: [], annotations: [], redactions: [] },
       device: {

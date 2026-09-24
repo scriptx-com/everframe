@@ -7,7 +7,7 @@
 // direct comparison, no per-report offset guessing. This test pins the
 // ordering: a crumb stamped between two frames sorts between them.
 import { describe, it, expect } from 'vitest';
-import { createBreadcrumbBuffer } from '@traceitx/sdk-core';
+import { createBreadcrumbBuffer } from '@everframe/sdk-core';
 
 describe('shared clock (spec §2)', () => {
   it('a crumb stamped between two wall-clock frame timestamps sorts between them', () => {

@@ -5,7 +5,7 @@ import { test, expect, type Page } from '@playwright/test';
 /** Open the reporter and enter the fullscreen annotation editor. */
 async function openEditor(page: Page): Promise<void> {
   await page.goto('/');
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
   await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: 15_000 });
   await page.getByTestId('annotate-open').click();
@@ -15,7 +15,7 @@ async function openEditor(page: Page): Promise<void> {
 /**
  * The fullscreen overlay's canvas frame + toolbar column is often taller than
  * the viewport for a full-page capture (the Home fixture is long), and
- * `.txx-annotate-overlay-stage` is its own `overflow: auto` scroll region. A
+ * `.everframe-annotate-overlay-stage` is its own `overflow: auto` scroll region. A
  * toolbar button click auto-scrolls that region (Playwright's actionability
  * check, mirroring a real scrollIntoView) to make the button visible — which
  * scrolls the CANVAS TOP out of view. Raw `page.mouse.*` calls (unlike
@@ -24,7 +24,7 @@ async function openEditor(page: Page): Promise<void> {
  */
 async function scrollStageTop(page: Page): Promise<void> {
   await page.evaluate(() => {
-    document.querySelector('.txx-annotate-overlay-stage')?.scrollTo(0, 0);
+    document.querySelector('.everframe-annotate-overlay-stage')?.scrollTo(0, 0);
   });
 }
 

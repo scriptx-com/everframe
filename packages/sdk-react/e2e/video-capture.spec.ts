@@ -73,7 +73,7 @@ async function gotoVideoPage(page: Page): Promise<void> {
 
 async function openReporterOnVideoPage(page: Page): Promise<void> {
   await gotoVideoPage(page);
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
 }
 
@@ -143,7 +143,7 @@ test('the four <video> plates are genuinely in their distinct hazard states', as
  */
 async function sampleVideoPlates(page: Page): Promise<Record<string, { blue: number; dark: number }>> {
   return page.evaluate(async () => {
-    const img = document.querySelector<HTMLImageElement>('.txx-annotate-thumb-img');
+    const img = document.querySelector<HTMLImageElement>('.everframe-annotate-thumb-img');
     if (!img) throw new Error('reporter thumbnail not found — capture did not produce a blob');
     await img.decode().catch(() => undefined);
 
@@ -236,7 +236,7 @@ test('an in-flow video does not collapse the captured layout', async ({ page }) 
   await page.getByTestId('flow-bench').scrollIntoViewIfNeeded();
   await page.waitForTimeout(150);
 
-  await page.getByTestId('traceitx-bubble').click();
+  await page.getByTestId('everframe-bubble').click();
   await expect(page.getByTestId('reporter-modal')).toBeVisible();
   await expect(page.getByTestId('capture-pending')).toBeHidden({ timeout: CAPTURE_BUDGET_MS });
 
@@ -247,7 +247,7 @@ test('an in-flow video does not collapse the captured layout', async ({ page }) 
   // aspect-ratio containers reserve the space regardless of the video.
   const result = await page.evaluate(async () => {
     const marker = document.querySelector<HTMLElement>('[data-testid="flow-marker"]');
-    const img = document.querySelector<HTMLImageElement>('.txx-annotate-thumb-img');
+    const img = document.querySelector<HTMLImageElement>('.everframe-annotate-thumb-img');
     if (!marker || !img) throw new Error('marker or capture missing');
     await img.decode().catch(() => undefined);
 

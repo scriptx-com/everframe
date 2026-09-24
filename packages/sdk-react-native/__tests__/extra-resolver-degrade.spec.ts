@@ -31,7 +31,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 vi.mock('react-native', () => {
   // Mirrors react-native's real `NativeEventEmitter` constructor behavior on
   // iOS when the backing native module is missing: `invariant(nativeModule
-  // != null, ...)` throws. `NativeModules.TraceItXEventEmitter` is left
+  // != null, ...)` throws. `NativeModules.EverframeEventEmitter` is left
   // `undefined` below (unlinked pod), so `events.ts`'s `getEmitter()` calls
   // `new NativeEventEmitter(undefined)`, which must throw here exactly like
   // it would on a real device.
@@ -52,7 +52,7 @@ vi.mock('react-native', () => {
   return {
     __nativeMock: nativeMock,
     NativeEventEmitter: ThrowingNativeEventEmitter,
-    // No TraceItXEventEmitter entry — the unlinked-pod case.
+    // No EverframeEventEmitter entry — the unlinked-pod case.
     NativeModules: {},
     Platform: { OS: 'ios' },
     TurboModuleRegistry: {

@@ -3,6 +3,8 @@
 
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
@@ -13,7 +15,10 @@ const { TypeScriptParser } = require(
 describe("React Native codegen type compatibility", () => {
   it("parses local UnsafeObject aliases without a React Native deep type import", () => {
     const source = readFileSync(
-      new URL("../src/NativeTraceItX.ts", import.meta.url),
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../src/NativeEverframe.ts",
+      ),
       "utf8",
     );
 
@@ -24,12 +29,11 @@ describe("React Native codegen type compatibility", () => {
 
     const schema = new TypeScriptParser().parseString(
       source,
-      "NativeTraceItX.ts",
+      "NativeEverframe.ts",
     );
     const encoded = JSON.stringify(schema);
 
-    expect(Object.keys(schema.modules)).toEqual(["NativeTraceItX"]);
+    expect(Object.keys(schema.modules)).toEqual(["NativeEverframe"]);
     expect(encoded.match(/GenericObjectTypeAnnotation/g)?.length).toBe(6);
   });
 });
-

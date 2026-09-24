@@ -5,7 +5,7 @@
 // DERIVED from the canonical breadcrumb chain, until receivers migrate.
 // Trim markers are excluded from both derived arrays — legacy consumers get
 // clean entries; the chain itself is where markers surface.
-import type { Breadcrumb } from '@traceitx/protocol';
+import type { Breadcrumb } from '@everframe/protocol';
 import type { LogEntry, NetworkEntry } from '../types/platform.js';
 import { isTrimMarker } from './trim.js';
 

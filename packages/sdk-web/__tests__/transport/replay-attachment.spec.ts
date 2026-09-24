@@ -9,12 +9,12 @@
 //   - the submitted envelope carries EXACTLY ONE attachment with
 //     kind:'session-replay', format:'rrweb', and a numeric durationMs.
 import { describe, it, expect } from 'vitest';
-import { AttachmentRef } from '@traceitx/protocol';
+import { AttachmentRef } from '@everframe/protocol';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { ReportDraft, ReplayCapture } from '@traceitx/sdk-core';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { ReportDraft, ReplayCapture } from '@everframe/sdk-core';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 
-const config: WebTraceItXConfig = { apiKey: 'txx_live_test', appName: 'a', appVersion: '1.0.0' };
+const config: WebEverframeConfig = { apiKey: 'txx_live_test', appName: 'a', appVersion: '1.0.0' };
 const draft: ReportDraft = {
   title: 'X',
   description: 'Y',

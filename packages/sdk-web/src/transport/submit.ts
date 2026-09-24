@@ -9,7 +9,7 @@ import {
   ensureDeviceToken,
   decodeSub,
   type SubmitResult,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import type {
   ReportDraft,
   OutboxAdapter,
@@ -17,9 +17,9 @@ import type {
   ReporterCredentialStore,
   IdentityTokenReader,
   UserMetadata,
-} from '@traceitx/sdk-core';
-import type { ReportEnvelope } from '@traceitx/protocol';
-import type { WebTraceItXConfig } from '../internal/types.js';
+} from '@everframe/sdk-core';
+import type { ReportEnvelope } from '@everframe/protocol';
+import type { WebEverframeConfig } from '../internal/types.js';
 import { INGEST_URL } from '../constants.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 import { draftToEnvelope, type CaptureBundle } from './draft-to-envelope.js';
@@ -204,16 +204,16 @@ export interface SubmitOutcome {
  *   - PayloadTooLargeError thrown by buildMultipart → non-retryable, no enqueue
  */
 export async function submitReportFromDraft(opts: {
-  config: WebTraceItXConfig;
+  config: WebEverframeConfig;
   /**
    * Which SDK produced this report — envelope `sdk.name`. Defaults to
-   * `traceitx-react` (see draftToEnvelope): every caller predates
-   * `@traceitx/web`'s own `init()`, and a wrong default here mislabels a
+   * `everframe-react` (see draftToEnvelope): every caller predates
+   * `@everframe/web`'s own `init()`, and a wrong default here mislabels a
    * host's whole report stream.
    *
    * NOT OPTIONAL IN PRACTICE FOR A VANILLA CALLER. This function is exported
-   * from `@traceitx/web`'s barrel, and omitting `sdkName` files the report
-   * under `traceitx-react`. Codex round 2 (finding 2) asked for the default to
+   * from `@everframe/web`'s barrel, and omitting `sdkName` files the report
+   * under `everframe-react`. Codex round 2 (finding 2) asked for the default to
    * be removed; `packages/sdk-react/src/provider.tsx` — published, and out of
    * bounds for this change — depends on it, so the default stays and the
    * rejection argument (with the exact one-line fix that unblocks it) is
@@ -491,7 +491,7 @@ export async function submitReportFromDraft(opts: {
  */
 type DrainOutboxOptions = {
   outbox: OutboxAdapter;
-  config: WebTraceItXConfig;
+  config: WebEverframeConfig;
   sdkVersion: string;
   fetch?: typeof globalThis.fetch;
   retryScheduleMs?: readonly number[];
@@ -621,7 +621,7 @@ async function drainOutboxInternal(
       }
 
       // Round-6 PR-review Finding 1 (HIGH) — the localStorage outbox is
-      // origin-wide (every `traceitx:outbox:*` key on the origin, regardless
+      // origin-wide (every `everframe:outbox:*` key on the origin, regardless
       // of which mounted app enqueued it — see outbox/localStorage.ts's
       // listSerialized), but each adapter owns an app-SCOPED reply
       // credential (device token + local veto). Pre-fix, this function
@@ -645,7 +645,7 @@ async function drainOutboxInternal(
       //     app happens to be mounted when the drain runs; delivery matters
       //     more than thread creation — but present NO device token (this
       //     function has no way to reach that other app's credential store
-      //     from here) and force `X-TX-Replies-Opt-Out: 1` regardless of
+      //     from here) and force `X-Everframe-Replies-Opt-Out: 1` regardless of
       //     THIS app's own veto state, so the server doesn't fall back to
       //     minting a thread that nobody holding the correct identity could
       //     ever read. A tokenless provision here would recreate exactly

@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 ScriptX
 # Copyright 2026 ScriptX
 
-title = "TraceItX public SDK secret scanning"
+title = "Everframe public SDK secret scanning"
 
 [extend]
 useDefault = true

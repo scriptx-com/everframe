@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import type { ReportEnvelope, UINode } from '@traceitx/protocol';
-import { UITree } from '@traceitx/protocol';
+import type { ReportEnvelope, UINode } from '@everframe/protocol';
+import { UITree } from '@everframe/protocol';
 import { applyRedaction } from '../src/redaction/engine.js';
 
 function envWithRoot(root: UINode): ReportEnvelope {
@@ -10,7 +10,7 @@ function envWithRoot(root: UINode): ReportEnvelope {
     protocolVersion: '1.0',
     reportId: '01939c34-7b8f-7000-8000-000000000002',
     submittedAt: '2026-04-29T16:00:00.000Z',
-    sdk: { name: 'traceitx-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
+    sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
     reporter: { title: 'mark', description: 'mark' },
     captures: { screenshot: false, uiTree: true, focus: false, logs: false, network: false },
     captureControl: { included: ['uiTree'], excluded: [] },

@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { ReportEnvelope } from '@traceitx/protocol';
-import { init, type CaptureExceptionOptions, type TraceItXHandle } from '../src/index.js';
+import { ReportEnvelope } from '@everframe/protocol';
+import { init, type CaptureExceptionOptions, type Everframe } from '../src/index.js';
 import { createLocalStorageOutbox } from '../src/outbox/localStorage.js';
 
-let handle: TraceItXHandle | undefined;
+let handle: Everframe | undefined;
 let sent: ReportEnvelope[];
 let attempts: ReportEnvelope[];
 let attemptBytes: Uint8Array[];
@@ -143,7 +143,7 @@ describe('captureException', () => {
     });
     expect(sent[0]!.payload.breadcrumbs?.some(b => b.message === 'Opened checkout')).toBe(true);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_RETRY_RECEIPT ${JSON.stringify({
         acceptedEnvelopeBytes: acceptedBytes!.byteLength,
         acceptedEnvelopeSha256: createHash('sha256').update(acceptedBytes!).digest('hex'),
@@ -253,7 +253,7 @@ describe('captureException', () => {
     expect(sent[1]!.payload.crash!.fingerprint).toBe(firstFingerprint);
     expect(sent.map(event => event.payload.crash!.causeChain?.causes[0]?.message))
       .toEqual(['first cause', 'second cause']);
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_FINGERPRINT_RECEIPT ${JSON.stringify({
         fingerprint: firstFingerprint,
         causeMessages: sent.map(event => event.payload.crash!.causeChain?.causes[0]?.message),
@@ -285,7 +285,7 @@ describe('captureException', () => {
     expect(causeDescriptorCalls).toBe(1);
     expect(sent[0]!.payload.crash!.frames[0]!.raw).toContain('successor');
     expect(sent[0]!.payload.crash!.causeChain).toBeUndefined();
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_DESCRIPTOR_OWNERSHIP_RECEIPT ${JSON.stringify({
         staleSent: 0,
         causeDescriptorCalls,
@@ -295,7 +295,7 @@ describe('captureException', () => {
   });
 
   it('drops a redactor-reentrant stale capture without consuming successor allowance', async () => {
-    let old: TraceItXHandle;
+    let old: Everframe;
     let redactorCalls = 0;
     const match = {
       [Symbol.replace](value: string): string {
@@ -318,7 +318,7 @@ describe('captureException', () => {
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(redactorCalls).toBe(1);
     expect(sent[0]!.payload.crash!.frames[0]!.raw).toContain('successorAfterRedactor');
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_REDACTOR_OWNERSHIP_RECEIPT ${JSON.stringify({
         staleSent: 0,
         redactorCalls,
@@ -367,7 +367,7 @@ describe('captureException', () => {
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(formatterCalls).toBe(1);
     expect(sent[0]!.payload.crash!.frames[0]!.raw).toContain('successorAfterFormatter');
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_FORMATTER_OWNERSHIP_RECEIPT ${JSON.stringify({
         staleSent: 0,
         formatterCalls,

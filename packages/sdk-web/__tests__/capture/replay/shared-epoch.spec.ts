@@ -10,7 +10,7 @@
 //     is constructed with that same epoch so replay frames and the envelope anchor
 //     to a single origin (no clock skew between the bug moment and the timeline).
 import { describe, it, expect } from 'vitest';
-import { createReplayLifecycle, type ReplayConfig } from '@traceitx/sdk-core';
+import { createReplayLifecycle, type ReplayConfig } from '@everframe/sdk-core';
 import { createReplayRecorder } from '../../../src/capture/replay/recorder.js';
 
 const config: ReplayConfig = { replayEnabled: true, replayDurationSec: 30, samplingRate: 1 };

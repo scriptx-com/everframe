@@ -107,11 +107,11 @@ export function createIdentityHandler(opts: HandlerOptions): (req: Request) => P
 function assertValidOrigins(allowedOrigins: string[] | undefined): void {
   if (allowedOrigins === undefined) return;
   if (!Array.isArray(allowedOrigins)) {
-    throw new Error('@traceitx/identity: allowedOrigins must be an array of origin strings.');
+    throw new Error('@everframe/identity: allowedOrigins must be an array of origin strings.');
   }
   if (allowedOrigins.includes('*')) {
     throw new Error(
-      "@traceitx/identity: allowedOrigins cannot contain '*'. A wildcard origin combined with " +
+      "@everframe/identity: allowedOrigins cannot contain '*'. A wildcard origin combined with " +
         'credentials is rejected by browsers and would expose identity tokens to any site. ' +
         'List your origins explicitly.',
     );
@@ -128,7 +128,7 @@ function assertValidOrigins(allowedOrigins: string[] | undefined): void {
     // can't sneak past a copy-paste typo either.
     if (entry.trim().toLowerCase() === 'null') {
       throw new Error(
-        `@traceitx/identity: allowedOrigins cannot contain "${entry}". The string "null" is the ` +
+        `@everframe/identity: allowedOrigins cannot contain "${entry}". The string "null" is the ` +
           'opaque-origin placeholder shared by sandboxed iframes, data: URLs, file: pages, and some ' +
           'redirect flows — it does not identify a trusted caller, so allowlisting it would let any ' +
           'of those unrelated contexts read identity tokens. List real origins instead.',
@@ -145,19 +145,19 @@ function assertValidOrigins(allowedOrigins: string[] | undefined): void {
       url = new URL(entry);
     } catch {
       throw new Error(
-        `@traceitx/identity: allowedOrigins entry "${entry}" is not a valid URL. Expected a bare ` +
+        `@everframe/identity: allowedOrigins entry "${entry}" is not a valid URL. Expected a bare ` +
           'origin like "https://app.example.com".',
       );
     }
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       throw new Error(
-        `@traceitx/identity: allowedOrigins entry "${entry}" must use http: or https:. Expected a ` +
+        `@everframe/identity: allowedOrigins entry "${entry}" must use http: or https:. Expected a ` +
           'bare origin like "https://app.example.com".',
       );
     }
     if (url.origin !== entry) {
       throw new Error(
-        `@traceitx/identity: allowedOrigins entry "${entry}" must be a bare origin — no path, query, ` +
+        `@everframe/identity: allowedOrigins entry "${entry}" must be a bare origin — no path, query, ` +
           'fragment, or trailing slash. Expected a form like "https://app.example.com".',
       );
     }

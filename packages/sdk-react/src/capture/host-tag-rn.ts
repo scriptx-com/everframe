@@ -75,7 +75,7 @@ function warnAndNull(): null {
     warnedMissingTag = true;
     // eslint-disable-next-line no-console
     console.warn(
-      '[traceitx] RN host fiber stateNode missing _nativeTag (neither Fabric nor Paper shape).'
+      '[everframe] RN host fiber stateNode missing _nativeTag (neither Fabric nor Paper shape).'
     );
   }
   return null;

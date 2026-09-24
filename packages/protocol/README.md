@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# @traceitx/protocol
+# @everframe/protocol
 
 > Wire-protocol package — touch with care. Both SDK and server depend on this contract.
 
@@ -9,7 +9,7 @@
 
 ## What this is
 
-The versioned wire contract between TraceItX SDKs (web, RN, RN-TV) and the TraceItX ingest service.
+The versioned wire contract between Everframe SDKs (web, RN, RN-TV) and the Everframe ingest service.
 Defines the `ReportEnvelope` Zod schema (runtime validation + TS types) and a generated language-neutral
 JSON Schema (Draft 2020-12) consumable by Kotlin/Swift codegen for future SDKs.
 
@@ -50,7 +50,7 @@ import {
   FocusedNode,
   AttachmentRef,
   AttachmentKind,
-} from '@traceitx/protocol';
+} from '@everframe/protocol';
 ```
 
 `payload.uiTree`, `payload.reactTree`, and `payload.reportTarget` have been
@@ -60,7 +60,7 @@ these historical fields. No current producer emits them. `captures.uiTree`
 remains a required capability flag, emitted as `false`.
 
 Standalone `UITree` / `UINode` schemas remain for privacy handling of historical
-raw data and fixture tools. Web rrweb and Android's separate `traceitx-vtree-v1`
+raw data and fixture tools. Web rrweb and native `everframe-vtree-v1`
 replay format are unaffected.
 
 `PROTOCOL_VERSION` is the literal `'1.0'`.
@@ -73,7 +73,7 @@ Tizen and webOS are reserved for v1.1 SDK delivery — the protocol enum already
 ## Generation
 
 ```bash
-pnpm --filter @traceitx/protocol build   # build dist/
+pnpm --filter @everframe/protocol build   # build dist/
 pnpm schema:generate                     # write schemas-json/envelope.v1.schema.json
 pnpm schema:check                        # drift gate (fails if generated output differs)
 ```

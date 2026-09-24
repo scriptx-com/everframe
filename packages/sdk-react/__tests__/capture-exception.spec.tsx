@@ -3,10 +3,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook } from '@testing-library/react';
 import { StrictMode, type ReactNode } from 'react';
-import { ReportEnvelope } from '@traceitx/protocol';
+import { ReportEnvelope } from '@everframe/protocol';
 import {
-  TraceItXProvider,
-  useTraceItX,
+  EverframeProvider,
+  useEverframe,
   captureException,
   type CaptureExceptionOptions,
   type ErrorSeverity,
@@ -47,15 +47,15 @@ function errorAtWithCause(name: string, cause: unknown): Error {
 
 function wrapper({ children }: { children: ReactNode }) {
   return (
-    <TraceItXProvider config={{ apiKey: 'pk_test', appVersion: '2.1', appBuild: 'react-abc123' }}>
+    <EverframeProvider config={{ apiKey: 'pk_test', appVersion: '2.1', appBuild: 'react-abc123' }}>
       {children}
-    </TraceItXProvider>
+    </EverframeProvider>
   );
 }
 
 describe('React captureException public API', () => {
   it.each([false, true])('shares hook, top-level, and automatic capture (StrictMode=%s)', async strict => {
-    const { result } = renderHook(() => useTraceItX(), {
+    const { result } = renderHook(() => useEverframe(), {
       wrapper: ({ children }) => strict ? <StrictMode>{wrapper({ children })}</StrictMode> : wrapper({ children }),
     });
     result.current.setUser({ id: 'react-user' });
@@ -73,7 +73,7 @@ describe('React captureException public API', () => {
     window.onerror?.(error.message, 'app.js', 1, 250, error);
     await vi.waitFor(() => expect(events.size).toBe(1));
     expect([...events.values()][0]).toMatchObject({
-      sdk: { name: 'traceitx-react' },
+      sdk: { name: 'everframe-react' },
       context: { app: { version: '2.1', build: 'react-abc123' } },
       reporter: { user: { id: 'react-user' } },
       payload: {
@@ -109,11 +109,11 @@ describe('React captureException public API', () => {
 
   it('keeps pre-mount, unmounted, and stale hook captures inert across remounts', async () => {
     expect(() => captureException(errorAt('beforeMount'))).not.toThrow();
-    const first = renderHook(() => useTraceItX(), { wrapper });
+    const first = renderHook(() => useEverframe(), { wrapper });
     const stale = first.result.current;
     first.unmount();
     expect(() => captureException(errorAt('afterUnmount'))).not.toThrow();
-    renderHook(() => useTraceItX(), { wrapper });
+    renderHook(() => useEverframe(), { wrapper });
     stale.captureException(errorAt('staleHook'));
     captureException(errorAt('liveMount'));
     await vi.waitFor(() => expect(events.size).toBe(1));
@@ -121,19 +121,19 @@ describe('React captureException public API', () => {
   });
 
   it('does not report through either API after kill', async () => {
-    const first = renderHook(() => useTraceItX(), { wrapper });
+    const first = renderHook(() => useEverframe(), { wrapper });
     first.result.current.kill();
     first.result.current.captureException(errorAt('killedHook'));
     captureException(errorAt('killedTopLevel'));
     first.unmount();
-    renderHook(() => useTraceItX(), { wrapper });
+    renderHook(() => useEverframe(), { wrapper });
     captureException(errorAt('newMount'));
     await vi.waitFor(() => expect(events.size).toBe(1));
     expect([...events.values()][0]!.payload.crash!.frames[0]!.raw).toContain('newMount');
   });
 
   it('does not persist a capture when option proxy work unmounts its provider', async () => {
-    const mounted = renderHook(() => useTraceItX(), { wrapper });
+    const mounted = renderHook(() => useEverframe(), { wrapper });
     const options = new Proxy({}, {
       getPrototypeOf() {
         mounted.unmount();
@@ -145,14 +145,14 @@ describe('React captureException public API', () => {
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(events.size).toBe(0);
 
-    renderHook(() => useTraceItX(), { wrapper });
+    renderHook(() => useEverframe(), { wrapper });
     captureException(errorAt('liveAfterOptionUnmount'));
     await vi.waitFor(() => expect(events.size).toBe(1));
     expect([...events.values()][0]!.payload.crash!.frames[0]!.raw).toContain('liveAfterOptionUnmount');
   });
 
   it('invalidates cause prototype work at unmount and accepts a remounted successor', async () => {
-    const mounted = renderHook(() => useTraceItX(), { wrapper });
+    const mounted = renderHook(() => useEverframe(), { wrapper });
     let prototypeReads = 0;
     const prototype = new Proxy(Object.create(null) as object, {
       getPrototypeOf(target) {
@@ -171,12 +171,12 @@ describe('React captureException public API', () => {
     expect(prototypeReads).toBe(1);
     expect(events.size).toBe(0);
 
-    renderHook(() => useTraceItX(), { wrapper });
+    renderHook(() => useEverframe(), { wrapper });
     captureException(errorAt('liveAfterCauseUnmount'));
     await vi.waitFor(() => expect(events.size).toBe(1));
     expect([...events.values()][0]!.payload.crash!.frames[0]!.raw)
       .toContain('liveAfterCauseUnmount');
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_REACT_OWNERSHIP_RECEIPT ${JSON.stringify({
         staleSent: 0,
         prototypeReads,
@@ -186,7 +186,7 @@ describe('React captureException public API', () => {
   });
 
   it('invalidates native cause formatting at unmount and accepts a remounted successor', async () => {
-    const mounted = renderHook(() => useTraceItX(), { wrapper });
+    const mounted = renderHook(() => useEverframe(), { wrapper });
     const errorConstructor = Error as ErrorConstructor & {
       prepareStackTrace?: (error: Error, frames: unknown[]) => unknown;
     };
@@ -221,12 +221,12 @@ describe('React captureException public API', () => {
     expect(formatterCalls).toBe(1);
     expect(events.size).toBe(0);
 
-    renderHook(() => useTraceItX(), { wrapper });
+    renderHook(() => useEverframe(), { wrapper });
     captureException(errorAt('liveAfterNativeFormatterUnmount'));
     await vi.waitFor(() => expect(events.size).toBe(1));
     expect([...events.values()][0]!.payload.crash!.frames[0]!.raw)
       .toContain('liveAfterNativeFormatterUnmount');
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_REACT_FORMATTER_OWNERSHIP_RECEIPT ${JSON.stringify({
         staleSent: 0,
         formatterCalls,

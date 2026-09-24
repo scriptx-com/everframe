@@ -1,5 +1,5 @@
 {
-  "name": "@traceitx/swc-plugin-displayname",
+  "name": "@everframe/swc-plugin-displayname",
   "version": "0.0.0",
   "private": true,
   "type": "module",

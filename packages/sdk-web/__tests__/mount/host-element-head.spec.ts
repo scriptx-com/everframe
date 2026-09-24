@@ -36,7 +36,7 @@ vi.mock('../../src/mount/react-island.js', () => ({
   }),
 }));
 
-import { init, type TraceItXHandle } from '../../src/init.js';
+import { init, type Everframe } from '../../src/init.js';
 
 /** A document mid-parse: `<html><head></head></html>`, no body yet. */
 function headOnlyDocument(): Document {
@@ -53,7 +53,7 @@ function parserAppendsBody(doc: Document): HTMLElement {
   return body;
 }
 
-let handle: TraceItXHandle | null = null;
+let handle: Everframe | null = null;
 let stolenBody: HTMLElement | null = null;
 
 afterEach(() => {
@@ -127,11 +127,11 @@ describe('finding 4 — the host element mounts before <body> exists', () => {
     handle = init({ apiKey: 'txx_live_head_script' });
 
     expect(typeof handle.open).toBe('function');
-    expect(document.getElementById('traceitx-host')).not.toBeNull();
+    expect(document.getElementById('everframe-host')).not.toBeNull();
 
     // ...and it lands in the body once the parser gets there.
     document.documentElement.appendChild(stolenBody);
-    const parked = document.getElementById('traceitx-host')!;
+    const parked = document.getElementById('everframe-host')!;
     await vi.waitFor(() => expect(parked.parentNode).toBe(document.body));
   });
 });

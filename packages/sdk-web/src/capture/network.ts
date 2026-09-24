@@ -4,8 +4,8 @@
 import { pushNetworkEntry } from './buffers.js';
 import type { CrumbSink, KindGate } from './breadcrumbs.js';
 import { contentTypeAllowed, capUtf8, redactBodyText } from './network-body.js';
-import type { NetworkBodyEntry } from '@traceitx/protocol';
-import type { RedactionConfig } from '@traceitx/sdk-core';
+import type { NetworkBodyEntry } from '@everframe/protocol';
+import type { RedactionConfig } from '@everframe/sdk-core';
 
 /**
  * BodyCaptureHooks — opt-in wiring for request/response body capture (spec
@@ -248,8 +248,8 @@ function statusLevel(status: number): 'info' | 'warn' | 'error' {
   return status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
 }
 
-const FETCH_MARKER = Symbol.for('__traceitx_patched_fetch__');
-const XHR_MARKER = Symbol.for('__traceitx_patched_xhr__');
+const FETCH_MARKER = Symbol.for('__everframe_patched_fetch__');
+const XHR_MARKER = Symbol.for('__everframe_patched_xhr__');
 
 // Phase-1 sensitive-header lock — values are replaced with '[REDACTED]', keys preserved.
 // Lowercase comparison; mirrors sdk-core/src/redaction defaults.
@@ -510,7 +510,7 @@ async function readCappedText(
  * supplied and its `enabled()` gate is true (spec 2026-07-18 §6); absent that,
  * behavior is unchanged from the metadata-only v1 patcher.
  *
- * Idempotent via Symbol.for('__traceitx_patched_fetch__'); returns uninstall fn.
+ * Idempotent via Symbol.for('__everframe_patched_fetch__'); returns uninstall fn.
  */
 export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => void {
   if (typeof globalThis === 'undefined' || typeof globalThis.fetch !== 'function') {
@@ -672,10 +672,10 @@ export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => voi
 }
 
 interface XHRWithMeta extends XMLHttpRequest {
-  __txx_method?: string;
-  __txx_url?: string;
-  __txx_start?: number;
-  __txx_startedAt?: number;
+  __everframe_method?: string;
+  __everframe_url?: string;
+  __everframe_start?: number;
+  __everframe_startedAt?: number;
   /**
    * F33 (round-7 review) — the request Content-Type, captured off a patched
    * `setRequestHeader` call. Unlike the response side (`getResponseHeader`
@@ -684,14 +684,14 @@ interface XHRWithMeta extends XMLHttpRequest {
    * Reset on every `open()` so a reused XHR instance never leaks a stale
    * content-type from a prior request into this one's allowlist decision.
    */
-  __txx_reqContentType?: string;
+  __everframe_reqContentType?: string;
 }
 
 /**
  * installXHRPatcher — Patches XMLHttpRequest.prototype.open + send to push a
  * NetworkEntry on readystatechange===4. Captures method/url/status/durationMs.
  *
- * Idempotent via Symbol.for('__traceitx_patched_xhr__'); returns uninstall fn.
+ * Idempotent via Symbol.for('__everframe_patched_xhr__'); returns uninstall fn.
  */
 export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void {
   if (typeof globalThis === 'undefined' || typeof XMLHttpRequest === 'undefined') {
@@ -712,11 +712,11 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...rest: any[]
   ) {
-    this.__txx_method = method;
-    this.__txx_url = typeof url === 'string' ? url : url.href;
+    this.__everframe_method = method;
+    this.__everframe_url = typeof url === 'string' ? url : url.href;
     // A reused XHR instance (open() called again without `new`) must not
     // carry a prior request's content-type into this one's allowlist check.
-    delete this.__txx_reqContentType;
+    delete this.__everframe_reqContentType;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return origOpen.apply(this, [method, url, ...rest] as any);
   };
@@ -736,7 +736,7 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
   ) {
     try {
       if (typeof name === 'string' && name.toLowerCase() === 'content-type') {
-        this.__txx_reqContentType = String(value);
+        this.__everframe_reqContentType = String(value);
       }
     } catch {
       /* swallow — DEFE-02; our bookkeeping must never affect the app's call */
@@ -748,8 +748,8 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
     this: XHRWithMeta,
     requestBody?: Document | XMLHttpRequestBodyInit | null,
   ) {
-    this.__txx_start = performance.now();
-    this.__txx_startedAt = Date.now();
+    this.__everframe_start = performance.now();
+    this.__everframe_startedAt = Date.now();
     const reqBodyText = typeof requestBody === 'string' ? requestBody : undefined;
     const reqBodyUnsupported = requestBody != null && typeof requestBody !== 'string';
     // F42 (round-9 review) — pin body-capture identity to whichever adapter
@@ -760,13 +760,13 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
     const bc = opts.bodyCapture ? pinBodyCapture(opts.bodyCapture) : undefined;
     const onDone = () => {
       if (this.readyState === 4) {
-        const durationMs = performance.now() - (this.__txx_start ?? performance.now());
+        const durationMs = performance.now() - (this.__everframe_start ?? performance.now());
         pushNetworkEntry({
-          method: this.__txx_method ?? 'GET',
-          url: this.__txx_url ?? '',
+          method: this.__everframe_method ?? 'GET',
+          url: this.__everframe_url ?? '',
           status: this.status,
           durationMs,
-          startedAt: this.__txx_startedAt ?? Date.now(),
+          startedAt: this.__everframe_startedAt ?? Date.now(),
         });
 
         let reqId: number | undefined;
@@ -785,20 +785,20 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
               reqId = bc.nextReqId();
               const cfg = bc.config();
               const redaction = bc.redaction();
-              const entry: NetworkBodyEntry = { ref: reqId, t: this.__txx_startedAt ?? Date.now() };
+              const entry: NetworkBodyEntry = { ref: reqId, t: this.__everframe_startedAt ?? Date.now() };
 
               if (reqBodyUnsupported) {
                 entry.reqBodySkipped = 'unsupported';
               } else if (reqBodyText !== undefined) {
                 // F33 (round-7 review) — the request Content-Type is only known
                 // if the app explicitly called setRequestHeader('Content-Type', …)
-                // (recorded above into __txx_reqContentType). When it wasn't set,
+                // (recorded above into __everframe_reqContentType). When it wasn't set,
                 // the browser may still send a DEFAULT content-type on the wire
                 // (e.g. 'text/plain;charset=UTF-8' for a string body) that this
                 // SDK cannot observe — so an absent header must be treated as
                 // "unknown", never as "allowed". contentTypeAllowed(undefined, …)
                 // already returns false, giving default-deny for free.
-                if (contentTypeAllowed(this.__txx_reqContentType, cfg.bodyContentTypes)) {
+                if (contentTypeAllowed(this.__everframe_reqContentType, cfg.bodyContentTypes)) {
                   const f = bodyField(reqBodyText, cfg, redaction);
                   entry.reqBody = f.body;
                   if (f.truncated) {
@@ -834,8 +834,8 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
         }
 
         const xhrStatus = this.status;
-        const xhrMethod = this.__txx_method ?? 'GET';
-        const xhrUrl = this.__txx_url ?? '';
+        const xhrMethod = this.__everframe_method ?? 'GET';
+        const xhrUrl = this.__everframe_url ?? '';
         networkCrumb(opts, {
           message:
             xhrStatus === 0

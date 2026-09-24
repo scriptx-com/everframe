@@ -11,6 +11,7 @@
 // stale forever. Required fields are still validated; junk still errors.
 import { z } from 'zod';
 import { IDENTITY_TOKEN_HEADER, type IdentityTokenReader } from './identity-token.js';
+import { DEVICE_TOKEN_HEADER } from './device-token.js';
 import { boundWait, timeoutSignal } from '../transport/timeout-signal.js';
 
 export const MESSAGE_BODY_MAX = 2000;
@@ -89,7 +90,7 @@ export interface ReporterApiDeps {
   /**
    * Reporter identity recognition (spec 2026-08-06). When supplied, every
    * call resolves the token to present (if any) via `reader.get(Date.now())`
-   * and sends it as `X-TX-Identity-Token` alongside the device token.
+   * and sends it as `X-Everframe-Identity-Token` alongside the device token.
    * Best-effort — never blocks or fails a reporter call. Pass the web
    * adapter's `__identityTokenReader` (or any `IdentityTokenReader`); it
    * already gates on the config response's `identity.enabled`. Resolved on
@@ -134,7 +135,7 @@ export function createReporterApi(deps: ReporterApiDeps): ReporterApi {
   ): Promise<Response> {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${deps.apiKey}`,
-      'X-TX-Device-Token': deviceToken,
+      [DEVICE_TOKEN_HEADER]: deviceToken,
       Accept: 'application/json',
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       ...(init.extraHeaders ?? {}),

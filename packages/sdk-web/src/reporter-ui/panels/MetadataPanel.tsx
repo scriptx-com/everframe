@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import type { JSX } from 'react';
-import type { DeviceMetadata } from '@traceitx/sdk-core';
+import type { DeviceMetadata } from '@everframe/sdk-core';
 import { CollapsiblePanel } from './CollapsiblePanel.js';
 
 export interface MetadataPanelProps {
@@ -38,7 +38,7 @@ export function MetadataPanel({ meta }: MetadataPanelProps): JSX.Element {
     >
       <dl>
         {rows.map(([k, v]) => (
-          <div key={k} className="txx-row">
+          <div key={k} className="everframe-row">
             <dt>{k}</dt>
             <dd>{v}</dd>
           </div>

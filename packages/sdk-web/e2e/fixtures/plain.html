@@ -4,7 +4,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>TraceItX vanilla e2e fixture</title>
+<title>Everframe vanilla e2e fixture</title>
 <style>
   body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e8ee; }
   main { padding: 32px; display: grid; gap: 16px; max-width: 720px; }
@@ -36,14 +36,14 @@
   </script>
   <script type="module">
     import { init } from '/dist/index.js';
-    window.__traceitx = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
     document.getElementById('report').addEventListener('click', () => {
       // Swallowed: open() resolves on submit and rejects if the reporter is
       // not mounted. A spec that opens the dialog and then ends leaves this
       // promise pending, and one that tears the page down mid-open would
       // otherwise surface an unhandled rejection that has nothing to do with
       // what is being tested.
-      window.__traceitx.open().catch(() => {});
+      window.__everframe.open().catch(() => {});
     });
   </script>
 </body>

@@ -28,15 +28,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.traceitx.TraceItX
-import com.traceitx.config.ReportResult
-import com.traceitx.sensitive.txSensitive
+import dev.everframe.Everframe
+import dev.everframe.config.ReportResult
+import dev.everframe.sensitive.txSensitive
 
 @Composable
 fun SampleLoginScreen(onBack: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val isPresenting by TraceItX.report.isPresenting.collectAsState()
+    val isPresenting by Everframe.report.isPresenting.collectAsState()
 
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         Text("Sample Login")
@@ -68,7 +68,7 @@ fun SampleLoginScreen(onBack: () -> Unit) {
         // PRIV-03 bake-black on the password rect without leaving this screen.
         Button(
             onClick = {
-                TraceItX.report.openAsync(object : TraceItX.Callback<ReportResult> {
+                Everframe.report.openAsync(object : Everframe.Callback<ReportResult> {
                     override fun onResult(value: ReportResult) { /* no-op */ }
                     override fun onError(error: Throwable) { /* no-op */ }
                 })
@@ -76,7 +76,7 @@ fun SampleLoginScreen(onBack: () -> Unit) {
             enabled = !isPresenting,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Open TraceItX reporter")
+            Text("Open Everframe reporter")
         }
         Spacer(modifier = Modifier.height(8.dp))
 

@@ -18,7 +18,7 @@
 //      drained by a replies-vetoed adapter must ship with no device-token
 //      header and must never touch localStorage.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createBreadcrumbBuffer } from '@traceitx/sdk-core';
+import { createBreadcrumbBuffer } from '@everframe/sdk-core';
 import { createWebPlatformAdapter } from '../../src/adapter.js';
 import { scopedReporterTokenStorageKey } from '../../src/reporter/credential-store.js';
 
@@ -52,12 +52,12 @@ describe('replies.disabled vetoes the credential seam (Finding 2)', () => {
   });
 
   it('a vetoed adapter does not touch or clear an already-stored token', async () => {
-    localStorage.setItem(scopedReporterTokenStorageKey('pk_test'), 'txr_' + 'z'.repeat(43));
+    localStorage.setItem(scopedReporterTokenStorageKey('pk_test'), 'evr_' + 'z'.repeat(43));
     const adapter = mk({ apiKey: 'pk_test', replies: { disabled: true } });
     expect(adapter.reporterCredentials).toBeUndefined();
     // The veto must never delete a pre-existing token — it may be temporary.
     expect(localStorage.getItem(scopedReporterTokenStorageKey('pk_test'))).toBe(
-      'txr_' + 'z'.repeat(43),
+      'evr_' + 'z'.repeat(43),
     );
   });
 
@@ -85,7 +85,7 @@ describe('replies.disabled vetoes the credential seam (Finding 2)', () => {
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
       const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string> | Headers | undefined;
       const tokenHeader =
-        headers instanceof Headers ? headers.get('X-TX-Device-Token') : headers?.['X-TX-Device-Token'];
+        headers instanceof Headers ? headers.get('X-Everframe-Device-Token') : headers?.['X-Everframe-Device-Token'];
       expect(tokenHeader).toBeFalsy();
       // No token was ever minted/persisted through the vetoed seam.
       expect(localStorage.getItem(scopedReporterTokenStorageKey('pk_test'))).toBeNull();

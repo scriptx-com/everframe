@@ -11,14 +11,14 @@
 // `render`/`screen` the way `provider.spec.tsx` does.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { createCompanion, createRelayWSClient } from '@traceitx/web';
-import { CompanionPinCard } from '@traceitx/web/ui';
+import { createCompanion, createRelayWSClient } from '@everframe/web';
+import { CompanionPinCard } from '@everframe/web/ui';
 import {
   start,
   stop,
   __getCompanionApi,
   __getAttachPinUiMode,
-} from '@traceitx/web';
+} from '@everframe/web';
 
 interface FakeWS {
   url: string;
@@ -337,9 +337,9 @@ describe('CompanionPinCard', () => {
     const root = getByRole('status');
 
     // Screenshot + ui-tree exclusion (screenshot.ts filterNode, ui-tree-dom.ts).
-    expect(root.getAttribute('data-traceitx-skip-capture')).toBe('true');
+    expect(root.getAttribute('data-everframe-skip-capture')).toBe('true');
     // Replay blockSelector (sensitive/registry.ts SENSITIVE_ATTR).
-    expect(root.getAttribute('data-traceitx-sensitive')).toBe('');
+    expect(root.getAttribute('data-everframe-sensitive')).toBe('');
     // rrweb blockClass (recorder.ts RR_BLOCK_CLASS) — checked dynamically per
     // node, unlike the one-shot `sensitiveElements()` mapping applied only at
     // recorder.start(). Required because this card can mount after recording

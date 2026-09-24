@@ -13,7 +13,7 @@
 //   desktop browser or a recent TV, but old milestones need the *built*
 //   output (`pnpm run:hosted` / `pnpm run:chromium <version>`).
 //
-// Ingest URL is baked into @traceitx/react at its build time (tsup `define`).
+// Ingest URL is baked into @everframe/react at its build time (tsup `define`).
 // For local dev, build sdk-react via `pnpm build:web-sdk` at the repo root.
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -37,20 +37,20 @@ function repoEnvVar(name: string): string {
 }
 
 // Trap guard: turbo builds (e.g. `pnpm check` → typecheck's `^build`) strip
-// TRACEITX_INGEST_URL and silently re-bake the PRODUCTION URL into
-// @traceitx/react's dist. Bundling that makes the tester announce to
-// traceitx.com — invisible on the local dashboard, no pairing code, 401s.
+// EVERFRAME_INGEST_URL and silently re-bake the PRODUCTION URL into
+// @everframe/react's dist. Bundling that makes the tester announce to
+// everframe.dev — invisible on the local dashboard, no pairing code, 401s.
 // Warn loudly instead of letting that be discovered on a TV screen.
-if (!repoEnvVar('TRACEITX_INGEST_URL')) {
+if (!repoEnvVar('EVERFRAME_INGEST_URL')) {
   try {
     const sdkDist = fs.readFileSync(
       fileURLToPath(new URL('../../packages/sdk-react/dist/index.js', import.meta.url)),
       'utf8',
     );
-    if (sdkDist.includes('https://traceitx.com')) {
+    if (sdkDist.includes('https://everframe.dev')) {
       console.warn(
-        '\n[smarttv-tester] WARNING: @traceitx/react dist has the PRODUCTION ingest URL baked in.\n' +
-          '[smarttv-tester] Announce/relay will hit traceitx.com, not your local API.\n' +
+        '\n[smarttv-tester] WARNING: @everframe/react dist has the PRODUCTION ingest URL baked in.\n' +
+          '[smarttv-tester] Announce/relay will hit everframe.dev, not your local API.\n' +
           '[smarttv-tester] Run `pnpm build:web-sdk` at the repo root, then restart/rebuild this app.\n',
       );
     }
@@ -60,16 +60,16 @@ if (!repoEnvVar('TRACEITX_INGEST_URL')) {
 }
 
 export default defineConfig({
-  // __TRACEITX_SDK_KEY__ — the Web app's SDK key (TRACEITX_KEY_WEB). With it
+  // __EVERFRAME_SDK_KEY__ — the Web app's SDK key (EVERFRAME_KEY_WEB). With it
   // the companion announces itself and shows up on the project's companion
   // page; without it the relay still works but the device is undiscoverable.
-  // __TRACEITX_TESTER_INGEST_URL__ — optional endpoint override
-  // (TRACEITX_INGEST_URL). Empty string defers to the URL baked into
-  // @traceitx/react at its build. On a real TV set it to your dev machine's
+  // __EVERFRAME_TESTER_INGEST_URL__ — optional endpoint override
+  // (EVERFRAME_INGEST_URL). Empty string defers to the URL baked into
+  // @everframe/react at its build. On a real TV set it to your dev machine's
   // LAN address (http://<lan-ip>:8787) — localhost points at the TV itself.
   define: {
-    __TRACEITX_SDK_KEY__: JSON.stringify(repoEnvVar('TRACEITX_KEY_WEB')),
-    __TRACEITX_TESTER_INGEST_URL__: JSON.stringify(repoEnvVar('TRACEITX_INGEST_URL')),
+    __EVERFRAME_SDK_KEY__: JSON.stringify(repoEnvVar('EVERFRAME_KEY_WEB')),
+    __EVERFRAME_TESTER_INGEST_URL__: JSON.stringify(repoEnvVar('EVERFRAME_INGEST_URL')),
   },
   plugins: [
     react(),

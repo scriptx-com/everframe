@@ -21,7 +21,7 @@
 //
 // Closes the documented rrweb leakage gaps regardless of the rrweb config, so the
 // golden-file zero-leak suite holds even on the populated-field checkout path.
-import { redactStringContent, type RedactionEngineConfig } from '@traceitx/sdk-core';
+import { redactStringContent, type RedactionEngineConfig } from '@everframe/sdk-core';
 
 import { MASK_PLACEHOLDER } from './mask-mapping.js';
 

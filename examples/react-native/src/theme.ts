@@ -3,7 +3,7 @@
 //
 // Elytra design tokens — the RN port of examples/react-web's field-guide
 // look. Naturalist palette: cool specimen-paper ground, olive ink, moss
-// actions, ochre catalog tags. The TraceItX brand cyan appears ONLY on the
+// actions, ochre catalog tags. The Everframe brand cyan appears ONLY on the
 // floating report button so SDK chrome reads as a different owner than the
 // demo app around it.
 

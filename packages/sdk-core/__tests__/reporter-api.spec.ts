@@ -3,7 +3,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createReporterApi, ReporterApiError } from '../src/reporter/api.js';
 
-const TOKEN = 'txr_' + 'a'.repeat(43);
+const TOKEN = 'evr_' + 'a'.repeat(43);
 const THREAD = { id: '11111111-1111-4111-8111-111111111111', status: 'open', reportTitle: 'Crash', createdAt: '2026-08-01T00:00:00.000Z', lastMessageAt: null, unreadCount: 2 };
 
 function apiWith(fetchImpl: ReturnType<typeof vi.fn>) {
@@ -23,7 +23,7 @@ describe('createReporterApi', () => {
     expect(url).toBe('https://x.test/api/reporter/threads');
     const headers = init!.headers as Record<string, string>;
     expect(headers.Authorization).toBe('Bearer txx_live_k');
-    expect(headers['X-TX-Device-Token']).toBe(TOKEN);
+    expect(headers['X-Everframe-Device-Token']).toBe(TOKEN);
     expect(headers['If-None-Match']).toBe('"old"');
     expect(res).toEqual({ kind: 'ok', threads: [THREAD], etag: '"abc"' });
   });

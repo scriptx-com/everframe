@@ -13,7 +13,7 @@ import {
   type CrashFrame,
   type CrashPayload,
   type ReportEnvelope,
-} from '@traceitx/protocol';
+} from '@everframe/protocol';
 import type { DeviceMetadata } from '../types/platform.js';
 import type { UserMetadata } from '../types/config.js';
 import { buildEnvelope } from '../envelope-builder.js';

@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# @traceitx/identity
+# @everframe/identity
 
-Mint [TraceItX](https://traceitx.com) identity tokens from any runtime.
+Mint [Everframe](https://everframe.dev) identity tokens from any runtime.
 
 One `createIdentityHandler` call returns a standard
 `(Request) => Promise<Response>` — which is simultaneously a Next App Router
@@ -11,12 +11,12 @@ handler, a Cloudflare Worker, a Vercel/Netlify Edge function, a Supabase Edge
 Function and a Deno/Bun handler.
 
 ```ts
-// app/api/traceitx-identity/route.ts
-import { createIdentityHandler } from '@traceitx/identity';
+// app/api/everframe-identity/route.ts
+import { createIdentityHandler } from '@everframe/identity';
 
 const handler = createIdentityHandler({
-  secret: process.env.TRACEITX_IDENTITY_SECRET!,
-  projectId: process.env.TRACEITX_PROJECT_ID!,
+  secret: process.env.EVERFRAME_IDENTITY_SECRET!,
+  projectId: process.env.EVERFRAME_PROJECT_ID!,
   resolveUser: async (req) => {
     const user = await getSessionUser(req);   // cookie, bearer, anything
     return user ? { id: user.id, email: user.email, name: user.name } : null;
@@ -34,9 +34,9 @@ export { handler as GET, handler as OPTIONS };
 Then point the SDK at it:
 
 ```tsx
-<TraceItXProvider
+<EverframeProvider
   config={{ apiKey }}
-  identity={{ endpoint: '/api/traceitx-identity', key: user?.id }}
+  identity={{ endpoint: '/api/everframe-identity', key: user?.id }}
 >
 ```
 
@@ -54,7 +54,7 @@ token is never captured stale:
 
 ```tsx
 identity={{
-  endpoint: 'https://api.example.com/traceitx-identity',
+  endpoint: 'https://api.example.com/everframe-identity',
   key: user?.id,
   headers: async () => ({ Authorization: `Bearer ${await getAccessToken()}` }),
 }}
@@ -73,7 +73,7 @@ createIdentityHandler({ …, allowedOrigins: ['https://app.example.com'] })
 ## Node
 
 ```ts
-import { toNodeHandler } from '@traceitx/identity/node';
+import { toNodeHandler } from '@everframe/identity/node';
 const nodeHandler = (req, res) => void toNodeHandler(handler)(req, res);
 
 // Register for BOTH verbs — or use app.all(...) — for the same reason as the
@@ -82,8 +82,8 @@ const nodeHandler = (req, res) => void toNodeHandler(handler)(req, res);
 // Express answers OPTIONS with a 404 before it ever reaches the handler, so
 // its CORS headers never appear and recognition silently stops working for
 // every cross-origin caller.
-app.get('/api/traceitx-identity', nodeHandler);
-app.options('/api/traceitx-identity', nodeHandler);
+app.get('/api/everframe-identity', nodeHandler);
+app.options('/api/everframe-identity', nodeHandler);
 ```
 
 ## Responses

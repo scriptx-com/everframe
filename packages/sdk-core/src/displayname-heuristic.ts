@@ -16,9 +16,9 @@ export function sampleAndWarn(displayNames: Array<string | undefined>, sampleSiz
     _warned = true;
     // eslint-disable-next-line no-console
     console.warn(
-      '[traceitx] More than half of sampled components have no displayName or look minified. ' +
-        'Install @traceitx/babel-plugin-displayname or @traceitx/swc-plugin-displayname for AI-readable reports. ' +
-        'See https://github.com/scriptx-com/traceitx-releases#displayname-plugin'
+      '[everframe] More than half of sampled components have no displayName or look minified. ' +
+        'Install @everframe/babel-plugin-displayname or @everframe/swc-plugin-displayname for AI-readable reports. ' +
+        'See https://github.com/scriptx-com/everframe#displayname-plugin'
     );
   }
 }

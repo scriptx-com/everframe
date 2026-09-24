@@ -7,7 +7,7 @@
 "use client";
 import { use, useState } from "react";
 import Link from "next/link";
-import { Sensitive } from "@traceitx/react";
+import { Sensitive } from "@everframe/react";
 import { getSpecimen } from "../../../lib/specimens";
 import { SpecimenPlate } from "../../../components/SpecimenPlate";
 import { appendLog } from "../../../lib/field-log";

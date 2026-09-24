@@ -8,7 +8,7 @@
 // meaningless heap/lag numbers). PerformanceObserver('longtask') is
 // unsupported in jsdom and some browsers — construction is try/catch guarded
 // so its absence degrades to `longTaskMs: 0` rather than throwing.
-import { safeWrap } from '@traceitx/sdk-core';
+import { safeWrap } from '@everframe/sdk-core';
 
 export interface ResourceSample {
   t: number;

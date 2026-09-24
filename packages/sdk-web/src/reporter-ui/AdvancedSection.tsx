@@ -19,7 +19,7 @@ export function AdvancedSection({ children }: AdvancedSectionProps): JSX.Element
     <div data-testid="advanced-section">
       <button
         type="button"
-        className="txx-advanced-toggle"
+        className="everframe-advanced-toggle"
         aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
         data-testid="advanced-toggle"

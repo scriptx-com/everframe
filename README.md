@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX SDKs
+# Everframe SDKs
 
-The open-source home of the TraceItX reporting SDKs, shared protocol and SDK
+The open-source home of the Everframe reporting SDKs, shared protocol and SDK
 core, developer tooling, and sample applications.
 
-[TraceItX](https://traceitx.com) helps users report problems from inside an
+[Everframe](https://everframe.dev) helps users report problems from inside an
 application with the context needed to reproduce them: screenshots and
 annotations, session evidence, breadcrumbs, device and application metadata,
 and captured errors.
@@ -15,22 +15,22 @@ and captured errors.
 
 | Platform | SDK | Documentation | Examples |
 | --- | --- | --- | --- |
-| Web and framework-agnostic JavaScript | [`@traceitx/web`](https://www.npmjs.com/package/@traceitx/web) | [Web SDK](packages/sdk-web/README.md) | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester) |
-| React | [`@traceitx/react`](https://www.npmjs.com/package/@traceitx/react) | [React SDK](packages/sdk-react/README.md) | [React web](examples/react-web) |
-| React Native, Apple TV, and Android TV | [`@traceitx/react-native`](https://www.npmjs.com/package/@traceitx/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample) |
-| Android and Android TV | `com.traceitx` Maven modules | [Android SDK](packages/sdk-android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
-| iOS, iPadOS, and tvOS | `TraceItX` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
-| Server-side identity | [`@traceitx/identity`](https://www.npmjs.com/package/@traceitx/identity) | [Identity helper](packages/identity/README.md) | Runtime-specific recipes are included in the package documentation |
+| Web and framework-agnostic JavaScript | [`@everframe/web`](https://www.npmjs.com/package/@everframe/web) | [Web SDK](packages/sdk-web/README.md) | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester) |
+| React | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react) | [React SDK](packages/sdk-react/README.md) | [React web](examples/react-web) |
+| React Native, Apple TV, and Android TV | [`@everframe/react-native`](https://www.npmjs.com/package/@everframe/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample) |
+| Android and Android TV | `dev.everframe` Maven modules | [Android SDK](packages/sdk-android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
+| iOS, iPadOS, and tvOS | `Everframe` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
+| Server-side identity | [`@everframe/identity`](https://www.npmjs.com/package/@everframe/identity) | [Identity helper](packages/identity/README.md) | Runtime-specific recipes are included in the package documentation |
 
 Each SDK README is the canonical guide for installation, configuration,
 privacy controls, platform support, and current limitations.
 
 ## Shared packages and tooling
 
-- [`@traceitx/protocol`](packages/protocol/README.md) defines the versioned report
+- [`@everframe/protocol`](packages/protocol/README.md) defines the versioned report
   envelope shared by every SDK and provides the generated JSON Schema used by
   the native implementations.
-- [`@traceitx/sdk-core`](packages/sdk-core/README.md) contains the platform-independent
+- [`@everframe/sdk-core`](packages/sdk-core/README.md) contains the platform-independent
   TypeScript reporting runtime and utilities shared by the Web, React, and React
   Native SDKs.
 - The [Babel](packages/babel-plugin-displayname) and
@@ -46,15 +46,15 @@ Install the package for your application and follow its platform guide. For
 JavaScript projects, for example:
 
 ```sh
-pnpm add @traceitx/web
+pnpm add @everframe/web
 # or
-pnpm add @traceitx/react
+pnpm add @everframe/react
 # or
-pnpm add @traceitx/react-native
+pnpm add @everframe/react-native
 ```
 
-The Android SDK is distributed as `com.traceitx` Maven modules through GitHub
-Packages. Tagged Apple releases can be consumed with Swift Package Manager
+The Android SDK is distributed as `dev.everframe` Maven modules through Maven
+Central. Tagged Apple releases can be consumed with Swift Package Manager
 from this repository. Their documentation contains the current coordinates,
 products, and setup instructions.
 
@@ -75,7 +75,7 @@ platforms and integration styles:
 | [`ios-native`](examples/ios-native) | Native iOS integration |
 | [`tvos-replay`](examples/tvos-replay) | Credential-free tvOS replay and remote-focus smoke testing |
 
-Examples that connect to TraceItX read development credentials from generated,
+Examples that connect to Everframe read development credentials from generated,
 ignored configuration. Start from the checked-in template:
 
 ```sh
@@ -92,8 +92,8 @@ also requires a compatible JDK and Android SDK; Apple development requires
 Xcode.
 
 ```sh
-git clone https://github.com/scriptx-com/traceitx-releases.git
-cd traceitx-releases
+git clone https://github.com/scriptx-com/everframe.git
+cd everframe
 corepack enable
 pnpm install --frozen-lockfile
 ```
@@ -120,8 +120,8 @@ cd packages/sdk-android/android
 ./gradlew test assembleRelease
 
 # Apple, from the repository root
-TRACEITX_DEV_INGEST_URL=http://127.0.0.1:9 \
-  swift test --package-path packages/sdk-ios
+EVERFRAME_DEV_INGEST_URL=http://127.0.0.1:9 \
+  swift test --package-path packages/sdk-ios --no-parallel
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and licensing rules.

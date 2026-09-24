@@ -1,13 +1,42 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import { ReportEnvelope } from '@traceitx/protocol';
+import { ReportEnvelope } from '@everframe/protocol';
 import { buildEnvelope } from '../src/envelope-builder.js';
 import { applyRedaction } from '../src/redaction/engine.js';
 import { buildMultipart } from '../src/transport/multipart.js';
 import { createFakePlatformAdapter } from '../src/__test-helpers__/fake-platform-adapter.js';
 
 describe('Phase 1 success criterion #2: round-trip envelope-build → redact → multipart → parse-back', () => {
+  it.each(['traceitx-video-v1', 'everframe-video-v1'] as const)(
+    'serializes %s input as the canonical Everframe video discriminator',
+    (format) => {
+      const envelope = buildEnvelope({
+        reportId: '01939c34-7b8f-7000-8000-000000000777',
+        submittedAt: '2026-04-29T16:00:00.000Z',
+        sdk: { name: 'everframe-web', version: '0.9.0', platform: 'web', formFactor: 'desktop' },
+        reporter: { title: 'Video', description: 'Compatibility' },
+        draft: {
+          title: 'Video', description: 'Compatibility', excludedArtifacts: [],
+          annotations: [], redactions: [],
+        },
+        device: {
+          os: 'macOS', osVersion: '14', screenSize: { width: 1, height: 1 },
+          pixelRatio: 1, locale: 'en-US', timezone: 'UTC',
+        },
+        app: { name: 'video-app', version: '1.0.0' },
+        attachments: [{
+          partName: 'replay', kind: 'session-replay', format,
+          contentType: 'video/mp4', byteLength: 100, sha256: 'a'.repeat(64),
+          width: 394, height: 854, durationMs: 10_000, replayStartEpochMs: 1_000,
+        }],
+      });
+
+      expect(envelope.attachments[0]?.format).toBe('everframe-video-v1');
+      expect(JSON.stringify(envelope)).not.toContain('traceitx-video-v1');
+    },
+  );
+
   it('hand-crafted envelope survives the full pipeline with reportId preserved', async () => {
     const adapter = createFakePlatformAdapter();
     // Drive the adapter with non-trivial data so each pipeline stage has something to do.
@@ -40,7 +69,7 @@ describe('Phase 1 success criterion #2: round-trip envelope-build → redact →
     const envelope = buildEnvelope({
       reportId: '01939c34-7b8f-7000-8000-000000000123',
       submittedAt: '2026-04-29T16:00:00.000Z',
-      sdk: { name: 'traceitx-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
+      sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
       reporter: { title: draft.title, description: draft.description },
       draft,
       focus,
@@ -78,7 +107,7 @@ describe('Phase 1 success criterion #2: round-trip envelope-build → redact →
     const base = {
       reportId: '01939c34-7b8f-7000-8000-000000000456',
       submittedAt: '2026-04-29T16:00:00.000Z',
-      sdk: { name: 'traceitx-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' } as const,
+      sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' } as const,
       device: {
         os: 'macOS',
         osVersion: '14',

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Plan 06.2-08 Task 2 — sample-app demonstration of TraceItX companion
+// Plan 06.2-08 Task 2 — sample-app demonstration of Everframe companion
 // state. Phones scan the QR, pair, and trigger reports from the phone
 // reporter; the TV (or any Android target) renders the QR via a host-
 // provided QR library. The SDK never ships QR rendering — that's the
 // host's job per CONTEXT D-04 (T-06.2-08-04 mitigation).
 //
 // What this Activity shows:
-//   • Collect `TraceItX.companion.pairUrl` on `lifecycleScope` (per
+//   • Collect `Everframe.companion.pairUrl` on `lifecycleScope` (per
 //     plan-checker W2 — Activity-scoped, NOT GlobalScope).
 //   • Render the URL as a QR bitmap via ZXing (host-app dependency,
 //     declared in `app/build.gradle.kts` ONLY).
-//   • Collect `TraceItX.companion.state` to swap a status line below
+//   • Collect `Everframe.companion.state` to swap a status line below
 //     the QR.
 //
 // Note: the sample namespace is `com.example.viewssample` (matches the
@@ -31,8 +31,8 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
-import com.traceitx.TraceItX
-import com.traceitx.companion.CompanionState
+import dev.everframe.Everframe
+import dev.everframe.companion.CompanionState
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
@@ -52,7 +52,7 @@ class CompanionQRActivity : AppCompatActivity() {
         // stale QR on screen. Combine both flows: show the QR only while
         // Unpaired with a non-null URL, clear it otherwise.
         lifecycleScope.launch {
-            combine(TraceItX.companion.state, TraceItX.companion.pairUrl) { state, url ->
+            combine(Everframe.companion.state, Everframe.companion.pairUrl) { state, url ->
                 if (state == CompanionState.Unpaired) url else null
             }.collect { urlForQr ->
                 qrView.setImageBitmap(urlForQr?.let { encodeQr(it, dimensionPx = 800) })
@@ -61,7 +61,7 @@ class CompanionQRActivity : AppCompatActivity() {
 
         // Mirror status text to the SPEC state-machine surface.
         lifecycleScope.launch {
-            TraceItX.companion.state.collect { state ->
+            Everframe.companion.state.collect { state ->
                 statusView.text = when (state) {
                     CompanionState.Unpaired ->
                         "Scan to file a bug report"
@@ -80,7 +80,7 @@ class CompanionQRActivity : AppCompatActivity() {
         // fall back to the short code when no name has resolved yet. Both
         // share `pairUrl`'s lifecycle, so this stays populated past bond.
         lifecycleScope.launch {
-            combine(TraceItX.companion.resolvedName, TraceItX.companion.code) { name, code ->
+            combine(Everframe.companion.resolvedName, Everframe.companion.code) { name, code ->
                 name ?: code?.let { "Code: $it" }
             }.collect { label ->
                 nameView.text = label.orEmpty()

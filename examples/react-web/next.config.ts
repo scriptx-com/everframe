@@ -15,7 +15,7 @@ import path from 'node:path';
 // broken path surfaced. `require.resolve` uses Node's resolver, so the
 // workspace link and the `./swc_plugin_displayname.wasm` export do the work,
 // and there is no path to get wrong.
-const SWC_PLUGIN_SPECIFIER = '@traceitx/swc-plugin-displayname/swc_plugin_displayname.wasm';
+const SWC_PLUGIN_SPECIFIER = '@everframe/swc-plugin-displayname/swc_plugin_displayname.wasm';
 // Presence is probed with the resolver; the SPECIFIER is what gets handed to
 // Turbopack. Passing a resolved absolute path instead made Turbopack treat it as
 // a module specifier and try `./Users/…`, failing the build.
@@ -32,7 +32,7 @@ const swcPluginWasm = (() => {
 // output, so the framework-noise filter is what makes the UI tree readable). For
 // production builds in CI, the plugin runs and bakes `Component.displayName = "Name"`
 // into the minified bundle so reports stay AI-readable after terser mangles identifiers.
-// OPT-IN, not automatic. Enable with TRACEITX_SWC_PLUGIN=1.
+// OPT-IN, not automatic. Enable with EVERFRAME_SWC_PLUGIN=1.
 //
 // The plugin now compiles and its own 8 unit tests pass (they had never run —
 // see packages/swc-plugin-displayname). Enabling it here nonetheless breaks
@@ -45,7 +45,7 @@ const swcPluginWasm = (() => {
 // deliberately not wired into a real build until the transform is validated
 // against one. Turning it on by default would trade a silent no-op for a broken
 // example — see docs/known-edges.md.
-const swcPluginEnabled = process.env.TRACEITX_SWC_PLUGIN === '1';
+const swcPluginEnabled = process.env.EVERFRAME_SWC_PLUGIN === '1';
 const swcPlugins: Array<[string, Record<string, unknown>]> =
   swcPluginEnabled && swcPluginWasm && existsSync(swcPluginWasm)
     ? [[SWC_PLUGIN_SPECIFIER, {}]]
@@ -60,9 +60,9 @@ function makeNonce(): string {
 
 const config: NextConfig = {
   reactStrictMode: true,
-  distDir: process.env.TRACEITX_WEB_ERROR_TEST === '1' ? '.next-error-test' : '.next',
-  productionBrowserSourceMaps: process.env.TRACEITX_SOURCE_MAPS === '1',
-  transpilePackages: ['@traceitx/react', '@traceitx/sdk-core', '@traceitx/protocol'],
+  distDir: process.env.EVERFRAME_WEB_ERROR_TEST === '1' ? '.next-error-test' : '.next',
+  productionBrowserSourceMaps: process.env.EVERFRAME_SOURCE_MAPS === '1',
+  transpilePackages: ['@everframe/react', '@everframe/sdk-core', '@everframe/protocol'],
   experimental: {
     swcPlugins,
   },

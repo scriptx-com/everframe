@@ -8,7 +8,7 @@ import type {
   ReportDraft,
   Rect,
 } from '../types/platform.js';
-import type { FocusedNode } from '@traceitx/protocol';
+import type { FocusedNode } from '@everframe/protocol';
 
 export interface FakePlatformAdapter extends PlatformAdapter {
   __calls: {

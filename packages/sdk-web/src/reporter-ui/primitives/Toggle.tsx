@@ -25,7 +25,7 @@ export function Toggle({
   className,
   ...rest
 }: ToggleProps): JSX.Element {
-  const cls = ['txx-switch', checked && 'txx-switch-on', className].filter(Boolean).join(' ');
+  const cls = ['everframe-switch', checked && 'everframe-switch-on', className].filter(Boolean).join(' ');
   return (
     <button
       type="button"
@@ -36,7 +36,7 @@ export function Toggle({
       className={cls}
       {...rest}
     >
-      <span className="txx-switch-thumb" aria-hidden="true" />
+      <span className="everframe-switch-thumb" aria-hidden="true" />
     </button>
   );
 }

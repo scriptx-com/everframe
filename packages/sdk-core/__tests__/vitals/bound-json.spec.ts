@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
-import { MAX_CUSTOM_DATA_BYTES, utf8ByteLength } from '@traceitx/protocol';
+import { MAX_CUSTOM_DATA_BYTES, utf8ByteLength } from '@everframe/protocol';
 import { boundJson, boundStructuredJson } from '../../src/vitals/bound-json.js';
 
 describe('boundJson', () => {

@@ -3,7 +3,7 @@
 
 import UIKit
 import Combine
-import TraceItXKit
+import EverframeKit
 
 @main final class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
@@ -25,24 +25,24 @@ import TraceItXKit
         window.makeKeyAndVisible()
         self.window = window
         let env = ProcessInfo.processInfo.environment
-        guard let key = env["TRACEITX_E2E_SDK_KEY"],
-              let raw = env["TRACEITX_DEV_INGEST_URL"], let url = URL(string: raw),
+        guard let key = env["EVERFRAME_E2E_SDK_KEY"],
+              let raw = env["EVERFRAME_DEV_INGEST_URL"], let url = URL(string: raw),
               url.host == "127.0.0.1" || url.host == "localhost" else { return }
         do {
-            try TraceItX.shared.start(config: TraceItXConfig(appId: key, environment: .development,
+            try Everframe.shared.start(config: EverframeConfig(appId: key, environment: .development,
                 release: "tvos-video-e2e", capture: CaptureConfig(logs: false, network: false, crash: false),
                 companionBadgeEnabled: false))
-            let client = RelayWSClient(endpoint: url, companion: TraceItX.shared.companion,
+            let client = RelayWSClient(endpoint: url, companion: Everframe.shared.companion,
                 sdkKey: key, deviceLabel: "tvOS Replay Validation")
             relay = client
             bridge = CompanionCaptureBridge(client: client)
-            TraceItX.shared.companion.$pairUrl.sink { url in
+            Everframe.shared.companion.$pairUrl.sink { url in
                 guard let url else { return }
                 // Runtime-only token handoff to the local browser driver. Never log/commit it.
                 try? Data(url.utf8).write(to: ProbeFiles.url("pair-url.txt"), options: .atomic)
             }.store(in: &subscriptions)
             client.connect()
-        } catch { NSLog("ReplayTV SDK startup failed: %@", String(describing: error)) }
+        } catch { NSLog("ReplayTV Everframe SDK startup failed: %@", String(describing: error)) }
     }
 }
 

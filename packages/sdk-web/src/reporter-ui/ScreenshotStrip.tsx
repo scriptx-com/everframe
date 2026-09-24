@@ -61,7 +61,7 @@ export function ScreenshotStrip({
 
   return (
     <div
-      className="txx-shot-strip"
+      className="everframe-shot-strip"
       role="list"
       aria-label="Screenshots in this report"
       data-testid="screenshot-strip"
@@ -71,12 +71,12 @@ export function ScreenshotStrip({
           key={s.id}
           role="listitem"
           className={
-            s.id === activeId ? 'txx-shot-thumb txx-shot-thumb-active' : 'txx-shot-thumb'
+            s.id === activeId ? 'everframe-shot-thumb everframe-shot-thumb-active' : 'everframe-shot-thumb'
           }
         >
           <button
             type="button"
-            className="txx-shot-thumb-btn"
+            className="everframe-shot-thumb-btn"
             onClick={() => onSelect(s.id)}
             aria-label={`Screenshot ${i + 1} of ${shots.length}${
               s.annotationCount > 0 ? `, ${s.annotationCount} annotations` : ''
@@ -84,12 +84,12 @@ export function ScreenshotStrip({
             data-testid={`screenshot-thumb-${i}`}
           >
             {urls.get(s.id) ? (
-              <img src={urls.get(s.id)} alt="" className="txx-shot-thumb-img" />
+              <img src={urls.get(s.id)} alt="" className="everframe-shot-thumb-img" />
             ) : null}
           </button>
           <button
             type="button"
-            className="txx-shot-delete"
+            className="everframe-shot-delete"
             onClick={() => onDelete(s.id)}
             aria-label={`Delete screenshot ${i + 1}`}
             data-testid={`screenshot-delete-${i}`}
@@ -101,13 +101,13 @@ export function ScreenshotStrip({
       {shots.length < MAX_SCREENSHOTS ? (
         <button
           type="button"
-          className="txx-shot-add"
+          className="everframe-shot-add"
           onClick={onAdd}
           disabled={adding}
           aria-label="Add another screenshot"
           data-testid="screenshot-add"
         >
-          ＋<span className="txx-shot-add-label">Add</span>
+          ＋<span className="everframe-shot-add-label">Add</span>
         </button>
       ) : null}
     </div>

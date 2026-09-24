@@ -58,7 +58,7 @@ function BeetleBody({ plate }: { plate: Specimen["plate"] }) {
       ))}
       {glow ? (
         <>
-          <circle className="plate-glow" cx="100" cy="158" r="18" fill="url(#txx-glow)" />
+          <circle className="plate-glow" cx="100" cy="158" r="18" fill="url(#everframe-glow)" />
           <ellipse cx="100" cy="158" rx="10" ry="7" fill="#e8f2a0" />
         </>
       ) : null}
@@ -217,7 +217,7 @@ export function SpecimenPlate({ specimen, size }: SpecimenPlateProps) {
     >
       {gradientNeeded ? (
         <defs>
-          <radialGradient id="txx-glow">
+          <radialGradient id="everframe-glow">
             <stop offset="0%" stopColor="#f4f7ae" stopOpacity="0.95" />
             <stop offset="100%" stopColor="#f4f7ae" stopOpacity="0" />
           </radialGradient>

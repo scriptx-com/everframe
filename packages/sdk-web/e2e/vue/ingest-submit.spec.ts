@@ -3,7 +3,7 @@
 //
 // The envelope a Vue host produces. The `sdk.name` assertion is the one that
 // matters beyond this repo: prod ingest must accept the widened enum value
-// `traceitx-web` BEFORE @traceitx/web publishes, or every vanilla report 400s.
+// `everframe-web` BEFORE @everframe/web publishes, or every vanilla report 400s.
 // PUBLISHING.md records that release ordering; this pins the value it depends
 // on so a rename cannot slip through unnoticed.
 import { test, expect } from '@playwright/test';
@@ -24,7 +24,7 @@ function envelopeJsonFrom(buf: Buffer): string {
     : part.toString('utf8');
 }
 
-test('a Vue host submits an envelope identifying itself as traceitx-web', async ({ page }) => {
+test('a Vue host submits an envelope identifying itself as everframe-web', async ({ page }) => {
   page.on('pageerror', (e) => console.error('[page]', e.message));
   const ingest = stubIngest(page);
 
@@ -39,9 +39,9 @@ test('a Vue host submits an envelope identifying itself as traceitx-web', async 
     payload: { breadcrumbs: unknown[] };
   };
 
-  // NOT 'traceitx-react'. A Vue host that identified itself as the React SDK
+  // NOT 'everframe-react'. A Vue host that identified itself as the React SDK
   // would be invisible in every per-SDK metric downstream.
-  expect(envelope.sdk.name).toBe('traceitx-web');
+  expect(envelope.sdk.name).toBe('everframe-web');
   expect(envelope.sdk.version).toMatch(/^\d+\.\d+\.\d+/);
   expect(Array.isArray(envelope.payload.breadcrumbs)).toBe(true);
 });

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { ScreenshotResult, Rect } from '@traceitx/sdk-core';
+import type { ScreenshotResult, Rect } from '@everframe/sdk-core';
 import { sha256Hex } from './sha256.js';
 import { applyDomMask } from '../sensitive/registry.js';
 import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reasons.js';
@@ -251,7 +251,7 @@ function paintMaskRectsOnCanvas(
 /**
  * Skip the SDK's own DOM (bubble, modal, toast) from the captured page so the screenshot
  * shows the customer's app underneath, not the reporter widget itself. SDK roots are
- * tagged with `data-traceitx-skip-capture="true"` (see provider.tsx + primitives).
+ * tagged with `data-everframe-skip-capture="true"` (see provider.tsx + primitives).
  *
  * Hoisted to module scope (rather than nested in `captureScreenshot`) so it can be
  * exercised directly by tests via `__filterNodeForTests` without mocking `modern-screenshot`.
@@ -267,7 +267,7 @@ const filterNode = (node: Node): boolean => {
   // excluding the element and compositing the frame back ourselves — see
   // video-frames.ts for the measurements.
   if (el.tagName === 'VIDEO') return false;
-  return el.getAttribute('data-traceitx-skip-capture') !== 'true';
+  return el.getAttribute('data-everframe-skip-capture') !== 'true';
 };
 
 /** Test seam — the real clone filter, callable directly without mocking modern-screenshot. */

@@ -15,7 +15,7 @@
 //
 // sdk-core stays DOM-free — this module pulls in no browser/replay library.
 import { z } from 'zod';
-import { BreadcrumbKind } from '@traceitx/protocol';
+import { BreadcrumbKind } from '@everframe/protocol';
 import { boundWait, timeoutSignal } from '../../transport/timeout-signal.js';
 import { __traceReplay } from '../../debug/replay-trace.js';
 
@@ -102,7 +102,7 @@ const NetworkBodiesServerConfigLenient = NetworkBodiesServerConfig.optional().ca
 
 /**
  * Companion name-badge dashboard override (plan 2026-08-25). Emitted only
- * when this SDK declared `companionbadge` in X-TX-SDK-Features. Nested
+ * when this SDK declared `companionbadge` in X-Everframe-SDK-Features. Nested
  * `.strip()` + `.catch(undefined)` — same posture as networkBodies: a
  * malformed BLOCK (e.g. `enabled: 'yes'`) degrades to absent (the SDK keeps
  * its inline/default badge), never fails the whole config parse.
@@ -133,7 +133,7 @@ const CompanionBadgeServerConfigLenient = CompanionBadgeServerConfig.optional().
 
 /**
  * Reporter branding block (watermark + theme, spec 2026-08-25). Emitted only
- * when this SDK declared `branding` in X-TX-SDK-Features. Nested `.strip()` +
+ * when this SDK declared `branding` in X-Everframe-SDK-Features. Nested `.strip()` +
  * `.catch(undefined)` — same posture as companionBadge: a malformed BLOCK
  * degrades to absent (the SDK fails closed to watermarked + default-themed),
  * never fails the whole config parse.
@@ -174,7 +174,7 @@ const BrandingServerConfigLenient = BrandingServerConfig.optional().catch(undefi
 
 /**
  * Report Resource Window (spec 2026-09-05). Emitted only when this SDK
- * declared `resources` in X-TX-SDK-Features — same capability-negotiation
+ * declared `resources` in X-Everframe-SDK-Features — same capability-negotiation
  * doctrine as `companionBadge`/`branding` above, and for the same reason:
  * the server only emits the block to a caller that advertised the token, so
  * an SDK that forgets to declare it gets `resources.enabled` undefined
@@ -221,7 +221,7 @@ export type RepliesConfig = z.infer<typeof RepliesConfig>;
 /**
  * Reporter identity recognition (spec 2026-08-06), delivered inside the
  * existing `GET /api/config` response. Emitted only when the caller declared
- * `identity` in `X-TX-SDK-Features` (server: the ingest API/src/ingest/config-
+ * `identity` in `X-Everframe-SDK-Features` (server: the ingest API/src/ingest/config-
  * route.ts `IdentityBlockSchema`) — same capability-negotiation doctrine as
  * `RepliesConfig` above, and the same reason this schema exists at all: an
  * unrecognized top-level key must never fail-close the whole response parse.
@@ -287,7 +287,7 @@ export const ReplayConfigResponse = z.object({
   vitalsEnabled: z.boolean().optional().catch(undefined),
   vitalsSampleRate: z.number().min(0).max(1).optional().catch(undefined),
   // Report Resource Window (spec 2026-09-05). Nested block (unlike vitals'
-  // flat fields above) — negotiated via `resources` in X-TX-SDK-Features,
+  // flat fields above) — negotiated via `resources` in X-Everframe-SDK-Features,
   // see ResourcesServerConfig's own header for the degrade-to-absent
   // posture this field shares with companionBadge/branding.
   resources: ResourcesServerConfigLenient,
@@ -315,6 +315,7 @@ export const DEFAULT_REPORT_HOTKEY_BINDING = 'Mod+Shift+B';
 
 /** 5-minute TTL (RESEARCH). */
 export const DEFAULT_CONFIG_TTL_MS = 300_000;
+export const SDK_FEATURES_HEADER = 'X-Everframe-SDK-Features';
 
 export interface ConfigProviderDeps {
   /** Injectable `fetch` so specs drive every error path deterministically (no real network). */
@@ -328,7 +329,7 @@ export interface ConfigProviderDeps {
   /** Injectable clock (ms). Defaults to `Date.now`. */
   now?: () => number;
   /**
-   * Feature tokens for the X-TX-SDK-Features header (server sdk-features.ts).
+   * Feature tokens for the X-Everframe-SDK-Features header (server sdk-features.ts).
    * The server emits feature-gated config blocks (e.g. `replies`,
    * `networkbodies` — spec 2026-08-01 §4.3) only when the request advertises
    * support — absence of a token must never error. Multiple tokens are sent
@@ -496,7 +497,7 @@ export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
           Accept: 'application/json',
         };
         if (deps.sdkFeatures && deps.sdkFeatures.length > 0) {
-          headers['X-TX-SDK-Features'] = deps.sdkFeatures.join(', ');
+          headers[SDK_FEATURES_HEADER] = deps.sdkFeatures.join(', ');
         }
         // Bound the fetch so a hung request cannot wedge the provider.
         // timeoutSignal, NOT bare AbortSignal.timeout — the static is

@@ -22,7 +22,7 @@
 //     re-read never re-draws the one-shot sampling decision (createSessionSampler
 //     already memoizes — this suite pins that it survives a live re-read too).
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createClient, __internalClientState, DEFAULT_CONFIG_TTL_MS } from '@traceitx/sdk-core';
+import { createClient, __internalClientState, DEFAULT_CONFIG_TTL_MS } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 
 const adapters: WebPlatformAdapter[] = [];

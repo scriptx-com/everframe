@@ -4,7 +4,7 @@
 /*
  * Self-contained on purpose — no var() references into globals.css, because
  * this component also mounts on /strict-csp where globals.css never loads.
- * The cyan is the TraceItX brand accent (brand-ui --accent, oklch 0.74 0.13
+ * The cyan is the Everframe brand accent (brand-ui --accent, oklch 0.74 0.13
  * 210): SDK chrome wears brand colour, the demo app around it does not.
  */
 

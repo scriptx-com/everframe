@@ -23,7 +23,7 @@ import {
 } from '../../src/companion/capture-bridge.js';
 import type { RelayWSClient, ReportSubmit } from '../../src/companion/ws-client.js';
 import type { CompanionHost } from '../../src/companion/host-seam.js';
-import type { UserMetadata } from '@traceitx/sdk-core';
+import type { UserMetadata } from '@everframe/sdk-core';
 
 const submitMock = vi.mocked(submitReportFromDraft);
 
@@ -468,7 +468,7 @@ describe('companion/capture-bridge report.submit', () => {
 // kept photographing the user's screen and shipping envelopes after the switch
 // was pulled: a second submit surface, wholly outside the in-app gate.
 //
-// `isKilled` is an OPTIONAL seam member, absent on `@traceitx/react` (whose
+// `isKilled` is an OPTIONAL seam member, absent on `@everframe/react` (whose
 // Provider does not set it), so these gates are inert for that SDK.
 describe('the kill switch closes the companion route too', () => {
   // Its own hooks: this describe is a SIBLING of the one above, so that

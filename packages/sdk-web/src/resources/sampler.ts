@@ -20,9 +20,9 @@
 // leaves `cpu` optional so native SDKs can populate it; the web sampler must
 // never even set it to `undefined` (that would still be an own-enumerable
 // key on the emitted object) — it is simply omitted from the object literal.
-import { safeWrap } from '@traceitx/sdk-core';
-import { RESOURCE_SAMPLE_INTERVAL_MS } from '@traceitx/protocol';
-import type { ResourceSampleT } from '@traceitx/protocol';
+import { safeWrap } from '@everframe/sdk-core';
+import { RESOURCE_SAMPLE_INTERVAL_MS } from '@everframe/protocol';
+import type { ResourceSampleT } from '@everframe/protocol';
 
 export interface ResourceSamplerDeps {
   onSample(s: ResourceSampleT): void;

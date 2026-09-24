@@ -13,7 +13,7 @@ frames and matching platform/build identity.
 
 Use only a separately owned local Debug host with a collision-checked unique
 application/bundle ID and explicit loopback ingest. Rebuild
-`pnpm --filter @traceitx/react-native build` first, because the example resolves
+`pnpm --filter @everframe/react-native build` first, because the example resolves
 `dist/index.js`. Record source, JS artifact, native artifact and installed
 binary hashes. Back up any generated host/entry file before substituting this
 `App`. Metro excludes `__tests__`, so copy this file unchanged into a temporary
@@ -27,7 +27,7 @@ conflicts with it). `NODE_OPTIONS=--dns-result-order=ipv4first` keeps localhost
 reachable through the owned Android reverse port when Node otherwise binds IPv6.
 
 Android: read the owned app's actual
-`cache/com.traceitx/{crash-outbox,outbox}.jsonl` using `adb run-as`; decode the
+`cache/dev.everframe/{crash-outbox,outbox}.jsonl` using `adb run-as`; decode the
 stored `envelopeBytes` rather than reconstructing an envelope. Keep queued
 endpoint evidence and reject anything except the configured loopback endpoint.
 
@@ -37,11 +37,11 @@ retain/cancel its returned task with the host lifecycle. It reads the same
 encrypted outbox/keychain via public `JSONLOutbox.hydrate()` and exports original
 entries to `Documents/c1a-capture-outbox.json`, polling for at most 30 seconds.
 For the generated Expo project's virtual app group, the source reference must
-include its disk directory (`TraceItXRNExample/CaptureOutboxObserver.swift`).
+include its disk directory (`EverframeRNExample/CaptureOutboxObserver.swift`).
 Point `RCTBundleURLProvider.sharedSettings().jsLocation` at the owned Metro
 address (for example `127.0.0.1:8097`) and prewarm the iOS bundle before launch.
-Keep both `TraceItXDevIngestURL` in the host plist and
-`SIMCTL_CHILD_TRACEITX_DEV_INGEST_URL` at `http://127.0.0.1:9`.
+Keep both `EverframeDevIngestURL` in the host plist and
+`SIMCTL_CHILD_EVERFRAME_DEV_INGEST_URL` at `http://127.0.0.1:9`.
 Retrieve it through `simctl get_app_container`; reject an error file, missing
 probe or wrong captured endpoint. The observer never enqueues or drains.
 

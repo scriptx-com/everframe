@@ -4,7 +4,7 @@
 // Session vitals summary accumulator — aggregates VitalsEntry events into a
 // SessionSummary. Tracks rebuffers, startup time, bitrate, playtime, memory
 // peaks/averages, and error counts across the session lifetime.
-import type { VitalsEntry, SessionSummary, SessionSummaryDims } from '@traceitx/protocol';
+import type { VitalsEntry, SessionSummary, SessionSummaryDims } from '@everframe/protocol';
 
 export interface SummaryAccumulator {
   onEntry(entry: VitalsEntry): void;

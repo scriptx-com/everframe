@@ -17,7 +17,7 @@
 //   dataCost      : string → length · number|boolean → 8 · null → 4
 //                   array  → 2 + Σ(item + 2) · object → 2 + Σ(key.length + value + 2)
 //                   absent data → 0
-import type { Breadcrumb } from '@traceitx/protocol';
+import type { Breadcrumb } from '@everframe/protocol';
 
 /** Total serialized-cost budget for the shipped chain (spec §4, default 16 KB). */
 export const BREADCRUMB_BYTE_BUDGET = 16384;

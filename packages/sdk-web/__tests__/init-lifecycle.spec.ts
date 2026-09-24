@@ -9,7 +9,7 @@
 // out of the `settled.then(...)` — or drops the visibility gate, or stops
 // tearing the poller down — fails here instead of shipping.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { POLL_FLOOR_MS } from '@traceitx/sdk-core';
+import { POLL_FLOOR_MS } from '@everframe/sdk-core';
 
 // Task 7 gave `init()` a real reporter UI, reached through a dynamic import
 // of the React island. This file is about lifecycle ordering and teardown, so
@@ -28,15 +28,15 @@ vi.mock('../src/mount/react-island.js', () => ({
     };
   },
 }));
-import { init, type TraceItXHandle, type InternalHandle } from '../src/init.js';
-import { TraceItXNotMountedError } from '../src/reporter-types.js';
+import { init, type Everframe, type InternalHandle } from '../src/init.js';
+import { EverframeNotMountedError } from '../src/reporter-types.js';
 import { REPORTER_TOKEN_STORAGE_KEY } from '../src/reporter/credential-store.js';
 
-const TEST_TOKEN = 'txr_test0000000000000000000000000000000000';
+const TEST_TOKEN = 'evr_test0000000000000000000000000000000000';
 const config = { apiKey: 'txx_live_test' };
 
-let handles: TraceItXHandle[] = [];
-function mount(): TraceItXHandle {
+let handles: Everframe[] = [];
+function mount(): Everframe {
   const h = init(config);
   handles.push(h);
   return h;
@@ -350,11 +350,11 @@ describe('destroy()', () => {
     const live = mount();
 
     stale.destroy(); // second call on a handle that is no longer current
-    expect(document.getElementById('traceitx-host')).not.toBeNull();
+    expect(document.getElementById('everframe-host')).not.toBeNull();
     // Still the live instance's own host, and still exactly one.
-    expect(document.querySelectorAll('#traceitx-host')).toHaveLength(1);
+    expect(document.querySelectorAll('#everframe-host')).toHaveLength(1);
     live.destroy();
-    expect(document.getElementById('traceitx-host')).toBeNull();
+    expect(document.getElementById('everframe-host')).toBeNull();
   });
 });
 
@@ -377,7 +377,7 @@ describe('handle.open() before a UI mount / after destroy', () => {
     stubFetch();
     const handle = mount();
     handle.destroy();
-    await expect(handle.open()).rejects.toBeInstanceOf(TraceItXNotMountedError);
+    await expect(handle.open()).rejects.toBeInstanceOf(EverframeNotMountedError);
   });
 
   // Codex round-1 finding 5 (P2). The case above is the LATER open(); this is
@@ -404,7 +404,7 @@ describe('handle.open() before a UI mount / after destroy', () => {
 // an un-killed instance so a broken harness fails as loudly as a missing gate.
 describe('kill(): a killed instance opens nothing', () => {
   const hotkeyConfig = { apiKey: 'txx_live_test' };
-  function mountWithHotkey(): TraceItXHandle {
+  function mountWithHotkey(): Everframe {
     const h = init(hotkeyConfig);
     handles.push(h);
     return h;

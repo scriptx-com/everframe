@@ -39,7 +39,7 @@ export function safeWrap<T extends (...args: any[]) => any>(
         return result.catch((err) => {
           context.onError?.(err);
           // eslint-disable-next-line no-console
-          console.error(`[traceitx] ${context.name} threw:`, logged(err));
+          console.error(`[everframe] ${context.name} threw:`, logged(err));
           return undefined;
         });
       }
@@ -47,7 +47,7 @@ export function safeWrap<T extends (...args: any[]) => any>(
     } catch (err) {
       context.onError?.(err);
       // eslint-disable-next-line no-console
-      console.error(`[traceitx] ${context.name} threw:`, logged(err));
+      console.error(`[everframe] ${context.name} threw:`, logged(err));
       return undefined;
     }
   } as SafeWrapped<T>;

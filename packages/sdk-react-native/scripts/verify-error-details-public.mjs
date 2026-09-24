@@ -79,7 +79,7 @@ runPnpm([
   "turbo",
   "run",
   "build",
-  "--filter=@traceitx/react-native...",
+  "--filter=@everframe/react-native...",
   "--force",
 ]);
 
@@ -94,7 +94,7 @@ assert.ok(
 for (const artifact of artifacts) {
   const source = readFileSync(artifact, "utf8");
   assert.equal(
-    /@traceitx\/(?:sdk-core|protocol)(?:\/|['"])/.test(source),
+    /@everframe\/(?:sdk-core|protocol)(?:\/|['"])/.test(source),
     false,
     `${relative(DIST_ROOT, artifact)} leaks a private workspace package module specifier`,
   );
@@ -138,7 +138,7 @@ writeFileSync(
 );
 cpSync(FIXTURE, join(CONSUMER_ROOT, "consumer.ts"));
 
-linkPackage("@traceitx/react-native", RN_ROOT);
+linkPackage("@everframe/react-native", RN_ROOT);
 for (const name of ["react", "react-native", "zod", "bippy", "@types/react"]) {
   linkPackage(name, resolve(REPO_ROOT, "node_modules", name));
 }

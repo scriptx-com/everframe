@@ -22,11 +22,11 @@ function runPnpm(args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-runPnpm(['exec', 'turbo', 'run', 'build', '--filter=@traceitx/react...', '--force']);
+runPnpm(['exec', 'turbo', 'run', 'build', '--filter=@everframe/react...', '--force']);
 
-const consumer = mkdtempSync(join(tmpdir(), 'traceitx-error-severity-'));
+const consumer = mkdtempSync(join(tmpdir(), 'everframe-error-severity-'));
 try {
-  const scope = join(consumer, 'node_modules/@traceitx');
+  const scope = join(consumer, 'node_modules/@everframe');
   mkdirSync(scope, { recursive: true });
   symlinkSync(WEB_ROOT, join(scope, 'web'), 'dir');
   symlinkSync(REACT_ROOT, join(scope, 'react'), 'dir');
@@ -43,10 +43,10 @@ try {
     files: ['consumer.ts'],
   }));
   writeFileSync(join(consumer, 'consumer.ts'), `
-import type { ErrorSeverity as WebErrorSeverity } from '@traceitx/web';
-import type { ErrorSeverity as ReactErrorSeverity } from '@traceitx/react';
-import * as web from '@traceitx/web';
-import * as react from '@traceitx/react';
+import type { ErrorSeverity as WebErrorSeverity } from '@everframe/web';
+import type { ErrorSeverity as ReactErrorSeverity } from '@everframe/react';
+import * as web from '@everframe/web';
+import * as react from '@everframe/react';
 
 const webSeverity: WebErrorSeverity = 'warning';
 const reactSeverity: ReactErrorSeverity = 'info';

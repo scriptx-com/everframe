@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Plan 06-05 Task 2 — <TraceItXSensitive> wrapper + useTraceItXSensitiveRef hook.
+// Plan 06-05 Task 2 — <EverframeSensitive> wrapper + useEverframeSensitiveRef hook.
 //
 // Both surfaces write into the provider's sensitive-rect registry rather than
 // calling the TurboModule directly (RESEARCH §5.1 substitution). The pure
@@ -11,11 +11,11 @@
 // the load-bearing logic and the only thing unit-tested in this file.
 import * as React from 'react';
 import { View, Platform, requireNativeComponent, type ViewProps, type LayoutChangeEvent } from 'react-native';
-import { useTraceItX } from './TraceItXProvider.js';
+import { useEverframe } from './EverframeProvider.js';
 
 // A single Yoga node whose Android constructor marks sensitivity before native insertion.
 const SensitiveHost = Platform.OS === 'android'
-  ? requireNativeComponent<ViewProps>('TraceItXSensitiveView') : View;
+  ? requireNativeComponent<ViewProps>('EverframeSensitiveView') : View;
 
 type Rect = { x: number; y: number; width: number; height: number };
 type Register = (tag: number, rect: Rect) => void;
@@ -65,8 +65,8 @@ export function handleSensitiveLayout(
  * pipeline blurs / blackboxes the rect before the image leaves the device
  * (PRIV-02 / PRIV-03).
  */
-export function TraceItXSensitive(props: ViewProps): React.ReactElement {
-  const { sensitive } = useTraceItX();
+export function EverframeSensitive(props: ViewProps): React.ReactElement {
+  const { sensitive } = useEverframe();
   const viewRef = React.useRef<React.ComponentRef<typeof View>>(null);
 
   const userOnLayout = props.onLayout;
@@ -90,13 +90,13 @@ export function TraceItXSensitive(props: ViewProps): React.ReactElement {
  * Imperatively mark an already-instantiated host (e.g., a third-party
  * <TextInput> wrapper). Pass a ref and a rect; the hook registers on each
  * rect change (RESEARCH §5.3). This effect runs after mounting and cannot protect
- * first paint. Use TraceItXSensitive for mount-time Android video privacy.
+ * first paint. Use EverframeSensitive for mount-time Android video privacy.
  */
-export function useTraceItXSensitiveRef<T>(
+export function useEverframeSensitiveRef<T>(
   ref: React.RefObject<T | null>,
   rect: Rect | null
 ): void {
-  const { sensitive } = useTraceItX();
+  const { sensitive } = useEverframe();
   React.useEffect(() => {
     if (!rect) return;
     const node = ref.current as unknown as NativeTagHost | null;

@@ -532,30 +532,30 @@ describe('watermark (branding spec 2026-08-25)', () => {
 
   it('shows the watermark before any server config arrives (fail closed)', async () => {
     const { findByTestId } = renderDialog();
-    const mark = await findByTestId('txx-watermark');
-    expect(mark).toHaveAttribute('href', 'https://traceitx.com/?ref=powered-by');
+    const mark = await findByTestId('everframe-watermark');
+    expect(mark).toHaveAttribute('href', 'https://everframe.dev/?ref=powered-by');
     expect(mark).toHaveAttribute('target', '_blank');
     expect(mark).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(mark.textContent).toContain('Powered by TraceItX');
+    expect(mark.textContent).toContain('Powered by Everframe');
   });
 
   it('shows the watermark when the server says watermark: true (free plan)', async () => {
     __setBrandingServerConfig({ watermark: true });
     const { findByTestId } = renderDialog();
-    expect(await findByTestId('txx-watermark')).toBeInTheDocument();
+    expect(await findByTestId('everframe-watermark')).toBeInTheDocument();
   });
 
   it('hides the watermark when the server confirms paid (watermark: false)', async () => {
     __setBrandingServerConfig({ watermark: false });
     const { findByTestId, queryByTestId } = renderDialog();
     await findByTestId('reporter-modal');
-    expect(queryByTestId('txx-watermark')).toBeNull();
+    expect(queryByTestId('everframe-watermark')).toBeNull();
   });
 
   it('a config landing while the dialog is open updates it live (useSyncExternalStore)', async () => {
     const { findByTestId, queryByTestId } = renderDialog();
-    await findByTestId('txx-watermark');
+    await findByTestId('everframe-watermark');
     act(() => __setBrandingServerConfig({ watermark: false }));
-    expect(queryByTestId('txx-watermark')).toBeNull();
+    expect(queryByTestId('everframe-watermark')).toBeNull();
   });
 });

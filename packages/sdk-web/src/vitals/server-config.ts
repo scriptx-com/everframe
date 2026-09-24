@@ -9,7 +9,7 @@
 // pattern — see its header for why the subscribers exist (a config landing
 // between evaluations must trigger a fresh one).
 //
-// The type is declared inline rather than imported from `@traceitx/sdk-core`
+// The type is declared inline rather than imported from `@everframe/sdk-core`
 // (unlike BrandingServerConfig): this box always holds a fully-defaulted pair
 // (adapter.ts applies the per-field leniency BEFORE writing here — old
 // servers that omit both fields still produce `{ vitalsEnabled: false,

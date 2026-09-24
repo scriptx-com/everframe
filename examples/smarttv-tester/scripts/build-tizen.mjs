@@ -20,7 +20,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { appRoot, buildWeb, fail, log, run, stageForPackaging } from './tv-common.mjs';
 
-const APP_ID = 'TrCiTxTstr.TraceItXTester';
+const APP_ID = 'TrCiTxTstr.EverframeTester';
 const shouldRun = process.argv.includes('--run');
 
 function findTizenCli() {

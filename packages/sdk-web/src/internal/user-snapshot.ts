@@ -47,7 +47,7 @@
 //     genuine entrance rather than merely another reader.
 'use client';
 
-import { projectUserMetadata, type UserMetadata } from '@traceitx/sdk-core';
+import { projectUserMetadata, type UserMetadata } from '@everframe/sdk-core';
 
 /**
  * Snapshot the host's live `setUser` value for THIS submit, projected to

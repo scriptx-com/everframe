@@ -6,9 +6,9 @@
 // takeFrozen (submit), build the envelope, and prove it parses with the chain
 // aboard. This is the spec §9 phase-C acceptance in one spec.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createBreadcrumbBuffer } from '@traceitx/sdk-core';
-import type { ReportDraft } from '@traceitx/sdk-core';
-import { ReportEnvelope } from '@traceitx/protocol';
+import { createBreadcrumbBuffer } from '@everframe/sdk-core';
+import type { ReportDraft } from '@everframe/sdk-core';
+import { ReportEnvelope } from '@everframe/protocol';
 import {
   installNavigationCrumbs,
   installLifecycleCrumbs,

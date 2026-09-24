@@ -11,7 +11,7 @@ export function baseEnvelope(): Record<string, any> {
     reportId: '01939c34-7b8f-7000-8000-000000000001',
     submittedAt: '2026-04-29T16:00:00.000Z',
     sdk: {
-      name: 'traceitx-react',
+      name: 'everframe-react',
       version: '0.0.0',
       platform: 'web' as const,
       formFactor: 'desktop' as const,

@@ -33,7 +33,7 @@ test.beforeEach(async ({ page }) => {
 // ambient DOM footprint on a plain HTML page is exactly one host element.
 test('the SDK mounts exactly one ambient host on a plain HTML page', async ({ page }) => {
   await page.goto(FIXTURE);
-  expect(await page.locator('#traceitx-host').count()).toBe(1);
+  expect(await page.locator('#everframe-host').count()).toBe(1);
 });
 
 test('React is not fetched until the reporter opens', async ({ page }) => {
@@ -96,11 +96,11 @@ test('the dialog mounts inside the shadow root, styled, and does not leak', asyn
   await openReporter(page);
 
   const state = await page.evaluate(() => {
-    const sr = document.getElementById('traceitx-host')!.shadowRoot!;
-    const modal = sr.querySelector('.txx-modal') as HTMLElement;
+    const sr = document.getElementById('everframe-host')!.shadowRoot!;
+    const modal = sr.querySelector('.everframe-modal') as HTMLElement;
     const cs = getComputedStyle(modal);
     return {
-      leaked: !!document.body.querySelector('.txx-modal'),
+      leaked: !!document.body.querySelector('.everframe-modal'),
       leakedDialogs: document.querySelectorAll('[role=dialog]').length,
       bgImage: cs.backgroundImage,
       radius: cs.borderRadius,
@@ -114,7 +114,7 @@ test('the dialog mounts inside the shadow root, styled, and does not leak', asyn
   expect(state.leaked).toBe(false);
   expect(state.leakedDialogs).toBe(0);
   // Proves the shadow-root stylesheet actually applied rather than the tree
-  // rendering unstyled — .txx-modal's background is a gradient, so
+  // rendering unstyled — .everframe-modal's background is a gradient, so
   // backgroundColor is legitimately transparent and must NOT be asserted on.
   expect(state.bgImage).toContain('gradient');
   expect(state.radius).toBe('18px');
@@ -163,9 +163,9 @@ test('Tab stays trapped inside the modal (shadow-DOM focus fix)', async ({
   // from `document.body` instead would start the walk outside the trap.
   await page.waitForFunction(
     () => {
-      const sr = document.getElementById('traceitx-host')!.shadowRoot!;
+      const sr = document.getElementById('everframe-host')!.shadowRoot!;
       const a = sr.activeElement;
-      return !!a && !!sr.querySelector('.txx-modal')?.contains(a);
+      return !!a && !!sr.querySelector('.everframe-modal')?.contains(a);
     },
     null,
     { timeout: 10_000 },
@@ -185,8 +185,8 @@ test('Tab stays trapped inside the modal (shadow-DOM focus fix)', async ({
         // Character-for-character Modal.tsx's `focusableElementsIn` selector.
         const FOCUSABLE =
           'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-        const sr = document.getElementById('traceitx-host')!.shadowRoot!;
-        const modal = sr.querySelector('.txx-modal')!;
+        const sr = document.getElementById('everframe-host')!.shadowRoot!;
+        const modal = sr.querySelector('.everframe-modal')!;
         const focusables = Array.from(modal.querySelectorAll<HTMLElement>(FOCUSABLE));
         const active = sr.activeElement;
         const doc = document.activeElement;
@@ -196,7 +196,7 @@ test('Tab stays trapped inside the modal (shadow-DOM focus fix)', async ({
           last: focusables.length - 1,
           // The shadow host means focus is inside the reporter; <body> means
           // the browser's own UI has it. Anything else is the page behind.
-          inHostPage: !!doc && doc !== document.body && !doc.closest('#traceitx-host'),
+          inHostPage: !!doc && doc !== document.body && !doc.closest('#everframe-host'),
           where: active
             ? `${active.tagName}[${active.getAttribute('data-testid') ?? active.className}]`
             : `document:${doc?.tagName}#${doc?.id}`,
@@ -233,9 +233,9 @@ test('Tab stays trapped inside the modal (shadow-DOM focus fix)', async ({
 
 test('destroy() removes the host entirely', async ({ page }) => {
   await page.goto(FIXTURE);
-  await expect(page.locator('#traceitx-host')).toHaveCount(1);
+  await expect(page.locator('#everframe-host')).toHaveCount(1);
   await page.evaluate(() =>
-    (window as unknown as { __traceitx: { destroy(): void } }).__traceitx.destroy(),
+    (window as unknown as { __everframe: { destroy(): void } }).__everframe.destroy(),
   );
-  expect(await page.locator('#traceitx-host').count()).toBe(0);
+  expect(await page.locator('#everframe-host').count()).toBe(0);
 });

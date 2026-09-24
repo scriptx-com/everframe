@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX for iOS / iPadOS / tvOS
+# Everframe for iOS / iPadOS / tvOS
 
-Native iOS Swift Package for TraceItX — in-app bug reporting with annotated
+Native iOS Swift Package for Everframe — in-app bug reporting with annotated
 screenshots, session replay, log/network ring buffers, and a built-in
 SwiftUI reporter UI. Covers iPhone, iPad, and Apple TV (tvOS).
 
@@ -16,18 +16,18 @@ contributors lives beside this README.
 ## Install via Swift Package Manager
 
 In Xcode → **File → Add Package Dependencies…** add
-`https://github.com/scriptx-com/traceitx-releases.git` with a version constraint
-matching the SDK version you want. Then add `TraceItX` and
-`TraceItXReporterUI` as dependencies of your app target. For the on-device
+`https://github.com/scriptx-com/everframe.git` with a version constraint
+matching the SDK version you want. Then add `Everframe` and
+`EverframeReporterUI` as dependencies of your app target. For the on-device
 test sample apps see `examples/ios-native/` (three schemes — iPhone, iPad,
 Apple TV).
 
 ```swift
 // Package.swift consumer example
-.package(url: "https://github.com/scriptx-com/traceitx-releases.git", from: "0.8.1"),
+.package(url: "https://github.com/scriptx-com/everframe.git", from: "0.8.1"),
 // Then in your target dependencies:
-.product(name: "TraceItX", package: "traceitx-releases"),
-.product(name: "TraceItXReporterUI", package: "traceitx-releases"),
+.product(name: "Everframe", package: "everframe"),
+.product(name: "EverframeReporterUI", package: "everframe"),
 ```
 
 The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
@@ -37,14 +37,14 @@ The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
 ## Initialize at startup
 
 ```swift
-import TraceItX
-import TraceItXReporterUI
+import Everframe
+import EverframeReporterUI
 
 @main
 struct MyApp: App {
     init() {
-        try? TraceItX.shared.start(
-            config: TraceItXConfig(
+        try? Everframe.shared.start(
+            config: EverframeConfig(
                 appId: "txx_live_00000000000000000000000000000000",
                 endpoint: URL(string: "https://ingest.your-tenant.example/api/ingest")!,
                 sdkKey: "txx_live_…",
@@ -54,7 +54,7 @@ struct MyApp: App {
         // Wires the reporter resolver + isPresenting setter.
         // The SDK owns mobile shake-to-report; buttons and key listeners stay
         // host-owned. See "Triggers are host-app concern" below.
-        TXReporterPresenter.installResolver()
+        EFReporterPresenter.installResolver()
     }
 
     var body: some Scene {
@@ -67,11 +67,11 @@ struct MyApp: App {
 
 ## Triggers are host-app concern
 
-> TraceItX owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
+> Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
 
 Shake-to-report is enabled locally by default on iPhone and iPad and controlled
 authoritatively by the dashboard. Disable it locally with
-`TraceItXConfig(appId: "…", shakeToReportEnabled: false)`. Local `true` never
+`EverframeConfig(appId: "…", shakeToReportEnabled: false)`. Local `true` never
 overrides a dashboard disable. The SDK observes UIKit's `.motionShake` event
 without Core Motion, permissions, privacy-manifest additions, or replacement
 of `UIWindow.motionEnded`. tvOS and Mac Catalyst are excluded.
@@ -80,18 +80,18 @@ All other trigger detection stays in the host app. Below are the canonical
 recipes the sample apps demonstrate and that real hosts can copy-paste.
 
 Observe `report.isPresenting` (Combine `@Published` or
-`Notification.Name.traceItXReporterPresentingChange`) so your trigger UI can
+`Notification.Name.everframeReporterPresentingChange`) so your trigger UI can
 disable itself while the reporter is up.
 
 ### (a) In-screen Button (recommended primary recipe)
 
 ```swift
 struct DebugMenuView: View {
-    @ObservedObject private var report = TraceItX.shared.report
+    @ObservedObject private var report = Everframe.shared.report
 
     var body: some View {
-        Button("Open TraceItX reporter") {
-            Task { try? await TraceItX.shared.report.open() }
+        Button("Open Everframe reporter") {
+            Task { try? await Everframe.shared.report.open() }
         }
         .disabled(report.isPresenting)
     }
@@ -106,13 +106,13 @@ For hosts that want a floating affordance without a separate `UIWindow`.
 
 ```swift
 struct AppRoot<Content: View>: View {
-    @ObservedObject private var report = TraceItX.shared.report
+    @ObservedObject private var report = Everframe.shared.report
     let content: () -> Content
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             content()
-            Button(action: { Task { try? await TraceItX.shared.report.open() } }) {
+            Button(action: { Task { try? await Everframe.shared.report.open() } }) {
                 Image(systemName: "ant.circle.fill")
                     .font(.system(size: 44))
                     .padding(20)
@@ -167,7 +167,7 @@ final class HostBubble {
     }
 
     @objc private func tapped() {
-        Task { try? await TraceItX.shared.report.open() }
+        Task { try? await Everframe.shared.report.open() }
     }
 }
 ```
@@ -184,13 +184,13 @@ runs a sample-owned debouncer.
 
 ```swift
 struct DebugMenuView: View {
-    @ObservedObject private var report = TraceItX.shared.report
+    @ObservedObject private var report = Everframe.shared.report
 
     var body: some View {
         VStack(spacing: 40) {
-            Text("TraceItX TV sample")
+            Text("Everframe TV sample")
             Button("Open reporter") {
-                Task { try? await TraceItX.shared.report.open() }
+                Task { try? await Everframe.shared.report.open() }
             }
             .disabled(report.isPresenting)
         }
@@ -209,7 +209,7 @@ Commented-out alternate (`playPause × 3 within 1500ms`):
 //             combo.append(now); if combo.count > 3 { combo.removeFirst() }
 //             if combo.count == 3, (combo.last! - combo.first!) <= 1.5 {
 //                 combo.removeAll()
-//                 Task { try? await TraceItX.shared.report.open() }
+//                 Task { try? await Everframe.shared.report.open() }
 //                 return  // consume the third playPause
 //             }
 //         }
@@ -237,7 +237,7 @@ broken. The SDK no longer validates this; the host is responsible.
 Combine / SwiftUI:
 
 ```swift
-@ObservedObject private var report = TraceItX.shared.report
+@ObservedObject private var report = Everframe.shared.report
 // then …
 .disabled(report.isPresenting)
 // or subscribe directly:
@@ -250,7 +250,7 @@ NotificationCenter (UIKit-only / non-Combine consumers):
 
 ```swift
 NotificationCenter.default.addObserver(
-    forName: .traceItXReporterPresentingChange,
+    forName: .everframeReporterPresentingChange,
     object: nil,
     queue: .main
 ) { note in
@@ -273,23 +273,25 @@ For the cross-SDK contract statement see the top-level
 
 ### Marking sensitive UI
 
-Use `View.txSensitive()` on SwiftUI subtrees that should be baked black in
-screenshots:
+Wrap SwiftUI subtrees that should be baked black in screenshots with a small
+`UIViewRepresentable` backed by `EFSensitiveView`; the native sample includes
+an `EFSensitiveBox` recipe:
 
 ```swift
-SecureField("Password", text: $password)
-    .txSensitive()
+EFSensitiveBox {
+    SecureField("Password", text: $password)
+}
 ```
 
-For UIKit, wrap the view (or any subtree) in a `TXSensitiveContainer` view
-or set `view.tx_sensitive = true` programmatically.
+For UIKit, wrap the view (or any subtree) in an `EFSensitiveView` view
+or set `view.everframe_isSensitive = true` programmatically.
 
 ### Network capture (URLSession)
 
 Install the SDK's `URLProtocol` once at startup:
 
 ```swift
-URLProtocol.registerClass(TXNetworkCaptureProtocol.self)
+URLProtocol.registerClass(EFNetworkCaptureProtocol.self)
 ```
 
 Captured method, URL, status, latency, and a redacted view of headers go
@@ -313,7 +315,7 @@ observe. Mark screens from `.onAppear`:
 struct CheckoutView: View {
     var body: some View {
         Form { ... }
-            .onAppear { TraceItX.shared.recordScreen("Checkout") }
+            .onAppear { Everframe.shared.recordScreen("Checkout") }
     }
 }
 ```
@@ -332,13 +334,13 @@ Names should be route identifiers, never user content — they travel in the
 report and are shown verbatim in triage.
 
 For a non-Swift host: React Native bridges to this same entry point via
-`recordScreen` / `useTXScreen`, and the Android twin is `TraceItX.recordScreen`
-plus the `TXScreen()` composable.
+`recordScreen` / `useEverframeScreen`, and the Android twin is `Everframe.recordScreen`
+plus the `EverframeScreen()` composable.
 
 ### Opening the reporter
 
 ```swift
-let result: ReportResult = try await TraceItX.shared.report.open()
+let result: ReportResult = try await Everframe.shared.report.open()
 ```
 
 `ReportResult` is one of `.submitted`, `.queued`, `.cancelled(reason)`. The
@@ -359,7 +361,7 @@ required.
 ## Privacy
 
 By default the SDK requests no permissions. Sensitive UI is redacted at bake
-time (PRIV-03): pixels in `View.txSensitive()` / `TXSensitiveContainer` /
+time (PRIV-03): pixels in `EFSensitiveView` / `everframe_isSensitive` /
 `secureTextEntry`-style regions are baked BLACK before screenshot bytes ever
 reach the reporter UI or the network.
 

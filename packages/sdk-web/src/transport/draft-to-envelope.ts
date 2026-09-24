@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import { buildEnvelope, trimLogs } from '@traceitx/sdk-core';
+import { buildEnvelope, trimLogs } from '@everframe/sdk-core';
 import type {
   LogEntry,
   NetworkEntry,
@@ -9,15 +9,15 @@ import type {
   ReportDraft,
   ReplayCapture,
   UserMetadata,
-} from '@traceitx/sdk-core';
+} from '@everframe/sdk-core';
 import type {
   FocusedNode,
   ReportEnvelope,
   AttachmentRef,
   Breadcrumb,
   NetworkBodyEntry,
-} from '@traceitx/protocol';
-import type { WebTraceItXConfig } from '../internal/types.js';
+} from '@everframe/protocol';
+import type { WebEverframeConfig } from '../internal/types.js';
 import { REACT_SDK_NAME, type HostSdkName } from '../internal/sdk-identity.js';
 import { stampActiveVitals } from '../vitals/stamp-active-vitals.js';
 import { stampResources } from '../resources/stamp.js';
@@ -146,12 +146,12 @@ export interface DraftToEnvelopeOutput {
  *   - Pitfall 8 → exactly one screenshot attachment kind based on whether redactions exist
  *   - PAY-05 degradedReason → captureControl.degradedReason
  *   - AUTH-01 sdk.name from the `sdkName` parameter below, defaulting to
- *     'traceitx-react' (protocol enum lock)
+ *     'everframe-react' (protocol enum lock)
  */
 export function draftToEnvelope(
   draft: ReportDraft,
   bundle: CaptureBundle,
-  config: WebTraceItXConfig,
+  config: WebEverframeConfig,
   sdkVersion: string,
   /**
    * The self-declared `setUser` value for this report, or null/undefined for
@@ -172,9 +172,9 @@ export function draftToEnvelope(
   user?: UserMetadata | null,
   /**
    * Phase-3 SDK platform identity — locked by the ReportEnvelope.sdk.name
-   * enum (protocol). Defaults to `traceitx-react`, which every call site
-   * predating `@traceitx/web`'s own `init()` is; that SDK passes
-   * `traceitx-web` so a Vue/Svelte/plain-HTML report is not filed under the
+   * enum (protocol). Defaults to `everframe-react`, which every call site
+   * predating `@everframe/web`'s own `init()` is; that SDK passes
+   * `everframe-web` so a Vue/Svelte/plain-HTML report is not filed under the
    * React SDK. See internal/sdk-identity.ts.
    *
    * ── Codex round-2 finding 2, THE HALF THAT IS REJECTED (argument recorded
@@ -183,28 +183,28 @@ export function draftToEnvelope(
    * The same review asked for this React default to be removed too — made
    * required, or flipped to the vanilla name — because `submitReportFromDraft`
    * (which forwards straight into this parameter) is a PUBLIC export of
-   * `@traceitx/web`, so a vanilla consumer calling it without `sdkName` files
+   * `@everframe/web`, so a vanilla consumer calling it without `sdkName` files
    * its in-app report stream under the React SDK. The hazard is real. Neither
    * remedy is available:
    *
    *   • REQUIRED — `packages/sdk-react/src/provider.tsx`'s `onComplete` calls
    *     `submitReportFromDraft({ config, sdkVersion: PKG_VERSION, … })` with
    *     NO `sdkName` and relies on this default. That file is published
-   *     `@traceitx/react` v0.6.6 and is explicitly out of bounds for this
+   *     `@everframe/react` v0.6.6 and is explicitly out of bounds for this
    *     change, so requiring the field breaks its typecheck immediately.
    *   • FLIPPED TO VANILLA — same call site, worse outcome: it would silently
-   *     relabel every React host's entire in-app report stream `traceitx-web`,
+   *     relabel every React host's entire in-app report stream `everframe-web`,
    *     i.e. the exact bug this parameter exists to prevent, aimed at the
    *     higher-volume SDK.
    *   • UNEXPORTED — `provider.tsx` imports `submitReportFromDraft` from the
-   *     package specifier `'@traceitx/web'`, so the barrel export in
+   *     package specifier `'@everframe/web'`, so the barrel export in
    *     src/index.ts is load-bearing and cannot be dropped.
    *
    * `createWebPlatformAdapter`'s half of the finding IS fixed (see
    * internal/sdk-identity.ts) because React passes its identity to that one
    * explicitly. THE FIX HERE IS A ONE-LINE CHANGE TO provider.tsx: add
-   * `sdkName: 'traceitx-react'` to its `submitReportFromDraft` call, then make
-   * this parameter required and delete the default. Until `@traceitx/react`
+   * `sdkName: 'everframe-react'` to its `submitReportFromDraft` call, then make
+   * this parameter required and delete the default. Until `@everframe/react`
    * can be edited, a vanilla caller MUST pass `sdkName` explicitly — as
    * `init()` (RULING 18) and the companion host seam both do.
    */

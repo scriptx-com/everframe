@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX tvOS replay sample
+# Everframe tvOS replay sample
 
-A deterministic UIKit tvOS host used to demonstrate and smoke-test TraceItX
+A deterministic UIKit tvOS host used to demonstrate and smoke-test Everframe
 session replay, focus navigation, masking, SwiftUI embedding, and opaque player
 surfaces. It uses procedural artwork and does not require external media.
 
@@ -29,11 +29,11 @@ xcodebuild test \
 ```
 
 Without a key, the host still launches and the focus smoke test runs; the
-TraceItX client remains stopped. To exercise replay capture against a backend
+Everframe client remains stopped. To exercise replay capture against a backend
 you control, pass these launch environment values:
 
-- `TRACEITX_E2E_SDK_KEY`: a non-production SDK key.
-- `TRACEITX_DEV_INGEST_URL`: a loopback development ingest origin.
+- `EVERFRAME_E2E_SDK_KEY`: a non-production SDK key.
+- `EVERFRAME_DEV_INGEST_URL`: a loopback development ingest origin.
 - `REPLAY_TV_AUTOSCROLL=1`: optional deterministic automatic navigation.
 - `REPLAY_TV_SWIFTUI=1`: optional SwiftUI header coverage.
 

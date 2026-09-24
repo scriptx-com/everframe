@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# TraceItX Sample App
+# Everframe Sample App
 
-A standalone Xcode project that dogfoods every public TraceItX SDK API across
+A standalone Xcode project that dogfoods every public Everframe SDK API across
 all three locked-decision form factors:
 
 | Scheme              | Platform | Recommended destination          |
@@ -36,11 +36,11 @@ CI runs `xcodegen generate` on every PR and fails on drift between
 
 | Feature                                     | Where (iOS)                         | Where (tvOS)                              |
 | ------------------------------------------- | ----------------------------------- | ----------------------------------------- |
-| `TraceItX.shared.start(config:)`            | `SampleApp.swift`                   | `SampleAppTV.swift`                       |
+| `Everframe.shared.start(config:)`            | `SampleApp.swift`                   | `SampleAppTV.swift`                       |
 | `setUser(_:)`, `setMetadata(_:)`            | `SampleApp.swift`                   | `SampleAppTV.swift`                       |
-| `TXSensitiveView` wrapper                   | `Screens/LoginScreen.swift`         | n/a (UI-SPEC tvOS branch)                 |
+| `EFSensitiveView` wrapper                   | `Screens/LoginScreen.swift`         | n/a (UI-SPEC tvOS branch)                 |
 | `UITextField.isSecureTextEntry` auto-detect | `Screens/LoginScreen.swift`         | `TVLoginScreen` in `ContentView.swift`    |
-| `TraceItX.shared.markSensitive(_:)`         | `Screens/PaymentScreen.swift`       | n/a                                       |
+| `Everframe.shared.markSensitive(_:)`         | `Screens/PaymentScreen.swift`       | n/a                                       |
 | Network capture                             | `Screens/DetailScreen.swift`        | `TVDetailScreen` in `ContentView.swift`   |
 | Log capture (os_log)                        | `Screens/DetailScreen.swift`        | n/a                                       |
 | Reporter overlay (SwiftUI modifier)         | `ContentView.swift`                 | invoked via Play/Pause × 3 (LOCKED)       |
@@ -90,7 +90,7 @@ dashboard's Events panel. Setup is once per clone:
 3. **Create the iOS app's SDK key.** In the admin UI:
    - Sign up → create org → create an app named e.g. `iOS` → SDK Keys panel → "Generate".
    - Copy the raw `txx_live_…` key (reveal-once UI; you only see it now).
-   - Paste it into the repo-root `.env` as `TRACEITX_KEY_IOS=txx_live_…`.
+   - Paste it into the repo-root `.env` as `EVERFRAME_KEY_IOS=txx_live_…`.
      (Each probe has its own app/key — see the table in `docs/sample-apps.md`.)
    - Confirm `INGEST_URL=http://localhost:8787` is also present in `.env`.
 
@@ -128,7 +128,7 @@ dashboard's Events panel. Setup is once per clone:
 ## What changed in Phase 04.2
 - Walker descends past `_UIHostingView`; emitted `componentType` strings
   are sanitized via family detection (no private API leaks).
-- `TraceItXConfig.appId` is hard-validated at `start()` —
+- `EverframeConfig.appId` is hard-validated at `start()` —
   `txx_live_…` prefix + 41 chars required (D-03). Misconfiguration fails
   loudly at launch with an actionable console message.
 - Repo-wide dev secrets now live in a single root `.env`. Per-package
@@ -145,10 +145,10 @@ idioms (PRIV-01..03):
 1. **`UITextField.isSecureTextEntry`** — `SwiftUI.SecureField` lowers to a
    secure UIKit text field, which `SensitiveRectRegistry` walks at capture
    time. No code change in the host app.
-2. **`TXSensitiveView`** — wrap a subtree of arbitrary content in
-   `TXSensitiveView` (the SwiftUI bridge is `TXSensitiveBox` in
+2. **`EFSensitiveView`** — wrap a subtree of arbitrary content in
+   `EFSensitiveView` (the SwiftUI bridge is `EFSensitiveBox` in
    `LoginScreen.swift`). Any subview emits a sensitive rect.
-3. **`TraceItX.shared.markSensitive(_:)`** — call this for views you don't
+3. **`Everframe.shared.markSensitive(_:)`** — call this for views you don't
    own, including views you can't subclass (third-party SDKs, dynamically
    created UIViews). See `PaymentScreen.swift`.
 

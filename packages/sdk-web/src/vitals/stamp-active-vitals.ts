@@ -11,8 +11,8 @@
 // and starts producing envelopes the protocol schema rejects outright (it
 // caps `payload.vitals` at that same limit and rejects the WHOLE report,
 // non-retryable, when exceeded).
-import { MAX_ENVELOPE_VITALS_ENTRIES } from '@traceitx/protocol';
-import type { ReportEnvelope } from '@traceitx/protocol';
+import { MAX_ENVELOPE_VITALS_ENTRIES } from '@everframe/protocol';
+import type { ReportEnvelope } from '@everframe/protocol';
 import { __getActiveVitals } from './index.js';
 
 /**

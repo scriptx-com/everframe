@@ -4,4 +4,5 @@
 
 .build/
 .swiftpm/
+*.xcodeproj/
 *.xcodeproj/xcuserdata/

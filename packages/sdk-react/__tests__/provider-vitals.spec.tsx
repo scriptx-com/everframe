@@ -2,28 +2,28 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 //
-// Codex round-1 finding S1 (the biggest one) — `@traceitx/web`'s `init.ts`
+// Codex round-1 finding S1 (the biggest one) — `@everframe/web`'s `init.ts`
 // calls `setupVitals()` right after building its client/adapter; this
 // Provider builds the SAME `createWebPlatformAdapter` adapter (see the
 // `ctxValue` useMemo in provider.tsx) but never called `setupVitals()` at
 // all, so every React host shipped ZERO Session Vitals sessions, ever —
-// only vanilla `@traceitx/web` hosts (`init()`) got vitals.
+// only vanilla `@everframe/web` hosts (`init()`) got vitals.
 //
-// Mock-level (module-mock `@traceitx/web`'s `setupVitals` export), per the
+// Mock-level (module-mock `@everframe/web`'s `setupVitals` export), per the
 // spec's own guidance: driving a real vitals session end to end through this
 // Provider would require also faking the resource sampler / player adapter
 // the way `packages/sdk-web/__tests__/vitals/wiring.spec.ts` does, which is
-// `@traceitx/web`'s own test surface, not this package's — this spec's job
+// `@everframe/web`'s own test surface, not this package's — this spec's job
 // is only to prove the WIRING (setupVitals invoked with the right deps on
 // mount, its handle destroyed on unmount), which a mock proves directly.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
-import { TraceItXProvider } from '../src/provider.js';
+import { EverframeProvider } from '../src/provider.js';
 
 const setupVitalsMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@traceitx/web', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@traceitx/web')>();
+vi.mock('@everframe/web', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@everframe/web')>();
   return {
     ...actual,
     setupVitals: setupVitalsMock,
@@ -38,15 +38,15 @@ afterEach(() => {
 
 const config = { apiKey: 'txx_live_test' };
 
-describe('TraceItXProvider — Session Vitals wiring (Codex round-1 finding S1)', () => {
+describe('EverframeProvider — Session Vitals wiring (Codex round-1 finding S1)', () => {
   it('calls setupVitals exactly once on mount, mirroring init.ts\'s deps', () => {
     const destroy = vi.fn();
     setupVitalsMock.mockReturnValue({ destroy });
 
     render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <div>hello</div>
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     expect(setupVitalsMock).toHaveBeenCalledTimes(1);
@@ -75,9 +75,9 @@ describe('TraceItXProvider — Session Vitals wiring (Codex round-1 finding S1)'
     setupVitalsMock.mockReturnValue({ destroy });
 
     const { unmount } = render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <div>hello</div>
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     expect(destroy).not.toHaveBeenCalled();
 
@@ -91,9 +91,9 @@ describe('TraceItXProvider — Session Vitals wiring (Codex round-1 finding S1)'
     setupVitalsMock.mockReturnValue({ destroy });
 
     const { unmount } = render(
-      <TraceItXProvider config={config}>
+      <EverframeProvider config={config}>
         <div>hello</div>
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     const deps = setupVitalsMock.mock.calls[0]![0] as { isKilled: () => boolean };

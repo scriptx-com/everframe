@@ -61,7 +61,7 @@ export interface RrwebRecordOptions {
 export interface BuildRecordOptionsDeps {
   durationSec: number;
   emit: (event: unknown, isCheckout?: boolean) => void;
-  /** Selector covering host-marked-sensitive elements (data-traceitx-sensitive + .rr-block). */
+  /** Selector covering host-marked-sensitive elements (data-everframe-sensitive + .rr-block). */
   blockSelector?: string;
   errorHandler?: (err: unknown) => void;
 }

@@ -14,13 +14,13 @@
 // Wiring (recommended):
 //   const navigationRef = createNavigationContainerRef();
 //   const txNav = reactNavigationIntegration({ navigationRef });
-//   <TraceItXProvider config={{ ..., integrations: [txNav] }}>
+//   <EverframeProvider config={{ ..., integrations: [txNav] }}>
 //     <NavigationContainer ref={navigationRef} onReady={txNav.onReady}>
 // onReady covers the initial route when the container becomes ready AFTER
 // the provider mounts; onStateChange is a fallback for ref versions whose
 // addListener misbehaves.
 import { recordScreen } from '../contextSeam.js';
-import type { TraceItXIntegration } from './types.js';
+import type { EverframeIntegration } from './types.js';
 
 /** Duck-typed subset of react-navigation's NavigationContainerRef. */
 export interface NavigationRefLike {
@@ -29,7 +29,7 @@ export interface NavigationRefLike {
   addListener(type: 'state', callback: () => void): () => void;
 }
 
-export interface ReactNavigationIntegration extends TraceItXIntegration {
+export interface ReactNavigationIntegration extends EverframeIntegration {
   /** Pass to <NavigationContainer onReady> to record the initial route. */
   onReady(): void;
   /** Pass to <NavigationContainer onStateChange> as a listener fallback. */
@@ -41,7 +41,7 @@ export function reactNavigationIntegration(opts: {
 }): ReactNavigationIntegration {
   const emit = (): void => {
     // Route names are developer-defined identifiers, never user content —
-    // same PII stance as useTXScreen. Native A→A suppression dedups
+    // same PII stance as useEverframeScreen. Native A→A suppression dedups
     // double-wiring (listener + onStateChange both firing).
     try {
       const name = opts.navigationRef.getCurrentRoute?.()?.name;

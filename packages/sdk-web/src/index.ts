@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// `@traceitx/web` — the framework-free half of the TraceItX web SDK: capture,
+// `@everframe/web` — the framework-free half of the Everframe web SDK: capture,
 // transport, outbox, branding, triggers, the companion (TV/phone pairing)
-// client and the reporter stylesheet. `@traceitx/react` composes its React
+// client and the reporter stylesheet. `@everframe/react` composes its React
 // surface on top of this; a Vue/Svelte/Angular/vanilla host consumes it
 // directly.
 //
@@ -16,22 +16,22 @@
 // `dist/` alone, so a deep import into `dist/…` or `src/…` breaks the moment
 // this is published. Internal module-level seams (`__set*` / `__get*` /
 // `__subscribe*`) are therefore exported here too, even though they are not
-// product API — `@traceitx/react` reads them across the package boundary.
+// product API — `@everframe/react` reads them across the package boundary.
 
-import type { CaptureExceptionOptions as CoreCaptureExceptionOptions } from '@traceitx/sdk-core';
+import type { CaptureExceptionOptions as CoreCaptureExceptionOptions } from '@everframe/sdk-core';
 
 // ── Platform adapter ────────────────────────────────────────────────────
 export { createWebPlatformAdapter } from './adapter.js';
 export type { WebPlatformAdapter } from './adapter.js';
 
 // ── Configuration + result shapes ───────────────────────────────────────
-export type { WebTraceItXConfig } from './internal/types.js';
-export { TraceItXNotMountedError } from './reporter-types.js';
+export type { WebEverframeConfig } from './internal/types.js';
+export { EverframeNotMountedError } from './reporter-types.js';
 export type { ReporterResult } from './reporter-types.js';
 
 // ── Version + SDK identity ──────────────────────────────────────────────
 // `PKG_VERSION` is THIS package's version. A host package that reports its
-// own name/version in `envelope.sdk` (e.g. `@traceitx/react`) passes them to
+// own name/version in `envelope.sdk` (e.g. `@everframe/react`) passes them to
 // `createWebPlatformAdapter` — see internal/sdk-identity.ts for why the
 // adapter cannot read either from this package's own constants.
 export { PKG_VERSION } from './internal/version.js';
@@ -39,12 +39,12 @@ export type { HostSdkIdentity, HostSdkName } from './internal/sdk-identity.js';
 
 // ── Imperative lifecycle (framework-agnostic hosts) ─────────────────────
 export { init } from './init.js';
-export type { TraceItXHandle } from './init.js';
-export type { CaptureExceptionOptions } from '@traceitx/sdk-core';
+export type { Everframe } from './init.js';
+export type { CaptureExceptionOptions } from '@everframe/sdk-core';
 export type ErrorSeverity = NonNullable<CoreCaptureExceptionOptions['severity']>;
 
 // ── Ingest base URL ──────────────────────────────────────────────────────
-// Consumed by `@traceitx/react`'s Provider, which needs the same endpoint
+// Consumed by `@everframe/react`'s Provider, which needs the same endpoint
 // `init.ts` passes to `setupVitals()` below (there is no other public seam
 // for it — see constants.ts's own header on why this is a build-time literal).
 export { INGEST_URL } from './constants.js';
@@ -62,7 +62,7 @@ export { trackPlayer, trackVitals } from './vitals/index.js';
 export type { PlayerHandle, TrackPlayerOptions } from './vitals/index.js';
 export { hlsIntegration } from './vitals/integrations/hls.js';
 export { shakaIntegration } from './vitals/integrations/shaka.js';
-export type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings, PlayerEmit } from '@traceitx/sdk-core';
+export type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings, PlayerEmit } from '@everframe/sdk-core';
 
 // ── Reporter styles ─────────────────────────────────────────────────────
 export { injectReporterStyles } from './reporter-ui/style-injector.js';
@@ -82,7 +82,7 @@ export {
   __subscribeInlineReporterTheme,
 } from './branding/inline-theme.js';
 
-// Internal bridge consumed by @traceitx/react. The generic hotkey helper is
+// Internal bridge consumed by @everframe/react. The generic hotkey helper is
 // deliberately not public: the dashboard binding is authoritative.
 export { __registerDashboardHotkey } from './triggers/hotkey.js';
 
@@ -111,11 +111,11 @@ export { createScreenRecorder } from './breadcrumbs/record-screen.js';
 export type { ScreenRecorder } from './breadcrumbs/record-screen.js';
 
 // ── Companion (TV / phone pairing) ──────────────────────────────────────
-// The namespace mirrors what `@traceitx/react` has always exposed as
+// The namespace mirrors what `@everframe/react` has always exposed as
 // `companion.*`, minus `useCompanion` — the one React-coupled member, which
-// lives in `@traceitx/react` and re-composes this namespace with it.
+// lives in `@everframe/react` and re-composes this namespace with it.
 export * as companion from './companion/index.js';
-// The same members, flat, so `@traceitx/react` can re-export them by name
+// The same members, flat, so `@everframe/react` can re-export them by name
 // (a namespace object cannot be spread back into an ES module's exports).
 export { createCompanion } from './companion/state.js';
 export type {
@@ -152,7 +152,7 @@ export type {
   CompanionBadgeOptions,
   BadgePosition,
 } from './companion/singleton.js';
-// Companion seams read by `@traceitx/react`'s Provider, badge and PIN card.
+// Companion seams read by `@everframe/react`'s Provider, badge and PIN card.
 export {
   __getCompanionApi,
   __getAttachPinUiMode,
@@ -179,14 +179,14 @@ export type { CompanionHost, CompanionSeamTicket } from './companion/host-seam.j
 export { __setCompanionBadgeServerConfig } from './companion/server-config.js';
 
 // ── Test seams ──────────────────────────────────────────────────────────
-// Not product API. Exported only because `@traceitx/react`'s specs — which
+// Not product API. Exported only because `@everframe/react`'s specs — which
 // cover React surfaces built on these modules — can no longer reach them by
 // relative path now that the modules live here.
 //
 // These, plus `createLocalStorageOutbox`, `REPORTER_TOKEN_STORAGE_KEY` and
 // `scopedReporterTokenStorageKey` above, are the members that survived the
-// pre-publish surface audit: each has a real consumer in a `@traceitx/react`
-// spec that imports it as `from '@traceitx/web'`, so removing it here would
+// pre-publish surface audit: each has a real consumer in a `@everframe/react`
+// spec that imports it as `from '@everframe/web'`, so removing it here would
 // mean editing those specs. Every barrel member with NO consumer was dropped
 // in that same audit (`INGEST_URL`, the badge-config getter/subscriber, and
 // `src/ui.ts`'s portal-target / theme-host seams). Retargeting the remaining

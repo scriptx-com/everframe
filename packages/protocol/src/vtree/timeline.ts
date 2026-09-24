@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// traceitx-vtree-v1 — the native session-replay blob contract.
+// Native session-replay blob contract. The old discriminator remains readable
+// because existing reports persist it; new producers use everframe-vtree-v1.
 //
 // This is the cross-implementation contract for native session replay: the
 // blob-bytes shape that the iOS producer (Phase 22), the Android producer
 // (Phase 23), and the dashboard player (Phase 25) all validate against. It is
 // a STANDALONE namespaced module (mirroring src/relay/) and is NEVER nested in
 // ReportEnvelope — the envelope already carries the `format:
-// 'traceitx-vtree-v1'` discriminator via ReplayFormat in attachments.ts.
+// version discriminator via ReplayFormat in attachments.ts.
 //
 // The format is a labeled-wireframe model: structural fidelity (layout + real
 // text + diffs over time), deliberately NOT pixels. This is what lets native
@@ -250,7 +251,9 @@ export const VAsset = z
 // coordinate space; the player maps points → CSS px.
 export const VTreeTimeline = z
   .object({
-    version: z.literal('traceitx-vtree-v1'),
+    version: z
+      .enum(['everframe-vtree-v1', 'traceitx-vtree-v1'])
+      .transform(() => 'everframe-vtree-v1' as const),
     viewport: z.object({
       width: z.number(),
       height: z.number(),

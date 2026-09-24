@@ -2,14 +2,14 @@
 /* SPDX-FileCopyrightText: 2026 ScriptX */
 
 /*
- * Elytra — the TraceItX web example app.
+ * Elytra — the Everframe web example app.
  *
  * Imported by app/(default)/layout.tsx ONLY. The (strict)/strict-csp route
  * group deliberately does NOT load this sheet: its CSP fixture must stay
  * minimal and self-contained (the ReportFab carries its own CSS module).
  *
  * Direction: naturalist field-guide. Cool specimen-paper ground, olive ink,
- * moss-green actions, ochre catalog tags. The TraceItX brand cyan appears
+ * moss-green actions, ochre catalog tags. The Everframe brand cyan appears
  * ONLY on SDK chrome (the floating report button) so "the app" and "the SDK
  * affordance" read as two different owners — which is the point of the demo.
  */
@@ -703,7 +703,7 @@ label {
 
 /* ---------- plate glow (firefly) ---------- */
 
-@keyframes txx-glow-pulse {
+@keyframes everframe-glow-pulse {
   0%,
   100% {
     opacity: 0.35;
@@ -714,7 +714,7 @@ label {
 }
 
 .plate-glow {
-  animation: txx-glow-pulse 2.8s ease-in-out infinite;
+  animation: everframe-glow-pulse 2.8s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

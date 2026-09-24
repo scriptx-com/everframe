@@ -19,11 +19,11 @@ import {
 } from '../../src/transport/draft-to-envelope.js';
 import { submitReportFromDraft } from '../../src/transport/submit.js';
 import { createReplayRecorder } from '../../src/capture/replay/recorder.js';
-import type { ReportDraft, ReplayCapture } from '@traceitx/sdk-core';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { ReportDraft, ReplayCapture } from '@everframe/sdk-core';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 import { gzipSync } from 'node:zlib';
 
-const config: WebTraceItXConfig = { apiKey: 'txx_live_test', appName: 'a', appVersion: '1.0.0' };
+const config: WebEverframeConfig = { apiKey: 'txx_live_test', appName: 'a', appVersion: '1.0.0' };
 const draft: ReportDraft = {
   title: 'X',
   description: 'Y',

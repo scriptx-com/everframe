@@ -17,7 +17,7 @@
 // network-body-kill.spec.ts, so nothing is ever captured in the first place
 // (rather than captured then silently dropped at encode time).
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createClient, __internalClientState } from '@traceitx/sdk-core';
+import { createClient, __internalClientState } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 
 const adapters: WebPlatformAdapter[] = [];

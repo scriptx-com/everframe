@@ -21,7 +21,7 @@
 // Provider/DOM needed — `adapter.__applyBreadcrumbsConfig()` and
 // `adapter.threads` are both plain adapter-surface seams).
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createClient } from '@traceitx/sdk-core';
+import { createClient } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 import {
   __getCompanionBadgeServerConfig,

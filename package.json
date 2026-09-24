@@ -1,5 +1,5 @@
 {
-  "name": "traceitx-sdks",
+  "name": "everframe-sdks",
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@9.15.0",
@@ -13,18 +13,20 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "check:publish": "turbo run check:publish",
-    "build:packages": "turbo run build --filter='./packages/*' --filter='!@traceitx/sdk-android'",
-    "test:packages": "turbo run test --concurrency=1 --filter='./packages/*' --filter='!@traceitx/sdk-android'",
-    "typecheck:packages": "turbo run typecheck --filter='./packages/*' --filter='!@traceitx/sdk-android'",
+    "build:packages": "turbo run build --filter='./packages/*' --filter='!@everframe/sdk-android'",
+    "test:packages": "turbo run test --concurrency=1 --filter='./packages/*' --filter='!@everframe/sdk-android'",
+    "typecheck:packages": "turbo run typecheck --filter='./packages/*' --filter='!@everframe/sdk-android'",
     "build:examples": "turbo run build --filter='./examples/*'",
     "test:examples": "turbo run test --filter='./examples/*'",
     "typecheck:examples": "turbo run typecheck --filter='./examples/*'",
     "check:boundary": "node scripts/public-boundary.mjs",
+    "check:brand": "node scripts/brand-identity.mjs",
     "test:boundary": "node --test scripts/public-boundary.test.mjs",
+    "test:release-readiness": "node --test scripts/release-readiness.test.mjs",
     "gen-web-config": "pnpm --filter examples-react-web gen-web-config",
     "gen-rn-config": "pnpm --filter examples-react-native sync-env",
-    "gen-ios-config": "pnpm --filter @traceitx/example-ios-native-marker gen-ios-config",
-    "gen-android-config": "pnpm --filter @traceitx/example-android-compose-marker gen-android-config"
+    "gen-ios-config": "pnpm --filter @everframe/example-ios-native-marker gen-ios-config",
+    "gen-android-config": "pnpm --filter @everframe/example-android-compose-marker gen-android-config"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.0",

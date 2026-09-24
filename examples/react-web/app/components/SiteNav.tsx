@@ -26,7 +26,7 @@ export function SiteNav() {
       <div className="site-nav-inner">
         <Link href="/" className="wordmark">
           Elytra
-          <span className="demo-tag">TraceItX demo</span>
+          <span className="demo-tag">Everframe demo</span>
         </Link>
         <div className="nav-links">
           {LINKS.map(({ href, label }) => (

@@ -1,17 +1,18 @@
 {
   "publicPackages": [
-    "@traceitx/babel-plugin-displayname",
-    "@traceitx/identity",
-    "@traceitx/protocol",
-    "@traceitx/react",
-    "@traceitx/react-native",
-    "@traceitx/sdk-android",
-    "@traceitx/sdk-core",
-    "@traceitx/sdk-ios-marker",
-    "@traceitx/swc-plugin-displayname",
-    "@traceitx/web"
+    "@everframe/babel-plugin-displayname",
+    "@everframe/identity",
+    "@everframe/protocol",
+    "@everframe/react",
+    "@everframe/react-native",
+    "@everframe/sdk-android",
+    "@everframe/sdk-core",
+    "@everframe/sdk-ios-marker",
+    "@everframe/swc-plugin-displayname",
+    "@everframe/web"
   ],
   "allowedTopLevel": [
+    ".changeset",
     ".env.example",
     ".gitattributes",
     ".github",
@@ -20,6 +21,7 @@
     ".gitleaksignore",
     ".npmrc",
     ".reuse",
+    "brand-identity.json",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "LICENSE",
@@ -43,6 +45,7 @@
     "vitest.base.ts"
   ],
   "requiredPaths": [
+    ".changeset/config.json",
     ".env.example",
     "REUSE.toml",
     "LICENSE",
@@ -83,11 +86,12 @@
     "(^|/)next-env\\.d\\.ts$",
     "(^|/)examples/react-native/(?:android|ios)(?:/|$)",
     "(^|/)examples/tvos-replay/ReplayTV\\.xcodeproj(?:/|$)",
-    "(^|/)packages/sdk-android/android/\\.gradle(?:/|$)"
+    "(^|/)packages/sdk-android/android/\\.gradle(?:/|$)",
+    "^packages/sdk-ios/dev-podspec/Everframe(?:Kit|Protocol|ReporterUI)\\.xcframework$"
   ],
   "forbiddenTextPatterns": [
     {
-      "pattern": "@traceitx/(admin|api|brand-ui|reporter-surface|source-maps)",
+      "pattern": "@everframe/(admin|api|brand-ui|reporter-surface|source-maps)",
       "reason": "out-of-scope package reference"
     },
     {
@@ -112,7 +116,7 @@
       "reason": "admin credential reference"
     },
     {
-      "pattern": "github\\.com/(scriptx-com|scriptx)/traceitx(?:\\.git|/|\\)|$)",
+      "pattern": "github\\.com/scriptx/everframe(?:\\.git|/|\\)|$)",
       "reason": "unrelated repository URL"
     }
   ],
@@ -172,6 +176,8 @@
         "spdx": "Apache-2.0"
       }
     ],
-    "exemptPathPatterns": []
+    "exemptPathPatterns": [
+      "(^|/)(?:SampleApp|Everframe)\\.xcodeproj/(?:project\\.pbxproj|project\\.xcworkspace/contents\\.xcworkspacedata|xcshareddata/xcschemes/[^/]+\\.xcscheme)$"
+    ]
   }
 }

@@ -38,10 +38,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act, fireEvent, within, waitFor } from '@testing-library/react';
 import { useContext, useEffect } from 'react';
-import { TraceItXProvider, TraceItXContext } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@traceitx/web';
-import type { ThreadClient } from '@traceitx/sdk-core';
-import type { WebTraceItXConfig } from '@traceitx/web';
+import { EverframeProvider, EverframeContext } from '../src/provider.js';
+import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
+import type { ThreadClient } from '@everframe/sdk-core';
+import type { WebEverframeConfig } from '@everframe/web';
 
 afterEach(() => {
   cleanup();
@@ -52,7 +52,7 @@ afterEach(() => {
 const baseConfig = { apiKey: 'txx_live_test' };
 
 function ClientProbe({ onAdapter }: { onAdapter: (threads: ThreadClient | undefined) => void }) {
-  const ctx = useContext(TraceItXContext);
+  const ctx = useContext(EverframeContext);
   useEffect(() => {
     onAdapter(ctx?.adapter.threads);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,14 +202,14 @@ const oneOpenThread = [
 
 describe('FAB stays reachable when the replies kill switch latches read-only', () => {
   it('(a) gate ON -> OFF with a retained thread: FAB renders, and opening it shows the read-only inbox with the retained thread', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     const state = { enabled: true, threads: oneOpenThread };
     stubFetch(state);
 
     const { getByTestId, queryByTestId, getByText, getByRole } = render(
-      <TraceItXProvider config={baseConfig}>
+      <EverframeProvider config={baseConfig}>
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
 
     await flush(30);
@@ -248,21 +248,21 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(b) regression guard: replies enabled with threads still renders the FAB', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     stubFetch({ enabled: true, threads: oneOpenThread });
 
-    const { getByTestId } = render(<TraceItXProvider config={baseConfig}><div /></TraceItXProvider>);
+    const { getByTestId } = render(<EverframeProvider config={baseConfig}><div /></EverframeProvider>);
     await flush(30);
 
     await expectFabPresent(getByTestId);
   });
 
   it('(c) count === 0 renders nothing, whether enabled or read-only-latched', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     const state = { enabled: true, threads: [] as unknown[] };
     stubFetch(state);
 
-    const { queryByTestId } = render(<TraceItXProvider config={baseConfig}><div /></TraceItXProvider>);
+    const { queryByTestId } = render(<EverframeProvider config={baseConfig}><div /></EverframeProvider>);
     await flush(30);
     // No threads at all: enabled, but nothing to show.
     expect(queryByTestId('reporter-fab')).toBeNull();
@@ -275,15 +275,15 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(d) the local veto (replies.disabled) renders nothing even with retained rows', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     stubFetch({ enabled: true, threads: oneOpenThread });
-    const vetoConfig: WebTraceItXConfig = { ...baseConfig, replies: { disabled: true } };
+    const vetoConfig: WebEverframeConfig = { ...baseConfig, replies: { disabled: true } };
 
     const seen: Array<ThreadClient | undefined> = [];
     const { queryByTestId } = render(
-      <TraceItXProvider config={vetoConfig}>
+      <EverframeProvider config={vetoConfig}>
         <ClientProbe onAdapter={(t) => seen.push(t)} />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush(30);
 
@@ -293,18 +293,18 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(d) headless mode renders nothing even with replies enabled and retained rows', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     stubFetch({ enabled: true, threads: oneOpenThread });
-    const headlessConfig: WebTraceItXConfig = { ...baseConfig, replies: { ui: 'headless' } };
+    const headlessConfig: WebEverframeConfig = { ...baseConfig, replies: { ui: 'headless' } };
 
-    const { queryByTestId } = render(<TraceItXProvider config={headlessConfig}><div /></TraceItXProvider>);
+    const { queryByTestId } = render(<EverframeProvider config={headlessConfig}><div /></EverframeProvider>);
     await flush(30);
 
     expect(queryByTestId('reporter-fab')).toBeNull();
   });
 
   it('(e) pins the flicker fix: the FAB stays mounted through wake()\'s optimistic readOnly clear, before the forced config refetch resolves', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'txr_test0000000000000000000000000000000000');
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
     const state: { enabled: boolean; threads: unknown[]; configDeferred: Deferred<Response> | null } = {
       enabled: true,
       threads: oneOpenThread,
@@ -313,9 +313,9 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
     stubFetchWithDeferrableConfig(state);
 
     const { getByTestId, queryByTestId } = render(
-      <TraceItXProvider config={baseConfig}>
+      <EverframeProvider config={baseConfig}>
         <div />
-      </TraceItXProvider>,
+      </EverframeProvider>,
     );
     await flush(30);
     await expectFabPresent(getByTestId);

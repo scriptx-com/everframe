@@ -8,7 +8,7 @@ import { render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import NativeTraceItX from '../src/NativeTraceItX.js';
+import NativeEverframe from '../src/NativeEverframe.js';
 import { attachTheoPlayerVitals, useTheoPlayerVitals, type TheoPlayerLike } from '../src/integrations/theoplayer.js';
 import { __resetPlayerTokenCounterForTests } from '../src/vitals.js';
 
@@ -18,7 +18,7 @@ import { __resetPlayerTokenCounterForTests } from '../src/vitals.js';
 // — `new URL(x, import.meta.url)` throws under the jsdom environment this
 // spec needs for @testing-library/react.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const native = NativeTraceItX as unknown as Record<string, ReturnType<typeof vi.fn>>;
+const native = NativeEverframe as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const fixture = JSON.parse(readFileSync(path.join(__dirname, 'fixtures/vitals/theoplayer/session.json'), 'utf8'));
 const BASE = 1_757_000_000_000;
 

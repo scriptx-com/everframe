@@ -3,7 +3,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import { sensitiveRegistry, SENSITIVE_ATTR } from '@traceitx/web';
+import { sensitiveRegistry, SENSITIVE_ATTR } from '@everframe/web';
 import { Sensitive } from '../../src/sensitive/Sensitive.js';
 
 describe('sensitiveRegistry', () => {
@@ -80,7 +80,7 @@ describe('sensitiveRegistry', () => {
     expect(sensitiveRegistry.snapshot().length).toBe(0);
   });
 
-  it('also includes data-traceitx-sensitive elements (DOM scan merge)', () => {
+  it('also includes data-everframe-sensitive elements (DOM scan merge)', () => {
     const el = document.createElement('div');
     el.setAttribute(SENSITIVE_ATTR, '');
     Object.defineProperty(el, 'getBoundingClientRect', {
@@ -144,7 +144,7 @@ describe('<Sensitive>', () => {
     //
     // snapshotElements() recurses into the display:contents wrapper and
     // surfaces the underlying child elements that the renderer can mask.
-    const wrapper = document.querySelector('[data-traceitx-sensitive=""]');
+    const wrapper = document.querySelector('[data-everframe-sensitive=""]');
     expect(wrapper).not.toBeNull();
     const elements = sensitiveRegistry.snapshotElements();
     // The wrapper itself is display:contents — recursion yields its <span>
@@ -161,7 +161,7 @@ describe('<Sensitive>', () => {
       </Sensitive>,
     );
     expect(getByText('visible-text')).toBeInTheDocument();
-    const wrapper = document.querySelector('[data-traceitx-sensitive=""]') as HTMLElement;
+    const wrapper = document.querySelector('[data-everframe-sensitive=""]') as HTMLElement;
     expect(wrapper.style.display).toBe('contents');
   });
 });

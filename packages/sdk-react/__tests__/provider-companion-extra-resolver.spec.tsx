@@ -7,7 +7,7 @@
 // (`__setCompanionHost({ getExtra: () => resolveClientExtra(ctxValue.client) })`,
 // provider.tsx ~line 236) is one of the two production call sites that go
 // through it (the other is the in-app `onComplete` submit boundary). This
-// mounts the REAL TraceItXProvider and drives the REAL seam object it
+// mounts the REAL EverframeProvider and drives the REAL seam object it
 // publishes, mirroring provider-companion-user.spec.tsx's doctrine for
 // `getUser` — proving `getExtra` is a live re-read, not a mount-time
 // snapshot, and that resolution genuinely happens at THIS read point rather
@@ -15,13 +15,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { TraceItXProvider } from '../src/provider.js';
-import { useTraceItX } from '../src/hook.js';
-import { __getCompanionHost } from '@traceitx/web';
+import { EverframeProvider } from '../src/provider.js';
+import { useEverframe } from '../src/hook.js';
+import { __getCompanionHost } from '@everframe/web';
 
 const cfg = { apiKey: 'txx_live_extra_resolver_test' };
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <TraceItXProvider config={cfg}>{children}</TraceItXProvider>
+  <EverframeProvider config={cfg}>{children}</EverframeProvider>
 );
 
 describe('provider.tsx companion host seam — getExtra resolves the resolver form live', () => {
@@ -30,7 +30,7 @@ describe('provider.tsx companion host seam — getExtra resolves the resolver fo
   });
 
   it('setExtra(resolver) does not invoke it; the seam getter invokes it, once per call', () => {
-    const { result } = renderHook(() => useTraceItX(), { wrapper });
+    const { result } = renderHook(() => useEverframe(), { wrapper });
     const resolve = vi.fn(() => ({ screen: 'checkout' }));
 
     act(() => {
@@ -51,7 +51,7 @@ describe('provider.tsx companion host seam — getExtra resolves the resolver fo
   });
 
   it('the seam reflects a resolver registered AFTER mount, with no remount — same live doctrine as getUser', () => {
-    const { result } = renderHook(() => useTraceItX(), { wrapper });
+    const { result } = renderHook(() => useEverframe(), { wrapper });
     const host = __getCompanionHost();
     expect(host).not.toBeNull();
 
@@ -71,7 +71,7 @@ describe('provider.tsx companion host seam — getExtra resolves the resolver fo
   });
 
   it('a throwing resolver is caught at the seam: extra omitted, no throw out of getExtra()', () => {
-    const { result } = renderHook(() => useTraceItX(), { wrapper });
+    const { result } = renderHook(() => useEverframe(), { wrapper });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const host = __getCompanionHost();
     expect(host).not.toBeNull();
@@ -92,7 +92,7 @@ describe('provider.tsx companion host seam — getExtra resolves the resolver fo
   });
 
   it('the string and object forms still flow through the same live getter, unchanged', () => {
-    const { result } = renderHook(() => useTraceItX(), { wrapper });
+    const { result } = renderHook(() => useEverframe(), { wrapper });
     const host = __getCompanionHost();
     expect(host).not.toBeNull();
 

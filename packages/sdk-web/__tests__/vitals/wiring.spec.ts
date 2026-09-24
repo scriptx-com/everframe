@@ -12,15 +12,15 @@
 // and destroy() idempotency (a box-flip stop followed by init teardown must
 // not double-send the final summary).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createClient, IdentityTokenHolder, IDENTITY_TOKEN_MAX_CHARS } from '@traceitx/sdk-core';
-import { MAX_ENVELOPE_VITALS_ENTRIES, MAX_CUSTOM_NAME_LENGTH } from '@traceitx/protocol';
-import type { ReportDraft } from '@traceitx/sdk-core';
+import { createClient, IdentityTokenHolder, IDENTITY_TOKEN_MAX_CHARS } from '@everframe/sdk-core';
+import { MAX_ENVELOPE_VITALS_ENTRIES, MAX_CUSTOM_NAME_LENGTH } from '@everframe/protocol';
+import type { ReportDraft } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 import {
   __getVitalsServerConfig,
   __setVitalsServerConfig,
 } from '../../src/vitals/server-config.js';
-import type { WebTraceItXConfig } from '../../src/internal/types.js';
+import type { WebEverframeConfig } from '../../src/internal/types.js';
 
 interface SampleDeps {
   onSample(s: { t: number; mem: number; extras: Record<string, number> }): void;
@@ -84,11 +84,11 @@ let adapterDeps:
     })
   | undefined;
 
-function baseConfig(overrides?: Partial<WebTraceItXConfig>): WebTraceItXConfig {
+function baseConfig(overrides?: Partial<WebEverframeConfig>): WebEverframeConfig {
   return { apiKey: 'k', appVersion: '1.2.3', ...overrides };
 }
 
-function baseDeps(overrides?: Partial<WebTraceItXConfig>) {
+function baseDeps(overrides?: Partial<WebEverframeConfig>) {
   return {
     config: baseConfig(overrides),
     apiKey: 'test-key',
@@ -840,7 +840,7 @@ describe('adapter.ts — applyLiveConfig writes the vitals server-config box', (
 });
 
 describe('setupVitals — phase 4 public API', () => {
-  function startEnabled(overrides?: Partial<WebTraceItXConfig>) {
+  function startEnabled(overrides?: Partial<WebEverframeConfig>) {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     __setVitalsServerConfig({ vitalsEnabled: true, vitalsSampleRate: 1 });
     return setupVitals(baseDeps(overrides));

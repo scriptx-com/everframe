@@ -26,7 +26,7 @@ export interface ReplayLifecycleDeps {
   adapter: Pick<PlatformAdapter, 'replay'>;
   /** Source of the current server config (replayEnabled + samplingRate + durationSec). */
   getConfig: () => ReplayConfig;
-  /** Client veto (TraceItXConfig.sessionReplay.disabled). Can turn OFF, never ON. */
+  /** Client veto (EverframeConfig.sessionReplay.disabled). Can turn OFF, never ON. */
   locallyDisabled: boolean;
   /** Injectable RNG for the sampling gate (CONFIG-04). Defaults to Math.random. */
   random?: () => number;

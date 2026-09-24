@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// TraceItX companion overlay — a pure view over the app-level companion
+// Everframe companion overlay — a pure view over the app-level companion
 // connection (see src/companion/useCompanionConnection.ts): the pair QR
 // while unpaired, a state indicator afterwards. QR rendering is the host's
 // choice (qrcode.react here), never the SDK's.

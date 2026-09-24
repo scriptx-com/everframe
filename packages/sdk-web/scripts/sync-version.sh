@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 ScriptX
 #
-# Single-source-of-truth version propagation for @traceitx/web.
+# Single-source-of-truth version propagation for @everframe/web.
 #
 # Reads `version` from package.json (the canonical source — same string npm
 # publishes under) and overwrites `src/internal/version.ts` with a matching

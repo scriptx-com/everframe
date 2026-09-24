@@ -6,7 +6,7 @@ options:
   deploymentTarget:
     tvOS: "16.0"
 packages:
-  TraceItX:
+  Everframe:
     path: ../../packages/sdk-ios
 settings:
   base:
@@ -19,7 +19,7 @@ targets:
     sources: [Sources]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.scriptx.traceitx.replaytv
+        PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.replaytv
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
@@ -36,15 +36,15 @@ targets:
               - UISceneConfigurationName: Default
                 UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
     dependencies:
-      - package: TraceItX
-        product: TraceItXKit
+      - package: Everframe
+        product: Everframe
   ReplayTVUITests:
     type: bundle.ui-testing
     platform: tvOS
     sources: [Tests]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.scriptx.traceitx.replaytv.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.replaytv.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: ReplayTV
     dependencies:

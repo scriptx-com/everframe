@@ -3,7 +3,7 @@
 //
 // Synthetic PII fixtures for the PRIV-03 zero-leakage suite. NONE of these are real
 // personal data — all synthetic, all designed to exercise each redaction path.
-import type { ReportEnvelope } from '@traceitx/protocol';
+import type { ReportEnvelope } from '@everframe/protocol';
 
 export const TEST_PII = {
   password: 'super-secret-password-123',
@@ -20,7 +20,7 @@ export function buildSeededPIIEnvelope(): ReportEnvelope {
     protocolVersion: '1.0',
     reportId: '01939c34-7b8f-7000-8000-000000000099',
     submittedAt: '2026-04-29T16:00:00.000Z',
-    sdk: { name: 'traceitx-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
+    sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' },
     reporter: { title: 'PII probe', description: 'seeded fixture' },
     captures: { screenshot: false, uiTree: true, focus: false, logs: true, network: true },
     captureControl: { included: ['uiTree', 'logs', 'network'], excluded: [] },

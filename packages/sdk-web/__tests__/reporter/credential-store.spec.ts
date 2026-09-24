@@ -21,9 +21,9 @@ describe('createLocalStorageCredentialStore', () => {
   it('round-trips a token through localStorage under the scoped key', async () => {
     const store = createLocalStorageCredentialStore(SCOPE_A)!;
     expect(await store.load()).toBeNull();
-    await store.save('txr_' + 'a'.repeat(43));
-    expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_A))).toBe('txr_' + 'a'.repeat(43));
-    expect(await store.load()).toBe('txr_' + 'a'.repeat(43));
+    await store.save('evr_' + 'a'.repeat(43));
+    expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_A))).toBe('evr_' + 'a'.repeat(43));
+    expect(await store.load()).toBe('evr_' + 'a'.repeat(43));
     await store.clear();
     expect(await store.load()).toBeNull();
   });
@@ -57,7 +57,7 @@ describe('createLocalStorageCredentialStore', () => {
     const store = createLocalStorageCredentialStore(SCOPE_A)!;
     const orig = Storage.prototype.setItem;
     Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
-    const token = 'txr_' + 'c'.repeat(43);
+    const token = 'evr_' + 'c'.repeat(43);
     try {
       await store.save(token);
       // localStorage never actually received the write.
@@ -74,7 +74,7 @@ describe('createLocalStorageCredentialStore', () => {
     const orig = Storage.prototype.setItem;
     Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
     try {
-      await store.save('txr_' + 'd'.repeat(43));
+      await store.save('evr_' + 'd'.repeat(43));
       await store.clear();
       expect(await store.load()).toBeNull();
     } finally {
@@ -83,15 +83,15 @@ describe('createLocalStorageCredentialStore', () => {
   });
 
   // PR review Finding 4: the storage key used to be shared by every
-  // TraceItX-integrated app on an origin. App B minting a token would
+  // Everframe-integrated app on an origin. App B minting a token would
   // overwrite App A's key, orphaning A's threads on return.
   describe('per-app scoping (Finding 4)', () => {
     it('two stores with different scopes never clobber each other', async () => {
       const storeA = createLocalStorageCredentialStore(SCOPE_A)!;
       const storeB = createLocalStorageCredentialStore(SCOPE_B)!;
 
-      const tokenA = 'txr_' + 'a'.repeat(43);
-      const tokenB = 'txr_' + 'b'.repeat(43);
+      const tokenA = 'evr_' + 'a'.repeat(43);
+      const tokenB = 'evr_' + 'b'.repeat(43);
 
       await storeA.save(tokenA);
       expect(await storeA.load()).toBe(tokenA);
@@ -107,7 +107,7 @@ describe('createLocalStorageCredentialStore', () => {
     });
 
     it('migrates a legacy unscoped token into the scoped key exactly once, then removes the legacy key', async () => {
-      const legacyToken = 'txr_' + 'e'.repeat(43);
+      const legacyToken = 'evr_' + 'e'.repeat(43);
       localStorage.setItem(LEGACY_REPORTER_TOKEN_STORAGE_KEY, legacyToken);
 
       const store = createLocalStorageCredentialStore(SCOPE_A)!;
@@ -122,8 +122,8 @@ describe('createLocalStorageCredentialStore', () => {
     });
 
     it('does not overwrite an existing scoped token with a stale legacy token', async () => {
-      const scopedToken = 'txr_' + 'f'.repeat(43);
-      const legacyToken = 'txr_' + 'g'.repeat(43);
+      const scopedToken = 'evr_' + 'f'.repeat(43);
+      const legacyToken = 'evr_' + 'g'.repeat(43);
       localStorage.setItem(scopedReporterTokenStorageKey(SCOPE_A), scopedToken);
       localStorage.setItem(LEGACY_REPORTER_TOKEN_STORAGE_KEY, legacyToken);
 
@@ -163,7 +163,7 @@ describe('createLocalStorageCredentialStore', () => {
           store = createLocalStorageCredentialStore(SCOPE_A);
         }).not.toThrow();
         expect(store!).not.toBeNull();
-        const token = 'txr_' + 'z'.repeat(43);
+        const token = 'evr_' + 'z'.repeat(43);
         await expect(store!.save(token)).resolves.toBeUndefined();
         expect(await store!.load()).toBe(token);
       } finally {
@@ -250,7 +250,7 @@ describe('install seed (MAI metering)', () => {
     expect(seedBefore).not.toBeNull();
 
     const deviceStore = createLocalStorageCredentialStore(SCOPE_A)!;
-    await deviceStore.save('txr_' + 'a'.repeat(43));
+    await deviceStore.save('evr_' + 'a'.repeat(43));
     await deviceStore.clear();
 
     expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_A))).toBeNull();

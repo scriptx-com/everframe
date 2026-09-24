@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { Rect } from '@traceitx/sdk-core';
+import type { Rect } from '@everframe/sdk-core';
 
 /**
  * Registry of "sensitive" elements — pixels under their bounding rects are blanked at
  * capture time (PRIV-02 / PRIV-03). Two API surfaces feed this registry:
- *   1. data-traceitx-sensitive HTML attribute — DOM scan at snapshot time
+ *   1. data-everframe-sensitive HTML attribute — DOM scan at snapshot time
  *   2. addRef(el) — programmatic add, either directly (the framework-free path
- *      `@traceitx/web` exports as `sensitiveRegistry`) or through
- *      `@traceitx/react`'s <Sensitive>{children}</Sensitive> wrapper, which is
+ *      `@everframe/web` exports as `sensitiveRegistry`) or through
+ *      `@everframe/react`'s <Sensitive>{children}</Sensitive> wrapper, which is
  *      a JSX shell over the same call.
  *
- * NOT a feed: `useTraceItX().markSensitive(ref)`. sdk-core's method of that
+ * NOT a feed: `useEverframe().markSensitive(ref)`. sdk-core's method of that
  * name is a no-op and has never reached this registry; it is listed here only
  * so the next reader does not go looking for the wiring.
  *
@@ -34,7 +34,7 @@ interface SensitiveRegistry {
   __clearForTesting(): void;
 }
 
-export const SENSITIVE_ATTR = 'data-traceitx-sensitive';
+export const SENSITIVE_ATTR = 'data-everframe-sensitive';
 
 function isContentsBox(el: Element): boolean {
   if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
@@ -209,7 +209,7 @@ function createSensitiveRegistry(): SensitiveRegistry {
         if (r) out.push(r);
       }
       if (typeof document !== 'undefined') {
-        // (2) data-traceitx-sensitive scan
+        // (2) data-everframe-sensitive scan
         for (const el of Array.from(document.querySelectorAll(`[${SENSITIVE_ATTR}]`))) {
           if (refs.has(el)) continue; // dedupe — already covered by explicit refs
           const r = rectFromEl(el);
@@ -251,7 +251,7 @@ function createSensitiveRegistry(): SensitiveRegistry {
       // (1) explicit refs
       for (const el of refs) add(el);
       if (typeof document !== 'undefined') {
-        // (2) data-traceitx-sensitive scan
+        // (2) data-everframe-sensitive scan
         for (const el of Array.from(document.querySelectorAll(`[${SENSITIVE_ATTR}]`))) {
           if (refs.has(el)) continue;
           add(el);

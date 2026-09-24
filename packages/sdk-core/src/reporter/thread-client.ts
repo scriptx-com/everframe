@@ -1172,7 +1172,7 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
         // keeps the documented contract exactly as-is: `true` means only
         // "the row was actually removed locally" (204, 404, or the
         // invalid_device_token auth-reset wipe below).
-        throw new Error('traceitx: no reporter credential available for deleteThread');
+        throw new Error('everframe: no reporter credential available for deleteThread');
       }
       try {
         await deps.api.deleteThread(token, threadId);

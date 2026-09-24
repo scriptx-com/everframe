@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_CRASH_CAUSE_BYTES,
   MAX_CRASH_CAUSE_STACK_SCAN_UNITS,
-} from '@traceitx/protocol';
+} from '@everframe/protocol';
 import { extractCrashCauseChain } from '../src/crash/index.js';
 
 const identity = (value: string): string => value;
@@ -435,7 +435,7 @@ describe('extractCrashCauseChain', () => {
     expect(chain?.causes[0]?.framesTruncated).toBe(true);
     expect(seenByRedactor.some(value => value.includes('late-marker'))).toBe(false);
     expect(nextCauseDescriptorReads).toBe(0);
-    if (process.env['TRACEITX_TASK3_RECEIPTS'] === '1') {
+    if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
       console.log(`TASK3_BYTE_FIT_RECEIPT ${JSON.stringify({
         serializedBytes,
         byteLimit: MAX_CRASH_CAUSE_BYTES,

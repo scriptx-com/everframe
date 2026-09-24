@@ -6,24 +6,24 @@ import { useRef, type ReactNode } from 'react';
 
 const trackPlayerMock = vi.hoisted(() => vi.fn());
 const trackVitalsMock = vi.hoisted(() => vi.fn());
-vi.mock('@traceitx/web', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@traceitx/web')>();
+vi.mock('@everframe/web', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@everframe/web')>();
   return { ...actual, trackPlayer: trackPlayerMock, trackVitals: trackVitalsMock };
 });
 
-import { TraceItXProvider } from '../src/provider.js';
-import { useTraceItX } from '../src/hook.js';
+import { EverframeProvider } from '../src/provider.js';
+import { useEverframe } from '../src/hook.js';
 import { useTrackPlayer } from '../src/useTrackPlayer.js';
 
 const cfg = { apiKey: 'txx_live_test' };
-const wrapper = ({ children }: { children: ReactNode }) => <TraceItXProvider config={cfg}>{children}</TraceItXProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => <EverframeProvider config={cfg}>{children}</EverframeProvider>;
 afterEach(() => { cleanup(); trackPlayerMock.mockReset(); trackVitalsMock.mockReset(); });
 
-describe('useTraceItX().trackPlayer / trackVitals', () => {
-  it('forward to @traceitx/web', () => {
+describe('useEverframe().trackPlayer / trackVitals', () => {
+  it('forward to @everframe/web', () => {
     const detach = vi.fn();
     trackPlayerMock.mockReturnValue({ id: 'p1', track: vi.fn(), detach });
-    const { result, unmount } = renderHook(() => useTraceItX(), { wrapper });
+    const { result, unmount } = renderHook(() => useEverframe(), { wrapper });
     const el = document.createElement('video');
     const h = result.current.trackPlayer({ element: el, name: 'main' });
     expect(trackPlayerMock).toHaveBeenCalledWith({ element: el, name: 'main' });
