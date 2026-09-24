@@ -15,6 +15,12 @@ SPDX-FileCopyrightText = "2026 ScriptX"
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
+path = ["examples/ios-native/SampleApp.xcodeproj/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 ScriptX"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
 path = ["**/gradle/wrapper/gradle-wrapper.jar", "**/gradle/wrapper/gradle-wrapper.properties"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2015-2021 the original authors"
