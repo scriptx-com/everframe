@@ -1348,7 +1348,7 @@ final class ReporterSubmissionUserExtrasSourceGate: XCTestCase {
             .deletingLastPathComponent()   // Tests
             .deletingLastPathComponent()   // package root
         let file = packageRoot
-            .appendingPathComponent("Sources/Everframe/EverframeReporter/ReporterSubmission.swift")
+            .appendingPathComponent("Sources/Everframe/Reporter/ReporterSubmission.swift")
         return try String(contentsOf: file, encoding: .utf8)
     }
 
@@ -1882,7 +1882,7 @@ final class ReporterSubmissionIdentityEnablementSourceGate: XCTestCase {
             .deletingLastPathComponent()   // Tests
             .deletingLastPathComponent()   // package root
         let file = packageRoot
-            .appendingPathComponent("Sources/Everframe/EverframeReporter/ReporterSubmission.swift")
+            .appendingPathComponent("Sources/Everframe/Reporter/ReporterSubmission.swift")
         return try String(contentsOf: file, encoding: .utf8)
     }
 
@@ -1976,7 +1976,7 @@ final class ReporterSubmissionResourcesSourceGate: XCTestCase {
             .deletingLastPathComponent()   // Tests
             .deletingLastPathComponent()   // package root
         let file = packageRoot
-            .appendingPathComponent("Sources/Everframe/EverframeReporter/ReporterSubmission.swift")
+            .appendingPathComponent("Sources/Everframe/Reporter/ReporterSubmission.swift")
         return try String(contentsOf: file, encoding: .utf8)
     }
 

@@ -34,8 +34,13 @@ function filesUnder(directory, include, output = []) {
 
 test('CI runs public boundary, license, secret, JavaScript, and Android gates', () => {
   const workflow = read('.github/workflows/ci.yml');
+  const repositoryGates = workflow.slice(
+    workflow.indexOf('  repository-gates:'),
+    workflow.indexOf('\n  javascript:'),
+  );
 
   assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
+  assert.match(repositoryGates, /uses: pnpm\/action-setup@v4/);
   assert.match(workflow, /node --test scripts\/public-boundary\.test\.mjs/);
   assert.match(workflow, /node scripts\/public-boundary\.mjs/);
   assert.match(workflow, /pnpm check:brand/);

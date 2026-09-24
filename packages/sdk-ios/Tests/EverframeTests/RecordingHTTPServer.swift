@@ -56,7 +56,9 @@ final class RecordingHTTPServer: @unchecked Sendable {
 
     private let listenFD: Int32
     private let lock = NSLock()
+    private let acceptLoopFinished = DispatchGroup()
     private var stopped = false
+    private var activeFD: Int32?
     private var _recorded: [RecordedRequest] = []
 
     var recorded: [RecordedRequest] {
@@ -114,17 +116,44 @@ final class RecordingHTTPServer: @unchecked Sendable {
 
         listenFD = fd
         port = UInt16(bigEndian: bound.sin_port)
-        Thread.detachNewThread { [self] in acceptLoop() }
+        acceptLoopFinished.enter()
+        Thread.detachNewThread { [self] in
+            defer { acceptLoopFinished.leave() }
+            acceptLoop()
+        }
     }
 
     private func acceptLoop() {
+        defer { close(listenFD) }
         while true {
+            lock.lock()
+            let shouldStop = stopped
+            lock.unlock()
+            if shouldStop { return }
+
             let fd = accept(listenFD, nil, nil)
             if fd < 0 {
                 if errno == EINTR { continue }
                 return  // listening socket closed by stop() — we're done
             }
+
+            lock.lock()
+            if stopped {
+                lock.unlock()
+                shutdown(fd, SHUT_RDWR)
+                close(fd)
+                return
+            }
+            activeFD = fd
+            lock.unlock()
+
             handle(fd)
+
+            lock.lock()
+            if activeFD == fd { activeFD = nil }
+            let didStop = stopped
+            lock.unlock()
+            if didStop { return }
         }
     }
 
@@ -215,11 +244,33 @@ final class RecordingHTTPServer: @unchecked Sendable {
         lock.lock()
         if stopped { lock.unlock(); return }
         stopped = true
+        let acceptedFD = activeFD
         lock.unlock()
-        // Closing a descriptor from another thread does not reliably wake a
-        // blocking accept(). Shut the socket down first so the detached accept
-        // loop exits instead of surviving into a later test after port reuse.
-        shutdown(listenFD, SHUT_RDWR)
-        close(listenFD)
+        // Wake a blocked request first. A blocked accept() is woken with a
+        // loopback connection below because shutdown(listenFD) alone is not
+        // reliable on Darwin. The accept-loop thread owns close() and must
+        // finish before this method returns; otherwise the kernel can reuse
+        // listenFD for a later server while this loop is still alive, letting
+        // the old server steal requests from the new one.
+        if let acceptedFD { shutdown(acceptedFD, SHUT_RDWR) }
+        Self.wakeListener(port: port)
+        acceptLoopFinished.wait()
+    }
+
+    private static func wakeListener(port: UInt16) {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return }
+        defer { close(fd) }
+
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        _ = withUnsafePointer(to: &addr) { raw in
+            raw.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
     }
 }
