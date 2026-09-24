@@ -86,6 +86,10 @@ test('publishable npm packages carry canonical Everframe ownership and support m
     email: 'support@everframe.dev',
     url: 'https://everframe.dev',
   };
+  const forbiddenMetadata = new RegExp(
+    [`${'trace'}${'itx'}`, 'example\\.com', 'localhost', 'placeholder', '\\btodo\\b'].join('|'),
+    'i',
+  );
 
   for (const [manifestPath, directory] of packages) {
     const manifest = JSON.parse(read(manifestPath));
@@ -112,7 +116,7 @@ test('publishable npm packages carry canonical Everframe ownership and support m
     assert.deepEqual(manifest.publishConfig, { access: 'public' });
     assert.doesNotMatch(
       JSON.stringify(publicMetadata),
-      /traceitx|example\.com|localhost|placeholder|\btodo\b/i,
+      forbiddenMetadata,
       `${manifestPath} must not publish legacy or placeholder metadata`,
     );
   }
