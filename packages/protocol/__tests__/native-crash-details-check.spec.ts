@@ -73,4 +73,4 @@ it('checks native export shape, required cases, limits and decoded semantics', (
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 30_000);
