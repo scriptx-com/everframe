@@ -2,6 +2,7 @@
 "@everframe/web": minor
 "@everframe/react": minor
 "@everframe/react-native": minor
+"@everframe/identity": minor
 ---
 
 <!-- SPDX-License-Identifier: MIT -->
