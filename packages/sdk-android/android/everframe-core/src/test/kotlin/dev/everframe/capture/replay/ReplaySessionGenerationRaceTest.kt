@@ -132,60 +132,68 @@ class ReplaySessionGenerationRaceTest {
             val holderThread = Thread {
                 sharedBreadcrumbBuffer.__holdLockForTesting {
                     lockAcquired.countDown()
-                    releaseLock.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                    // The held lock defines the interleaving under test. A
+                    // timed wait can silently release it on a loaded runner
+                    // and turn the setup into a different race. The finally
+                    // block below always releases this latch.
+                    releaseLock.await()
                 }
             }
             holderThread.start()
-            assertTrue(
-                "lock-holder thread never acquired the breadcrumb lock",
-                lockAcquired.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS),
-            )
+            try {
+                assertTrue(
+                    "lock-holder thread never acquired the breadcrumb lock",
+                    lockAcquired.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS),
+                )
 
-            val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
-                "networkBodies":{"captureBodies":true}}"""
-            val fetcher = ConfigFetcher { response(200, onBody) }
-            val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
-            val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+                val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
+                    "networkBodies":{"captureBodies":true}}"""
+                val fetcher = ConfigFetcher { response(200, onBody) }
+                val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
+                val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
 
-            // Mirrors enableIfConfigured()'s initial fetch. ReplayConfigProvider
-            // .refresh() hops to the REAL Dispatchers.IO, so this genuinely runs
-            // on a separate OS thread and genuinely blocks on the
-            // externally-held breadcrumb lock below (not merely simulated) —
-            // mirrors ReplaySessionSupersessionTest's identical rationale.
-            val refreshJob = launch { session.refreshConfigNow() }
+                // Mirrors enableIfConfigured()'s initial fetch. ReplayConfigProvider
+                // .refresh() hops to the REAL Dispatchers.IO, so this genuinely runs
+                // on a separate OS thread and genuinely blocks on the
+                // externally-held breadcrumb lock below (not merely simulated) —
+                // mirrors ReplaySessionSupersessionTest's identical rationale.
+                val refreshJob = launch { session.refreshConfigNow() }
 
-            // Wait until the refresh coroutine is ACTUALLY blocked trying to
-            // acquire the breadcrumb buffer's lock — polling
-            // hasQueuedThreads() rather than a fixed sleep, so this is
-            // deterministic regardless of scheduling.
-            val deadline = System.currentTimeMillis() + COORDINATION_TIMEOUT_MS
-            while (!sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting() && System.currentTimeMillis() < deadline) {
-                Thread.sleep(5)
+                // Wait until the refresh coroutine is ACTUALLY blocked trying to
+                // acquire the breadcrumb buffer's lock — polling
+                // hasQueuedThreads() rather than a fixed sleep, so this is
+                // deterministic regardless of scheduling.
+                val deadline = System.currentTimeMillis() + COORDINATION_TIMEOUT_MS
+                while (!sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting() && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(5)
+                }
+                assertTrue(
+                    "refresh never blocked on the breadcrumb buffer's lock — test setup is wrong, not exercising the race",
+                    sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting(),
+                )
+
+                // teardown() must be able to proceed RIGHT NOW, even though the
+                // refresh coroutine is still blocked above — this is exactly what
+                // `sessionLock` never being held across a buffer call makes
+                // possible.
+                session.teardown()
+
+                // NOW release the breadcrumb lock — the blocked applyConfig call
+                // unblocks and completes, then refreshConfigNow()'s SECOND
+                // generation check (immediately before the network-body apply)
+                // must see the bumped epoch and bail out.
+                releaseLock.countDown()
+                refreshJob.join()
+
+                assertFalse(
+                    "teardown() racing a refresh blocked on the breadcrumb lock must still prevent " +
+                        "NetworkBodyCaptureState.isActive from becoming true",
+                    NetworkBodyCaptureState.isActive,
+                )
+            } finally {
+                releaseLock.countDown()
+                holderThread.join()
             }
-            assertTrue(
-                "refresh never blocked on the breadcrumb buffer's lock — test setup is wrong, not exercising the race",
-                sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting(),
-            )
-
-            // teardown() must be able to proceed RIGHT NOW, even though the
-            // refresh coroutine is still blocked above — this is exactly what
-            // `sessionLock` never being held across a buffer call makes
-            // possible.
-            session.teardown()
-
-            // NOW release the breadcrumb lock — the blocked applyConfig call
-            // unblocks and completes, then refreshConfigNow()'s SECOND
-            // generation check (immediately before the network-body apply)
-            // must see the bumped epoch and bail out.
-            releaseLock.countDown()
-            refreshJob.join()
-            holderThread.join(COORDINATION_TIMEOUT_MS)
-
-            assertFalse(
-                "teardown() racing a refresh blocked on the breadcrumb lock must still prevent " +
-                    "NetworkBodyCaptureState.isActive from becoming true",
-                NetworkBodyCaptureState.isActive,
-            )
         }
 
     // Round-6 review Finding F26: the fix above (re-validating the
@@ -284,50 +292,56 @@ class ReplaySessionGenerationRaceTest {
             val holderThread = Thread {
                 sharedBreadcrumbBuffer.__holdLockForTesting {
                     lockAcquired.countDown()
-                    releaseLock.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                    // Keep the intended interleaving until the test explicitly
+                    // releases it; a timed wait can silently unlock under load.
+                    releaseLock.await()
                 }
             }
             holderThread.start()
-            assertTrue(
-                "lock-holder thread never acquired the breadcrumb lock",
-                lockAcquired.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS),
-            )
+            try {
+                assertTrue(
+                    "lock-holder thread never acquired the breadcrumb lock",
+                    lockAcquired.await(COORDINATION_TIMEOUT_MS, TimeUnit.MILLISECONDS),
+                )
 
-            val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
-                "resources":{"enabled":true}}"""
-            val fetcher = ConfigFetcher { response(200, onBody) }
-            val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
-            val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+                val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
+                    "resources":{"enabled":true}}"""
+                val fetcher = ConfigFetcher { response(200, onBody) }
+                val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
+                val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
 
-            val refreshJob = launch { session.refreshConfigNow() }
+                val refreshJob = launch { session.refreshConfigNow() }
 
-            val deadline = System.currentTimeMillis() + COORDINATION_TIMEOUT_MS
-            while (!sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting() && System.currentTimeMillis() < deadline) {
-                Thread.sleep(5)
+                val deadline = System.currentTimeMillis() + COORDINATION_TIMEOUT_MS
+                while (!sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting() && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(5)
+                }
+                assertTrue(
+                    "refresh never blocked on the breadcrumb buffer's lock — test setup is wrong, not exercising the race",
+                    sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting(),
+                )
+
+                // teardown() must be able to proceed RIGHT NOW, even though the
+                // refresh coroutine is still blocked above.
+                session.teardown()
+
+                // NOW release the breadcrumb lock — the blocked applyConfig call
+                // unblocks and completes, then refreshConfigNow()'s generation
+                // check immediately before touching the resource sampler must
+                // see the bumped epoch and bail out BEFORE `resourceSampler
+                // .start()` ever runs.
+                releaseLock.countDown()
+                refreshJob.join()
+
+                assertFalse(
+                    "teardown() racing a refresh blocked on the breadcrumb lock must not leave the " +
+                        "resource sampler running — an orphaned, unstoppable sampler would keep sampling " +
+                        "after the kill switch fired",
+                    session.__resourceSamplerIsRunningForTesting,
+                )
+            } finally {
+                releaseLock.countDown()
+                holderThread.join()
             }
-            assertTrue(
-                "refresh never blocked on the breadcrumb buffer's lock — test setup is wrong, not exercising the race",
-                sharedBreadcrumbBuffer.__hasQueuedThreadsForTesting(),
-            )
-
-            // teardown() must be able to proceed RIGHT NOW, even though the
-            // refresh coroutine is still blocked above.
-            session.teardown()
-
-            // NOW release the breadcrumb lock — the blocked applyConfig call
-            // unblocks and completes, then refreshConfigNow()'s generation
-            // check immediately before touching the resource sampler must
-            // see the bumped epoch and bail out BEFORE `resourceSampler
-            // .start()` ever runs.
-            releaseLock.countDown()
-            refreshJob.join()
-            holderThread.join(COORDINATION_TIMEOUT_MS)
-
-            assertFalse(
-                "teardown() racing a refresh blocked on the breadcrumb lock must not leave the " +
-                    "resource sampler running — an orphaned, unstoppable sampler would keep sampling " +
-                    "after the kill switch fired",
-                session.__resourceSamplerIsRunningForTesting,
-            )
         }
 }
