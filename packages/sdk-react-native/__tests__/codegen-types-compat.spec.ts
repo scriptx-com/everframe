@@ -3,6 +3,7 @@
 
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -14,7 +15,10 @@ const { TypeScriptParser } = require(
 describe("React Native codegen type compatibility", () => {
   it("parses local UnsafeObject aliases without a React Native deep type import", () => {
     const source = readFileSync(
-      fileURLToPath(new URL("../src/NativeEverframe.ts", import.meta.url)),
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../src/NativeEverframe.ts",
+      ),
       "utf8",
     );
 
