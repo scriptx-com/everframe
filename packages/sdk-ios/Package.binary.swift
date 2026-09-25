@@ -67,17 +67,17 @@ let package = Package(
         .binaryTarget(
             name: "EverframeKit",
             url: baseURL + "EverframeKit.xcframework.zip",
-            checksum: "74be21575fa6e3de549458534fd636f928c73ff53589e0d73df466193514832d"
+            checksum: "6ac054f6166ed120f938fc3e6d07e3a64d83ecd192b50a13111087c8188781eb"
         ),
         .binaryTarget(
             name: "EverframeProtocol",
             url: baseURL + "EverframeProtocol.xcframework.zip",
-            checksum: "8a493abb9ce9f832e2cffe5c829d528c6db75ee5bb5e2fa9af988a1af1b0132d"
+            checksum: "eeba3a25413bba2096bec3a366117ccccfb60586f1d15198b92f2d3229410e5d"
         ),
         .binaryTarget(
             name: "EverframeReporterUI",
             url: baseURL + "EverframeReporterUI.xcframework.zip",
-            checksum: "9dc53325a8ddb2486e9877c3d2007b59ae07f649302cfbe7b726495dba2c054f"
+            checksum: "dfe9f250635a5de5025e03ea2ce1053f7ef63f9767bd159d4b669c3b173c1b70"
         ),
     ]
 )
