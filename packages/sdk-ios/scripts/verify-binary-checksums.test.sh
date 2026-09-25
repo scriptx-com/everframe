@@ -253,6 +253,36 @@ else
     ok "${CASE_NAME}"
 fi
 
+# ---------------------------------------------------------------------------
+# 9. CocoaPods reads the license path from the extracted source archive, not
+#    from the repository checkout. A zip containing only the XCFrameworks
+#    passes the checksum gate but `pod trunk push` rejects it after a full lint.
+# ---------------------------------------------------------------------------
+LICENSELESS="${WORK}/licenseless"
+make_fixture "${LICENSELESS}" "9.9.9" 'https://example.invalid/download/v\(binaryVersion)/'
+mkdir -p "${LICENSELESS}/dist/EverframeKit.xcframework" \
+    "${LICENSELESS}/dist/EverframeProtocol.xcframework"
+printf 'kit\n' > "${LICENSELESS}/dist/EverframeKit.xcframework/payload"
+printf 'protocol\n' > "${LICENSELESS}/dist/EverframeProtocol.xcframework/payload"
+(cd "${LICENSELESS}/dist" && zip -qr EverframeKit.xcframework.zip EverframeKit.xcframework \
+    && zip -qr EverframeProtocol.xcframework.zip EverframeProtocol.xcframework \
+    && zip -qr Everframe-9.9.9.zip EverframeKit.xcframework EverframeProtocol.xcframework)
+KIT_SHA="$(shasum -a 256 "${LICENSELESS}/dist/EverframeKit.xcframework.zip" | awk '{print $1}')"
+PROTOCOL_SHA="$(shasum -a 256 "${LICENSELESS}/dist/EverframeProtocol.xcframework.zip" | awk '{print $1}')"
+printf '%s\n' "${KIT_SHA}" > "${LICENSELESS}/dist/EverframeKit.xcframework.zip.sha256"
+printf '%s\n' "${PROTOCOL_SHA}" > "${LICENSELESS}/dist/EverframeProtocol.xcframework.zip.sha256"
+sed -i '' "s/1111111111111111111111111111111111111111111111111111111111111111/${KIT_SHA}/" "${LICENSELESS}/Package.binary.swift"
+sed -i '' "s/2222222222222222222222222222222222222222222222222222222222222222/${PROTOCOL_SHA}/" "${LICENSELESS}/Package.binary.swift"
+
+run_case "--dist rejects a CocoaPods zip without its declared LICENSE" "${LICENSELESS}" --dist "${LICENSELESS}/dist"
+if [[ "${STATUS}" == 0 ]]; then
+    bad "${CASE_NAME}" "a CocoaPods source zip without LICENSE passed"
+elif ! printf '%s' "${OUTPUT}" | grep -q 'LICENSE'; then
+    bad "${CASE_NAME}" "the error does not name the missing LICENSE"
+else
+    ok "${CASE_NAME}"
+fi
+
 echo
 if [[ "${FAIL}" -gt 0 ]]; then
     echo "FAIL: ${FAIL} failed, ${PASS} passed"

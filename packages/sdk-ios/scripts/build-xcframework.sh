@@ -40,6 +40,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_DIR="$(cd "${PKG_DIR}/../.." && pwd)"
 DIST_DIR="${PKG_DIR}/dist"
 ARCHIVE_DIR="${DIST_DIR}/archives"
 PROJECT="${PKG_DIR}/Everframe.xcodeproj"
@@ -471,7 +472,8 @@ if [[ "${CONFIGURATION}" == "Release" ]]; then
     echo "==> combined CocoaPods zip → Everframe-${COMBINED_VERSION}.zip"
     (cd "${DIST_DIR}" && rm -f "Everframe-${COMBINED_VERSION}.zip" \
         && zip -q -r "Everframe-${COMBINED_VERSION}.zip" \
-            EverframeProtocol.xcframework EverframeKit.xcframework EverframeReporterUI.xcframework)
+            EverframeProtocol.xcframework EverframeKit.xcframework EverframeReporterUI.xcframework \
+        && zip -q -j "Everframe-${COMBINED_VERSION}.zip" "${REPO_DIR}/LICENSE")
     shasum -a 256 "${COMBINED_ZIP}" | awk '{print $1}' > "${COMBINED_ZIP}.sha256"
 else
     echo "==> skip combined CocoaPods zip (configuration=${CONFIGURATION}, not publishable)"

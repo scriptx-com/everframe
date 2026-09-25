@@ -372,6 +372,21 @@ FAIL: the CocoaPods source zip is missing from ${DIST_DIR}.
 EOF
         exit 1
     fi
+    if ! command -v unzip >/dev/null 2>&1; then
+        echo "error: unzip is required to inspect ${DIST_DIR}/${POD_ASSET}" 1>&2
+        exit 2
+    fi
+    if ! POD_ENTRIES="$(unzip -Z1 "${DIST_DIR}/${POD_ASSET}" 2>/dev/null)"; then
+        echo "FAIL: the CocoaPods source zip ${POD_ASSET} is not a readable zip." 1>&2
+        exit 1
+    fi
+    if ! printf '%s\n' "${POD_ENTRIES}" | grep -Fxq 'LICENSE'; then
+        cat 1>&2 <<EOF
+FAIL: the CocoaPods source zip ${POD_ASSET} does not contain LICENSE at its root.
+      Everframe.podspec declares that file, so CocoaPods trunk validation will reject the release.
+EOF
+        exit 1
+    fi
     echo "  OK       CocoaPods zip  ${POD_ASSET}"
 else
     pod_code="$(curl -sSL --retry 2 --retry-delay 1 -o /dev/null -w '%{http_code}' "${BASE_URL}${POD_ASSET}" 2>/dev/null || echo 000)"
@@ -398,4 +413,3 @@ fi
 
 echo "OK: all ${TARGET_COUNT} checksums in Package.binary.swift match the v${EFFECTIVE_VERSION} artifacts."
 echo "OK: the CocoaPods source zip ${POD_ASSET} is present."
-
