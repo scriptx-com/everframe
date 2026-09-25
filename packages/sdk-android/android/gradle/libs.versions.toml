@@ -37,8 +37,8 @@ compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = 
 compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "compose-ui" }
 compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "compose-runtime" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-tv-foundation = { group = "androidx.tv", name = "tv-foundation", version = "1.0.0-alpha11" }
-tv-material = { group = "androidx.tv", name = "tv-material", version = "1.0.0" }
+tv-foundation = { group = "androidx.tv", name = "tv-foundation", version = "1.1.0-alpha11" }
+tv-material = { group = "androidx.tv", name = "tv-material", version = "1.1.0" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
