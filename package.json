@@ -34,7 +34,7 @@
     "@size-limit/preset-small-lib": "^11.0.0",
     "publint": "^0.3.0",
     "react": "19.2.5",
-    "react-dom": "19.2.5",
+    "react-dom": "19.3.0",
     "size-limit": "^11.0.0",
     "turbo": "^2.3.0",
     "typescript": "^5.6.0",
@@ -44,7 +44,7 @@
     "overrides": {
       "@expo/cli": "56.1.0",
       "react": "19.2.5",
-      "react-dom": "19.2.5",
+      "react-dom": "19.3.0",
       "zod": "4.3.6"
     },
     "patchedDependencies": {
