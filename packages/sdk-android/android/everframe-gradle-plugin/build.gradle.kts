@@ -93,6 +93,22 @@ afterEvaluate {
                         url.set("https://opensource.org/license/mit")
                     }
                 }
+                developers {
+                    developer {
+                        id.set("scriptx")
+                        name.set("ScriptX")
+                        email.set("engineering@scriptx.com")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/scriptx-com/everframe.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/scriptx-com/everframe.git")
+                    url.set("https://github.com/scriptx-com/everframe")
+                }
+                issueManagement {
+                    system.set("GitHub")
+                    url.set("https://github.com/scriptx-com/everframe/issues")
+                }
             }
         }
     }

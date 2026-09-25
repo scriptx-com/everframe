@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -24,4 +24,16 @@ test('Central bundle verifier exists and rejects unsigned Maven artifacts', () =
   } finally {
     rmSync(repository, { recursive: true, force: true });
   }
+});
+
+test('Gradle plugin applies Central-required ownership metadata to every publication', () => {
+  const buildFile = readFileSync(
+    path.join(root, 'packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts'),
+    'utf8',
+  );
+  const configureEach = buildFile.slice(buildFile.indexOf('publications.withType<MavenPublication>().configureEach'));
+  assert.match(configureEach, /developers\s*\{/);
+  assert.match(configureEach, /scm\s*\{/);
+  assert.match(configureEach, /issueManagement\s*\{/);
+  assert.match(configureEach, /https:\/\/github\.com\/scriptx-com\/everframe/);
 });
