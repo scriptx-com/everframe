@@ -1,5 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 0.9.0
+
+### Minor Changes
+
+- b375364: <!-- SPDX-License-Identifier: MIT -->
+    <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+  Rename the public SDKs, native bridges, package coordinates, and documentation to Everframe.
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # @scriptx-com/traceitx-react-native
 
@@ -18,6 +26,7 @@
   menu's shake gesture.
 
 - 061f83a: Give `@traceitx/react` the host-facing API `@traceitx/react-native` already had, and fix `setExtra` corruption.
+
   - `recordScreen`, `useTXScreen` and `<TXScreen>` are now available on web, deriving the same `from → to` breadcrumb the native SDKs emit. Hosts previously hand-rolled this from a recipe in our own docstring, and different hosts got different subsets of the five rules right.
   - Top-level `setUser` on web; calling it with no argument clears, matching React Native.
   - `companion.start()` no longer requires `sdkKey` / `deviceLabel` when a `<TraceItXProvider>` is mounted — it defaults them from the provider config. Explicit arguments still win, and standalone `@traceitx/web` is unchanged.
@@ -75,6 +84,7 @@
   (`com.traceitx.vitals` in `traceitx-core`, `TraceItXKit/Vitals` on iOS) —
   not the RN modules, which stay pure glue. This is a native SDK change, not
   only a JS one:
+
   - **Android (`@traceitx/sdk-android`) and iOS (`@traceitx/sdk-ios`) each
     gain two new public classes.** On Android specifically, `traceitx-core`'s
     R8 rules now keep `RemotePlayerRegistry`/`RemotePlayerIntegration`
@@ -248,6 +258,7 @@
 - 16e10a6: Fixed: upgrading `@traceitx/react-native` did not upgrade the native SDK underneath it.
 
   The bridge derived its native dependency ranges from its own version as `~> X.Y.0` (CocoaPods) and `X.Y.+` (Gradle) — a ceiling with no floor. Both are satisfied by `X.Y.0` forever, so a project that had already resolved the native SDK once kept it:
+
   - **iOS.** CocoaPods only re-resolves a pod whose `Podfile.lock` entry no longer fits its constraint. `pod install` therefore kept returning the previously locked `TraceItX`, however far ahead the npm package moved. Nothing in the project surfaced the mismatch — every manifest read the new version and only the lockfile disagreed — so an app could sit on an older native SDK indefinitely, missing native fixes it appeared to have. Recovering needed an explicit `pod update TraceItX` (or deleting a generated `ios/` directory), which is not something a correctness property should depend on anyone remembering.
   - **Android.** Gradle resolves `X.Y.+` to the highest version it can currently see, so a stale dynamic-version cache — or a `mavenLocal` holding an older patch — could hand the bridge an AAR older than the JS half it shipped with. Gradle re-resolves upward once the cache expires, which narrowed the window rather than closing it.
 

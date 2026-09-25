@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 ScriptX
 Pod::Spec.new do |spec|
   spec.name         = "Everframe"
-  spec.version      = "0.8.2"
+  spec.version      = "0.9.0"
   spec.summary      = "AI-readable bug-report SDK for iOS and tvOS."
   spec.description  = <<-DESC
     Everframe captures structured bug reports (UI tree + console + network +

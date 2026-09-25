@@ -1,5 +1,12 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 0.0.11
+
+### Patch Changes
+
+- Updated dependencies [b375364]
+  - @everframe/react@0.9.0
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # @traceitx/example-react-tv
 

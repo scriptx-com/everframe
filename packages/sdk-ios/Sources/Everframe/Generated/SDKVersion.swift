@@ -14,4 +14,4 @@
 // `Everframe.swift` can reference it without an extra import. It is `internal`
 // because consumers should read `Everframe.SDK_VERSION` — the wrapped public
 // surface, not this implementation detail.
-let EverframeSDKVersion: String = "0.8.2"
+let EverframeSDKVersion: String = "0.9.0"

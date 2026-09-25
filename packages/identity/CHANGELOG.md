@@ -1,5 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 0.3.0
+
+### Minor Changes
+
+- b375364: <!-- SPDX-License-Identifier: MIT -->
+    <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+  Rename the public SDKs, native bridges, package coordinates, and documentation to Everframe.
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # @traceitx/identity
 

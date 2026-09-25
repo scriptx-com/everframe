@@ -45,7 +45,7 @@
 //   * EverframeReporterUI   — optional reporter modal (opt-in via product).
 import PackageDescription
 
-let binaryVersion = "0.8.2"
+let binaryVersion = "0.9.0"
 let baseURL = "https://github.com/scriptx-com/everframe/releases/download/v\(binaryVersion)/"
 
 let package = Package(

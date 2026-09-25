@@ -1,5 +1,12 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [b375364]
+  - @everframe/web@0.9.0
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # examples-vue-web
 

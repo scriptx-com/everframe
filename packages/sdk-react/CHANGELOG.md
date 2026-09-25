@@ -1,5 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 0.9.0
+
+### Minor Changes
+
+- b375364: <!-- SPDX-License-Identifier: MIT -->
+    <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+  Rename the public SDKs, native bridges, package coordinates, and documentation to Everframe.
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # @scriptx-com/traceitx-react
 
@@ -13,6 +21,7 @@
   `config.hotkey` override and public `registerHotkey` helper have been removed so
   the dashboard remains authoritative.
 - 061f83a: Give `@traceitx/react` the host-facing API `@traceitx/react-native` already had, and fix `setExtra` corruption.
+
   - `recordScreen`, `useTXScreen` and `<TXScreen>` are now available on web, deriving the same `from → to` breadcrumb the native SDKs emit. Hosts previously hand-rolled this from a recipe in our own docstring, and different hosts got different subsets of the five rules right.
   - Top-level `setUser` on web; calling it with no argument clears, matching React Native.
   - `companion.start()` no longer requires `sdkKey` / `deviceLabel` when a `<TraceItXProvider>` is mounted — it defaults them from the provider config. Explicit arguments still win, and standalone `@traceitx/web` is unchanged.
@@ -90,6 +99,7 @@
   **Deploy the API before releasing this SDK version. This is a hard
   precondition, not a nice-to-have**, and getting the order wrong is worse than
   "vitals are lossy" the way earlier phases could be:
+
   - An old API rejects a phase-4 `VitalsEntry` (the new `playerId`, `custom`
     entries, and player event types, plus `vitals_sessions.player_count` from
     migration `0082`) with a non-retryable 400. On the **vitals chunk/summary
@@ -231,6 +241,7 @@
   Any `<video>` at `readyState 0` triggered it, including ordinary cases: a player that has not been handed a stream yet, one whose source is still loading or has stalled, an MSE/HLS element with nothing buffered, and even a `<video>` with no `src` at all.
 
   `<video>` elements are now excluded from both capture libraries. For the duration of the capture each one is paired with a same-sized stand-in element carrying its current frame, read straight off the live element with a synchronous `drawImage` that cannot block. Screenshots keep showing video content and the page's layout is unchanged; where a frame cannot be read the region degrades to the element's poster, or to a neutral placeholder:
+
   - **cross-origin video** no longer destroys the entire screenshot. Reading such a frame taints the canvas, which previously made html-to-image throw `SecurityError` and lose the whole capture; the taint is now detected and that one region degrades on its own.
   - **stalled or broken sources** no longer cost a flat 30s. The capture library waits for every `<img>`/`<video>` in the subtree _before_ consulting its node filter, so excluding videos alone was not enough; that wait is now bounded too.
   - The capture as a whole now runs under a wall-clock deadline, so any other unbounded path inside either library degrades to a placeholder screenshot instead of stalling the reporter indefinitely.
