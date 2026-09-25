@@ -6,7 +6,7 @@
 
 [versions]
 agp = "8.7.2"                       # AGP 8.7.x (LOCKED per CONTEXT carry-forward)
-kotlin = "2.1.0"                    # Kotlin 2.1.x stable
+kotlin = "2.4.20"                    # Kotlin 2.1.x stable
 compose-bom = "2025.10.01"          # Compose BOM that includes Material3 + tv-foundation + tv-material GA
 okhttp = "4.12.0"                   # NOT 5.x — still alpha
 coroutines = "1.9.0"                # kotlinx.coroutines stable
