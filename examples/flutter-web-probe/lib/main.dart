@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 
 import 'platform_view.dart';
 
-void main() => runApp(const FlutterProbeApp());
+void main() => runApp(FlutterProbeApp(safeVisualMode: Uri.base.queryParameters['safe'] == '1'));
 
 class FlutterProbeApp extends StatefulWidget {
-  const FlutterProbeApp({super.key, this.boundaryKey});
+  const FlutterProbeApp({super.key, this.boundaryKey, this.safeVisualMode = false});
 
   final GlobalKey? boundaryKey;
+  final bool safeVisualMode;
 
   @override
   State<FlutterProbeApp> createState() => _FlutterProbeAppState();
@@ -38,14 +39,16 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                         : const Color(0xFF00CC00),
                   ),
                 ),
-                const Positioned(
+                Positioned(
                   left: 40,
                   top: 140,
                   width: 160,
                   height: 80,
                   child: ColoredBox(
-                    key: Key('sensitive-tile'),
-                    color: Color(0xFFFF00FF),
+                    key: const Key('sensitive-tile'),
+                    color: widget.safeVisualMode
+                        ? const Color(0xFF000000)
+                        : const Color(0xFFFF00FF),
                   ),
                 ),
                 Positioned(

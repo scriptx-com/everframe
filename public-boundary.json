@@ -86,6 +86,7 @@
     "^\\.superpowers/",
     "^examples/flutter-web-probe/\\.dart_tool/",
     "^examples/flutter-web-probe/pubspec\\.lock$",
+    "^packages/sdk-web/test-results/",
     "(^|/)(?:node_modules|dist|build|target|\\.turbo|\\.next|\\.build|DerivedData)(?:/|$)",
     "(^|/)next-env\\.d\\.ts$",
     "(^|/)examples/react-native/(?:android|ios)(?:/|$)",

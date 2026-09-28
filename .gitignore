@@ -29,6 +29,7 @@ examples/tvos-replay/ReplayTV.xcodeproj/
 packages/sdk-android/android/.gradle/
 packages/sdk-android/android/local.properties
 packages/sdk-ios/dist/
+packages/sdk-web/test-results/
 packages/swc-plugin-displayname/.swc/
 packages/swc-plugin-displayname/target/
 packages/swc-plugin-displayname/swc_plugin_displayname.wasm

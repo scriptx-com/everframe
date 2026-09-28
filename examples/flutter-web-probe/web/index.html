@@ -9,5 +9,9 @@
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
+  <script type="module">
+    import { init } from '/sdk/index.js';
+    window.__everframeProbe = init({ apiKey: 'pk_flutter_probe', appVersion: '0.0.0-probe' });
+  </script>
 </body>
 </html>

@@ -5,6 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('safe submit scene contains no magenta sensitive tile', (tester) async {
+    await tester.pumpWidget(const FlutterProbeApp(safeVisualMode: true));
+
+    final tile = tester.widget<ColoredBox>(find.byKey(const Key('sensitive-tile')));
+    expect(tile.color, const Color(0xFF000000));
+  });
+
   testWidgets('shows public and sensitive tiles, then changes screens',
       (tester) async {
     await tester.pumpWidget(const FlutterProbeApp());
