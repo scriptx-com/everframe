@@ -23,9 +23,9 @@ import androidx.compose.ui.window.rememberWindowState
 import java.awt.Rectangle
 import java.nio.file.Files
 import javax.imageio.ImageIO
-import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 private val sensitive = Rectangle(40, 140, 160, 80)
 
@@ -40,17 +40,11 @@ fun main(args: Array<String>) = application {
         ProbeScene(state)
         if (autoProbe) {
             LaunchedEffect(window) {
-                val component = window.contentPane as? JComponent
-                if (component == null) {
-                    println("EVERFRAME_COMPOSE_PROBE=BLOCKED:no-jcomponent")
-                    exitApplication()
-                    return@LaunchedEffect
-                }
                 delay(1000)
-                val first = captureMaskedFrame(component, listOf(sensitive))
+                val first = captureMaskedFrame(window, listOf(sensitive))
                 state.next()
                 delay(500)
-                val second = captureMaskedFrame(component, listOf(sensitive))
+                val second = captureMaskedFrame(window, listOf(sensitive))
                 if (first == null || second == null) {
                     println("EVERFRAME_COMPOSE_PROBE=BLOCKED:no-safe-frame")
                     exitApplication()
@@ -60,12 +54,14 @@ fun main(args: Array<String>) = application {
                 Files.write(directory.resolve("renderer-a.png"), first)
                 Files.write(directory.resolve("renderer-b.png"), second)
                 val image = ImageIO.read(first.inputStream())
-                val publicA = fraction(first, 40, Color(0xFF00CC00))
-                val publicB = fraction(second, 40, Color(0xFF0066FF))
-                val sensitiveA = fraction(first, 140, Color.Black)
-                val sensitiveB = fraction(second, 140, Color.Black)
-                val nativeA = fraction(first, 240, Color(0xFFFF8800))
-                val nativeB = fraction(second, 240, Color(0xFFFF8800))
+                val scaleX = image.width.toDouble() / window.contentPane.width
+                val scaleY = image.height.toDouble() / window.contentPane.height
+                val publicA = fraction(first, 40, Color(0xFF00CC00), scaleX, scaleY)
+                val publicB = fraction(second, 40, Color(0xFF0066FF), scaleX, scaleY)
+                val sensitiveA = fraction(first, 140, Color.Black, scaleX, scaleY)
+                val sensitiveB = fraction(second, 140, Color.Black, scaleX, scaleY)
+                val nativeA = fraction(first, 240, Color(0xFFFF8800), scaleX, scaleY)
+                val nativeB = fraction(second, 240, Color(0xFFFF8800), scaleX, scaleY)
                 val distinctFrames = !first.contentEquals(second)
                 val capabilities = classifyRendererEvidence(
                     width = image.width,
@@ -118,16 +114,20 @@ fun ProbeScene(state: ProbeSceneState) {
     }
 }
 
-private fun fraction(png: ByteArray, top: Int, expected: Color): Double {
+private fun fraction(png: ByteArray, top: Int, expected: Color, scaleX: Double, scaleY: Double): Double {
     val image = ImageIO.read(png.inputStream()) ?: return 0.0
-    if (image.width < 192 || image.height < top + 72) return 0.0
+    val left = (48 * scaleX).roundToInt()
+    val right = (192 * scaleX).roundToInt()
+    val sampleTop = ((top + 8) * scaleY).roundToInt()
+    val bottom = ((top + 72) * scaleY).roundToInt()
+    if (left < 0 || sampleTop < 0 || right > image.width || bottom > image.height || left >= right || sampleTop >= bottom) return 0.0
     val red = (expected.red * 255).toInt()
     val green = (expected.green * 255).toInt()
     val blue = (expected.blue * 255).toInt()
     var matches = 0
     var total = 0
-    for (y in top + 8 until top + 72) {
-        for (x in 48 until 192) {
+    for (y in sampleTop until bottom) {
+        for (x in left until right) {
             val pixel = image.getRGB(x, y)
             if (kotlin.math.abs((pixel ushr 16 and 0xFF) - red) <= 16 &&
                 kotlin.math.abs((pixel ushr 8 and 0xFF) - green) <= 16 &&
