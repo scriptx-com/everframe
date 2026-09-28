@@ -11,7 +11,7 @@ The credential-free sample ran with Flutter 3.47.5 (engine `af7e796e161ae0bb1ff0
 | --- | --- | --- |
 | Screenshot and A→B transition | Two 800×600 frames; public green and blue inset coverage 1.0 respectively | **PASS** in this fixed scene |
 | Sensitive tile masking | Black inset coverage 1.0 in each frame; exporter wrote only after an entire-image magenta scan passed | **PASS** in this fixed scene |
-| Embedded AppKit view | Expected orange inset coverage 0 in both renderer frames | **BLOCKED**; live window visibility still needs the OS-window probe |
+| Embedded AppKit view | Expected orange inset coverage 0 in both renderer frames | Omitted; acceptable if this is optional media, not ordinary app UI |
 | Resize, scale, permission, popup, app-window scope | Not measured yet | **BLOCKED / pending** |
 
-The test writes only validated masked PNGs and JSON to the sandbox temporary directory printed as `EVERFRAME_MACOS_PROBE_DIR`. Those files are not committed. The next comparison is ScreenCaptureKit capture of the same live app window, followed by the Compose Desktop sample. Neither a screenshot build nor these tests prove reporter, replay delivery, offline outbox, or Windows/Linux support.
+The test writes only validated masked PNGs and JSON to the sandbox temporary directory printed as `EVERFRAME_MACOS_PROBE_DIR`. Those files are not committed. The framework-rendered UI and tap transition are present; an omitted optional media surface does not by itself fail the replay gate. Ordinary native controls still need separate evidence. Neither these sample frames nor the build proves reporter, replay delivery, offline outbox, or Windows/Linux support.

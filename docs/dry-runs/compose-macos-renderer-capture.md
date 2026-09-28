@@ -14,4 +14,4 @@ Date: 2026-09-28. Public sample revision: `43a564e5f16639803a7856a435a96c7ab40e7
 | Native Swing view | Orange coverage 1.0 in both frames | Native view **PASS** |
 | Transition | A and B PNGs are byte-identical | Visual replay **BLOCKED** |
 
-The automatic run changes the sample state; it does not prove a user interaction was recorded. Standard AWT component readback is therefore unsuitable as the sole Compose Desktop visual source. The next candidate is app-window capture through macOS ScreenCaptureKit, with strict window identity, coordinate mapping, permission, and masking checks. No reporting SDK or backend was involved.
+The automatic run changes the sample state; it does not prove a user interaction was recorded. Standard AWT component readback is therefore unsuitable as the sole Compose Desktop visual source: it omits the primary Compose UI, not just optional media. The next candidate is an in-process Compose renderer capture with masking. ScreenCaptureKit remains a separate comparison path that requires permission. No reporting SDK or backend was involved.
