@@ -54,6 +54,7 @@
     "vitest.base.ts",
     "examples/android-compose",
     "examples/android-views",
+    "examples/flutter-web-probe",
     "examples/ios-native",
     "examples/react-native",
     "examples/react-tv-sample",
@@ -82,6 +83,9 @@
     "examples/tvos-replay/scripts/(benchmark|companion|dashboard|drive-xctest|verify-recording)\\.mjs$"
   ],
   "ignoredPathPatterns": [
+    "^\\.superpowers/",
+    "^examples/flutter-web-probe/\\.dart_tool/",
+    "^examples/flutter-web-probe/pubspec\\.lock$",
     "(^|/)(?:node_modules|dist|build|target|\\.turbo|\\.next|\\.build|DerivedData)(?:/|$)",
     "(^|/)next-env\\.d\\.ts$",
     "(^|/)examples/react-native/(?:android|ios)(?:/|$)",
@@ -128,6 +132,7 @@
       ".c",
       ".cjs",
       ".css",
+      ".dart",
       ".example",
       ".gradle",
       ".h",
