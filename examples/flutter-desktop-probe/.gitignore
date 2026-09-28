@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+.dart_tool/
+.idea/
+*.iml
+.metadata
+.flutter-plugins*
+/build/
+/coverage/
+pubspec.lock
+macos/Flutter/GeneratedPluginRegistrant.swift

@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+#include "../../Flutter/Flutter-Release.xcconfig"
+#include "Warnings.xcconfig"
