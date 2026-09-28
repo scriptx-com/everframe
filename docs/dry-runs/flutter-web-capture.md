@@ -7,7 +7,7 @@ Date: 2026-09-28. Status: **BLOCKED** for Flutter web support. This is an unrele
 
 ## Revisions and setup
 
-- Public probe code: `6e4880669634c2d83df3c6ce43196f9ef34ecca5` on local branch `codex/flutter-web-probe`; public base `fb5be19`. The stock browser SDK is `@everframe/web` 0.9.0, built from this checkout with `EVERFRAME_INGEST_URL=http://127.0.0.1:8937`.
+- Public probe code: `002a583f5d2346631539612f3528676162b56e03` on local branch `codex/flutter-web-probe`; public base `fb5be19`. The stock browser SDK is `@everframe/web` 0.9.0, built from this checkout with `EVERFRAME_INGEST_URL=http://127.0.0.1:8937`. The sample checks the bundle's exported ingest URL before calling `init` and rejects a mismatched bundle.
 - Flutter 3.47.5 stable, framework `6a19cca56475dbfba1478ee68d7bd0c2ef891da1`, engine `af7e796e161ae0bb1ff0758c71a7105418bd9ded`, Dart 3.13.4. JS release output selected CanvasKit. Wasm compiled, but this browser measurement used the JS release build.
 - Playwright Chromium 153.0.8010.12, viewport 1280×720 at device scale 1. The sample uses a fake key; observed Everframe API origin was only `http://127.0.0.1:8937`.
 
@@ -28,6 +28,8 @@ The ignored local artifacts are `packages/sdk-web/test-results/flutter-probe/sto
 
 ## Reproduction and next seam
 
-Run `flutter test`, `flutter analyze`, `flutter build web --wasm`, and `flutter build web --release` in `examples/flutter-web-probe`; then run `EVERFRAME_INGEST_URL=http://127.0.0.1:8937 pnpm --filter @everframe/web... build` at the public root. Run `pnpm exec playwright test --config playwright.flutter-probe.config.ts` in `packages/sdk-web`, followed by `pnpm --filter @everframe/web typecheck` and `pnpm check:boundary` at the root. The observed run passed 4 Flutter tests, 7 Chromium tests, analysis, both builds, typecheck, and boundary check.
+Run `flutter test`, `flutter analyze`, `flutter build web --wasm`, and `flutter build web --release` in `examples/flutter-web-probe`; then run `EVERFRAME_INGEST_URL=http://127.0.0.1:8937 pnpm --filter @everframe/web... build` at the public root. Run `pnpm exec playwright test --config playwright.flutter-probe.config.ts` in `packages/sdk-web`, followed by `pnpm --filter @everframe/web typecheck` and `pnpm check:boundary` at the root. The observed run passed 4 Flutter tests, 8 Chromium tests, analysis, both builds, typecheck, and boundary check.
+
+The wider `pnpm test` run failed one existing `sdk-core` timing assertion under concurrent load (143 ms against a 50 ms limit); that file passed 21/21 tests when run alone. A serial whole-repository retry was stopped after seven minutes in unrelated Android compilation. Whole-repository test completion is therefore unverified for this branch.
 
 The next public adapter needs a screenshot provider and visual replay frame provider at the Web SDK report boundary. It must resolve sensitive Flutter regions and HTML platform views into safe visual artifacts before encoding or submission, and fail closed when that cannot be proved. A later Flutter web dry run must also verify real reporter annotation, retry, metadata, and dashboard delivery against a development environment before the target can pass the program gate.
