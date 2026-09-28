@@ -32,4 +32,8 @@ Run `flutter test`, `flutter analyze`, `flutter build web --wasm`, and `flutter 
 
 The wider `pnpm test` run failed one existing `sdk-core` timing assertion under concurrent load (143 ms against a 50 ms limit); that file passed 21/21 tests when run alone. A serial whole-repository retry was stopped after seven minutes in unrelated Android compilation. Whole-repository test completion is therefore unverified for this branch.
 
+## Shared capture follow-up
+
+The Flutter web sample now uses the unreleased `everframe_flutter` package to derive sensitive masks from registered widgets and retain safe A/B frames in a bounded memory buffer. The package widget test proved the mask follows a moving widget. The current `flutter test`, `flutter analyze`, JS release build, and eight Chromium probe tests passed. The stock Web SDK results above remain unchanged: its screenshot still sees the sensitive tile and its replay attachment contains no Flutter canvas frames. The sample buffer has not been connected to the reporter, upload path, or dashboard.
+
 The next public adapter needs a screenshot provider and visual replay frame provider at the Web SDK report boundary. It must resolve sensitive Flutter regions and HTML platform views into safe visual artifacts before encoding or submission, and fail closed when that cannot be proved. A later Flutter web dry run must also verify real reporter annotation, retry, metadata, and dashboard delivery against a development environment before the target can pass the program gate.

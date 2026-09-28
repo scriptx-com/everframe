@@ -3,6 +3,8 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:everframe_flutter/everframe_flutter.dart'
+    show SensitiveRegionRegistry, captureRegisteredFrame;
 import 'package:everframe_flutter_web_probe/main.dart';
 import 'package:everframe_flutter_web_probe/masked_capture.dart';
 import 'package:flutter/material.dart';
@@ -29,11 +31,13 @@ void main() {
       'masks every secret tile pixel before PNG encoding and keeps public tile',
       (tester) async {
     final key = GlobalKey();
-    await tester.pumpWidget(FlutterProbeApp(boundaryKey: key));
+    final sensitiveRegions = SensitiveRegionRegistry();
+    await tester.pumpWidget(
+        FlutterProbeApp(boundaryKey: key, sensitiveRegions: sensitiveRegions));
     await tester.pump();
 
-    const secret = Rect.fromLTWH(40, 140, 160, 80);
-    final a = await tester.runAsync(() => captureMaskedFrame(key, [secret]));
+    final a = await tester
+        .runAsync(() => captureRegisteredFrame(key, sensitiveRegions));
     expect(a, isNotNull);
     final first = (await tester.runAsync(() => decodePng(a!)))!;
     expect(first.$1, greaterThanOrEqualTo(640));
@@ -56,7 +60,8 @@ void main() {
 
     await tester.tap(find.text('Next screen'));
     await tester.pump();
-    final b = await tester.runAsync(() => captureMaskedFrame(key, [secret]));
+    final b = await tester
+        .runAsync(() => captureRegisteredFrame(key, sensitiveRegions));
     expect(b, isNotNull);
     final second = (await tester.runAsync(() => decodePng(b!)))!;
     expect(pixel(second, 50, 50), [0, 102, 255, 255]);

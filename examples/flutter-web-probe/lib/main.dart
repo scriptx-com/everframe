@@ -2,10 +2,14 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import 'dart:typed_data';
 
-import 'package:everframe_flutter/everframe_flutter.dart' show SafeReplayBuffer;
+import 'package:everframe_flutter/everframe_flutter.dart'
+    show
+        EverframeSensitive,
+        SafeReplayBuffer,
+        SensitiveRegionRegistry,
+        captureRegisteredFrame;
 import 'package:flutter/material.dart';
 
-import 'masked_capture.dart';
 import 'platform_view.dart';
 import 'probe_export.dart';
 
@@ -20,12 +24,14 @@ class FlutterProbeApp extends StatefulWidget {
       this.boundaryKey,
       this.safeVisualMode = false,
       this.onSafeFrame,
-      this.replayBuffer});
+      this.replayBuffer,
+      this.sensitiveRegions});
 
   final GlobalKey? boundaryKey;
   final bool safeVisualMode;
   final void Function(Uint8List)? onSafeFrame;
   final SafeReplayBuffer? replayBuffer;
+  final SensitiveRegionRegistry? sensitiveRegions;
 
   @override
   State<FlutterProbeApp> createState() => _FlutterProbeAppState();
@@ -35,6 +41,8 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
   late final GlobalKey _boundaryKey = widget.boundaryKey ?? GlobalKey();
   late final SafeReplayBuffer _replay =
       widget.replayBuffer ?? SafeReplayBuffer();
+  late final SensitiveRegionRegistry _sensitiveRegions =
+      widget.sensitiveRegions ?? SensitiveRegionRegistry();
   bool _secondScreen = false;
 
   @override
@@ -61,11 +69,14 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                   top: 140,
                   width: 160,
                   height: 80,
-                  child: ColoredBox(
-                    key: const Key('sensitive-tile'),
-                    color: widget.safeVisualMode
-                        ? const Color(0xFF000000)
-                        : const Color(0xFFFF00FF),
+                  child: EverframeSensitive(
+                    registry: _sensitiveRegions,
+                    child: ColoredBox(
+                      key: const Key('sensitive-tile'),
+                      color: widget.safeVisualMode
+                          ? const Color(0xFF000000)
+                          : const Color(0xFFFF00FF),
+                    ),
                   ),
                 ),
                 Positioned(
@@ -94,10 +105,8 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                   child: ElevatedButton(
                     onPressed: () async {
                       await WidgetsBinding.instance.endOfFrame;
-                      final bytes = await captureMaskedFrame(
-                        _boundaryKey,
-                        [const Rect.fromLTWH(40, 140, 160, 80)],
-                      );
+                      final bytes = await captureRegisteredFrame(
+                          _boundaryKey, _sensitiveRegions);
                       final accepted = await _replay.append(bytes);
                       if (accepted && bytes != null) {
                         widget.onSafeFrame?.call(bytes);

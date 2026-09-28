@@ -6,12 +6,11 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:everframe_flutter_desktop_probe/main.dart';
-import 'package:everframe_flutter_desktop_probe/masked_capture.dart';
 import 'package:everframe_flutter_desktop_probe/platform_view.dart';
 import 'package:everframe_flutter_desktop_probe/safe_export.dart';
 import 'package:everframe_flutter_desktop_probe/safe_replay_buffer.dart';
 import 'package:everframe_flutter/everframe_flutter.dart'
-    show SafeReplayRecorder;
+    show SafeReplayRecorder, SensitiveRegionRegistry, captureRegisteredFrame;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -50,19 +49,23 @@ void main() {
     tester,
   ) async {
     final key = GlobalKey();
+    final sensitiveRegions = SensitiveRegionRegistry();
     await tester.pumpWidget(
-      FlutterDesktopProbeApp(boundaryKey: key, nativeView: buildPlatformView()),
+      FlutterDesktopProbeApp(
+        boundaryKey: key,
+        nativeView: buildPlatformView(),
+        sensitiveRegions: sensitiveRegions,
+      ),
     );
     await tester.pumpAndSettle();
 
-    const sensitive = Rect.fromLTWH(40, 140, 160, 80);
     final replay = SafeReplayBuffer();
     final recorder = SafeReplayRecorder(
-      capture: () => captureMaskedFrame(key, [sensitive]),
+      capture: () => captureRegisteredFrame(key, sensitiveRegions),
       buffer: replay,
       interval: const Duration(seconds: 5),
     );
-    final a = await captureMaskedFrame(key, [sensitive]);
+    final a = await captureRegisteredFrame(key, sensitiveRegions);
     expect(a, isNotNull);
     expect(await recorder.start(), true);
     final first = await rgba(a!);
@@ -71,7 +74,7 @@ void main() {
 
     await tester.tap(find.text('Next screen'));
     await tester.pumpAndSettle();
-    final b = await captureMaskedFrame(key, [sensitive]);
+    final b = await captureRegisteredFrame(key, sensitiveRegions);
     expect(b, isNotNull);
     expect(await recorder.sampleNow(), true);
     final frozen = recorder.freeze();

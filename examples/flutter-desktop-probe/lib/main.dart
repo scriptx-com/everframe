@@ -3,18 +3,25 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:everframe_flutter/everframe_flutter.dart'
+    show EverframeSensitive, SensitiveRegionRegistry, captureRegisteredFrame;
 
-import 'masked_capture.dart';
 import 'platform_view.dart';
 import 'safe_export.dart';
 
 void main() => runApp(FlutterDesktopProbeApp(nativeView: buildPlatformView()));
 
 class FlutterDesktopProbeApp extends StatefulWidget {
-  const FlutterDesktopProbeApp({super.key, this.boundaryKey, this.nativeView});
+  const FlutterDesktopProbeApp({
+    super.key,
+    this.boundaryKey,
+    this.nativeView,
+    this.sensitiveRegions,
+  });
 
   final GlobalKey? boundaryKey;
   final Widget? nativeView;
+  final SensitiveRegionRegistry? sensitiveRegions;
 
   @override
   State<FlutterDesktopProbeApp> createState() => _FlutterDesktopProbeAppState();
@@ -22,6 +29,8 @@ class FlutterDesktopProbeApp extends StatefulWidget {
 
 class _FlutterDesktopProbeAppState extends State<FlutterDesktopProbeApp> {
   late final GlobalKey _boundaryKey = widget.boundaryKey ?? GlobalKey();
+  late final SensitiveRegionRegistry _sensitiveRegions =
+      widget.sensitiveRegions ?? SensitiveRegionRegistry();
   bool _secondScreen = false;
 
   @override
@@ -44,14 +53,17 @@ class _FlutterDesktopProbeAppState extends State<FlutterDesktopProbeApp> {
                       : const Color(0xFF00CC00),
                 ),
               ),
-              const Positioned(
+              Positioned(
                 left: 40,
                 top: 140,
                 width: 160,
                 height: 80,
-                child: ColoredBox(
-                  key: Key('sensitive-tile'),
-                  color: Color(0xFFFF00FF),
+                child: EverframeSensitive(
+                  registry: _sensitiveRegions,
+                  child: const ColoredBox(
+                    key: Key('sensitive-tile'),
+                    color: Color(0xFFFF00FF),
+                  ),
                 ),
               ),
               Positioned(
@@ -82,9 +94,10 @@ class _FlutterDesktopProbeAppState extends State<FlutterDesktopProbeApp> {
                 top: 170,
                 child: ElevatedButton(
                   onPressed: () async {
-                    final bytes = await captureMaskedFrame(_boundaryKey, [
-                      const Rect.fromLTWH(40, 140, 160, 80),
-                    ]);
+                    final bytes = await captureRegisteredFrame(
+                      _boundaryKey,
+                      _sensitiveRegions,
+                    );
                     if (bytes == null) return;
                     final destination = File(
                       '${Directory.systemTemp.path}/everframe-flutter-desktop-$pid-${_secondScreen ? 'b' : 'a'}.png',
