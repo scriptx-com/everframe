@@ -10,6 +10,8 @@ import 'package:everframe_flutter_desktop_probe/masked_capture.dart';
 import 'package:everframe_flutter_desktop_probe/platform_view.dart';
 import 'package:everframe_flutter_desktop_probe/safe_export.dart';
 import 'package:everframe_flutter_desktop_probe/safe_replay_buffer.dart';
+import 'package:everframe_flutter/everframe_flutter.dart'
+    show SafeReplayRecorder;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -55,9 +57,14 @@ void main() {
 
     const sensitive = Rect.fromLTWH(40, 140, 160, 80);
     final replay = SafeReplayBuffer();
+    final recorder = SafeReplayRecorder(
+      capture: () => captureMaskedFrame(key, [sensitive]),
+      buffer: replay,
+      interval: const Duration(seconds: 5),
+    );
     final a = await captureMaskedFrame(key, [sensitive]);
     expect(a, isNotNull);
-    expect(await replay.append(a), true);
+    expect(await recorder.start(), true);
     final first = await rgba(a!);
     expect(fraction(first, 40, [0, 204, 0]), greaterThan(0.8));
     expect(fraction(first, 140, [0, 0, 0]), greaterThan(0.95));
@@ -66,8 +73,13 @@ void main() {
     await tester.pumpAndSettle();
     final b = await captureMaskedFrame(key, [sensitive]);
     expect(b, isNotNull);
-    expect(await replay.append(b), true);
-    expect(replay.frames.length, 2);
+    expect(await recorder.sampleNow(), true);
+    final frozen = recorder.freeze();
+    expect(frozen.length, 2);
+    final replayA = await rgba(frozen.first.png);
+    final replayB = await rgba(frozen.last.png);
+    expect(fraction(replayA, 40, [0, 204, 0]), greaterThan(0.8));
+    expect(fraction(replayB, 40, [0, 102, 255]), greaterThan(0.8));
     final second = await rgba(b!);
     expect(fraction(second, 40, [0, 102, 255]), greaterThan(0.8));
     expect(fraction(second, 140, [0, 0, 0]), greaterThan(0.95));
@@ -87,7 +99,7 @@ void main() {
       'sensitiveB': fraction(second, 140, [0, 0, 0]),
       'nativeA': fraction(first, 240, [255, 136, 0]),
       'nativeB': fraction(second, 240, [255, 136, 0]),
-      'replayFrames': replay.frames.length,
+      'replayFrames': frozen.length,
       'replayRevoked': replay.revoked,
     };
     await File('${dir.path}/renderer-evidence.json')

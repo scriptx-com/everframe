@@ -34,14 +34,16 @@ class SafeReplayBuffer {
   var _bytes = 0;
   var _generation = 0;
   bool _revoked = false;
+  bool _frozen = false;
 
   bool get revoked => _revoked;
+  bool get frozen => _frozen;
   List<SafeReplayFrame> get frames => List.unmodifiable(
         _frames.map((frame) => SafeReplayFrame(frame.elapsed, frame.png)),
       );
 
   Future<bool> append(Uint8List? png) async {
-    if (_revoked) return false;
+    if (_revoked || _frozen) return false;
     final generation = _generation;
     if (png == null || png.isEmpty || png.length > maxBytes) {
       _revoke();
@@ -54,7 +56,7 @@ class SafeReplayBuffer {
     } catch (_) {
       safe = false;
     }
-    if (generation != _generation || _revoked) return false;
+    if (generation != _generation || _revoked || _frozen) return false;
     if (!safe) {
       _revoke();
       return false;
@@ -72,9 +74,16 @@ class SafeReplayBuffer {
   void reset() {
     _generation++;
     _revoked = false;
+    _frozen = false;
     _frames.clear();
     _bytes = 0;
     _clock.reset();
+  }
+
+  List<SafeReplayFrame> freeze() {
+    _generation++;
+    _frozen = true;
+    return frames;
   }
 
   void _revoke() {

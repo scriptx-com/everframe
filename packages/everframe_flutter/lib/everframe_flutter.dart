@@ -3,3 +3,4 @@
 export 'src/masked_capture.dart' show captureMaskedFrame;
 export 'src/safe_frame.dart' show isSafePng;
 export 'src/safe_replay_buffer.dart' show SafeReplayBuffer, SafeReplayFrame;
+export 'src/safe_replay_recorder.dart' show SafeReplayRecorder, ReplaySchedule;
