@@ -10,7 +10,10 @@
 <body>
   <script src="flutter_bootstrap.js" async></script>
   <script type="module">
-    import { init } from '/sdk/index.js';
+    import { init, INGEST_URL } from '/sdk/index.js';
+    if (INGEST_URL !== 'http://127.0.0.1:8937') {
+      throw new Error('Flutter probe requires an SDK bundle configured for loopback ingest');
+    }
     window.__everframeProbe = init({ apiKey: 'pk_flutter_probe', appVersion: '0.0.0-probe' });
   </script>
 </body>
