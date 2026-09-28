@@ -14,7 +14,7 @@ The sample used Flutter 3.47.5, Dart 3.13.4, the local Swift SDK through Swift P
 | Native reporter screenshot | Simulator screenshot editor showed green Flutter UI and a black sensitive tile from the masked Flutter PNG; cancel returned to Flutter | **PASS** in this scene |
 | Additional screenshots | Disabled for the Flutter route to prevent an unmasked UIKit recapture | **GATED** |
 | Submit and delivery | No report sent or ingest record checked | **BLOCKED** |
-| Replay attachment | Safe Flutter frames remain in memory and are not attached to the native report; native server-controlled replay remains unverified | **BLOCKED** |
+| Replay attachment | Sample freezes its safe-frame ring while the reporter is open, then restarts it; frames are not attached to the native report and native server-controlled replay remains unverified | **BLOCKED** |
 | Identity, Dart errors, network, offline retry, dashboard | Protocol accepts `everframe-flutter`, but native iOS reports still default to `everframe-ios`; other gates untested | **BLOCKED** |
 
 The CocoaPods fallback podspec was added but not exercised; this measurement uses SwiftPM. The screenshot proof covers Flutter framework pixels inside the registered boundary, not a physical iPhone, UIKit platform view, rotation/scale geometry, or reporter delivery. No package was published and no all-platform launch action was taken.

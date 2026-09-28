@@ -16,7 +16,7 @@ The sample used Flutter 3.47.5, Dart 3.13.4, an Android 16/API 36 Pixel 9 Pro XL
 | Native reporter screenshot | Emulator editor showed green Flutter UI and a black sensitive tile; manual cancel returned to Flutter | **PASS** in this scene |
 | Additional screenshots | Disabled for the Flutter route to prevent an unmasked native recapture | **GATED** |
 | Submit and delivery | No report sent or ingest record checked | **BLOCKED** |
-| Replay attachment | Safe Flutter frames remain in memory and are not attached to the native report; native server-controlled replay remains unverified | **BLOCKED** |
+| Replay attachment | Sample freezes its safe-frame ring while the reporter is open, then restarts it; frames are not attached to the native report and native server-controlled replay remains unverified | **BLOCKED** |
 | Identity, Dart errors, network, offline retry, dashboard | New `everframe-flutter` protocol identity is reserved, but native reports still default to `everframe-android`; other gates untested | **BLOCKED** |
 
 The screenshot proof covers Flutter framework pixels inside the registered boundary, not embedded Android platform views, video, rotation, or real devices. The initial PixelCopy path returned a black Flutter screenshot; the masked Flutter PNG path produced the readable editor image. No report was sent and no all-platform launch action was taken.

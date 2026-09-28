@@ -73,6 +73,8 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
   }
 
   Future<void> _open() async {
+    final wasRecording = _recorder.active;
+    if (wasRecording) _recorder.freeze();
     try {
       final outcome = await _bridge.openReporter(
         boundaryKey: _boundaryKey,
@@ -81,6 +83,8 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
       if (mounted) setState(() => _status = 'Reporter: ${outcome.status}');
     } catch (error) {
       if (mounted) setState(() => _status = 'Reporter failed: $error');
+    } finally {
+      if (wasRecording && mounted) await _recorder.start();
     }
   }
 
