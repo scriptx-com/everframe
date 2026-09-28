@@ -472,7 +472,9 @@ enum class FormFactor(val value: String) {
 @Serializable
 enum class Name(val value: String) {
     @SerialName("everframe-android") EverframeAndroid("everframe-android"),
+    @SerialName("everframe-flutter") EverframeFlutter("everframe-flutter"),
     @SerialName("everframe-ios") EverframeIos("everframe-ios"),
+    @SerialName("everframe-kmp") EverframeKmp("everframe-kmp"),
     @SerialName("everframe-react") EverframeReact("everframe-react"),
     @SerialName("everframe-react-native") EverframeReactNative("everframe-react-native"),
     @SerialName("everframe-web") EverframeWeb("everframe-web");

@@ -1841,7 +1841,9 @@ public enum EverframeFormFactor: String, Codable {
 
 public enum EverframeName: String, Codable {
     case everframeAndroid = "everframe-android"
+    case everframeFlutter = "everframe-flutter"
     case everframeIos = "everframe-ios"
+    case everframeKmp = "everframe-kmp"
     case everframeReact = "everframe-react"
     case everframeReactNative = "everframe-react-native"
     case everframeWeb = "everframe-web"
