@@ -24,6 +24,7 @@ examples/tvos-replay/ReplayTV.xcodeproj/
 
 # Native build output
 **/.build/
+**/.gradle/
 **/build/
 **/DerivedData/
 packages/sdk-android/android/.gradle/

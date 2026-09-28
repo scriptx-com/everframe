@@ -12,7 +12,7 @@ The sample used Flutter 3.47.5, Dart 3.13.4, the local Swift SDK through Swift P
 | Native Swift bridge | iOS simulator app compiled against local `EverframeKit` and reporter UI; start, setUser, recordScreen, addBreadcrumb, and kill calls completed | **PASS** for routing |
 | Flutter visual replay | Simulator test retained two distinct renderer frames after a tap; public tile changed green to blue and sensitive tile pixels were black in both | **PASS** in this scene |
 | Native reporter open/annotate/cancel/submit | Only the post-kill `not_started` response was checked; no real report was sent | **BLOCKED** |
-| Visual merge and privacy | Flutter frames remain in memory; native report capture does not consume them. Native screenshots and automatic crash capture are disabled for this dry run; server-controlled replay is unverified | **BLOCKED** |
+| Visual merge and privacy | Flutter frames remain in memory; native report capture does not consume them. The native screenshot config flag is false, but manual reporter capture was not checked on iOS and cannot be assumed disabled; server-controlled replay is unverified | **BLOCKED** |
 | Identity, Dart errors, network, offline retry, dashboard | Protocol accepts `everframe-flutter`, but native iOS reports still default to `everframe-ios`; other gates untested | **BLOCKED** |
 
 The CocoaPods fallback podspec was added but not exercised; this measurement uses SwiftPM. It does not cover a physical iPhone, UIKit platform view, rotation/scale geometry, or reporter delivery. No package was published and no all-platform launch action was taken.

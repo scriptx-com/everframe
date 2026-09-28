@@ -122,6 +122,7 @@
     "^packages/everframe_flutter/\\.dart_tool/",
     "^packages/everframe_flutter/pubspec\\.lock$",
     "^packages/sdk-web/test-results/",
+    "(^|/)\\.gradle(?:/|$)",
     "(^|/)(?:node_modules|dist|build|target|\\.turbo|\\.next|\\.build|DerivedData)(?:/|$)",
     "(^|/)next-env\\.d\\.ts$",
     "(^|/)examples/react-native/(?:android|ios)(?:/|$)",
@@ -218,7 +219,8 @@
       }
     ],
     "exemptPathPatterns": [
-      "(^|/)(?:SampleApp|Everframe)\\.xcodeproj/(?:project\\.pbxproj|project\\.xcworkspace/contents\\.xcworkspacedata|xcshareddata/xcschemes/[^/]+\\.xcscheme)$"
+      "(^|/)(?:SampleApp|Everframe|KmpIosProbes)\\.xcodeproj/(?:project\\.pbxproj|project\\.xcworkspace/contents\\.xcworkspacedata|xcshareddata/xcschemes/[^/]+\\.xcscheme)$",
+      "^examples/kmp-ios-probes/Kmp(?:NativeProbe|ComposeHost)-Info\\.plist$"
     ]
   }
 }

@@ -1,0 +1,720 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		079BF098342A735B67B0A900 /* EverframeKmp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EF4376B6D255E3B491AD7AE7 /* EverframeKmp.framework */; };
+		27A325C91F91B21DA0BD25C6 /* KmpComposeProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F6CB398FF556555BF0C25E4 /* KmpComposeProbeApp.swift */; };
+		31D82B96DCE542ADC25703DA /* EverframeKmp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EF4376B6D255E3B491AD7AE7 /* EverframeKmp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6087DF3C0F3F67B7D95F9FD0 /* ComposeProbeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8791141D81A1DB76F59FF8F /* ComposeProbeUITests.swift */; };
+		67B8B471CB9BE4D612333997 /* EverframeKmp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EF4376B6D255E3B491AD7AE7 /* EverframeKmp.framework */; };
+		7F5415DF595F6153EB154AF1 /* EverframeReporterUI in Frameworks */ = {isa = PBXBuildFile; productRef = 194AB903DF3BCCA06432620F /* EverframeReporterUI */; };
+		897CE3043276DDF214791702 /* NativeProbeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFAA5797DD1F7A5B7B07F84B /* NativeProbeUITests.swift */; };
+		92FBD9C5B6DB83259C3AF6C8 /* Everframe in Frameworks */ = {isa = PBXBuildFile; productRef = 7A84D54404BF93255D96C8D2 /* Everframe */; };
+		9BB745FD07A3CE5E666E8A11 /* EverframeSwiftDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012AB9F357BBD58949053663 /* EverframeSwiftDriver.swift */; };
+		A3D23373FBAD5AE2DC046D33 /* KmpNativeProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99A628BFBDF64EA0A8342CE6 /* KmpNativeProbeApp.swift */; };
+		AA8A5247D224D4699558EB1A /* EverframeReporterUI in Frameworks */ = {isa = PBXBuildFile; productRef = 24150E06F7A19406F3CD4E95 /* EverframeReporterUI */; };
+		B5EEE24BE4CD48317746D077 /* EverframeSwiftDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012AB9F357BBD58949053663 /* EverframeSwiftDriver.swift */; };
+		B68BC43B730E24D55914C09F /* KmpComposeProbe.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 29167661DAB53331F484BCE4 /* KmpComposeProbe.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D2A973133C3AD7A6ECB29FAB /* KmpComposeProbe.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 29167661DAB53331F484BCE4 /* KmpComposeProbe.framework */; };
+		D81B9A31AD2A28EB502D35DB /* Everframe in Frameworks */ = {isa = PBXBuildFile; productRef = 0B8D11E67C298FE620F15585 /* Everframe */; };
+		FE5640FFD7663C3FACF14CDD /* EverframeKmp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EF4376B6D255E3B491AD7AE7 /* EverframeKmp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0814765E67F2164470EE9FD3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3AD8C450AF54BDE1C196807D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E8596253C337A285DED1300A;
+			remoteInfo = KmpComposeHost;
+		};
+		4064A7A66F0A32EC575F4952 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3AD8C450AF54BDE1C196807D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D83B92ADCC1A9C987B38513C;
+			remoteInfo = KmpNativeProbe;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		42BFA2433E3C969FF2A31363 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				FE5640FFD7663C3FACF14CDD /* EverframeKmp.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B2B59576CE5CFD7E871446F9 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				31D82B96DCE542ADC25703DA /* EverframeKmp.framework in Embed Frameworks */,
+				B68BC43B730E24D55914C09F /* KmpComposeProbe.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		012AB9F357BBD58949053663 /* EverframeSwiftDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EverframeSwiftDriver.swift; sourceTree = "<group>"; };
+		242D9FFA9F88AF5F7333EE86 /* KmpNativeProbe.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = KmpNativeProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		29167661DAB53331F484BCE4 /* KmpComposeProbe.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = KmpComposeProbe.framework; path = "../kmp-compose-mobile-probe/build/bin/iosSimulatorArm64/debugFramework/KmpComposeProbe.framework"; sourceTree = "<group>"; };
+		2DCDAE8D7A46BE0353A96FA5 /* KmpComposeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KmpComposeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3F6CB398FF556555BF0C25E4 /* KmpComposeProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KmpComposeProbeApp.swift; sourceTree = "<group>"; };
+		99A628BFBDF64EA0A8342CE6 /* KmpNativeProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KmpNativeProbeApp.swift; sourceTree = "<group>"; };
+		9E4269D3CF844720465D4E64 /* KmpNativeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KmpNativeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AFAA5797DD1F7A5B7B07F84B /* NativeProbeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeProbeUITests.swift; sourceTree = "<group>"; };
+		C37D8AAE96A059AFB9910110 /* sdk-ios */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "sdk-ios"; path = "../../packages/sdk-ios"; sourceTree = SOURCE_ROOT; };
+		C8791141D81A1DB76F59FF8F /* ComposeProbeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeProbeUITests.swift; sourceTree = "<group>"; };
+		CCD7843D1CA8EA83D0963E90 /* KmpComposeHost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = KmpComposeHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EF4376B6D255E3B491AD7AE7 /* EverframeKmp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EverframeKmp.framework; path = ../../packages/everframe_kmp/build/bin/iosSimulatorArm64/debugFramework/EverframeKmp.framework; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0B2DBBB378B42FCC8A5A2FDD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92FBD9C5B6DB83259C3AF6C8 /* Everframe in Frameworks */,
+				7F5415DF595F6153EB154AF1 /* EverframeReporterUI in Frameworks */,
+				079BF098342A735B67B0A900 /* EverframeKmp.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6C24B59A25A0E32F57695B6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D81B9A31AD2A28EB502D35DB /* Everframe in Frameworks */,
+				AA8A5247D224D4699558EB1A /* EverframeReporterUI in Frameworks */,
+				67B8B471CB9BE4D612333997 /* EverframeKmp.framework in Frameworks */,
+				D2A973133C3AD7A6ECB29FAB /* KmpComposeProbe.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		318143A25777443AA2D281F9 /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				3F6CB398FF556555BF0C25E4 /* KmpComposeProbeApp.swift */,
+			);
+			name = ios;
+			path = "../kmp-compose-mobile-probe/ios";
+			sourceTree = "<group>";
+		};
+		675FE3FEECE7FF9CC5B297D7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CCD7843D1CA8EA83D0963E90 /* KmpComposeHost.app */,
+				2DCDAE8D7A46BE0353A96FA5 /* KmpComposeUITests.xctest */,
+				242D9FFA9F88AF5F7333EE86 /* KmpNativeProbe.app */,
+				9E4269D3CF844720465D4E64 /* KmpNativeUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		70D96A18642C1249E83395A6 /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				012AB9F357BBD58949053663 /* EverframeSwiftDriver.swift */,
+			);
+			name = ios;
+			path = ../../packages/everframe_kmp/ios;
+			sourceTree = "<group>";
+		};
+		A33E6E529C4E20ED5898DBE6 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				C37D8AAE96A059AFB9910110 /* sdk-ios */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		A75FFD2388C953B941F80205 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				C8791141D81A1DB76F59FF8F /* ComposeProbeUITests.swift */,
+				AFAA5797DD1F7A5B7B07F84B /* NativeProbeUITests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		BCD81C9DFF89C5F732AF039C = {
+			isa = PBXGroup;
+			children = (
+				70D96A18642C1249E83395A6 /* ios */,
+				318143A25777443AA2D281F9 /* ios */,
+				D9233393B4F0CE08C7270200 /* kmp-ios-native-probe */,
+				A33E6E529C4E20ED5898DBE6 /* Packages */,
+				A75FFD2388C953B941F80205 /* Tests */,
+				F6FD4293560AED025F1EA81D /* Frameworks */,
+				675FE3FEECE7FF9CC5B297D7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D9233393B4F0CE08C7270200 /* kmp-ios-native-probe */ = {
+			isa = PBXGroup;
+			children = (
+				99A628BFBDF64EA0A8342CE6 /* KmpNativeProbeApp.swift */,
+			);
+			name = "kmp-ios-native-probe";
+			path = "../kmp-ios-native-probe";
+			sourceTree = "<group>";
+		};
+		F6FD4293560AED025F1EA81D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EF4376B6D255E3B491AD7AE7 /* EverframeKmp.framework */,
+				29167661DAB53331F484BCE4 /* KmpComposeProbe.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		377DE01C021127EE2E25C202 /* KmpNativeUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7FD60465B7C2DF5D575E3671 /* Build configuration list for PBXNativeTarget "KmpNativeUITests" */;
+			buildPhases = (
+				7EAFB161521C3B0E7E56FAE8 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CDAF9E7E7B0EE57C05AA8ADB /* PBXTargetDependency */,
+			);
+			name = KmpNativeUITests;
+			packageProductDependencies = (
+			);
+			productName = KmpNativeUITests;
+			productReference = 9E4269D3CF844720465D4E64 /* KmpNativeUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		C03586B8BC56B321FDAF982F /* KmpComposeUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4BB4F16C4073E21C39B11160 /* Build configuration list for PBXNativeTarget "KmpComposeUITests" */;
+			buildPhases = (
+				CF634207A6C1B1116789E82D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				455C9498AAB4CB6044519095 /* PBXTargetDependency */,
+			);
+			name = KmpComposeUITests;
+			packageProductDependencies = (
+			);
+			productName = KmpComposeUITests;
+			productReference = 2DCDAE8D7A46BE0353A96FA5 /* KmpComposeUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		D83B92ADCC1A9C987B38513C /* KmpNativeProbe */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB756CC01AD8C4B59D1F8065 /* Build configuration list for PBXNativeTarget "KmpNativeProbe" */;
+			buildPhases = (
+				783CECB9EFD457BBD59877E1 /* Sources */,
+				0B2DBBB378B42FCC8A5A2FDD /* Frameworks */,
+				42BFA2433E3C969FF2A31363 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KmpNativeProbe;
+			packageProductDependencies = (
+				7A84D54404BF93255D96C8D2 /* Everframe */,
+				194AB903DF3BCCA06432620F /* EverframeReporterUI */,
+			);
+			productName = KmpNativeProbe;
+			productReference = 242D9FFA9F88AF5F7333EE86 /* KmpNativeProbe.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E8596253C337A285DED1300A /* KmpComposeHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 410B983AF37E1900FFFD08EB /* Build configuration list for PBXNativeTarget "KmpComposeHost" */;
+			buildPhases = (
+				DAE7588B92E3EB1600BA8C68 /* Sources */,
+				C6C24B59A25A0E32F57695B6 /* Frameworks */,
+				B2B59576CE5CFD7E871446F9 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KmpComposeHost;
+			packageProductDependencies = (
+				0B8D11E67C298FE620F15585 /* Everframe */,
+				24150E06F7A19406F3CD4E95 /* EverframeReporterUI */,
+			);
+			productName = KmpComposeHost;
+			productReference = CCD7843D1CA8EA83D0963E90 /* KmpComposeHost.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3AD8C450AF54BDE1C196807D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					377DE01C021127EE2E25C202 = {
+						DevelopmentTeam = "";
+						TestTargetID = D83B92ADCC1A9C987B38513C;
+					};
+					C03586B8BC56B321FDAF982F = {
+						DevelopmentTeam = "";
+						TestTargetID = E8596253C337A285DED1300A;
+					};
+					D83B92ADCC1A9C987B38513C = {
+						DevelopmentTeam = "";
+					};
+					E8596253C337A285DED1300A = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = 3B3A83C4C81CCF9F943DA1A3 /* Build configuration list for PBXProject "KmpIosProbes" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BCD81C9DFF89C5F732AF039C;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0B08C2DFCD1C5D350AB2E982 /* XCLocalSwiftPackageReference "../../packages/sdk-ios" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 675FE3FEECE7FF9CC5B297D7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E8596253C337A285DED1300A /* KmpComposeHost */,
+				C03586B8BC56B321FDAF982F /* KmpComposeUITests */,
+				D83B92ADCC1A9C987B38513C /* KmpNativeProbe */,
+				377DE01C021127EE2E25C202 /* KmpNativeUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		783CECB9EFD457BBD59877E1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9BB745FD07A3CE5E666E8A11 /* EverframeSwiftDriver.swift in Sources */,
+				A3D23373FBAD5AE2DC046D33 /* KmpNativeProbeApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7EAFB161521C3B0E7E56FAE8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				897CE3043276DDF214791702 /* NativeProbeUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CF634207A6C1B1116789E82D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6087DF3C0F3F67B7D95F9FD0 /* ComposeProbeUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DAE7588B92E3EB1600BA8C68 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B5EEE24BE4CD48317746D077 /* EverframeSwiftDriver.swift in Sources */,
+				27A325C91F91B21DA0BD25C6 /* KmpComposeProbeApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		455C9498AAB4CB6044519095 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E8596253C337A285DED1300A /* KmpComposeHost */;
+			targetProxy = 0814765E67F2164470EE9FD3 /* PBXContainerItemProxy */;
+		};
+		CDAF9E7E7B0EE57C05AA8ADB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D83B92ADCC1A9C987B38513C /* KmpNativeProbe */;
+			targetProxy = 4064A7A66F0A32EC575F4952 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		02C4E92B93A33391717566CE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpNativeUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = KmpNativeProbe;
+			};
+			name = Release;
+		};
+		17FE2986AFEEB685A0F1C212 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../../packages/everframe_kmp/build/bin/iosSimulatorArm64/debugFramework\"",
+					"\"../kmp-compose-mobile-probe/build/bin/iosSimulatorArm64/debugFramework\"",
+				);
+				INFOPLIST_FILE = "KmpComposeHost-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpComposeHost;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2BAC03B3066234CC6D880CB7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpNativeUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = KmpNativeProbe;
+			};
+			name = Debug;
+		};
+		45064E2D71B6EE9F53CB00B5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpComposeUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = KmpComposeHost;
+			};
+			name = Release;
+		};
+		5EB0D3AEA96ADD127CB0DBEB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		9A2BE16DB9809447D4831539 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		9F01EBB36CCBCD134F4E41AC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../../packages/everframe_kmp/build/bin/iosSimulatorArm64/debugFramework\"",
+				);
+				INFOPLIST_FILE = "KmpNativeProbe-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpNativeProbe;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DAF59F183F4A071D8E1B82FB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpComposeUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = KmpComposeHost;
+			};
+			name = Debug;
+		};
+		EB19D9077A66549ECA71D80A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../../packages/everframe_kmp/build/bin/iosSimulatorArm64/debugFramework\"",
+				);
+				INFOPLIST_FILE = "KmpNativeProbe-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpNativeProbe;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		FF39E14551246365C88637EC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../../packages/everframe_kmp/build/bin/iosSimulatorArm64/debugFramework\"",
+					"\"../kmp-compose-mobile-probe/build/bin/iosSimulatorArm64/debugFramework\"",
+				);
+				INFOPLIST_FILE = "KmpComposeHost-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.everframe.kmpprobe.KmpComposeHost;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3B3A83C4C81CCF9F943DA1A3 /* Build configuration list for PBXProject "KmpIosProbes" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5EB0D3AEA96ADD127CB0DBEB /* Debug */,
+				9A2BE16DB9809447D4831539 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		410B983AF37E1900FFFD08EB /* Build configuration list for PBXNativeTarget "KmpComposeHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				17FE2986AFEEB685A0F1C212 /* Debug */,
+				FF39E14551246365C88637EC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4BB4F16C4073E21C39B11160 /* Build configuration list for PBXNativeTarget "KmpComposeUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DAF59F183F4A071D8E1B82FB /* Debug */,
+				45064E2D71B6EE9F53CB00B5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7FD60465B7C2DF5D575E3671 /* Build configuration list for PBXNativeTarget "KmpNativeUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2BAC03B3066234CC6D880CB7 /* Debug */,
+				02C4E92B93A33391717566CE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EB756CC01AD8C4B59D1F8065 /* Build configuration list for PBXNativeTarget "KmpNativeProbe" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9F01EBB36CCBCD134F4E41AC /* Debug */,
+				EB19D9077A66549ECA71D80A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		0B08C2DFCD1C5D350AB2E982 /* XCLocalSwiftPackageReference "../../packages/sdk-ios" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../packages/sdk-ios";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0B8D11E67C298FE620F15585 /* Everframe */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Everframe;
+		};
+		194AB903DF3BCCA06432620F /* EverframeReporterUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EverframeReporterUI;
+		};
+		24150E06F7A19406F3CD4E95 /* EverframeReporterUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EverframeReporterUI;
+		};
+		7A84D54404BF93255D96C8D2 /* Everframe */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Everframe;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3AD8C450AF54BDE1C196807D /* Project object */;
+}

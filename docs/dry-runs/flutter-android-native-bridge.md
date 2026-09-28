@@ -5,7 +5,7 @@
 
 Date: 2026-09-28. Public code revision: `8fda5b722d534a986b01cae09737e61ed65ef5db` on local branch `codex/macos-desktop-probe`. Status: **BLOCKED** for Flutter Android support; this is an unreleased dry run.
 
-The sample used Flutter 3.47.5, Dart 3.13.4, an Android 16/API 36 Pixel 9 Pro XL emulator, and disposable `dev.everframe:*:0.9.0-DEV` debug artifacts built with `EVERFRAME_DEV_INGEST_URL=http://10.0.2.2:8937`. No development backend or real key was used. The Android plugin accepts only the development environment and disables native screenshot and automatic crash capture. The server-controlled native replay path has not been validated for Flutter privacy; use only a throwaway project for any further reporter test.
+The sample used Flutter 3.47.5, Dart 3.13.4, an Android 16/API 36 Pixel 9 Pro XL emulator, and disposable `dev.everframe:*:0.9.0-DEV` debug artifacts built with `EVERFRAME_DEV_INGEST_URL=http://10.0.2.2:8937`. No development backend or real key was used. The Android plugin accepts only the development environment and sets the native screenshot and crash config flags to false. A later KMP Android probe proved that this screenshot flag does **not** stop the reporter from taking a manual screenshot. Flutter's sensitive-widget bounds are not yet passed to native screenshot masking, so reporter open is privacy-blocked. The server-controlled native replay path has not been validated for Flutter privacy.
 
 | Capability | Evidence | Result |
 | --- | --- | --- |
