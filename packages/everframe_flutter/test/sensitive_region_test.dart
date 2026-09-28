@@ -95,4 +95,30 @@ void main() {
     await tester.pump();
     expect(await captureRegisteredFrame(boundary, registry), isNull);
   });
+
+  testWidgets('sensitive widget may reach an exact boundary edge',
+      (tester) async {
+    final registry = SensitiveRegionRegistry();
+    final boundary = GlobalKey();
+    await tester.pumpWidget(MaterialApp(
+      home: Center(
+        child: RepaintBoundary(
+          key: boundary,
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: EverframeSensitive(
+              registry: registry,
+              child: const ColoredBox(color: Color(0xFFFF00FF)),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+    final frame =
+        await tester.runAsync(() => captureRegisteredFrame(boundary, registry));
+    expect(frame, isNotNull);
+    expect(await tester.runAsync(() => pixel(frame!, 99, 99)), [0, 0, 0, 255]);
+  });
 }

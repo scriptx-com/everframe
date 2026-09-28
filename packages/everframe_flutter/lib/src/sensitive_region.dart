@@ -43,8 +43,10 @@ class SensitiveRegionRegistry {
         );
         if (!rect.isFinite ||
             rect.isEmpty ||
-            !bounds.contains(rect.topLeft) ||
-            !bounds.contains(rect.bottomRight)) return null;
+            rect.left < bounds.left ||
+            rect.top < bounds.top ||
+            rect.right > bounds.right ||
+            rect.bottom > bounds.bottom) return null;
         rects.add(rect);
       } catch (_) {
         return null;

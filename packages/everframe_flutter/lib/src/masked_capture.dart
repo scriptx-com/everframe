@@ -21,8 +21,10 @@ Future<Uint8List?> captureMaskedFrame(
     (rect) =>
         !rect.isFinite ||
         rect.isEmpty ||
-        !bounds.contains(rect.topLeft) ||
-        !bounds.contains(rect.bottomRight),
+        rect.left < bounds.left ||
+        rect.top < bounds.top ||
+        rect.right > bounds.right ||
+        rect.bottom > bounds.bottom,
   )) {
     return null;
   }
