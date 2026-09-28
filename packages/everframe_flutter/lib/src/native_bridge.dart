@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+
+import 'sensitive_region.dart';
 
 /// Android reporter bridge for the unreleased mobile dry run.
 class EverframeNativeBridge {
@@ -27,9 +30,45 @@ class EverframeNativeBridge {
     });
   }
 
-  Future<EverframeReporterOutcome> openReporter() async {
+  Future<EverframeReporterOutcome> openReporter({
+    GlobalKey? boundaryKey,
+    SensitiveRegionRegistry? sensitiveRegions,
+  }) async {
+    if ((boundaryKey == null) != (sensitiveRegions == null)) {
+      throw ArgumentError('boundaryKey and sensitiveRegions must be paired');
+    }
+    if (boundaryKey != null) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    final rects =
+        boundaryKey == null ? null : sensitiveRegions!.rectsInView(boundaryKey);
+    if (boundaryKey != null && rects == null) {
+      throw StateError('Sensitive widget geometry is unavailable');
+    }
+    final maskedPng = boundaryKey == null
+        ? null
+        : await captureRegisteredFrame(boundaryKey, sensitiveRegions!);
+    if (boundaryKey != null && maskedPng == null) {
+      throw StateError('Masked Flutter screenshot is unavailable');
+    }
+    final context = boundaryKey?.currentContext;
+    final pixelRatio =
+        context == null ? null : View.of(context).devicePixelRatio;
     final result = await _channel.invokeMapMethod<String, Object?>(
       'openReporter',
+      {
+        if (pixelRatio != null) 'pixelRatio': pixelRatio,
+        if (maskedPng != null) 'maskedPng': maskedPng,
+        if (rects != null)
+          'sensitiveRects': rects
+              .map((rect) => {
+                    'left': rect.left,
+                    'top': rect.top,
+                    'right': rect.right,
+                    'bottom': rect.bottom,
+                  })
+              .toList(),
+      },
     );
     final status = result?['status'];
     final reportId = result?['reportId'];

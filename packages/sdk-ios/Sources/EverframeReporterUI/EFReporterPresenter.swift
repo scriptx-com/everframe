@@ -58,10 +58,29 @@ public enum EFReporterPresenter {
         CompanionPinPresenter.install()
     }
 
+    /// Host-rendered PNG for Flutter and other surfaces UIKit cannot snapshot.
+    /// The caller must bake sensitive regions black before passing bytes here.
+    public static func openWithMaskedPng(_ pngData: Data) async throws -> ReportResult {
+        guard pngData.count >= 8, pngData.count <= 10_000_000,
+              pngData.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]),
+              let image = UIImage(data: pngData),
+              image.size.width > 0, image.size.height > 0,
+              max(image.size.width, image.size.height) <= 2048 else {
+            return .cancelled
+        }
+        let capture = ScreenshotCapture.Result(
+            image: image,
+            widthPoints: image.size.width,
+            heightPoints: image.size.height,
+            scale: image.scale,
+            pngData: pngData)
+        return try await openAndAwait(captureOverride: capture)
+    }
+
     /// Opens the reporter and resolves when the user submits or cancels.
     /// Idempotency: if a reporter is already open, the second call resolves
     /// immediately with .cancelled (we never stack reporter windows).
-    public static func openAndAwait() async throws -> ReportResult {
+    public static func openAndAwait(captureOverride: ScreenshotCapture.Result? = nil) async throws -> ReportResult {
         if pendingResolve != nil { return .cancelled }
 
         // Final whole-branch review, fix round 2, Critical 1 — re-warm the
@@ -111,7 +130,7 @@ public enum EFReporterPresenter {
         // CAPTURE FIRST — capture-before-reporter ordering invariant (T-04-24).
         // EverframeReporter window not yet constructed, so the reporter chrome is not
         // picked up by the screenshot.
-        let captureResult = ScreenshotCapture.captureKeyWindow()
+        let captureResult = captureOverride ?? ScreenshotCapture.captureKeyWindow()
 
         // Phase 22-04 (VTREE-02): freeze the session-replay buffer NOW — at the
         // top of reporter-open, BEFORE the reporter UIWindow is constructed below.
@@ -164,6 +183,7 @@ public enum EFReporterPresenter {
                 hostExtra: hostExtraNormalized,
                 palette: palette,
                 showWatermark: showWatermark,
+                allowsAdditionalScreenshots: captureOverride == nil,
                 onComplete: { result in resolveResult(result) }
             )
             let nav = UINavigationController(rootViewController: vc)

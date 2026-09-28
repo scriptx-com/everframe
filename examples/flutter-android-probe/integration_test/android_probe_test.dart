@@ -57,7 +57,7 @@ void main() {
     const bridge = EverframeNativeBridge();
     await bridge.start(
       appId: '00000000-0000-0000-0000-000000000001',
-      sdkKey: 'txx_dev_sample_throwaway',
+      sdkKey: 'txx_live_00000000000000000000000000000000',
       environment: 'development',
     );
     await bridge.setUser(id: 'dry-run-user');

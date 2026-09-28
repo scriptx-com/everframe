@@ -49,7 +49,7 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
         ),
         sdkKey: const String.fromEnvironment(
           'EVERFRAME_SDK_KEY',
-          defaultValue: 'txx_dev_sample_throwaway',
+          defaultValue: 'txx_live_00000000000000000000000000000000',
         ),
         environment: 'development',
       );
@@ -74,7 +74,10 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
 
   Future<void> _open() async {
     try {
-      final outcome = await _bridge.openReporter();
+      final outcome = await _bridge.openReporter(
+        boundaryKey: _boundaryKey,
+        sensitiveRegions: _sensitiveRegions,
+      );
       if (mounted) setState(() => _status = 'Reporter: ${outcome.status}');
     } catch (error) {
       if (mounted) setState(() => _status = 'Reporter failed: $error');

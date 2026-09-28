@@ -6,10 +6,18 @@ import EverframeKit
 import EverframeReporterUI
 
 public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
+    private weak var viewController: UIViewController?
+    private var activeMarkers: [UIView] = []
+
+    private init(viewController: UIViewController?) {
+        self.viewController = viewController
+    }
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
             name: "dev.everframe/flutter", binaryMessenger: registrar.messenger())
-        registrar.addMethodCallDelegate(EverframeFlutterPlugin(), channel: channel)
+        registrar.addMethodCallDelegate(
+            EverframeFlutterPlugin(viewController: registrar.viewController), channel: channel)
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -48,8 +56,16 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
                 return
             }
             Task { @MainActor in
+                guard let maskedPng = (args["maskedPng"] as? FlutterStandardTypedData)?.data else {
+                    result(FlutterError(code: "privacy_unverified", message: "Masked Flutter screenshot is unavailable", details: nil))
+                    return
+                }
+                // The Flutter PNG is masked before encoding; view markers are
+                // supplementary for native captures and may be unavailable.
+                _ = installSensitiveMarkers(args)
+                defer { clearMarkers() }
                 do {
-                    let outcome = try await Everframe.shared.report.open()
+                    let outcome = try await EFReporterPresenter.openWithMaskedPng(maskedPng)
                     switch outcome {
                     case .submitted(let reportId):
                         result(["status": "submitted", "reportId": reportId.uuidString])
@@ -88,10 +104,50 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
                 level: args["level"] as? String)
             result(nil)
         case "kill":
-            Everframe.shared.kill()
-            result(nil)
+            Task { @MainActor in
+                clearMarkers()
+                Everframe.shared.kill()
+                result(nil)
+            }
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+
+    @MainActor
+    private func installSensitiveMarkers(_ args: [String: Any]) -> Bool {
+        guard let root = viewController?.view,
+              let window = root.window,
+              let pixelRatio = (args["pixelRatio"] as? NSNumber)?.doubleValue,
+              pixelRatio.isFinite, pixelRatio > 0,
+              abs(pixelRatio - window.screen.scale) <= 0.02,
+              let rects = args["sensitiveRects"] as? [[String: Any]] else { return false }
+        clearMarkers()
+        for item in rects {
+            guard let left = (item["left"] as? NSNumber)?.doubleValue,
+                  let top = (item["top"] as? NSNumber)?.doubleValue,
+                  let right = (item["right"] as? NSNumber)?.doubleValue,
+                  let bottom = (item["bottom"] as? NSNumber)?.doubleValue,
+                  left.isFinite, top.isFinite, right.isFinite, bottom.isFinite,
+                  left >= 0, top >= 0, right > left, bottom > top,
+                  right <= root.bounds.width, bottom <= root.bounds.height else {
+                clearMarkers()
+                return false
+            }
+            let marker = UIView(frame: CGRect(
+                x: left, y: top, width: right - left, height: bottom - top))
+            marker.backgroundColor = .clear
+            marker.isUserInteractionEnabled = false
+            marker.everframe_isSensitive = true
+            root.addSubview(marker)
+            activeMarkers.append(marker)
+        }
+        return true
+    }
+
+    @MainActor
+    private func clearMarkers() {
+        activeMarkers.forEach { $0.removeFromSuperview() }
+        activeMarkers.removeAll()
     }
 }

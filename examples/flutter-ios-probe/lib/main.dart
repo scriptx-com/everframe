@@ -74,7 +74,10 @@ class _FlutterIosProbeAppState extends State<FlutterIosProbeApp> {
 
   Future<void> _open() async {
     try {
-      final outcome = await _bridge.openReporter();
+      final outcome = await _bridge.openReporter(
+        boundaryKey: _boundaryKey,
+        sensitiveRegions: _sensitiveRegions,
+      );
       if (mounted) setState(() => _status = 'Reporter: ${outcome.status}');
     } catch (error) {
       if (mounted) setState(() => _status = 'Reporter failed: $error');

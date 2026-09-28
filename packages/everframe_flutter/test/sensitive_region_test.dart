@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:everframe_flutter/everframe_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<List<int>> pixel(Uint8List png, int x, int y) async {
@@ -19,6 +19,67 @@ Future<List<int>> pixel(Uint8List png, int x, int y) async {
 }
 
 void main() {
+  testWidgets('native reporter receives sensitive bounds in view coordinates',
+      (tester) async {
+    final registry = SensitiveRegionRegistry();
+    final boundary = GlobalKey();
+    const channel = MethodChannel('dev.everframe/flutter');
+    MethodCall? sent;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      sent = call;
+      return {'status': 'cancelled'};
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Probe')),
+        body: RepaintBoundary(
+          key: boundary,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: EverframeSensitive(
+                registry: registry,
+                child: const SizedBox(
+                  key: Key('secret'),
+                  width: 40,
+                  height: 30,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+    final expected = tester.getRect(find.byKey(const Key('secret')));
+    expect(expected.top, greaterThan(12));
+    final pending =
+        tester.runAsync(() => const EverframeNativeBridge().openReporter(
+              boundaryKey: boundary,
+              sensitiveRegions: registry,
+            ));
+    await tester.pump();
+    await pending;
+    expect(sent?.method, 'openReporter');
+    final args = sent?.arguments as Map<Object?, Object?>;
+    expect(args['pixelRatio'], tester.view.devicePixelRatio);
+    expect(args['maskedPng'], isA<Uint8List>());
+    expect(args['sensitiveRects'], [
+      {
+        'left': expected.left,
+        'top': expected.top,
+        'right': expected.right,
+        'bottom': expected.bottom,
+      }
+    ]);
+  });
+
   testWidgets('sensitive widget mask follows layout movement', (tester) async {
     final registry = SensitiveRegionRegistry();
     final boundary = GlobalKey();

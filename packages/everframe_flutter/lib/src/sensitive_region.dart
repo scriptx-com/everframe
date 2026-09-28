@@ -54,6 +54,52 @@ class SensitiveRegionRegistry {
     }
     return rects;
   }
+
+  /// Native reporter masks use logical coordinates relative to the FlutterView.
+  List<ui.Rect>? rectsInView(GlobalKey boundaryKey) {
+    final context = boundaryKey.currentContext;
+    final boundary = context?.findRenderObject();
+    if (context == null ||
+        boundary is! RenderRepaintBoundary ||
+        !boundary.hasSize) {
+      return null;
+    }
+    final view = View.of(context);
+    final ratio = view.devicePixelRatio;
+    if (!ratio.isFinite || ratio <= 0) return null;
+    final viewBounds = ui.Offset.zero & (view.physicalSize / ratio);
+    final rects = <ui.Rect>[];
+    for (final key in _keys) {
+      final box = key.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return null;
+      try {
+        final corners = <ui.Offset>[
+          ui.Offset.zero,
+          ui.Offset(box.size.width, 0),
+          ui.Offset(0, box.size.height),
+          box.size.bottomRight(ui.Offset.zero),
+        ].map(box.localToGlobal).toList();
+        final rect = ui.Rect.fromLTRB(
+          corners.map((point) => point.dx).reduce(math.min),
+          corners.map((point) => point.dy).reduce(math.min),
+          corners.map((point) => point.dx).reduce(math.max),
+          corners.map((point) => point.dy).reduce(math.max),
+        );
+        if (!rect.isFinite ||
+            rect.isEmpty ||
+            rect.left < viewBounds.left ||
+            rect.top < viewBounds.top ||
+            rect.right > viewBounds.right ||
+            rect.bottom > viewBounds.bottom) {
+          return null;
+        }
+        rects.add(rect);
+      } catch (_) {
+        return null;
+      }
+    }
+    return rects;
+  }
 }
 
 /// Registers a widget's current layout bounds for frame masking.

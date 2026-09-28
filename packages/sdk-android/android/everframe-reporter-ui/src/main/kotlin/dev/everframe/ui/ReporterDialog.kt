@@ -104,6 +104,7 @@ internal object ReporterDialog {
         capture: ScreenshotCapture.CaptureResult,
         reportCapture: FrozenReportCapture,
         hostExtra: String? = null,
+        allowAdditionalScreenshots: Boolean = true,
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
 
@@ -133,6 +134,7 @@ internal object ReporterDialog {
                             capture = capture,
                             reportCapture = reportCapture,
                             hostExtra = hostExtra,
+                            allowAdditionalScreenshots = allowAdditionalScreenshots,
                             onCancel = {
                                 content.removeView(this)
                                 // Discard the frozen replay window and resume
@@ -208,6 +210,7 @@ internal object ReporterDialog {
         capture: ScreenshotCapture.CaptureResult,
         reportCapture: FrozenReportCapture,
         hostExtra: String?,
+        allowAdditionalScreenshots: Boolean,
         onCancel: () -> Unit,
         onSubmit: (
             title: String,
@@ -264,6 +267,7 @@ internal object ReporterDialog {
                 reportCapture = reportCapture,
                 activity = activity,
                 hostExtra = hostExtra,
+                allowAdditionalScreenshots = allowAdditionalScreenshots,
                 onCancel = {
                     if (lastTitle.isNotBlank() || lastDescription.isNotBlank()) {
                         showDiscardConfirm = true

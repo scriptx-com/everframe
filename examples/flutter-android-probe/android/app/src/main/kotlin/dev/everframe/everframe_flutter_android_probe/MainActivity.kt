@@ -2,6 +2,6 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.everframe_flutter_android_probe
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity : FlutterFragmentActivity()
