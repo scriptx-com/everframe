@@ -1,16 +1,28 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
+import 'masked_capture.dart';
 import 'platform_view.dart';
+import 'probe_export.dart';
 
-void main() => runApp(FlutterProbeApp(safeVisualMode: Uri.base.queryParameters['safe'] == '1'));
+void main() => runApp(FlutterProbeApp(
+      safeVisualMode: Uri.base.queryParameters['safe'] == '1',
+      onSafeFrame: emitSafeFrame,
+    ));
 
 class FlutterProbeApp extends StatefulWidget {
-  const FlutterProbeApp({super.key, this.boundaryKey, this.safeVisualMode = false});
+  const FlutterProbeApp(
+      {super.key,
+      this.boundaryKey,
+      this.safeVisualMode = false,
+      this.onSafeFrame});
 
   final GlobalKey? boundaryKey;
   final bool safeVisualMode;
+  final void Function(Uint8List)? onSafeFrame;
 
   @override
   State<FlutterProbeApp> createState() => _FlutterProbeAppState();
@@ -69,6 +81,20 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                     onPressed: () =>
                         setState(() => _secondScreen = !_secondScreen),
                     child: const Text('Next screen'),
+                  ),
+                ),
+                Positioned(
+                  left: 300,
+                  top: 170,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final bytes = await captureMaskedFrame(
+                        _boundaryKey,
+                        [const Rect.fromLTWH(40, 140, 160, 80)],
+                      );
+                      if (bytes != null) widget.onSafeFrame?.call(bytes);
+                    },
+                    child: const Text('Capture safe frame'),
                   ),
                 ),
               ]),
