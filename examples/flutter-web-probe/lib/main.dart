@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import 'dart:typed_data';
 
+import 'package:everframe_flutter/everframe_flutter.dart' show SafeReplayBuffer;
 import 'package:flutter/material.dart';
 
 import 'masked_capture.dart';
@@ -18,11 +19,13 @@ class FlutterProbeApp extends StatefulWidget {
       {super.key,
       this.boundaryKey,
       this.safeVisualMode = false,
-      this.onSafeFrame});
+      this.onSafeFrame,
+      this.replayBuffer});
 
   final GlobalKey? boundaryKey;
   final bool safeVisualMode;
   final void Function(Uint8List)? onSafeFrame;
+  final SafeReplayBuffer? replayBuffer;
 
   @override
   State<FlutterProbeApp> createState() => _FlutterProbeAppState();
@@ -30,6 +33,8 @@ class FlutterProbeApp extends StatefulWidget {
 
 class _FlutterProbeAppState extends State<FlutterProbeApp> {
   late final GlobalKey _boundaryKey = widget.boundaryKey ?? GlobalKey();
+  late final SafeReplayBuffer _replay =
+      widget.replayBuffer ?? SafeReplayBuffer();
   bool _secondScreen = false;
 
   @override
@@ -88,11 +93,15 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                   top: 170,
                   child: ElevatedButton(
                     onPressed: () async {
+                      await WidgetsBinding.instance.endOfFrame;
                       final bytes = await captureMaskedFrame(
                         _boundaryKey,
                         [const Rect.fromLTWH(40, 140, 160, 80)],
                       );
-                      if (bytes != null) widget.onSafeFrame?.call(bytes);
+                      final accepted = await _replay.append(bytes);
+                      if (accepted && bytes != null) {
+                        widget.onSafeFrame?.call(bytes);
+                      }
                     },
                     child: const Text('Capture safe frame'),
                   ),
