@@ -58,6 +58,7 @@
     "examples/flutter-web-probe",
     "examples/flutter-desktop-probe",
     "examples/ios-native",
+    "examples/macos-window-capture-probe",
     "examples/react-native",
     "examples/react-tv-sample",
     "examples/react-web",
