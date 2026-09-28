@@ -22,3 +22,5 @@ flutter:
       android:
         package: dev.everframe.flutter
         pluginClass: EverframeFlutterPlugin
+      ios:
+        pluginClass: EverframeFlutterPlugin
