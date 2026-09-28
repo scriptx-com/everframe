@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 ScriptX
-name: everframe_flutter_web_probe
-description: Unreleased Flutter web capture feasibility sample.
+name: everframe_flutter
+description: Unreleased Flutter capture core for Everframe dry runs.
 publish_to: none
 version: 0.0.0+1
 
@@ -9,15 +9,9 @@ environment:
   sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
-  everframe_flutter:
-    path: ../../packages/everframe_flutter
   flutter:
     sdk: flutter
-  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-flutter:
-  uses-material-design: true

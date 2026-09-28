@@ -9,6 +9,8 @@ environment:
   sdk: ^3.13.0
 
 dependencies:
+  everframe_flutter:
+    path: ../../packages/everframe_flutter
   flutter:
     sdk: flutter
 

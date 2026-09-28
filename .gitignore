@@ -30,6 +30,8 @@ packages/sdk-android/android/.gradle/
 packages/sdk-android/android/local.properties
 packages/sdk-ios/dist/
 packages/sdk-web/test-results/
+packages/everframe_flutter/.dart_tool/
+packages/everframe_flutter/pubspec.lock
 packages/swc-plugin-displayname/.swc/
 packages/swc-plugin-displayname/target/
 packages/swc-plugin-displayname/swc_plugin_displayname.wasm
