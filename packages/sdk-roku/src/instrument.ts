@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { cpSync, existsSync, lstatSync, statSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, lstatSync, statSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { discoverEntryPoints, ALL_MECHANISMS, type Mechanism } from './entry-points.js';
@@ -14,6 +14,9 @@ export interface InstrumentReport {
   libraryZip?: string;
 }
 
+/** Written into every --out by a successful run; only a marked dir is ever cleared. */
+export const OUT_MARKER = '.everframe-build';
+
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOOK_SET = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'];
 const hookSource = (f: string) =>
@@ -25,11 +28,14 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
   const out = opts.out ? path.resolve(opts.out) : '';
   if (out) {
     if (root === out) throw new Error('--out must differ from the channel directory');
-    if (out.startsWith(root + path.sep)) throw new Error('--out must not be inside the channel directory');
+    if (root.startsWith(out + path.sep)) throw new Error('--out must not contain the channel directory');
   }
+  // --out may be a subdirectory of the channel (e.g. ./.everframe-build): skip it everywhere.
+  const outInside = out !== '' && out.startsWith(root + path.sep);
   const plan = discoverEntryPoints(root, {
     exclude: opts.exclude ?? [],
     mechanisms: new Set(opts.mechanisms ?? ALL_MECHANISMS),
+    ...(outInside ? { skipDir: out } : {}),
   });
   const report: InstrumentReport = { wrapped: [], skipped: [], injected: [] };
   const rewritten = new Map<string, string>();
@@ -59,17 +65,8 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
 
   if (opts.dryRun) return report;
 
-  mkdirSync(out, { recursive: true });
-  cpSync(root, out, {
-    recursive: true,
-    dereference: true,
-    filter: (src) => {
-      if (path.relative(root, src).split(path.sep).some((part) => part === '.git' || part === 'node_modules')) return false;
-      // symlinked directories can form cycles; discovery ignores them too
-      try { if (lstatSync(src).isSymbolicLink() && statSync(src).isDirectory()) return false; } catch { return false; }
-      return true;
-    },
-  });
+  prepareOut(out);
+  copyChannel(root, out, outInside ? out : undefined);
   for (const [file, code] of rewritten) writeFileSync(path.join(out, file), code);
   for (const [file, text] of xmlEdits) writeFileSync(path.join(out, file), text);
   for (const dir of ['source/everframe', 'components/everframe_hook']) {
@@ -84,5 +81,45 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
     cpSync(zip, dest);
     report.libraryZip = path.relative(out, dest);
   }
+  writeFileSync(path.join(out, OUT_MARKER), 'Created by everframe-roku instrument. This directory is cleared on every run.\n');
   return report;
+}
+
+/**
+ * Copies the channel into `out`, dereferencing file symlinks (so writes never go
+ * through a link), skipping symlinked directories (cycles; discovery ignores them
+ * too), .git, node_modules, and `skip` (the --out dir when it is inside the channel).
+ * Hand-rolled because cpSync refuses a destination inside its source.
+ */
+function copyChannel(src: string, dst: string, skip: string | undefined) {
+  mkdirSync(dst, { recursive: true });
+  for (const name of readdirSync(src)) {
+    if (name === '.git' || name === 'node_modules') continue;
+    const from = path.join(src, name);
+    if (from === skip) continue;
+    const to = path.join(dst, name);
+    let st;
+    try { st = lstatSync(from).isSymbolicLink() ? statSync(from) : lstatSync(from); } catch { continue; }
+    if (st.isDirectory()) {
+      if (lstatSync(from).isSymbolicLink()) continue;
+      copyChannel(from, to, skip);
+    } else if (st.isFile()) {
+      copyFileSync(from, to);
+    }
+  }
+}
+
+/** Empty `out` if a previous run created it; refuse to touch any other non-empty directory. */
+function prepareOut(out: string) {
+  if (existsSync(out)) {
+    if (!statSync(out).isDirectory()) throw new Error(`--out ${out} exists and is not a directory`);
+    const entries = readdirSync(out);
+    if (entries.length > 0) {
+      if (!entries.includes(OUT_MARKER)) {
+        throw new Error(`refusing to overwrite a directory everframe-roku did not create: ${out} (use an empty or new directory)`);
+      }
+      for (const e of entries) rmSync(path.join(out, e), { recursive: true, force: true });
+    }
+  }
+  mkdirSync(out, { recursive: true });
 }

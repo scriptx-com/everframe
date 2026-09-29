@@ -16,12 +16,13 @@ export interface EntryPlan {
 const OBSERVE_RE = /observeField(?:Scoped)?\s*\(\s*"[^"]*"\s*,\s*"(\w+)"/gi;
 const TASK_RE = /functionName\s*=\s*"(\w+)"/gi;
 
-function walk(dir: string, root: string, out: string[] = []): string[] {
+function walk(dir: string, root: string, skip: string | undefined, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const abs = path.join(dir, name);
+    if (abs === skip) continue;
     const st = lstatSync(abs);
     if (st.isSymbolicLink()) continue;
-    if (st.isDirectory()) walk(abs, root, out);
+    if (st.isDirectory()) walk(abs, root, skip, out);
     else out.push(path.relative(root, abs).split(path.sep).join('/'));
   }
   return out;
@@ -37,9 +38,10 @@ function add(plan: EntryPlan, file: string, fn: string, target: WrapTarget) {
   if (!m.has(fn.toLowerCase())) m.set(fn.toLowerCase(), target);
 }
 
-export function discoverEntryPoints(root: string, opts: { exclude: string[]; mechanisms: Set<Mechanism> }): EntryPlan {
+/** `skipDir`: absolute path excluded from discovery (the --out dir when it sits inside the channel). */
+export function discoverEntryPoints(root: string, opts: { exclude: string[]; mechanisms: Set<Mechanism>; skipDir?: string }): EntryPlan {
   const plan: EntryPlan = { files: new Map(), components: [] };
-  const all = walk(root, root);
+  const all = walk(root, root, opts.skipDir);
   const on = (m: Mechanism) => opts.mechanisms.has(m);
 
   if (on('main')) {
@@ -64,8 +66,10 @@ export function discoverEntryPoints(root: string, opts: { exclude: string[]; mec
     if (scripts.length === 0) continue;
 
     const iface = comp.interface ?? {};
+    // Lifecycle crumbs only for the scene: every component's init would flood the ring.
+    const isScene = comp.extends === 'Scene';
     const targets: Array<[string, WrapTarget, Mechanism]> = [
-      ['init', { entry: comp.name, isTask: false, crumb: 'init' }, 'init'],
+      ['init', { entry: comp.name, isTask: false, ...(isScene ? { crumb: 'init' as const } : {}) }, 'init'],
       ['onKeyEvent', { entry: '', isTask: false, crumb: 'key' }, 'key'],
     ];
     for (const f of [iface.field].flat().filter(Boolean)) {
