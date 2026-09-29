@@ -22,10 +22,14 @@ import { isCanvasBlank } from '../blank-check.js';
  * offset. Our pnpm patch (patches/@zumer__snapdom@3.2.0.patch) makes that
  * wrapper carry a flex/grid scroller's layout, drops snapDOM's counter-offset
  * that left absolute descendants unscrolled, exempts wrapped scrollers from
- * the shrink pass that expanded stylesheet-sized ones. Documented
- * limitations: an absolutely
- * positioned element anchored OUTSIDE a static scroller, or anchored to a
- * scroller that has padding, lands off by that offset; percent-height
+ * the shrink pass that expanded stylesheet-sized ones, and restores a
+ * capture root that scrolls on its own (e.g. <body> under
+ * `html { overflow: hidden }`), keeping the fixed/sticky clones snapDOM lifts
+ * to the root outside the translated wrapper.
+ *
+ * Documented limitations: an absolutely positioned element anchored OUTSIDE
+ * a static scroller, or anchored to a scroller that has padding, lands off
+ * by that offset; percent-height
  * children of block scrollers lose their percentage basis; flex/grid
  * scrollers sized only by max-height may lay out their items differently.
  */
