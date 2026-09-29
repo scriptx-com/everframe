@@ -36,6 +36,15 @@ describe('crash lab channel source', () => {
     }
   });
 
+  it('reads exit info in a Task, never roAppManager on the render thread', () => {
+    const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    expect(scene).not.toMatch(/roAppManager/);
+    expect(scene).toMatch(/"ExitInfoTask"/);
+    const task = readFileSync(path.join(ROOT, 'components/ExitInfoTask.brs'), 'utf8');
+    expect(task).toMatch(/roAppManager/);
+    expect(task).toMatch(/FindMemberFunction\(am, "GetLastExitInfo"\)/);
+  });
+
   it('lists all nine scenarios in order', () => {
     const brs = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
     const ids = [...brs.matchAll(/\{ id: "([a-z_]+)", title:/g)].map((m) => m[1]);

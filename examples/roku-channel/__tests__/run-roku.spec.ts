@@ -37,8 +37,8 @@ describe('run-roku.mjs --no-deploy', () => {
     const zipName = `components/everframe-roku-${sdkVersion}.zip`;
     expect(files[zipName], zipName).toBeDefined();
     const config = strFromU8(files['components/generated/ef_config.brs']!);
-    expect(config).toContain(`libraryUri: "pkg:/${zipName}"`);
-    expect(config).toContain(`sdkKey: "${KEY}"`);
+    expect(config).toContain(`"libraryUri": "pkg:/${zipName}"`);
+    expect(config).toContain(`"sdkKey": "${KEY}"`);
     expect(strFromU8(files['components/LabScene.brs']!)).toContain("' everframe:instrumented");
     expect(strFromU8(files['components/LabScene.xml']!)).toContain('pkg:/components/everframe_hook/everframe_hook.brs');
     expect(strFromU8(files['components/Excluded.brs']!)).not.toContain('everframe:instrumented');
@@ -72,7 +72,7 @@ describe('run-roku.mjs --no-deploy', () => {
     build(['--remote-library', 'https://cdn.example.com/everframe-roku.zip']);
     const files = zipFiles();
     expect(Object.keys(files).some((n) => n.endsWith('.zip'))).toBe(false);
-    expect(strFromU8(files['components/generated/ef_config.brs']!)).toContain('libraryUri: "https://cdn.example.com/everframe-roku.zip"');
+    expect(strFromU8(files['components/generated/ef_config.brs']!)).toContain('"libraryUri": "https://cdn.example.com/everframe-roku.zip"');
   });
 
   it('warns on stderr when the ingest URL is localhost', () => {

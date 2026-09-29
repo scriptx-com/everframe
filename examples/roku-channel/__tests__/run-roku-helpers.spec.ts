@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import net from 'node:net';
 import path from 'node:path';
 // @ts-expect-error plain .mjs module without types
-import { loadEnv, streamLogs, ingestWarning } from '../scripts/run-roku.mjs';
+import { loadEnv, streamLogs, ingestWarning, parseArgs } from '../scripts/run-roku.mjs';
 
 function envFrom(text: string) {
   const dir = mkdtempSync(path.join(tmpdir(), 'roku-env-'));
@@ -77,5 +77,16 @@ describe('streamLogs', () => {
     const handle = streamLogs('10.255.255.1', { port: 8085, logFile, retryMs: 20, timeoutMs: 400, quiet: true });
     await expect(handle.done).rejects.toThrow(/could not connect/i);
     expect(Date.now() - t0).toBeLessThan(1500);
+  });
+});
+
+describe('parseArgs', () => {
+  it("accepts pnpm's literal -- separator", () => {
+    expect(parseArgs(['--', '--logs']).logs).toBe(true);
+    expect(parseArgs(['--logs', '--', '--no-deploy'])).toMatchObject({ logs: true, 'no-deploy': true });
+  });
+
+  it('still rejects unknown flags', () => {
+    expect(() => parseArgs(['--bogus'])).toThrow();
   });
 });

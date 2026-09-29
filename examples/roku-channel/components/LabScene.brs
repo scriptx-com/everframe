@@ -54,6 +54,17 @@ sub init()
     m.statusTimer.observeField("fire", "onStatusTick")
     m.statusTimer.control = "start"
 
+    ' the app manager is MAIN/TASK-only; read exit info in a Task.
+    m.exitSummary = "reading…"
+    m["exitTask"] = CreateObject("roSGNode", "ExitInfoTask")
+    m.exitTask.observeField("summary", "onExitSummary")
+    m.exitTask.control = "RUN"
+
+    updateStatus()
+end sub
+
+sub onExitSummary()
+    if m.exitTask.summary <> "" then m.exitSummary = m.exitTask.summary
     updateStatus()
 end sub
 
@@ -165,7 +176,7 @@ sub updateStatus()
     lines.Push("Library: " + m.lib.loadStatus + " (" + m.cfg.libraryUri + ")")
     lines.Push("SDK started: " + m.started.ToStr())
     lines.Push("Queued records: " + LabQueueCount().ToStr())
-    lines.Push("Last exit: " + LabLastExit())
+    lines.Push("Last exit: " + m.exitSummary)
     lines.Push("User: " + LabUser())
     if m.note <> "" then lines.Push("")
     if m.note <> "" then lines.Push(m.note)
@@ -179,19 +190,6 @@ function LabQueueCount() as integer
         if Left(k, 1) = "r" and Instr(1, "0123456789", Mid(k, 2, 1)) > 0 then n = n + 1
     end for
     return n
-end function
-
-function LabLastExit() as string
-    am = CreateObject("roAppManager")
-    if FindMemberFunction(am, "GetLastExitInfo") = invalid then return "n/a (Roku OS < 13)"
-    info = am.GetLastExitInfo()
-    if type(info) <> "roAssociativeArray" then return "none"
-    code = info.exit_code
-    if code = invalid then return "none"
-    text = code.ToStr()
-    ts = info.timestamp
-    if ts <> invalid then text = text + " at " + ts.ToStr()
-    return text
 end function
 
 function LabUser() as string
