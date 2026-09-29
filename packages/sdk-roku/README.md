@@ -107,7 +107,7 @@ Add one Everframe build step that writes an instrumented copy of your channel to
 {
   "scripts": {
     "everframe:build": "everframe-roku instrument ./ --out ./.everframe-build --bundle-library",
-    "deploy:dev": "roku-deploy --rootDir ./",
+    "deploy:dev": "roku-deploy",
     "deploy:release": "npm run everframe:build && cd .everframe-build && roku-deploy"
   }
 }
