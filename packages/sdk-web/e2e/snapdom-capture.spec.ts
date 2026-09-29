@@ -101,6 +101,26 @@ test('scroller child with a class-applied transform keeps it and the scroll offs
   expect(near(r.samples.unshifted!, [255, 255, 255])).toBe(true);
 });
 
+test('scroller child with an individual scale keeps it without scaling the scroll offset', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  await page.evaluate(() => {
+    const el = document.getElementById('scaled')!;
+    el.scrollIntoView();
+    el.scrollTop = 800;
+  });
+  const pos = await page.evaluate(() => {
+    const b = document.getElementById('scaled-marker')!.getBoundingClientRect();
+    return {
+      marker: [b.left + 40, b.top + b.height / 2] as [number, number],
+      above: [b.left + 40, b.top - 20] as [number, number],
+    };
+  });
+  const r = await captureAndSample(page, pos);
+  expect(r.renderer).toBe('snapdom');
+  expect(near(r.samples.marker!, [0, 200, 200])).toBe(true);
+  expect(near(r.samples.above!, [255, 255, 255])).toBe(true);
+});
+
 test('scroller with plain in-flow rows shows each row at its live position (one restoration, not two)', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => {
@@ -229,6 +249,42 @@ test('a capture root that scrolls on its own (html overflow hidden) renders at i
   expect(near(r.samples.top!, [255, 255, 255])).toBe(true);
   expect(near(r.samples.marker!, [0, 160, 0])).toBe(true);
   expect(near(r.samples.secret!, [0, 0, 0])).toBe(true);
+});
+
+test('an app update to ellipsized text during capture is kept and no text node is left emptied', async ({ page }) => {
+  await page.goto('/e2e/fixtures/ellipsis.html');
+  const r = await page.evaluate(async () => {
+    const w = window as unknown as {
+      __everframe: { __adapter: { captureScreenshot(): Promise<unknown>; __lastScreenshotRenderer?: string } };
+    };
+    const price = document.getElementById('price')!;
+    const [amount, suffix] = Array.from(price.childNodes) as Text[];
+    let captureWroteLiveText = false;
+    // snapDOM rewrites the live text synchronously while cloning; the app
+    // updates the price the moment control returns to it, before capture ends.
+    const mo = new MutationObserver(() => {
+      mo.disconnect();
+      captureWroteLiveText = amount!.data !== '$1,234,567.00' || suffix!.data !== ' / month';
+      amount!.data = '$9.99';
+    });
+    mo.observe(price, { characterData: true, subtree: true });
+    await w.__everframe.__adapter.captureScreenshot();
+    mo.disconnect();
+    return {
+      captureWroteLiveText,
+      renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
+      amount: amount!.data,
+      suffix: suffix!.data,
+      text: price.textContent,
+      sameNodes: price.firstChild === amount && price.lastChild === suffix,
+    };
+  });
+  expect(r.renderer).toBe('snapdom');
+  expect(r.captureWroteLiveText).toBe(true); // the scenario actually happened
+  expect(r.amount).toBe('$9.99'); // the app's update survives
+  expect(r.suffix).toBe(' / month'); // capture never leaves a node emptied
+  expect(r.text).toBe('$9.99 / month');
+  expect(r.sameNodes).toBe(true);
 });
 
 test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {

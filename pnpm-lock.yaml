@@ -20,6 +20,9 @@ patchedDependencies:
   '@noble/hashes@1.8.0':
     hash: avlaf7panokdhlz5flselmziby
     path: patches/@noble__hashes@1.8.0.patch
+  '@zumer/snapdom@3.2.0':
+    hash: wdoythc3cb23nkk2aeeddbmvaa
+    path: patches/@zumer__snapdom@3.2.0.patch
   modern-screenshot@4.7.0:
     hash: x7suimpm3mxsktg4kgxugmql7u
     path: patches/modern-screenshot@4.7.0.patch
@@ -489,7 +492,7 @@ importers:
     dependencies:
       '@zumer/snapdom':
         specifier: 3.2.0
-        version: 3.2.0
+        version: 3.2.0(patch_hash=wdoythc3cb23nkk2aeeddbmvaa)
       modern-screenshot:
         specifier: ^4.7.0
         version: 4.7.0(patch_hash=x7suimpm3mxsktg4kgxugmql7u)
@@ -8189,7 +8192,7 @@ snapshots:
 
   '@xstate/fsm@1.6.5': {}
 
-  '@zumer/snapdom@3.2.0': {}
+  '@zumer/snapdom@3.2.0(patch_hash=wdoythc3cb23nkk2aeeddbmvaa)': {}
 
   abort-controller@3.0.0:
     dependencies:

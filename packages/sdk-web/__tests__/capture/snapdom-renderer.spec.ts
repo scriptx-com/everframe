@@ -326,6 +326,36 @@ describe('renderViewportWithSnapdom', () => {
       host.remove();
     });
 
+    it('folds individual translate/rotate/scale in AFTER the scroll translate and resets them on the clone', async () => {
+      const { host, child } = scrolled(100, 0);
+      const real = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudo?: string | null) => {
+        const cs = real(el, pseudo);
+        return el === child
+          ? ({ position: 'static', transform: 'none', translate: '10px 5px', rotate: '45deg', scale: '2' } as unknown as CSSStyleDeclaration)
+          : cs;
+      });
+      const setProperty = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty');
+      const { clone } = await restore(host);
+      const childClone = clone.querySelector('p') as HTMLElement;
+      // translate(0,-100) first: the scale/rotate no longer act on the scroll offset.
+      expect(childClone.style.transform).toBe('translate(0px, -100px) translate(10px, 5px) rotate(45deg) scale(2)');
+      expect(setProperty).toHaveBeenCalledWith('translate', 'none');
+      expect(setProperty).toHaveBeenCalledWith('rotate', 'none');
+      expect(setProperty).toHaveBeenCalledWith('scale', 'none');
+      vi.restoreAllMocks();
+      host.remove();
+    });
+
+    it('leaves the individual properties alone when the child has none', async () => {
+      const { host } = scrolled();
+      const setProperty = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty');
+      await restore(host);
+      expect(setProperty.mock.calls.some(([p]) => p === 'scale' || p === 'rotate' || p === 'translate')).toBe(false);
+      vi.restoreAllMocks();
+      host.remove();
+    });
+
     it('reverts snapDOM\'s counter-offset on inline-absolute descendants (keeping `auto`)', async () => {
       const { host, child } = scrolled();
       child.style.position = 'relative';
@@ -490,6 +520,26 @@ describe('renderViewportWithSnapdom', () => {
       expect(out.rootTop).toBe(100);
       vi.restoreAllMocks();
       root.remove();
+    });
+  });
+
+  describe('individualTransformFunctions', () => {
+    it.each([
+      [{}, ''],
+      [{ translate: 'none', rotate: 'none', scale: 'none' }, ''],
+      [{ scale: '2' }, 'scale(2)'],
+      [{ scale: '2 3' }, 'scale(2, 3)'],
+      [{ scale: '2 3 4' }, 'scale3d(2, 3, 4)'],
+      [{ translate: '10px' }, 'translate(10px)'],
+      [{ translate: '10px 20%' }, 'translate(10px, 20%)'],
+      [{ translate: '1px 2px 3px' }, 'translate3d(1px, 2px, 3px)'],
+      [{ rotate: '45deg' }, 'rotate(45deg)'],
+      [{ rotate: 'x 45deg' }, 'rotateX(45deg)'],
+      [{ rotate: '1 0 0 45deg' }, 'rotate3d(1, 0, 0, 45deg)'],
+      [{ scale: '2', rotate: '10deg', translate: '5px' }, 'translate(5px) rotate(10deg) scale(2)'],
+    ])('%o -> %s', async (values, expected) => {
+      const { individualTransformFunctions } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      expect(individualTransformFunctions(values)).toBe(expected);
     });
   });
 

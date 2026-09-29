@@ -44,6 +44,12 @@
       <div id="classy-marker" style="position:absolute;top:900px;left:0;width:100px;height:60px;background:rgb(0,0,255)"></div>
     </div>
   </section>
+  <!-- Direct child with the INDIVIDUAL `scale` property (computed transform stays 'none'). -->
+  <section id="scaled" style="height:300px;overflow:auto;background:#fff">
+    <div style="scale:2;transform-origin:0 0;height:1200px;position:relative">
+      <div id="scaled-marker" style="position:absolute;top:450px;left:0;width:100px;height:30px;background:rgb(0,200,200)"></div>
+    </div>
+  </section>
   <!-- Plain in-flow rows (no positioning): 20 x 60px, pairwise-distinct colours. -->
   <section id="rows" style="height:300px;overflow:auto;background:#fff"></section>
   <section id="css-rows" class="css-scroller"></section>

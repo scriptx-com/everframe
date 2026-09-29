@@ -30,10 +30,52 @@ interface ScrollerState {
   top: number;
   /**
    * Per live element child: the full transform its clone gets (the scroll
-   * translate composed with the child's own computed transform), or null
-   * when the child does not scroll with the content (see childShift).
+   * translate composed with the child's own individual transforms and
+   * computed transform), or null when the child does not scroll with the
+   * content (see childShift).
    */
-  children: Map<Element, string | null>;
+  children: Map<Element, ChildShift | null>;
+}
+
+interface ChildShift {
+  transform: string;
+  /** The child's individual translate/rotate/scale were folded into `transform`: reset them on the clone. */
+  foldedIndividual: boolean;
+}
+
+const INDIVIDUAL = (cs: CSSStyleDeclaration): Record<'translate' | 'rotate' | 'scale', string | undefined> => {
+  const r = cs as unknown as Record<string, string | undefined>;
+  return { translate: r.translate, rotate: r.rotate, scale: r.scale };
+};
+
+/**
+ * The individual transform properties (`translate`, `rotate`, `scale` - in
+ * that order, per CSS Transforms 2) as transform functions, or '' when all
+ * are unset. Computed values: translate `x [y [z]]`, rotate `angle` /
+ * `axis angle` / `x y z angle`, scale `x [y [z]]`.
+ */
+export function individualTransformFunctions(values: {
+  translate?: string | undefined;
+  rotate?: string | undefined;
+  scale?: string | undefined;
+}): string {
+  const set = (v: string | undefined): v is string => !!v && v !== 'none';
+  const parts: string[] = [];
+  if (set(values.translate)) {
+    const t = values.translate.trim().split(/\s+/);
+    parts.push(t.length === 3 ? `translate3d(${t.join(', ')})` : `translate(${t.join(', ')})`);
+  }
+  if (set(values.rotate)) {
+    const r = values.rotate.trim().split(/\s+/);
+    if (r.length === 1) parts.push(`rotate(${r[0]})`);
+    else if (r.length === 2) parts.push(`rotate${r[0]!.toUpperCase()}(${r[1]})`);
+    else parts.push(`rotate3d(${r.join(', ')})`);
+  }
+  if (set(values.scale)) {
+    const sc = values.scale.trim().split(/\s+/);
+    parts.push(sc.length === 3 ? `scale3d(${sc.join(', ')})` : `scale(${sc.join(', ')})`);
+  }
+  return parts.join(' ');
 }
 
 /**
@@ -77,13 +119,20 @@ function establishesFixedContainingBlock(cs: CSSStyleDeclaration): boolean {
  * - an absolute child whose containing block is outside the scroller does
  *   not move when the scroller scrolls.
  */
-function childShift(child: Element, scroller: CSSStyleDeclaration, left: number, top: number): string | null {
+function childShift(child: Element, scroller: CSSStyleDeclaration, left: number, top: number): ChildShift | null {
   const cs = getComputedStyle(child);
   const pos = cs.position;
   if (pos === 'fixed' || pos === 'sticky' || pos === '-webkit-sticky') return null;
   if (pos === 'absolute' && !establishesAbsoluteContainingBlock(scroller)) return null;
-  const shift = `translate(${-left}px, ${-top}px)`;
-  return cs.transform && cs.transform !== 'none' ? `${shift} ${cs.transform}` : shift;
+  // Effective matrix = translate · rotate · scale · transform. Left on the
+  // clone, the individual properties would apply BEFORE (outside) our
+  // injected scroll translate and scale/rotate it (scale:2 turns a -100px
+  // scroll into -200px), so they are folded in after it and reset on the clone.
+  const individual = individualTransformFunctions(INDIVIDUAL(cs));
+  const parts = [`translate(${-left}px, ${-top}px)`];
+  if (individual) parts.push(individual);
+  if (cs.transform && cs.transform !== 'none') parts.push(cs.transform);
+  return { transform: parts.join(' '), foldedIndividual: individual !== '' };
 }
 
 /**
@@ -130,7 +179,7 @@ function collectScrollState(root: HTMLElement): Map<Element, ScrollerState> {
     const top = el.scrollTop;
     if (left === 0 && top === 0) continue;
     const scrollerStyle = getComputedStyle(el);
-    const children = new Map<Element, string | null>();
+    const children = new Map<Element, ChildShift | null>();
     for (const child of Array.from(el.children)) {
       children.set(child, childShift(child, scrollerStyle, left, top));
     }
@@ -200,8 +249,14 @@ function createScrollRestorePlugin(root: Element, state: Map<Element, ScrollerSt
           const src = nodeMap.get(child) as Element | undefined;
           // Unmapped children are snapDOM's own in-flow stand-ins (e.g. the
           // placeholder holding a frozen sticky element's slot): they scroll.
-          const transform = src ? st.children.get(src) : plain;
-          if (transform && child.style) child.style.transform = transform;
+          const shift = src ? st.children.get(src) : { transform: plain, foldedIndividual: false };
+          if (!shift || !child.style) continue;
+          child.style.transform = shift.transform;
+          if (shift.foldedIndividual) {
+            child.style.setProperty('translate', 'none');
+            child.style.setProperty('rotate', 'none');
+            child.style.setProperty('scale', 'none');
+          }
         }
       }
     },
