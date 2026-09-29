@@ -37,18 +37,18 @@ sub init()
     m.lib.observeField("loadStatus", "onLibraryStatus")
     m.lib.uri = m.cfg.libraryUri
 
-    m.excludedTimer = m.top.createChild("Timer")
+    m["excludedTimer"] = m.top.createChild("Timer")
     m.excludedTimer.duration = 0.1
     m.excludedTimer.observeField("fire", "onCrashExcluded")
 
     ' Scenario 8 waits for the queue to drain before crashing (see onLoopTick).
-    m.loopTimer = m.top.createChild("Timer")
+    m["loopTimer"] = m.top.createChild("Timer")
     m.loopTimer.duration = 0.5
     m.loopTimer.repeat = true
     m.loopTimer.observeField("fire", "onLoopTick")
-    m.loopClock = CreateObject("roTimespan")
+    m["loopClock"] = CreateObject("roTimespan")
 
-    m.statusTimer = m.top.createChild("Timer")
+    m["statusTimer"] = m.top.createChild("Timer")
     m.statusTimer.duration = 1.5
     m.statusTimer.repeat = true
     m.statusTimer.observeField("fire", "onStatusTick")
@@ -60,7 +60,7 @@ end sub
 sub onLibraryStatus()
     if m.lib.loadStatus = "ready" and not m.started then
         ef = CreateObject("roSGNode", "Everframe:Everframe")
-        cfg = { sdkKey: m.cfg.sdkKey }
+        cfg = { "sdkKey": m.cfg.sdkKey }
         if m.cfg.endpoint <> "" then cfg.endpoint = m.cfg.endpoint
         m.started = ef.callFunc("start", cfg)
         ' Scenario 8: keep crashing on launch until the counter runs out.
@@ -83,7 +83,7 @@ sub onItemSelected()
     else if id = "crash_key" then
         m.note = "press ✱/options now"
     else if id = "crash_task" then
-        m.crashTask = CreateObject("roSGNode", "CrashTask")
+        m["crashTask"] = CreateObject("roSGNode", "CrashTask")
         m.crashTask.control = "RUN"
     else if id = "crash_main" then
         m.lab.Write("crashInMain", "1")
@@ -94,7 +94,7 @@ sub onItemSelected()
     else if id = "crash_excluded" then
         m.excludedTimer.control = "start"
     else if id = "oom" then
-        m.oomTask = CreateObject("roSGNode", "OomTask")
+        m["oomTask"] = CreateObject("roSGNode", "OomTask")
         m.oomTask.control = "RUN"
         m.note = "allocating… the OS should kill the channel; relaunch to send"
     else if id = "crash_loop" then
@@ -155,7 +155,7 @@ sub LabSetUserAndCrumbs()
         m.note = "SDK not started yet"
         return
     end if
-    ef.callFunc("setUser", { id: 42, email: "lab@example.com", displayName: "Crash Lab" })
+    ef.callFunc("setUser", { id: 42, email: "lab@example.com", "displayName": "Crash Lab" })
     ef.callFunc("addBreadcrumb", { kind: "custom", message: "crash lab breadcrumb", level: "info" })
     m.note = "user 42 set + breadcrumb added (attached to the next report)"
 end sub

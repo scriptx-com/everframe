@@ -7,19 +7,19 @@
 
 function EfX_IsAbnormal(code as string) as boolean
     known = {
-        EXIT_BRIGHTSCRIPT_CRASH: true,
-        EXIT_CHANNEL_MEM_LIMIT_FG: true,
-        EXIT_CHANNEL_MEM_LIMIT_BG: true,
-        EXIT_OUT_OF_MEMORY: true,
-        EXIT_AM_LOWRESOURCE: true,
-        EXIT_SYSTEM_KILL: true
+        "EXIT_BRIGHTSCRIPT_CRASH": true,
+        "EXIT_CHANNEL_MEM_LIMIT_FG": true,
+        "EXIT_CHANNEL_MEM_LIMIT_BG": true,
+        "EXIT_OUT_OF_MEMORY": true,
+        "EXIT_AM_LOWRESOURCE": true,
+        "EXIT_SYSTEM_KILL": true
     }
     if known.DoesExist(code) then return true
     return Instr(1, UCase(code), "CRASH") > 0
 end function
 
 function EfX_Meta(info as object) as object
-    meta = { exitCode: info.exit_code }
+    meta = { "exitCode": info.exit_code }
     if info.mem_limit <> invalid then meta["memLimitMb"] = info.mem_limit
     if info.app_state <> invalid then meta["appState"] = info.app_state
     if info.media_player_state <> invalid then meta["mediaPlayerState"] = info.media_player_state
@@ -37,13 +37,13 @@ function EfX_ToRecord(info as object) as object
         mechanism: "exit-info",
         handled: false,
         fatal: true,
-        exceptionType: info.exit_code,
+        "exceptionType": info.exit_code,
         message: "App exited: " + info.exit_code,
         frames: [],
         thread: "main",
-        appVersion: CreateObject("roAppInfo").GetVersion(),
+        "appVersion": CreateObject("roAppInfo").GetVersion(),
         crumbs: [],
-        exitInfo: meta
+        "exitInfo": meta
     }
     parsed = EfF_ParseConsoleLog(info.console_log)
     if parsed <> invalid then

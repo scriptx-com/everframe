@@ -17,21 +17,21 @@ function EfE_Context(sdkVersion as string) as object
     build = ai.GetValue("build_version")
     if build <> invalid and build <> "" then app.build = build
     return {
-        sdkVersion: sdkVersion,
+        "sdkVersion": sdkVersion,
         app: app,
-        device: { osVersion: osVersion, model: di.GetModel(), width: size.w, height: size.h, locale: locale, timezone: di.GetTimeZone() }
+        device: { "osVersion": osVersion, model: di.GetModel(), width: size.w, height: size.h, locale: locale, timezone: di.GetTimeZone() }
     }
 end function
 
 function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
     crash = {
-        exceptionType: EfU_Truncate(rec.exceptionType, 256),
+        "exceptionType": EfU_Truncate(rec.exceptionType, 256),
         message: EfU_Truncate(rec.message, 4096),
         frames: rec.frames,
         mechanism: rec.mechanism,
         handled: rec.handled,
         fatal: rec.fatal,
-        occurredAt: EfU_IsoFromMs(rec.t),
+        "occurredAt": EfU_IsoFromMs(rec.t),
         fingerprint: EfFp_Compute(rec.exceptionType, rec.frames)
     }
     if rec.thread <> invalid then crash["threadName"] = rec.thread
@@ -53,23 +53,23 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
     if ctx.app.build <> invalid then app.build = ctx.app.build
 
     return {
-        protocolVersion: "1.0",
-        reportId: rec.id,
-        submittedAt: EfU_IsoFromMs(nowMs),
+        "protocolVersion": "1.0",
+        "reportId": rec.id,
+        "submittedAt": EfU_IsoFromMs(nowMs),
         source: source,
-        sdk: { name: "everframe-roku", version: ctx.sdkVersion, platform: "roku", formFactor: "tv" },
+        sdk: { name: "everframe-roku", version: ctx.sdkVersion, platform: "roku", "formFactor": "tv" },
         reporter: reporter,
-        captures: { screenshot: false, uiTree: false, focus: false, logs: false, network: false, breadcrumbs: crumbs.Count() > 0 },
-        captureControl: { included: ["breadcrumbs"], excluded: ["screenshot", "uiTree", "focus", "logs", "network"], degradedReason: "crash-capture" },
+        captures: { screenshot: false, "uiTree": false, focus: false, logs: false, network: false, breadcrumbs: crumbs.Count() > 0 },
+        "captureControl": { included: ["breadcrumbs"], excluded: ["screenshot", "uiTree", "focus", "logs", "network"], "degradedReason": "crash-capture" },
         payload: { crash: crash, breadcrumbs: crumbs },
         context: {
             app: app,
             device: {
                 os: "Roku OS",
-                osVersion: ctx.device.osVersion,
+                "osVersion": ctx.device.osVersion,
                 model: ctx.device.model,
-                screenSize: { width: ctx.device.width, height: ctx.device.height },
-                pixelRatio: 1,
+                "screenSize": { width: ctx.device.width, height: ctx.device.height },
+                "pixelRatio": 1,
                 locale: ctx.device.locale,
                 timezone: ctx.device.timezone
             }

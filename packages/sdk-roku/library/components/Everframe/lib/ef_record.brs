@@ -17,10 +17,10 @@ function EfR_FromException(e as dynamic, mechanism as string, handled as boolean
         mechanism: mechanism,
         handled: handled,
         fatal: not handled,
-        exceptionType: EfF_ExceptionType(e.number),
+        "exceptionType": EfF_ExceptionType(e.number),
         message: EfU_Truncate(e.message, 4096),
         frames: EfF_FromBacktrace(e.backtrace),
-        appVersion: CreateObject("roAppInfo").GetVersion(),
+        "appVersion": CreateObject("roAppInfo").GetVersion(),
         crumbs: []
     }
     return rec

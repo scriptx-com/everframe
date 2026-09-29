@@ -8,7 +8,7 @@
 sub init()
     m.crumbs = []
     m.seq = 0
-    m.maxCrumbs = 50
+    m["maxCrumbs"] = 50
     m.user = invalid
     m.reporter = invalid
 end sub
@@ -21,11 +21,11 @@ function start(config as object) as boolean
             return false
         end if
         if config.enabled = false then return false
-        if config.maxBreadcrumbs <> invalid then m.maxCrumbs = EfU_MaxCrumbs(config.maxBreadcrumbs)
+        if config.maxBreadcrumbs <> invalid then m["maxCrumbs"] = EfU_MaxCrumbs(config.maxBreadcrumbs)
         endpoint = "https://everframe.dev"
         if config.endpoint <> invalid and config.endpoint <> "" then endpoint = config.endpoint
         m.reporter = CreateObject("roSGNode", "EverframeReporter")
-        m.reporter.config = { sdkKey: config.sdkKey, endpoint: endpoint }
+        m.reporter.config = { "sdkKey": config.sdkKey, endpoint: endpoint }
         m.reporter.control = "RUN"
         if m.global.hasField("everframe") then
             m.global.everframe = m.top
