@@ -10,42 +10,46 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import java.awt.Rectangle
 import java.nio.file.Files
 import javax.imageio.ImageIO
 import javax.swing.JPanel
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-private val sensitive = Rectangle(40, 140, 160, 80)
-
 fun main(args: Array<String>) = application {
     val autoProbe = "--auto-probe" in args
     val state = remember { ProbeSceneState() }
+    val sensitiveBounds = remember { SensitiveBoundsRegistry() }
     Window(
         onCloseRequest = ::exitApplication,
         title = "Everframe Compose desktop probe",
         state = rememberWindowState(size = DpSize(800.dp, 600.dp)),
     ) {
-        ProbeScene(state)
+        ProbeScene(state, sensitiveBounds)
         if (autoProbe) {
             LaunchedEffect(window) {
                 delay(1000)
-                val first = captureMaskedFrame(window, listOf(sensitive))
+                val firstBounds = sensitiveBounds.snapshot()
+                val first = firstBounds?.let { captureMaskedFrame(window, listOf(it)) }
                 state.next()
                 delay(500)
-                val second = captureMaskedFrame(window, listOf(sensitive))
-                if (first == null || second == null) {
+                val secondBounds = sensitiveBounds.snapshot()
+                val second = secondBounds?.let { captureMaskedFrame(window, listOf(it)) }
+                if (first == null || second == null || firstBounds == secondBounds) {
+                    println("EVERFRAME_COMPOSE_PROBE_BOUNDS first=$firstBounds second=$secondBounds firstFrame=${first != null} secondFrame=${second != null} content=${window.contentPane.width}x${window.contentPane.height}")
                     println("EVERFRAME_COMPOSE_PROBE=BLOCKED:no-safe-frame")
                     exitApplication()
                     return@LaunchedEffect
@@ -58,8 +62,8 @@ fun main(args: Array<String>) = application {
                 val scaleY = image.height.toDouble() / window.contentPane.height
                 val publicA = fraction(first, 40, Color(0xFF00CC00), scaleX, scaleY)
                 val publicB = fraction(second, 40, Color(0xFF0066FF), scaleX, scaleY)
-                val sensitiveA = fraction(first, 140, Color.Black, scaleX, scaleY)
-                val sensitiveB = fraction(second, 140, Color.Black, scaleX, scaleY)
+                val sensitiveA = fraction(first, (firstBounds!!.y / scaleY).roundToInt(), Color.Black, scaleX, scaleY)
+                val sensitiveB = fraction(second, (secondBounds!!.y / scaleY).roundToInt(), Color.Black, scaleX, scaleY)
                 val nativeA = fraction(first, 240, Color(0xFFFF8800), scaleX, scaleY)
                 val nativeB = fraction(second, 240, Color(0xFFFF8800), scaleX, scaleY)
                 val distinctFrames = !first.contentEquals(second)
@@ -76,6 +80,7 @@ fun main(args: Array<String>) = application {
                 )
                 val evidence = """{
   "size": [${image.width}, ${image.height}],
+  "sensitiveTop": [${firstBounds.y}, ${secondBounds.y}],
   "publicA": $publicA,
   "publicB": $publicB,
   "sensitiveA": $sensitiveA,
@@ -99,10 +104,17 @@ fun main(args: Array<String>) = application {
 }
 
 @Composable
-fun ProbeScene(state: ProbeSceneState) {
+fun ProbeScene(state: ProbeSceneState, sensitiveBounds: SensitiveBoundsRegistry) {
+    DisposableEffect(sensitiveBounds) { onDispose { sensitiveBounds.clear() } }
     Box(Modifier.fillMaxSize().background(Color.White)) {
         Box(Modifier.offset(40.dp, 40.dp).size(160.dp, 80.dp).background(state.publicColor))
-        Box(Modifier.offset(40.dp, 140.dp).size(160.dp, 80.dp).background(state.sensitiveColor))
+        Box(Modifier.offset(40.dp, if (state.screen == ProbeScreen.A) 140.dp else 340.dp)
+            .size(160.dp, 80.dp)
+            .onGloballyPositioned { coordinates ->
+                val rect = coordinates.boundsInRoot()
+                sensitiveBounds.update(rect.left, rect.top, rect.width, rect.height)
+            }
+            .background(state.sensitiveColor))
         SwingPanel(
             factory = { JPanel().apply { background = java.awt.Color(255, 136, 0) } },
             modifier = Modifier.offset(40.dp, 240.dp).size(160.dp, 80.dp),

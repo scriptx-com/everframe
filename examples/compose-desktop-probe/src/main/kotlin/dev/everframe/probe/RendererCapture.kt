@@ -11,10 +11,8 @@ import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
-import kotlin.math.ceil
-import kotlin.math.floor
 
-/** Reads the live Compose renderer rather than asking AWT to print its host. */
+/** Reads the live Compose renderer. Bounds from Compose layout are in image pixels. */
 @OptIn(ComposeToolingApi::class)
 fun captureMaskedFrame(window: ComposeWindow, sensitiveRects: List<Rectangle>): ByteArray? {
     val content = window.contentPane
@@ -24,20 +22,7 @@ fun captureMaskedFrame(window: ComposeWindow, sensitiveRects: List<Rectangle>): 
         val read = { captured = window.captureContentToImage() }
         if (SwingUtilities.isEventDispatchThread()) read() else SwingUtilities.invokeAndWait(read)
         val image = captured ?: return null
-        val scaleX = image.width.toDouble() / content.width
-        val scaleY = image.height.toDouble() / content.height
-        if (!scaleX.isFinite() || !scaleY.isFinite() || scaleX <= 0 || scaleY <= 0) return null
-        val scaledRects = sensitiveRects.map { rect ->
-            val left = floor(rect.x * scaleX).toInt()
-            val top = floor(rect.y * scaleY).toInt()
-            Rectangle(
-                left,
-                top,
-                ceil((rect.x + rect.width) * scaleX).toInt() - left,
-                ceil((rect.y + rect.height) * scaleY).toInt() - top,
-            )
-        }
-        maskAndEncode(image, scaledRects)
+        maskAndEncode(image, sensitiveRects)
     } catch (_: Exception) {
         null
     }
