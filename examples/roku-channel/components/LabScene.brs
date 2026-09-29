@@ -36,11 +36,6 @@ sub init()
     m.list.setFocus(true)
 
     m.status = m.top.findNode("status")
-    m.lib = m.top.createChild("ComponentLibrary")
-    m.lib.id = "Everframe"
-    m.lib.observeField("loadStatus", "onLibraryStatus")
-    m.lib.uri = m.cfg.libraryUri
-
     m["excludedTimer"] = m.top.createChild("Timer")
     m.excludedTimer.duration = 0.1
     m.excludedTimer.observeField("fire", "onCrashExcluded")
@@ -57,6 +52,13 @@ sub init()
     m.statusTimer.repeat = true
     m.statusTimer.observeField("fire", "onStatusTick")
     m.statusTimer.control = "start"
+
+    ' Last: setting uri can call onLibraryStatus synchronously, which uses the
+    ' loop timer and clock above.
+    m.lib = m.top.createChild("ComponentLibrary")
+    m.lib.id = "Everframe"
+    m.lib.observeField("loadStatus", "onLibraryStatus")
+    m.lib.uri = m.cfg.libraryUri
 
     ' the app manager is MAIN/TASK-only; read exit info in a Task.
 

@@ -103,4 +103,15 @@ describe('crash lab channel source', () => {
     // Auto-tracked: the source itself never calls setScreen.
     expect(readFileSync(path.join(ROOT, 'components/DetailsScreen.brs'), 'utf8')).not.toMatch(/setScreen|Everframe_Screen/);
   });
+
+  it('LabScene loads the library last: its synchronous ready callback uses the loop timer and clock', () => {
+    const src = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    const init = src.slice(src.indexOf('sub init()'), src.indexOf('end sub', src.indexOf('sub init()')));
+    const uri = init.indexOf('m.lib.uri =');
+    expect(uri).toBeGreaterThan(0);
+    for (const dep of ['m["loopTimer"] =', 'm["loopClock"] =', 'm["excludedTimer"] =', 'm["statusTimer"] =']) {
+      expect(init.indexOf(dep), dep).toBeGreaterThan(-1);
+      expect(init.indexOf(dep), dep).toBeLessThan(uri);
+    }
+  });
 });

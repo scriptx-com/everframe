@@ -386,8 +386,8 @@ describe('instrument', () => {
         const dry = instrument({ root: chan, dryRun: true });
         const rows = dry.screens.map((s) => [s.component, s.via, s.file ?? null]).sort();
         expect(rows).toEqual([
-          ['DeepPage', 'DeepPage', null],
-          ['Home', 'Page', null],
+          ['DeepPage', 'DeepPage', 'components/Movies.brs'],
+          ['Home', 'Page', 'components/Page.brs'],
           ['Movies', 'Page', 'components/Movies.brs'],
           ['Page', 'Page', 'components/Page.brs'],
         ]);
@@ -403,6 +403,56 @@ describe('instrument', () => {
         for (const n of ['Home', 'DeepPage', 'Settings']) {
           expect(read(path.join(out, `components/${n}.brs`))).not.toContain('Everframe_Screen');
         }
+      });
+
+      const baseTree = () => {
+        const chan = path.join(tmp(), 'chan');
+        mkdirSync(path.join(chan, 'components'), { recursive: true });
+        writeFileSync(path.join(chan, 'manifest'), 'title=t\n');
+        const comps: Array<[string, string, boolean]> = [['Base', 'Group', true], ['DetailsScreen', 'Base', false], ['Widget', 'Base', false]];
+        for (const [n, e, init] of comps) {
+          writeFileSync(path.join(chan, 'components', `${n}.xml`), xml(n, e));
+          writeFileSync(path.join(chan, 'components', `${n}.brs`), init ? `' base\nsub init()\n  m.top.visible = true\nend sub\n` : `sub helper()\n  print 1\nend sub\n`);
+        }
+        return chan;
+      };
+
+      it('a screen inheriting init from a non-screen base: guarded call in the base, listing only screens', () => {
+        const chan = baseTree();
+        const out = tmp();
+        const r = instrument({ root: chan, out });
+        expect(r.screens).toEqual([{ component: 'DetailsScreen', via: 'DetailsScreen', file: 'components/Base.brs' }]);
+        const before = read(path.join(chan, 'components/Base.brs'));
+        const after = read(path.join(out, 'components/Base.brs'));
+        expect(after.split('\n')[1]).toBe(`sub init() : try : Everframe_ScreenIf(m.top.subtype(), "DetailsScreen") ' everframe:instrumented`);
+        expect(after.split('\n')).toHaveLength(before.split('\n').length);
+        expect(Parser.parse(after).diagnostics).toEqual([]);
+        expect(after).not.toContain('Widget');
+        for (const n of ['DetailsScreen', 'Widget']) expect(read(path.join(out, `components/${n}.brs`))).not.toContain('Everframe_Screen');
+        // Base.xml imports the hook (its script now calls it).
+        expect(read(path.join(out, 'components/Base.xml'))).toContain('pkg:/components/everframe_hook/everframe_hook.brs');
+      });
+
+      it('runtime: the guarded base init sets the screen for the listed subtype only', async () => {
+        const chan = baseTree();
+        const out = tmp();
+        instrument({ root: chan, out });
+        const dir = tmp();
+        const baseFile = path.join(dir, 'Base.brs');
+        writeFileSync(baseFile, read(path.join(out, 'components/Base.brs')));
+        const stubs = path.join(dir, 'stubs2.brs');
+        writeFileSync(stubs, 'sub Everframe_ScreenIf(name as dynamic, names as dynamic)\n  if Instr(1, "," + names + ",", "," + name + ",") > 0 then m.seen.Push(name)\nend sub\nsub Everframe_OnError(e as dynamic, entry as string, isTask as boolean)\nend sub\n');
+        const { lines } = await runBrs([], `
+          m.seen = []
+          m.top = { kind: "Widget", subtype: function() as string
+            return m.kind
+          end function }
+          init()
+          m.top.kind = "DetailsScreen"
+          init()
+          print "EFTEST:" + FormatJson(m.seen)
+        `, { extraFiles: [baseFile, stubs] });
+        expect(lines[0]).toEqual(['DetailsScreen']);
       });
 
       it('runtime: the emitted line passes the concrete subtype, so base + subclass init both firing is harmless', async () => {

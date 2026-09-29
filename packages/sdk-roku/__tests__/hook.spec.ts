@@ -115,4 +115,35 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
     `);
     expect(lines[0]).toBe('Everframe_dev');
   });
+
+  it('an exit from a session that ran with enabled: false is never stored, and disabling clears a pending one', async () => {
+    const node = path.join(HOOK_DIR, '..', 'library/components/Everframe/Everframe.brs');
+    const { lines } = await runBrs([...LIBS, 'ef_crumbs.brs', 'ef_screen.brs'], `
+      sec = EfU_Section()
+      sec.Write("pendingExit", "{}")
+      init()
+      start({ "sdkKey": "k", enabled: false })
+      cleared = not sec.Exists("pendingExit")
+      Everframe__StoreExit({ exit_code: "EXIT_BRIGHTSCRIPT_CRASH", timestamp: "2026-09-29T11:58:22.036Z" })
+      print "EFTEST:" + FormatJson({ cleared: cleared, stored: sec.Exists("pendingExit") })
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs'), node] });
+    expect(lines[0]).toEqual({ cleared: true, stored: false });
+  });
+
+  it('Everframe_ScreenIf matches whole names case-insensitively and never throws', async () => {
+    const { lines } = await runBrs(LIBS, `
+      l = "DetailsScreen, OtherScreen"
+      r = [
+        Everframe__InList("DetailsScreen", l), Everframe__InList("detailsscreen", l), Everframe__InList("OTHERSCREEN", l),
+        Everframe__InList("Details", l), Everframe__InList("Screen", l), Everframe__InList("DetailsScreenX", l),
+        Everframe__InList("Widget", l), Everframe__InList("", l), Everframe__InList("", ""),
+        Everframe__InList(invalid, l), Everframe__InList("DetailsScreen", invalid), Everframe__InList(3, l), Everframe__InList({}, "a")
+      ]
+      Everframe_ScreenIf("DetailsScreen", l)
+      Everframe_ScreenIf(invalid, invalid)
+      Everframe_ScreenIf({}, [])
+      print "EFTEST:" + FormatJson(r)
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
+    expect(lines[0]).toEqual([true, true, true, false, false, false, false, false, false, false, false, false, false]);
+  });
 });

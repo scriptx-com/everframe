@@ -45,7 +45,7 @@ export function main(argv: string[]): number {
     return 1;
   }
   for (const w of report.wrapped) console.log(`wrapped  ${w.file}  ${w.fn}`);
-  for (const s of report.screens) console.log(`screen   ${s.file ?? '(inherited init)'}  ${s.component}  via ${s.via}`);
+  for (const s of report.screens) console.log(`screen   ${s.file ?? '(no instrumented init)'}  ${s.component}  via ${s.via}`);
   if (report.libraryZip) console.log(`library  ${report.libraryZip}`);
   for (const s of report.skipped) console.warn(`skipped  ${s.file}  ${s.fn}: ${s.reason}`);
   console.log(`${report.wrapped.length} function(s) wrapped, ${report.injected.length} component(s) hooked, ${report.screens.length} screen(s) tracked${values['dry-run'] ? ' (dry run)' : ''}`);

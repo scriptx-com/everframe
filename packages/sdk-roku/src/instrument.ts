@@ -13,7 +13,11 @@ export interface InstrumentOptions {
 }
 export interface InstrumentReport {
   wrapped: Array<{ file: string; fn: string }>;
-  /** Every screen component (own name or an ancestor matched --screens) and the matched name. `file` is the script whose init() now calls Everframe_Screen; absent when the component inherits its init(). */
+  /**
+   * Every screen component (own name or an ancestor matched --screens) and the matched name. `file` is the
+   * script whose init() now sets its screen: its own, or an ancestor's (Everframe_Screen, or Everframe_ScreenIf
+   * naming this component); absent when no init() on its chain could be instrumented.
+   */
   screens: Array<{ component: string; via: string; file?: string }>;
   skipped: Array<{ file: string; fn: string; reason: string }>;
   injected: string[];
@@ -49,7 +53,8 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
   const report: InstrumentReport = { wrapped: [], screens: [], skipped: [], injected: [] };
   const rewritten = new Map<string, string>();
   const filesWithWraps = new Set<string>();
-  const emittedIn = new Set<string>();
+  /** file -> 'all' (init calls Everframe_Screen) or the lower-cased components its Everframe_ScreenIf names. */
+  const emittedIn = new Map<string, 'all' | Set<string>>();
 
   for (const [file, targets] of plan.files) {
     const abs = path.join(root, file);
@@ -57,16 +62,30 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
     const res = wrapFunctions(readFileSync(abs, 'utf8'), targets);
     for (const fn of res.wrapped) {
       report.wrapped.push({ file, fn });
-      if (fn.toLowerCase() === 'init' && targets.get('init')?.screen) emittedIn.add(file);
+      if (fn.toLowerCase() !== 'init') continue;
+      const t = targets.get('init');
+      if (t?.screen) emittedIn.set(file, 'all');
+      else if (t?.screenIf && !t.screenConflict) emittedIn.set(file, new Set(t.screenIf.names.map((n) => n.toLowerCase())));
     }
     for (const s of res.skipped) report.skipped.push({ file, ...s });
     if (res.wrapped.length > 0) rewritten.set(file, res.code);
     if (res.wrapped.length > 0 || res.code.includes(MARKER)) filesWithWraps.add(file);
   }
 
+  const compByName = new Map<string, (typeof plan.components)[number]>();
+  for (const c of plan.components) if (!compByName.has(c.name.toLowerCase())) compByName.set(c.name.toLowerCase(), c);
   for (const sc of plan.screens) {
-    const c = plan.components.find((x) => x.name === sc.component && !x.excluded);
-    const file = c?.scripts.find((f) => emittedIn.has(f));
+    // Own scripts first, then up the extends chain: the first init() that sets this component's screen.
+    const me = sc.component.toLowerCase();
+    const covers = (f: string) => { const e = emittedIn.get(f); return e === 'all' || (e !== undefined && e.has(me)); };
+    let file: string | undefined;
+    const seen = new Set<string>();
+    let c = plan.components.find((x) => x.name === sc.component && !x.excluded);
+    while (c && !file && !seen.has(c.name.toLowerCase())) {
+      seen.add(c.name.toLowerCase());
+      if (!c.excluded) file = c.scripts.find(covers);
+      c = c.extends ? compByName.get(c.extends.toLowerCase()) : undefined;
+    }
     report.screens.push({ component: sc.component, via: sc.via, ...(file ? { file } : {}) });
   }
 

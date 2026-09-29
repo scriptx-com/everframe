@@ -49,7 +49,8 @@ sub Main()
             ' Keep the exited session's screen and breadcrumbs with the exit.
             if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
             if sec.Exists("crumbs") then info["efCrumbs"] = sec.Read("crumbs")
-            sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
+            ' Skip sessions that ran with start({ enabled: false }).
+            if not sec.Exists("disabled") then sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
         end if
     catch e
     end try
@@ -167,7 +168,7 @@ Each targeted function body is wrapped in `try ... catch e ... end try` **on the
 - callbacks registered with `observeField` / `observeFieldScoped`
 - Task `functionName` targets
 
-Functions that cannot be wrapped safely are skipped and listed in the output.
+Functions that cannot be wrapped safely are skipped and listed in the output. This includes any function that contains a label (a `goto` target such as `done:`), because BrightScript does not allow labels inside a `try` block.
 
 ### Automatic breadcrumbs
 
@@ -175,11 +176,11 @@ Instrumentation records two kinds of breadcrumb on its own: key presses (from `o
 
 ### Automatic screens
 
-The `init()` of every component whose **name, or any ancestor's name** (via `extends`), matches `--screens` (default `*Screen,*View,*Page`, case-insensitive, whole name) also calls `Everframe_Screen(m.top.subtype())` on the same line, which calls [`setScreen`](#screens) with the component's concrete type. `m.top.subtype()` is the type of the node actually created, even while a base component's `init()` runs, so a subclass without its own `init()` is tracked through its base.
+The `init()` of every component whose **name, or any ancestor's name** (via `extends`), matches `--screens` (default `*Screen,*View,*Page`, case-insensitive, whole name) also calls `Everframe_Screen(m.top.subtype())` on the same line, which calls [`setScreen`](#screens) with the component's concrete type. `m.top.subtype()` is the type of the node actually created, even while a base component's `init()` runs, so a subclass without its own `init()` is tracked through its base. If that base does not match `--screens` itself (for example `DetailsScreen extends Base`, and only `Base` defines `init()`), the base's `init()` gets `Everframe_ScreenIf(m.top.subtype(), "DetailsScreen")` instead. The call lists every screen that inherits that `init()`, so other subclasses of `Base` that are not screens are not tracked.
 
 `--screens` matches a component or any of its ancestors by name; if your screens share a base component (e.g. `Page`), matching the base covers all of them. If a subclass and its base both define `init()`, both call `Everframe_Screen` with the same name and the repeat is ignored. So creating a `DetailsScreen` makes `DetailsScreen` the current screen, and every report sent after that carries `context.route: "DetailsScreen"`.
 
-This tracks when a screen component is **created**, not when it is shown or hidden. If your app creates screens ahead of time, keeps them in a stack, or returns to a screen without creating it again, call `setScreen` yourself where the screen becomes visible; a manual call always overrides the automatic one. Use `--screens none` to turn automatic screens off, or pass your own patterns (for example `--screens "*Screen,Home*"`). A script shared by a screen and a non-screen component gets no automatic screen (the CLI lists it as skipped). `--dry-run` prints every tracked component as a `screen` line with the name it matched through (`via`).
+This tracks when a screen component is **created**, not when it is shown or hidden. If your app creates screens ahead of time, keeps them in a stack, or returns to a screen without creating it again, call `setScreen` yourself where the screen becomes visible; a manual call always overrides the automatic one. Use `--screens none` to turn automatic screens off, or pass your own patterns (for example `--screens "*Screen,Home*"`). A script shared by a screen and a non-screen component gets no automatic screen (the CLI lists it as skipped). `--dry-run` prints every tracked component as a `screen` line with the name it matched through (`via`) and the script whose `init()` sets it, which may be an ancestor's.
 
 ### Effect on debugging
 

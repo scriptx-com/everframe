@@ -3,6 +3,7 @@
 import { lstatSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { XMLParser } from 'fast-xml-parser';
+import { Parser, isFunctionStatement } from 'brighterscript';
 import type { WrapTarget } from './wrap.js';
 
 export type Mechanism = 'main' | 'init' | 'key' | 'observer' | 'task' | 'callfunc';
@@ -48,7 +49,7 @@ export function screenVia(name: string, parents: Map<string, string>, patterns: 
 export interface EntryPlan {
   files: Map<string, Map<string, WrapTarget>>;
   /** Every component, excluded ones too (`excluded`: no targets of its own, but it still needs the hook imports when a script it shares is wrapped). */
-  components: Array<{ xml: string; name: string; scripts: string[]; excluded: boolean }>;
+  components: Array<{ xml: string; name: string; extends?: string; scripts: string[]; excluded: boolean }>;
   /** Every component whose own name or an ancestor's matched --screens, and the matched name. */
   screens: Array<{ component: string; via: string }>;
 }
@@ -142,17 +143,34 @@ export function discoverEntryPoints(
     return out;
   };
 
+  const initCache = new Map<string, boolean>();
+  const definesInit = (file: string): boolean => {
+    let v = initCache.get(file);
+    if (v === undefined) {
+      let text = '';
+      try { text = readFileSync(path.join(root, file), 'utf8'); } catch { /* missing script: no init */ }
+      v = Parser.parse(text).ast.statements.some((st) => isFunctionStatement(st) && st.name.text.toLowerCase() === 'init');
+      initCache.set(file, v);
+    }
+    return v;
+  };
+  // Screens whose own scripts define no init(): they run only inherited ones.
+  const inheritsInit: Array<{ name: string }> = [];
+
   for (const { rel, comp } of parsed) {
     const skip = excluded(rel, opts.exclude);
     const scripts = scriptsOf(rel, comp).filter((s) => !excluded(s, opts.exclude));
-    plan.components.push({ xml: rel, name: comp.name, scripts, excluded: skip });
+    plan.components.push({ xml: rel, name: comp.name, ...(comp.extends ? { extends: String(comp.extends) } : {}), scripts, excluded: skip });
     if (skip) continue;
 
     // Lifecycle crumbs only for the scene: every component's init would flood the ring.
     const isScene = comp.extends === 'Scene';
     const via = on('init') ? screenVia(String(comp.name), parents, opts.screens ?? []) : undefined;
     const isScreen = via !== undefined;
-    if (isScreen) plan.screens.push({ component: String(comp.name), via });
+    if (isScreen) {
+      plan.screens.push({ component: String(comp.name), via });
+      if (!scriptsOf(rel, comp).some(definesInit)) inheritsInit.push({ name: String(comp.name) });
+    }
     const targets: Array<[string, WrapTarget, Mechanism]> = [
       ['init', {
         entry: comp.name, isTask: false, screenOwner: String(comp.name),
@@ -178,6 +196,36 @@ export function discoverEntryPoints(
         add(plan, s, fn, { ...t, entry: t.entry || `${fn} (${s})` });
       }
     }
+  }
+
+  // SceneGraph runs every ancestor's init() too, with m.top.subtype() the created
+  // type. A screen without its own init() is covered by the nearest ancestor that
+  // defines one: nothing to add when that ancestor is a screen itself (its init
+  // already sets the screen unconditionally), else a guarded call there that
+  // names only the screens inheriting it, so non-screen siblings stay untracked.
+  const guarded = new Map<string, Set<string>>();
+  for (const { name } of inheritsInit) {
+    const seen = new Set([name.toLowerCase()]);
+    for (let p = parents.get(name.toLowerCase()); p && !seen.has(p.toLowerCase()); p = parents.get(p.toLowerCase())) {
+      seen.add(p.toLowerCase());
+      const anc = byName.get(p.toLowerCase());
+      if (!anc) break;
+      const file = scriptsOf(anc.rel, anc.comp).find(definesInit);
+      // No init here, or one we may not touch: the next ancestor's init runs as well.
+      if (!file || excluded(anc.rel, opts.exclude) || excluded(file, opts.exclude)) continue;
+      if (screenVia(String(anc.comp.name), parents, opts.screens ?? []) === undefined) {
+        let set = guarded.get(file);
+        if (!set) guarded.set(file, (set = new Set()));
+        set.add(name);
+      }
+      break;
+    }
+  }
+  for (const [file, names] of guarded) {
+    const t = plan.files.get(file)?.get('init');
+    // A shared init whose components disagree keeps its conflict (reported as skipped by the wrapper).
+    if (!t || t.screen || t.screenConflict) continue;
+    t.screenIf = { expr: SCREEN_EXPR, names: [...names].sort() };
   }
   return plan;
 }

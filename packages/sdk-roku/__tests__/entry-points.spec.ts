@@ -146,6 +146,36 @@ describe('screen inheritance', () => {
     const plan = discoverEntryPoints(fixture(), { exclude: [], mechanisms: new Set<Mechanism>(['key']), screens: DEFAULT_SCREENS });
     expect(plan.screens).toEqual([]);
   });
+
+  it('a screen without its own init gets a guarded call in the nearest non-screen ancestor that defines init', () => {
+    const root = tree([
+      ['Base', 'Group', true], ['DetailsScreen', 'Base', false], ['Widget', 'Base', false],
+      ['MidView', 'Base', false], ['DeepScreen', 'MidView', false], ['OwnScreen', 'Base', true],
+    ]);
+    const plan = discoverEntryPoints(root, { exclude: [], mechanisms: all, screens: DEFAULT_SCREENS });
+    const base = initOf(plan, 'components/Base.brs');
+    expect(base?.screen).toBeUndefined();
+    // Every screen that inherits Base's init, and no non-screen (Widget) nor one with its own init (OwnScreen).
+    expect(base?.screenIf).toEqual({ expr: 'm.top.subtype()', names: ['DeepScreen', 'DetailsScreen', 'MidView'] });
+    expect(initOf(plan, 'components/OwnScreen.brs')?.screen).toBe('m.top.subtype()');
+  });
+
+  it('no guarded call when the ancestor already sets the screen, or its init script is excluded / shared with a conflict', () => {
+    // Page matches: its unconditional call already covers Home.
+    const plan = discoverEntryPoints(fixture(), { exclude: [], mechanisms: all, screens: DEFAULT_SCREENS });
+    expect(initOf(plan, 'components/Page.brs')?.screenIf).toBeUndefined();
+
+    const root = tree([['Base', 'Group', true], ['DetailsScreen', 'Base', false]]);
+    const excl = discoverEntryPoints(root, { exclude: ['components/Base.brs'], mechanisms: all, screens: DEFAULT_SCREENS });
+    expect(excl.files.has('components/Base.brs')).toBe(false);
+
+    // Base.brs is also FooScreen's own script: a screen and a non-screen disagree, keep the conflict.
+    writeFileSync(path.join(root, 'components', 'FooScreen.xml'), comp('FooScreen', 'Group', 'Base.brs'));
+    const shared = discoverEntryPoints(root, { exclude: [], mechanisms: all, screens: DEFAULT_SCREENS });
+    const t = initOf(shared, 'components/Base.brs');
+    expect(t?.screenConflict).toEqual(['Base', 'FooScreen']);
+    expect(t?.screenIf).toBeUndefined();
+  });
 });
 
 describe('inherited callbacks', () => {

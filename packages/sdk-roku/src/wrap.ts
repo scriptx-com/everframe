@@ -7,7 +7,7 @@
 //   catch everframe_e : Everframe_OnError(...) : throw everframe_e : end try : end sub
 // Keeping every original statement on its original line means a crash
 // backtrace still points at the developer's source line numbers.
-import { Parser, isFunctionStatement } from 'brighterscript';
+import { Parser, WalkMode, createVisitor, isFunctionStatement, type FunctionExpression } from 'brighterscript';
 
 export const MARKER = "' everframe:instrumented";
 
@@ -21,6 +21,12 @@ export interface WrapTarget {
   screen?: string;
   /** Matched name (the component or an ancestor) that made this a screen; for reporting. */
   screenVia?: string;
+  /**
+   * Guarded screen for an init() that screen components inherit from a base
+   * that is not itself a screen: `Everframe_ScreenIf(expr, "A,B")` sets the
+   * screen only when the running component's type is one of `names`.
+   */
+  screenIf?: { expr: string; names: string[] };
   /** Components that share this script but disagree on the screen; no automatic screen. */
   screenConflict?: string[];
   /** Component this init target came from (to name both sides of a conflict). */
@@ -36,6 +42,13 @@ export interface WrapResult {
 interface Edit { line: number; col: number; text: string }
 
 const brsQuote = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+
+/** Any label statement in the body, nested blocks included: BrightScript rejects labels inside a TRY clause. */
+function hasLabel(func: FunctionExpression): boolean {
+  let found = false;
+  func.body.walk(createVisitor({ LabelStatement: () => { found = true; } }), { walkMode: WalkMode.visitStatementsRecursive });
+  return found;
+}
 
 export function wrapFunctions(source: string, targets: Map<string, WrapTarget>): WrapResult {
   // [line0, eol0, line1, eol1, ...]: each line keeps its own terminator; the
@@ -73,6 +86,8 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
       skipped.push({ fn: name, reason: 'code after the signature on the same line' });
       continue;
     }
+    // Labels in a nested function expression are counted too: conservative, never a compile error.
+    if (hasLabel(func)) { skipped.push({ fn: name, reason: 'contains a label (labels are illegal inside try)' }); continue; }
 
     let open = ' : try';
     if (target.prelude === 'recordExit') open += ' : Everframe_RecordLastExit()';
@@ -90,6 +105,8 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
     if (target.screen) open += ` : Everframe_Screen(${target.screen})`;
     else if (target.screenConflict) {
       skipped.push({ fn: name, reason: `shared by components ${target.screenConflict.join(', ')}; no automatic screen` });
+    } else if (target.screenIf && target.screenIf.names.length > 0) {
+      open += ` : Everframe_ScreenIf(${target.screenIf.expr}, ${brsQuote(target.screenIf.names.join(','))})`;
     }
     open += ` ${MARKER}`;
     const close = `catch everframe_e : Everframe_OnError(everframe_e, ${brsQuote(target.entry)}, ${target.isTask}) : throw everframe_e : end try : `;

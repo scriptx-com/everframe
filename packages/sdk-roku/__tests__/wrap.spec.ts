@@ -145,6 +145,42 @@ describe('wrapFunctions', () => {
     const { lines } = await runBrs([], '  App()', { extraFiles: [app, stub] });
     expect(lines).toEqual(['recordLastExit', 'body']);
   });
+  it('skips a function containing a label: BrightScript forbids labels inside try', () => {
+    const src = ['sub Main()', '  if true then goto done', '  print "skipped"', 'done:', '  print "EFTEST:" + FormatJson("done")', 'end sub', ''].join('\n');
+    const out = wrapFunctions(src, T({ main: { entry: 'Main', isTask: false } }));
+    expect(out.code).toBe(src);
+    expect(out.wrapped).toEqual([]);
+    expect(out.skipped).toEqual([{ fn: 'Main', reason: 'contains a label (labels are illegal inside try)' }]);
+    // Nested labels (inside a loop) count too; other functions in the file are still wrapped.
+    const nested = ['sub init()', '  for i = 0 to 1', 'again:', '  end for', 'end sub', 'sub other()', '  print 1', 'end sub', ''].join('\n');
+    const res = wrapFunctions(nested, T({ init: { entry: 'X', isTask: false }, other: { entry: 'Y', isTask: false } }));
+    expect(res.wrapped).toEqual(['other']);
+    expect(res.skipped.map((s) => s.fn)).toEqual(['init']);
+  });
+
+  it('runtime: the label function left unwrapped still compiles and runs (brs-cli rejects labels inside try)', async () => {
+    const src = ['sub App()', '  goto done', '  print "EFTEST:" + FormatJson("skipped")', 'done:', '  print "EFTEST:" + FormatJson("done")', 'end sub', ''].join('\n');
+    const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
+    const app = path.join(dir, 'app.brs');
+    writeFileSync(app, wrapFunctions(src, T({ app: { entry: 'App', isTask: false } })).code);
+    const ok = await runBrs([], '  App()', { extraFiles: [app] });
+    expect(ok.lines).toEqual(['done']);
+    // What wrapping would have produced: a compile error (reported on stderr), so nothing runs.
+    const bad = path.join(dir, 'bad.brs');
+    writeFileSync(bad, src.replace('sub App()', 'sub App() : try').replace('end sub', 'catch e : end try : end sub'));
+    const broken = await runBrs([], '  App()', { extraFiles: [bad] });
+    expect(broken.lines).toEqual([]);
+    expect(broken.stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
+  });
+
+  it('screenIf: Everframe_ScreenIf(<expression>, "A,B") on the signature line', () => {
+    const src = ['sub init()', '  print 1', 'end sub', ''].join('\n');
+    const out = wrapFunctions(src, T({ init: { entry: 'Base', isTask: false, screenIf: { expr: 'm.top.subtype()', names: ['DetailsScreen', 'OtherScreen'] } } }));
+    expect(out.code.split('\n')).toHaveLength(4);
+    expect(out.code.split('\n')[0]).toBe(`sub init() : try : Everframe_ScreenIf(m.top.subtype(), "DetailsScreen,OtherScreen") ${MARKER}`);
+    expect(Parser.parse(out.code).diagnostics).toEqual([]);
+  });
+
   it('screen: Everframe_Screen(<expression>) on the signature line, after the scene crumb', () => {
     const src = ['sub init()', '  print 1', 'end sub', ''].join('\n');
     const out = wrapFunctions(src, T({ init: { entry: 'DetailsScreen', isTask: false, screen: 'm.top.subtype()' } }));

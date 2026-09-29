@@ -51,6 +51,8 @@ sub Everframe__StoreExit(info as dynamic)
         if type(info) = "roAssociativeArray" then
             if Everframe__IsStr(info["exit_code"]) and Everframe__IsStr(info["timestamp"]) then
                 sec = EfU_Section()
+                ' The exited session ran with enabled: false: nothing of it is reported.
+                if EfU_IsDisabled(sec) then return
                 ' Snapshot the exited session's screen and crumbs now: Main runs
                 ' before this launch writes any of its own.
                 if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
@@ -94,6 +96,31 @@ sub Everframe_Screen(name as dynamic)
     catch ignored
     end try
 end sub
+
+' Called on the init() signature line of a base component that is not itself a
+' screen but whose init() is inherited by screen components (listed in
+' `names`, comma-separated). Sets the screen only when `name` (the concrete
+' type, m.top.subtype()) is one of them, so non-screen subclasses stay untracked.
+sub Everframe_ScreenIf(name as dynamic, names as dynamic)
+    try
+        if Everframe__InList(name, names) then Everframe_Screen(name)
+    catch ignored
+    end try
+end sub
+
+' Whole-name, case-insensitive membership of `name` in the comma-separated `names`.
+function Everframe__InList(name as dynamic, names as dynamic) as boolean
+    try
+        if not Everframe__IsStr(name) or not Everframe__IsStr(names) then return false
+        want = LCase(name.Trim())
+        if want = "" then return false
+        for each n in names.Split(",")
+            if LCase(n.Trim()) = want then return true
+        end for
+    catch ignored
+    end try
+    return false
+end function
 
 function Everframe__Node() as dynamic
     if type(m.global) <> "roSGNode" then return invalid

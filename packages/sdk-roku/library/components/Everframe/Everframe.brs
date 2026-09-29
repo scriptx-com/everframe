@@ -35,6 +35,9 @@ function start(config as object) as boolean
             for each k in EfQ_Keys(sec)
                 sec.Delete(k)
             end for
+            for each k in ["pendingExit", "lastCrashT", "crumbs", "prevCrumbs", "screen", "prevScreen"]
+                sec.Delete(k)
+            end for
             sec.Flush()
             return false
         end if
