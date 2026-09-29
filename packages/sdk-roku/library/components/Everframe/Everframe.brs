@@ -18,6 +18,8 @@ sub init()
     m["crumbsDirty"] = false
     ' Current screen (ef_screen.brs), sent as context.route.
     m.screen = invalid
+    ' Set by start({ enabled: false }): nothing is collected until an enabled start().
+    m.disabled = false
 end sub
 
 function start(config as object) as boolean
@@ -40,6 +42,7 @@ function start(config as object) as boolean
             EfN_Disable(sec)
             return false
         end if
+        m.disabled = false
         if sec.Exists("disabled") then
             sec.Delete("disabled")
             sec.Flush()
@@ -93,7 +96,7 @@ end function
 
 function addBreadcrumb(c as dynamic) as boolean
     try
-        if type(c) <> "roAssociativeArray" then return false
+        if m.disabled or type(c) <> "roAssociativeArray" then return false
         kinds = { navigation: true, tap: true, console: true, network: true, lifecycle: true, error: true, custom: true }
         kind = "custom"
         if c.kind <> invalid and kinds.DoesExist(c.kind) then kind = LCase(c.kind)
@@ -119,6 +122,7 @@ end function
 
 function setUser(u as dynamic) as boolean
     try
+        if m.disabled then return false
         ' id / email / displayName become strings; invalid or non-scalar values
         ' are dropped (ingest rejects non-string user fields).
         m.user = EfU_NormalizeUser(u)
@@ -147,6 +151,7 @@ end function
 ' or non-scalar names and repeats of the current screen are ignored.
 function setScreen(name as dynamic) as boolean
     try
+        if m.disabled then return false
         s = EfS_Normalize(name)
         if s = invalid then return false
         if m.screen <> invalid and m.screen = s then return false
@@ -225,4 +230,6 @@ sub EfN_Disable(sec as object)
     m.sec = invalid
     m.crumbs = []
     m.user = invalid
+    m.screen = invalid
+    m.disabled = true
 end sub

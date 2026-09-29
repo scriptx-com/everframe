@@ -177,4 +177,25 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
     `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs'), node] });
     expect(lines[0]).toMatchObject({ r: false, control: 'STOP', reporter: true, user: true, queued: 0, disabled: true });
   });
+
+  it('collects nothing while disabled: disable -> activity -> re-enable -> capture carries none of it', async () => {
+    const node = path.join(HOOK_DIR, '..', 'library/components/Everframe/Everframe.brs');
+    const { lines } = await runBrs([...LIBS, 'ef_crumbs.brs', 'ef_screen.brs'], `
+      sec = EfU_Section()
+      init()
+      addBreadcrumb({ kind: "custom", message: "before" })
+      setUser({ id: "u-before" })
+      setScreen("Before")
+      m.reporter = { flush: false, control: "RUN" }
+      start({ "sdkKey": "k", enabled: false })
+      r = [addBreadcrumb({ kind: "custom", message: "while-off" }), setUser({ id: "u-off" }), setScreen("OffScreen")]
+      ' Re-enable (no SceneGraph here: stand in for the reporter start() would create).
+      m.disabled = false
+      sec.Delete("disabled")
+      captureException("after")
+      rec = EfQ_List(sec)[0].rec
+      print "EFTEST:" + FormatJson({ r: r, crumbs: rec.crumbs.Count(), user: rec.user = invalid, route: rec.route = invalid })
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs'), node] });
+    expect(lines[0]).toEqual({ r: [false, false, false], crumbs: 0, user: true, route: true });
+  });
 });
