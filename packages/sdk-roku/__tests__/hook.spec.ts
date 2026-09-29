@@ -30,4 +30,17 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
     `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
     expect(lines[0]).toBe('survived');
   });
+
+  it('Everframe_KeyCrumb never throws for any press/key type', async () => {
+    const { lines } = await runBrs(LIBS, `
+      Everframe_KeyCrumb("OK", true)
+      Everframe_KeyCrumb("OK", false)
+      Everframe_KeyCrumb("OK", "yes")
+      Everframe_KeyCrumb("OK", invalid)
+      Everframe_KeyCrumb(invalid, true)
+      Everframe_KeyCrumb({}, true)
+      print "EFTEST:" + FormatJson("survived")
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
+    expect(lines[0]).toBe('survived');
+  });
 });

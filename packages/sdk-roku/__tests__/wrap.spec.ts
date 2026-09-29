@@ -25,7 +25,7 @@ describe('wrapFunctions', () => {
     const src = ['Function OnKeyEvent(k as string, p as boolean) as boolean \' handle keys', '  return false', 'End Function'].join('\n');
     const out = wrapFunctions(src, T({ onkeyevent: { entry: 'onKeyEvent (components/Home.brs)', isTask: false, crumb: 'key' } }));
     const first = out.code.split('\n')[0]!;
-    expect(first).toBe(`Function OnKeyEvent(k as string, p as boolean) as boolean : try : everframe_k = p : while everframe_k : Everframe_Crumb("tap", "key " + k, invalid) : everframe_k = false : end while ${MARKER} ' handle keys`);
+    expect(first).toBe(`Function OnKeyEvent(k as string, p as boolean) as boolean : try : Everframe_KeyCrumb(k, p) ${MARKER} ' handle keys`);
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 
@@ -77,6 +77,7 @@ describe('wrapFunctions', () => {
 
   const STUBS =
     'sub Everframe_Crumb(cat as string, msg as string, data as dynamic)\n  print "EFTEST:" + FormatJson({ crumb: [cat, msg] })\nend sub\n' +
+    'sub Everframe_KeyCrumb(key as dynamic, press as dynamic)\n  print "EFTEST:" + FormatJson({ keyCrumb: [key, press] })\nend sub\n' +
     'sub Everframe_OnError(e as object, entry as string, isTask as boolean)\n  print "EFTEST:" + FormatJson({ onError: entry })\nend sub\n';
   const runWith = (code: string, mainBody: string) => {
     const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
@@ -87,12 +88,12 @@ describe('wrapFunctions', () => {
     return runBrs([], mainBody, { extraFiles: [app, stub] });
   };
 
-  it('crumb key variant runs: crumbs only on press, reports, then crashes', async () => {
+  it('crumb key variant runs: helper gets (key, press) on every call, reports, then crashes', async () => {
     const src = ['function OnKey(k as string, p as boolean) as boolean', '  x = invalid', '  x.go()', '  return true', 'end function', ''].join('\n');
     const code = wrapFunctions(src, T({ onkey: { entry: 'OnKey (c.brs)', isTask: false, crumb: 'key' } })).code;
     const { lines, stdout } = await runWith(code, '  try : OnKey("ok", false) : catch e : print "EFTEST:" + FormatJson({ released: true }) : end try\n  OnKey("ok", true)');
     expect(Parser.parse(code).diagnostics).toEqual([]);
-    expect(lines).toEqual([{ onError: 'OnKey (c.brs)' }, { released: true }, { crumb: ['tap', 'key ok'] }, { onError: 'OnKey (c.brs)' }]);
+    expect(lines).toEqual([{ keyCrumb: ['ok', false] }, { onError: 'OnKey (c.brs)' }, { released: true }, { keyCrumb: ['ok', true] }, { onError: 'OnKey (c.brs)' }]);
     expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
   });
 
@@ -103,5 +104,13 @@ describe('wrapFunctions', () => {
     expect(Parser.parse(code).diagnostics).toEqual([]);
     expect(lines).toEqual([{ crumb: ['lifecycle', 'init HomeScene'] }, { onError: 'HomeScene' }]);
     expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
+  });
+
+  it('reports a key-crumb target with fewer than 2 parameters but still wraps it', () => {
+    const out = wrapFunctions('sub onKeyEvent(k as string)\n  print k\nend sub\n', T({ onkeyevent: { entry: 'K', isTask: false, crumb: 'key' } }));
+    expect(out.wrapped).toEqual(['onKeyEvent']);
+    expect(out.skipped).toEqual([{ fn: 'onKeyEvent', reason: 'onKeyEvent has fewer than 2 parameters; no key breadcrumb' }]);
+    expect(out.code.split('\n')[0]).toBe(`sub onKeyEvent(k as string) : try ${MARKER}`);
+    expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 });

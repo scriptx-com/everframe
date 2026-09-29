@@ -63,13 +63,14 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
     }
 
     let open = ' : try';
-    if (target.crumb === 'key' && func.parameters.length >= 2) {
-      const key = func.parameters[0]!.name.text;
-      const press = func.parameters[1]!.name.text;
-      // `try : if` is rejected by the bsc parser (colon before `if`) and brs-cli
-      // rejects `exit while` on one line, so gate the crumb with a one-shot
-      // `while` on a scratch copy of the press flag; it stays on the signature line.
-      open += ` : everframe_k = ${press} : while everframe_k : Everframe_Crumb("tap", "key " + ${key}, invalid) : everframe_k = false : end while`;
+    if (target.crumb === 'key') {
+      if (func.parameters.length >= 2) {
+        const key = func.parameters[0]!.name.text;
+        const press = func.parameters[1]!.name.text;
+        open += ` : Everframe_KeyCrumb(${key}, ${press})`;
+      } else {
+        skipped.push({ fn: name, reason: 'onKeyEvent has fewer than 2 parameters; no key breadcrumb' });
+      }
     } else if (target.crumb === 'init') {
       open += ` : Everframe_Crumb("lifecycle", ${brsQuote('init ' + target.entry)}, invalid)`;
     }

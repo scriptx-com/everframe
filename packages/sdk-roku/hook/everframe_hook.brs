@@ -31,6 +31,15 @@ sub Everframe_Crumb(kind as string, message as string, data as dynamic)
     end try
 end sub
 
+sub Everframe_KeyCrumb(key as dynamic, press as dynamic)
+    try
+        if type(press) = "roBoolean" or type(press) = "Boolean" then
+            if press then Everframe_Crumb("tap", "key " + key.ToStr(), invalid)
+        end if
+    catch ignored
+    end try
+end sub
+
 function Everframe__Node() as dynamic
     if type(m.global) <> "roSGNode" then return invalid
     ef = m.global.everframe
