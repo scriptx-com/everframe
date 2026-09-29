@@ -10,7 +10,7 @@ Crash and error reporting for Roku channels (BrightScript / SceneGraph).
 | Tier | Setup | Reports | Requires |
 | --- | --- | --- | --- |
 | 1. ComponentLibrary | Load the library and call `start()` | Crashes and runtime errors detected on the **next launch** (exit reason from `GetLastExitInfo`), manual `captureException`, breadcrumbs, user | Roku OS **13.0+** for exit detection |
-| 2. Build-step instrumentation | Run `everframe-roku instrument` before packaging | Everything in tier 1, plus **caught-and-rethrown** errors from wrapped entry points with a stack, a `try-catch` mechanism, and key / lifecycle breadcrumbs | Roku OS **9.4+** (try/catch) |
+| 2. Build-step instrumentation | Run `everframe-roku instrument` before packaging | Everything in tier 1, plus errors from wrapped entry points (recorded, then re-thrown) with a stack, a `try-catch` mechanism, and key-press / scene-init breadcrumbs | Roku OS **9.4+** (try/catch) |
 
 Notes on stack frames:
 
@@ -25,12 +25,12 @@ npm i -D @everframe/roku
 
 ## Tier 1: ComponentLibrary, bundled
 
-Copy `node_modules/@everframe/roku/dist/everframe-roku-<version>.zip` into your channel's `components/` folder (or let `--bundle-library` do it, see tier 2), then load it from your scene:
+Copy `node_modules/@everframe/roku/dist/everframe-roku-<version>.zip` into your channel's `components/` folder (or let `--bundle-library` do it, see tier 2), then load it from your scene. `<version>` is the installed package version: the exact file name is whatever `ls node_modules/@everframe/roku/dist/*.zip` shows, and `instrument --bundle-library` prints it as `library  components/everframe-roku-<version>.zip`. Update the `uri` when you upgrade the package.
 
 ```xml
-<!-- MainScene.xml -->
+<!-- MainScene.xml: replace <version> with the installed version -->
 <children>
-  <ComponentLibrary id="Everframe" uri="pkg:/components/everframe-roku-0.1.0.zip" />
+  <ComponentLibrary id="Everframe" uri="pkg:/components/everframe-roku-<version>.zip" />
 </children>
 ```
 
@@ -55,14 +55,14 @@ end sub
 | `sdkKey` | required | Your Everframe SDK key |
 | `endpoint` | `https://everframe.dev` | Ingest host. For self-testing only |
 | `enabled` | `true` | Set `false` to turn the SDK off |
-| `maxBreadcrumbs` | SDK default | Breadcrumb ring size |
+| `maxBreadcrumbs` | `50` | Breadcrumb ring size. An integer, clamped to 1–50; other values are ignored |
 
 ## Tier 1: ComponentLibrary, remote
 
 Host the same zip and point the library at it:
 
 ```xml
-<ComponentLibrary id="Everframe" uri="https://<your host>/everframe-roku-0.1.0.zip" />
+<ComponentLibrary id="Everframe" uri="https://<your host>/everframe-roku-<version>.zip" />
 ```
 
 Trade-offs compared with bundling:
@@ -73,26 +73,31 @@ Trade-offs compared with bundling:
 
 ## Tier 2: build-step instrumentation
 
-Add a build step that rewrites a copy of your channel and packages that copy:
+Add a build step that rewrites a copy of your channel and packages that copy. Instrument release and beta builds, and keep day-to-day development builds uninstrumented (see [Effect on debugging](#effect-on-debugging)):
 
 ```json
 {
   "scripts": {
-    "deploy": "everframe-roku instrument ./ --out ./.everframe-build --bundle-library && roku-deploy --rootDir ./.everframe-build"
+    "deploy:dev": "roku-deploy --rootDir ./",
+    "deploy:release": "everframe-roku instrument ./ --out ./.everframe-build --bundle-library && roku-deploy --rootDir ./.everframe-build"
   }
 }
 ```
 
-Add `.everframe-build/` to `.gitignore`. `--out` is required unless you pass `--dry-run`, and must not be inside the channel directory being instrumented. Your sources are never modified; the instrumented copy is written to `--out`.
+If your scene loads the bundled zip, keep a copy of it in `components/` so uninstrumented dev builds can load the library too (tier 1 alone still reports crashes on the next launch).
+
+Add `.everframe-build/` to `.gitignore`. `--out` is required unless you pass `--dry-run`. It may be a subdirectory of the channel, as above: it is skipped when the channel is scanned and copied. It must not be the channel directory itself or a parent of it. Your sources are never modified; the instrumented copy is written to `--out`.
+
+`--out` is emptied on every run so files deleted from your channel do not linger in the build. To make that safe, each run writes a `.everframe-build` marker file into `--out`, and the CLI only empties a directory that has this marker. If `--out` exists, is not empty and has no marker, the command fails with `refusing to overwrite a directory everframe-roku did not create`. Pick an empty or new directory in that case.
 
 You still load the library and call `start()` as in tier 1 (`--bundle-library` copies `everframe-roku-<version>.zip` into `<out>/components/`). The instrumented functions report through it.
 
 ### What gets wrapped
 
-Each targeted function body is wrapped in `try ... catch e ... end try` **on the same source line**, so line numbers in stack traces still match your original files. The catch records the error and then re-throws the original exception, so your channel's behavior is unchanged. These entry points are wrapped:
+Each targeted function body is wrapped in `try ... catch e ... end try` **on the same source line**, so line numbers in stack traces still match your original files. The catch records the error and then re-throws the original exception, so an error that would have crashed your channel still crashes it, and an error your own code catches further up is still caught there. These entry points are wrapped:
 
 - `Main` / `RunUserInterface` in `source/`
-- `init` of every component (also leaves a lifecycle breadcrumb)
+- `init` of every component (the component that extends `Scene` also leaves a lifecycle breadcrumb)
 - `onKeyEvent` (also leaves a key breadcrumb)
 - `onChange` handlers declared on interface fields
 - functions declared in a component `<interface>`
@@ -100,6 +105,19 @@ Each targeted function body is wrapped in `try ... catch e ... end try` **on the
 - Task `functionName` targets
 
 Functions that cannot be wrapped safely are skipped and listed in the output.
+
+### Automatic breadcrumbs
+
+Instrumentation records two kinds of breadcrumb on its own: key presses (from `onKeyEvent`, kind `tap`) and the scene's `init` (kind `lifecycle`). Anything else, such as navigation or network activity, comes from your own `addBreadcrumb` calls.
+
+### Effect on debugging
+
+Instrumentation changes how a crash looks in the BrightScript debugger. The original exception is caught and re-thrown from the end of the wrapped function, so:
+
+- the debugger stops on the wrapped function's `end sub` / `end function` line, not on the line that failed;
+- the stack has already unwound to that function, so the local variables of the failing line (and of any functions it called) are gone.
+
+The report sent to Everframe still carries the original error, message and backtrace. Because of the debugger change, instrument release and beta builds and deploy unmodified sources while you develop, as in the `deploy:dev` / `deploy:release` example above.
 
 ### Options
 
@@ -128,10 +146,12 @@ catch e
 end try
 
 ' Leave a breadcrumb: kind is one of navigation, tap, console, network,
-' lifecycle, error, custom (default custom)
-m.global.everframe.callFunc("addBreadcrumb", { kind: "navigation", message: "opened details", data: { id: "42" } })
+' lifecycle, error, custom (default custom); level, if given, is one of
+' debug, info, warn, error (other values are dropped)
+m.global.everframe.callFunc("addBreadcrumb", { kind: "navigation", level: "info", message: "opened details", data: { id: "42" } })
 
-' Attach a user (id, email, displayName); call with invalid to clear
+' Attach a user (id, email, displayName); numbers and booleans are converted
+' to strings, other non-string values are dropped. Call with invalid to clear
 m.global.everframe.callFunc("setUser", { id: "user-123", email: "viewer@example.com" })
 ```
 
