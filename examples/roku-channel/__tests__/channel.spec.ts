@@ -36,11 +36,12 @@ describe('crash lab channel source', () => {
     }
   });
 
-  it('never calls GetLastExitInfo itself (Roku hands the record to the first caller; the SDK must get it)', () => {
+  it('never calls GetLastExitInfo itself (not allowed on the render thread; the instrumented Main records it for the SDK)', () => {
     for (const f of files.filter((x) => x.endsWith('.brs'))) {
       expect(readFileSync(f, 'utf8'), f).not.toMatch(/\.GetLastExitInfo\(|CreateObject\("roAppManager"\)/);
     }
     expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(/sec\.Read\("lastExitTs"\)/);
+    expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(/sec\.Exists\("pendingExit"\)/);
   });
 
   it('lists all nine scenarios in order', () => {

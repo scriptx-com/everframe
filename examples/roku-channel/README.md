@@ -57,7 +57,10 @@ crash on the launch after it happened.
 "Path A" is the in-process try/catch wrapper that `everframe-roku instrument`
 adds around your code; it reports a crash immediately. "exit-info" is
 next-launch detection via `GetLastExitInfo` (Roku OS 13+), used when nothing
-could catch the crash.
+could catch the crash. Roku returns that record only to the channel's own
+code, so the instrumented `Main()` stores it for the SDK before anything else
+runs; the status panel's "SDK last handled exit" line shows the timestamp the
+SDK processed (and notes when a recorded exit is still pending).
 
 | # | Row | Press / relaunch | Expect in the dashboard | Proves |
 |---|---|---|---|---|
@@ -75,7 +78,7 @@ Running row 8 again within an hour yields 0 new loop reports (the guard is still
 active). An abandoned loop self-drains after the remaining launches.
 
 Rows 6 and 7 need `GetLastExitInfo`, which exists from Roku OS 13. On older
-firmware the status panel shows `Last exit: n/a (Roku OS < 13)`.
+firmware they produce no exit-info report.
 
 ## Capturing the real crash console
 

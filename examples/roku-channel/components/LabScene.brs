@@ -185,13 +185,17 @@ function LabStr(value as dynamic) as string
     return type(value)
 end function
 
-' GetLastExitInfo() hands its record to the FIRST caller per launch, so the lab
-' must not call it (it would starve the SDK's next-launch check). Show the exit
-' timestamp the SDK itself recorded instead.
+' The lab never calls GetLastExitInfo() here: roAppManager cannot be created
+' on the render thread, and the ComponentLibrary cannot read exit info at all
+' (Roku answers EXIT_UNKNOWN to library code). The instrumented Main() records
+' it into "pendingExit"; the SDK's reporter takes it and stores the handled
+' timestamp in "lastExitTs". Show both instead.
 function LabSdkLastExit() as dynamic
     sec = CreateObject("roRegistrySection", "Everframe")
-    if not sec.Exists("lastExitTs") then return "none yet"
-    return sec.Read("lastExitTs")
+    pending = ""
+    if sec.Exists("pendingExit") then pending = " (exit pending for the SDK)"
+    if not sec.Exists("lastExitTs") then return "none yet" + pending
+    return sec.Read("lastExitTs") + pending
 end function
 
 function LabQueueCount() as integer

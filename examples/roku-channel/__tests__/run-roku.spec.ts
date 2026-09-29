@@ -43,7 +43,7 @@ describe('run-roku.mjs --no-deploy', () => {
     expect(strFromU8(files['components/LabScene.xml']!)).toContain('pkg:/components/everframe_hook/everframe_hook.brs');
     expect(strFromU8(files['components/Excluded.brs']!)).not.toContain('everframe:instrumented');
     expect(strFromU8(files['components/OomTask.brs']!)).not.toContain('everframe:instrumented');
-    expect(strFromU8(files['source/main.brs']!)).toContain("' everframe:instrumented");
+    expect(strFromU8(files['source/main.brs']!)).toContain("sub Main() : try : Everframe_RecordLastExit() ' everframe:instrumented");
     for (const [name, bytes] of Object.entries(files)) {
       if (name.endsWith('.brs')) expect(Parser.parse(strFromU8(bytes)).diagnostics, name).toEqual([]);
     }

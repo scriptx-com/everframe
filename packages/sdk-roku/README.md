@@ -9,8 +9,8 @@ Crash and error reporting for Roku channels (BrightScript / SceneGraph).
 
 | Tier | Setup | Reports | Requires |
 | --- | --- | --- | --- |
-| 1. ComponentLibrary | Load the library and call `start()` | Crashes and runtime errors detected on the **next launch** (exit reason from `GetLastExitInfo`), manual `captureException`, breadcrumbs, user | Roku OS **13.0+** for exit detection |
-| 2. Build-step instrumentation | Run `everframe-roku instrument` before packaging | Everything in tier 1, plus errors from wrapped entry points (recorded, then re-thrown) with a stack, a `try-catch` mechanism, and key-press / scene-init breadcrumbs | Roku OS **9.4+** (try/catch) |
+| 1. ComponentLibrary | Load the library, call `start()`, and add a few lines to `Main()` | Crashes and runtime errors detected on the **next launch** (exit reason from `GetLastExitInfo`, recorded by your `Main()`), manual `captureException`, breadcrumbs, user | Roku OS **13.0+** for exit detection |
+| 2. Build-step instrumentation | Run `everframe-roku instrument` before packaging | Everything in tier 1 (the `Main()` lines are added for you), plus errors from wrapped entry points (recorded, then re-thrown) with a stack, a `try-catch` mechanism, and key-press / scene-init breadcrumbs | Roku OS **9.4+** (try/catch) |
 
 Notes on stack frames:
 
@@ -33,6 +33,31 @@ Copy `node_modules/@everframe/roku/dist/everframe-roku-<version>.zip` into your 
   <ComponentLibrary id="Everframe" uri="pkg:/components/everframe-roku-<version>.zip" />
 </children>
 ```
+
+Then add this at the very top of `Main()`, before you create the `roSGScreen`:
+
+```brightscript
+' source/main.brs
+sub Main()
+    ' Everframe: record why the previous launch ended. Keep this first.
+    try
+        am = CreateObject("roAppManager")
+        info = am.GetLastExitInfo()
+        if type(info) = "roAssociativeArray" and info["exit_code"] <> invalid and info["timestamp"] <> invalid then
+            sec = CreateObject("roRegistrySection", "Everframe")
+            sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
+        end if
+    catch e
+    end try
+
+    screen = CreateObject("roSGScreen")
+    ' ... your existing Main() ...
+end sub
+```
+
+Roku returns the previous launch's exit record (`GetLastExitInfo`, Roku OS 13.0+) only to your channel's own code. Called from inside the Everframe ComponentLibrary it always answers `EXIT_UNKNOWN` with no timestamp, so the library cannot read it itself. These lines store the record in the registry (section `Everframe`, key `pendingExit`); the library picks it up after `start()` and reports it. Without them, tier 1 still sends `captureException` reports, but crashes that end the channel are not detected. Tier 2 inserts the equivalent call (`Everframe_RecordLastExit()`) into `Main` / `RunUserInterface` for you.
+
+> **Warning:** calling `GetLastExitInfo()` in your own code as well is fine: reading it does not consume the record. Call it from `Main()` or a Task only, never from the render thread (a component's `init`, observers, or `onKeyEvent`): `roAppManager` cannot be created there.
 
 ```brightscript
 ' MainScene.brs
@@ -84,7 +109,7 @@ Add a build step that rewrites a copy of your channel and packages that copy. In
 }
 ```
 
-If your scene loads the bundled zip, keep a copy of it in `components/` so uninstrumented dev builds can load the library too (tier 1 alone still reports crashes on the next launch).
+If your scene loads the bundled zip, keep a copy of it in `components/` so uninstrumented dev builds can load the library too (with the tier 1 `Main()` lines, uninstrumented builds still report crashes on the next launch; the instrumented `Main` records the exit itself, so the two do not conflict).
 
 Add `.everframe-build/` to `.gitignore`. `--out` is required unless you pass `--dry-run`. It may be a subdirectory of the channel, as above: it is skipped when the channel is scanned and copied. It must not be the channel directory itself or a parent of it. Your sources are never modified; the instrumented copy is written to `--out`.
 
@@ -96,7 +121,7 @@ You still load the library and call `start()` as in tier 1 (`--bundle-library` c
 
 Each targeted function body is wrapped in `try ... catch e ... end try` **on the same source line**, so line numbers in stack traces still match your original files. The catch records the error and then re-throws the original exception, so an error that would have crashed your channel still crashes it, and an error your own code catches further up is still caught there. These entry points are wrapped:
 
-- `Main` / `RunUserInterface` in `source/`
+- `Main` / `RunUserInterface` in `source/` (these also call `Everframe_RecordLastExit()` first, before any of your code, so the next-launch exit check works without the tier 1 `Main()` lines)
 - `init` of every component (the component that extends `Scene` also leaves a lifecycle breadcrumb)
 - `onKeyEvent` (also leaves a key breadcrumb)
 - `onChange` handlers declared on interface fields
