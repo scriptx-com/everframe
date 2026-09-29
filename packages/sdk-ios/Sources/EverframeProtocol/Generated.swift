@@ -1844,6 +1844,7 @@ public enum EverframeName: String, Codable {
     case everframeIos = "everframe-ios"
     case everframeReact = "everframe-react"
     case everframeReactNative = "everframe-react-native"
+    case everframeRoku = "everframe-roku"
     case everframeWeb = "everframe-web"
 }
 
@@ -1852,6 +1853,7 @@ public enum EverframePlatform: String, Codable {
     case android = "android"
     case androidtv = "androidtv"
     case ios = "ios"
+    case roku = "roku"
     case tizen = "tizen"
     case tvos = "tvos"
     case web = "web"

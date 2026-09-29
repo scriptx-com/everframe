@@ -1,0 +1,42 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "0b6f7a52-3c1e-4d8a-9f10-2a4b6c8d0e12",
+  "submittedAt": "2026-09-29T10:00:05.123Z",
+  "source": "crash",
+  "sdk": { "name": "everframe-roku", "version": "0.1.0", "platform": "roku", "formFactor": "tv" },
+  "reporter": { "title": "RuntimeError(&hEC): 'Dot' Operator attempted with invalid BrightScript Component or interface reference.", "description": "" },
+  "captures": { "screenshot": false, "uiTree": false, "focus": false, "logs": false, "network": false, "breadcrumbs": true },
+  "captureControl": { "included": ["breadcrumbs"], "excluded": ["screenshot", "uiTree", "focus", "logs", "network"], "degradedReason": "crash-capture" },
+  "payload": {
+    "crash": {
+      "exceptionType": "RuntimeError(&hEC)",
+      "message": "'Dot' Operator attempted with invalid BrightScript Component or interface reference.",
+      "frames": [
+        { "raw": "onKeyEvent(key As String, press As Boolean) As Boolean at pkg:/components/HomeScene.brs(42)", "function": "onKeyEvent", "file": "pkg:/components/HomeScene.brs", "line": 42 },
+        { "raw": "init() As Void at pkg:/components/HomeScene.brs(10)", "function": "init", "file": "pkg:/components/HomeScene.brs", "line": 10 }
+      ],
+      "threadName": "render",
+      "mechanism": "try-catch",
+      "handled": false,
+      "fatal": true,
+      "occurredAt": "2026-09-29T10:00:00.456Z",
+      "fingerprint": "0123456789abcdef",
+      "details": {
+        "context": "onKeyEvent (components/HomeScene.brs)",
+        "metadata": { "exitCode": "EXIT_BRIGHTSCRIPT_CRASH", "appState": "foreground" }
+      }
+    },
+    "breadcrumbs": [
+      { "t": 1790671600000, "seq": 0, "kind": "tap", "message": "key OK" }
+    ]
+  },
+  "context": {
+    "app": { "name": "Demo Channel", "version": "1.2.3", "build": "45" },
+    "device": {
+      "os": "Roku OS", "osVersion": "13.0.4", "model": "4802X",
+      "screenSize": { "width": 1920, "height": 1080 }, "pixelRatio": 1,
+      "locale": "en-US", "timezone": "US/Eastern"
+    }
+  },
+  "attachments": []
+}
