@@ -4,6 +4,7 @@
 import type { Rect } from '@everframe/sdk-core';
 import { FAST_CLONE_STYLE_PROPERTIES, type CaptureProfile } from '../capture-profile.js';
 import { paintMaskRectsOnCanvas } from '../mask-paint.js';
+import { isCanvasBlank } from '../blank-check.js';
 
 /**
  * Ceiling on modern-screenshot's PRE-CLONE pass, which awaits the load of every
@@ -332,11 +333,27 @@ export interface ModernScreenshotRenderOptions {
   maskPlan?: Rect[]; // root-relative device px at requestedRatio
 }
 
+/** Viewport-cropped fallback canvas plus its PRE-MASK blank verdict. */
+export interface ModernScreenshotRenderResult {
+  canvas: HTMLCanvasElement;
+  /**
+   * Whether the raw render was near-uniform, measured on the un-cropped
+   * domToCanvas result BEFORE any `maskPlan` painting — black mask boxes on a
+   * flat raster must not make it look like a real screenshot. An unavailable
+   * check (null) counts as not blank.
+   */
+  blank: boolean;
+}
 
+/**
+ * Fallback renderer: modern-screenshot clone + raster, legacy `maskPlan`
+ * painted on the full canvas, then cropped to the viewport. Returns the
+ * cropped canvas with a blank verdict taken before masking.
+ */
 export async function renderViewportWithModernScreenshot(
   root: HTMLElement,
   opts: ModernScreenshotRenderOptions,
-): Promise<HTMLCanvasElement> {
+): Promise<ModernScreenshotRenderResult> {
   const { pixelRatio, requestedRatio, filter, profile } = opts;
   const cloneDrift = bodyCloneDriftCssPx(root);
   // TV profile: drop out-of-flow, fully-invisible subtrees.
@@ -404,11 +421,13 @@ export async function renderViewportWithModernScreenshot(
   // canvas — the old pipeline masked the full-document blob before
   // cropping, and masking after the crop paints at the wrong offset
   // on scrolled pages, shipping the content the mask exists to hide.
+  // Blank verdict BEFORE the mask paint — see ModernScreenshotRenderResult.
+  const blank = isCanvasBlank(canvas) === true;
   if (opts.maskPlan && opts.maskPlan.length > 0) {
     // Rects arrive in requested-DPR device px; the canvas renders at
     // the (possibly capped) effective ratio — scale or the mask shifts
     // and exposes excluded pixels (codex round-4 finding).
     paintMaskRectsOnCanvas(canvas, opts.maskPlan, pixelRatio / (requestedRatio || 1));
   }
-  return cropCanvasToViewport(canvas, pixelRatio, cloneDrift);
+  return { canvas: cropCanvasToViewport(canvas, pixelRatio, cloneDrift), blank };
 }

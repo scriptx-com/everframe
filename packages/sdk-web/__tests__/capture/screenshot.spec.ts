@@ -979,6 +979,70 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     }
   });
 
+  /** Canvas stub whose 2d context records mask fills, so tests can see paint order. */
+  function makeFillRecordingCanvas(fills: Array<[number, number, number, number]>, width = 200, height = 100) {
+    return {
+      width, height,
+      getContext: () => ({ fillStyle: '', fillRect: (x: number, y: number, w: number, h: number) => fills.push([x, y, w, h]) }),
+      toBlob: (cb: (b: Blob | null) => void, type?: string) => cb(new Blob([PNG_BYTES], { type: type ?? 'image/png' })),
+    } as unknown as HTMLCanvasElement;
+  }
+
+  it('blank-checks the snapdom canvas BEFORE painting maskPlan, so a masked flat canvas still falls back', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(fills));
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const fillsAtCheck: number[] = [];
+    const blank = await import('../../src/capture/blank-check.js');
+    (blank.isCanvasBlank as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(() => { fillsAtCheck.push(fills.length); return true; }) // snapdom canvas
+      .mockImplementationOnce(() => false); // fallback canvas
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    let reason: string | undefined;
+    await cap({
+      root: document.body,
+      pixelRatio: 1,
+      maskPlan: [{ x: 10, y: 20, width: 50, height: 20 }],
+      __setRenderer: (x) => { renderer = x; },
+      __setDegradedReason: (x) => { reason = x; },
+    });
+    expect(fillsAtCheck).toEqual([0]);
+    expect(fills.length).toBeGreaterThan(0); // the mask was still painted on the snapdom canvas
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    expect(renderer).toBe('modern-screenshot');
+    expect(reason).toBeUndefined();
+  });
+
+  it('flags screenshot_blank when both renderers are blank even with maskPlan painted', async () => {
+    const snapFills: Array<[number, number, number, number]> = [];
+    const modernFills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(snapFills, 320, 200));
+    const domToCanvas = mockModern(makeFillRecordingCanvas(modernFills));
+    const fillsAtCheck: number[] = [];
+    const blank = await import('../../src/capture/blank-check.js');
+    (blank.isCanvasBlank as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(() => { fillsAtCheck.push(snapFills.length); return true; })
+      .mockImplementationOnce(() => { fillsAtCheck.push(modernFills.length); return true; });
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    let reason: string | undefined;
+    const r = await cap({
+      root: document.body,
+      pixelRatio: 1,
+      maskPlan: [{ x: 10, y: 20, width: 50, height: 20 }],
+      __setRenderer: (x) => { renderer = x; },
+      __setDegradedReason: (x) => { reason = x; },
+    });
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    // Both verdicts were taken on the raw, un-masked renders.
+    expect(fillsAtCheck).toEqual([0, 0]);
+    expect(modernFills.length).toBeGreaterThan(0);
+    expect(reason).toBe(DEGRADED_REASONS.screenshot_blank);
+    expect(renderer).toBe('snapdom');
+    expect(r.width).toBe(320);
+  });
+
   it('restores DOM masks and video stand-ins after a snapdom capture', async () => {
     mockSnapdom(makeCanvasStub().stub);
     const secret = document.createElement('div');

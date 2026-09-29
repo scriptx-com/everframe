@@ -335,6 +335,8 @@ export async function captureScreenshot(
         Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE),
         'snapdom',
       );
+      // Blank-check the RAW render, before mask boxes add edges to a flat canvas.
+      const blank = isBlank(canvas);
       if (opts.maskPlan && opts.maskPlan.length > 0) {
         paintMaskRectsOnCanvas(
           canvas,
@@ -345,7 +347,7 @@ export async function captureScreenshot(
         );
       }
       const attempt: Attempt = { canvas, renderer: 'snapdom' };
-      if (isBlank(canvas)) firstBlank = attempt;
+      if (blank) firstBlank = attempt;
       else accepted = attempt;
     } catch {
       // Fall through to the fallback renderer.
@@ -353,7 +355,8 @@ export async function captureScreenshot(
 
     if (!accepted) {
       try {
-        const canvas = await withDeadline(
+        // The renderer measures `blank` itself, before it paints maskPlan.
+        const { canvas, blank } = await withDeadline(
           renderViewportWithModernScreenshot(root, {
             pixelRatio,
             requestedRatio,
@@ -365,7 +368,7 @@ export async function captureScreenshot(
           'modern-screenshot',
         );
         const attempt: Attempt = { canvas, renderer: 'modern-screenshot' };
-        if (!isBlank(canvas)) accepted = attempt;
+        if (!blank) accepted = attempt;
         else firstBlank ??= attempt;
       } catch {
         // Both renderers failed — handled below.
