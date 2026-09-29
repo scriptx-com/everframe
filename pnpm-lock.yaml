@@ -487,6 +487,9 @@ importers:
 
   packages/sdk-web:
     dependencies:
+      '@zumer/snapdom':
+        specifier: 3.2.0
+        version: 3.2.0
       modern-screenshot:
         specifier: ^4.7.0
         version: 4.7.0(patch_hash=x7suimpm3mxsktg4kgxugmql7u)
@@ -2843,6 +2846,9 @@ packages:
 
   '@xstate/fsm@1.6.5':
     resolution: {integrity: sha512-b5o1I6aLNeYlU/3CPlj/Z91ybk1gUsKT+5NAJI+2W4UjvS5KLG28K9v5UvNoFVjHV8PajVZ00RH3vnjyQO7ZAw==}
+
+  '@zumer/snapdom@3.2.0':
+    resolution: {integrity: sha512-FVYVoH3XXJdgFfZo6VxEX6DZ5XWNlYypMynOLKKFTa0XEZBMOVSQBVDHO66uIcK9q7yuYMyyAb5/KaMYsHIuxg==}
 
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
@@ -8182,6 +8188,8 @@ snapshots:
   '@xmldom/xmldom@0.9.12': {}
 
   '@xstate/fsm@1.6.5': {}
+
+  '@zumer/snapdom@3.2.0': {}
 
   abort-controller@3.0.0:
     dependencies:
