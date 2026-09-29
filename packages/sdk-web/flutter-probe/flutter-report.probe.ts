@@ -134,7 +134,12 @@ test('retries the exact masked report after a temporary ingest failure', async (
     return envelope ? JSON.parse(envelope.toString()).reporter?.title ?? '' : '';
   }).toBe('Flutter web queued visual report');
   const delivered = await request.get('/probe/last-report');
-  const deliveredEnvelope = ReportEnvelope.parse(JSON.parse(part(await delivered.body(), delivered.headers()['content-type'] ?? '', 'envelope')!.toString()));
+  const deliveredBody = await delivered.body();
+  const deliveredType = delivered.headers()['content-type'] ?? '';
+  const deliveredEnvelope = ReportEnvelope.parse(JSON.parse(part(deliveredBody, deliveredType, 'envelope')!.toString()));
   expect(deliveredEnvelope.reportId).toBe(queuedEnvelope.reportId);
   expect(deliveredEnvelope.attachments).toEqual(queuedEnvelope.attachments);
+  for (const name of ['screenshot', 'session-replay']) {
+    expect(part(deliveredBody, deliveredType, name)).toEqual(part(attempted!, attemptedType, name));
+  }
 });
