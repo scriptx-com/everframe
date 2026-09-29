@@ -941,8 +941,10 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     const a = cap({ root: document.body, __setDegradedReason: setShared });
     await vi.waitFor(() => expect(releases).toHaveLength(1));
     const b = cap({ root: document.body, __setDegradedReason: setShared });
-    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    // snapDOM runs are serialized: B's snapDOM starts only once A's settles,
+    // while the two captures themselves still overlap.
     releases[0]!();
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
     releases[1]!();
     const [ra, rb] = await Promise.all([a, b]);
     expect(ra.degradedReason).toBe(DEGRADED_REASONS.screenshot_blank);
@@ -993,6 +995,29 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
       await p;
       expect(domToCanvas).toHaveBeenCalledTimes(1);
       expect(renderer).toBe('modern-screenshot');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a capture that finds a never-settling snapDOM run skips snapDOM and falls back (off TV)', async () => {
+    vi.useFakeTimers();
+    try {
+      const snapdom = vi.fn(() => new Promise(() => undefined));
+      vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      const renderers: string[] = [];
+      const a = cap({ root: document.body, __setRenderer: (x) => { renderers.push(`a:${x}`); } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(snapdom).toHaveBeenCalledTimes(1);
+      const b = cap({ root: document.body, __setRenderer: (x) => { renderers.push(`b:${x}`); } });
+      await vi.advanceTimersByTimeAsync(10_000 * 0.6 + 1);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await Promise.all([a, b]);
+      expect(snapdom).toHaveBeenCalledTimes(1); // B never started a second snapDOM run
+      expect(domToCanvas).toHaveBeenCalledTimes(2);
+      expect(renderers.sort()).toEqual(['a:modern-screenshot', 'b:modern-screenshot']);
     } finally {
       vi.useRealTimers();
     }
@@ -1206,6 +1231,25 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
       expect(domToCanvas).toHaveBeenCalledTimes(1);
       expect(renderer).toBe('modern-screenshot');
       expect(reason).toBeUndefined();
+    });
+
+    it('a capture that finds snapDOM still busy ships the placeholder without the fallback', async () => {
+      vi.useFakeTimers();
+      const snapdom = vi.fn(() => new Promise(() => undefined));
+      vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      const reasons: string[] = [];
+      const a = cap({ root: document.body });
+      await vi.advanceTimersByTimeAsync(0);
+      const b = cap({ root: document.body, __setDegradedReason: (x) => { reasons.push(x); } });
+      await vi.advanceTimersByTimeAsync(45_000 * 0.6 + 1);
+      const [, rb] = await Promise.all([a, b]);
+      expect(snapdom).toHaveBeenCalledTimes(1);
+      expect(domToCanvas).not.toHaveBeenCalled(); // no second renderer on a TV CPU
+      expect(reasons).toEqual([DEGRADED_REASONS.screenshot_failed]);
+      expect(rb.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(new Uint8Array(await rb.blob.arrayBuffer())).toEqual(PNG_BYTES);
     });
 
     it('degrades to the placeholder without the fallback when snapdom blows its deadline share', async () => {

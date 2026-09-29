@@ -7,7 +7,7 @@ import { applyDomMask } from '../sensitive/registry.js';
 import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reasons.js';
 import { installVideoStandIns } from './video-frames.js';
 import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
-import { renderViewportWithSnapdom } from './renderers/snapdom-renderer.js';
+import { renderViewportWithSnapdom, SnapdomBusyError } from './renderers/snapdom-renderer.js';
 import { paintMaskRectsOnCanvas } from './mask-paint.js';
 export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
@@ -332,7 +332,10 @@ export async function captureScreenshot(
   const elapsed = (): number => Date.now() - started;
   let accepted: Attempt | null = null;
   let firstBlank: Attempt | null = null;
+  // Timed out, or never started because an earlier snapDOM capture was still
+  // running: either way snapDOM did not answer within its budget.
   let primaryTimedOut = false;
+  const primaryBudgetMs = Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE);
 
   try {
     try {
@@ -346,8 +349,10 @@ export async function captureScreenshot(
       // render settles would use wherever the page has scrolled since
       // (snapDOM `fast: false` yields), shipping the pixels the mask hides.
       const { canvas, blank, rootLeft, rootTop } = await withDeadline(
-        renderViewportWithSnapdom(root, { pixelRatio, filter: filterNode }),
-        Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE),
+        // A still-running earlier snapDOM capture is waited for within the
+        // same budget; past it the renderer refuses (SnapdomBusyError).
+        renderViewportWithSnapdom(root, { pixelRatio, filter: filterNode, busyWaitMs: primaryBudgetMs }),
+        primaryBudgetMs,
         'snapdom',
       );
       if (opts.maskPlan && opts.maskPlan.length > 0) {
@@ -364,7 +369,9 @@ export async function captureScreenshot(
       else accepted = attempt;
     } catch (err) {
       // Fall through to the fallback renderer (subject to the TV policy below).
-      primaryTimedOut = err instanceof CaptureTimeoutError;
+      // Busy counts as a timeout, so on TV it ships the placeholder rather
+      // than starting a second renderer on a CPU still busy with snapDOM.
+      primaryTimedOut = err instanceof CaptureTimeoutError || err instanceof SnapdomBusyError;
     }
 
     // TV profile: the fallback runs only when snapDOM threw a real error — a

@@ -72,8 +72,9 @@ export interface CaptureProfile {
    * webOS 6) and freezes the UI for that whole time; two renderers must not
    * compete for a TV CPU. A uniform canvas is also often legitimate on a TV:
    * a black DRM-protected or video frame IS the screen. So a blank snapDOM
-   * canvas ships as-is flagged `screenshot_blank`, and a snapDOM timeout
-   * ships the degraded placeholder. Chrome-53-era TVs still reach the
+   * canvas ships as-is flagged `screenshot_blank`, and a snapDOM timeout -
+   * or a capture that found an earlier snapDOM run still busy past its
+   * budget - ships the degraded placeholder. Chrome-53-era TVs still reach the
    * fallback, because snapDOM throws there rather than rendering.
    */
   fallbackOnlyOnPrimaryError: boolean;

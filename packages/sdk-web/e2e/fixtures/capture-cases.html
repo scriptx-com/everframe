@@ -50,6 +50,14 @@
       <div id="scaled-marker" style="position:absolute;top:450px;left:0;width:100px;height:30px;background:rgb(0,200,200)"></div>
     </div>
   </section>
+  <!-- Positioned scroller; STATIC direct child (margin-top 50px); an absolute
+       grandchild anchored to the SCROLLER. A transform on the child must not
+       re-anchor the grandchild to it. -->
+  <section id="cb-rebase" style="position:relative;height:300px;overflow:auto;background:#fff">
+    <div style="margin-top:50px;height:1200px">
+      <div id="cb-rebase-marker" style="position:absolute;top:150px;left:0;width:100px;height:40px;background:rgb(200,0,100)"></div>
+    </div>
+  </section>
   <!-- Plain in-flow rows (no positioning): 20 x 60px, pairwise-distinct colours. -->
   <section id="rows" style="height:300px;overflow:auto;background:#fff"></section>
   <section id="css-rows" class="css-scroller"></section>

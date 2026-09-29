@@ -121,6 +121,30 @@ test('scroller child with an individual scale keeps it without scaling the scrol
   expect(near(r.samples.above!, [255, 255, 255])).toBe(true);
 });
 
+test('an absolute grandchild anchored to a positioned scroller stays where it is seen', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  await page.evaluate(() => {
+    const el = document.getElementById('cb-rebase')!;
+    el.scrollIntoView();
+    el.scrollTop = 100;
+  });
+  const pos = await page.evaluate(() => {
+    const b = document.getElementById('cb-rebase-marker')!.getBoundingClientRect();
+    const s = document.getElementById('cb-rebase')!.getBoundingClientRect();
+    return {
+      offset: b.top - s.top, // 150 - 100 = 50 live
+      marker: [b.left + 40, b.top + b.height / 2] as [number, number],
+      // Where a re-anchored marker would land (50px lower): must stay white.
+      wrong: [b.left + 40, b.top + 50 + b.height / 2] as [number, number],
+    };
+  });
+  expect(pos.offset).toBeCloseTo(50, 0);
+  const r = await captureAndSample(page, { marker: pos.marker, wrong: pos.wrong });
+  expect(r.renderer).toBe('snapdom');
+  expect(near(r.samples.marker!, [200, 0, 100])).toBe(true);
+  expect(near(r.samples.wrong!, [255, 255, 255])).toBe(true);
+});
+
 test('scroller with plain in-flow rows shows each row at its live position (one restoration, not two)', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => {
