@@ -71,7 +71,7 @@ vi.mock('../../src/reporter-ui/crop-blob.js', () => ({
   })),
 }));
 
-import { ReporterDialog } from '../../src/reporter-ui/ReporterDialog.js';
+import { ReporterDialog, submittedDegradedReason } from '../../src/reporter-ui/ReporterDialog.js';
 import { cropBlob } from '../../src/reporter-ui/crop-blob.js';
 import { __setBrandingServerConfig } from '../../src/branding/server-config.js';
 import type { WebPlatformAdapter } from '../../src/adapter.js';
@@ -492,6 +492,85 @@ describe('<ReporterDialog> — multi-shot submit payload', () => {
     expect(payload.bundle.screenshots).toHaveLength(2);
     expect(payload.bundle.screenshots![0]!.annotated).toBe(false);
     expect(payload.bundle.screenshots![1]!.annotated).toBe(false);
+  });
+});
+
+describe('<ReporterDialog> — per-shot degraded reason', () => {
+  /** Adapter whose Nth capture reports `reasons[N]` via __lastDegradedReason, as the real one does. */
+  function adapterWithReasons(reasons: Array<string | undefined>): WebPlatformAdapter {
+    let calls = 0;
+    let last: string | undefined;
+    const adapter = buildMockAdapter({
+      captureScreenshot: async () => {
+        last = reasons[calls++];
+        return {
+          blob: new Blob(['x'], { type: 'image/png' }),
+          width: window.innerWidth,
+          height: window.innerHeight,
+          sha256: 'a'.repeat(64),
+        };
+      },
+    });
+    Object.defineProperty(adapter, '__lastDegradedReason', { get: () => last, configurable: true });
+    return adapter;
+  }
+
+  async function submitWith(
+    adapter: WebPlatformAdapter,
+    steps: (q: ReturnType<typeof render>) => Promise<void>,
+  ): Promise<string | undefined> {
+    const onComplete = vi.fn();
+    const q = render(<ReporterDialog open adapter={adapter} onComplete={onComplete} onCancel={() => undefined} />);
+    await q.findByTestId('screenshot-thumb-0');
+    await steps(q);
+    fireEvent.change(await q.findByTestId('report-title'), { target: { value: 'bug' } });
+    fireEvent.click(await q.findByTestId('submit-report'));
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+    return (onComplete.mock.calls[0]![0] as { bundle: { degradedReason?: string } }).bundle.degradedReason;
+  }
+
+  const addFullShot = async (q: ReturnType<typeof render>): Promise<void> => {
+    fireEvent.click(await q.findByTestId('screenshot-add'));
+    fireEvent.click(await q.findByTestId('area-capture-full'));
+    await q.findByTestId('screenshot-thumb-1');
+  };
+
+  it('a blank ADDED shot flags the submitted report', async () => {
+    const reason = await submitWith(adapterWithReasons([undefined, 'screenshot_blank']), addFullShot);
+    expect(reason).toBe('screenshot_blank');
+  });
+
+  it('deleting the flagged added shot drops its flag', async () => {
+    const reason = await submitWith(adapterWithReasons([undefined, 'screenshot_blank']), async (q) => {
+      await addFullShot(q);
+      fireEvent.click(await q.findByTestId('screenshot-delete-1'));
+      await waitFor(() => expect(q.queryByTestId('screenshot-thumb-1')).toBeNull());
+    });
+    expect(reason).toBeUndefined();
+  });
+
+  it('a blank open-time shot flags the report while retained, not once deleted', async () => {
+    expect(await submitWith(adapterWithReasons(['screenshot_blank']), async () => undefined)).toBe(
+      'screenshot_blank',
+    );
+    cleanup();
+    const reason = await submitWith(adapterWithReasons(['screenshot_blank']), async (q) => {
+      fireEvent.click(await q.findByTestId('screenshot-delete-0'));
+      await waitFor(() => expect(q.queryByTestId('screenshot-thumb-0')).toBeNull());
+    });
+    expect(reason).toBeUndefined();
+  });
+
+  it('keeps an open-time non-screenshot reason when no shot is flagged', async () => {
+    const reason = await submitWith(adapterWithReasons(['ui_tree_unavailable', undefined]), addFullShot);
+    expect(reason).toBe('ui_tree_unavailable');
+  });
+
+  it('submittedDegradedReason: failed outranks blank outranks the base reason', () => {
+    expect(submittedDegradedReason([{ degradedReason: 'screenshot_blank' }, { degradedReason: 'screenshot_failed' }], 'ui_tree_unavailable')).toBe('screenshot_failed');
+    expect(submittedDegradedReason([{}, { degradedReason: 'screenshot_blank' }], 'ui_tree_unavailable')).toBe('screenshot_blank');
+    expect(submittedDegradedReason([{}], 'ui_tree_unavailable')).toBe('ui_tree_unavailable');
+    expect(submittedDegradedReason([], undefined)).toBeUndefined();
   });
 });
 
