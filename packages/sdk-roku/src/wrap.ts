@@ -17,8 +17,10 @@ export interface WrapTarget {
   crumb?: 'key' | 'init';
   /** 'recordExit': call Everframe_RecordLastExit() before any host code (Main only). */
   prelude?: 'recordExit';
-  /** Component name: call Everframe_Screen("<name>") (init of a matched screen component). */
+  /** BrightScript expression passed to Everframe_Screen(...) (init of a screen component): `m.top.subtype()`. */
   screen?: string;
+  /** Matched name (the component or an ancestor) that made this a screen; for reporting. */
+  screenVia?: string;
   /** Components that share this script but disagree on the screen; no automatic screen. */
   screenConflict?: string[];
   /** Component this init target came from (to name both sides of a conflict). */
@@ -83,7 +85,7 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
     } else if (target.crumb === 'init') {
       open += ` : Everframe_Crumb("lifecycle", ${brsQuote('init ' + target.entry)}, invalid)`;
     }
-    if (target.screen) open += ` : Everframe_Screen(${brsQuote(target.screen)})`;
+    if (target.screen) open += ` : Everframe_Screen(${target.screen})`;
     else if (target.screenConflict) {
       skipped.push({ fn: name, reason: `shared by components ${target.screenConflict.join(', ')}; no automatic screen` });
     }

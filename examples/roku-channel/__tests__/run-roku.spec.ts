@@ -45,7 +45,7 @@ describe('run-roku.mjs --no-deploy', () => {
     expect(strFromU8(files['components/OomTask.brs']!)).not.toContain('everframe:instrumented');
     expect(strFromU8(files['source/main.brs']!)).toContain("sub Main() : try : Everframe_RecordLastExit() ' everframe:instrumented");
     // Row 10: DetailsScreen matches the default --screens pattern *Screen.
-    expect(strFromU8(files['components/DetailsScreen.brs']!)).toContain(`sub init() : try : Everframe_Screen("DetailsScreen") ' everframe:instrumented`);
+    expect(strFromU8(files['components/DetailsScreen.brs']!)).toContain(`sub init() : try : Everframe_Screen(m.top.subtype()) ' everframe:instrumented`);
     expect(strFromU8(files['components/LabScene.brs']!)).not.toContain('Everframe_Screen(');
     for (const [name, bytes] of Object.entries(files)) {
       if (name.endsWith('.brs')) expect(Parser.parse(strFromU8(bytes)).diagnostics, name).toEqual([]);

@@ -34,7 +34,7 @@ describe('cli', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(main(['instrument', chan, '--dry-run'])).toBe(0);
     const printed = log.mock.calls.map((c) => String(c[0]));
-    expect(printed).toContain('screen   components/HomeView.brs  HomeView');
+    expect(printed).toContain('screen   components/HomeView.brs  HomeView  via HomeView');
     expect(printed.at(-1)).toMatch(/1 screen\(s\) tracked/);
     log.mockClear();
     expect(main(['instrument', chan, '--dry-run', '--screens', 'none'])).toBe(0);

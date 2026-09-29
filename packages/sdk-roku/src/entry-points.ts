@@ -26,9 +26,30 @@ export function matchesScreen(name: string, patterns: string[]): boolean {
   });
 }
 
+/** The BrightScript expression injected into a screen's init(): the concrete component type, even when a base class's init runs. */
+export const SCREEN_EXPR = 'm.top.subtype()';
+
+/**
+ * First name on the chain [name, parent, grandparent, ...] that matches a
+ * pattern. `parents` maps lower-cased component name -> extends. Cycles and
+ * unknown parents end the walk (a missing parent is a leaf).
+ */
+export function screenVia(name: string, parents: Map<string, string>, patterns: string[]): string | undefined {
+  const seen = new Set<string>();
+  let cur: string | undefined = name;
+  while (cur && !seen.has(cur.toLowerCase())) {
+    if (matchesScreen(cur, patterns)) return cur;
+    seen.add(cur.toLowerCase());
+    cur = parents.get(cur.toLowerCase());
+  }
+  return undefined;
+}
+
 export interface EntryPlan {
   files: Map<string, Map<string, WrapTarget>>;
   components: Array<{ xml: string; name: string; scripts: string[] }>;
+  /** Every component whose own name or an ancestor's matched --screens, and the matched name. */
+  screens: Array<{ component: string; via: string }>;
 }
 
 const OBSERVE_RE = /observeField(?:Scoped)?\s*\(\s*"[^"]*"\s*,\s*"(\w+)"/gi;
@@ -72,7 +93,7 @@ export function discoverEntryPoints(
   root: string,
   opts: { exclude: string[]; mechanisms: Set<Mechanism>; skipDir?: string; screens?: string[] },
 ): EntryPlan {
-  const plan: EntryPlan = { files: new Map(), components: [] };
+  const plan: EntryPlan = { files: new Map(), components: [], screens: [] };
   const all = walk(root, root, opts.skipDir);
   const on = (m: Mechanism) => opts.mechanisms.has(m);
 
@@ -84,28 +105,37 @@ export function discoverEntryPoints(
   }
 
   const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
+  // Pass 1: inheritance map from every component XML (excluded ones still count as ancestors).
+  const parsed: Array<{ rel: string; comp: any }> = [];
+  const parents = new Map<string, string>();
   for (const rel of all.filter((f) => f.startsWith('components/') && f.endsWith('.xml'))) {
-    if (excluded(rel, opts.exclude)) continue;
-    const doc = xml.parse(readFileSync(path.join(root, rel), 'utf8'));
-    const comp = doc?.component;
+    let comp: any;
+    try { comp = xml.parse(readFileSync(path.join(root, rel), 'utf8'))?.component; } catch { continue; }
     if (!comp?.name) continue;
+    if (comp.extends) parents.set(String(comp.name).toLowerCase(), String(comp.extends));
+    parsed.push({ rel, comp });
+  }
+
+  for (const { rel, comp } of parsed) {
+    if (excluded(rel, opts.exclude)) continue;
     const scripts: string[] = [comp.script].flat().filter(Boolean)
       .map((s: { uri?: string }) => s.uri ?? '')
       .filter((u: string) => u.endsWith('.brs'))
       .map((u: string) => (u.startsWith('pkg:/') ? u.slice(5) : path.posix.join(path.posix.dirname(rel), u)))
       .filter((s: string) => !s.startsWith('components/everframe_hook/') && !excluded(s, opts.exclude));
     plan.components.push({ xml: rel, name: comp.name, scripts });
-    if (scripts.length === 0) continue;
 
     const iface = comp.interface ?? {};
     // Lifecycle crumbs only for the scene: every component's init would flood the ring.
     const isScene = comp.extends === 'Scene';
-    const isScreen = matchesScreen(String(comp.name), opts.screens ?? []);
+    const via = on('init') ? screenVia(String(comp.name), parents, opts.screens ?? []) : undefined;
+    const isScreen = via !== undefined;
+    if (isScreen) plan.screens.push({ component: String(comp.name), via });
     const targets: Array<[string, WrapTarget, Mechanism]> = [
       ['init', {
         entry: comp.name, isTask: false, screenOwner: String(comp.name),
         ...(isScene ? { crumb: 'init' as const } : {}),
-        ...(isScreen ? { screen: String(comp.name) } : {}),
+        ...(isScreen ? { screen: SCREEN_EXPR, screenVia: via } : {}),
       }, 'init'],
       ['onKeyEvent', { entry: '', isTask: false, crumb: 'key' }, 'key'],
     ];

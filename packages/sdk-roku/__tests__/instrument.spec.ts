@@ -7,10 +7,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Parser } from 'brighterscript';
 import { instrument } from '../src/instrument.js';
+import { runBrs } from './brs-harness.js';
 
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/channel-basic');
 const tmp = () => mkdtempSync(path.join(tmpdir(), 'efinst-'));
 const read = (p: string) => readFileSync(p, 'utf8');
+/** brs-cli stand-ins for the hook functions an instrumented init() calls. */
+const STUBS = (dir: string) => {
+  const f = path.join(dir, 'stubs.brs');
+  writeFileSync(f, 'sub Everframe_Screen(name as dynamic)\n  m.seen.Push(name)\nend sub\nsub Everframe_OnError(e as dynamic, entry as string, isTask as boolean)\nend sub\n');
+  return f;
+};
 
 describe('instrument', () => {
   it('wraps every entry-point kind and nothing else', () => {
@@ -191,11 +198,11 @@ describe('instrument', () => {
       const chan = withScreens();
       const out = tmp();
       const r = instrument({ root: chan, out });
-      expect(r.screens).toEqual([{ component: 'DetailsScreen', file: 'components/DetailsScreen.brs' }]);
+      expect(r.screens).toEqual([{ component: 'DetailsScreen', via: 'DetailsScreen', file: 'components/DetailsScreen.brs' }]);
       const before = read(path.join(chan, 'components/DetailsScreen.brs'));
       const after = read(path.join(out, 'components/DetailsScreen.brs'));
       expect(after.split('\n')).toHaveLength(before.split('\n').length);
-      expect(after.split('\n')[1]).toBe(`sub init() : try : Everframe_Screen("DetailsScreen") ' everframe:instrumented`);
+      expect(after.split('\n')[1]).toBe(`sub init() : try : Everframe_Screen(m.top.subtype()) ' everframe:instrumented`);
       expect(Parser.parse(after).diagnostics).toEqual([]);
       // HomeScene is a Scene: lifecycle crumb, no screen (not matched by the defaults).
       expect(read(path.join(out, 'components/HomeScene.brs'))).not.toContain('Everframe_Screen');
@@ -211,7 +218,72 @@ describe('instrument', () => {
       expect(custom.screens.map((s) => s.component).sort()).toEqual(['DetailsScreen', 'HomeScene']);
       const out = tmp();
       instrument({ root: chan, out, screens: ['homescene'] });
-      expect(read(path.join(out, 'components/HomeScene.brs'))).toContain('Everframe_Crumb("lifecycle", "init HomeScene", invalid) : Everframe_Screen("HomeScene")');
+      expect(read(path.join(out, 'components/HomeScene.brs'))).toContain('Everframe_Crumb("lifecycle", "init HomeScene", invalid) : Everframe_Screen(m.top.subtype())');
+    });
+
+    describe('inheritance', () => {
+      const xml = (name: string, ext: string) =>
+        `<?xml version="1.0" encoding="utf-8" ?>\n<component name="${name}" extends="${ext}">\n  <script type="text/brightscript" uri="${name}.brs" />\n</component>\n`;
+      const inherited = () => {
+        const chan = path.join(tmp(), 'chan');
+        mkdirSync(path.join(chan, 'components'), { recursive: true });
+        mkdirSync(path.join(chan, 'source'), { recursive: true });
+        writeFileSync(path.join(chan, 'manifest'), 'title=t\n');
+        const comps: Array<[string, string, boolean]> = [
+          ['Page', 'Group', true], ['Home', 'Page', false], ['Movies', 'Page', true],
+          ['Settings', 'Group', true], ['DeepPage', 'Movies', false],
+        ];
+        for (const [n, e, init] of comps) {
+          writeFileSync(path.join(chan, 'components', `${n}.xml`), xml(n, e));
+          writeFileSync(path.join(chan, 'components', `${n}.brs`), init ? `sub init()\n  m.top.visible = true\nend sub\n` : `sub helper()\n  print 1\nend sub\n`);
+        }
+        return chan;
+      };
+
+      it('reports screens with via; emits the subtype call only in files that define init', () => {
+        const chan = inherited();
+        const dry = instrument({ root: chan, dryRun: true });
+        const rows = dry.screens.map((s) => [s.component, s.via, s.file ?? null]).sort();
+        expect(rows).toEqual([
+          ['DeepPage', 'DeepPage', null],
+          ['Home', 'Page', null],
+          ['Movies', 'Page', 'components/Movies.brs'],
+          ['Page', 'Page', 'components/Page.brs'],
+        ]);
+        const out = tmp();
+        instrument({ root: chan, out });
+        for (const n of ['Page', 'Movies']) {
+          const before = read(path.join(chan, `components/${n}.brs`));
+          const after = read(path.join(out, `components/${n}.brs`));
+          expect(after.split('\n')[0]).toBe(`sub init() : try : Everframe_Screen(m.top.subtype()) ' everframe:instrumented`);
+          expect(after.split('\n')).toHaveLength(before.split('\n').length);
+          expect(Parser.parse(after).diagnostics).toEqual([]);
+        }
+        for (const n of ['Home', 'DeepPage', 'Settings']) {
+          expect(read(path.join(out, `components/${n}.brs`))).not.toContain('Everframe_Screen');
+        }
+      });
+
+      it('runtime: the emitted line passes the concrete subtype, so base + subclass init both firing is harmless', async () => {
+        const chan = inherited();
+        const out = tmp();
+        instrument({ root: chan, out });
+        const after = read(path.join(out, 'components/Page.brs'));
+        const dir = tmp();
+        const pageFile = path.join(dir, 'Page.brs');
+        writeFileSync(pageFile, after);
+        // SceneGraph is off: stand in for m.top with an AA that has subtype().
+        const { lines } = await runBrs([], `
+          m.seen = []
+          m.top = { subtype: function() as string
+            return "Home"
+          end function }
+          init()
+          init()
+          print "EFTEST:" + FormatJson(m.seen)
+        `, { extraFiles: [pageFile, STUBS(dir)] });
+        expect(lines[0]).toEqual(['Home', 'Home']);
+      });
     });
   });
 });

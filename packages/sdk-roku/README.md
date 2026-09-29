@@ -140,9 +140,11 @@ Instrumentation records two kinds of breadcrumb on its own: key presses (from `o
 
 ### Automatic screens
 
-The `init()` of every component whose **name** matches `--screens` (default `*Screen,*View,*Page`, case-insensitive, whole name) also calls `Everframe_Screen("<ComponentName>")` on the same line, which calls [`setScreen`](#screens) with the component name. So creating a `DetailsScreen` makes `DetailsScreen` the current screen, and every report sent after that carries `context.route: "DetailsScreen"`.
+The `init()` of every component whose **name, or any ancestor's name** (via `extends`), matches `--screens` (default `*Screen,*View,*Page`, case-insensitive, whole name) also calls `Everframe_Screen(m.top.subtype())` on the same line, which calls [`setScreen`](#screens) with the component's concrete type. `m.top.subtype()` is the type of the node actually created, even while a base component's `init()` runs, so a subclass without its own `init()` is tracked through its base.
 
-This tracks when a screen component is **created**, not when it is shown or hidden. If your app creates screens ahead of time, keeps them in a stack, or returns to a screen without creating it again, call `setScreen` yourself where the screen becomes visible; a manual call always overrides the automatic one. Use `--screens none` to turn automatic screens off, or pass your own patterns (for example `--screens "*Screen,Home*"`). A script shared by components with different names gets no automatic screen (the CLI lists it as skipped). `--dry-run` prints every tracked component as a `screen` line.
+`--screens` matches a component or any of its ancestors by name; if your screens share a base component (e.g. `Page`), matching the base covers all of them. If a subclass and its base both define `init()`, both call `Everframe_Screen` with the same name and the repeat is ignored. So creating a `DetailsScreen` makes `DetailsScreen` the current screen, and every report sent after that carries `context.route: "DetailsScreen"`.
+
+This tracks when a screen component is **created**, not when it is shown or hidden. If your app creates screens ahead of time, keeps them in a stack, or returns to a screen without creating it again, call `setScreen` yourself where the screen becomes visible; a manual call always overrides the automatic one. Use `--screens none` to turn automatic screens off, or pass your own patterns (for example `--screens "*Screen,Home*"`). A script shared by a screen and a non-screen component gets no automatic screen (the CLI lists it as skipped). `--dry-run` prints every tracked component as a `screen` line with the name it matched through (`via`).
 
 ### Effect on debugging
 
@@ -165,7 +167,7 @@ everframe-roku instrument <channelDir> --out <dir> \
 
 - `--exclude <glob>`: skip files whose channel-relative path matches the glob. Repeatable, for example `--exclude "components/vendor/**"`.
 - `--mechanisms`: comma-separated subset of `main`, `init`, `key`, `observer`, `task`, `callfunc`. Default is all of them.
-- `--screens`: comma-separated globs (`*` and `?`) matched case-insensitively against component names; matching components set the current screen in `init()` (see [Automatic screens](#automatic-screens)). Default `*Screen,*View,*Page`; `none` turns it off. Needs the `init` mechanism.
+- `--screens`: comma-separated globs (`*` and `?`) matched case-insensitively against component names and their ancestors (`extends` chain); matching components set the current screen in `init()` (see [Automatic screens](#automatic-screens)). Default `*Screen,*View,*Page`; `none` turns it off. Needs the `init` mechanism.
 - `--bundle-library`: copy the library zip into `<out>/components/`.
 - `--dry-run`: print what would be wrapped and which components are tracked as screens, without writing anything (`--out` is not needed).
 

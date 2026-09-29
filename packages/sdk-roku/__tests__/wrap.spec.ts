@@ -133,20 +133,20 @@ describe('wrapFunctions', () => {
     const { lines } = await runBrs([], '  App()', { extraFiles: [app, stub] });
     expect(lines).toEqual(['recordLastExit', 'body']);
   });
-  it('screen: Everframe_Screen("<name>") on the signature line, after the scene crumb', () => {
+  it('screen: Everframe_Screen(<expression>) on the signature line, after the scene crumb', () => {
     const src = ['sub init()', '  print 1', 'end sub', ''].join('\n');
-    const out = wrapFunctions(src, T({ init: { entry: 'DetailsScreen', isTask: false, screen: 'DetailsScreen' } }));
+    const out = wrapFunctions(src, T({ init: { entry: 'DetailsScreen', isTask: false, screen: 'm.top.subtype()' } }));
     expect(out.code.split('\n')).toHaveLength(4);
-    expect(out.code.split('\n')[0]).toBe(`sub init() : try : Everframe_Screen("DetailsScreen") ${MARKER}`);
+    expect(out.code.split('\n')[0]).toBe(`sub init() : try : Everframe_Screen(m.top.subtype()) ${MARKER}`);
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
-    const both = wrapFunctions(src, T({ init: { entry: 'HomeScreen', isTask: false, crumb: 'init', screen: 'HomeScreen' } }));
-    expect(both.code.split('\n')[0]).toBe(`sub init() : try : Everframe_Crumb("lifecycle", "init HomeScreen", invalid) : Everframe_Screen("HomeScreen") ${MARKER}`);
+    const both = wrapFunctions(src, T({ init: { entry: 'HomeScreen', isTask: false, crumb: 'init', screen: 'm.top.subtype()' } }));
+    expect(both.code.split('\n')[0]).toBe(`sub init() : try : Everframe_Crumb("lifecycle", "init HomeScreen", invalid) : Everframe_Screen(m.top.subtype()) ${MARKER}`);
     expect(Parser.parse(both.code).diagnostics).toEqual([]);
   });
 
   it('screen variant runs: screen hook first, then the body; an error is still reported and re-thrown', async () => {
     const src = ['sub init()', '  print "EFTEST:" + FormatJson("body")', '  x = invalid', '  x.go()', 'end sub', ''].join('\n');
-    const code = wrapFunctions(src, T({ init: { entry: 'DetailsScreen', isTask: false, screen: 'DetailsScreen' } })).code;
+    const code = wrapFunctions(src, T({ init: { entry: 'DetailsScreen', isTask: false, screen: '"DetailsScreen"' } })).code;
     const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
     const app = path.join(dir, 'app.brs');
     const stub = path.join(dir, 'stub.brs');
@@ -155,11 +155,5 @@ describe('wrapFunctions', () => {
     const { lines, stdout } = await runBrs([], '  init()', { extraFiles: [app, stub] });
     expect(lines).toEqual([{ screen: 'DetailsScreen' }, 'body', { onError: 'DetailsScreen' }]);
     expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
-  });
-
-  it('screen names are quoted as BrightScript strings', () => {
-    const out = wrapFunctions('sub init()\nend sub\n', T({ init: { entry: 'x', isTask: false, screen: 'A"B' } }));
-    expect(out.code).toContain('Everframe_Screen("A""B")');
-    expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 });

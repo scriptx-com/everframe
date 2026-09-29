@@ -13,8 +13,8 @@ export interface InstrumentOptions {
 }
 export interface InstrumentReport {
   wrapped: Array<{ file: string; fn: string }>;
-  /** init() functions that now call Everframe_Screen, by component. */
-  screens: Array<{ component: string; file: string }>;
+  /** Every screen component (own name or an ancestor matched --screens) and the matched name. `file` is the script whose init() now calls Everframe_Screen; absent when the component inherits its init(). */
+  screens: Array<{ component: string; via: string; file?: string }>;
   skipped: Array<{ file: string; fn: string; reason: string }>;
   injected: string[];
   libraryZip?: string;
@@ -47,6 +47,7 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
   const report: InstrumentReport = { wrapped: [], screens: [], skipped: [], injected: [] };
   const rewritten = new Map<string, string>();
   const filesWithWraps = new Set<string>();
+  const emittedIn = new Set<string>();
 
   for (const [file, targets] of plan.files) {
     const abs = path.join(root, file);
@@ -54,12 +55,17 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
     const res = wrapFunctions(readFileSync(abs, 'utf8'), targets);
     for (const fn of res.wrapped) {
       report.wrapped.push({ file, fn });
-      const screen = targets.get(fn.toLowerCase())?.screen;
-      if (screen) report.screens.push({ component: screen, file });
+      if (fn.toLowerCase() === 'init' && targets.get('init')?.screen) emittedIn.add(file);
     }
     for (const s of res.skipped) report.skipped.push({ file, ...s });
     if (res.wrapped.length > 0) rewritten.set(file, res.code);
     if (res.wrapped.length > 0 || res.code.includes(MARKER)) filesWithWraps.add(file);
+  }
+
+  for (const sc of plan.screens) {
+    const c = plan.components.find((x) => x.name === sc.component);
+    const file = c?.scripts.find((f) => emittedIn.has(f));
+    report.screens.push({ component: sc.component, via: sc.via, ...(file ? { file } : {}) });
   }
 
   const xmlEdits = new Map<string, string>();
