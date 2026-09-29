@@ -1,0 +1,25 @@
+.changeset/roku-protocol.md
+  s_d03518d0f16fdd::t_e4eb48d4a96c49 5-7
+.changeset/sdk-roku-initial.md
+  s_d03518d0f16fdd::t_fa50195ba35c99 1-8
+packages/sdk-roku/NOTICE
+  s_d03518d0f16fdd::t_ff962aa16c7d10 10-12
+packages/sdk-roku/README.md
+  s_d03518d0f16fdd::t_156faa323ca79e 1-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "08c011a3c28d75f75755f1aadab2080eda8d01fd",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
