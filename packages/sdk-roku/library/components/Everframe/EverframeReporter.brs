@@ -12,7 +12,7 @@ sub EfRep_Run()
     port = CreateObject("roMessagePort")
     m.top.observeField("flush", port)
     m.sec = CreateObject("roRegistrySection", "Everframe")
-    m.seen = {}
+    m.state = { seen: {}, allowed: {} }
     backoff = 0
     try
         m.ctx = EfE_Context(EF_VERSION())
@@ -23,7 +23,7 @@ sub EfRep_Run()
     while true
         retry = false
         try
-            retry = EfRep_Drain()
+            retry = EfD_Drain(m.sec, m.ctx, m.state, EfRep_Post)
         catch e
             print "[everframe] drain failed: "; e.message
             retry = true
@@ -44,28 +44,6 @@ sub EfRep_CheckLastExit()
     if FindMemberFunction(am, "GetLastExitInfo") = invalid then return
     EfX_Process(m.sec, am.GetLastExitInfo())
 end sub
-
-' Returns true when records remain that should be retried later.
-function EfRep_Drain() as boolean
-    for each item in EfQ_List(m.sec)
-        env = EfE_Build(item.rec, m.ctx, EfU_NowMs())
-        if not EfQ_Allow(m.sec, env.payload.crash.fingerprint, EfU_NowMs(), m.seen) then
-            EfQ_Remove(m.sec, item.key)
-        else
-            status = EfRep_Post(env)
-            if status >= 200 and status < 300 then
-                EfQ_Remove(m.sec, item.key)
-            else if status >= 400 and status < 500 and status <> 429 then
-                ' Bad key, suspended org or malformed report: retrying cannot help.
-                print "[everframe] report rejected: HTTP "; status
-                EfQ_Remove(m.sec, item.key)
-            else
-                return true
-            end if
-        end if
-    end for
-    return false
-end function
 
 function EfRep_Post(env as object) as integer
     cfg = m.top.config
