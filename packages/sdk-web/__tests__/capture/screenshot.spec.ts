@@ -975,6 +975,43 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     expect(fills).toContainEqual([8, 18, 54, 24]);
   });
 
+  it('a root that scrolls on its own: content is restored to its scroll and the mask lands on it', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    const canvas = makeFillRecordingCanvas(fills, 800, 600);
+    const root = document.createElement('div');
+    const spacer = document.createElement('div');
+    const secret = document.createElement('div');
+    root.append(spacer, secret);
+    document.body.appendChild(root);
+    Object.defineProperty(root, 'scrollTop', { value: 300, configurable: true });
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 800, height: 600 } as DOMRect);
+    // The secret sits at y=400 inside the root; scrolled by 300 the user sees it at y=100,
+    // which is where its root-relative mask rect points.
+    let secretTransform = '';
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(async (_r: HTMLElement, opts: { plugins?: Array<{ afterClone(c: unknown): void }> }) => {
+        const nodeMap = new Map<Node, Node>();
+        const clone = root.cloneNode(false) as HTMLElement;
+        nodeMap.set(clone, root);
+        for (const c of [spacer, secret]) {
+          const cc = c.cloneNode(false) as HTMLElement;
+          nodeMap.set(cc, c);
+          clone.appendChild(cc);
+        }
+        for (const p of opts.plugins ?? []) p.afterClone({ clone, nodeMap });
+        secretTransform = (clone.lastElementChild as HTMLElement).style.transform;
+        return { toCanvas: async () => canvas };
+      }),
+    }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root, pixelRatio: 1, maskPlan: [{ x: 0, y: 100, width: 200, height: 40 }] });
+    // Content rendered at 400 - 300 = 100 ...
+    expect(secretTransform).toBe('translate(0px, -300px)');
+    // ... and the mask painted at 100 (minus the 2px inflation): aligned.
+    expect(fills).toEqual([[-2, 98, 204, 44]]);
+    root.remove();
+  });
+
   it('maps maskPlan through a custom root\'s viewport position (not just the window scroll)', async () => {
     const fills: Array<[number, number, number, number]> = [];
     mockSnapdom(makeFillRecordingCanvas(fills, 800, 600));

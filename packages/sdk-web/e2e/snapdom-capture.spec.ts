@@ -212,6 +212,25 @@ test('scrolled grid scroller keeps its grid layout and scroll offset', async ({ 
   expectColoursAt(r, probe.colours);
 });
 
+test('a capture root that scrolls on its own (html overflow hidden) renders at its scroll and masks the sensitive box there', async ({ page }) => {
+  await page.goto('/e2e/fixtures/scrolling-body.html');
+  const pos = await page.evaluate(() => {
+    document.body.scrollTop = 300;
+    const at = (id: string): [number, number] => {
+      const b = document.getElementById(id)!.getBoundingClientRect();
+      return [b.left + 40, b.top + b.height / 2];
+    };
+    return { marker: at('marker'), secret: at('secret'), top: [40, 50] as [number, number] };
+  });
+  // Live: marker at y~100-200, secret at y~200-300, white above.
+  expect(pos.marker[1]).toBeCloseTo(150, 0);
+  const r = await captureAndSample(page, pos);
+  expect(r.renderer).toBe('snapdom');
+  expect(near(r.samples.top!, [255, 255, 255])).toBe(true);
+  expect(near(r.samples.marker!, [0, 160, 0])).toBe(true);
+  expect(near(r.samples.secret!, [0, 0, 0])).toBe(true);
+});
+
 test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const pos = await page.evaluate(() => {

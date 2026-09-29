@@ -439,6 +439,31 @@ describe('renderViewportWithSnapdom', () => {
       host.remove();
     });
 
+    it('restores a capture root that scrolls on its own (snapDOM\'s clip mode skips the root)', async () => {
+      const { scroller: root, child } = scrolled(300, 0);
+      const cap = await startCapture(root);
+      const ctx = cloneWithMap(root);
+      snapdomXo(ctx, root); // skips the root, as snapDOM does in clip mode
+      cap.plugin.afterClone(ctx);
+      cap.release();
+      await cap.done;
+      expect(ctx.clone.firstElementChild).toBe(Array.from(ctx.nodeMap.keys()).find((k) => ctx.nodeMap.get(k) === child));
+      expect((ctx.clone.firstElementChild as HTMLElement).style.transform).toBe('translate(0px, -300px)');
+      root.parentElement!.remove();
+    });
+
+    it('restores a scrolled root even when snapDOM did not map the root clone', async () => {
+      const { scroller: root } = scrolled(300, 0);
+      const cap = await startCapture(root);
+      const ctx = cloneWithMap(root);
+      ctx.nodeMap.delete(ctx.clone);
+      cap.plugin.afterClone(ctx);
+      cap.release();
+      await cap.done;
+      expect((ctx.clone.firstElementChild as HTMLElement).style.transform).toBe('translate(0px, -300px)');
+      root.parentElement!.remove();
+    });
+
     it('passes no plugins when nothing is scrolled', async () => {
       const snapdom = vi.fn(async (_r: HTMLElement, _o: Record<string, unknown>) => okCanvas());
       vi.doMock('@zumer/snapdom', () => ({ snapdom }));
@@ -484,6 +509,9 @@ describe('renderViewportWithSnapdom', () => {
       [{ containerType: 'inline-size' }],
       [{ willChange: 'transform' }],
       [{ willChange: 'filter' }],
+      [{ scale: '1' }],
+      [{ translate: '10px' }],
+      [{ rotate: '45deg' }],
     ])('true for %o', async (o) => {
       const { establishesAbsoluteContainingBlock } = await import('../../src/capture/renderers/snapdom-renderer.js');
       expect(establishesAbsoluteContainingBlock(cs(o))).toBe(true);
@@ -493,6 +521,7 @@ describe('renderViewportWithSnapdom', () => {
       [{ contain: 'none' }],
       [{ contain: 'size' }],
       [{ filter: 'none', perspective: 'none', willChange: 'auto', containerType: 'normal' }],
+      [{ translate: 'none', rotate: 'none', scale: 'none' }],
     ])('false for %o', async (o) => {
       const { establishesAbsoluteContainingBlock } = await import('../../src/capture/renderers/snapdom-renderer.js');
       expect(establishesAbsoluteContainingBlock(cs(o))).toBe(false);

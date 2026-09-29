@@ -52,6 +52,10 @@ export function establishesAbsoluteContainingBlock(cs: CSSStyleDeclaration): boo
 function establishesFixedContainingBlock(cs: CSSStyleDeclaration): boolean {
   const set = (v: string | undefined): boolean => !!v && v !== 'none' && v !== 'normal';
   if (set(cs.transform) || set(cs.perspective) || set(cs.filter)) return true;
+  // The individual transform properties create a containing block just like
+  // `transform`, while the computed `transform` stays 'none'.
+  const individual = cs as unknown as Record<string, string | undefined>;
+  if (set(individual.translate) || set(individual.rotate) || set(individual.scale)) return true;
   const backdrop =
     (cs as unknown as Record<string, string | undefined>).backdropFilter ??
     (cs as unknown as Record<string, string | undefined>).webkitBackdropFilter;
@@ -114,8 +118,13 @@ function childShift(child: Element, scroller: CSSStyleDeclaration, left: number,
  */
 function collectScrollState(root: HTMLElement): Map<Element, ScrollerState> {
   const state = new Map<Element, ScrollerState>();
-  const skip = new Set<Element>([root, document.documentElement, document.body]);
-  for (const el of Array.from(root.querySelectorAll<HTMLElement>('*'))) {
+  // Document scrolling is what snapDOM's viewport clip itself follows; every
+  // other scrolled element - INCLUDING the capture root, e.g. a <body> that
+  // scrolls on its own under `html { overflow: hidden }`, whose scroll
+  // snapDOM's clip mode never restores - is restored here.
+  const docScroller = document.scrollingElement ?? document.documentElement;
+  const skip = new Set<Element>([document.documentElement, docScroller]);
+  for (const el of [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))]) {
     if (skip.has(el)) continue;
     const left = el.scrollLeft;
     const top = el.scrollTop;
@@ -169,7 +178,7 @@ interface AfterCloneContext {
   nodeMap?: unknown;
 }
 
-function createScrollRestorePlugin(state: Map<Element, ScrollerState>) {
+function createScrollRestorePlugin(root: Element, state: Map<Element, ScrollerState>) {
   return {
     name: 'everframe-scroll-restore',
     afterClone(ctx: AfterCloneContext): void {
@@ -180,6 +189,9 @@ function createScrollRestorePlugin(state: Map<Element, ScrollerState>) {
         const st = state.get(src as Element);
         if (st && clone.nodeType === 1) scrollers.push([clone as Element, st]);
       }
+      // A scrolled capture root whose clone snapDOM did not map.
+      const rootState = state.get(root);
+      if (rootState && !nodeMap.has(ctx.clone)) scrollers.push([ctx.clone, rootState]);
       for (const [scrollerClone, st] of scrollers) {
         const wrapper = snapdomScrollWrapper(scrollerClone, nodeMap);
         if (wrapper) undoSnapdomScroll(scrollerClone, wrapper, st, nodeMap);
@@ -249,7 +261,7 @@ export async function renderViewportWithSnapdom(
   const rootRect = root.getBoundingClientRect();
   try {
     const capture = await snapdom(root, {
-      ...(scrollState.size > 0 ? { plugins: [createScrollRestorePlugin(scrollState)] } : {}),
+      ...(scrollState.size > 0 ? { plugins: [createScrollRestorePlugin(root, scrollState)] } : {}),
       clip: 'viewport',
       fast: false,
       scale: 1,
