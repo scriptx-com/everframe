@@ -1,0 +1,21 @@
+packages/sdk-roku/__tests__/queue.spec.ts
+  s_d03518d0f16fdd::t_c5176e241d8049 1-84
+packages/sdk-roku/library/components/Everframe/lib/ef_queue.brs
+  s_d03518d0f16fdd::t_fb5d3748836668 1-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dacb81a27a3affeb5e19c6674f09d16a60caae7e",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
