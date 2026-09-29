@@ -1,0 +1,21 @@
+packages/sdk-web/__tests__/capture/screenshot-renderer-surface.spec.ts
+  s_f1f3a292ebd900::t_ee0fd5f3d02280 1-30
+packages/sdk-web/src/adapter.ts
+  s_f1f3a292ebd900::t_48e6925c911add 71,211-212,507,1738-1740,2101-2105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6448153ee2e7d1abf616bcf1eef38524b117e5d3",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
