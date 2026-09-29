@@ -1,0 +1,25 @@
+packages/sdk-roku/__tests__/fixtures/console-crash.txt
+  s_d03518d0f16fdd::t_cd70c41a82d550 1-10
+packages/sdk-roku/__tests__/frames.spec.ts
+  s_d03518d0f16fdd::t_7c4c8afdc3c9f9 1-87
+packages/sdk-roku/library/components/Everframe/lib/ef_frames.brs
+  s_d03518d0f16fdd::t_dee18fcbf13df5 1-77
+packages/sdk-roku/library/components/Everframe/lib/ef_record.brs
+  s_d03518d0f16fdd::t_14eb642715efb7 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d1858c37a132d566b09eedba73ff7c0d98518003",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
