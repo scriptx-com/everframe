@@ -36,6 +36,80 @@ describe('renderViewportWithSnapdom', () => {
     expect(typeof opts.filter).toBe('function');
   });
 
+  describe('viewport padding (classic scrollbars)', () => {
+    const withViewport = (w: number, h: number): void => {
+      vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(w);
+      vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(h);
+    };
+    const snapCanvas = (w: number, h: number): HTMLCanvasElement =>
+      Object.assign(document.createElement('canvas'), { width: w, height: h });
+    const mockSnapdom = (canvas: HTMLCanvasElement): void => {
+      vi.doMock('@zumer/snapdom', () => ({
+        snapdom: vi.fn(async () => ({ toCanvas: async () => canvas })),
+      }));
+    };
+    afterEach(() => vi.restoreAllMocks());
+
+    it('pads a scrollbar-narrowed canvas to innerWidth x innerHeight x ratio on white', async () => {
+      withViewport(800, 600);
+      const src = snapCanvas(1185, 900); // (800 - 10px scrollbar) * 1.5
+      const calls: string[] = [];
+      const drawImage = vi.fn();
+      const ctx = {
+        set fillStyle(v: string) {
+          calls.push(`fillStyle=${v}`);
+        },
+        fillRect: vi.fn((...a: number[]) => calls.push(`fillRect(${a.join(',')})`)),
+        drawImage,
+      };
+      const getContext = vi
+        .spyOn(HTMLCanvasElement.prototype, 'getContext')
+        .mockImplementation(() => ctx as unknown as CanvasRenderingContext2D);
+      mockSnapdom(src);
+      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+
+      const out = await renderViewportWithSnapdom(document.body, { pixelRatio: 1.5, filter: () => true });
+
+      expect(out).not.toBe(src);
+      expect(out.width).toBe(1200);
+      expect(out.height).toBe(900);
+      expect(getContext).toHaveBeenCalledWith('2d');
+      expect(calls).toEqual(['fillStyle=#ffffff', 'fillRect(0,0,1200,900)']);
+      expect(drawImage).toHaveBeenCalledTimes(1);
+      expect(drawImage).toHaveBeenCalledWith(src, 0, 0);
+    });
+
+    it('returns an exactly viewport-sized canvas unchanged', async () => {
+      withViewport(800, 600);
+      const src = snapCanvas(1600, 1200);
+      const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext');
+      mockSnapdom(src);
+      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      const out = await renderViewportWithSnapdom(document.body, { pixelRatio: 2, filter: () => true });
+      expect(out).toBe(src);
+      expect(getContext).not.toHaveBeenCalled();
+    });
+
+    it('returns a larger canvas unchanged', async () => {
+      withViewport(800, 600);
+      const src = snapCanvas(900, 700);
+      mockSnapdom(src);
+      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      const out = await renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true });
+      expect(out).toBe(src);
+    });
+
+    it('returns the snapDOM canvas unchanged when no 2d context is available', async () => {
+      withViewport(800, 600);
+      const src = snapCanvas(790, 600);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
+      mockSnapdom(src);
+      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      const out = await renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true });
+      expect(out).toBe(src);
+    });
+  });
+
   it('routes the SDK filter through unchanged', async () => {
     let passed: ((el: Element) => boolean) | undefined;
     vi.doMock('@zumer/snapdom', () => ({

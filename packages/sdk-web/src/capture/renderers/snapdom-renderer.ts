@@ -84,6 +84,30 @@ const scrollRestorePlugin = {
 
 let captureSeq = 0;
 
+/**
+ * `clip: 'viewport'` sizes the canvas from documentElement.clientWidth/Height,
+ * which EXCLUDES a classic (non-overlay) scrollbar. Callers - the reporter's
+ * area-select math divides by innerWidth - expect exactly
+ * innerWidth x innerHeight x ratio, as the old viewport crop produced. A
+ * smaller canvas is copied onto a white canvas of that size at (0,0); an
+ * equal or larger one (or no 2d context, e.g. jsdom) is returned unchanged.
+ */
+function padToViewport(canvas: HTMLCanvasElement, pixelRatio: number): HTMLCanvasElement {
+  if (typeof window === 'undefined') return canvas;
+  const targetW = Math.round(window.innerWidth * pixelRatio);
+  const targetH = Math.round(window.innerHeight * pixelRatio);
+  if (canvas.width >= targetW && canvas.height >= targetH) return canvas;
+  const padded = document.createElement('canvas');
+  padded.width = Math.max(targetW, canvas.width);
+  padded.height = Math.max(targetH, canvas.height);
+  const ctx = padded.getContext('2d');
+  if (!ctx) return canvas;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, padded.width, padded.height);
+  ctx.drawImage(canvas, 0, 0);
+  return padded;
+}
+
 export async function renderViewportWithSnapdom(
   root: HTMLElement,
   opts: SnapdomRenderOptions,
@@ -110,7 +134,7 @@ export async function renderViewportWithSnapdom(
       // that; this flag is the explicit guarantee.
       invalidate: true,
     });
-    return await capture.toCanvas();
+    return padToViewport(await capture.toCanvas(), opts.pixelRatio);
   } finally {
     for (const el of tagged) {
       if (el.getAttribute(SCROLL_ATTR)?.startsWith(`${token}|`)) el.removeAttribute(SCROLL_ATTR);
