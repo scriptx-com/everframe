@@ -1,0 +1,56 @@
+packages/sdk-roku/README.md
+  s_d03518d0f16fdd::t_133a5e9b2667d9 176-177
+  s_f1f3a292ebd900::t_011041552996bb 52-55,74-75,79-80
+packages/sdk-roku/__tests__/drain.spec.ts
+  s_d03518d0f16fdd::t_b732a20f019f5c 130-140
+packages/sdk-roku/__tests__/entry-points.spec.ts
+  s_d03518d0f16fdd::t_30253987d12e77 228-282
+packages/sdk-roku/__tests__/exitinfo.spec.ts
+  s_d03518d0f16fdd::t_c716e44ba8b426 305-315
+packages/sdk-roku/__tests__/hook.spec.ts
+  s_d03518d0f16fdd::t_267ec996e9c68d 149-179
+packages/sdk-roku/__tests__/instrument.spec.ts
+  s_d03518d0f16fdd::t_5bcf1b41949a05 326-343
+packages/sdk-roku/__tests__/queue.spec.ts
+  s_d03518d0f16fdd::t_c720f7b9b894a7 145-163
+packages/sdk-roku/hook/everframe_hook.brs
+  s_d03518d0f16fdd::t_1e98d155842ebd 56-58,71-76
+packages/sdk-roku/library/components/Everframe/Everframe.brs
+  s_d03518d0f16fdd::t_6f2dea16277a27 25-33,40,86,206-228
+packages/sdk-roku/library/components/Everframe/EverframeReporter.brs
+  s_d03518d0f16fdd::t_9abfe3db06375a 42-43,82
+packages/sdk-roku/library/components/Everframe/lib/ef_drain.brs
+  s_d03518d0f16fdd::t_1f3ce321a1ce72 17-18
+packages/sdk-roku/library/components/Everframe/lib/ef_exitinfo.brs
+  s_d03518d0f16fdd::t_69141abe826545 13,139
+packages/sdk-roku/library/components/Everframe/lib/ef_queue.brs
+  s_d03518d0f16fdd::t_9d624efdeccbd9 84-93
+packages/sdk-roku/library/components/Everframe/lib/ef_util.brs
+  s_d03518d0f16fdd::t_f7f57d6aeb6287 133-152
+packages/sdk-roku/src/entry-points.ts
+  s_d03518d0f16fdd::t_5bf01b8be97051 159-160,184-193,200,203-208,210-212,214-215
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d6714226b5cc44b7747efad655c27ec2c977b96e",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
