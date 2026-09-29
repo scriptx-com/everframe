@@ -65,8 +65,9 @@ sub EfC_Rotate(sec as object)
     sec.Flush()
 end sub
 
-' Throttle: at most one write per 2 s; urgent (memory) crumbs write at once.
-function EfC_ShouldWrite(lastMs as dynamic, nowMs as dynamic, urgent as boolean) as boolean
-    if urgent or lastMs = invalid then return true
+' Throttle: persist when nothing was written yet or >= 2 s have passed since
+' the last write. (Urgent memory crumbs bypass this in the node.)
+function EfC_ShouldPersist(nowMs as dynamic, lastMs as dynamic) as boolean
+    if lastMs = invalid or nowMs = invalid then return true
     return nowMs - lastMs >= 2000
 end function

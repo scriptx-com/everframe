@@ -10,6 +10,7 @@
     <function name="getCrumbs" />
     <function name="getUser" />
     <function name="kick" />
+    <function name="flushCrumbs" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/Everframe/Everframe.brs" />
   <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_util.brs" />

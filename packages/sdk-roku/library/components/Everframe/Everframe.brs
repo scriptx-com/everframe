@@ -15,8 +15,7 @@ sub init()
     ' the previous session's "crumbs" to "prevCrumbs".
     m.sec = invalid
     m["lastPersistMs"] = invalid
-    m["persistPending"] = false
-    m["persistTimer"] = invalid
+    m["crumbsDirty"] = false
 end sub
 
 function start(config as object) as boolean
@@ -33,10 +32,10 @@ function start(config as object) as boolean
         sec = CreateObject("roRegistrySection", "Everframe")
         EfC_Rotate(sec)
         m.sec = sec
-        EfN_SetupPersistTimer()
         if m.crumbs.Count() > 0 then
             EfC_Persist(sec, m.crumbs)
             m["lastPersistMs"] = EfU_NowMs()
+            m["crumbsDirty"] = false
         end if
         endpoint = "https://everframe.dev"
         if config.endpoint <> invalid and config.endpoint <> "" then endpoint = config.endpoint
@@ -131,37 +130,31 @@ function kick(unused as dynamic) as boolean
     end try
 end function
 
-sub EfN_SetupPersistTimer()
-    t = CreateObject("roSGNode", "Timer")
-    t.duration = 2
-    t.repeat = false
-    t.observeField("fire", "EfN_OnPersistTimer")
-    m.top.appendChild(t)
-    m["persistTimer"] = t
-end sub
-
-' Writes now when the throttle allows, else marks a write pending and lets
-' the one-shot timer flush it (at most one registry write per 2 s).
+' Writes now when >= 2 s passed since the last write (or when urgent), else
+' marks the buffer dirty; the reporter loop calls flushCrumbs() to write it.
+' This node is not in the scene tree, so a Timer child would never fire.
 sub EfN_PersistCrumbs(urgent as boolean)
     if m.sec = invalid then return
     now = EfU_NowMs()
-    if EfC_ShouldWrite(m.lastPersistMs, now, urgent) then
+    if urgent or EfC_ShouldPersist(now, m["lastPersistMs"]) then
         EfC_Persist(m.sec, m.crumbs)
         m["lastPersistMs"] = now
-        m["persistPending"] = false
-    else if m.persistPending <> true and m.persistTimer <> invalid then
-        m["persistPending"] = true
-        m.persistTimer.control = "start"
+        m["crumbsDirty"] = false
+    else
+        m["crumbsDirty"] = true
     end if
 end sub
 
-sub EfN_OnPersistTimer()
+' Writes the persisted buffer if a throttled addBreadcrumb left it dirty.
+function flushCrumbs(unused as dynamic) as boolean
     try
-        if m.sec = invalid or m.crumbs = invalid or m.persistPending <> true then return
+        if m.sec = invalid or m.crumbs = invalid or m["crumbsDirty"] <> true then return false
         EfC_Persist(m.sec, m.crumbs)
         m["lastPersistMs"] = EfU_NowMs()
-        m["persistPending"] = false
+        m["crumbsDirty"] = false
+        return true
     catch err
         print "[everframe] could not persist breadcrumbs"
+        return false
     end try
-end sub
+end function

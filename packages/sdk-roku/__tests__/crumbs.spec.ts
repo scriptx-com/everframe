@@ -78,27 +78,36 @@ describe('ef_crumbs.brs (breadcrumbs persisted across a crash)', () => {
     expect(JSON.parse(lines[0].raw).map((c: { seq: number }) => c.seq)).toEqual([0, 1, 2]);
   });
 
-  it('throttle: first write and urgent writes go through, others wait 2 s', async () => {
+  it('throttle: first write goes through, others wait 2 s', async () => {
     const { lines } = await runBrs(LIBS, `
       print "EFTEST:" + FormatJson([
-        EfC_ShouldWrite(invalid, 1000&, false),
-        EfC_ShouldWrite(1000&, 2500&, false),
-        EfC_ShouldWrite(1000&, 2999&, false),
-        EfC_ShouldWrite(1000&, 3000&, false),
-        EfC_ShouldWrite(1000&, 1001&, true)
+        EfC_ShouldPersist(1000&, invalid),
+        EfC_ShouldPersist(2500&, 1000&),
+        EfC_ShouldPersist(2999&, 1000&),
+        EfC_ShouldPersist(3000&, 1000&)
       ])
     `);
-    expect(lines[0]).toEqual([true, false, false, true, true]);
+    expect(lines[0]).toEqual([true, false, false, true]);
   });
 
-  it('the Everframe node rotates on start() before persisting, and persists via a throttle timer', () => {
+  it('the node flushes dirty crumbs via flushCrumbs (no Timer); the reporter calls it', () => {
+    const dir = path.join(LIB_DIR, '..');
+    const src = readFileSync(path.join(dir, 'Everframe.brs'), 'utf8');
+    expect(src).not.toMatch(/"Timer"/);
+    expect(src).toMatch(/function flushCrumbs\(/);
+    expect(src).toMatch(/m\["crumbsDirty"\] = true/);
+    expect(readFileSync(path.join(dir, 'Everframe.xml'), 'utf8')).toMatch(/<function name="flushCrumbs"/);
+    const rep = readFileSync(path.join(dir, 'EverframeReporter.brs'), 'utf8');
+    expect(rep).toMatch(/callFunc\("flushCrumbs", invalid\)/);
+  });
+
+  it('the Everframe node rotates on start() before persisting', () => {
     const src = readFileSync(path.join(LIB_DIR, '..', 'Everframe.brs'), 'utf8');
     const start = src.match(/function start\([\s\S]*?end function/)?.[0] ?? '';
     const rotateAt = start.indexOf('EfC_Rotate(');
     expect(rotateAt).toBeGreaterThan(-1);
     expect(rotateAt).toBeLessThan(start.indexOf('EfC_Persist('));
     expect(rotateAt).toBeLessThan(start.indexOf('CreateObject("roSGNode", "EverframeReporter")'));
-    expect(src).toMatch(/CreateObject\("roSGNode", "Timer"\)/);
     const xml = readFileSync(path.join(LIB_DIR, '..', 'Everframe.xml'), 'utf8');
     expect(xml).toMatch(/lib\/ef_crumbs\.brs/);
   });

@@ -77,6 +77,7 @@ sub EfRep_Idle(port as object, ms as integer)
             if left < timeout then timeout = left
         end if
         msg = wait(timeout, port)
+        EfRep_FlushCrumbs()
         if type(msg) = "roAppMemoryNotificationEvent" then
             EfRep_MemWarning(msg)
         else if msg <> invalid then
@@ -143,6 +144,19 @@ sub EfRep_MemWarning(msg as object)
         EfRep_Crumb(EfMem_WarningCrumb(pct, limit))
     catch e
         print "[everframe] memory warning failed: "; e.message
+    end try
+end sub
+
+' Persists breadcrumbs the node throttled (its own Timer cannot fire: the
+' node is not in the scene tree). Runs on every reporter wake (<= 5 s).
+sub EfRep_FlushCrumbs()
+    try
+        g = m.global
+        if type(g) <> "roSGNode" or not g.hasField("everframe") then return
+        ef = g.everframe
+        if type(ef) = "roSGNode" then ef.callFunc("flushCrumbs", invalid)
+    catch err
+        print "[everframe] crumb flush failed"
     end try
 end sub
 
