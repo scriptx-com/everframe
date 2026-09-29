@@ -1,0 +1,23 @@
+examples/roku-channel/scripts/run-roku.mjs
+  s_d03518d0f16fdd::t_7e294682049d78 38-46,52-53,69-72,76-134,144-145,184-188,190-197
+examples/roku-channel/__tests__/run-roku-helpers.spec.ts
+  s_d03518d0f16fdd::t_efce570e8c778e 1-72
+examples/roku-channel/__tests__/run-roku.spec.ts
+  s_d03518d0f16fdd::t_a121b1edb75d98 4,78-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "86c74b68b31edd75899c6ee1f4a76392e6d5e42f",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
