@@ -143,6 +143,57 @@ describe('ef_exitinfo.brs', () => {
     expect(lines[0]).toEqual({ a: 'reported', b: 'none', n: 1, t: Date.UTC(2026, 8, 29, 11, 58, 22, 36), type: 'EXIT_BRIGHTSCRIPT_CRASH', ts: '2026-09-29T11:58:22.036Z' });
   });
 
+  it('attaches the previous session\'s persisted crumbs (prevCrumbs) and deletes them', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      sec.Write("prevCrumbs", "[{""t"":1790000000000,""seq"":3,""kind"":""custom"",""message"":""before crash""}]")
+      r = EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
+      print "EFTEST:" + FormatJson({ r: r, crumbs: EfQ_List(sec)[0].rec.crumbs, left: sec.Exists("prevCrumbs") })
+    `);
+    expect(lines[0]).toEqual({ r: 'reported', crumbs: [{ t: 1790000000000, seq: 3, kind: 'custom', message: 'before crash' }], left: false });
+  });
+
+  it('a merged Path A record keeps its own crumbs; prevCrumbs is still deleted', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      pathA = { v: 1, id: "aaaaaaaa-1", t: EfU_MsFromIso("2026-09-29T10:00:03Z"), kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [{ t: 1&, seq: 0, kind: "tap", message: "own" }] }
+      EfQ_Put(sec, pathA)
+      sec.Write("prevCrumbs", "[{""t"":2,""seq"":9,""kind"":""custom"",""message"":""persisted""}]")
+      r = EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH')})
+      print "EFTEST:" + FormatJson({ r: r, crumbs: EfQ_List(sec)[0].rec.crumbs, left: sec.Exists("prevCrumbs") })
+    `);
+    expect(lines[0]).toEqual({ r: 'merged', crumbs: [{ t: 1, seq: 0, kind: 'tap', message: 'own' }], left: false });
+  });
+
+  it('prevCrumbs is deleted even when no exit is pending or the exit was normal', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      sec.Write("prevCrumbs", "[]")
+      a = EfX_Process(sec, invalid)
+      l1 = sec.Exists("prevCrumbs")
+      sec.Write("prevCrumbs", "garbled{")
+      b = EfX_Process(sec, ${INFO('EXIT_UNKNOWN')})
+      print "EFTEST:" + FormatJson({ a: a, l1: l1, b: b, l2: sec.Exists("prevCrumbs") })
+    `);
+    expect(lines[0]).toEqual({ a: 'none', l1: false, b: 'seen', l2: false });
+  });
+
+  it('snapshots the previous session\'s memory reading onto the exit record (only when fresh)', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      exitMs = EfU_MsFromIso("2026-09-29T10:00:05Z")
+      sec.Write("mem", FormatJson({ "percent": 97, "limitMb": 286, "t": exitMs - 4000 }))
+      EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
+      a = EfQ_List(sec)[0].rec
+      sec2 = CreateObject("roRegistrySection", "Everframe2")
+      sec2.Write("mem", FormatJson({ "percent": 97, "limitMb": 286, "t": exitMs - 3600000 }))
+      EfX_Process(sec2, ${INFO('EXIT_OUT_OF_MEMORY')})
+      b = EfQ_List(sec2)[0].rec
+      print "EFTEST:" + FormatJson({ a: a.memory, b: b.memory })
+    `);
+    expect(lines[0]).toEqual({ a: { percent: 97, limitMb: 286 }, b: null });
+  });
+
   it('the reporter never calls roAppManager (the library cannot read exit info) and takes pendingExit', () => {
     const src = readFileSync(path.join(LIB_DIR, '..', 'EverframeReporter.brs'), 'utf8');
     expect(src).not.toMatch(/roAppManager|GetLastExitInfo\(/);

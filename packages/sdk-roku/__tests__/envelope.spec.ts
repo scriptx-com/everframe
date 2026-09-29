@@ -51,6 +51,33 @@ describe('ef_envelope.brs', () => {
     expect(env.payload.crash.details.metadata).toEqual({ exitCode: 'EXIT_OUT_OF_MEMORY', memLimitMb: 512 });
   });
 
+  it('merges the memory reading into metadata without clobbering exit metadata', async () => {
+    const { lines } = await runBrs(LIBS, `
+      rec = EfR_FromException("oom", "exit-info", false)
+      rec["exitInfo"] = { "exitCode": "EXIT_CHANNEL_MEM_LIMIT_FG", "memLimitMb": 286, "appState": "foreground" }
+      rec.memory = { "percent": 97, "limitMb": 286 }
+      a = EfE_Build(rec, EfE_Context("0.1.0"), EfU_NowMs())
+      rec2 = EfR_FromException("soft", "captureException", true)
+      rec2.memory = { "percent": 41 }
+      b = EfE_Build(rec2, EfE_Context("0.1.0"), EfU_NowMs())
+      rec3 = EfR_FromException("soft", "captureException", true)
+      rec3.memory = { "percent": "bad" }
+      c = EfE_Build(rec3, EfE_Context("0.1.0"), EfU_NowMs())
+      print "EFTEST:" + FormatJson({ a: a, b: b, c: c, exitInfo: rec.exitInfo })
+    `);
+    const { a, b, c, exitInfo } = lines[0];
+    for (const env of [a, b, c]) {
+      const parsed = Strict.safeParse(env);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    }
+    expect(a.payload.crash.details.metadata).toEqual({
+      exitCode: 'EXIT_CHANNEL_MEM_LIMIT_FG', memLimitMb: 286, appState: 'foreground', memory: { percent: 97, limitMb: 286 },
+    });
+    expect(exitInfo).not.toHaveProperty('memory'); // the record itself is not mutated
+    expect(b.payload.crash.details.metadata).toEqual({ memory: { percent: 41 } });
+    expect(c.payload.crash.details).toBeUndefined();
+  });
+
   it('serializes a numeric user id as a string', async () => {
     const { lines } = await runBrs(LIBS, `
       rec = EfR_FromException("soft", "captureException", true)

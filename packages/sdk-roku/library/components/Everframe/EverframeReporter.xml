@@ -17,4 +17,5 @@
   <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_envelope.brs" />
   <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_multipart.brs" />
   <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_drain.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_memory.brs" />
 </component>

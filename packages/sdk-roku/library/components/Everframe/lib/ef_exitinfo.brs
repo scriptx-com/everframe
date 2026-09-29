@@ -71,7 +71,22 @@ function EfX_TakePending(sec as object) as dynamic
     return info
 end function
 
+' The crumbs the previous session persisted (Everframe start() rotated them to
+' "prevCrumbs"), parsed, or [] when none. The key is deleted either way: they
+' belong to exactly one exit.
+function EfX_TakePrevCrumbs(sec as object) as object
+    if not sec.Exists("prevCrumbs") then return []
+    raw = sec.Read("prevCrumbs")
+    sec.Delete("prevCrumbs")
+    sec.Flush()
+    crumbs = invalid
+    if raw <> "" then crumbs = ParseJson(raw)
+    if type(crumbs) <> "roArray" then return []
+    return crumbs
+end function
+
 function EfX_Process(sec as object, info as dynamic) as string
+    prevCrumbs = EfX_TakePrevCrumbs(sec)
     if type(info) <> "roAssociativeArray" then return "none"
     if info.exit_code = invalid or info.timestamp = invalid then return "none"
     if EfU_ReadOrInvalid(sec, "lastExitTs") = info.timestamp then return "none"
@@ -83,11 +98,18 @@ function EfX_Process(sec as object, info as dynamic) as string
         lastCrashMs = invalid
         if lastCrash <> invalid then lastCrashMs = ParseJson(lastCrash)
         if lastCrashMs <> invalid and Abs(exitMs - lastCrashMs) <= 30000 then
-            ' Path A saw this crash: enrich its record (if still queued), never duplicate.
+            ' Path A saw this crash: enrich its record (if still queued), never
+            ' duplicate. Its own live crumbs and memory reading are kept.
             EfQ_AttachExit(sec, lastCrashMs, EfX_Meta(info))
             result = "merged"
         else
-            EfQ_Put(sec, EfX_ToRecord(info))
+            rec = EfX_ToRecord(info)
+            rec.crumbs = prevCrumbs
+            ' The reporter's last reading from the session that exited; it is
+            ' read here, before this session's reporter overwrites "mem".
+            mem = EfU_ReadMem(sec, exitMs)
+            if mem <> invalid then rec.memory = mem
+            EfQ_Put(sec, rec)
             result = "reported"
         end if
     end if

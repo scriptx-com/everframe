@@ -10,13 +10,17 @@ sub Everframe_OnError(e as object, entry as string, isTask as boolean)
         rec = EfR_FromException(e, "try-catch", false)
         rec.context = EfU_Truncate(entry, 256)
         rec.thread = Everframe__Thread(isTask)
+        sec = CreateObject("roRegistrySection", "Everframe")
+        ' Latest reading the SDK reporter persisted (invalid when none or stale).
+        mem = EfU_ReadMem(sec, rec.t)
+        if mem <> invalid then rec.memory = mem
         ef = Everframe__Node()
         if ef <> invalid then
             rec.crumbs = ef.callFunc("getCrumbs", invalid)
             user = ef.callFunc("getUser", invalid)
             if user <> invalid then rec.user = user
         end if
-        EfQ_Put(CreateObject("roRegistrySection", "Everframe"), rec)
+        EfQ_Put(sec, rec)
         if ef <> invalid then ef.callFunc("kick", invalid)
     catch ignored
         print "[everframe] could not record error"

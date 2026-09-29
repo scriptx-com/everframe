@@ -22,6 +22,21 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
     expect(lines[0].lastCrashT).toBe(true);
   });
 
+  it('attaches the current memory reading from registry "mem"', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      sec.Write("mem", FormatJson({ "percent": 64, "limitMb": 286, "t": EfU_NowMs() - 2000 }))
+      try
+        x = invalid
+        x.go()
+      catch e
+        Everframe_OnError(e, "Main (source/main.brs)", false)
+      end try
+      print "EFTEST:" + FormatJson(EfQ_List(sec)[0].rec.memory)
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
+    expect(lines[0]).toEqual({ percent: 64, limitMb: 286 });
+  });
+
   it('never throws, even with garbage input', async () => {
     const { lines } = await runBrs(LIBS, `
       Everframe_OnError(invalid, "x", false)

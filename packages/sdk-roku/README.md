@@ -180,6 +180,14 @@ m.global.everframe.callFunc("addBreadcrumb", { kind: "navigation", level: "info"
 m.global.everframe.callFunc("setUser", { id: "user-123", email: "viewer@example.com" })
 ```
 
+## Breadcrumbs across crashes and memory pressure
+
+Both tiers keep the latest 20 breadcrumbs in the registry (section `Everframe`, key `crumbs`, at most 2000 characters), written at most once every 2 seconds. On the next `start()` they move to `prevCrumbs`, and a crash detected on that launch from the exit reason carries them, so a report reconstructed from `GetLastExitInfo` still shows what happened before it. Reports caught in-process use the live breadcrumbs.
+
+Where `roAppMemoryMonitor` is available, the SDK's reporter Task checks memory use every 5 seconds. It leaves a `custom` breadcrumb at level `warn` the first time use crosses 75, 90 and 95 % of the channel's limit (for example `memory 90% of 286 MB`), and one for the OS memory warning event. Every report carries the latest reading in `details.metadata.memory` as `{ percent, limitMb }`; a crash found on the next launch carries the last reading taken before it.
+
+The registry holds up to 6 queued reports of 2000 characters each plus the breadcrumbs, about 14 KB of Roku's 16 KB per channel. Leave room for your own registry data accordingly.
+
 ## Endpoint
 
 Reports go to `https://everframe.dev` by default. The `endpoint` option in `start()` exists for self-testing only.

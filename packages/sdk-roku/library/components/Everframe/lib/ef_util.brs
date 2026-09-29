@@ -92,3 +92,24 @@ function EfU_MaxCrumbs(n as dynamic) as integer
     if n > 50 then return 50
     return CInt(n)
 end function
+
+function EfU_IsNum(v as dynamic) as boolean
+    t = type(v)
+    return t = "Integer" or t = "roInt" or t = "roInteger" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble"
+end function
+
+' The reporter persists its latest memory reading in "mem" as
+' {"percent":NN,"limitMb":NNN,"t":ms}. Returns { percent, limitMb? } when that
+' reading is within 5 minutes of atMs, else invalid (no reading, garbled, or
+' left over from an older session).
+function EfU_ReadMem(sec as object, atMs as dynamic) as dynamic
+    raw = EfU_ReadOrInvalid(sec, "mem")
+    if raw = invalid or raw = "" then return invalid
+    mem = ParseJson(raw)
+    if type(mem) <> "roAssociativeArray" then return invalid
+    if not EfU_IsNum(mem.percent) or not EfU_IsNum(mem.t) or not EfU_IsNum(atMs) then return invalid
+    if Abs(atMs - mem.t) > 300000 then return invalid
+    out = { "percent": mem.percent }
+    if EfU_IsNum(mem.limitMb) then out["limitMb"] = mem.limitMb
+    return out
+end function

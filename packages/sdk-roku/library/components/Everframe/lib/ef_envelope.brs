@@ -37,7 +37,8 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
     if rec.thread <> invalid then crash["threadName"] = rec.thread
     details = {}
     if rec.context <> invalid then details.context = EfU_Truncate(rec.context, 256)
-    if rec.exitInfo <> invalid then details.metadata = rec.exitInfo
+    metadata = EfE_Metadata(rec)
+    if metadata <> invalid then details.metadata = metadata
     if details.Count() > 0 then crash.details = details
 
     crumbs = rec.crumbs
@@ -76,4 +77,22 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
         },
         attachments: []
     }
+end function
+
+' details.metadata: a copy of the exit metadata (exitCode, memLimitMb, ...)
+' plus "memory": { percent, limitMb? } when the record carries a reading.
+function EfE_Metadata(rec as object) as dynamic
+    meta = invalid
+    if type(rec.exitInfo) = "roAssociativeArray" then
+        meta = {}
+        meta.Append(rec.exitInfo)
+    end if
+    mem = rec.memory
+    if type(mem) = "roAssociativeArray" and EfU_IsNum(mem.percent) then
+        if meta = invalid then meta = {}
+        m2 = { "percent": mem.percent }
+        if EfU_IsNum(mem.limitMb) then m2["limitMb"] = mem.limitMb
+        meta["memory"] = m2
+    end if
+    return meta
 end function
