@@ -25,8 +25,8 @@ struct KmpNativeProbeView: View {
                 .textFieldStyle(.roundedBorder)
             Button("Start Everframe") {
                 started = client.start(config: EverframeKmpConfig(
-                    appId: "kmp-native-probe",
-                    sdkKey: "txx_live_" + String(repeating: "0", count: 32),
+                    appId: ProcessInfo.processInfo.environment["EVERFRAME_APP_ID"] ?? "kmp-native-probe",
+                    sdkKey: ProcessInfo.processInfo.environment["EVERFRAME_SDK_KEY"] ?? "txx_live_" + String(repeating: "0", count: 32),
                     environment: "development"))
                 reporterStatus = started ? "started" : "start blocked"
             }

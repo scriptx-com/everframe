@@ -50,8 +50,8 @@ private fun ProbeScene(client: EverframeKmp) {
         Box(Modifier.size(160.dp, 80.dp).txSensitive().background(Color.Magenta))
         Button(onClick = {
             started = client.start(EverframeKmpConfig(
-                appId = "kmp-android-probe",
-                sdkKey = "txx_live_" + "0".repeat(32),
+                appId = BuildConfig.EVERFRAME_APP_ID,
+                sdkKey = BuildConfig.EVERFRAME_SDK_KEY,
             ))
             status = if (started) "started" else "start blocked"
         }) { Text("Start Everframe") }

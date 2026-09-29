@@ -3,7 +3,9 @@
 
 # KMP mobile bridge dry run
 
-Updated: 2026-09-29. Public feature branch `feat/flutter-kmp-reporting-dry-runs`. No package release, real backend submission, or production traffic.
+Later local API and dashboard submissions from Android, SwiftUI iOS, and Compose iOS, each with replay, are documented in [Flutter/KMP local dashboard E2E](flutter-kmp-local-dashboard-e2e.md). The measurements below describe the earlier fake-ingest run.
+
+Initial checkpoint: 2026-09-29 on `feat/flutter-kmp-reporting-dry-runs`. No package release or production traffic; local backend submission was verified afterward in the linked report.
 
 The unreleased `packages/everframe_kmp` module declares Android, iOS simulator, iOS device, and JVM targets; Android, iOS simulator, and JVM were compiled here. The Android implementation calls the existing SDK. The iOS implementation is a Swift driver conforming to a Kotlin/Native-exported Objective-C protocol; both a SwiftUI host and a Compose Multiplatform host use it. This avoids direct Kotlin/Native interop with the Swift-only SDK. Automatic screenshots are off, while the native reporter still takes a manual screenshot when opened. Native crash capture is now on to support handled errors.
 

@@ -3,7 +3,9 @@
 
 # Flutter Android native bridge dry run
 
-Updated: 2026-09-29. Public feature branch in the main worktree. Status: **BLOCKED** for Flutter Android launch; this is an unreleased dry run.
+Later local API and dashboard submission, including replay, is documented in [Flutter/KMP local dashboard E2E](flutter-kmp-local-dashboard-e2e.md). The measurements below describe the earlier fake-ingest run.
+
+Initial checkpoint: 2026-09-29. This is an unreleased sample; package launch remains deferred pending the limits below. Local dashboard submission was verified afterward in the linked report.
 
 The sample used Flutter 3.47.5, Dart 3.13.4, an Android 16/API 36 Pixel 9 Pro XL emulator, and disposable `dev.everframe:*:0.9.0-DEV` debug artifacts built with `EVERFRAME_DEV_INGEST_URL=http://10.0.2.2:8937`. The debug sample permits cleartext traffic for that local stub. No development backend or real key was used. The Android plugin accepts only the development environment. `FlutterFragmentActivity` is required for the Compose reporter; the bridge returns `unsupported_host` for a default `FlutterActivity` instead of crashing. The Dart bridge captures a masked Flutter boundary PNG before opening the native reporter. Missing geometry or capture rejects the open. Additional native screenshots are hidden for this route because they would bypass the Flutter mask.
 

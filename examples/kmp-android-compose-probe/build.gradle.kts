@@ -15,8 +15,10 @@ android {
         applicationId = "dev.everframe.kmpprobe"
         minSdk = 24
         targetSdk = 35
+        buildConfigField("String", "EVERFRAME_APP_ID", "\"${System.getenv("EVERFRAME_APP_ID") ?: "kmp-android-probe"}\"")
+        buildConfigField("String", "EVERFRAME_SDK_KEY", "\"${System.getenv("EVERFRAME_SDK_KEY") ?: "txx_live_${"0".repeat(32)}"}\"")
     }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

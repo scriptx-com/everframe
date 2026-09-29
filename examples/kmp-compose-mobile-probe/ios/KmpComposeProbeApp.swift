@@ -19,8 +19,8 @@ struct KmpComposeProbeHostView: View {
         VStack {
             Button("Start Everframe") {
                 started = client.start(config: EverframeKmpConfig(
-                    appId: "kmp-compose-probe",
-                    sdkKey: "txx_live_" + String(repeating: "0", count: 32),
+                    appId: ProcessInfo.processInfo.environment["EVERFRAME_APP_ID"] ?? "kmp-compose-probe",
+                    sdkKey: ProcessInfo.processInfo.environment["EVERFRAME_SDK_KEY"] ?? "txx_live_" + String(repeating: "0", count: 32),
                     environment: "development"))
                 status = started ? "started" : "start blocked"
             }

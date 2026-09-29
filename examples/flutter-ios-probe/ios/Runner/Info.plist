@@ -5,7 +5,7 @@
 <plist version="1.0">
 <dict>
 	<key>EverframeDevIngestURL</key>
-	<string>http://127.0.0.1:8937</string>
+	<string>http://127.0.0.1:8787</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

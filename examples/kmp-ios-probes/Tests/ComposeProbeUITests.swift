@@ -3,6 +3,30 @@
 import XCTest
 
 final class ComposeProbeUITests: XCTestCase {
+    func testLocalComposeReport() throws {
+        let app = XCUIApplication()
+        guard let appId = ProcessInfo.processInfo.environment["EVERFRAME_APP_ID"],
+              let sdkKey = ProcessInfo.processInfo.environment["EVERFRAME_SDK_KEY"] else {
+            throw XCTSkip("Local dashboard app ID and SDK key required")
+        }
+        app.launchEnvironment["EVERFRAME_APP_ID"] = appId
+        app.launchEnvironment["EVERFRAME_SDK_KEY"] = sdkKey
+        app.launch()
+        app.buttons["Start Everframe"].tap()
+        XCTAssertTrue(app.staticTexts["started"].waitForExistence(timeout: 10))
+        app.buttons["Next screen"].tap()
+        app.buttons["Exercise KMP context"].tap()
+        app.buttons["Open native reporter"].tap()
+        XCTAssertTrue(app.staticTexts["Report a bug"].waitForExistence(timeout: 10))
+        let title = app.textFields["Title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        title.tap()
+        title.typeText("KMP Compose iOS local E2E")
+        app.buttons["Done"].tap()
+        app.buttons["Send report"].tap()
+        XCTAssertTrue(app.staticTexts["submitted"].waitForExistence(timeout: 20))
+    }
+
     func testComposeHostStartsSharedBridgeAndTransitions() {
         let app = XCUIApplication()
         app.launch()
@@ -17,6 +41,11 @@ final class ComposeProbeUITests: XCTestCase {
 
     func testComposeHostOpensNativeReporter() {
         let app = XCUIApplication()
+        for name in ["EVERFRAME_APP_ID", "EVERFRAME_SDK_KEY"] {
+            if let value = ProcessInfo.processInfo.environment[name] {
+                app.launchEnvironment[name] = value
+            }
+        }
         app.launch()
         app.buttons["Start Everframe"].tap()
         XCTAssertTrue(app.staticTexts["started"].waitForExistence(timeout: 10))

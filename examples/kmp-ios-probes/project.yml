@@ -24,7 +24,7 @@ targets:
       path: KmpNativeProbe-Info.plist
       properties:
         CFBundleDisplayName: KMP Native Probe
-        EverframeDevIngestURL: http://127.0.0.1:8937
+        EverframeDevIngestURL: http://127.0.0.1:8787
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     dependencies:
@@ -44,7 +44,7 @@ targets:
       path: KmpComposeHost-Info.plist
       properties:
         CFBundleDisplayName: KMP Compose Probe
-        EverframeDevIngestURL: http://127.0.0.1:8937
+        EverframeDevIngestURL: http://127.0.0.1:8787
         CADisableMinimumFrameDurationOnPhone: true
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

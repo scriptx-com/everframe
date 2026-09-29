@@ -23,7 +23,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>EverframeDevIngestURL</key>
-	<string>http://127.0.0.1:8937</string>
+	<string>http://127.0.0.1:8787</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

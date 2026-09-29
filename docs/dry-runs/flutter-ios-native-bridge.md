@@ -3,7 +3,9 @@
 
 # Flutter iOS native bridge dry run
 
-Updated: 2026-09-29. Public feature branch in the main worktree. Status: **BLOCKED** for Flutter iOS launch; this is an unreleased dry run.
+Later local API and dashboard submission, including replay, is documented in [Flutter/KMP local dashboard E2E](flutter-kmp-local-dashboard-e2e.md). The measurements below describe the earlier fake-ingest run.
+
+Initial checkpoint: 2026-09-29. This is an unreleased sample; package launch remains deferred pending the limits below. Local dashboard submission was verified afterward in the linked report.
 
 The sample used Flutter 3.47.5, Dart 3.13.4, the local Swift SDK through Swift Package Manager, and an iOS 27.0 iPhone 18 Pro simulator. `flutter build ios --simulator --debug --no-codesign`, widget tests, analysis, and two simulator integration tests passed. The plugin requires an absolute `EVERFRAME_SDK_IOS_ROOT` because Flutter links plugin packages into an ephemeral SwiftPM directory. The sample pins `EverframeDevIngestURL` to `http://127.0.0.1:8937`; the plugin refuses a non-loopback endpoint. Its key is a fake, validator-shaped `txx_live_` value accepted only by the local stub.
 

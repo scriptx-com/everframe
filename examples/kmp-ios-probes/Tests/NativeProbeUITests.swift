@@ -17,6 +17,14 @@ final class NativeProbeUITests: XCTestCase {
 
     func testSwiftUIHostSubmitsNativeReportWithKmpContext() {
         let app = XCUIApplication()
+        for name in ["EVERFRAME_APP_ID", "EVERFRAME_SDK_KEY"] {
+            if let value = ProcessInfo.processInfo.environment[name] {
+                app.launchEnvironment[name] = value
+            }
+        }
+        if app.launchEnvironment["EVERFRAME_SDK_KEY"] == nil {
+            app.launchEnvironment["EVERFRAME_DEV_INGEST_URL"] = "http://127.0.0.1:8937"
+        }
         app.launch()
         app.buttons["Start Everframe"].tap()
         XCTAssertTrue(app.staticTexts["started"].waitForExistence(timeout: 10))
