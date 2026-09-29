@@ -140,7 +140,7 @@ describe('ef_exitinfo.brs', () => {
       rec = EfQ_List(sec)[0].rec
       print "EFTEST:" + FormatJson({ a: a, b: b, n: EfQ_List(sec).Count(), t: rec.t, type: rec.exceptionType, ts: sec.Read("lastExitTs") })
     `);
-    expect(lines[0]).toEqual({ a: 'reported', b: 'none', n: 1, t: Date.UTC(2026, 8, 29, 11, 58, 22), type: 'EXIT_BRIGHTSCRIPT_CRASH', ts: '2026-09-29T11:58:22.036Z' });
+    expect(lines[0]).toEqual({ a: 'reported', b: 'none', n: 1, t: Date.UTC(2026, 8, 29, 11, 58, 22, 36), type: 'EXIT_BRIGHTSCRIPT_CRASH', ts: '2026-09-29T11:58:22.036Z' });
   });
 
   it('the reporter never calls roAppManager (the library cannot read exit info) and takes pendingExit', () => {

@@ -12,6 +12,13 @@ describe('ef_util.brs', () => {
     expect(lines[0]).toEqual({ iso: '2026-09-29T08:47:35.389Z', back: '1790671655000' });
   });
 
+  it('keeps milliseconds when parsing Roku OS ISO timestamps', async () => {
+    const { lines } = await runBrs(['ef_util.brs'], `
+      print "EFTEST:" + FormatJson([EfU_MsFromIso("2026-09-29T12:14:40.403Z").ToStr(), EfU_MsFromIso("2026-09-29T12:14:40.4Z").ToStr(), EfU_MsFromIso("2026-09-29T12:14:40Z").ToStr()])
+    `);
+    expect(lines[0]).toEqual(['1790684080403', '1790684080400', '1790684080000']);
+  });
+
   it('NowMs is a 13-digit LongInteger', async () => {
     const { lines } = await runBrs(['ef_util.brs'], `
       n = EfU_NowMs()

@@ -16,10 +16,23 @@ function EfU_IsoFromMs(ms as dynamic) as string
     return Left(dt.ToISOString(), 19) + "." + Right("00" + frac.ToStr(), 3) + "Z"
 end function
 
+' Roku OS timestamps carry milliseconds ("2026-09-29T12:14:40.403Z"); the
+' device's FromISO8601String does not parse the fraction reliably, so parse the
+' whole-second part and add the milliseconds back.
 function EfU_MsFromIso(iso as string) as longinteger
+    base = iso
+    frac& = 0
+    hit = CreateObject("roRegex", "^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\.(\d{1,3})\d*(Z|[+-]\d{2}:?\d{2})?$", "").Match(iso)
+    if hit.Count() >= 3 then
+        zone = "Z"
+        if hit.Count() >= 4 and hit[3] <> "" then zone = hit[3]
+        base = hit[1] + zone
+        digits = Left(hit[2] + "00", 3)
+        frac& = Val(digits, 10)
+    end if
     dt = CreateObject("roDateTime")
-    dt.FromISO8601String(iso)
-    return dt.AsSeconds() * 1000&
+    dt.FromISO8601String(base)
+    return (dt.AsSeconds() * 1000&) + frac&
 end function
 
 function EfU_Truncate(s as dynamic, n as integer) as string
