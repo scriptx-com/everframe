@@ -1,0 +1,37 @@
+packages/sdk-roku/__tests__/drain.spec.ts
+  s_d03518d0f16fdd::t_a586eb2c67fa3e 7,91-110
+packages/sdk-roku/__tests__/envelope.spec.ts
+  s_d03518d0f16fdd::t_6241a147bf90ae 54-64
+packages/sdk-roku/__tests__/queue.spec.ts
+  s_d03518d0f16fdd::t_68485a0e8e44f7 114-128
+packages/sdk-roku/__tests__/util.spec.ts
+  s_d03518d0f16fdd::t_a8ebd2d624e915 31-66
+packages/sdk-roku/library/components/Everframe/Everframe.brs
+  s_d03518d0f16fdd::t_241fc97e68174c 24,62-63,78-80
+packages/sdk-roku/library/components/Everframe/EverframeReporter.brs
+  s_d03518d0f16fdd::t_5ad115ad8d8853 17,20-23,30-36
+packages/sdk-roku/library/components/Everframe/lib/ef_drain.brs
+  s_d03518d0f16fdd::t_8ea1df494a2889 10-13,44-45
+packages/sdk-roku/library/components/Everframe/lib/ef_frames.brs
+  s_d03518d0f16fdd::t_7c890ccf376a25 53-55,58-60,62-64
+packages/sdk-roku/library/components/Everframe/lib/ef_queue.brs
+  s_d03518d0f16fdd::t_2324a80347a0dc 118-130
+packages/sdk-roku/library/components/Everframe/lib/ef_util.brs
+  s_d03518d0f16fdd::t_d71876b6ca6a8b 41-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "735616e8824a442d03dc0427877cdd7aa8ff6d54",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
