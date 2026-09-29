@@ -17,7 +17,7 @@ end function
 function EfQ_Keys(sec as object) as object
     keys = []
     for each k in sec.GetKeyList()
-        if Left(k, 1) = "r" then keys.Push(k)
+        if Left(k, 1) = "r" and Instr(1, "0123456789", Mid(k, 2, 1)) > 0 then keys.Push(k)
     end for
     keys.Sort()
     return keys

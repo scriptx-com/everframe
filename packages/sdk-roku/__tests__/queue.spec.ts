@@ -81,4 +81,22 @@ describe('ef_queue.brs', () => {
     `);
     expect(lines[0]).toEqual([true, true, false, true, false, true]);
   });
+
+  it('does not treat the rate-limit key as a record', async () => {
+    const puts = Array.from({ length: 6 }, (_, i) => `EfQ_Put(sec, ${REC(String(1790000000000 + i))})`).join('\n');
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      EfQ_Allow(sec, "fp1", 1790000000000&, {})
+      ${puts}
+      items = EfQ_List(sec)
+      keys = []
+      for each it in items
+        keys.Push(it.key)
+      end for
+      print "EFTEST:" + FormatJson({ n: items.Count(), keys: keys, rl: sec.Exists("rl") })
+    `);
+    expect(lines[0].n).toBe(6);
+    expect(lines[0].keys).not.toContain('rl');
+    expect(lines[0].rl).toBe(true);
+  });
 });
