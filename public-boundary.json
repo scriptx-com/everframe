@@ -59,6 +59,7 @@
     "examples/react-native",
     "examples/react-tv-sample",
     "examples/react-web",
+    "examples/roku-channel",
     "examples/smarttv-tester",
     "examples/tvos-replay",
     "examples/vue-web",

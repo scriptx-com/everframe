@@ -201,6 +201,21 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  examples/roku-channel:
+    devDependencies:
+      '@everframe/roku':
+        specifier: workspace:*
+        version: link:../../packages/sdk-roku
+      brighterscript:
+        specifier: 0.73.5
+        version: 0.73.5
+      fast-xml-parser:
+        specifier: ^5.11.2
+        version: 5.11.2
+      roku-deploy:
+        specifier: 3.18.4
+        version: 3.18.4
+
   examples/smarttv-tester:
     dependencies:
       '@everframe/react':

@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Parser } from 'brighterscript';
+import { XMLParser } from 'fast-xml-parser';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const walk = (d: string): string[] =>
+  readdirSync(d).flatMap((n) => {
+    const p = path.join(d, n);
+    return statSync(p).isDirectory() ? walk(p) : [p];
+  });
+
+describe('crash lab channel source', () => {
+  const files = [...walk(path.join(ROOT, 'source')), ...walk(path.join(ROOT, 'components'))].filter(
+    (f) => !f.includes(`${path.sep}generated${path.sep}`),
+  );
+
+  it('every .brs parses without diagnostics', () => {
+    for (const f of files.filter((x) => x.endsWith('.brs'))) {
+      expect(Parser.parse(readFileSync(f, 'utf8')).diagnostics, f).toEqual([]);
+    }
+  });
+
+  it('every XML script uri exists (except the generated config)', () => {
+    const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
+    for (const f of files.filter((x) => x.endsWith('.xml'))) {
+      const doc = xml.parse(readFileSync(f, 'utf8'));
+      for (const s of [doc.component.script].flat().filter(Boolean)) {
+        if (s.uri === 'pkg:/components/generated/ef_config.brs') continue;
+        expect(statSync(path.join(ROOT, s.uri.replace('pkg:/', ''))).isFile(), `${f} -> ${s.uri}`).toBe(true);
+      }
+    }
+  });
+
+  it('lists all nine scenarios in order', () => {
+    const brs = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    const ids = [...brs.matchAll(/\{ id: "([a-z_]+)", title:/g)].map((m) => m[1]);
+    expect(ids).toEqual([
+      'crash_select', 'crash_key', 'crash_task', 'crash_main', 'handled',
+      'crash_excluded', 'oom', 'crash_loop', 'user_crumbs',
+    ]);
+  });
+
+  it('keeps the excluded crash in Excluded.brs as a Timer callback', () => {
+    const excluded = readFileSync(path.join(ROOT, 'components/Excluded.brs'), 'utf8');
+    expect(excluded).toMatch(/sub onCrashExcluded\(\)/);
+    const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    expect(scene).toMatch(/observeField\("fire", "onCrashExcluded"\)/);
+    expect(scene).not.toMatch(/\bonCrashExcluded\(\)/); // never called directly from wrapped code
+  });
+});

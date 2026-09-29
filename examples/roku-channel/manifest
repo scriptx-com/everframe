@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+title=Everframe Crash Lab
+major_version=0
+minor_version=1
+build_version=1
+ui_resolutions=fhd
+splash_color=#101014
+splash_min_time=0
