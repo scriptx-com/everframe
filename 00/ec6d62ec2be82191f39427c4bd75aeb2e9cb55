@@ -1,0 +1,23 @@
+packages/sdk-web/src/capture/mask-paint.ts
+  s_f1f3a292ebd900::t_ce8e9eac1a9329 1-36
+packages/sdk-web/src/capture/renderers/modern-screenshot-renderer.ts
+  s_f1f3a292ebd900::t_2df243ce18191b 1-414
+packages/sdk-web/src/capture/screenshot.ts
+  s_f1f3a292ebd900::t_12b2e26302e08a 9-11,315-320,322-323
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "00ec6d62ec2be82191f39427c4bd75aeb2e9cb55",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
