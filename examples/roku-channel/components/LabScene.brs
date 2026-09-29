@@ -19,6 +19,9 @@ sub init()
     m.cfg = EfExample_Config()
     m.started = false
     m.note = ""
+    ' Set before anything that can fire an observer: on a real Roku, assigning
+    ' the ComponentLibrary uri below calls onLibraryStatus synchronously.
+    m["exitSummary"] = "reading..."
     m.lab = CreateObject("roRegistrySection", "EverframeLab")
 
     content = CreateObject("roSGNode", "ContentNode")
@@ -55,7 +58,6 @@ sub init()
     m.statusTimer.control = "start"
 
     ' the app manager is MAIN/TASK-only; read exit info in a Task.
-    m.exitSummary = "reading…"
     m["exitTask"] = CreateObject("roSGNode", "ExitInfoTask")
     m.exitTask.observeField("summary", "onExitSummary")
     m.exitTask.control = "RUN"
@@ -64,7 +66,8 @@ sub init()
 end sub
 
 sub onExitSummary()
-    if m.exitTask.summary <> "" then m.exitSummary = m.exitTask.summary
+    summary = m.exitTask.summary
+    if summary <> invalid and summary <> "" then m["exitSummary"] = summary
     updateStatus()
 end sub
 
@@ -172,16 +175,25 @@ sub LabSetUserAndCrumbs()
 end sub
 
 sub updateStatus()
+    if m.status = invalid then return
     lines = []
-    lines.Push("Library: " + m.lib.loadStatus + " (" + m.cfg.libraryUri + ")")
-    lines.Push("SDK started: " + m.started.ToStr())
-    lines.Push("Queued records: " + LabQueueCount().ToStr())
-    lines.Push("Last exit: " + m.exitSummary)
-    lines.Push("User: " + LabUser())
+    lines.Push("Library: " + LabStr(m.lib.loadStatus) + " (" + LabStr(m.cfg.libraryUri) + ")")
+    lines.Push("SDK started: " + LabStr(m.started))
+    lines.Push("Queued records: " + LabStr(LabQueueCount()))
+    lines.Push("Last exit: " + LabStr(m.exitSummary))
+    lines.Push("User: " + LabStr(LabUser()))
     if m.note <> "" then lines.Push("")
     if m.note <> "" then lines.Push(m.note)
     m.status.text = lines.Join(Chr(10))
 end sub
+
+' Status text must never crash the lab: anything invalid renders as a dash.
+function LabStr(value as dynamic) as string
+    if value = invalid then return "-"
+    if GetInterface(value, "ifString") <> invalid then return value
+    if GetInterface(value, "ifToStr") <> invalid then return value.ToStr()
+    return type(value)
+end function
 
 function LabQueueCount() as integer
     sec = CreateObject("roRegistrySection", "Everframe")
