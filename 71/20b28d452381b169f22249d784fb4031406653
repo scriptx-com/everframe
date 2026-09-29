@@ -1,0 +1,25 @@
+packages/sdk-web/__tests__/capture/screenshot.spec.ts
+  s_f1f3a292ebd900::t_b82ac1c75b342c 8-16,68,81,369,380,621,632,746,759,838-992
+packages/sdk-web/src/capture/mask-paint.ts
+  s_f1f3a292ebd900::t_1b3dfaf74f471a 18-20,33-34
+packages/sdk-web/src/capture/screenshot.ts
+  s_f1f3a292ebd900::t_b3219aaca67dc2 10-12,16-31,61-62,316-330,332-389,391,401-402,405,407-408
+packages/sdk-web/src/internal/degraded-reasons.ts
+  s_f1f3a292ebd900::t_3f4a868a4ab670 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7120b28d452381b169f22249d784fb4031406653",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
