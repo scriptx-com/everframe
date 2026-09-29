@@ -6,6 +6,7 @@ export const DEGRADED_REASONS = {
   ui_tree_unavailable: 'ui_tree_unavailable',
   react_version_unsupported_fiber: 'react_version_unsupported_fiber',
   screenshot_failed: 'screenshot_failed',
+  screenshot_blank: 'screenshot_blank',
   csp_blocked: 'csp_blocked',
 } as const;
 

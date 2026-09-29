@@ -7,8 +7,27 @@ import { applyDomMask } from '../sensitive/registry.js';
 import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reasons.js';
 import { installVideoStandIns } from './video-frames.js';
 import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
+import { renderViewportWithSnapdom } from './renderers/snapdom-renderer.js';
+import { isCanvasBlank } from './blank-check.js';
+import { paintMaskRectsOnCanvas } from './mask-paint.js';
 export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
+
+export type ScreenshotRenderer = 'snapdom' | 'modern-screenshot' | 'none';
+
+/**
+ * Share of the profile deadline the primary renderer may use before the
+ * fallback starts. snapDOM cannot be cancelled either — a stalled attempt
+ * keeps running in the background — but the fallback no longer waits on it.
+ */
+const PRIMARY_BUDGET_SHARE = 0.6;
+
+/**
+ * Minimum time the single encode gets even when rendering used the whole
+ * budget: a real canvas is never thrown away for want of an encode slot.
+ * Worst case total = profile.deadlineMs + ENCODE_FLOOR_MS.
+ */
+const ENCODE_FLOOR_MS = 2_000;
 
 export interface CaptureScreenshotOptions {
   /** Root element to capture; defaults to document.body */
@@ -39,6 +58,8 @@ export interface CaptureScreenshotOptions {
    * to populate envelope.captureControl.degradedReason (plan 07).
    */
   __setDegradedReason?: (reason: DegradedReason) => void;
+  /** Surface (out-param) — which renderer produced the shipped image ('none' = placeholder). */
+  __setRenderer?: (renderer: ScreenshotRenderer) => void;
 }
 
 /**
@@ -292,46 +313,82 @@ export async function captureScreenshot(
     restoreVideoStandIns = () => undefined;
   }
 
-  // Try modern-screenshot (primary, since it supports `restoreScrollPosition`
-  // — applies `transform: translate(-scrollLeft, -scrollTop)` per element in
-  // the CLONE tree, never mutating the live DOM. This avoids the prior
-  // approach's two failure modes: (a) firing scroll events on live elements,
-  // which `react-virtualized`/`react-window`/`@tanstack/virtual` listen to
-  // and re-render mid-capture against, breaking the capture; and (b) any
-  // observable side-effects from temporary live mutations).
-  //
-  // domToCanvas, not domToBlob: the viewport crop happens in CANVAS space and
-  // the result is encoded exactly ONCE. The previous blob-based pipeline
-  // encoded a full PNG, decoded it again for the viewport crop, and re-encoded
-  // — measured at ~7s of pure re-encode on webOS hardware.
+  // snapDOM first (faster, and no blank rasters where modern-screenshot
+  // produced them), with modern-screenshot as the fallback when snapDOM
+  // throws, stalls past its budget share, or hands back a blank canvas.
+  // Both renderers return a VIEWPORT-sized canvas, which is encoded exactly
+  // ONCE below. Every stage is deadline-guarded: a degraded engine's
+  // canvas.toBlob can simply never invoke its callback, and an unguarded
+  // await would hang capture forever (DEFE-02).
+  type Attempt = { canvas: HTMLCanvasElement; renderer: Exclude<ScreenshotRenderer, 'none'> };
+  const started = Date.now();
+  const elapsed = (): number => Date.now() - started;
+  // null (check unavailable) counts as NOT blank — never discard a real shot.
+  const isBlank = (canvas: HTMLCanvasElement): boolean => isCanvasBlank(canvas) === true;
+  let accepted: Attempt | null = null;
+  let firstBlank: Attempt | null = null;
+
   try {
-    // The deadline covers the WHOLE chain — clone+raster, crop AND encode.
-    // Codex round-1 finding 1: a degraded engine's canvas.toBlob can simply
-    // never invoke its callback; an encode outside the deadline would hang
-    // capture forever (DEFE-02), which is exactly what the deadline exists
-    // to make structurally impossible.
-    const captured = await withDeadline(
-      (async () => {
-        const canvas = await renderViewportWithModernScreenshot(root, {
-          pixelRatio,
-          requestedRatio,
-          filter: filterNode,
-          profile,
-          ...(opts.maskPlan ? { maskPlan: opts.maskPlan } : {}),
-        });
-        const encoded = await encodeCanvas(canvas, profile.preferWebP);
-        return { encoded, width: canvas.width, height: canvas.height };
-      })(),
-      profile.deadlineMs,
-      'modern-screenshot',
-    );
-    if (!captured.encoded) throw new Error('canvas encode returned null blob');
-    blob = captured.encoded;
-    width = captured.width;
-    height = captured.height;
+    try {
+      const canvas = await withDeadline(
+        renderViewportWithSnapdom(root, { pixelRatio, filter: filterNode }),
+        Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE),
+        'snapdom',
+      );
+      if (opts.maskPlan && opts.maskPlan.length > 0) {
+        paintMaskRectsOnCanvas(
+          canvas,
+          opts.maskPlan,
+          pixelRatio / (requestedRatio || 1),
+          (typeof window !== 'undefined' ? window.scrollX || 0 : 0) * pixelRatio,
+          (typeof window !== 'undefined' ? window.scrollY || 0 : 0) * pixelRatio,
+        );
+      }
+      const attempt: Attempt = { canvas, renderer: 'snapdom' };
+      if (isBlank(canvas)) firstBlank = attempt;
+      else accepted = attempt;
+    } catch {
+      // Fall through to the fallback renderer.
+    }
+
+    if (!accepted) {
+      try {
+        const canvas = await withDeadline(
+          renderViewportWithModernScreenshot(root, {
+            pixelRatio,
+            requestedRatio,
+            filter: filterNode,
+            profile,
+            ...(opts.maskPlan ? { maskPlan: opts.maskPlan } : {}),
+          }),
+          Math.max(0, profile.deadlineMs - elapsed()),
+          'modern-screenshot',
+        );
+        const attempt: Attempt = { canvas, renderer: 'modern-screenshot' };
+        if (!isBlank(canvas)) accepted = attempt;
+        else firstBlank ??= attempt;
+      } catch {
+        // Both renderers failed — handled below.
+      }
+    }
+
+    const chosen: Attempt | null = accepted ?? firstBlank;
+    if (chosen) {
+      const encoded = await withDeadline(
+        encodeCanvas(chosen.canvas, profile.preferWebP),
+        Math.max(ENCODE_FLOOR_MS, profile.deadlineMs - elapsed()),
+        'encode',
+      );
+      if (!encoded) throw new Error('canvas encode returned null blob');
+      blob = encoded;
+      // Dimensions come ONLY from the chosen canvas, here inside the deadline-guarded path — abandoned (timed-out) render work must never relabel the 1x1 placeholder (the "late raster relabel" bug).
+      width = chosen.canvas.width;
+      height = chosen.canvas.height;
+      opts.__setRenderer?.(chosen.renderer);
+      if (!accepted) opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_blank);
+    }
   } catch {
-    opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_failed);
-    blob = new Blob([TRANSPARENT_PIXEL_PNG_BYTES as BlobPart], { type: 'image/png' });
+    blob = null;
   } finally {
     restoreObserver();
     restoreDomMask();
@@ -341,11 +398,14 @@ export async function captureScreenshot(
     restoreVideoStandIns();
   }
 
-  // Treat a null result as a failed capture so the report still sends with an
-  // honest degraded reason attached.
+  // No usable canvas (or the encode failed) — ship the placeholder with an
+  // honest degraded reason so the report still sends.
   if (!blob) {
     opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_failed);
+    opts.__setRenderer?.('none');
     blob = new Blob([TRANSPARENT_PIXEL_PNG_BYTES as BlobPart], { type: 'image/png' });
+    width = 0;
+    height = 0;
   }
 
   // NOTE — the legacy `maskPlan` pass now runs on the CANVAS inside the

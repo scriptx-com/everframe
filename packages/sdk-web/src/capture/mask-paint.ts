@@ -15,6 +15,9 @@ export function paintMaskRectsOnCanvas(
   rects: Rect[],
   /** effective (capped) ratio ÷ requested ratio — 1 whenever no cap applied. */
   scale = 1,
+  /** Effective device px to subtract — the scroll offset for a viewport-cropped canvas. */
+  offsetX = 0,
+  offsetY = 0,
 ): void {
   const inflate = 2;
   let ctx: CanvasRenderingContext2D | null = null;
@@ -27,8 +30,8 @@ export function paintMaskRectsOnCanvas(
   ctx.fillStyle = '#000000';
   for (const r of rects) {
     ctx.fillRect(
-      r.x * scale - inflate,
-      r.y * scale - inflate,
+      r.x * scale - offsetX - inflate,
+      r.y * scale - offsetY - inflate,
       r.width * scale + inflate * 2,
       r.height * scale + inflate * 2,
     );
