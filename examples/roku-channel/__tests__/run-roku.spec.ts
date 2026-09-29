@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,9 +75,15 @@ describe('run-roku.mjs --no-deploy', () => {
     expect(strFromU8(files['components/generated/ef_config.brs']!)).toContain('libraryUri: "https://cdn.example.com/everframe-roku.zip"');
   });
 
-  it('warns when the ingest URL is localhost', () => {
-    const out = build([], { EVERFRAME_INGEST_URL: 'http://localhost:8787' });
-    expect(out).toMatch(/localhost.*TV cannot reach/i);
+  it('warns on stderr when the ingest URL is localhost', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, '--no-deploy'], {
+      cwd: ROOT,
+      env: { ...baseEnv, EVERFRAME_KEY_ROKU: KEY, EVERFRAME_INGEST_URL: 'http://localhost:8787' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/localhost.*TV cannot reach/i);
+    expect(r.stdout).not.toMatch(/TV cannot reach/i);
     expect(strFromU8(zipFiles()['components/generated/ef_config.brs']!)).toContain('endpoint: "http://localhost:8787"');
   });
 

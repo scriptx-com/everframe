@@ -35,13 +35,22 @@ export function parseArgs(argv) {
   return values;
 }
 
+// Quoted values keep everything between the PAIRED quotes (including '#');
+// unquoted values lose a trailing " # comment" and surrounding whitespace.
+function parseValue(raw) {
+  const v = raw.trim();
+  const q = v.match(/^(["'])(.*)\1(?:\s+#.*)?$/);
+  if (q) return q[2];
+  return v.replace(/\s+#.*$/, '').trim();
+}
+
 export function loadEnv(processEnv = process.env) {
   const file = processEnv.EVERFRAME_ENV_FILE || path.join(REPO, '.env');
   const fromFile = {};
   if (file !== '/dev/null' && existsSync(file)) {
     for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m) fromFile[m[1]] = m[2].replace(/^["']|["']$/g, '');
+      const m = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=(.*)$/);
+      if (m) fromFile[m[1]] = parseValue(m[2]);
     }
   }
   const pick = (k) => (processEnv[k] !== undefined ? processEnv[k] : fromFile[k]) ?? '';
@@ -57,20 +66,72 @@ const brsString = (s) => '"' + String(s).replace(/"/g, '""') + '"';
 
 function run(cmd, args, cwd) {
   const r = spawnSync(cmd, args, { cwd, stdio: 'inherit' });
-  if (r.error) throw r.error;
+  if (r.error) {
+    if (r.error.code === 'ENOENT') throw new Error(`${cmd} not found on PATH - install pnpm 9 (corepack enable)`);
+    throw r.error;
+  }
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} exited ${r.status}`);
 }
 
-function streamLogs(host) {
-  const logFile = path.join(BUILD, 'console.log');
-  const out = createWriteStream(logFile, { flags: 'a' });
-  const sock = net.connect(8085, host);
-  sock.on('data', (d) => {
-    process.stdout.write(d);
-    out.write(d);
-  });
-  sock.on('error', (e) => console.error(`[crash-lab] console: ${e.message}`));
-  console.log(`[crash-lab] streaming ${host}:8085 -> ${path.relative(EXAMPLE, logFile)} (Ctrl+C to stop)`);
+export function ingestWarning(endpoint) {
+  if (!endpoint) return null;
+  let host;
+  try {
+    host = new URL(endpoint).hostname;
+  } catch {
+    try {
+      host = new URL(`http://${endpoint}`).hostname;
+    } catch {
+      host = '';
+    }
+  }
+  const local = host ? /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/i.test(host) : /localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]/.test(endpoint);
+  return local ? `[crash-lab] WARNING: EVERFRAME_INGEST_URL=${endpoint} points at localhost - the TV cannot reach it. Use your machine's LAN IP.` : null;
+}
+
+// Streams the Roku debug console (telnet 8085) into a file, retrying while the
+// channel is still starting. `done` resolves when the socket closes and rejects
+// if no connection could be made within timeoutMs. `close()` stops everything.
+export function streamLogs(host, { port = 8085, logFile = path.join(BUILD, 'console.log'), retryMs = 1000, timeoutMs = 15000, quiet = false } = {}) {
+  mkdirSync(path.dirname(logFile), { recursive: true });
+  const out = createWriteStream(logFile);
+  const started = Date.now();
+  let sock;
+  let timer;
+  let closed = false;
+  let settle;
+  const done = new Promise((resolve, reject) => (settle = { resolve, reject }));
+  done.catch(() => {});
+
+  const finish = (err) => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(timer);
+    sock?.destroy();
+    out.end(() => (err ? settle.reject(err) : settle.resolve()));
+  };
+  const attempt = () => {
+    sock = net.connect(port, host);
+    let connected = false;
+    sock.on('connect', () => {
+      connected = true;
+      if (!quiet) console.log(`[crash-lab] connected to ${host}:${port}`);
+    });
+    sock.on('data', (d) => {
+      if (!quiet) process.stdout.write(d);
+      out.write(d);
+    });
+    sock.on('close', () => {
+      if (closed) return;
+      if (connected) return finish();
+      if (Date.now() - started >= timeoutMs) return finish(new Error(`could not connect to ${host}:${port} within ${timeoutMs / 1000}s`));
+      timer = setTimeout(attempt, retryMs);
+    });
+    sock.on('error', () => {}); // 'close' follows and drives the retry
+  };
+  if (!quiet) console.log(`[crash-lab] streaming ${host}:${port} -> ${path.relative(EXAMPLE, logFile)} (Ctrl+C to stop)`);
+  attempt();
+  return { done, close: () => finish() };
 }
 
 export async function main(argv = process.argv.slice(2), processEnv = process.env) {
@@ -80,9 +141,8 @@ export async function main(argv = process.argv.slice(2), processEnv = process.en
   if (!args['no-deploy'] && (!env.host || !env.password)) {
     throw new Error('ROKU_HOST and ROKU_DEV_PASSWORD are required to deploy (or pass --no-deploy)');
   }
-  if (/localhost|127\.0\.0\.1/.test(env.endpoint)) {
-    console.log(`[crash-lab] WARNING: EVERFRAME_INGEST_URL=${env.endpoint} points at localhost - the TV cannot reach it. Use your machine's LAN IP.`);
-  }
+  const warning = ingestWarning(env.endpoint);
+  if (warning) console.warn(warning);
 
   run('pnpm', ['--filter', '@everframe/roku', 'build'], REPO);
   const sdkVersion = JSON.parse(readFileSync(path.join(SDK, 'package.json'), 'utf8')).version;
@@ -121,9 +181,20 @@ export async function main(argv = process.argv.slice(2), processEnv = process.en
   console.log(`[crash-lab] packaged ${path.relative(EXAMPLE, path.join(BUILD, ZIP_NAME))} (library: ${libraryUri})`);
 
   if (args['no-deploy']) return;
-  await rokuDeploy.publish({ host: env.host, password: env.password, rootDir: out, outDir: BUILD, outFile: ZIP_NAME });
+  try {
+    await rokuDeploy.publish({ host: env.host, password: env.password, rootDir: out, outDir: BUILD, outFile: ZIP_NAME });
+  } catch (e) {
+    throw new Error(`${e.message} (check ROKU_HOST, ROKU_DEV_PASSWORD and that developer mode is enabled)`, { cause: e });
+  }
   console.log(`[crash-lab] sideloaded to ${env.host}`);
-  if (args.logs) streamLogs(env.host);
+  if (args.logs) {
+    const handle = streamLogs(env.host);
+    process.once('SIGINT', () => {
+      handle.close();
+      handle.done.finally(() => process.exit(0));
+    });
+    await handle.done;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
