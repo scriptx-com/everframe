@@ -146,4 +146,35 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
     `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
     expect(lines[0]).toEqual([true, true, true, false, false, false, false, false, false, false, false, false, false]);
   });
+
+  it('keeps an unreported abnormal pendingExit over a normal exit, but not over another abnormal one', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      Everframe__StoreExit({ exit_code: "EXIT_BRIGHTSCRIPT_CRASH", timestamp: "2026-09-29T10:00:00.000Z" })
+      Everframe__StoreExit({ exit_code: "EXIT_USER_NAV", timestamp: "2026-09-29T11:00:00.000Z" })
+      a = ParseJson(sec.Read("pendingExit")).exit_code
+      Everframe__StoreExit({ exit_code: "EXIT_CHANNEL_MEM_LIMIT_FG", timestamp: "2026-09-29T12:00:00.000Z" })
+      b = ParseJson(sec.Read("pendingExit")).exit_code
+      sec.Write("pendingExit", FormatJson({ exit_code: "EXIT_USER_NAV", timestamp: "2026-09-29T13:00:00.000Z" }))
+      Everframe__StoreExit({ exit_code: "EXIT_USER_NAV", timestamp: "2026-09-29T14:00:00.000Z" })
+      c = ParseJson(sec.Read("pendingExit")).timestamp
+      print "EFTEST:" + FormatJson({ a: a, b: b, c: c })
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
+    expect(lines[0]).toEqual({ a: 'EXIT_BRIGHTSCRIPT_CRASH', b: 'EXIT_CHANNEL_MEM_LIMIT_FG', c: '2026-09-29T14:00:00.000Z' });
+  });
+
+  it('start({ enabled: false }) on a running SDK stops the reporter and clears everything queued', async () => {
+    const node = path.join(HOOK_DIR, '..', 'library/components/Everframe/Everframe.brs');
+    const { lines } = await runBrs([...LIBS, 'ef_crumbs.brs', 'ef_screen.brs'], `
+      sec = EfU_Section()
+      init()
+      rep = { flush: false, control: "RUN" }
+      m.reporter = rep
+      m.user = { id: "u1" }
+      EfQ_Put(sec, { v: 1, id: "id-old-xxxxxxxx", t: 1790000000100&, kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [] })
+      r = start({ "sdkKey": "k", enabled: false })
+      print "EFTEST:" + FormatJson({ r: r, control: rep.control, reporter: m.reporter = invalid, user: m.user = invalid, queued: EfQ_List(sec).Count(), disabled: sec.Exists("disabled"), again: start({ "sdkKey": "k" }) })
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs'), node] });
+    expect(lines[0]).toMatchObject({ r: false, control: 'STOP', reporter: true, user: true, queued: 0, disabled: true });
+  });
 });

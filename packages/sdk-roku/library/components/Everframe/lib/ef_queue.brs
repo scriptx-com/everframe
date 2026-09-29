@@ -81,9 +81,16 @@ function EfQ_Put(sec as object, rec as object) as string
         sec.Delete(keys.Shift())
     end while
     key = "r" + Right("0000000000000" + rec.t.ToStr(), 13) + "_" + Left(rec.id, 8)
-    sec.Write(key, json)
-    if rec.fatal = true and rec.kind = "crash" then sec.Write("lastCrashT", rec.t.ToStr())
-    sec.Flush()
+    ' The crash marker suppresses the next-launch exit report, so it is
+    ' written only once the record itself is stored. "" = not stored.
+    if not sec.Write(key, json) or not sec.Flush() then
+        print "[everframe] registry full: report not stored"
+        return ""
+    end if
+    if rec.fatal = true and rec.kind = "crash" then
+        sec.Write("lastCrashT", rec.t.ToStr())
+        sec.Flush()
+    end if
     return key
 end function
 

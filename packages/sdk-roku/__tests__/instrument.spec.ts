@@ -323,6 +323,24 @@ describe('instrument', () => {
     expect(r.wrapped).toContainEqual({ file: 'components/MyTask.brs', fn: 'runTask' });
     expect(read(path.join(out, 'components/MyTask.brs'))).toContain('Everframe_OnError(everframe_e, "runTask (components/MyTask.brs)", true)');
   });
+
+  it('wraps the base implementation of a functionName the derived Task sets, with hook imports in both XMLs', () => {
+    const chan = path.join(tmp(), 'chan');
+    cpSync(FIX, chan, { recursive: true });
+    writeFileSync(path.join(chan, 'components/BaseTask.xml'), compXml('BaseTask', 'Task', scriptTag('BaseTask.brs')));
+    writeFileSync(path.join(chan, 'components/BaseTask.brs'), 'sub work()\n  print 1\nend sub\n');
+    writeFileSync(path.join(chan, 'components/ChildTask.xml'), compXml('ChildTask', 'BaseTask', scriptTag('ChildTask.brs')));
+    writeFileSync(path.join(chan, 'components/ChildTask.brs'), 'sub init()\n  m.top.functionName = "work"\nend sub\n');
+    const out = tmp();
+    const r = instrument({ root: chan, out });
+    expect(r.wrapped).toContainEqual({ file: 'components/BaseTask.brs', fn: 'work' });
+    expect(read(path.join(out, 'components/BaseTask.brs'))).toContain('Everframe_OnError(everframe_e, "work (components/BaseTask.brs)", true)');
+    for (const x of ['BaseTask', 'ChildTask']) {
+      for (const f of HOOKS) expect(read(path.join(out, `components/${x}.xml`)), x).toContain(`pkg:/components/everframe_hook/${f}`);
+      expect(r.injected).toContain(`components/${x}.xml`);
+    }
+  });
+
   describe('screens', () => {
     const withScreens = () => {
       const chan = path.join(tmp(), 'chan');

@@ -22,23 +22,22 @@ end sub
 
 function start(config as object) as boolean
     try
-        if m.reporter <> invalid then return true
+        if m.reporter <> invalid then
+            ' start({ enabled: false }) after a successful start turns it off
+            ' (e.g. the viewer withdrew consent).
+            if type(config) = "roAssociativeArray" and config.enabled = false then
+                EfN_Disable(EfU_Section())
+                return false
+            end if
+            return true
+        end if
         if type(config) <> "roAssociativeArray" or config.sdkKey = invalid or config.sdkKey = "" then
             print "[everframe] start() needs { sdkKey }"
             return false
         end if
         sec = EfU_Section()
         if config.enabled = false then
-            ' Remembered so the injected hook stops recording too, and nothing
-            ' captured now is uploaded by a later enabled start().
-            sec.Write("disabled", "1")
-            for each k in EfQ_Keys(sec)
-                sec.Delete(k)
-            end for
-            for each k in ["pendingExit", "lastCrashT", "crumbs", "prevCrumbs", "screen", "prevScreen"]
-                sec.Delete(k)
-            end for
-            sec.Flush()
+            EfN_Disable(sec)
             return false
         end if
         if sec.Exists("disabled") then
@@ -84,7 +83,7 @@ function captureException(e as dynamic) as boolean
         if m.screen <> invalid then rec.route = m.screen
         mem = EfU_ReadMem(sec, rec.t)
         if mem <> invalid then rec.memory = mem
-        EfQ_Put(sec, rec)
+        if EfQ_Put(sec, rec) = "" then return false
         kick(invalid)
         return true
     catch err
@@ -204,3 +203,26 @@ function flushCrumbs(unused as dynamic) as boolean
         return false
     end try
 end function
+
+' Remembered in the registry so the injected hook stops recording too, and
+' nothing captured so far is uploaded by a later enabled start(). A running
+' reporter is stopped and this session's crumbs and user are dropped.
+sub EfN_Disable(sec as object)
+    sec.Write("disabled", "1")
+    for each k in EfQ_Keys(sec)
+        sec.Delete(k)
+    end for
+    for each k in ["pendingExit", "lastCrashT", "crumbs", "prevCrumbs", "screen", "prevScreen"]
+        sec.Delete(k)
+    end for
+    sec.Flush()
+    if m.reporter <> invalid then
+        ' The reporter sees "disabled" when it wakes and returns.
+        m.reporter.flush = true
+        m.reporter.control = "STOP"
+        m.reporter = invalid
+    end if
+    m.sec = invalid
+    m.crumbs = []
+    m.user = invalid
+end sub

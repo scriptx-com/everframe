@@ -14,6 +14,8 @@ function EfD_Drain(sec as object, ctx as dynamic, state as object, post as funct
     if type(ctx) <> "roAssociativeArray" then return true
     retry = false
     for each item in EfQ_List(sec)
+        ' Disabled mid-drain (start({ enabled: false })): send nothing more.
+        if EfU_IsDisabled(sec) then return false
         env = invalid
         try
             env = EfE_Build(item.rec, ctx, EfU_NowMs())

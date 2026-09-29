@@ -142,4 +142,23 @@ describe('ef_queue.brs', () => {
     expect(lines[0].len).toBeLessThanOrEqual(lines[0].max);
     expect(lines[0].frames).toBeGreaterThanOrEqual(1);
   });
+
+  it('a record the registry refuses returns "" and never sets the crash marker', async () => {
+    const { lines } = await runBrs(LIBS, `
+      store = {}
+      m.store = store
+      sec = {
+        GetKeyList: function() : return m.data.Keys() : end function,
+        Exists: function(k) : return m.data.DoesExist(k) : end function,
+        Read: function(k) : return m.data[k] : end function,
+        Delete: function(k) : m.data.Delete(k) : return true : end function,
+        Write: function(k, v) : return false : end function,
+        Flush: function() : return true : end function,
+        data: store
+      }
+      key = EfQ_Put(sec, ${REC('1790000000100')})
+      print "EFTEST:" + FormatJson({ key: key, marker: store.DoesExist("lastCrashT") })
+    `);
+    expect(lines[0]).toEqual({ key: '', marker: false });
+  });
 });

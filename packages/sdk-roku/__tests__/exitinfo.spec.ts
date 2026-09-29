@@ -302,4 +302,15 @@ describe('ef_exitinfo.brs', () => {
     `);
     expect(lines[0]).toEqual({ r: 'reported', n: 2 });
   });
+
+  for (const code of ['EXIT_BRIGHTSCRIPT_TIMEOUT', 'EXIT_BRIGHTSCRIPT_STOP', 'EXIT_BRIGHTSCRIPT_UNK_FUNC']) {
+    it(`reports ${code} (a fatal execution failure) as a new record`, async () => {
+      const { lines } = await runBrs(LIBS, `
+        sec = EfU_Section()
+        r = EfX_Process(sec, ${INFO(code)})
+        print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count() })
+      `);
+      expect(lines[0]).toEqual({ r: 'reported', n: 1 });
+    });
+  }
 });

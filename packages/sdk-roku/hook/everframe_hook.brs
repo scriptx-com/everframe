@@ -53,6 +53,9 @@ sub Everframe__StoreExit(info as dynamic)
                 sec = EfU_Section()
                 ' The exited session ran with enabled: false: nothing of it is reported.
                 if EfU_IsDisabled(sec) then return
+                ' An exit the SDK has not taken yet (the library did not load
+                ' last launch) is kept when it was abnormal and this one is not.
+                if not EfU_IsAbnormalExit(info["exit_code"]) and Everframe__PendingAbnormal(sec) then return
                 ' Snapshot the exited session's screen and crumbs now: Main runs
                 ' before this launch writes any of its own.
                 if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
@@ -64,6 +67,12 @@ sub Everframe__StoreExit(info as dynamic)
     catch ignored
     end try
 end sub
+
+function Everframe__PendingAbnormal(sec as object) as boolean
+    if not sec.Exists("pendingExit") then return false
+    pending = ParseJson(sec.Read("pendingExit"))
+    return type(pending) = "roAssociativeArray" and EfU_IsAbnormalExit(pending["exit_code"])
+end function
 
 function Everframe__IsStr(v as dynamic) as boolean
     return v <> invalid and GetInterface(v, "ifString") <> invalid

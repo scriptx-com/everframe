@@ -10,16 +10,7 @@
 ' remembered in "lastExitTs".
 
 function EfX_IsAbnormal(code as string) as boolean
-    known = {
-        "EXIT_BRIGHTSCRIPT_CRASH": true,
-        "EXIT_CHANNEL_MEM_LIMIT_FG": true,
-        "EXIT_CHANNEL_MEM_LIMIT_BG": true,
-        "EXIT_OUT_OF_MEMORY": true,
-        "EXIT_AM_LOWRESOURCE": true,
-        "EXIT_SYSTEM_KILL": true
-    }
-    if known.DoesExist(code) then return true
-    return Instr(1, UCase(code), "CRASH") > 0
+    return EfU_IsAbnormalExit(code)
 end function
 
 function EfX_Meta(info as object) as object
@@ -144,8 +135,8 @@ function EfX_Process(sec as object, info as dynamic) as string
             ' read here, before this session's reporter overwrites "mem".
             mem = EfU_ReadMem(sec, exitMs)
             if mem <> invalid then rec.memory = mem
-            EfQ_Put(sec, rec)
             result = "reported"
+            if EfQ_Put(sec, rec) = "" then result = "lost"
         end if
     end if
     sec.Delete("lastCrashT")

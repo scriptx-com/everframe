@@ -156,6 +156,8 @@ export function discoverEntryPoints(
   };
   // Screens whose own scripts define no init(): they run only inherited ones.
   const inheritsInit: Array<{ name: string }> = [];
+  // Deferred: callbacks a component pushes up into its ancestors' scripts.
+  const pushedUp: Array<() => void> = [];
 
   for (const { rel, comp } of parsed) {
     const skip = excluded(rel, opts.exclude);
@@ -178,25 +180,39 @@ export function discoverEntryPoints(
         ...(isScreen ? { screen: SCREEN_EXPR, screenVia: via } : {}),
       }, 'init'],
       ['onKeyEvent', { entry: '', isTask: false, crumb: 'key' }, 'key'],
-      ...callbacks(rel, comp),
     ];
-    // Inherited callbacks: a base Task's script may set functionName to a function this
-    // component defines. Ancestors (excluded or not) contribute callbacks, never init/screen.
+    const own = callbacks(rel, comp);
+    targets.push(...own);
+    // Callbacks cross the extends chain both ways, never init/screen (handled below):
+    // down - a base Task's script may set functionName to a function this component
+    // defines, so ancestors (excluded or not) contribute callbacks to its scripts;
+    // up - this component may name a callback only an ancestor's script implements, so
+    // its own callbacks target every non-excluded ancestor's non-excluded scripts.
+    // (An inherited onKeyEvent needs nothing extra: each non-excluded ancestor already
+    // targets onKeyEvent in its own scripts.)
+    const upScripts: string[] = [];
     const seen = new Set([String(comp.name).toLowerCase()]);
     for (let p = parents.get(String(comp.name).toLowerCase()); p && !seen.has(p.toLowerCase());) {
       seen.add(p.toLowerCase());
       const anc = byName.get(p.toLowerCase());
       if (!anc) break;
       targets.push(...callbacks(anc.rel, anc.comp));
+      if (!excluded(anc.rel, opts.exclude)) upScripts.push(...scriptsOf(anc.rel, anc.comp).filter((s) => !excluded(s, opts.exclude)));
       p = parents.get(p.toLowerCase());
     }
-    for (const s of scripts) {
-      for (const [fn, t, mech] of targets) {
-        if (!on(mech)) continue;
-        add(plan, s, fn, { ...t, entry: t.entry || `${fn} (${s})` });
+    const addAll = (files: string[], list: Array<[string, WrapTarget, Mechanism]>) => {
+      for (const s of files) {
+        for (const [fn, t, mech] of list) {
+          if (!on(mech)) continue;
+          add(plan, s, fn, { ...t, entry: t.entry || `${fn} (${s})` });
+        }
       }
-    }
+    };
+    addAll(scripts, targets);
+    pushedUp.push(() => addAll(upScripts, own));
   }
+  // After every component's own pass, so an ancestor's own init/key/callback targets win the first-target slot.
+  for (const f of pushedUp) f();
 
   // SceneGraph runs every ancestor's init() too, with m.top.subtype() the created
   // type. A screen without its own init() is covered by the nearest ancestor that

@@ -49,8 +49,10 @@ sub Main()
             ' Keep the exited session's screen and breadcrumbs with the exit.
             if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
             if sec.Exists("crumbs") then info["efCrumbs"] = sec.Read("crumbs")
-            ' Skip sessions that ran with start({ enabled: false }).
-            if not sec.Exists("disabled") then sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
+            ' Skip sessions that ran with start({ enabled: false }), and keep an exit the
+            ' SDK has not taken yet (library not loaded last launch) over a normal one.
+            keep = sec.Exists("disabled") or (sec.Exists("pendingExit") and info["exit_code"] = "EXIT_USER_NAV")
+            if not keep then sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
         end if
     catch e
     end try
@@ -69,10 +71,13 @@ Roku returns the previous launch's exit record (`GetLastExitInfo`, Roku OS 13.0+
 sub init()
     m.efLib = m.top.findNode("Everframe")
     m.efLib.observeField("loadStatus", "onEverframeLoad")
+    ' A bundled library can already be "ready" here; the observer only sees later changes.
+    onEverframeLoad()
 end sub
 
 sub onEverframeLoad()
-    if m.efLib.loadStatus <> "ready" then return
+    if m.efLib.loadStatus <> "ready" or m.efStarted <> invalid then return
+    m.efStarted = true
     ef = CreateObject("roSGNode", "Everframe:Everframe")
     ef.callFunc("start", { sdkKey: "evf_live_..." })
 end sub
@@ -167,6 +172,8 @@ Each targeted function body is wrapped in `try ... catch e ... end try` **on the
 - functions declared in a component `<interface>`
 - callbacks registered with `observeField` / `observeFieldScoped`
 - Task `functionName` targets
+
+The last four follow `extends` in both directions. A callback named in a base component is wrapped where a subclass implements it. A callback named in a subclass is wrapped where a base component implements it, for example `m.top.functionName = "work"` in `ChildTask` with `work()` defined only in `BaseTask`'s script. Components and scripts matched by `--exclude` are never wrapped, and callbacks named only by an excluded component are ignored.
 
 Functions that cannot be wrapped safely are skipped and listed in the output. This includes any function that contains a label (a `goto` target such as `done:`), because BrightScript does not allow labels inside a `try` block.
 

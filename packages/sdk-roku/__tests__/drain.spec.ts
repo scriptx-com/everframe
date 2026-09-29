@@ -127,4 +127,15 @@ describe('ef_drain.brs', () => {
     `);
     expect(lines[0]).toEqual({ charges: 1, left: 1, calls: 6, leftAfter: 0 });
   });
+
+  it('stops sending as soon as the SDK is disabled', async () => {
+    const { lines } = await go([200, 200], `
+      EfQ_Put(sec, ${REC('1790000000100', 'a')})
+      EfQ_Put(sec, ${REC('1790000000200', 'b')})
+      sec.Write("disabled", "1")
+      retry = EfD_Drain(sec, ctx, state, Stub)
+      print "EFTEST:" + FormatJson({ retry: retry, calls: m.calls.Count() })
+    `);
+    expect(lines[0]).toEqual({ retry: false, calls: 0 });
+  });
 });

@@ -130,3 +130,23 @@ end function
 function EfU_IsDisabled(sec as object) as boolean
     return sec.Exists("disabled")
 end function
+
+' Exit codes that end a session abnormally (reported on the next launch).
+' Shared with the injected hook, which keeps an unreported one in
+' "pendingExit" rather than replace it with a normal exit.
+function EfU_IsAbnormalExit(code as dynamic) as boolean
+    if code = invalid or GetInterface(code, "ifString") = invalid then return false
+    known = {
+        "EXIT_BRIGHTSCRIPT_CRASH": true,
+        "EXIT_BRIGHTSCRIPT_TIMEOUT": true,
+        "EXIT_BRIGHTSCRIPT_STOP": true,
+        "EXIT_BRIGHTSCRIPT_UNK_FUNC": true,
+        "EXIT_CHANNEL_MEM_LIMIT_FG": true,
+        "EXIT_CHANNEL_MEM_LIMIT_BG": true,
+        "EXIT_OUT_OF_MEMORY": true,
+        "EXIT_AM_LOWRESOURCE": true,
+        "EXIT_SYSTEM_KILL": true
+    }
+    if known.DoesExist(code) then return true
+    return Instr(1, UCase(code), "CRASH") > 0
+end function

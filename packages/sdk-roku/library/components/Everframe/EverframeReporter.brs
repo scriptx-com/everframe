@@ -39,6 +39,8 @@ sub EfRep_Run()
     end try
     EfRep_MemPoll()
     while true
+        ' start({ enabled: false }) on a running SDK: stop for good.
+        if EfU_IsDisabled(m.sec) then return
         retry = false
         try
             ' A failed context build must not turn every record into "poison":
@@ -77,6 +79,7 @@ sub EfRep_Idle(port as object, ms as integer)
             if left < timeout then timeout = left
         end if
         msg = wait(timeout, port)
+        if EfU_IsDisabled(m.sec) then return
         EfRep_FlushCrumbs()
         try
             EfX_ClearRecovered(m.sec, EfU_NowMs())

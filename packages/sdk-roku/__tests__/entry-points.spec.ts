@@ -225,6 +225,61 @@ describe('inherited callbacks', () => {
     expect(plan.files.has('components/Base.brs')).toBe(false);
   });
 
+  it('a callback a derived component wires up is wrapped where an ancestor implements it', () => {
+    const root = chan({
+      'BaseTask.xml': xml('BaseTask', 'Task', 'BaseTask.brs'),
+      'BaseTask.brs': 'sub work()\n  print 1\nend sub\nsub onDone()\n  print 1\nend sub\nsub doIt()\n  print 1\nend sub\n',
+      'Mid.xml': xml('Mid', 'BaseTask', 'Mid.brs'),
+      'Mid.brs': 'sub other()\n  print 1\nend sub\n',
+      'ChildTask.xml': xml('ChildTask', 'Mid', 'ChildTask.brs',
+        '  <interface>\n    <field id="req" type="string" onChange="onReq" />\n    <function name="doIt" />\n  </interface>\n'),
+      'ChildTask.brs': 'sub init()\n  m.top.functionName = "work"\n  m.top.observeField("state", "onDone")\nend sub\n',
+    });
+    const plan = discoverEntryPoints(root, { exclude: [], mechanisms: all, screens: [] });
+    const base = plan.files.get('components/BaseTask.brs')!;
+    expect(base.get('work')).toMatchObject({ isTask: true, entry: 'work (components/BaseTask.brs)' });
+    expect(base.get('ondone')).toMatchObject({ isTask: false, entry: 'onDone (components/BaseTask.brs)' });
+    expect(base.get('onreq')).toMatchObject({ isTask: false });
+    expect(base.get('doit')).toMatchObject({ isTask: false });
+    // The whole chain, not just the direct parent.
+    expect(plan.files.get('components/Mid.brs')?.get('work')).toMatchObject({ isTask: true });
+    // init / screen targets are never pushed up: the base keeps its own init entry.
+    expect(base.get('init')).toMatchObject({ entry: 'BaseTask' });
+    expect(base.get('init')?.screen).toBeUndefined();
+    // An inherited onKeyEvent is covered by the ancestor's own key target.
+    expect(base.get('onkeyevent')).toMatchObject({ crumb: 'key' });
+  });
+
+  it('pushed-up callbacks skip excluded ancestors / scripts, ignore excluded descendants, respect --mechanisms, survive cycles', () => {
+    const root = chan({
+      'Base.xml': xml('Base', 'Task', 'Base.brs'),
+      'Base.brs': 'sub work()\n  print 1\nend sub\n',
+      'Kid.xml': xml('Kid', 'Base', 'Kid.brs'),
+      'Kid.brs': 'sub init()\n  m.top.functionName = "work"\nend sub\n',
+      'Gone.xml': xml('Gone', 'Base', 'Gone.brs'),
+      'Gone.brs': 'sub init()\n  m.top.functionName = "fromGone"\nend sub\n',
+      'A.xml': xml('A', 'B', 'A.brs'),
+      'A.brs': 'sub init()\n  m.top.functionName = "loopA"\nend sub\n',
+      'B.xml': xml('B', 'A', 'B.brs'),
+      'B.brs': 'sub init()\n  m.top.functionName = "loopB"\nend sub\n',
+      'Orphan.xml': xml('Orphan', 'Nope', 'Orphan.brs'),
+      'Orphan.brs': 'sub init()\n  m.top.functionName = "o"\nend sub\n',
+    });
+    const plan = discoverEntryPoints(root, { exclude: ['components/Gone.xml'], mechanisms: all, screens: [] });
+    expect(plan.files.get('components/Base.brs')?.get('work')).toMatchObject({ isTask: true });
+    // An excluded component's callbacks run in that component: nothing is wrapped for them.
+    expect(plan.files.get('components/Base.brs')?.has('fromgone')).toBe(false);
+    expect(plan.files.get('components/B.brs')?.get('loopa')).toMatchObject({ isTask: true });
+    expect(plan.files.get('components/A.brs')?.get('loopb')).toMatchObject({ isTask: true });
+
+    const noBase = discoverEntryPoints(root, { exclude: ['components/Base.xml'], mechanisms: all, screens: [] });
+    expect(noBase.files.has('components/Base.brs')).toBe(false);
+    const noScript = discoverEntryPoints(root, { exclude: ['components/Base.brs'], mechanisms: all, screens: [] });
+    expect(noScript.files.has('components/Base.brs')).toBe(false);
+    const initOnly = discoverEntryPoints(root, { exclude: [], mechanisms: new Set<Mechanism>(['init']), screens: [] });
+    expect(initOnly.files.get('components/Base.brs')?.has('work')).toBe(false);
+  });
+
   it('respects --mechanisms for inherited callbacks', () => {
     const root = chan({
       'BaseTask.xml': xml('BaseTask', 'Task', 'BaseTask.brs'),
