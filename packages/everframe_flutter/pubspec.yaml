@@ -2,11 +2,14 @@
 # SPDX-FileCopyrightText: 2026 ScriptX
 name: everframe_flutter
 description: Flutter bridge for Everframe reporting on Android and iOS.
-publish_to: none
 version: 0.1.0
+homepage: https://everframe.dev
+repository: https://github.com/scriptx-com/everframe
+issue_tracker: https://github.com/scriptx-com/everframe/issues
 
 environment:
-  sdk: '>=3.6.0 <4.0.0'
+  sdk: '>=3.13.0 <4.0.0'
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:

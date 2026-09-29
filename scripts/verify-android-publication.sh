@@ -52,7 +52,8 @@ verify_artifact everframe-gradle-plugin jar
 
 CORE_AAR="${GROUP_DIRECTORY}/core/${VERSION}/core-${VERSION}.aar"
 CORE_CLASSES="$(mktemp)"
-trap 'rm -f "${CORE_CLASSES}"' EXIT
+REPORTER_CLASSES="$(mktemp)"
+trap 'rm -f "${CORE_CLASSES}" "${REPORTER_CLASSES}"' EXIT
 unzip -p "${CORE_AAR}" classes.jar >"${CORE_CLASSES}"
 if unzip -t "${CORE_CLASSES}" >/dev/null 2>&1; then
     CORE_STRINGS="$(unzip -p "${CORE_CLASSES}" | strings)"
@@ -64,5 +65,10 @@ grep -q 'https://everframe.dev' <<<"${CORE_STRINGS}" || fail "${CORE_AAR} does n
 if grep -Fq "${FORMER_ENDPOINT}" <<<"${CORE_STRINGS}"; then
     fail "${CORE_AAR} contains the former endpoint"
 fi
+
+REPORTER_AAR="${GROUP_DIRECTORY}/reporter-ui/${VERSION}/reporter-ui-${VERSION}.aar"
+unzip -p "${REPORTER_AAR}" classes.jar >"${REPORTER_CLASSES}"
+unzip -Z1 "${REPORTER_CLASSES}" | grep -Fx 'dev/everframe/ui/EFReporterFromImage.class' >/dev/null ||
+    fail "${REPORTER_AAR} is missing EFReporterFromImage from its release classes"
 
 echo "Android publication verified at dev.everframe:*:${VERSION}."

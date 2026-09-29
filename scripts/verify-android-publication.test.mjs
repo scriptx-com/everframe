@@ -42,6 +42,14 @@ function fixture() {
     zip(`${prefix}-javadoc.jar`, { 'index.html': '<html>Everframe</html>' });
     if (artifact === 'everframe-gradle-plugin') {
       zip(`${prefix}.jar`, { 'dev/everframe/gradle/EverframePlugin.class': 'class' });
+    } else if (artifact === 'reporter-ui') {
+      const classes = `${prefix}-classes.jar`;
+      zip(classes, { 'dev/everframe/ui/EFReporterFromImage.class': 'class' });
+      zip(`${prefix}.aar`, {
+        'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+        'classes.jar': readFileSync(classes),
+      });
+      rmSync(classes);
     } else {
       zip(`${prefix}.aar`, {
         'AndroidManifest.xml': '<manifest package="dev.everframe" />',
@@ -92,6 +100,26 @@ test('rejects a release core AAR containing the legacy endpoint', () => {
     const result = verify(repository);
     assert.notEqual(result.status, 0);
     assert.match(`${result.stdout}\n${result.stderr}`, /former endpoint|does not contain the Everframe release endpoint/i);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
+});
+
+test('rejects a release reporter AAR missing the host-image entry point', () => {
+  const repository = fixture();
+  try {
+    const prefix = path.join(repository, 'dev/everframe/reporter-ui/0.9.0/reporter-ui-0.9.0');
+    const classes = `${prefix}-classes.jar`;
+    zip(classes, { 'dev/everframe/ui/TXReporterPresenter.class': 'class' });
+    rmSync(`${prefix}.aar`);
+    zip(`${prefix}.aar`, {
+      'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+      'classes.jar': readFileSync(classes),
+    });
+    rmSync(classes);
+    const result = verify(repository);
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /EFReporterFromImage/);
   } finally {
     rmSync(repository, { recursive: true, force: true });
   }

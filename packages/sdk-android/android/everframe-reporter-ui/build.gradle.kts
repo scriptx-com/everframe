@@ -20,6 +20,7 @@ android {
     defaultConfig {
         // Plan 05-06 — instrumented runner for ReporterDialog + BubbleAttacher tests.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
     }
     kotlinOptions {
         jvmTarget = "17"

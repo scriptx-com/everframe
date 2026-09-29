@@ -22,6 +22,8 @@
 -keep class dev.everframe.ui.TXReporterPresenter { *; }
 -keep class dev.everframe.ui.TXReporterPresenter$* { *; }
 -keep class dev.everframe.ui.ReporterResolverInstaller { *; }
+# Flutter and KMP bridges compile against the published release AAR.
+-keep class dev.everframe.ui.EFReporterFromImage { *; }
 
 # ---------------------------------------------------------------------------
 # Compose @Composable methods — Compose runtime resolves them via

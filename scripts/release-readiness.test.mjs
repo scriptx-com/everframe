@@ -8,22 +8,21 @@ import test from 'node:test';
 const read = (file) => readFileSync(file, 'utf8');
 const packages = ['@everframe/web', '@everframe/react', '@everframe/react-native'];
 
-test('Everframe npm SDKs form one fixed 0.9.0 release', () => {
+test('Everframe npm SDKs remain on their fixed 0.9.0 release', () => {
   const config = JSON.parse(read('.changeset/config.json'));
   assert.deepEqual(config.fixed, [packages]);
 
-  const changeset = read('.changeset/everframe-rebrand.md');
-  for (const name of packages) assert.match(changeset, new RegExp(`"${name}": minor`));
-  assert.match(changeset, /"@everframe\/identity": minor/);
-
   for (const file of ['packages/sdk-web/package.json', 'packages/sdk-react/package.json', 'packages/sdk-react-native/package.json']) {
-    assert.equal(JSON.parse(read(file)).version, '0.8.2');
+    assert.equal(JSON.parse(read(file)).version, '0.9.0');
   }
-  assert.equal(JSON.parse(read('packages/identity/package.json')).version, '0.2.0');
+  assert.equal(JSON.parse(read('packages/identity/package.json')).version, '0.3.0');
 });
 
-test('native baselines remain unchanged and cutover properties are canonical', () => {
-  assert.match(read('packages/sdk-android/android/gradle.properties'), /^everframeVersion=0\.8\.2$/m);
-  assert.match(read('packages/sdk-ios/Everframe.podspec'), /spec\.version\s+=\s+"0\.8\.2"/);
-  assert.match(read('packages/sdk-ios/Package.binary.swift'), /let binaryVersion = "0\.8\.2"/);
+test('Flutter and KMP native dependencies match the native 0.10.0 release', () => {
+  assert.match(read('packages/sdk-android/android/gradle.properties'), /^everframeVersion=0\.10\.0$/m);
+  assert.match(read('packages/sdk-ios/Everframe.podspec'), /spec\.version\s+=\s+"0\.10\.0"/);
+  assert.match(read('packages/sdk-ios/Package.binary.swift'), /let binaryVersion = "0\.10\.0"/);
+  assert.match(read('packages/everframe_flutter/android/build.gradle.kts'), /\[0\.10\.0,0\.11\.0\)/);
+  assert.match(read('packages/everframe_flutter/ios/everframe_flutter.podspec'), /~> 0\.10\.0/);
+  assert.match(read('packages/everframe_kmp/build.gradle.kts'), /\[0\.10\.0,0\.11\.0\)/);
 });
