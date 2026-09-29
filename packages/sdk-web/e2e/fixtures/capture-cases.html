@@ -13,6 +13,12 @@
      a <style> inside the captured subtree is cloned with its ORIGINAL text,
      so a CSSOM edit to it could never show up in any capture. */
   .cx { width: 200px; height: 60px; background: rgb(0,0,255); }
+  /* Scrollers sized ONLY by stylesheet rules (no inline width/height). */
+  .css-scroller { height: 300px; overflow: auto; background: #fff; }
+  .css-scroller > div { height: 60px; }
+  .carousel { display: flex; width: 600px; height: 120px; overflow-x: auto; overflow-y: hidden; background: #fff; }
+  .carousel > div { flex: 0 0 200px; height: 100px; }
+  .grid-scroller { display: grid; grid-template-columns: repeat(2, 150px); grid-auto-rows: 80px; width: 300px; height: 200px; overflow: auto; background: #fff; }
   .swatch { height: 56px; border-radius: 8px; background: linear-gradient(90deg,#ff5f6d,#ffc371); }
 </style>
 </head>
@@ -40,6 +46,10 @@
   </section>
   <!-- Plain in-flow rows (no positioning): 20 x 60px, pairwise-distinct colours. -->
   <section id="rows" style="height:300px;overflow:auto;background:#fff"></section>
+  <section id="css-rows" class="css-scroller"></section>
+  <div id="below-css-rows" style="height:60px;background:rgb(255,128,0)"></div>
+  <section id="carousel" class="carousel"></section>
+  <section id="grid" class="grid-scroller"></section>
   <section id="restyle" style="background:#fff;padding:8px"><div id="cx" class="cx"></div></section>
   <section id="bulk"></section>
   </main>
@@ -48,12 +58,20 @@
     const n = +(new URLSearchParams(location.search).get('bulk') || 0);
     const bulk = document.getElementById('bulk');
     for (let i = 0; i < n; i++) bulk.appendChild(document.createElement('span')).textContent = i + ' ';
-    const rows = document.getElementById('rows');
-    for (let i = 0; i < 20; i++) {
-      const row = rows.appendChild(document.createElement('div'));
-      row.id = 'row-' + i;
-      row.style.cssText = `height:60px;background:rgb(${(i % 4) * 80},${Math.floor(i / 4) * 60},${i % 2 ? 255 : 0})`;
-    }
+    // Pairwise-distinct colours (every pair differs by >= 60 in some channel).
+    const colour = (i) => `rgb(${(i % 4) * 80},${Math.floor(i / 4) * 60},${i % 2 ? 255 : 0})`;
+    const fill = (id, count, style) => {
+      const host = document.getElementById(id);
+      for (let i = 0; i < count; i++) {
+        const el = host.appendChild(document.createElement('div'));
+        el.id = `${id}-${i}`;
+        el.style.cssText = style + `background:${colour(i)}`;
+      }
+    };
+    fill('rows', 20, 'height:60px;');
+    fill('css-rows', 20, '');
+    fill('carousel', 10, '');
+    fill('grid', 10, '');
   </script>
   <!-- The eager entry reaches its two runtime dependencies by a BARE dynamic
        specifier (`modern-screenshot` for capture, `rrweb` for replay). A real

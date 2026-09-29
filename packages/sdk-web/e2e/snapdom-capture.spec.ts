@@ -116,8 +116,8 @@ test('scroller with plain in-flow rows shows each row at its live position (one 
     const colour = (id: string): number[] =>
       (getComputedStyle(document.getElementById(id)!).backgroundColor.match(/\d+/g) ?? []).map(Number);
     return {
-      pos: { row10: at('row-10'), row12: at('row-12'), row14: at('row-14') },
-      colours: { row10: colour('row-10'), row12: colour('row-12'), row14: colour('row-14') },
+      pos: { row10: at('rows-10'), row12: at('rows-12'), row14: at('rows-14') },
+      colours: { row10: colour('rows-10'), row12: colour('rows-12'), row14: colour('rows-14') },
     };
   });
   const r = await captureAndSample(page, probe.pos);
@@ -125,6 +125,91 @@ test('scroller with plain in-flow rows shows each row at its live position (one 
   expect(near(r.samples.row10!, probe.colours.row10, 30)).toBe(true);
   expect(near(r.samples.row12!, probe.colours.row12, 30)).toBe(true);
   expect(near(r.samples.row14!, probe.colours.row14, 30)).toBe(true);
+});
+
+/**
+ * Scroll `id`, then for each point (CSS px relative to the scroller's box)
+ * record the viewport position and the live colour of whatever the user sees
+ * there (elementFromPoint), so assertions never hard-code layout.
+ */
+async function scrollAndProbe(
+  page: Page,
+  id: string,
+  scroll: { left?: number; top?: number },
+  points: Record<string, [number, number]>,
+  extra: Record<string, string> = {},
+): Promise<{ pos: Record<string, [number, number]>; colours: Record<string, number[]> }> {
+  return page.evaluate(
+    ({ id, scroll, points, extra }) => {
+      const el = document.getElementById(id)!;
+      el.scrollIntoView({ block: 'center' });
+      el.scrollLeft = scroll.left ?? 0;
+      el.scrollTop = scroll.top ?? 0;
+      const rgb = (node: Element): number[] =>
+        (getComputedStyle(node).backgroundColor.match(/\d+/g) ?? []).map(Number);
+      const box = el.getBoundingClientRect();
+      const pos: Record<string, [number, number]> = {};
+      const colours: Record<string, number[]> = {};
+      for (const [name, [x, y]] of Object.entries(points)) {
+        pos[name] = [box.left + x, box.top + y];
+        colours[name] = rgb(document.elementFromPoint(box.left + x, box.top + y)!);
+      }
+      for (const [name, otherId] of Object.entries(extra)) {
+        const b = document.getElementById(otherId)!.getBoundingClientRect();
+        pos[name] = [b.left + 20, b.top + b.height / 2];
+        colours[name] = rgb(document.getElementById(otherId)!);
+      }
+      return { pos, colours };
+    },
+    { id, scroll, points, extra },
+  );
+}
+
+function expectColoursAt(r: Probe, expected: Record<string, number[]>): void {
+  for (const [name, colour] of Object.entries(expected)) {
+    const sample = r.samples[name]!;
+    expect(near(sample, colour, 30), `${name}: captured ${sample.slice(0, 3)} vs live ${colour}`).toBe(true);
+  }
+}
+
+test('stylesheet-sized scroller keeps its height and clipping: rows at live positions, content below untouched', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  const probe = await scrollAndProbe(
+    page,
+    'css-rows',
+    { top: 600 },
+    { top: [20, 30], middle: [20, 150], bottom: [20, 270] },
+    { below: 'below-css-rows' },
+  );
+  const r = await captureAndSample(page, probe.pos);
+  expect(r.renderer).toBe('snapdom');
+  expectColoursAt(r, probe.colours);
+});
+
+test('horizontally scrolled flex carousel keeps its row layout and scroll offset', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  const probe = await scrollAndProbe(page, 'carousel', { left: 450 }, {
+    a: [20, 50],
+    b: [120, 50],
+    c: [300, 50],
+    d: [480, 50],
+  });
+  const r = await captureAndSample(page, probe.pos);
+  expect(r.renderer).toBe('snapdom');
+  expectColoursAt(r, probe.colours);
+});
+
+test('scrolled grid scroller keeps its grid layout and scroll offset', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  const probe = await scrollAndProbe(page, 'grid', { top: 170 }, {
+    a: [40, 20],
+    b: [200, 20],
+    c: [40, 120],
+    d: [200, 180],
+  });
+  const r = await captureAndSample(page, probe.pos);
+  expect(r.renderer).toBe('snapdom');
+  expectColoursAt(r, probe.colours);
 });
 
 test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {
