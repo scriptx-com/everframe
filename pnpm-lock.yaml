@@ -511,6 +511,9 @@ importers:
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6(patch_hash=szurow4zhzyfyo22tumm2pdqcq)
 
   packages/sdk-web:
     dependencies:

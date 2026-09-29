@@ -1,0 +1,79 @@
+' SPDX-License-Identifier: MIT
+' SPDX-FileCopyrightText: 2026 ScriptX
+'
+' EfRecord + device/app context -> ReportEnvelope (protocol 1.0).
+
+function EfE_Context(sdkVersion as string) as object
+    di = CreateObject("roDeviceInfo")
+    ai = CreateObject("roAppInfo")
+    osVersion = ""
+    if FindMemberFunction(di, "GetOSVersion") <> invalid then
+        v = di.GetOSVersion()
+        osVersion = v.major + "." + v.minor + "." + v.revision
+    end if
+    size = di.GetDisplaySize()
+    locale = CreateObject("roRegex", "_", "").ReplaceAll(di.GetCurrentLocale(), "-")
+    app = { name: ai.GetTitle(), version: ai.GetVersion() }
+    build = ai.GetValue("build_version")
+    if build <> invalid and build <> "" then app.build = build
+    return {
+        sdkVersion: sdkVersion,
+        app: app,
+        device: { osVersion: osVersion, model: di.GetModel(), width: size.w, height: size.h, locale: locale, timezone: di.GetTimeZone() }
+    }
+end function
+
+function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
+    crash = {
+        exceptionType: EfU_Truncate(rec.exceptionType, 256),
+        message: EfU_Truncate(rec.message, 4096),
+        frames: rec.frames,
+        mechanism: rec.mechanism,
+        handled: rec.handled,
+        fatal: rec.fatal,
+        occurredAt: EfU_IsoFromMs(rec.t),
+        fingerprint: EfFp_Compute(rec.exceptionType, rec.frames)
+    }
+    if rec.thread <> invalid then crash["threadName"] = rec.thread
+    details = {}
+    if rec.context <> invalid then details.context = EfU_Truncate(rec.context, 256)
+    if rec.exitInfo <> invalid then details.metadata = rec.exitInfo
+    if details.Count() > 0 then crash.details = details
+
+    crumbs = rec.crumbs
+    if crumbs = invalid then crumbs = []
+    source = "crash"
+    if rec.handled then source = "error"
+    reporter = { title: EfU_Truncate(crash.exceptionType + ": " + crash.message, 200), description: "" }
+    if rec.user <> invalid then reporter.user = rec.user
+
+    appVersion = ctx.app.version
+    if rec.appVersion <> invalid then appVersion = rec.appVersion
+    app = { name: ctx.app.name, version: appVersion }
+    if ctx.app.build <> invalid then app.build = ctx.app.build
+
+    return {
+        protocolVersion: "1.0",
+        reportId: rec.id,
+        submittedAt: EfU_IsoFromMs(nowMs),
+        source: source,
+        sdk: { name: "everframe-roku", version: ctx.sdkVersion, platform: "roku", formFactor: "tv" },
+        reporter: reporter,
+        captures: { screenshot: false, uiTree: false, focus: false, logs: false, network: false, breadcrumbs: crumbs.Count() > 0 },
+        captureControl: { included: ["breadcrumbs"], excluded: ["screenshot", "uiTree", "focus", "logs", "network"], degradedReason: "crash-capture" },
+        payload: { crash: crash, breadcrumbs: crumbs },
+        context: {
+            app: app,
+            device: {
+                os: "Roku OS",
+                osVersion: ctx.device.osVersion,
+                model: ctx.device.model,
+                screenSize: { width: ctx.device.width, height: ctx.device.height },
+                pixelRatio: 1,
+                locale: ctx.device.locale,
+                timezone: ctx.device.timezone
+            }
+        },
+        attachments: []
+    }
+end function
