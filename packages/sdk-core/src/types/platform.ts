@@ -181,12 +181,11 @@ export interface PlatformAdapter {
 /**
  * A serialized, compressed session-replay capture ready to ride as a tagged
  * attachment (`kind: 'session-replay'`) through the existing ingest pipeline.
- * `format` is the playback discriminator: web uses the value below; native
- * native producers use `everframe-vtree-v1`; protocol readers also accept the
- * persisted legacy discriminator.
+ * `format` is the playback discriminator. DOM replay uses `rrweb`; masked
+ * host-rendered image timelines use `everframe-vtree-v1`.
  */
 export interface ReplayCapture {
-  format: 'rrweb';
+  format: 'rrweb' | 'everframe-vtree-v1';
   bytes: Uint8Array;
   durationMs: number;
   contentType: string;
