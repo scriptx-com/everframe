@@ -1309,6 +1309,56 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     secret.remove();
   });
 
+  it('resolves function mask targets when its queue turn comes: a replaced element is masked', async () => {
+    const holder = document.createElement('div');
+    let secret = document.createElement('div');
+    secret.className = 'secret';
+    holder.appendChild(secret);
+    document.body.appendChild(holder);
+    const seenAtClone: Array<string | null> = [];
+    const releases: Array<() => void> = [];
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(() => {
+        seenAtClone.push(holder.querySelector('.secret')!.getAttribute('style'));
+        return new Promise((resolve) =>
+          releases.push(() => resolve({ toCanvas: async () => makeCanvasStub().stub })),
+        );
+      }),
+    }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    const a = cap({ root: document.body });
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    const resolver = vi.fn(() => Array.from(holder.querySelectorAll('.secret')));
+    const b = cap({ root: document.body, maskTargets: resolver });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(resolver).not.toHaveBeenCalled(); // not while queued
+    // The app replaces the sensitive element while B waits.
+    const original = secret;
+    secret = document.createElement('div');
+    secret.className = 'secret';
+    holder.replaceChild(secret, original);
+    releases[0]!();
+    await a;
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    releases[1]!();
+    await b;
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(seenAtClone[1]).toContain('background-color: #000 !important'); // the replacement, masked
+    expect(original.getAttribute('style')).toBeNull(); // the detached original never touched
+    expect(secret.getAttribute('style')).toBeNull(); // and restored afterwards
+    holder.remove();
+  });
+
+  it('a throwing mask resolver fails the capture instead of shipping it unmasked', async () => {
+    const snapdom = vi.fn(async () => ({ toCanvas: async () => makeCanvasStub().stub }));
+    vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await expect(cap({ root: document.body, maskTargets: () => { throw new Error('registry'); } })).rejects.toThrow('registry');
+    expect(snapdom).not.toHaveBeenCalled();
+    // The queue slot was released: the next capture runs.
+    await expect(cap({ root: document.body })).resolves.toBeDefined();
+  });
+
   it('a capture that out-waits a stuck earlier one ships the placeholder without touching the page', async () => {
     vi.useFakeTimers();
     try {

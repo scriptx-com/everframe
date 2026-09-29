@@ -48,8 +48,15 @@ export interface CaptureScreenshotOptions {
    * `finally` immediately after. Layout is preserved (boxes keep their size);
    * content is invisible. Strongly preferred over `maskPlan` because the
    * capture library handles the coordinate transform natively.
+   *
+   * Pass a FUNCTION to have the targets resolved at the moment masking is
+   * applied - after the capture's turn in the queue comes up. A plain array
+   * is a snapshot taken when captureScreenshot was called: if the app
+   * replaces a sensitive element while the capture waits behind another one,
+   * the array still names the detached original and the replacement ships
+   * unmasked. A throwing resolver fails the capture (never unmasked).
    */
-  maskTargets?: Element[];
+  maskTargets?: Element[] | (() => Element[]);
   /** Optional pixel ratio override (default = window.devicePixelRatio). */
   pixelRatio?: number;
   /**
@@ -314,6 +321,10 @@ async function captureExclusive(
   opts: CaptureScreenshotOptions,
   releasePage: () => void,
 ): Promise<ScreenshotResult> {
+  // Resolved here, inside the queue slot and before anything touches the
+  // page, so it describes the DOM this capture will actually clone.
+  const maskTargets =
+    typeof opts.maskTargets === 'function' ? opts.maskTargets() : (opts.maskTargets ?? []);
   const root = opts.root ?? document.body;
   const restoreObserver = opts.cspNonce ? applyNonceToFreshStyles(opts.cspNonce) : () => undefined;
   const profile = getCaptureProfile();
@@ -353,8 +364,8 @@ async function captureExclusive(
   // PNG automatically — no post-capture coordinate transform required. The
   // restore() runs in `finally` so a throwing capture still un-masks.
   const restoreDomMask =
-    opts.maskTargets && opts.maskTargets.length > 0
-      ? applyDomMask(opts.maskTargets)
+    maskTargets.length > 0
+      ? applyDomMask(maskTargets)
       : (): void => undefined;
 
   // Swap each <video> for a same-sized stand-in carrying its current frame,
@@ -370,7 +381,7 @@ async function captureExclusive(
   try {
     restoreVideoStandIns = await installVideoStandIns(root, {
       pixelRatio,
-      maskTargets: opts.maskTargets ?? [],
+      maskTargets,
     });
   } catch {
     // An enhancement; never let it cost us the screenshot.

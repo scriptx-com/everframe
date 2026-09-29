@@ -1737,7 +1737,10 @@ export function createWebPlatformAdapter(
         // by construction. Replaces the previous rect-based maskPlan whose
         // viewport→PNG coordinate transform was brittle on phones (subpixel
         // rounding, font-metric drift, modal-open layout shifts).
-        maskTargets: sensitiveRegistry.snapshotElements(),
+        // A resolver, not a snapshot: called once this capture's turn in the
+        // capture queue comes up, so an element the app replaced while the
+        // capture waited is the one that gets masked.
+        maskTargets: () => sensitiveRegistry.snapshotElements(),
         __setDegradedReason: (r: DegradedReason) => {
           lastDegradedReason = r;
         },

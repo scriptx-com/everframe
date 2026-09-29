@@ -88,4 +88,22 @@ describe('adapter.__lastScreenshotRenderer', () => {
     expect(ra.degradedReason).toBe('screenshot_blank');
     expect(rb.degradedReason).toBeUndefined();
   });
+
+  it('hands captureScreenshot a mask-target RESOLVER, so targets are read when the capture runs', async () => {
+    let passed: unknown;
+    vi.doMock('../../src/capture/screenshot.js', async (orig) => ({
+      ...(await orig<typeof import('../../src/capture/screenshot.js')>()),
+      captureScreenshot: vi.fn(async (o: { maskTargets?: unknown }) => {
+        passed = o.maskTargets;
+        return { blob: new Blob(['x']), width: 1, height: 1, sha256: '0'.repeat(64) };
+      }),
+    }));
+    const { createWebPlatformAdapter } = await import('../../src/adapter.js');
+    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' } as never) as unknown as {
+      captureScreenshot(): Promise<unknown>;
+    };
+    await adapter.captureScreenshot();
+    expect(typeof passed).toBe('function');
+    expect(Array.isArray((passed as () => unknown)())).toBe(true);
+  });
 });
