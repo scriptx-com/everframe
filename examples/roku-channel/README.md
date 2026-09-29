@@ -4,9 +4,10 @@
 # Roku crash lab
 
 A test channel that triggers every Everframe Roku SDK scenario from the remote.
-One screen, a list of scenarios, and a status panel (library load status, SDK
-started, queued records, last exit info, user, and the SDK's latest memory
-reading). No content, no video.
+A list of scenarios, a status panel (library load status, SDK started, queued
+records, last exit info, user, current screen, and the SDK's latest memory
+reading), and one extra screen (row 10) for screen tracking. No content, no
+video.
 
 ## Setup
 
@@ -74,6 +75,7 @@ SDK processed (and notes when a recorded exit is still pending).
 | 7 | Out of memory (in a Task) | Roku OS 13+. OK on the row; the OS kills the channel. Relaunch once. | An exit-info report with `EXIT_CHANNEL_MEM_LIMIT_FG` or `EXIT_OUT_OF_MEMORY`. It shows only via exit info because `OomTask.brs` is excluded from instrumentation. `details.metadata.memory` holds the last reading before the kill, and the breadcrumbs show memory climbing (`memory 75% of … MB`, 90 %, 95 %, and `memory warning from OS (NN%)` where the OS sends one). The SDK polls every 5 s, so if the allocation outruns a poll you see fewer steps; the status panel's `Memory:` line shows the live reading. | The out-of-memory exit code on the next launch. |
 | 8 | Crash loop x4 | OK on the row (it crashes and arms a counter of 4). Relaunch until the status panel shows `0 left after this one`; after that crash, relaunch once more (the channel stays up) so the 4th record drains and is dropped by the guard. Each loop launch waits for the queue to drain before crashing (up to 15 s). | Exactly 3 loop reports for that fingerprint. The first crash (list selection) is a separate issue with a different fingerprint. | Crash-loop guard: at most 3 reports per fingerprint per hour. |
 | 9 | Set user + add breadcrumbs | OK on the row, then trigger any crash (row 1 is easiest) and relaunch. | On that report: user id `"42"` (the numeric id 42 arrives as the string `"42"`), email `lab@example.com`, and a `crash lab breadcrumb` custom breadcrumb. | `setUser` with a numeric id sent as a string; custom breadcrumb on the next report. |
+| 10 | Open details screen | OK on the row: the details screen opens and the status panel shows `Screen: DetailsScreen`. Press `*` (options) to crash, then relaunch once. (Back returns to the list and sets `Screen: Lab` again.) | A crash with `context.route: "DetailsScreen"` and a `navigation` breadcrumb `screen: DetailsScreen` with `data: { from: "Lab", to: "DetailsScreen" }`. Crashes from the list carry `context.route: "Lab"`. | Screen tracking both ways: `LabScene` calls `setScreen("Lab")` after `start()`; `DetailsScreen` is tracked by `everframe-roku instrument` because its name matches the default `--screens` pattern `*Screen` (so with `--no-instrument` it stays `Lab`). |
 
 Running row 8 again within an hour yields 0 new loop reports (the guard is still
 active). An abandoned loop self-drains after the remaining launches.

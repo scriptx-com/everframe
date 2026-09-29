@@ -6,7 +6,7 @@
     <Rectangle width="1920" height="1080" color="0x101014FF" />
     <Label id="title" translation="[120,80]" font="font:LargeBoldSystemFont" text="Everframe Crash Lab" />
     <Label id="hint" translation="[120,140]" font="font:SmallSystemFont" text="OK runs a scenario · ✱/options crashes in onKeyEvent" />
-    <LabelList id="list" translation="[120,220]" itemSize="[900,64]" numRows="9" />
+    <LabelList id="list" translation="[120,220]" itemSize="[900,64]" numRows="10" />
     <Label id="status" translation="[1080,220]" width="720" height="760" wrap="true" font="font:SmallSystemFont" />
   </children>
   <script type="text/brightscript" uri="pkg:/components/LabScene.brs" />

@@ -44,13 +44,14 @@ describe('crash lab channel source', () => {
     expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(/sec\.Exists\("pendingExit"\)/);
   });
 
-  it('lists all nine scenarios in order', () => {
+  it('lists all ten scenarios in order', () => {
     const brs = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
     const ids = [...brs.matchAll(/\{ id: "([a-z_]+)", title:/g)].map((m) => m[1]);
     expect(ids).toEqual([
       'crash_select', 'crash_key', 'crash_task', 'crash_main', 'handled',
-      'crash_excluded', 'oom', 'crash_loop', 'user_crumbs',
+      'crash_excluded', 'oom', 'crash_loop', 'user_crumbs', 'details',
     ]);
+    expect(readFileSync(path.join(ROOT, 'components/LabScene.xml'), 'utf8')).toMatch(/numRows="10"/);
   });
 
   it('keeps the excluded crash in Excluded.brs as a Timer callback', () => {
@@ -86,5 +87,20 @@ describe('crash lab channel source', () => {
     expect(body).toMatch(/ParseJson/);
     expect(body).toMatch(/roAssociativeArray/);
     expect(scene).not.toMatch(/roAppMemoryMonitor/); // not allowed on the render thread
+  });
+  it('tracks screens both ways: setScreen("Lab") after start(), DetailsScreen by name (instrumented)', () => {
+    const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    const onLib = scene.match(/sub onLibraryStatus\(\)([\s\S]*?)end sub/)?.[1] ?? '';
+    expect(onLib.indexOf('callFunc("setScreen", "Lab")')).toBeGreaterThan(onLib.indexOf('callFunc("start", cfg)'));
+    // Back from the details screen sets "Lab" again by hand.
+    const close = scene.match(/sub LabCloseDetails\(\)([\s\S]*?)end sub/)?.[1] ?? '';
+    expect(close).toMatch(/callFunc\("setScreen", "Lab"\)/);
+    expect(scene).toMatch(/createChild\("DetailsScreen"\)/);
+    expect(scene).toMatch(/"Screen: "/);
+    const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
+    const details = xml.parse(readFileSync(path.join(ROOT, 'components/DetailsScreen.xml'), 'utf8'));
+    expect(details.component.name).toBe('DetailsScreen');
+    // Auto-tracked: the source itself never calls setScreen.
+    expect(readFileSync(path.join(ROOT, 'components/DetailsScreen.brs'), 'utf8')).not.toMatch(/setScreen|Everframe_Screen/);
   });
 });

@@ -11,7 +11,8 @@ function LabScenarios() as object
         { id: "crash_excluded", title: "6  Crash: excluded file (next launch only)" },
         { id: "oom", title: "7  Out of memory (in a Task)" },
         { id: "crash_loop", title: "8  Crash loop ×4 (relaunch 4 times)" },
-        { id: "user_crumbs", title: "9  Set user + add breadcrumbs" }
+        { id: "user_crumbs", title: "9  Set user + add breadcrumbs" },
+        { id: "details", title: "10  Open details screen" }
     ]
 end function
 
@@ -19,6 +20,7 @@ sub init()
     m.cfg = EfExample_Config()
     m.started = false
     m.note = ""
+    m.details = invalid
     ' Set before anything that can fire an observer: on a real Roku, assigning
     ' the ComponentLibrary uri below calls onLibraryStatus synchronously.
     m.lab = CreateObject("roRegistrySection", "EverframeLab")
@@ -67,6 +69,9 @@ sub onLibraryStatus()
         cfg = { "sdkKey": m.cfg.sdkKey }
         if m.cfg.endpoint <> "" then cfg.endpoint = m.cfg.endpoint
         m.started = ef.callFunc("start", cfg)
+        ' Manual screen tracking (setScreen). DetailsScreen is tracked
+        ' automatically: instrument matches its name (*Screen).
+        if m.started then ef.callFunc("setScreen", "Lab")
         ' Scenario 8: keep crashing on launch until the counter runs out.
         left = m.lab.Read("loopLeft")
         if left <> "" and Val(left) > 0 then
@@ -107,6 +112,8 @@ sub onItemSelected()
         LabCrashNow("crash loop start")
     else if id = "user_crumbs" then
         LabSetUserAndCrumbs()
+    else if id = "details" then
+        LabOpenDetails()
     end if
     updateStatus()
 end sub
@@ -115,8 +122,33 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if press and key = "options" then
         LabCrashNow("options key")
     end if
+    if press and key = "back" and m.details <> invalid then
+        LabCloseDetails()
+        return true
+    end if
     return false
 end function
+
+' Row 10: DetailsScreen's init() sets the screen (instrumented); Back returns
+' to the list and sets "Lab" again by hand.
+sub LabOpenDetails()
+    if m.details <> invalid then return
+    m.details = m.top.createChild("DetailsScreen")
+    m.list.visible = false
+    m.details.setFocus(true)
+    m.note = "details screen open: ✱/options crashes, Back returns"
+end sub
+
+sub LabCloseDetails()
+    m.top.removeChild(m.details)
+    m.details = invalid
+    m.list.visible = true
+    m.list.setFocus(true)
+    ef = m.global.everframe
+    if ef <> invalid then ef.callFunc("setScreen", "Lab")
+    m.note = ""
+    updateStatus()
+end sub
 
 sub onStatusTick()
     updateStatus()
@@ -172,6 +204,7 @@ sub updateStatus()
     lines.Push("Queued records: " + LabStr(LabQueueCount()))
     lines.Push("SDK last handled exit: " + LabStr(LabSdkLastExit()))
     lines.Push("User: " + LabStr(LabUser()))
+    lines.Push("Screen: " + LabStr(LabScreen()))
     lines.Push("Memory: " + LabStr(LabMemory()))
     if m.note <> "" then lines.Push("")
     if m.note <> "" then lines.Push(m.note)
@@ -218,6 +251,12 @@ function LabUser() as string
     if u.email <> invalid then text = text + " " + u.email.ToStr()
     if text = "" then return "—"
     return text
+end function
+
+function LabScreen() as dynamic
+    ef = m.global.everframe
+    if ef = invalid then return invalid
+    return ef.callFunc("getScreen", invalid)
 end function
 
 ' The SDK reporter (a Task) polls the app memory monitor and persists its latest
