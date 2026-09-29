@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { isCanvasBlank } from '../blank-check.js';
+import { createCloneMaskPlugin, expandMaskTargets } from './clone-mask.js';
 
 /**
  * Primary screenshot renderer (2026-09-29 benchmark, design doc
@@ -17,10 +18,15 @@ import { isCanvasBlank } from '../blank-check.js';
  * a filtered node contributes no layout box (videos are already
  * `display: none` behind their stand-ins; SDK chrome is portaled).
  *
+ * This path never modifies the live page: sensitive elements are masked on
+ * the clone (clone-mask.ts), and the patched snapDOM restores its own
+ * measurement writes (ellipsis) before it awaits anything.
+ *
  * Nested scroll is restored by snapDOM itself, in its clone step: each
  * scrolled element's children move into one wrapper translated by the scroll
  * offset. Our pnpm patch (patches/@zumer__snapdom@3.2.0.patch) makes that
- * wrapper carry a flex/grid scroller's layout, drops snapDOM's counter-offset
+ * wrapper carry a flex/grid scroller's layout (the scroller itself becomes
+ * a clipping box at its measured size), drops snapDOM's counter-offset
  * that left absolute descendants unscrolled, exempts wrapped scrollers from
  * the shrink pass that expanded stylesheet-sized ones, and restores a
  * capture root that scrolls on its own (e.g. <body> under
@@ -44,6 +50,12 @@ export interface SnapdomRenderOptions {
    * renderViewportWithSnapdom.
    */
   busyWaitMs?: number;
+  /**
+   * Sensitive elements, resolved by calling this AFTER the admission wait,
+   * immediately before snapDOM starts cloning - so nothing can go stale
+   * while this capture waits. Masked on the clone only (clone-mask.ts).
+   */
+  maskTargets?: () => readonly Element[];
 }
 
 /**
@@ -138,8 +150,12 @@ export async function renderViewportWithSnapdom(
 
 async function runSnapdom(root: HTMLElement, opts: SnapdomRenderOptions): Promise<SnapdomRenderResult> {
   const { snapdom } = await import('@zumer/snapdom');
+  // Synchronously from here to the snapdom() call: resolved targets and the
+  // root rect describe exactly the page snapDOM starts cloning.
+  const maskTargets = expandMaskTargets(opts.maskTargets?.() ?? []);
   const rootRect = root.getBoundingClientRect();
   const capture = await snapdom(root, {
+    ...(maskTargets.length > 0 ? { plugins: [createCloneMaskPlugin(maskTargets)] } : {}),
     clip: 'viewport',
     fast: false,
     scale: 1,

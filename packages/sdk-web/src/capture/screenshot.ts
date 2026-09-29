@@ -9,6 +9,7 @@ import { installVideoStandIns, POSTER_LOAD_TIMEOUT_MS } from './video-frames.js'
 import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
 import { renderViewportWithSnapdom, SnapdomBusyError } from './renderers/snapdom-renderer.js';
 import { paintMaskRectsOnCanvas } from './mask-paint.js';
+import { expandMaskTargets } from './renderers/clone-mask.js';
 export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
 
@@ -42,12 +43,14 @@ export interface CaptureScreenshotOptions {
    */
   maskPlan?: Rect[];
   /**
-   * Live-DOM masking targets — sensitive elements that should be rendered as
-   * solid-black boxes in the captured PNG. Each element gets an inline-style
-   * mask applied just before the capture library clones the DOM, restored in a
-   * `finally` immediately after. Layout is preserved (boxes keep their size);
-   * content is invisible. Strongly preferred over `maskPlan` because the
-   * capture library handles the coordinate transform natively.
+   * Masking targets — sensitive elements that should be rendered as
+   * solid-black boxes in the captured PNG. On the snapDOM path each target's
+   * CLONE is replaced by a black box of the same geometry (clone-mask.ts) -
+   * the live page is never touched. The modern-screenshot fallback, which
+   * clones the live page itself, applies an inline-style mask to the live
+   * element right before it renders and restores it right after. Layout is
+   * preserved either way. Strongly preferred over `maskPlan` because no
+   * coordinate transform is involved.
    *
    * Pass a FUNCTION to have the targets resolved at the moment masking is
    * applied - after the capture's turn in the queue comes up. A plain array
@@ -102,6 +105,9 @@ const WEBP_QUALITY = 0.85;
  * Raised when screenshot capture blows its deadline.
  */
 class CaptureTimeoutError extends Error {}
+
+/** The snapDOM canvas cannot carry legacy `maskPlan` rects: the root moved during the render. */
+class SnapdomGeometryError extends Error {}
 
 /**
  * Reject if `work` has not settled within `ms`.
@@ -262,11 +268,11 @@ export function __filterNodeForTests(node: Node): boolean {
 
 /**
  * Captures never overlap. Each one mutates the LIVE page for its duration -
- * live-DOM masks (applyDomMask saves and restores inline styles), video
- * stand-ins, and snapDOM's own clone-time rewrites - and interleaved captures
- * corrupt each other's save/restore: B saving A's masked styles as
- * "original" leaves an element masked for good, and A restoring while B
- * clones leaks sensitive pixels into B. So each capture takes a slot in this
+ * video stand-ins, the fallback's live-DOM masks (applyDomMask saves and
+ * restores inline styles) - and interleaved captures corrupt each other's
+ * save/restore: B saving A's masked styles as "original" leaves an element
+ * masked for good, and A restoring while B clones leaks sensitive pixels
+ * into B. So each capture takes a slot in this
  * queue before it touches the page and gives it up as soon as the page is
  * restored (the `finally` below), before its placeholder/hash tail.
  *
@@ -321,10 +327,14 @@ async function captureExclusive(
   opts: CaptureScreenshotOptions,
   releasePage: () => void,
 ): Promise<ScreenshotResult> {
-  // Resolved here, inside the queue slot and before anything touches the
-  // page, so it describes the DOM this capture will actually clone.
-  const maskTargets =
+  // Mask targets are resolved at the moment each use needs them: here, for
+  // the video stand-ins (which videos must not show a frame); by the snapDOM
+  // renderer after its admission wait, right before cloning; and right
+  // before the fallback applies its live-DOM masks. A throwing resolver
+  // fails the capture rather than shipping it unmasked.
+  const resolveMaskTargets = (): Element[] =>
     typeof opts.maskTargets === 'function' ? opts.maskTargets() : (opts.maskTargets ?? []);
+  const maskTargets = resolveMaskTargets();
   const root = opts.root ?? document.body;
   const restoreObserver = opts.cspNonce ? applyNonceToFreshStyles(opts.cspNonce) : () => undefined;
   const profile = getCaptureProfile();
@@ -358,25 +368,15 @@ async function captureExclusive(
     opts.__setDegradedReason?.(reason);
   };
 
-  // Apply live-DOM masking to sensitive elements BEFORE the renderer clones
-  // the page. The capture library snapshots whatever the DOM looks like at
-  // clone time, so the masked elements end up as solid-black boxes in the
-  // PNG automatically — no post-capture coordinate transform required. The
-  // restore() runs in `finally` so a throwing capture still un-masks.
-  const restoreDomMask =
-    maskTargets.length > 0
-      ? applyDomMask(maskTargets)
-      : (): void => undefined;
-
   // Swap each <video> for a same-sized stand-in carrying its current frame,
   // because filterNode below drops every <video> from the clone and a filtered
   // node contributes NO LAYOUT BOX — measured, an in-flow 320x180 video made
   // everything beneath it render 180px too high. The stand-in holds the box
   // open and shows the frame; see video-frames.ts for the full reasoning.
   //
-  // Ordering matters twice over: AFTER applyDomMask, so a masked video is
-  // observed in its masked state; and BEFORE the capture, so the frame matches
-  // the moment the rest of the page was sampled rather than lagging it.
+  // BEFORE the capture, so the frame matches the moment the rest of the page
+  // was sampled rather than lagging it. A sensitive video's stand-in carries
+  // no frame, and both renderers mask the stand-in with its video.
   let restoreVideoStandIns: () => void = () => undefined;
   try {
     restoreVideoStandIns = await installVideoStandIns(root, {
@@ -401,8 +401,9 @@ async function captureExclusive(
   const elapsed = (): number => Date.now() - started;
   let accepted: Attempt | null = null;
   let firstBlank: Attempt | null = null;
-  // Timed out, or never started because an earlier snapDOM capture was still
-  // running: either way snapDOM did not answer within its budget.
+  // Timed out, never started because an earlier snapDOM capture was still
+  // running, or unusable for legacy masks (see below): snapDOM did not answer
+  // usably within its budget. On TV this ships the placeholder.
   let primaryTimedOut = false;
   const primaryBudgetMs = Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE);
 
@@ -420,11 +421,23 @@ async function captureExclusive(
       const { canvas, blank, rootLeft, rootTop } = await withDeadline(
         // A still-running earlier snapDOM capture is waited for within the
         // same budget; past it the renderer refuses (SnapdomBusyError).
-        renderViewportWithSnapdom(root, { pixelRatio, filter: filterNode, busyWaitMs: primaryBudgetMs }),
+        renderViewportWithSnapdom(root, {
+          pixelRatio,
+          filter: filterNode,
+          busyWaitMs: primaryBudgetMs,
+          maskTargets: resolveMaskTargets,
+        }),
         primaryBudgetMs,
         'snapdom',
       );
       if (opts.maskPlan && opts.maskPlan.length > 0) {
+        // Fail closed: if the root moved while snapDOM worked (a scroll, or
+        // a DOM change that made snapDOM re-clone at the new position), the
+        // canvas no longer matches the origin the rects are mapped with.
+        const after = root.getBoundingClientRect();
+        if (Math.abs(after.left - rootLeft) > 0.5 || Math.abs(after.top - rootTop) > 0.5) {
+          throw new SnapdomGeometryError('capture root moved during the snapDOM render');
+        }
         paintMaskRectsOnCanvas(
           canvas,
           opts.maskPlan,
@@ -440,7 +453,10 @@ async function captureExclusive(
       // Fall through to the fallback renderer (subject to the TV policy below).
       // Busy counts as a timeout, so on TV it ships the placeholder rather
       // than starting a second renderer on a CPU still busy with snapDOM.
-      primaryTimedOut = err instanceof CaptureTimeoutError || err instanceof SnapdomBusyError;
+      primaryTimedOut =
+        err instanceof CaptureTimeoutError ||
+        err instanceof SnapdomBusyError ||
+        err instanceof SnapdomGeometryError;
     }
 
     // TV profile: the fallback runs only when snapDOM threw a real error — a
@@ -452,18 +468,29 @@ async function captureExclusive(
 
     if (runFallback) {
       try {
-        // The renderer measures `blank` itself, before it paints maskPlan.
-        const { canvas, blank } = await withDeadline(
-          renderViewportWithModernScreenshot(root, {
-            pixelRatio,
-            requestedRatio,
-            filter: filterNode,
-            profile,
-            ...(opts.maskPlan ? { maskPlan: opts.maskPlan } : {}),
-          }),
-          Math.max(0, profile.deadlineMs - elapsed()),
-          'modern-screenshot',
-        );
+        // modern-screenshot clones the live page, so it gets LIVE-DOM masks:
+        // resolved fresh, applied right before it renders and restored right
+        // after (the snapDOM path never touches the page).
+        const fallbackTargets = expandMaskTargets(resolveMaskTargets());
+        const restoreDomMask = fallbackTargets.length > 0 ? applyDomMask(fallbackTargets) : (): void => undefined;
+        let rendered: { canvas: HTMLCanvasElement; blank: boolean };
+        try {
+          // The renderer measures `blank` itself, before it paints maskPlan.
+          rendered = await withDeadline(
+            renderViewportWithModernScreenshot(root, {
+              pixelRatio,
+              requestedRatio,
+              filter: filterNode,
+              profile,
+              ...(opts.maskPlan ? { maskPlan: opts.maskPlan } : {}),
+            }),
+            Math.max(0, profile.deadlineMs - elapsed()),
+            'modern-screenshot',
+          );
+        } finally {
+          restoreDomMask();
+        }
+        const { canvas, blank } = rendered;
         const attempt: Attempt = { canvas, renderer: 'modern-screenshot' };
         if (!blank) accepted = attempt;
         else firstBlank ??= attempt;
@@ -491,7 +518,6 @@ async function captureExclusive(
     blob = null;
   } finally {
     restoreObserver();
-    restoreDomMask();
     // Puts the customer's videos back on screen. Must run whatever happened
     // above — leaving a page with display:none videos and orphaned stand-in
     // divs would be a far worse bug than a failed screenshot.
@@ -514,7 +540,8 @@ async function captureExclusive(
   // deadline above: on the snapDOM path directly on the viewport-sized canvas
   // (offset by the root's viewport position), on the modern-screenshot path in
   // root-relative space before that renderer's viewport crop. The primary
-  // masking path is live-DOM masking via `maskTargets`.
+  // masking path is `maskTargets` (clone-side on snapDOM, live-DOM on the
+  // fallback).
 
   // NOTE — video frames are NOT composited on here. They ride in the DOM as
   // stand-ins (see installVideoStandIns above), so they are rendered by the

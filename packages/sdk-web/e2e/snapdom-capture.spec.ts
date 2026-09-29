@@ -297,19 +297,23 @@ test('an app update to ellipsized text during capture is kept and no text node i
     };
     const price = document.getElementById('price')!;
     const [amount, suffix] = Array.from(price.childNodes) as Text[];
-    let captureWroteLiveText = false;
-    // snapDOM rewrites the live text synchronously while cloning; the app
-    // updates the price the moment control returns to it, before capture ends.
-    const mo = new MutationObserver(() => {
+    let captureMeasuredLiveText = false;
+    let intactWhenAppRan = false;
+    // snapDOM measures the ellipsis by writing the live text synchronously
+    // and (patched) restores it before returning; the app updates the price
+    // the moment control returns to it, while the capture is still running.
+    const mo = new MutationObserver((records) => {
       mo.disconnect();
-      captureWroteLiveText = amount!.data !== '$1,234,567.00' || suffix!.data !== ' / month';
+      captureMeasuredLiveText = records.length > 0;
+      intactWhenAppRan = amount!.data === '$1,234,567.00' && suffix!.data === ' / month';
       amount!.data = '$9.99';
     });
     mo.observe(price, { characterData: true, subtree: true });
     await w.__everframe.__adapter.captureScreenshot();
     mo.disconnect();
     return {
-      captureWroteLiveText,
+      captureMeasuredLiveText,
+      intactWhenAppRan,
       renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
       amount: amount!.data,
       suffix: suffix!.data,
@@ -318,11 +322,81 @@ test('an app update to ellipsized text during capture is kept and no text node i
     };
   });
   expect(r.renderer).toBe('snapdom');
-  expect(r.captureWroteLiveText).toBe(true); // the scenario actually happened
+  expect(r.captureMeasuredLiveText).toBe(true); // the scenario actually happened
+  expect(r.intactWhenAppRan).toBe(true); // the page never sees the rewrite
   expect(r.amount).toBe('$9.99'); // the app's update survives
   expect(r.suffix).toBe(' / month'); // capture never leaves a node emptied
   expect(r.text).toBe('$9.99 / month');
   expect(r.sameNodes).toBe(true);
+});
+
+test('grid with justify-content: space-between keeps its second column at its live x', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  const probe = await scrollAndProbe(page, 'grid-sb', { top: 100 }, {
+    first: [40, 30],
+    second: [340, 30], // live second column: x 300..400
+    gap: [200, 30], // between the tracks: scroller background
+  });
+  const r = await captureAndSample(page, probe.pos);
+  expect(r.renderer).toBe('snapdom');
+  expectColoursAt(r, probe.colours);
+});
+
+test('snapDOM masks a sensitive element on the clone: black at its live rect, the live element never restyled', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  await page.evaluate(() => document.getElementById('dark')!.scrollIntoView());
+  const pos = await page.evaluate(() => {
+    const b = document.getElementById('secret')!.getBoundingClientRect();
+    const w = window as unknown as { __secretMutations: number };
+    w.__secretMutations = 0;
+    new MutationObserver((records) => {
+      w.__secretMutations += records.length;
+    }).observe(document.getElementById('secret')!, { attributes: true, childList: true, subtree: true, characterData: true });
+    return {
+      centre: [b.left + b.width / 2, b.top + b.height / 2] as [number, number],
+      left: [b.left + 6, b.top + b.height / 2] as [number, number],
+      right: [b.right - 6, b.top + b.height / 2] as [number, number],
+    };
+  });
+  const r = await captureAndSample(page, pos);
+  const mutations = await page.evaluate(() => (window as unknown as { __secretMutations: number }).__secretMutations);
+  expect(r.renderer).toBe('snapdom');
+  expect(mutations).toBe(0);
+  for (const name of ['centre', 'left', 'right']) expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
+});
+
+test('a checked appearance:none checkbox marked sensitive ships as a plain black box', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  const r = await page.evaluate(async () => {
+    const el = document.getElementById('consent-box')!;
+    el.scrollIntoView({ block: 'center' });
+    const w = window as unknown as {
+      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+    };
+    const shot = await w.__everframe.__adapter.captureScreenshot();
+    const bmp = await createImageBitmap(shot.blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    const scale = bmp.width / window.innerWidth;
+    const b = el.getBoundingClientRect();
+    // Every pixel inside the box, 5px in from its edge (the 4px rounded
+    // corners and anti-aliasing): a synthesized checkmark is thin, so spot
+    // samples could miss it.
+    const x0 = Math.ceil((b.left + 5) * scale);
+    const y0 = Math.ceil((b.top + 5) * scale);
+    const w0 = Math.floor((b.width - 10) * scale);
+    const h0 = Math.floor((b.height - 10) * scale);
+    const data = ctx.getImageData(x0, y0, w0, h0).data;
+    let brightest = 0;
+    for (let i = 0; i < data.length; i += 4) brightest = Math.max(brightest, data[i]!, data[i + 1]!, data[i + 2]!);
+    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, brightest, pixels: data.length / 4 };
+  });
+  expect(r.renderer).toBe('snapdom');
+  expect(r.pixels).toBeGreaterThan(100);
+  expect(r.brightest).toBeLessThanOrEqual(40);
 });
 
 test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {

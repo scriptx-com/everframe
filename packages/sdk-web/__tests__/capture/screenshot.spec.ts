@@ -1087,23 +1087,42 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     expect(reason).toBeUndefined();
   });
 
-  it('offsets maskPlan by the scroll read right before the snapdom render, not by a scroll during it', async () => {
+  it('fails closed when the root moves during the render: the masked snapDOM canvas is not shipped (off TV -> fallback)', async () => {
     const fills: Array<[number, number, number, number]> = [];
     const canvas = makeFillRecordingCanvas(fills);
     let bodyTop = -300; // margin-0 <body> at scrollY 300
     vi.spyOn(document.body, 'getBoundingClientRect').mockImplementation(() => ({ left: 0, top: bodyTop }) as DOMRect);
     vi.doMock('@zumer/snapdom', () => ({
       snapdom: vi.fn(async () => {
-        // The user scrolls while snapDOM (fast:false) yields mid-render.
+        // The user scrolls while snapDOM (fast:false) yields mid-render; snapDOM
+        // may have re-cloned at the new position, so the origin is unknowable.
         bodyTop = -700;
         return { toCanvas: async () => canvas };
       }),
     }));
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    await cap({
+      root: document.body,
+      pixelRatio: 1,
+      maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }],
+      __setRenderer: (x) => { renderer = x; },
+    });
+    expect(fills).toEqual([]); // no mask painted at a guessed origin
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    expect(renderer).toBe('modern-screenshot');
+  });
+
+  it('keeps the snapDOM canvas when the root did not move (no maskPlan-driven fallback)', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(fills));
+    vi.spyOn(document.body, 'getBoundingClientRect').mockReturnValue({ left: 0, top: -300 } as DOMRect);
+    const domToCanvas = mockModern(makeCanvasStub().stub);
     const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
     await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
-    // Root-relative y=320 in the viewport captured at scrollY=300 -> y=20 (minus 2px inflation);
-    // offsetting by the post-render 700 would paint at y=-382 and expose the content.
     expect(fills).toEqual([[8, 18, 54, 24]]);
+    expect(domToCanvas).not.toHaveBeenCalled();
   });
 
   it('blank-checks the fallback on the viewport region it ships, not the whole document canvas', async () => {
@@ -1196,6 +1215,22 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
       expect(reason).toBeUndefined();
     });
 
+    it('a root that moved during the render ships the placeholder with legacy masks (no fallback on TV)', async () => {
+      let bodyTop = -300;
+      vi.spyOn(document.body, 'getBoundingClientRect').mockImplementation(() => ({ left: 0, top: bodyTop }) as DOMRect);
+      vi.doMock('@zumer/snapdom', () => ({
+        snapdom: vi.fn(async () => {
+          bodyTop = -700;
+          return { toCanvas: async () => makeCanvasStub().stub };
+        }),
+      }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      const r = await cap({ root: document.body, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
+      expect(domToCanvas).not.toHaveBeenCalled();
+      expect(r.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+    });
+
     it('a capture that finds snapDOM still busy ships the placeholder without the fallback', async () => {
       vi.useFakeTimers();
       const snapdom = vi.fn(() => new Promise(() => undefined));
@@ -1235,66 +1270,69 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     });
   });
 
-  it('overlapping captures masking the same element never interleave their mask/restore', async () => {
+  type MaskPlugin = { name: string; afterClone(ctx: { clone: Element; nodeMap: Map<Node, Node> }): void };
+  /** Runs a mask plugin over a one-level clone of `host` built with a snapDOM-style nodeMap. */
+  function cloneThroughPlugin(host: Element, plugin: MaskPlugin): Element {
+    const nodeMap = new Map<Node, Node>();
+    const clone = host.cloneNode(false) as Element;
+    nodeMap.set(clone, host);
+    for (const child of Array.from(host.children)) {
+      const c = child.cloneNode(true) as Element;
+      nodeMap.set(c, child);
+      clone.appendChild(c);
+    }
+    plugin.afterClone({ clone, nodeMap });
+    return clone;
+  }
+
+  it('snapDOM captures never touch the live element: masks are applied on the clone', async () => {
     const secret = document.createElement('div');
     secret.setAttribute('style', 'color: red');
     document.body.appendChild(secret);
-    const original = secret.getAttribute('style');
-    const seenAtClone: string[] = [];
-    const releases: Array<() => void> = [];
+    const stylesAtClone: Array<string | null> = [];
+    const plugins: MaskPlugin[] = [];
     vi.doMock('@zumer/snapdom', () => ({
-      snapdom: vi.fn(() => {
-        seenAtClone.push(secret.getAttribute('style') ?? '');
-        return new Promise((resolve) =>
-          releases.push(() => resolve({ toCanvas: async () => makeCanvasStub().stub })),
-        );
+      snapdom: vi.fn(async (_r: HTMLElement, opts: { plugins?: MaskPlugin[] }) => {
+        stylesAtClone.push(secret.getAttribute('style'));
+        plugins.push(...(opts.plugins ?? []));
+        return { toCanvas: async () => makeCanvasStub().stub };
       }),
     }));
     const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
-    const a = cap({ root: document.body, maskTargets: [secret] });
-    await vi.waitFor(() => expect(releases).toHaveLength(1));
-    const b = cap({ root: document.body, maskTargets: [secret] });
-    await new Promise((r) => setTimeout(r, 20));
-    // B has not touched the page while A is cloning: masked once, by A.
-    expect(releases).toHaveLength(1);
-    expect(secret.getAttribute('style')).toBe(seenAtClone[0]);
-    releases[0]!();
-    await a;
-    await vi.waitFor(() => expect(releases).toHaveLength(2));
-    releases[1]!();
-    await b;
-    for (const style of seenAtClone) {
-      // Masked at the moment each clone ran, and exactly once (never A's mask saved as B's "original").
-      expect(style.match(/background-color: #000 !important/g)).toHaveLength(1);
-      expect(style.startsWith('color: red')).toBe(true);
-    }
-    expect(secret.getAttribute('style')).toBe(original);
+    await Promise.all([
+      cap({ root: document.body, maskTargets: [secret] }),
+      cap({ root: document.body, maskTargets: [secret] }),
+    ]);
+    expect(stylesAtClone).toEqual(['color: red', 'color: red']);
+    expect(secret.getAttribute('style')).toBe('color: red');
+    expect(plugins.map((p) => p.name)).toEqual(['everframe-clone-mask', 'everframe-clone-mask']);
+    const clone = cloneThroughPlugin(document.body, plugins[0]!);
+    expect(clone.querySelector('[style="color: red"]')).toBeNull(); // the sensitive clone was replaced
     secret.remove();
   });
 
-  it('resolves function mask targets when its queue turn comes: a replaced element is masked', async () => {
+  it('resolves function mask targets after the snapDOM admission wait: a replaced element is masked', async () => {
     const holder = document.createElement('div');
     let secret = document.createElement('div');
     secret.className = 'secret';
     holder.appendChild(secret);
     document.body.appendChild(holder);
-    const seenAtClone: Array<string | null> = [];
     const releases: Array<() => void> = [];
+    const plugins: MaskPlugin[] = [];
     vi.doMock('@zumer/snapdom', () => ({
-      snapdom: vi.fn(() => {
-        seenAtClone.push(holder.querySelector('.secret')!.getAttribute('style'));
+      snapdom: vi.fn((_r: HTMLElement, opts: { plugins?: MaskPlugin[] }) => {
+        plugins.push(...(opts.plugins ?? []));
         return new Promise((resolve) =>
           releases.push(() => resolve({ toCanvas: async () => makeCanvasStub().stub })),
         );
       }),
     }));
     const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
-    const a = cap({ root: document.body });
-    await vi.waitFor(() => expect(releases).toHaveLength(1));
     const resolver = vi.fn(() => Array.from(holder.querySelectorAll('.secret')));
+    const a = cap({ root: document.body, maskTargets: resolver });
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
     const b = cap({ root: document.body, maskTargets: resolver });
     await new Promise((r) => setTimeout(r, 20));
-    expect(resolver).not.toHaveBeenCalled(); // not while queued
     // The app replaces the sensitive element while B waits.
     const original = secret;
     secret = document.createElement('div');
@@ -1305,21 +1343,32 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     await vi.waitFor(() => expect(releases).toHaveLength(2));
     releases[1]!();
     await b;
-    expect(resolver).toHaveBeenCalledTimes(1);
-    expect(seenAtClone[1]).toContain('background-color: #000 !important'); // the replacement, masked
-    expect(original.getAttribute('style')).toBeNull(); // the detached original never touched
-    expect(secret.getAttribute('style')).toBeNull(); // and restored afterwards
+    // B's plugin masks the replacement, not the detached original.
+    const clone = cloneThroughPlugin(holder, plugins[1]!);
+    expect(clone.querySelector('.secret')).toBeNull();
+    expect(clone.firstElementChild!.getAttribute('style')).toContain('background: rgb(0, 0, 0)');
+    expect(original.getAttribute('style')).toBeNull();
+    expect(secret.getAttribute('style')).toBeNull(); // the live page is never touched
     holder.remove();
   });
 
-  it('a throwing mask resolver fails the capture instead of shipping it unmasked', async () => {
-    const snapdom = vi.fn(async () => ({ toCanvas: async () => makeCanvasStub().stub }));
-    vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+  it('the modern-screenshot fallback masks the LIVE element only while it renders', async () => {
+    const secret = document.createElement('div');
+    secret.setAttribute('style', 'color: red');
+    document.body.appendChild(secret);
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('nope'); }) }));
+    let styleWhileRendering: string | null = null;
+    vi.doMock('modern-screenshot', () => ({
+      domToCanvas: vi.fn(async () => {
+        styleWhileRendering = secret.getAttribute('style');
+        return makeCanvasStub().stub;
+      }),
+    }));
     const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
-    await expect(cap({ root: document.body, maskTargets: () => { throw new Error('registry'); } })).rejects.toThrow('registry');
-    expect(snapdom).not.toHaveBeenCalled();
-    // The queue slot was released: the next capture runs.
-    await expect(cap({ root: document.body })).resolves.toBeDefined();
+    await cap({ root: document.body, maskTargets: () => [secret] });
+    expect(styleWhileRendering).toContain('background-color: #000 !important');
+    expect(secret.getAttribute('style')).toBe('color: red');
+    secret.remove();
   });
 
   it('a capture that out-waits a stuck earlier one ships the placeholder without touching the page', async () => {

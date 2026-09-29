@@ -68,6 +68,16 @@
   <div id="below-css-rows-fixed" style="height:60px;background:rgb(0,128,255)"></div>
   <section id="carousel" class="carousel"></section>
   <section id="grid" class="grid-scroller"></section>
+  <!-- A checked checkbox styled with appearance:none, marked sensitive:
+       snapDOM synthesizes a checkmark from `checked`; it must ship as a
+       plain black box. -->
+  <section id="consent" style="background:#fff;padding:8px">
+    <input id="consent-box" type="checkbox" checked data-everframe-sensitive
+      style="appearance:none;-webkit-appearance:none;display:block;width:40px;height:40px;margin:0;background:#fff;border:2px solid #333;border-radius:4px">
+  </section>
+  <!-- Grid with fixed tracks spread by justify-content: the second column
+       sits at the far edge of the 400px scroller. -->
+  <section id="grid-sb" style="display:grid;width:400px;height:200px;overflow:auto;grid-template-columns:100px 100px;grid-auto-rows:80px;justify-content:space-between;background:#fff"></section>
   <section id="restyle" style="background:#fff;padding:8px"><div id="cx" class="cx"></div></section>
   <section id="bulk"></section>
   </main>
@@ -94,6 +104,7 @@
     fab.style.cssText = 'position:fixed;right:12px;bottom:12px;width:40px;height:40px;background:rgb(20,20,20)';
     fill('carousel', 10, '');
     fill('grid', 10, '');
+    fill('grid-sb', 10, '');
   </script>
   <!-- The eager entry reaches its two runtime dependencies by a BARE dynamic
        specifier (`modern-screenshot` for capture, `rrweb` for replay). A real
