@@ -90,3 +90,55 @@ for (const htmlBg of ['rgb(255,255,255)', null] as const) {
     expect(r.below.slice(0, 3).every((v, i) => Math.abs(v - expected[i]!) <= 30), `below ${r.below.join(',')}`).toBe(true);
   });
 }
+
+test('a pinned iframe capture never restyles the iframe root (outline) or its content-visibility elements', async ({ page }) => {
+  await page.goto('/e2e/fixtures/plain.html');
+  const r = await page.evaluate(async () => {
+    document.body.style.background = '#fff';
+    document.querySelector('main')!.remove();
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
+    frame.srcdoc =
+      '<!doctype html><html><head><style>html{border:0;outline:10px solid red;background:#fff}' +
+      'body{margin:0}#cv{content-visibility:auto;contain-intrinsic-size:auto 40px;height:40px;background:rgb(0,120,255)}' +
+      '#dot{width:300px;height:20px;background:rgb(255,0,255)}</style></head>' +
+      '<body><div id="cv">cv</div><div id="dot"></div></body></html>';
+    await new Promise((resolve) => {
+      frame.onload = resolve;
+      document.body.appendChild(frame);
+    });
+    const doc = frame.contentDocument!;
+    const liveDotTop = frame.getBoundingClientRect().top + doc.getElementById('dot')!.getBoundingClientRect().top;
+    const styleChanges: string[] = [];
+    const mo = new MutationObserver((records) => {
+      for (const rec of records) {
+        if (rec.type === 'attributes' && rec.attributeName === 'style') styleChanges.push((rec.target as Element).id || (rec.target as Element).tagName);
+        if (rec.type === 'childList' && rec.addedNodes.length) styleChanges.push('inserted');
+      }
+    });
+    mo.observe(doc.documentElement, { attributes: true, childList: true, subtree: true });
+    const w = window as unknown as {
+      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+    };
+    const shot = await w.__everframe.__adapter.captureScreenshot();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    mo.disconnect();
+    const bmp = await createImageBitmap(shot.blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    const scale = bmp.width / window.innerWidth;
+    const x = Math.round((40 + 150) * scale);
+    let dotTop = -1;
+    for (let y = 40; y < 340 && dotTop < 0; y++) {
+      const d = ctx.getImageData(x, Math.round(y * scale), 1, 1).data;
+      if (d[0]! > 200 && d[1]! < 60 && d[2]! > 200) dotTop = y;
+    }
+    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, styleChanges, liveDotTop, dotTop };
+  });
+  expect(r.renderer).toBe('snapdom');
+  expect(r.styleChanges).toEqual([]);
+  expect(Math.abs(r.dotTop - r.liveDotTop)).toBeLessThanOrEqual(2);
+});
