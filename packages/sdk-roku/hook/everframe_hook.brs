@@ -23,6 +23,39 @@ sub Everframe_OnError(e as object, entry as string, isTask as boolean)
     end try
 end sub
 
+' Call first thing in Main() (the instrumented build does). Roku returns the
+' previous launch's exit record only to the channel's own code: the same call
+' from the Everframe ComponentLibrary always gets EXIT_UNKNOWN with no
+' timestamp. The record is stored in registry "Everframe"/"pendingExit"; the
+' library's reporter takes it from there. roAppManager is not available on the
+' render thread, so this must run in Main (or a Task), never in a component.
+sub Everframe_RecordLastExit()
+    try
+        am = CreateObject("roAppManager")
+        if am <> invalid and FindMemberFunction(am, "GetLastExitInfo") <> invalid then
+            Everframe__StoreExit(am.GetLastExitInfo())
+        end if
+    catch ignored
+    end try
+end sub
+
+sub Everframe__StoreExit(info as dynamic)
+    try
+        if type(info) = "roAssociativeArray" then
+            if Everframe__IsStr(info["exit_code"]) and Everframe__IsStr(info["timestamp"]) then
+                sec = CreateObject("roRegistrySection", "Everframe")
+                sec.Write("pendingExit", FormatJson(info))
+                sec.Flush()
+            end if
+        end if
+    catch ignored
+    end try
+end sub
+
+function Everframe__IsStr(v as dynamic) as boolean
+    return v <> invalid and GetInterface(v, "ifString") <> invalid
+end function
+
 sub Everframe_Crumb(kind as string, message as string, data as dynamic)
     try
         ef = Everframe__Node()

@@ -2,8 +2,12 @@
 ' SPDX-FileCopyrightText: 2026 ScriptX
 '
 ' Path B: turn roAppManager.GetLastExitInfo() (Roku OS 13.0+) into a record.
-' GetLastExitInfo keeps returning the same exit until the next one, so the
-' handled timestamp is remembered in "lastExitTs".
+' Roku returns the record only to the channel's own code, never to this
+' ComponentLibrary, so the channel's Main() stores it in registry "Everframe"/
+' "pendingExit" (Everframe_RecordLastExit in the hook, or the README snippet)
+' and the reporter takes it with EfX_TakePending. GetLastExitInfo keeps
+' returning the same exit until the next one, so the handled timestamp is
+' remembered in "lastExitTs".
 
 function EfX_IsAbnormal(code as string) as boolean
     known = {
@@ -52,6 +56,19 @@ function EfX_ToRecord(info as object) as object
         rec.frames = parsed.frames
     end if
     return rec
+end function
+
+' Returns the record Main() stored in "pendingExit" (an AA) and deletes the
+' key, or invalid when there is none or it does not parse to an object.
+function EfX_TakePending(sec as object) as dynamic
+    if not sec.Exists("pendingExit") then return invalid
+    raw = sec.Read("pendingExit")
+    sec.Delete("pendingExit")
+    sec.Flush()
+    if raw = "" then return invalid
+    info = ParseJson(raw)
+    if type(info) <> "roAssociativeArray" then return invalid
+    return info
 end function
 
 function EfX_Process(sec as object, info as dynamic) as string

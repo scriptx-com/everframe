@@ -15,6 +15,8 @@ export interface WrapTarget {
   entry: string;
   isTask: boolean;
   crumb?: 'key' | 'init';
+  /** 'recordExit': call Everframe_RecordLastExit() before any host code (Main only). */
+  prelude?: 'recordExit';
 }
 
 export interface WrapResult {
@@ -63,6 +65,7 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
     }
 
     let open = ' : try';
+    if (target.prelude === 'recordExit') open += ' : Everframe_RecordLastExit()';
     if (target.crumb === 'key') {
       if (func.parameters.length >= 2) {
         const key = func.parameters[0]!.name.text;

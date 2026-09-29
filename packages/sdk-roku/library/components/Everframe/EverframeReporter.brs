@@ -51,10 +51,10 @@ sub EfRep_Run()
     end while
 end sub
 
+' The library cannot read GetLastExitInfo itself (Roku answers EXIT_UNKNOWN to
+' ComponentLibrary code), so the channel's Main() stores it in "pendingExit".
 sub EfRep_CheckLastExit()
-    am = CreateObject("roAppManager")
-    if FindMemberFunction(am, "GetLastExitInfo") = invalid then return
-    EfX_Process(m.sec, am.GetLastExitInfo())
+    EfX_Process(m.sec, EfX_TakePending(m.sec))
 end sub
 
 function EfRep_Post(env as object) as integer

@@ -113,4 +113,24 @@ describe('wrapFunctions', () => {
     expect(out.code.split('\n')[0]).toBe(`sub onKeyEvent(k as string) : try ${MARKER}`);
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
+
+  it('recordExit prelude: Everframe_RecordLastExit() first, on the signature line', () => {
+    const src = ['sub Main(args as dynamic)', '  print 1', 'end sub', ''].join('\n');
+    const out = wrapFunctions(src, T({ main: { entry: 'Main (source/main.brs)', isTask: false, prelude: 'recordExit' } }));
+    expect(out.code.split('\n')).toHaveLength(4);
+    expect(out.code.split('\n')[0]).toBe(`sub Main(args as dynamic) : try : Everframe_RecordLastExit() ${MARKER}`);
+    expect(Parser.parse(out.code).diagnostics).toEqual([]);
+  });
+
+  it('recordExit prelude runs before any host code in the body', async () => {
+    const src = ['sub App()', '  print "EFTEST:" + FormatJson("body")', 'end sub', ''].join('\n');
+    const code = wrapFunctions(src, T({ app: { entry: 'App', isTask: false, prelude: 'recordExit' } })).code;
+    const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
+    const app = path.join(dir, 'app.brs');
+    const stub = path.join(dir, 'stub.brs');
+    writeFileSync(app, code);
+    writeFileSync(stub, STUBS + 'sub Everframe_RecordLastExit()\n  print "EFTEST:" + FormatJson("recordLastExit")\nend sub\n');
+    const { lines } = await runBrs([], '  App()', { extraFiles: [app, stub] });
+    expect(lines).toEqual(['recordLastExit', 'body']);
+  });
 });

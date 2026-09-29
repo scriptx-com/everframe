@@ -30,6 +30,9 @@ describe('instrument', () => {
     ]);
     expect(read(path.join(out, 'components/Loader.brs'))).toContain('Everframe_OnError(everframe_e, "load (components/Loader.brs)", true)');
     expect(read(path.join(out, 'components/HomeScene.brs'))).toContain('Everframe_KeyCrumb(key, press)');
+    // Main records GetLastExitInfo (only the channel's own code can read it) before any host code.
+    expect(read(path.join(out, 'source/main.brs')).split('\n')[0]).toBe("sub Main() : try : Everframe_RecordLastExit() ' everframe:instrumented");
+    expect(read(path.join(out, 'components/HomeScene.brs'))).not.toContain('Everframe_RecordLastExit');
   });
 
   it('keeps every file line-count identical and parse-clean', () => {

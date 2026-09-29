@@ -47,7 +47,7 @@ export function discoverEntryPoints(root: string, opts: { exclude: string[]; mec
   if (on('main')) {
     for (const rel of all.filter((f) => f.startsWith('source/') && !f.startsWith('source/everframe/') && f.endsWith('.brs'))) {
       if (excluded(rel, opts.exclude)) continue;
-      for (const fn of ['main', 'runuserinterface']) add(plan, rel, fn, { entry: `Main (${rel})`, isTask: false });
+      for (const fn of ['main', 'runuserinterface']) add(plan, rel, fn, { entry: `Main (${rel})`, isTask: false, prelude: 'recordExit' });
     }
   }
 

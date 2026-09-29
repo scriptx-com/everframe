@@ -43,4 +43,35 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
     `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
     expect(lines[0]).toBe('survived');
   });
+
+  // brs-node implements roAppManager.GetLastExitInfo() but returns
+  // { exit_code: "EXIT_UNKNOWN", timestamp: invalid, ... }: no timestamp, so
+  // nothing may be written. The device path (a real record) is covered by
+  // swapping in a fake roAppManager-like object via Everframe__StoreExit.
+  it('Everframe_RecordLastExit never throws; brs-node returns no timestamp, so nothing is stored', async () => {
+    const { lines } = await runBrs(LIBS, `
+      raw = CreateObject("roAppManager").GetLastExitInfo()
+      Everframe_RecordLastExit()
+      Everframe_RecordLastExit()
+      sec = CreateObject("roRegistrySection", "Everframe")
+      print "EFTEST:" + FormatJson({ raw: raw, pending: sec.Exists("pendingExit") })
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
+    expect(lines[0].raw).toMatchObject({ exit_code: 'EXIT_UNKNOWN', timestamp: null });
+    expect(lines[0].pending).toBe(false);
+  });
+
+  it('Everframe__StoreExit writes a device-shaped record verbatim and ignores incomplete ones', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      out = []
+      for each info in [invalid, "x", {}, { exit_code: "EXIT_UNKNOWN", timestamp: invalid }, { exit_code: 3, timestamp: "t" }]
+        Everframe__StoreExit(info)
+        out.Push(sec.Exists("pendingExit"))
+      end for
+      Everframe__StoreExit({ "exit_code": "EXIT_BRIGHTSCRIPT_CRASH", "timestamp": "2026-09-29T11:58:22.036Z", "mem_limit": invalid, "console_log": "x" })
+      print "EFTEST:" + FormatJson({ skipped: out, stored: ParseJson(sec.Read("pendingExit")) })
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
+    expect(lines[0].skipped).toEqual([false, false, false, false, false]);
+    expect(lines[0].stored).toEqual({ exit_code: 'EXIT_BRIGHTSCRIPT_CRASH', timestamp: '2026-09-29T11:58:22.036Z', mem_limit: null, console_log: 'x' });
+  });
 });
