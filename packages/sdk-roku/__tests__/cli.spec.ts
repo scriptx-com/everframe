@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,5 +24,22 @@ describe('cli', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(main(['instrument', FIX, '--dry-run'])).toBe(0);
+  });
+  it('--dry-run lists tracked screens; --screens none turns them off', () => {
+    const chan = mkdtempSync(path.join(tmpdir(), 'efcli-'));
+    cpSync(FIX, chan, { recursive: true });
+    writeFileSync(path.join(chan, 'components/HomeView.xml'), '<?xml version="1.0" encoding="utf-8" ?>\n<component name="HomeView" extends="Group">\n  <script type="text/brightscript" uri="HomeView.brs" />\n</component>\n');
+    writeFileSync(path.join(chan, 'components/HomeView.brs'), 'sub init()\n  print 1\nend sub\n');
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(main(['instrument', chan, '--dry-run'])).toBe(0);
+    const printed = log.mock.calls.map((c) => String(c[0]));
+    expect(printed).toContain('screen   components/HomeView.brs  HomeView');
+    expect(printed.at(-1)).toMatch(/1 screen\(s\) tracked/);
+    log.mockClear();
+    expect(main(['instrument', chan, '--dry-run', '--screens', 'none'])).toBe(0);
+    const off = log.mock.calls.map((c) => String(c[0]));
+    expect(off.some((l) => l.startsWith('screen '))).toBe(false);
+    expect(off.at(-1)).toMatch(/0 screen\(s\) tracked/);
   });
 });

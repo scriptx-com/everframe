@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { runBrs, brsString, LIB_DIR } from './brs-harness.js';
 
-const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_exitinfo.brs'];
+const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_screen.brs', 'ef_exitinfo.brs'];
 const INFO = (code: string, ts = '2026-09-29T10:00:05Z', log = '') =>
   `{ exit_code: "${code}", timestamp: "${ts}", app_state: "foreground", media_player_state: "stopped", mem_limit: 512, console_log: ${log || '""'} }`;
 

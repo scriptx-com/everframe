@@ -8,6 +8,24 @@ import type { WrapTarget } from './wrap.js';
 export type Mechanism = 'main' | 'init' | 'key' | 'observer' | 'task' | 'callfunc';
 export const ALL_MECHANISMS: Mechanism[] = ['main', 'init', 'key', 'observer', 'task', 'callfunc'];
 
+/** Component-name globs whose init() sets the current screen (--screens). */
+export const DEFAULT_SCREENS = ['*Screen', '*View', '*Page'];
+
+/** --screens value -> patterns: comma-separated, trimmed; "none" -> []. Undefined -> defaults. */
+export function parseScreens(value: string | undefined): string[] {
+  if (value === undefined) return [...DEFAULT_SCREENS];
+  if (value.trim().toLowerCase() === 'none') return [];
+  return value.split(',').map((p) => p.trim()).filter(Boolean);
+}
+
+/** Whole-name, case-insensitive glob match: `*` any run, `?` one character. */
+export function matchesScreen(name: string, patterns: string[]): boolean {
+  return patterns.some((p) => {
+    const re = p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+    return new RegExp(`^${re}$`, 'i').test(name);
+  });
+}
+
 export interface EntryPlan {
   files: Map<string, Map<string, WrapTarget>>;
   components: Array<{ xml: string; name: string; scripts: string[] }>;
@@ -35,11 +53,25 @@ function excluded(rel: string, exclude: string[]): boolean {
 function add(plan: EntryPlan, file: string, fn: string, target: WrapTarget) {
   let m = plan.files.get(file);
   if (!m) plan.files.set(file, (m = new Map()));
-  if (!m.has(fn.toLowerCase())) m.set(fn.toLowerCase(), target);
+  const key = fn.toLowerCase();
+  const prev = m.get(key);
+  if (!prev) { m.set(key, target); return; }
+  // A script shared by several components: the first target wins, but an
+  // init whose components disagree on the screen gets no automatic screen.
+  if (prev.screen !== target.screen || prev.screenConflict) {
+    const names = new Set(prev.screenConflict ?? [prev.screenOwner ?? '']);
+    names.add(target.screenOwner ?? '');
+    names.delete('');
+    delete prev.screen;
+    prev.screenConflict = [...names].sort();
+  }
 }
 
 /** `skipDir`: absolute path excluded from discovery (the --out dir when it sits inside the channel). */
-export function discoverEntryPoints(root: string, opts: { exclude: string[]; mechanisms: Set<Mechanism>; skipDir?: string }): EntryPlan {
+export function discoverEntryPoints(
+  root: string,
+  opts: { exclude: string[]; mechanisms: Set<Mechanism>; skipDir?: string; screens?: string[] },
+): EntryPlan {
   const plan: EntryPlan = { files: new Map(), components: [] };
   const all = walk(root, root, opts.skipDir);
   const on = (m: Mechanism) => opts.mechanisms.has(m);
@@ -68,8 +100,13 @@ export function discoverEntryPoints(root: string, opts: { exclude: string[]; mec
     const iface = comp.interface ?? {};
     // Lifecycle crumbs only for the scene: every component's init would flood the ring.
     const isScene = comp.extends === 'Scene';
+    const isScreen = matchesScreen(String(comp.name), opts.screens ?? []);
     const targets: Array<[string, WrapTarget, Mechanism]> = [
-      ['init', { entry: comp.name, isTask: false, ...(isScene ? { crumb: 'init' as const } : {}) }, 'init'],
+      ['init', {
+        entry: comp.name, isTask: false, screenOwner: String(comp.name),
+        ...(isScene ? { crumb: 'init' as const } : {}),
+        ...(isScreen ? { screen: String(comp.name) } : {}),
+      }, 'init'],
       ['onKeyEvent', { entry: '', isTask: false, crumb: 'key' }, 'key'],
     ];
     for (const f of [iface.field].flat().filter(Boolean)) {

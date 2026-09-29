@@ -16,6 +16,8 @@ sub init()
     m.sec = invalid
     m["lastPersistMs"] = invalid
     m["crumbsDirty"] = false
+    ' Current screen (ef_screen.brs), sent as context.route.
+    m.screen = invalid
 end sub
 
 function start(config as object) as boolean
@@ -31,12 +33,14 @@ function start(config as object) as boolean
         ' attaches "prevCrumbs" to the previous session's exit-info record.
         sec = CreateObject("roRegistrySection", "Everframe")
         EfC_Rotate(sec)
+        EfS_Rotate(sec)
         m.sec = sec
         if m.crumbs.Count() > 0 then
             EfC_Persist(sec, m.crumbs)
             m["lastPersistMs"] = EfU_NowMs()
             m["crumbsDirty"] = false
         end if
+        if m.screen <> invalid then EfS_Persist(sec, m.screen)
         endpoint = "https://everframe.dev"
         if config.endpoint <> invalid and config.endpoint <> "" then endpoint = config.endpoint
         m.reporter = CreateObject("roSGNode", "EverframeReporter")
@@ -59,6 +63,7 @@ function captureException(e as dynamic) as boolean
         rec = EfR_FromException(e, "captureException", true)
         rec.crumbs = getCrumbs(invalid)
         if m.user <> invalid then rec.user = m.user
+        if m.screen <> invalid then rec.route = m.screen
         sec = CreateObject("roRegistrySection", "Everframe")
         mem = EfU_ReadMem(sec, rec.t)
         if mem <> invalid then rec.memory = mem
@@ -119,6 +124,30 @@ end function
 
 function getUser(unused as dynamic) as dynamic
     return m.user
+end function
+
+' Sets the current screen (context.route on every report) and leaves a
+' navigation breadcrumb. Returns true when the screen changed; blank, invalid
+' or non-scalar names and repeats of the current screen are ignored.
+function setScreen(name as dynamic) as boolean
+    try
+        s = EfS_Normalize(name)
+        if s = invalid then return false
+        if m.screen <> invalid and m.screen = s then return false
+        prev = m.screen
+        m.screen = s
+        addBreadcrumb(EfS_Crumb(prev, s))
+        ' Tiny, so written at once: a crash right after navigating still
+        ' reports the new screen on the next launch.
+        if m.sec <> invalid then EfS_Persist(m.sec, s)
+        return true
+    catch err
+        return false
+    end try
+end function
+
+function getScreen(unused as dynamic) as dynamic
+    return m.screen
 end function
 
 function kick(unused as dynamic) as boolean

@@ -3,12 +3,18 @@
 import { copyFileSync, cpSync, existsSync, lstatSync, statSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { discoverEntryPoints, ALL_MECHANISMS, type Mechanism } from './entry-points.js';
+import { discoverEntryPoints, ALL_MECHANISMS, DEFAULT_SCREENS, type Mechanism } from './entry-points.js';
 import { wrapFunctions, MARKER } from './wrap.js';
 
-export interface InstrumentOptions { root: string; out?: string; exclude?: string[]; mechanisms?: Mechanism[]; dryRun?: boolean; bundleLibrary?: boolean }
+export interface InstrumentOptions {
+  root: string; out?: string; exclude?: string[]; mechanisms?: Mechanism[]; dryRun?: boolean; bundleLibrary?: boolean;
+  /** Component-name globs whose init() sets the current screen; default DEFAULT_SCREENS, [] disables. */
+  screens?: string[];
+}
 export interface InstrumentReport {
   wrapped: Array<{ file: string; fn: string }>;
+  /** init() functions that now call Everframe_Screen, by component. */
+  screens: Array<{ component: string; file: string }>;
   skipped: Array<{ file: string; fn: string; reason: string }>;
   injected: string[];
   libraryZip?: string;
@@ -35,9 +41,10 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
   const plan = discoverEntryPoints(root, {
     exclude: opts.exclude ?? [],
     mechanisms: new Set(opts.mechanisms ?? ALL_MECHANISMS),
+    screens: opts.screens ?? DEFAULT_SCREENS,
     ...(outInside ? { skipDir: out } : {}),
   });
-  const report: InstrumentReport = { wrapped: [], skipped: [], injected: [] };
+  const report: InstrumentReport = { wrapped: [], screens: [], skipped: [], injected: [] };
   const rewritten = new Map<string, string>();
   const filesWithWraps = new Set<string>();
 
@@ -45,7 +52,11 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
     const abs = path.join(root, file);
     if (!existsSync(abs)) continue;
     const res = wrapFunctions(readFileSync(abs, 'utf8'), targets);
-    for (const fn of res.wrapped) report.wrapped.push({ file, fn });
+    for (const fn of res.wrapped) {
+      report.wrapped.push({ file, fn });
+      const screen = targets.get(fn.toLowerCase())?.screen;
+      if (screen) report.screens.push({ component: screen, file });
+    }
     for (const s of res.skipped) report.skipped.push({ file, ...s });
     if (res.wrapped.length > 0) rewritten.set(file, res.code);
     if (res.wrapped.length > 0 || res.code.includes(MARKER)) filesWithWraps.add(file);

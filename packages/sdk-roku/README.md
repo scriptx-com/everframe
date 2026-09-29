@@ -122,7 +122,7 @@ You still load the library and call `start()` as in tier 1 (`--bundle-library` c
 Each targeted function body is wrapped in `try ... catch e ... end try` **on the same source line**, so line numbers in stack traces still match your original files. The catch records the error and then re-throws the original exception, so an error that would have crashed your channel still crashes it, and an error your own code catches further up is still caught there. These entry points are wrapped:
 
 - `Main` / `RunUserInterface` in `source/` (these also call `Everframe_RecordLastExit()` first, before any of your code, so the next-launch exit check works without the tier 1 `Main()` lines)
-- `init` of every component (the component that extends `Scene` also leaves a lifecycle breadcrumb)
+- `init` of every component (the component that extends `Scene` also leaves a lifecycle breadcrumb, and components matching `--screens` also set the current screen)
 - `onKeyEvent` (also leaves a key breadcrumb)
 - `onChange` handlers declared on interface fields
 - functions declared in a component `<interface>`
@@ -133,7 +133,13 @@ Functions that cannot be wrapped safely are skipped and listed in the output.
 
 ### Automatic breadcrumbs
 
-Instrumentation records two kinds of breadcrumb on its own: key presses (from `onKeyEvent`, kind `tap`) and the scene's `init` (kind `lifecycle`). Anything else, such as navigation or network activity, comes from your own `addBreadcrumb` calls.
+Instrumentation records two kinds of breadcrumb on its own: key presses (from `onKeyEvent`, kind `tap`) and the scene's `init` (kind `lifecycle`). Screen changes from `--screens` (below) add `navigation` breadcrumbs. Anything else, such as network activity, comes from your own `addBreadcrumb` calls.
+
+### Automatic screens
+
+The `init()` of every component whose **name** matches `--screens` (default `*Screen,*View,*Page`, case-insensitive, whole name) also calls `Everframe_Screen("<ComponentName>")` on the same line, which calls [`setScreen`](#screens) with the component name. So creating a `DetailsScreen` makes `DetailsScreen` the current screen, and every report sent after that carries `context.route: "DetailsScreen"`.
+
+This tracks when a screen component is **created**, not when it is shown or hidden. If your app creates screens ahead of time, keeps them in a stack, or returns to a screen without creating it again, call `setScreen` yourself where the screen becomes visible; a manual call always overrides the automatic one. Use `--screens none` to turn automatic screens off, or pass your own patterns (for example `--screens "*Screen,Home*"`). A script shared by components with different names gets no automatic screen (the CLI lists it as skipped). `--dry-run` prints every tracked component as a `screen` line.
 
 ### Effect on debugging
 
@@ -150,13 +156,15 @@ The report sent to Everframe still carries the original error, message and backt
 everframe-roku instrument <channelDir> --out <dir> \
   [--exclude <glob>]... \
   [--mechanisms main,init,key,observer,task,callfunc] \
+  [--screens <globs>|none] \
   [--bundle-library] [--dry-run]
 ```
 
 - `--exclude <glob>`: skip files whose channel-relative path matches the glob. Repeatable, for example `--exclude "components/vendor/**"`.
 - `--mechanisms`: comma-separated subset of `main`, `init`, `key`, `observer`, `task`, `callfunc`. Default is all of them.
+- `--screens`: comma-separated globs (`*` and `?`) matched case-insensitively against component names; matching components set the current screen in `init()` (see [Automatic screens](#automatic-screens)). Default `*Screen,*View,*Page`; `none` turns it off. Needs the `init` mechanism.
 - `--bundle-library`: copy the library zip into `<out>/components/`.
-- `--dry-run`: print what would be wrapped without writing anything (`--out` is not needed).
+- `--dry-run`: print what would be wrapped and which components are tracked as screens, without writing anything (`--out` is not needed).
 
 ## Manual API
 
@@ -178,7 +186,18 @@ m.global.everframe.callFunc("addBreadcrumb", { kind: "navigation", level: "info"
 ' Attach a user (id, email, displayName); numbers and booleans are converted
 ' to strings, other non-string values are dropped. Call with invalid to clear
 m.global.everframe.callFunc("setUser", { id: "user-123", email: "viewer@example.com" })
+
+' Set the current screen (see Screens below)
+m.global.everframe.callFunc("setScreen", "Details")
 ```
+
+### Screens
+
+`setScreen(name)` records the screen the viewer is on. Every report sent after that carries it as `context.route`, and each change leaves a `navigation` breadcrumb `screen: <name>` with `data: { from, to }` (`from` is left out for the first screen). The name is trimmed and cut to 128 characters; numbers and booleans become strings; blank, `invalid` or non-scalar names and a repeat of the current screen are ignored. It returns `true` when the screen changed. `getScreen(invalid)` returns the current screen, or `invalid` before the first call.
+
+The current screen is also written to the registry (section `Everframe`, key `screen`) on every change. A crash that only the next launch can detect (the exit reason from `GetLastExitInfo`) carries the screen from the session that exited, and a crash caught in-process carries the screen current at the time. Calls made before `start()` are kept in memory and written when `start()` runs.
+
+With tier 2 you usually do not need to call it: see [Automatic screens](#automatic-screens).
 
 ## Breadcrumbs across crashes and memory pressure
 
@@ -186,7 +205,7 @@ Both tiers keep the latest 20 breadcrumbs in the registry (section `Everframe`, 
 
 Where `roAppMemoryMonitor` is available, the SDK's reporter Task checks memory use every 5 seconds. It leaves a `custom` breadcrumb at level `warn` the first time use crosses 75, 90 and 95 % of the channel's limit (for example `memory 90% of 286 MB`), and one for the OS memory warning event. Every report carries the latest reading in `details.metadata.memory` as `{ percent, limitMb }`; a crash found on the next launch carries the last reading taken before it.
 
-The registry holds up to 6 queued reports of 2000 characters each plus the breadcrumbs, about 14 KB of Roku's 16 KB per channel. Leave room for your own registry data accordingly.
+The registry holds up to 6 queued reports of 2000 characters each plus the breadcrumbs and the current screen (at most 128 characters), about 14 KB of Roku's 16 KB per channel. Leave room for your own registry data accordingly.
 
 ## Endpoint
 

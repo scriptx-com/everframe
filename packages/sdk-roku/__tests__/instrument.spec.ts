@@ -175,4 +175,43 @@ describe('instrument', () => {
     expect(lstatSync(path.join(out, 'components/Linked.brs')).isSymbolicLink()).toBe(false);
     expect(read(path.join(out, 'components/Linked.brs'))).toContain('Everframe_OnError');
   });
+  describe('screens', () => {
+    const withScreens = () => {
+      const chan = path.join(tmp(), 'chan');
+      cpSync(FIX, chan, { recursive: true });
+      writeFileSync(
+        path.join(chan, 'components/DetailsScreen.xml'),
+        '<?xml version="1.0" encoding="utf-8" ?>\n<component name="DetailsScreen" extends="Group">\n  <script type="text/brightscript" uri="DetailsScreen.brs" />\n</component>\n',
+      );
+      writeFileSync(path.join(chan, 'components/DetailsScreen.brs'), "' details\nsub init()\n  m.top.visible = true\nend sub\n");
+      return chan;
+    };
+
+    it('by default tracks components named *Screen/*View/*Page on the init signature line', () => {
+      const chan = withScreens();
+      const out = tmp();
+      const r = instrument({ root: chan, out });
+      expect(r.screens).toEqual([{ component: 'DetailsScreen', file: 'components/DetailsScreen.brs' }]);
+      const before = read(path.join(chan, 'components/DetailsScreen.brs'));
+      const after = read(path.join(out, 'components/DetailsScreen.brs'));
+      expect(after.split('\n')).toHaveLength(before.split('\n').length);
+      expect(after.split('\n')[1]).toBe(`sub init() : try : Everframe_Screen("DetailsScreen") ' everframe:instrumented`);
+      expect(Parser.parse(after).diagnostics).toEqual([]);
+      // HomeScene is a Scene: lifecycle crumb, no screen (not matched by the defaults).
+      expect(read(path.join(out, 'components/HomeScene.brs'))).not.toContain('Everframe_Screen');
+      expect(read(path.join(out, 'components/DetailsScreen.xml'))).toContain('pkg:/components/everframe_hook/everframe_hook.brs');
+    });
+
+    it('screens: [] disables it; custom patterns are case-insensitive', () => {
+      const chan = withScreens();
+      const none = instrument({ root: chan, dryRun: true, screens: [] });
+      expect(none.screens).toEqual([]);
+      expect(none.wrapped.some((w) => w.file === 'components/DetailsScreen.brs')).toBe(true);
+      const custom = instrument({ root: chan, dryRun: true, screens: ['homescene', 'DETAILS*'] });
+      expect(custom.screens.map((s) => s.component).sort()).toEqual(['DetailsScreen', 'HomeScene']);
+      const out = tmp();
+      instrument({ root: chan, out, screens: ['homescene'] });
+      expect(read(path.join(out, 'components/HomeScene.brs'))).toContain('Everframe_Crumb("lifecycle", "init HomeScene", invalid) : Everframe_Screen("HomeScene")');
+    });
+  });
 });

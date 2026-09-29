@@ -4,9 +4,9 @@
 // CLI logic, separate from the bin entry so tests can call main() directly.
 import { parseArgs } from 'node:util';
 import { instrument, type InstrumentReport } from './instrument.js';
-import { ALL_MECHANISMS, type Mechanism } from './entry-points.js';
+import { ALL_MECHANISMS, parseScreens, type Mechanism } from './entry-points.js';
 
-const USAGE = `Usage: everframe-roku instrument <channelDir> --out <dir> [--exclude <glob>]... [--mechanisms main,init,key,observer,task,callfunc] [--bundle-library] [--dry-run]`;
+const USAGE = `Usage: everframe-roku instrument <channelDir> --out <dir> [--exclude <glob>]... [--mechanisms main,init,key,observer,task,callfunc] [--screens <globs>|none] [--bundle-library] [--dry-run]`;
 
 export function main(argv: string[]): number {
   const { positionals, values } = parseArgs({
@@ -16,6 +16,7 @@ export function main(argv: string[]): number {
       out: { type: 'string' },
       exclude: { type: 'string', multiple: true },
       mechanisms: { type: 'string' },
+      screens: { type: 'string' },
       'bundle-library': { type: 'boolean' },
       'dry-run': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
@@ -35,6 +36,7 @@ export function main(argv: string[]): number {
       ...(values.out ? { out: values.out } : {}),
       exclude: values.exclude ?? [],
       ...(mechanisms ? { mechanisms } : {}),
+      screens: parseScreens(values.screens),
       dryRun: values['dry-run'] ?? false,
       bundleLibrary: values['bundle-library'] ?? false,
     });
@@ -43,9 +45,10 @@ export function main(argv: string[]): number {
     return 1;
   }
   for (const w of report.wrapped) console.log(`wrapped  ${w.file}  ${w.fn}`);
+  for (const s of report.screens) console.log(`screen   ${s.file}  ${s.component}`);
   if (report.libraryZip) console.log(`library  ${report.libraryZip}`);
   for (const s of report.skipped) console.warn(`skipped  ${s.file}  ${s.fn}: ${s.reason}`);
-  console.log(`${report.wrapped.length} function(s) wrapped, ${report.injected.length} component(s) hooked${values['dry-run'] ? ' (dry run)' : ''}`);
+  console.log(`${report.wrapped.length} function(s) wrapped, ${report.injected.length} component(s) hooked, ${report.screens.length} screen(s) tracked${values['dry-run'] ? ' (dry run)' : ''}`);
   return 0;
 }
 

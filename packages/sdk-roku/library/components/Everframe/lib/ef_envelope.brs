@@ -53,6 +53,26 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
     app = { name: ctx.app.name, version: appVersion }
     if ctx.app.build <> invalid then app.build = ctx.app.build
 
+    context = {
+        app: app,
+        device: {
+            os: "Roku OS",
+            "osVersion": ctx.device.osVersion,
+            model: ctx.device.model,
+            "screenSize": { width: ctx.device.width, height: ctx.device.height },
+            "pixelRatio": 1,
+            locale: ctx.device.locale,
+            timezone: ctx.device.timezone
+        }
+    }
+    ' The screen the app was on (setScreen / instrumented init of a screen).
+    route = rec.route
+    if route <> invalid then
+        if GetInterface(route, "ifString") <> invalid then
+            if route <> "" then context["route"] = EfU_Truncate(route, 128)
+        end if
+    end if
+
     return {
         "protocolVersion": "1.0",
         "reportId": rec.id,
@@ -63,18 +83,7 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
         captures: { screenshot: false, "uiTree": false, focus: false, logs: false, network: false, breadcrumbs: crumbs.Count() > 0 },
         "captureControl": { included: ["breadcrumbs"], excluded: ["screenshot", "uiTree", "focus", "logs", "network"], "degradedReason": "crash-capture" },
         payload: { crash: crash, breadcrumbs: crumbs },
-        context: {
-            app: app,
-            device: {
-                os: "Roku OS",
-                "osVersion": ctx.device.osVersion,
-                model: ctx.device.model,
-                "screenSize": { width: ctx.device.width, height: ctx.device.height },
-                "pixelRatio": 1,
-                locale: ctx.device.locale,
-                timezone: ctx.device.timezone
-            }
-        },
+        context: context,
         attachments: []
     }
 end function

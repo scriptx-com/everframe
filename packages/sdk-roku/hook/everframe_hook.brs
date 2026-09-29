@@ -19,6 +19,8 @@ sub Everframe_OnError(e as object, entry as string, isTask as boolean)
             rec.crumbs = ef.callFunc("getCrumbs", invalid)
             user = ef.callFunc("getUser", invalid)
             if user <> invalid then rec.user = user
+            route = ef.callFunc("getScreen", invalid)
+            if route <> invalid then rec.route = route
         end if
         EfQ_Put(sec, rec)
         if ef <> invalid then ef.callFunc("kick", invalid)
@@ -73,6 +75,17 @@ sub Everframe_KeyCrumb(key as dynamic, press as dynamic)
         if type(press) = "roBoolean" or type(press) = "Boolean" then
             if press then Everframe_Crumb("tap", "key " + key.ToStr(), invalid)
         end if
+    catch ignored
+    end try
+end sub
+
+' Called on the init() signature line of components matched by
+' `everframe-roku instrument --screens` (default *Screen, *View, *Page). Sets
+' the current screen on the Everframe node; a no-op before start().
+sub Everframe_Screen(name as dynamic)
+    try
+        ef = Everframe__Node()
+        if ef <> invalid then ef.callFunc("setScreen", name)
     catch ignored
     end try
 end sub

@@ -87,6 +87,7 @@ end function
 
 function EfX_Process(sec as object, info as dynamic) as string
     prevCrumbs = EfX_TakePrevCrumbs(sec)
+    prevScreen = EfS_TakePrev(sec)
     if type(info) <> "roAssociativeArray" then return "none"
     if info.exit_code = invalid or info.timestamp = invalid then return "none"
     if EfU_ReadOrInvalid(sec, "lastExitTs") = info.timestamp then return "none"
@@ -99,12 +100,13 @@ function EfX_Process(sec as object, info as dynamic) as string
         if lastCrash <> invalid then lastCrashMs = ParseJson(lastCrash)
         if lastCrashMs <> invalid and Abs(exitMs - lastCrashMs) <= 30000 then
             ' Path A saw this crash: enrich its record (if still queued), never
-            ' duplicate. Its own live crumbs and memory reading are kept.
+            ' duplicate. Its own live crumbs, screen and memory reading are kept.
             EfQ_AttachExit(sec, lastCrashMs, EfX_Meta(info))
             result = "merged"
         else
             rec = EfX_ToRecord(info)
             rec.crumbs = prevCrumbs
+            if prevScreen <> invalid then rec.route = prevScreen
             ' The reporter's last reading from the session that exited; it is
             ' read here, before this session's reporter overwrites "mem".
             mem = EfU_ReadMem(sec, exitMs)
