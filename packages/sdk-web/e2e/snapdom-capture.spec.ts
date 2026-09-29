@@ -34,11 +34,17 @@ async function captureAndSample(page: Page, points: Record<string, [number, numb
 
 const near = (a: number[], b: number[], tol = 40): boolean => a.slice(0, 3).every((v, i) => Math.abs(v - b[i]!) <= tol);
 
-test('sparse page: captured by snapdom, not flagged blank', async ({ page }) => {
-  await page.goto('/e2e/fixtures/capture-cases.html');
+test('sparse page: a single short line on a white page is captured by snapdom, not flagged blank', async ({ page }) => {
+  await page.goto('/e2e/fixtures/sparse.html');
   const r = await captureAndSample(page, {});
   expect(r.renderer).toBe('snapdom');
   expect(r.reason).toBeUndefined();
+});
+
+test('sparse page with the line removed is flagged screenshot_blank', async ({ page }) => {
+  await page.goto('/e2e/fixtures/sparse.html?empty=1');
+  const r = await captureAndSample(page, {});
+  expect(r.reason).toBe('screenshot_blank');
 });
 
 test('scrolled page shows the scrolled content, masks the sensitive box, keeps video layout', async ({ page }) => {
@@ -93,6 +99,32 @@ test('scroller child with a class-applied transform keeps it and the scroll offs
   expect(r.renderer).toBe('snapdom');
   expect(near(r.samples.marker!, [0, 0, 255])).toBe(true);
   expect(near(r.samples.unshifted!, [255, 255, 255])).toBe(true);
+});
+
+test('scroller with plain in-flow rows shows each row at its live position (one restoration, not two)', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  await page.evaluate(() => {
+    const el = document.getElementById('rows')!;
+    el.scrollIntoView();
+    el.scrollTop = 600; // row 10 at the top of the scroller
+  });
+  const probe = await page.evaluate(() => {
+    const at = (id: string): [number, number] => {
+      const b = document.getElementById(id)!.getBoundingClientRect();
+      return [b.left + 20, b.top + b.height / 2];
+    };
+    const colour = (id: string): number[] =>
+      (getComputedStyle(document.getElementById(id)!).backgroundColor.match(/\d+/g) ?? []).map(Number);
+    return {
+      pos: { row10: at('row-10'), row12: at('row-12'), row14: at('row-14') },
+      colours: { row10: colour('row-10'), row12: colour('row-12'), row14: colour('row-14') },
+    };
+  });
+  const r = await captureAndSample(page, probe.pos);
+  expect(r.renderer).toBe('snapdom');
+  expect(near(r.samples.row10!, probe.colours.row10, 30)).toBe(true);
+  expect(near(r.samples.row12!, probe.colours.row12, 30)).toBe(true);
+  expect(near(r.samples.row14!, probe.colours.row14, 30)).toBe(true);
 });
 
 test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {

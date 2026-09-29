@@ -30,13 +30,16 @@
     </div>
   </section>
   <style>.shifted { transform: translateX(40px); }</style>
+  <!-- The class transform sits on the scroller's DIRECT child: that is the
+       element scroll restoration touches, so this is where a lost or doubled
+       transform would show. -->
   <section id="classy" style="height:300px;overflow:auto;background:#fff">
-    <div style="height:1200px;position:relative">
-      <div class="shifted" style="position:absolute;top:900px;left:0;width:300px;height:60px">
-        <div id="classy-marker" style="width:100px;height:60px;background:rgb(0,0,255)"></div>
-      </div>
+    <div class="shifted" style="height:1200px;position:relative">
+      <div id="classy-marker" style="position:absolute;top:900px;left:0;width:100px;height:60px;background:rgb(0,0,255)"></div>
     </div>
   </section>
+  <!-- Plain in-flow rows (no positioning): 20 x 60px, pairwise-distinct colours. -->
+  <section id="rows" style="height:300px;overflow:auto;background:#fff"></section>
   <section id="restyle" style="background:#fff;padding:8px"><div id="cx" class="cx"></div></section>
   <section id="bulk"></section>
   </main>
@@ -45,6 +48,12 @@
     const n = +(new URLSearchParams(location.search).get('bulk') || 0);
     const bulk = document.getElementById('bulk');
     for (let i = 0; i < n; i++) bulk.appendChild(document.createElement('span')).textContent = i + ' ';
+    const rows = document.getElementById('rows');
+    for (let i = 0; i < 20; i++) {
+      const row = rows.appendChild(document.createElement('div'));
+      row.id = 'row-' + i;
+      row.style.cssText = `height:60px;background:rgb(${(i % 4) * 80},${Math.floor(i / 4) * 60},${i % 2 ? 255 : 0})`;
+    }
   </script>
   <!-- The eager entry reaches its two runtime dependencies by a BARE dynamic
        specifier (`modern-screenshot` for capture, `rrweb` for replay). A real
