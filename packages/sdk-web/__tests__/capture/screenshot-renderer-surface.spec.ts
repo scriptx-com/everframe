@@ -91,10 +91,12 @@ describe('adapter.__lastScreenshotRenderer', () => {
 
   it('hands captureScreenshot a mask-target RESOLVER, so targets are read when the capture runs', async () => {
     let passed: unknown;
+    let predicate: unknown;
     vi.doMock('../../src/capture/screenshot.js', async (orig) => ({
       ...(await orig<typeof import('../../src/capture/screenshot.js')>()),
-      captureScreenshot: vi.fn(async (o: { maskTargets?: unknown }) => {
+      captureScreenshot: vi.fn(async (o: { maskTargets?: unknown; isSensitive?: unknown }) => {
         passed = o.maskTargets;
+        predicate = o.isSensitive;
         return { blob: new Blob(['x']), width: 1, height: 1, sha256: '0'.repeat(64) };
       }),
     }));
@@ -105,5 +107,10 @@ describe('adapter.__lastScreenshotRenderer', () => {
     await adapter.captureScreenshot();
     expect(typeof passed).toBe('function');
     expect(Array.isArray((passed as () => unknown)())).toBe(true);
+    // ...and the registry's live predicate, judged per cloned node at mask time.
+    const marked = document.createElement('div');
+    marked.setAttribute('data-everframe-sensitive', '');
+    expect((predicate as (el: Element) => boolean)(marked)).toBe(true);
+    expect((predicate as (el: Element) => boolean)(document.createElement('div'))).toBe(false);
   });
 });

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it } from 'vitest';
+import { SENSITIVE_ATTR } from '../../src/sensitive/registry.js';
 import { createCloneMaskPlugin, expandMaskTargets } from '../../src/capture/renderers/clone-mask.js';
 import { STAND_IN_ATTR } from '../../src/capture/video-frames.js';
 
@@ -17,6 +18,12 @@ function cloneWithMap(src: Element): { clone: Element; nodeMap: Map<Node, Node> 
   return { clone: walk(src), nodeMap };
 }
 
+/** Predicate for a fixed list of targets. */
+const listed = (...els: Element[]): ((el: Element) => boolean) => {
+  const set = new Set(els);
+  return (el) => set.has(el);
+};
+
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -31,7 +38,7 @@ describe('createCloneMaskPlugin', () => {
     const main = document.querySelector('main')!;
     const secret = document.getElementById('secret')!;
     const ctx = cloneWithMap(main);
-    const plugin = createCloneMaskPlugin([secret]);
+    const plugin = createCloneMaskPlugin(listed(secret));
     plugin.afterClone(ctx);
 
     expect(ctx.clone.querySelector('#keep')!.textContent).toBe('public');
@@ -50,7 +57,7 @@ describe('createCloneMaskPlugin', () => {
     document.body.innerHTML = '<main><section id="outer"><span id="inner">x</span></section></main>';
     const main = document.querySelector('main')!;
     const ctx = cloneWithMap(main);
-    createCloneMaskPlugin([document.getElementById('outer')!, document.getElementById('inner')!]).afterClone(ctx);
+    createCloneMaskPlugin(listed(document.getElementById('outer')!, document.getElementById('inner')!)).afterClone(ctx);
     expect(ctx.clone.children).toHaveLength(1);
     expect(ctx.clone.firstElementChild!.childNodes).toHaveLength(0);
   });
@@ -58,7 +65,7 @@ describe('createCloneMaskPlugin', () => {
   it('removes the clone of a target that renders no box', () => {
     document.body.innerHTML = '<main><div id="hidden" style="display:none">secret</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
-    createCloneMaskPlugin([document.getElementById('hidden')!]).afterClone(ctx);
+    createCloneMaskPlugin(listed(document.getElementById('hidden')!)).afterClone(ctx);
     expect(ctx.clone.childElementCount).toBe(0);
   });
 
@@ -69,7 +76,7 @@ describe('createCloneMaskPlugin', () => {
     fabClone.style.position = 'absolute'; // what snapDOM's freezeViewportPositioned does
     fabClone.style.left = '700px';
     fabClone.style.top = '500px';
-    createCloneMaskPlugin([document.getElementById('fab')!]).afterClone(ctx);
+    createCloneMaskPlugin(listed(document.getElementById('fab')!)).afterClone(ctx);
     const box = ctx.clone.firstElementChild as HTMLElement;
     expect(box.style.position).toBe('absolute');
     expect(box.style.left).toBe('700px');
@@ -80,7 +87,7 @@ describe('createCloneMaskPlugin', () => {
     document.body.innerHTML = '<main id="root"><p>secret</p></main>';
     const main = document.querySelector('main')!;
     const ctx = cloneWithMap(main);
-    createCloneMaskPlugin([main]).afterClone(ctx);
+    createCloneMaskPlugin(listed(main)).afterClone(ctx);
     expect(ctx.clone.childNodes).toHaveLength(0);
     expect((ctx.clone as HTMLElement).style.background).toContain('rgb(0, 0, 0)');
   });
@@ -88,7 +95,7 @@ describe('createCloneMaskPlugin', () => {
   it('beforeRender strips anything a later snapDOM pass added to a box', () => {
     document.body.innerHTML = '<main><div id="secret">s</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
-    const plugin = createCloneMaskPlugin([document.getElementById('secret')!]);
+    const plugin = createCloneMaskPlugin(listed(document.getElementById('secret')!));
     plugin.afterClone(ctx);
     const box = ctx.clone.firstElementChild as HTMLElement;
     const pristine = box.getAttribute('style');
@@ -101,11 +108,124 @@ describe('createCloneMaskPlugin', () => {
     expect(box.getAttribute('style')).toBe(pristine);
   });
 
+  it('masks a lifted (fixed) clone whose SOURCE ancestor is sensitive, wherever snapDOM moved it', () => {
+    document.body.innerHTML =
+      '<main><section id="vault"><p>vault</p><div id="fab" style="position:fixed;left:0;bottom:0">ACCT 1234</div></section></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    // What snapDOM's freezeViewportPositioned does before afterClone: lift the
+    // fixed clone out of its section onto the capture root.
+    const fabClone = ctx.clone.querySelector('#fab') as HTMLElement;
+    fabClone.style.position = 'absolute';
+    fabClone.style.left = '20px';
+    fabClone.style.top = '600px';
+    ctx.clone.appendChild(fabClone);
+    createCloneMaskPlugin(listed(document.getElementById('vault')!)).afterClone(ctx);
+    expect(ctx.clone.textContent).not.toContain('ACCT');
+    expect(ctx.clone.children).toHaveLength(2); // the section box + the lifted FAB box
+    const fabBox = ctx.clone.lastElementChild as HTMLElement;
+    expect(fabBox.style.left).toBe('20px');
+    expect(fabBox.style.top).toBe('600px');
+  });
+
+  it('judges sensitivity at mask time: nothing listed up front, source marked by then -> masked', () => {
+    document.body.innerHTML = '<main><div id="late">secret</div></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    const plugin = createCloneMaskPlugin((el) => el.hasAttribute(SENSITIVE_ATTR));
+    // The app marks (or replaces in) the element after the capture started.
+    document.getElementById('late')!.setAttribute(SENSITIVE_ATTR, '');
+    plugin.afterClone(ctx);
+    expect(ctx.clone.textContent).not.toContain('secret');
+  });
+
+  it('crosses shadow roots: a node inside a sensitive host\'s shadow tree is masked', () => {
+    document.body.innerHTML = '<main><div id="host"></div></main>';
+    const host = document.getElementById('host')!;
+    const shadow = host.attachShadow({ mode: 'open' });
+    const inner = document.createElement('span');
+    inner.textContent = 'shadow secret';
+    shadow.appendChild(inner);
+    // A snapDOM-style clone that flattened the shadow content, with the inner
+    // clone lifted to the root so only source ancestry links it to the host.
+    const main = document.querySelector('main')!;
+    const clone = main.cloneNode(false) as Element;
+    const innerClone = inner.cloneNode(true) as Element;
+    clone.appendChild(innerClone);
+    const nodeMap = new Map<Node, Node>([[clone, main], [innerClone, inner]]);
+    createCloneMaskPlugin(listed(host)).afterClone({ clone, nodeMap });
+    expect(clone.textContent).not.toContain('shadow secret');
+  });
+
+  it('beforeRender masks what became sensitive after afterClone', () => {
+    document.body.innerHTML = '<main><div id="a">alpha</div></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    const plugin = createCloneMaskPlugin((el) => el.hasAttribute(SENSITIVE_ATTR));
+    plugin.afterClone(ctx);
+    expect(ctx.clone.textContent).toContain('alpha');
+    document.getElementById('a')!.setAttribute(SENSITIVE_ATTR, '');
+    plugin.beforeRender(ctx);
+    expect(ctx.clone.textContent).not.toContain('alpha');
+  });
+
+  it('a lifted element keeps snapDOM\'s frozen transform instead of re-applying the live one', () => {
+    document.body.innerHTML =
+      '<main><div id="modal" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:200px;height:80px">m</div></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    const modalClone = ctx.clone.firstElementChild as HTMLElement;
+    // snapDOM baked the translation into left/top and cleared the transform.
+    modalClone.style.position = 'absolute';
+    modalClone.style.left = '300px';
+    modalClone.style.top = '260px';
+    modalClone.style.transform = 'none';
+    modalClone.style.width = '202px';
+    modalClone.style.height = '80px';
+    createCloneMaskPlugin(listed(document.getElementById('modal')!)).afterClone(ctx);
+    const box = ctx.clone.firstElementChild as HTMLElement;
+    expect(box.style.left).toBe('300px');
+    expect(box.style.top).toBe('260px');
+    expect(box.style.transform).toBe('none');
+    expect(box.style.width).toBe('202px');
+  });
+
+  it('a sensitive display:contents wrapper masks its children individually (no layout collapse)', () => {
+    document.body.innerHTML = '<main><div id="w" style="display:contents"><p id="c1">one</p><p id="c2">two</p></div></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    createCloneMaskPlugin(listed(document.getElementById('w')!)).afterClone(ctx);
+    const wrapper = ctx.clone.firstElementChild!;
+    expect(wrapper.children).toHaveLength(2);
+    expect(ctx.clone.textContent).not.toMatch(/one|two/);
+  });
+
+  it('a source the app detached after it was copied keeps the clone\'s snapshotted geometry, blacked out', () => {
+    document.body.innerHTML = '<main><div id="gone" class="snap-a">secret</div></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    const goneClone = ctx.clone.firstElementChild as HTMLElement;
+    goneClone.setAttribute('style', 'width: 200px; height: 40px');
+    const gone = document.getElementById('gone')!;
+    gone.remove(); // replaced by the app while snapDOM's clone yielded
+    createCloneMaskPlugin(listed(gone)).afterClone(ctx);
+    const box = ctx.clone.firstElementChild as HTMLElement;
+    expect(box.textContent).toBe('');
+    expect(box.getAttribute('class')).toBe('snap-a');
+    expect(box.style.width).toBe('200px');
+    expect(box.style.height).toBe('40px');
+    expect(box.getAttribute('style')).toContain('background: rgb(0, 0, 0)');
+  });
+
+  it('a throwing predicate masks (never unmasks on error)', () => {
+    document.body.innerHTML = '<main><div id="x">secret</div></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    createCloneMaskPlugin((el) => {
+      if (el.id === 'x') throw new Error('registry');
+      return false;
+    }).afterClone(ctx);
+    expect(ctx.clone.textContent).not.toContain('secret');
+  });
+
   it('is inert without targets or without a nodeMap', () => {
     document.body.innerHTML = '<main><div id="secret">s</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
-    createCloneMaskPlugin([]).afterClone(ctx);
-    createCloneMaskPlugin([document.getElementById('secret')!]).afterClone({ clone: ctx.clone });
+    createCloneMaskPlugin(() => false).afterClone(ctx);
+    createCloneMaskPlugin(listed(document.getElementById('secret')!)).afterClone({ clone: ctx.clone });
     expect(ctx.clone.querySelector('#secret')).not.toBeNull();
   });
 });
@@ -118,5 +238,23 @@ describe('expandMaskTargets', () => {
     const p = document.querySelector('p')!;
     expect(expandMaskTargets([video, p])).toEqual([video, p, standIn]);
     expect(expandMaskTargets([p])).toEqual([p]);
+  });
+});
+
+describe('sensitiveRegistry.isSensitive', () => {
+  it('matches the snapshotElements rules: refs, the attribute, password inputs', async () => {
+    const { sensitiveRegistry } = await import('../../src/sensitive/registry.js');
+    document.body.innerHTML = `<div id="attr" ${SENSITIVE_ATTR}></div><input id="pw" type="password"><input id="txt"><p id="ref"></p>`;
+    const ref = document.getElementById('ref')!;
+    sensitiveRegistry.addRef(ref);
+    try {
+      expect(sensitiveRegistry.isSensitive(document.getElementById('attr')!)).toBe(true);
+      expect(sensitiveRegistry.isSensitive(document.getElementById('pw')!)).toBe(true);
+      expect(sensitiveRegistry.isSensitive(ref)).toBe(true);
+      expect(sensitiveRegistry.isSensitive(document.getElementById('txt')!)).toBe(false);
+    } finally {
+      sensitiveRegistry.removeRef(ref);
+    }
+    expect(sensitiveRegistry.isSensitive(ref)).toBe(false);
   });
 });

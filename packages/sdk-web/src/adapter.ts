@@ -1741,6 +1741,8 @@ export function createWebPlatformAdapter(
         // capture queue comes up, so an element the app replaced while the
         // capture waited is the one that gets masked.
         maskTargets: () => sensitiveRegistry.snapshotElements(),
+        // ...and judged again, per cloned node, when the snapDOM clone is masked.
+        isSensitive: (el: Element) => sensitiveRegistry.isSensitive(el),
         __setDegradedReason: (r: DegradedReason) => {
           lastDegradedReason = r;
         },

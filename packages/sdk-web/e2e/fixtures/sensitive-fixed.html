@@ -1,0 +1,46 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe sensitive fixed-element e2e fixture</title>
+<style>
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; }
+  /* An explicit backdrop (no margin collapsing through the capture root) so
+     "untouched" samples read a real element. Its height is INLINE: snapDOM's
+     shrink pass otherwise collapses a box whose fixed children it lifted. */
+  #page { box-sizing: border-box; padding: 24px; background: rgb(0, 120, 255); }
+  #vault { background: #fff; color: #000; padding: 12px; width: 300px; }
+  /* A fixed child of a sensitive section: snapDOM lifts its clone out of the
+     section onto the capture root. */
+  #vault-fab { position: fixed; left: 20px; bottom: 20px; width: 180px; height: 40px; background: rgb(255, 255, 0); color: #000; }
+  /* A sensitive modal centred with a transform: snapDOM bakes the translation
+     into its frozen left/top. */
+  #modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 200px; height: 80px; background: rgb(255, 0, 255); color: #000; }
+</style>
+</head>
+<body>
+  <div id="page" style="height:800px">
+    <section id="vault" data-everframe-sensitive>
+      <p style="margin:0">Account 1234 5678</p>
+      <div id="vault-fab">ACCT 1234 5678</div>
+    </section>
+    <div id="modal" data-everframe-sensitive>Card 4111 1111 1111 1111</div>
+  </div>
+  <!-- Same import map as capture-cases.html (stands in for the consumer's bundler). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

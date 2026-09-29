@@ -91,3 +91,38 @@ test('an element the app replaces while a capture waits behind a stalled one is 
   expect(['snapdom', 'modern-screenshot']).toContain(r.renderer);
   for (const s of r.samples) expect(s.slice(0, 3).every((v) => v <= 40), JSON.stringify(s)).toBe(true);
 });
+
+test('an element the app replaces DURING a stalled snapDOM clone is masked in that same capture', async ({ page }) => {
+  test.setTimeout(60_000);
+  const release = await openStalled(page);
+  const r = await page.evaluate(async () => {
+    const w = window as unknown as { __everframe: { __adapter: Adapter } };
+    const a = w.__everframe.__adapter;
+    const capture = a.captureScreenshot(); // its clone stalls on the iframe, before the holder
+    await new Promise((res) => setTimeout(res, 300));
+    const holder = document.getElementById('holder')!;
+    const replacement = document.createElement('div');
+    replacement.className = 'secret';
+    replacement.setAttribute('data-everframe-sensitive', '');
+    replacement.textContent = '5500 0000 0000 0004';
+    holder.replaceChildren(replacement);
+    const shot = await capture;
+    const bmp = await createImageBitmap(shot.blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    const scale = bmp.width / window.innerWidth;
+    const b = replacement.getBoundingClientRect();
+    const px = (x: number, y: number): number[] =>
+      Array.from(ctx.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data);
+    return {
+      renderer: a.__lastScreenshotRenderer,
+      samples: [px(b.left + 8, b.top + b.height / 2), px(b.left + b.width / 2, b.top + b.height / 2), px(b.right - 8, b.top + b.height / 2)],
+    };
+  });
+  release();
+  expect(['snapdom', 'modern-screenshot']).toContain(r.renderer);
+  for (const s of r.samples) expect(s.slice(0, 3).every((v) => v <= 40), JSON.stringify(s)).toBe(true);
+});

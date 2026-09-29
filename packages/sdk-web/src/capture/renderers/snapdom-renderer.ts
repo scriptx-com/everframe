@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { isCanvasBlank } from '../blank-check.js';
-import { createCloneMaskPlugin, expandMaskTargets } from './clone-mask.js';
+import { createCloneMaskPlugin } from './clone-mask.js';
 
 /**
  * Primary screenshot renderer (2026-09-29 benchmark, design doc
@@ -56,6 +56,13 @@ export interface SnapdomRenderOptions {
    * while this capture waits. Masked on the clone only (clone-mask.ts).
    */
   maskTargets?: () => readonly Element[];
+  /**
+   * Live sensitivity test, evaluated per clone node at MASK time (after the
+   * clone completed) on the node's source and its ancestors. Catches what a
+   * list resolved before cloning cannot: elements added or replaced while
+   * snapDOM's clone yields.
+   */
+  isSensitive?: (el: Element) => boolean;
 }
 
 /**
@@ -152,10 +159,16 @@ async function runSnapdom(root: HTMLElement, opts: SnapdomRenderOptions): Promis
   const { snapdom } = await import('@zumer/snapdom');
   // Synchronously from here to the snapdom() call: resolved targets and the
   // root rect describe exactly the page snapDOM starts cloning.
-  const maskTargets = expandMaskTargets(opts.maskTargets?.() ?? []);
+  // The resolved targets are kept (union) in case a registered element is
+  // detached from the registry before masking; the live predicate covers
+  // everything that became sensitive since.
+  const resolved = new Set<Element>(opts.maskTargets?.() ?? []);
+  const isSensitive = opts.isSensitive;
+  const isTarget = (el: Element): boolean => resolved.has(el) || (isSensitive?.(el) ?? false);
   const rootRect = root.getBoundingClientRect();
   const capture = await snapdom(root, {
-    ...(maskTargets.length > 0 ? { plugins: [createCloneMaskPlugin(maskTargets)] } : {}),
+    // Always installed: sensitivity is judged when masking, not up front.
+    plugins: [createCloneMaskPlugin(isTarget)],
     clip: 'viewport',
     fast: false,
     scale: 1,

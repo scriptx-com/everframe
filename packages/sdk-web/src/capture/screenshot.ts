@@ -60,6 +60,12 @@ export interface CaptureScreenshotOptions {
    * unmasked. A throwing resolver fails the capture (never unmasked).
    */
   maskTargets?: Element[] | (() => Element[]);
+  /**
+   * Live sensitivity predicate for the snapDOM path: judged at mask time on
+   * each cloned node's source and its ancestors (see clone-mask.ts), in
+   * addition to `maskTargets`. The adapter passes the sensitive registry's.
+   */
+  isSensitive?: (el: Element) => boolean;
   /** Optional pixel ratio override (default = window.devicePixelRatio). */
   pixelRatio?: number;
   /**
@@ -426,6 +432,7 @@ async function captureExclusive(
           filter: filterNode,
           busyWaitMs: primaryBudgetMs,
           maskTargets: resolveMaskTargets,
+          ...(opts.isSensitive ? { isSensitive: opts.isSensitive } : {}),
         }),
         primaryBudgetMs,
         'snapdom',

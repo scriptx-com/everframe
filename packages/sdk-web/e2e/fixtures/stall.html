@@ -15,10 +15,11 @@
 </head>
 <body>
   <div id="label"></div>
-  <div id="holder"><div class="secret" data-everframe-sensitive>4111 1111 1111 1111</div></div>
   <!-- Same-origin iframe whose web font request never completes (the e2e
-       test holds /stall-font.woff2): snapDOM's clone of it stalls. -->
+       test holds /stall-font.woff2): snapDOM's clone of it stalls. It comes
+       BEFORE the holder, so the holder is cloned only after the stall. -->
   <iframe id="frame" srcdoc="<style>@font-face{font-family:Stall;src:url('/stall-font.woff2')}body{margin:0;font-family:Stall,serif}</style><p>stalled font</p>"></iframe>
+  <div id="holder"><div class="secret" data-everframe-sensitive>4111 1111 1111 1111</div></div>
   <script>
     document.getElementById('label').append(
       document.createTextNode('$1,234,567.00'),

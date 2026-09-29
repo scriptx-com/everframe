@@ -399,6 +399,47 @@ test('a checked appearance:none checkbox marked sensitive ships as a plain black
   expect(r.brightest).toBeLessThanOrEqual(40);
 });
 
+test('a fixed child of a sensitive section is masked where snapDOM lifted it', async ({ page }) => {
+  await page.goto('/e2e/fixtures/sensitive-fixed.html');
+  const pos = await page.evaluate(() => {
+    const b = document.getElementById('vault-fab')!.getBoundingClientRect();
+    const s = document.getElementById('vault')!.getBoundingClientRect();
+    return {
+      fabL: [b.left + 10, b.top + b.height / 2] as [number, number],
+      fabC: [b.left + b.width / 2, b.top + b.height / 2] as [number, number],
+      fabR: [b.right - 10, b.top + b.height / 2] as [number, number],
+      section: [s.left + s.width / 2, s.top + s.height / 2] as [number, number],
+      // Page background just outside the FAB: untouched.
+      outside: [b.right + 20, b.top + b.height / 2] as [number, number],
+    };
+  });
+  const r = await captureAndSample(page, pos);
+  expect(r.renderer).toBe('snapdom');
+  for (const name of ['fabL', 'fabC', 'fabR', 'section']) expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
+  expect(near(r.samples.outside!, [0, 120, 255])).toBe(true);
+});
+
+test('a sensitive fixed modal centred with a transform is masked exactly over its live rect', async ({ page }) => {
+  await page.goto('/e2e/fixtures/sensitive-fixed.html');
+  const pos = await page.evaluate(() => {
+    const b = document.getElementById('modal')!.getBoundingClientRect();
+    return {
+      tl: [b.left + 4, b.top + 4] as [number, number],
+      tr: [b.right - 4, b.top + 4] as [number, number],
+      bl: [b.left + 4, b.bottom - 4] as [number, number],
+      br: [b.right - 4, b.bottom - 4] as [number, number],
+      centre: [b.left + b.width / 2, b.top + b.height / 2] as [number, number],
+      aboveLeft: [b.left - 12, b.top - 12] as [number, number],
+      left: [b.left - 12, b.top + b.height / 2] as [number, number],
+      above: [b.left + b.width / 2, b.top - 12] as [number, number],
+    };
+  });
+  const r = await captureAndSample(page, pos);
+  expect(r.renderer).toBe('snapdom');
+  for (const name of ['tl', 'tr', 'bl', 'br', 'centre']) expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
+  for (const name of ['aboveLeft', 'left', 'above']) expect(near(r.samples[name]!, [0, 120, 255]), name).toBe(true);
+});
+
 test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const pos = await page.evaluate(() => {
