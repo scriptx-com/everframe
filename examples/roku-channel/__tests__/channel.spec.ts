@@ -77,4 +77,14 @@ describe('crash lab channel source', () => {
     expect(scene).toMatch(/callFunc\("getUser", invalid\)/);
     expect(scene).toMatch(/"User: "/);
   });
+
+  it('shows a guarded Memory line from the SDK\'s registry "mem" reading', () => {
+    const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    expect(scene).toMatch(/"Memory: "/);
+    const body = scene.match(/function LabMemory\(\)([\s\S]*?)end function/)?.[1] ?? '';
+    expect(body).toMatch(/sec\.Exists\("mem"\)/);
+    expect(body).toMatch(/ParseJson/);
+    expect(body).toMatch(/roAssociativeArray/);
+    expect(scene).not.toMatch(/roAppMemoryMonitor/); // not allowed on the render thread
+  });
 });

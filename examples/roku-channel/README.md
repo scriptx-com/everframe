@@ -5,7 +5,8 @@
 
 A test channel that triggers every Everframe Roku SDK scenario from the remote.
 One screen, a list of scenarios, and a status panel (library load status, SDK
-started, queued records, last exit info). No content, no video.
+started, queued records, last exit info, user, and the SDK's latest memory
+reading). No content, no video.
 
 ## Setup
 
@@ -69,8 +70,8 @@ SDK processed (and notes when a recorded exit is still pending).
 | 3 | Crash: inside a Task | OK on the row. Relaunch once. | A crash with `threadName` = `CrashTask`. | Path A on a Task thread. |
 | 4 | Crash: before the scene (next launch) | OK on the row (it arms a flag), then relaunch **twice**: the first relaunch crashes in `Main()`, the second sends the report. | A crash raised before any Everframe node exists. | Hook with no Everframe node: persisted from `Main()`, sent on the launch after. |
 | 5 | Report handled error | OK on the row. No relaunch; the channel keeps running. | An error report with `source: error`. | `captureException`. |
-| 6 | Crash: excluded file (next launch only) | Roku OS 13+. OK on the row; the channel crashes about 0.1 s later. Relaunch once. | A crash reconstructed from exit info, with the console log parsed. | Not wrapped, so only the next-launch `exit-info` path runs, with `console_log` parsing. |
-| 7 | Out of memory (in a Task) | Roku OS 13+. OK on the row; the OS kills the channel. Relaunch once. | An exit-info report with `EXIT_CHANNEL_MEM_LIMIT_FG` or `EXIT_OUT_OF_MEMORY`. It shows only via exit info because `OomTask.brs` is excluded from instrumentation. | The out-of-memory exit code on the next launch. |
+| 6 | Crash: excluded file (next launch only) | Roku OS 13+. OK on the row; the channel crashes about 0.1 s later. Relaunch once. | A crash reconstructed from exit info, with the console log parsed. It carries the breadcrumbs left before the crash: run row 9 first and the report includes its `crash lab breadcrumb`, which the SDK persisted to the registry and attached on relaunch. | Not wrapped, so only the next-launch `exit-info` path runs, with `console_log` parsing. |
+| 7 | Out of memory (in a Task) | Roku OS 13+. OK on the row; the OS kills the channel. Relaunch once. | An exit-info report with `EXIT_CHANNEL_MEM_LIMIT_FG` or `EXIT_OUT_OF_MEMORY`. It shows only via exit info because `OomTask.brs` is excluded from instrumentation. `details.metadata.memory` holds the last reading before the kill, and the breadcrumbs show memory climbing (`memory 75% of … MB`, 90 %, 95 %, and `memory warning from OS (NN%)` where the OS sends one). The SDK polls every 5 s, so if the allocation outruns a poll you see fewer steps; the status panel's `Memory:` line shows the live reading. | The out-of-memory exit code on the next launch. |
 | 8 | Crash loop x4 | OK on the row (it crashes and arms a counter of 4). Relaunch until the status panel shows `0 left after this one`; after that crash, relaunch once more (the channel stays up) so the 4th record drains and is dropped by the guard. Each loop launch waits for the queue to drain before crashing (up to 15 s). | Exactly 3 loop reports for that fingerprint. The first crash (list selection) is a separate issue with a different fingerprint. | Crash-loop guard: at most 3 reports per fingerprint per hour. |
 | 9 | Set user + add breadcrumbs | OK on the row, then trigger any crash (row 1 is easiest) and relaunch. | On that report: user id `"42"` (the numeric id 42 arrives as the string `"42"`), email `lab@example.com`, and a `crash lab breadcrumb` custom breadcrumb. | `setUser` with a numeric id sent as a string; custom breadcrumb on the next report. |
 

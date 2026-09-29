@@ -172,6 +172,7 @@ sub updateStatus()
     lines.Push("Queued records: " + LabStr(LabQueueCount()))
     lines.Push("SDK last handled exit: " + LabStr(LabSdkLastExit()))
     lines.Push("User: " + LabStr(LabUser()))
+    lines.Push("Memory: " + LabStr(LabMemory()))
     if m.note <> "" then lines.Push("")
     if m.note <> "" then lines.Push(m.note)
     m.status.text = lines.Join(Chr(10))
@@ -216,5 +217,17 @@ function LabUser() as string
     if u.id <> invalid then text = u.id.ToStr()
     if u.email <> invalid then text = text + " " + u.email.ToStr()
     if text = "" then return "—"
+    return text
+end function
+
+' The SDK reporter (a Task) polls the app memory monitor and persists its latest
+' reading in "mem"; the render thread cannot use the monitor itself.
+function LabMemory() as dynamic
+    sec = CreateObject("roRegistrySection", "Everframe")
+    if not sec.Exists("mem") then return "no reading yet"
+    mem = ParseJson(sec.Read("mem"))
+    if type(mem) <> "roAssociativeArray" or mem.percent = invalid then return "-"
+    text = LabStr(mem.percent) + "%"
+    if mem.limitMb <> invalid then text = text + " of " + LabStr(mem.limitMb) + " MB"
     return text
 end function
