@@ -111,4 +111,19 @@ describe('ef_queue.brs', () => {
     expect(Object.keys(stored.exitInfo)).toContain('consoleLog');
     expect(stored.exitInfo.consoleLog).toHaveLength(256);
   });
+
+  it('prunes fingerprints whose timestamps are all older than an hour when rewriting rl', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      now = 1790000000000&
+      EfQ_Allow(sec, "old", now, {})
+      EfQ_Allow(sec, "mixed", now, {})
+      EfQ_Allow(sec, "mixed", now + 3000000&, {})
+      EfQ_Allow(sec, "fresh", now + 3600005&, {})
+      rl = ParseJson(sec.Read("rl"))
+      print "EFTEST:" + FormatJson({ keys: rl.Keys(), mixed: rl.mixed.Count() })
+    `);
+    expect(lines[0].keys.sort()).toEqual(['fresh', 'mixed']);
+    expect(lines[0].mixed).toBe(1);
+  });
 });

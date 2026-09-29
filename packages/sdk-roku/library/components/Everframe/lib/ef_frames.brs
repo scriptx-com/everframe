@@ -50,18 +50,18 @@ function EfF_ParseConsoleLog(log as dynamic) as dynamic
     for each rawLine in log.Tokenize(Chr(10))
         ln = rawLine.Trim()
         if result = invalid then
-            m = headRe.Match(ln)
-            if m.Count() = 5 then
-                result = { number: Val(m[2], 16), message: m[1].Trim(), frames: [], file: m[3], line: Val(m[4], 10) }
+            hit = headRe.Match(ln)
+            if hit.Count() = 5 then
+                result = { number: Val(hit[2], 16), message: hit[1].Trim(), frames: [], file: hit[3], line: Val(hit[4], 10) }
             end if
         else
-            m = fnRe.Match(ln)
-            if m.Count() = 2 then
-                pendingFn = m[1]
+            hit = fnRe.Match(ln)
+            if hit.Count() = 2 then
+                pendingFn = hit[1]
             else
-                m = locRe.Match(ln)
-                if m.Count() = 3 and pendingFn <> invalid then
-                    f = { raw: pendingFn + " at " + m[1] + "(" + m[2] + ")", file: m[1], line: Val(m[2], 10) }
+                hit = locRe.Match(ln)
+                if hit.Count() = 3 and pendingFn <> invalid then
+                    f = { raw: pendingFn + " at " + hit[1] + "(" + hit[2] + ")", file: hit[1], line: Val(hit[2], 10) }
                     f["function"] = pendingFn
                     result.frames.Push(f)
                     pendingFn = invalid

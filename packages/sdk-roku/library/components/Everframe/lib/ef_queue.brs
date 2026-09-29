@@ -115,7 +115,19 @@ function EfQ_Allow(sec as object, fp as string, nowMs as dynamic, seen as object
     end if
     if recent.Count() >= 3 then return false
     recent.Push(nowMs)
-    rl[fp] = recent
+    ' Rewrite rl with only in-window timestamps; fingerprints left empty are dropped.
+    pruned = {}
+    for each k in rl
+        if type(rl[k]) = "roArray" then
+            keep = []
+            for each t in rl[k]
+                if nowMs - t < 3600000& then keep.Push(t)
+            end for
+            if keep.Count() > 0 then pruned[k] = keep
+        end if
+    end for
+    pruned[fp] = recent
+    rl = pruned
     sec.Write("rl", FormatJson(rl))
     sec.Flush()
     seen[fp] = true

@@ -14,14 +14,26 @@ sub EfRep_Run()
     m.sec = CreateObject("roRegistrySection", "Everframe")
     m.state = { seen: {}, allowed: {} }
     backoff = 0
+    m.ctx = invalid
     try
         m.ctx = EfE_Context(EF_VERSION())
+    catch e
+        print "[everframe] context unavailable: "; e.message
+    end try
+    try
         EfRep_CheckLastExit()
     catch e
         print "[everframe] startup check failed: "; e.message
     end try
     while true
         retry = false
+        try
+            ' A failed context build must not turn every record into "poison":
+            ' rebuild it here, and EfD_Drain keeps records while it is invalid.
+            if m.ctx = invalid then m.ctx = EfE_Context(EF_VERSION())
+        catch e
+            print "[everframe] context unavailable: "; e.message
+        end try
         try
             retry = EfD_Drain(m.sec, m.ctx, m.state, EfRep_Post)
         catch e

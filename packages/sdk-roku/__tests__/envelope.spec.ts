@@ -51,6 +51,17 @@ describe('ef_envelope.brs', () => {
     expect(env.payload.crash.details.metadata).toEqual({ exitCode: 'EXIT_OUT_OF_MEMORY', memLimitMb: 512 });
   });
 
+  it('serializes a numeric user id as a string', async () => {
+    const { lines } = await runBrs(LIBS, `
+      rec = EfR_FromException("soft", "captureException", true)
+      rec.user = EfU_NormalizeUser({ id: 42, displayName: "Ann" })
+      print "EFTEST:" + FormatJson(EfE_Build(rec, EfE_Context("0.1.0"), EfU_NowMs()))
+    `);
+    const env = lines[0];
+    expect(Strict.safeParse(env).success).toBe(true);
+    expect(env.reporter.user).toEqual({ id: '42', displayName: 'Ann' });
+  });
+
   it('multipart body parses as form-data with one envelope part', async () => {
     const { lines } = await runBrs(LIBS, `
       b = EfM_Boundary()

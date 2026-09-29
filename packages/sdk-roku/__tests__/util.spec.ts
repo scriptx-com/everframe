@@ -28,4 +28,40 @@ describe('ef_util.brs', () => {
     `);
     expect(lines[0]).toEqual({ h: 'abc', t: 'ef', inv: '', miss: true });
   });
+
+  it('normalizes user fields to strings, skipping invalid and non-scalar values', async () => {
+    const { lines } = await runBrs(['ef_util.brs'], `
+      u1 = EfU_NormalizeUser({ id: 42, email: "a@b.c", displayName: ["x"] })
+      u2 = EfU_NormalizeUser({ id: invalid, email: 3.5, displayName: "Ann" })
+      u3 = EfU_NormalizeUser({ id: 12345678901&, email: true })
+      u4 = EfU_NormalizeUser("nope")
+      u5 = EfU_NormalizeUser({ other: 1 })
+      print "EFTEST:" + FormatJson({ u1: u1, u2: u2, u3: u3, u4: u4 = invalid, u5: u5 = invalid })
+    `);
+    expect(lines[0].u1).toEqual({ id: '42', email: 'a@b.c' });
+    expect(lines[0].u2).toEqual({ email: '3.5', displayName: 'Ann' });
+    expect(Object.keys(lines[0].u2)).toContain('displayName');
+    expect(lines[0].u3).toEqual({ id: '12345678901', email: 'true' });
+    expect(lines[0].u4).toBe(true);
+    expect(lines[0].u5).toBe(true);
+  });
+
+  it('accepts only protocol breadcrumb levels', async () => {
+    const { lines } = await runBrs(['ef_util.brs'], `
+      out = []
+      for each l in ["debug", "info", "warn", "error", "INFO", "fatal", 3, invalid]
+        r = EfU_NormalizeLevel(l)
+        if r = invalid then out.Push(invalid) else out.Push(r)
+      end for
+      print "EFTEST:" + FormatJson(out)
+    `);
+    expect(lines[0]).toEqual(['debug', 'info', 'warn', 'error', 'info', null, null, null]);
+  });
+
+  it('clamps maxBreadcrumbs to an integer in 1..50, else the default', async () => {
+    const { lines } = await runBrs(['ef_util.brs'], `
+      print "EFTEST:" + FormatJson([EfU_MaxCrumbs(10), EfU_MaxCrumbs(0), EfU_MaxCrumbs(-3), EfU_MaxCrumbs(500), EfU_MaxCrumbs("20"), EfU_MaxCrumbs(7.9), EfU_MaxCrumbs(invalid), EfU_MaxCrumbs(30&)])
+    `);
+    expect(lines[0]).toEqual([10, 1, 1, 50, 50, 50, 50, 30]);
+  });
 });

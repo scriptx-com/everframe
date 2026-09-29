@@ -21,7 +21,7 @@ function start(config as object) as boolean
             return false
         end if
         if config.enabled = false then return false
-        if config.maxBreadcrumbs <> invalid then m.maxCrumbs = config.maxBreadcrumbs
+        if config.maxBreadcrumbs <> invalid then m.maxCrumbs = EfU_MaxCrumbs(config.maxBreadcrumbs)
         endpoint = "https://everframe.dev"
         if config.endpoint <> invalid and config.endpoint <> "" then endpoint = config.endpoint
         m.reporter = CreateObject("roSGNode", "EverframeReporter")
@@ -59,7 +59,8 @@ function addBreadcrumb(c as dynamic) as boolean
         kind = "custom"
         if c.kind <> invalid and kinds.DoesExist(c.kind) then kind = LCase(c.kind)
         crumb = { t: EfU_NowMs(), seq: m.seq, kind: kind, message: EfU_Truncate(c.message, 2048) }
-        if c.level <> invalid then crumb.level = c.level
+        level = EfU_NormalizeLevel(c.level)
+        if level <> invalid then crumb.level = level
         if type(c.data) = "roAssociativeArray" then crumb.data = c.data
         m.seq = m.seq + 1
         m.crumbs.Push(crumb)
@@ -74,15 +75,9 @@ end function
 
 function setUser(u as dynamic) as boolean
     try
-        if type(u) <> "roAssociativeArray" then
-            m.user = invalid
-            return true
-        end if
-        user = {}
-        for each k in ["id", "email", "displayName"]
-            if u[k] <> invalid then user[k] = u[k]
-        end for
-        m.user = user
+        ' id / email / displayName become strings; invalid or non-scalar values
+        ' are dropped (ingest rejects non-string user fields).
+        m.user = EfU_NormalizeUser(u)
         return true
     catch err
         return false

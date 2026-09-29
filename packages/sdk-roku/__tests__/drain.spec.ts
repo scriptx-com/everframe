@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { runBrs } from './brs-harness.js';
 
 const LIBS = ['ef_util.brs', 'ef_fingerprint.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_envelope.brs', 'ef_multipart.brs', 'ef_drain.brs'];
-const REC = (t: string, msg = 'm') => `{ v: 1, id: "id-${t}-xxxxxxxx", t: ${t}&, kind: "crash", handled: false, fatal: true, mechanism: "try-catch", exceptionType: "RuntimeError(&hEC)", message: "${msg}", frames: [{ "function": "f", file: "pkg:/a.brs", line: 1 }], crumbs: [] }`;
+const REC = (t: string, msg = 'm', type = 'RuntimeError(&hEC)') => `{ v: 1, id: "id-${t}-xxxxxxxx", t: ${t}&, kind: "crash", handled: false, fatal: true, mechanism: "try-catch", exceptionType: "${type}", message: "${msg}", frames: [{ "function": "f", file: "pkg:/a.brs", line: 1 }], crumbs: [] }`;
 
 // The stub sender pops scripted statuses off m.statuses and logs each call in m.calls.
 const PRELUDE = `
@@ -87,5 +87,25 @@ describe('ef_drain.brs', () => {
       print "EFTEST:" + FormatJson({ retry: retry, left: EfQ_List(sec).Count(), calls: m.calls.Count() })
     `);
     expect(lines[0]).toEqual({ retry: false, left: 0, calls: 1 });
+  });
+
+  it('keeps every record and asks for a retry when the context is invalid', async () => {
+    const { lines } = await go([200, 200], `
+      EfQ_Put(sec, ${REC('1790000000100')})
+      EfQ_Put(sec, ${REC('1790000000200', 'm', 'RuntimeError(&h02)')})
+      retry = EfD_Drain(sec, invalid, state, Stub)
+      print "EFTEST:" + FormatJson({ retry: retry, left: EfQ_List(sec).Count(), calls: m.calls.Count() })
+    `);
+    expect(lines[0]).toEqual({ retry: true, left: 2, calls: 0 });
+  });
+
+  it('stops the cycle after the first network failure (status 0)', async () => {
+    const { lines } = await go([0, 200], `
+      EfQ_Put(sec, ${REC('1790000000100')})
+      EfQ_Put(sec, ${REC('1790000000200', 'm', 'RuntimeError(&h02)')})
+      retry = EfD_Drain(sec, ctx, state, Stub)
+      print "EFTEST:" + FormatJson({ retry: retry, left: EfQ_List(sec).Count(), calls: m.calls.Count() })
+    `);
+    expect(lines[0]).toEqual({ retry: true, left: 2, calls: 1 });
   });
 });

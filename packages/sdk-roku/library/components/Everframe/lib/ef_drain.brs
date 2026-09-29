@@ -7,7 +7,10 @@
 
 ' Returns true when records remain that should be retried later. The crash-loop
 ' guard is charged once per record (state.allowed), not once per attempt.
-function EfD_Drain(sec as object, ctx as object, state as object, post as function) as boolean
+' With no device/app context (ctx invalid) nothing is sent or removed: a record
+' only counts as unbuildable when the context is known to be good.
+function EfD_Drain(sec as object, ctx as dynamic, state as object, post as function) as boolean
+    if type(ctx) <> "roAssociativeArray" then return true
     retry = false
     for each item in EfQ_List(sec)
         env = invalid
@@ -38,6 +41,8 @@ function EfD_Drain(sec as object, ctx as object, state as object, post as functi
                     state.allowed.Delete(item.key)
                 else
                     retry = true
+                    ' Status 0 = no network: the rest of this cycle would fail the same way.
+                    if status = 0 then exit for
                 end if
             end if
         end if
