@@ -1,0 +1,38 @@
+packages/sdk-web/__tests__/capture/clone-mask.spec.ts
+  s_f1f3a292ebd900::t_7473cd5b18520b 1-122
+packages/sdk-web/src/capture/renderers/clone-mask.ts
+  s_f1f3a292ebd900::t_74626a0305982d 1-155
+  s_f1f3a292ebd900::t_866c708ec83fcf 156-158
+packages/sdk-web/__tests__/capture/screenshot.spec.ts
+  s_f1f3a292ebd900::t_1cd8340a5ee18e 1090,1097-1098,1103-1121,1125,1218-1233,1273-1288,1292-1293,1295-1298,1302-1310,1314,1321,1323-1324,1332-1333,1346-1351,1355-1366,1368-1371
+packages/sdk-web/e2e/fixtures/capture-cases.html
+  s_f1f3a292ebd900::t_6682d9c436c240 71-80,107
+packages/sdk-web/e2e/fixtures/stall.html
+  s_f1f3a292ebd900::t_64d767565f0f74 1-43
+packages/sdk-web/e2e/snapdom-capture.spec.ts
+  s_f1f3a292ebd900::t_1b1e4779e67d55 300-305,307-308,315-316,325-326,333-401
+packages/sdk-web/e2e/snapdom-stall.spec.ts
+  s_f1f3a292ebd900::t_0b00f46364cc0e 1-93
+packages/sdk-web/src/capture/renderers/snapdom-renderer.ts
+  s_f1f3a292ebd900::t_ce4a263a5a3486 5,21-24,28-29,53-58,153-155,158
+packages/sdk-web/src/capture/screenshot.ts
+  s_f1f3a292ebd900::t_23d089dbaec341 12,46-53,109-111,271-275,330-335,337,377-379,404-406,424-429,434-440,456-459,471-493,543-544
+packages/sdk-web/test-results/.last-run.json
+  s_f1f3a292ebd900::t_ba044d6c5eddb7 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "bbd8fdbfa4a6468eb0e15014e3062fed55674fa1",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
