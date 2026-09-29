@@ -306,7 +306,10 @@ export function ReporterDialog({
         }
       })();
       if (cancelled) return;
-      const openReason: string | undefined = adapter.__lastDegradedReason;
+      // Read off the RESULT, not adapter.__lastDegradedReason: that getter is
+      // shared, and an overlapping capture resets it before this one's caller
+      // gets to read it.
+      const openReason: string | undefined = screenshot?.degradedReason;
       // A screenshot reason travels with the shot it describes; everything
       // else (or a screenshot reason with no shot to carry it) stays here.
       const shotReason = screenshot ? screenshotReason(openReason) : undefined;
@@ -501,8 +504,8 @@ export function ReporterDialog({
       // TV/desktop, and scaling a selection by the uncapped DPR crops the
       // wrong region (codex round-2 finding 2).
       const shot = await adapter.captureScreenshot();
-      // Read before any further await: the adapter resets it per capture.
-      const shotReason = screenshotReason(adapter.__lastDegradedReason);
+      // Per-result reason (see the open-time capture): never the shared getter.
+      const shotReason = screenshotReason(shot.degradedReason);
       const dpr = effectiveCaptureRatio(shot.width);
       let blob = shot.blob;
       let width = shot.width;

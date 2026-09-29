@@ -202,9 +202,11 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    */
   __subscribeReportHotkey(listener: (binding: string) => void): () => void;
   /**
-   * Last DegradedReason surfaced by a capture (set by plan 03-03 captureScreenshot when
-   * modern-screenshot fails). Plan 03-07 envelope-builder reads this to populate
-   * envelope.captureControl.degradedReason. Non-enumerable getter — never iterated.
+   * DegradedReason of the most recent capture. DIAGNOSTIC ONLY (tests, perf
+   * harness): it is shared and reset at the start of every capture, so an
+   * overlapping capture can overwrite it before the previous one's caller
+   * reads it. Consumers read `ScreenshotResult.degradedReason` off the result
+   * instead. Non-enumerable getter — never iterated.
    */
   readonly __lastDegradedReason?: DegradedReason;
   /** Renderer that produced the last capture ('none' = degraded placeholder). Non-enumerable; test/diagnostic only. */

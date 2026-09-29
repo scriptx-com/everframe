@@ -496,22 +496,27 @@ describe('<ReporterDialog> — multi-shot submit payload', () => {
 });
 
 describe('<ReporterDialog> — per-shot degraded reason', () => {
-  /** Adapter whose Nth capture reports `reasons[N]` via __lastDegradedReason, as the real one does. */
+  /**
+   * Adapter whose Nth capture returns `reasons[N]` on its RESULT. The shared
+   * __lastDegradedReason getter always reads undefined here - as it does
+   * after an overlapping capture reset it - so these tests prove the dialog
+   * never depends on it.
+   */
   function adapterWithReasons(reasons: Array<string | undefined>): WebPlatformAdapter {
     let calls = 0;
-    let last: string | undefined;
     const adapter = buildMockAdapter({
       captureScreenshot: async () => {
-        last = reasons[calls++];
+        const reason = reasons[calls++];
         return {
           blob: new Blob(['x'], { type: 'image/png' }),
           width: window.innerWidth,
           height: window.innerHeight,
           sha256: 'a'.repeat(64),
+          ...(reason !== undefined ? { degradedReason: reason } : {}),
         };
       },
     });
-    Object.defineProperty(adapter, '__lastDegradedReason', { get: () => last, configurable: true });
+    Object.defineProperty(adapter, '__lastDegradedReason', { get: () => undefined, configurable: true });
     return adapter;
   }
 

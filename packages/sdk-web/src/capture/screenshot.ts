@@ -281,6 +281,13 @@ export async function captureScreenshot(
   let blob: Blob | null = null;
   let width = 0;
   let height = 0;
+  // This capture's own verdict, returned on the result (the out-param below
+  // only feeds the adapter's diagnostic getter, which a later capture resets).
+  let degradedReason: DegradedReason | undefined;
+  const flag = (reason: DegradedReason): void => {
+    degradedReason = reason;
+    opts.__setDegradedReason?.(reason);
+  };
 
   // Apply live-DOM masking to sensitive elements BEFORE the renderer clones
   // the page. The capture library snapshots whatever the DOM looks like at
@@ -402,7 +409,7 @@ export async function captureScreenshot(
       width = chosen.canvas.width;
       height = chosen.canvas.height;
       opts.__setRenderer?.(chosen.renderer);
-      if (!accepted) opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_blank);
+      if (!accepted) flag(DEGRADED_REASONS.screenshot_blank);
     }
   } catch {
     blob = null;
@@ -418,7 +425,7 @@ export async function captureScreenshot(
   // No usable canvas (or the encode failed) — ship the placeholder with an
   // honest degraded reason so the report still sends.
   if (!blob) {
-    opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_failed);
+    flag(DEGRADED_REASONS.screenshot_failed);
     opts.__setRenderer?.('none');
     blob = new Blob([TRANSPARENT_PIXEL_PNG_BYTES as BlobPart], { type: 'image/png' });
     width = 0;
@@ -453,7 +460,7 @@ export async function captureScreenshot(
   }
 
   const sha256 = await sha256Hex(blob);
-  return { blob, width, height, sha256 };
+  return { blob, width, height, sha256, ...(degradedReason !== undefined ? { degradedReason } : {}) };
 }
 
 /** Root size in CSS px for the output-edge cap; tolerates detached/jsdom roots. */

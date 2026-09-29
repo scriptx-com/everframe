@@ -56,4 +56,36 @@ describe('adapter.__lastScreenshotRenderer', () => {
     expect(adapter.__lastDegradedReason).toBeUndefined();
     expect(adapter.__lastScreenshotRenderer).toBeUndefined();
   });
+
+  it('an overlapping capture resets the shared getter but not the earlier result\'s own reason', async () => {
+    const releases: Array<() => void> = [];
+    vi.doMock('../../src/capture/screenshot.js', async (orig) => ({
+      ...(await orig<typeof import('../../src/capture/screenshot.js')>()),
+      captureScreenshot: vi.fn(async (o: { __setDegradedReason?: (r: string) => void }) => {
+        const first = releases.length === 0;
+        await new Promise<void>((resolve) => releases.push(resolve));
+        if (first) {
+          o.__setDegradedReason?.('screenshot_blank');
+          return { blob: new Blob(['x']), width: 1, height: 1, sha256: '0'.repeat(64), degradedReason: 'screenshot_blank' };
+        }
+        return { blob: new Blob(['y']), width: 1, height: 1, sha256: '1'.repeat(64) };
+      }),
+    }));
+    const { createWebPlatformAdapter } = await import('../../src/adapter.js');
+    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' } as never) as unknown as {
+      captureScreenshot(): Promise<{ degradedReason?: string }>;
+      __lastDegradedReason?: string;
+    };
+    const a = adapter.captureScreenshot();
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    releases[0]!(); // A records screenshot_blank ...
+    await Promise.resolve();
+    const b = adapter.captureScreenshot(); // ... then B starts and resets the shared getter
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    expect(adapter.__lastDegradedReason).toBeUndefined();
+    releases[1]!();
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra.degradedReason).toBe('screenshot_blank');
+    expect(rb.degradedReason).toBeUndefined();
+  });
 });

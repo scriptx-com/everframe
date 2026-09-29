@@ -50,7 +50,7 @@ export interface CaptureBundle {
   logs: LogEntry[];
   network: NetworkEntry[];
   metadata: DeviceMetadata | null;
-  /** PAY-05: surfaced from adapter.__lastDegradedReason at capture time. */
+  /** PAY-05: derived at submit from each retained shot's ScreenshotResult.degradedReason. */
   degradedReason?: string | undefined;
   /** PRE-03 row-level redactions from the reporter dialog. */
   redactedLogIndices?: ReadonlySet<number>;

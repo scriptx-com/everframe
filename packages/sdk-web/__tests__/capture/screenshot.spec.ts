@@ -919,6 +919,45 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     expect(r.width).toBe(320);
   });
 
+  it('overlapping captures each return their OWN degraded reason on the result', async () => {
+    const canvasA = makeCanvasStub({ width: 300, height: 150 }).stub;
+    const canvasB = makeCanvasStub({ width: 300, height: 150 }).stub;
+    const modernA = makeCanvasStub({ width: 300, height: 150 }).stub;
+    const releases: Array<() => void> = [];
+    const canvases = [canvasA, canvasB];
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(() => {
+        const canvas = canvases[releases.length]!;
+        return new Promise((resolve) => releases.push(() => resolve({ toCanvas: async () => canvas })));
+      }),
+    }));
+    mockModern(modernA);
+    const blank = await import('../../src/capture/blank-check.js');
+    // A: both renderers blank. B: clean.
+    (blank.isCanvasBlank as ReturnType<typeof vi.fn>).mockImplementation((c: unknown) => c === canvasA || c === modernA);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    const shared: Array<string | undefined> = [];
+    const setShared = (r: string): void => { shared.push(r); };
+    const a = cap({ root: document.body, __setDegradedReason: setShared });
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    const b = cap({ root: document.body, __setDegradedReason: setShared });
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    releases[0]!();
+    releases[1]!();
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra.degradedReason).toBe(DEGRADED_REASONS.screenshot_blank);
+    expect(rb.degradedReason).toBeUndefined();
+    expect('degradedReason' in rb).toBe(false);
+  });
+
+  it('puts screenshot_failed on the placeholder result', async () => {
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('a'); }) }));
+    vi.doMock('modern-screenshot', () => ({ domToCanvas: vi.fn(async () => { throw new Error('b'); }) }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    const r = await cap({ root: document.body });
+    expect(r.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+  });
+
   it('treats an unavailable blank check (null) as not blank', async () => {
     const { stub } = makeCanvasStub();
     mockSnapdom(stub);
