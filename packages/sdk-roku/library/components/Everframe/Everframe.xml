@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<component name="Everframe" extends="Node">
+  <interface>
+    <function name="start" />
+    <function name="captureException" />
+    <function name="addBreadcrumb" />
+    <function name="setUser" />
+    <function name="getCrumbs" />
+    <function name="getUser" />
+    <function name="kick" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/Everframe/Everframe.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_util.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_frames.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_record.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_queue.brs" />
+</component>
