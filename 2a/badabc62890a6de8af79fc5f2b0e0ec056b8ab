@@ -1,0 +1,35 @@
+packages/sdk-roku/__tests__/hook.spec.ts
+  s_d03518d0f16fdd::t_8a29d70eeb0d6a 1-33
+packages/sdk-roku/__tests__/library-build.spec.ts
+  s_d03518d0f16fdd::t_c41368bc52aa2b 1-46
+packages/sdk-roku/hook/everframe_hook.brs
+  s_d03518d0f16fdd::t_7257a5fcde534e 1-45
+packages/sdk-roku/library/components/Everframe/Everframe.brs
+  s_d03518d0f16fdd::t_971dacdf32a02e 1-113
+packages/sdk-roku/library/components/Everframe/Everframe.xml
+  s_d03518d0f16fdd::t_b131b72cbddbf5 1-19
+packages/sdk-roku/library/components/Everframe/EverframeReporter.brs
+  s_d03518d0f16fdd::t_875b268d5f4bd5 1-86
+packages/sdk-roku/library/components/Everframe/EverframeReporter.xml
+  s_d03518d0f16fdd::t_80828e1adc0120 1-19
+packages/sdk-roku/library/manifest
+  s_d03518d0f16fdd::t_8ed659b8a2e084 1-7
+packages/sdk-roku/scripts/build-library.mjs
+  s_d03518d0f16fdd::t_78a5188ee9f5ee 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2abadabc62890a6de8af79fc5f2b0e0ec056b8ab",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
