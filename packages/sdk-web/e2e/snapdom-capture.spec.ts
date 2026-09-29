@@ -440,6 +440,60 @@ test('a sensitive fixed modal centred with a transform is masked exactly over it
   for (const name of ['aboveLeft', 'left', 'above']) expect(near(r.samples[name]!, [0, 120, 255]), name).toBe(true);
 });
 
+test('bare text inside a sensitive display:contents wrapper is never painted', async ({ page }) => {
+  await page.goto('/e2e/fixtures/sensitive-fixed.html');
+  const r = await page.evaluate(async () => {
+    const w = window as unknown as {
+      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+    };
+    const text = document.getElementById('contents-wrap')!.firstChild!;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const b = range.getBoundingClientRect();
+    const shot = await w.__everframe.__adapter.captureScreenshot();
+    const bmp = await createImageBitmap(shot.blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    const scale = bmp.width / window.innerWidth;
+    const data = ctx.getImageData(
+      Math.ceil((b.left + 1) * scale),
+      Math.ceil((b.top + 2) * scale),
+      Math.floor((b.width - 2) * scale),
+      Math.floor((b.height - 4) * scale),
+    ).data;
+    let brightest = 0;
+    for (let i = 0; i < data.length; i += 4) brightest = Math.max(brightest, data[i]!, data[i + 1]!, data[i + 2]!);
+    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, brightest, pixels: data.length / 4 };
+  });
+  expect(r.renderer).toBe('snapdom');
+  expect(r.pixels).toBeGreaterThan(100);
+  expect(r.brightest).toBeLessThanOrEqual(40); // black line fragment, no glyphs
+});
+
+test('a sensitive element with CSS zoom is masked at its zoomed size without shifting what follows', async ({ page }) => {
+  await page.goto('/e2e/fixtures/sensitive-fixed.html');
+  const pos = await page.evaluate(() => {
+    const b = document.getElementById('zoomed')!.getBoundingClientRect();
+    const a = document.getElementById('after-zoom')!.getBoundingClientRect();
+    return {
+      size: [b.width, b.height],
+      tl: [b.left + 4, b.top + 4] as [number, number],
+      br: [b.right - 4, b.bottom - 4] as [number, number],
+      tr: [b.right - 4, b.top + 4] as [number, number],
+      after: [a.left + a.width / 2, a.top + a.height / 2] as [number, number],
+    };
+  });
+  expect(pos.size).toEqual([400, 80]);
+  const { size: _size, ...points } = pos;
+  const r = await captureAndSample(page, points);
+  expect(r.renderer).toBe('snapdom');
+  for (const name of ['tl', 'tr', 'br']) expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
+  expect(near(r.samples.after!, [0, 200, 0])).toBe(true);
+});
+
 test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const pos = await page.evaluate(() => {

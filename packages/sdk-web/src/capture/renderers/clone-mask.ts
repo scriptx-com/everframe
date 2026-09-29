@@ -85,6 +85,9 @@ export function blackBoxCss(src: Element, clone: HTMLElement | null): string | n
     ['grid-column-start', cs.gridColumnStart],
     ['grid-column-end', cs.gridColumnEnd],
     ['vertical-align', cs.verticalAlign],
+    // offset* sizes are unzoomed CSS px; the element's own zoom scales them
+    // (snapDOM's frozen size for a lifted element is already the zoomed rect).
+    ['zoom', lifted ? '1' : ((cs as unknown as { zoom?: string }).zoom ?? '')],
     // A lifted element's position already has snapDOM's frozen transform
     // baked in (translation into left/top, the rest in its inline
     // transform): reapplying the live transform would move the box twice.
@@ -127,6 +130,66 @@ const DETACHED_OVERRIDES = [
   'overflow:hidden !important',
 ].join(';');
 
+/**
+ * Inline style for the span wrapping a sensitive `display:contents`
+ * element's direct text. The text stays in place, so line breaking and every
+ * following box are exactly as live, but its glyphs are transparent and each
+ * line fragment is backed in black. (The characters remain only in the
+ * transient in-memory clone; the shipped raster shows black.)
+ */
+const TEXT_MASK_CSS = [
+  'color:transparent !important',
+  '-webkit-text-fill-color:transparent !important',
+  'background:#000 !important',
+  'text-shadow:none !important',
+  'text-decoration:none !important',
+  'caret-color:transparent !important',
+].join(';');
+
+/** Direct children of a sensitive display:contents clone: mask text, drop generated nodes. */
+function maskContentsChildren(
+  clone: Element,
+  src: Element,
+  nodeMap: Map<Node, Node>,
+  owned: WeakSet<Node>,
+): void {
+  // The span is unknown to snapDOM's style pass, so it carries the text's
+  // live font explicitly - the masked run must advance exactly like the text.
+  const cs = getComputedStyle(src);
+  const css = [
+    TEXT_MASK_CSS,
+    `font-family:${cs.fontFamily} !important`,
+    `font-size:${cs.fontSize} !important`,
+    `font-weight:${cs.fontWeight} !important`,
+    `font-style:${cs.fontStyle} !important`,
+    `font-stretch:${cs.fontStretch} !important`,
+    `font-variant:${cs.fontVariant} !important`,
+    `letter-spacing:${cs.letterSpacing} !important`,
+    `word-spacing:${cs.wordSpacing} !important`,
+    `line-height:${cs.lineHeight} !important`,
+    `text-transform:${cs.textTransform} !important`,
+    `white-space:${cs.whiteSpace} !important`,
+  ].join(';');
+  for (const child of Array.from(clone.childNodes)) {
+    if (owned.has(child)) {
+      (child as HTMLElement).style.cssText = css;
+      continue;
+    }
+    if (child.nodeType === 3) {
+      if (!(child as Text).data.trim()) continue;
+      const span = (clone.ownerDocument ?? document).createElement('span');
+      span.style.cssText = css;
+      owned.add(span);
+      child.replaceWith(span);
+      span.appendChild(child);
+    } else if (child.nodeType === 1 && !nodeMap.has(child)) {
+      // Synthesized by snapDOM (inlined pseudo-elements and the like): no
+      // live source to judge, inside a sensitive wrapper - drop it.
+      child.remove();
+    }
+  }
+}
+
 /** Nearest ancestor across shadow boundaries (a shadow root hands over to its host). */
 function parentAcrossShadow(node: Node): Node | null {
   const parent = node.parentNode;
@@ -141,6 +204,8 @@ function parentAcrossShadow(node: Node): Node | null {
  */
 export function createCloneMaskPlugin(isTarget: (el: Element) => boolean) {
   const boxes: Array<[HTMLElement, string, string | null]> = [];
+  /** Masking spans this plugin inserted around text (kept, never re-judged as generated). */
+  const owned = new WeakSet<Node>();
   let maskedRoot: HTMLElement | null = null;
 
   const mask = (ctx: CloneContext): void => {
@@ -202,11 +267,15 @@ export function createCloneMaskPlugin(isTarget: (el: Element) => boolean) {
       }
       const css = blackBoxCss(src as Element, clone);
       if (css === null) {
-        // display:contents renders only its children, which are masked on
-        // their own (their ancestor is sensitive); display:none renders nothing.
         if (getComputedStyle(src as Element).display === 'none') {
+          // Renders nothing.
           replaced.add(clone);
           clone.remove();
+        } else {
+          // display:contents renders only its children: element children are
+          // masked on their own (their ancestor is sensitive); direct text and
+          // generated (unmapped) children are handled here.
+          maskContentsChildren(clone, src as Element, nodeMap, owned);
         }
         continue;
       }

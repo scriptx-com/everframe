@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SENSITIVE_ATTR } from '../../src/sensitive/registry.js';
 import { createCloneMaskPlugin, expandMaskTargets } from '../../src/capture/renderers/clone-mask.js';
 import { STAND_IN_ATTR } from '../../src/capture/video-frames.js';
@@ -209,6 +209,49 @@ describe('createCloneMaskPlugin', () => {
     expect(box.style.width).toBe('200px');
     expect(box.style.height).toBe('40px');
     expect(box.getAttribute('style')).toContain('background: rgb(0, 0, 0)');
+  });
+
+  it('a sensitive display:contents wrapper hides its DIRECT text and drops generated children', () => {
+    document.body.innerHTML = '<main><p>Account: <span id="w" style="display:contents">99887766</span> end</p></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    const wrapperClone = ctx.clone.querySelector('#w')!;
+    // What snapDOM does for a ::before pseudo-element: a real, unmapped child.
+    const generated = document.createElement('span');
+    generated.textContent = 'pseudo secret';
+    wrapperClone.prepend(generated);
+    const plugin = createCloneMaskPlugin(listed(document.getElementById('w')!));
+    plugin.afterClone(ctx);
+    expect(wrapperClone.contains(generated)).toBe(false);
+    const span = wrapperClone.firstElementChild as HTMLElement;
+    expect(span.textContent).toBe('99887766'); // kept in place for identical line layout ...
+    expect(span.getAttribute('style')).toContain('color: transparent'); // ... but never painted
+    expect(span.getAttribute('style')).toContain('background: rgb(0, 0, 0)');
+    // Text outside the wrapper is untouched.
+    expect(ctx.clone.querySelector('p')!.firstChild!.textContent).toBe('Account: ');
+    // A second pass (beforeRender) keeps its own span and does not double-wrap.
+    plugin.beforeRender(ctx);
+    expect(wrapperClone.children).toHaveLength(1);
+    expect(wrapperClone.firstElementChild).toBe(span);
+    expect(span.children).toHaveLength(0);
+  });
+
+  it('carries the source\'s zoom so a zoomed element is covered at its zoomed size', () => {
+    document.body.innerHTML = '<main><div id="z" style="zoom:2;width:200px;height:40px">z</div></main>';
+    const z = document.getElementById('z')!;
+    Object.defineProperty(z, 'offsetWidth', { value: 200, configurable: true });
+    Object.defineProperty(z, 'offsetHeight', { value: 40, configurable: true });
+    const real = window.getComputedStyle.bind(window);
+    const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudo?: string | null) => {
+      const cs = real(el, pseudo);
+      if (el !== z) return cs;
+      return new Proxy(cs, { get: (t, k) => (k === 'zoom' ? '2' : (t as unknown as Record<string | symbol, unknown>)[k]) });
+    });
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    createCloneMaskPlugin(listed(z)).afterClone(ctx);
+    spy.mockRestore();
+    const box = ctx.clone.firstElementChild as HTMLElement;
+    expect(box.style.width).toBe('200px');
+    expect(box.getAttribute('style')).toContain('zoom: 2');
   });
 
   it('a throwing predicate masks (never unmasks on error)', () => {

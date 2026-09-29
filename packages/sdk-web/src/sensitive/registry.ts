@@ -251,6 +251,9 @@ function createSensitiveRegistry(): SensitiveRegistry {
         // Walk into the children (recursively) and mask the actual rendered
         // boxes instead.
         if (isContentsBox(el)) {
+          // The wrapper itself too: its inline `color: transparent` is
+          // inherited by direct text children, which have no box to mask.
+          out.push(el);
           for (const child of Array.from(el.children)) add(child);
           return;
         }

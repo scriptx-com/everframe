@@ -27,6 +27,11 @@
       <div id="vault-fab">ACCT 1234 5678</div>
     </section>
     <div id="modal" data-everframe-sensitive>Card 4111 1111 1111 1111</div>
+    <!-- <Sensitive>-style display:contents wrapper around bare text. -->
+    <p id="acct-line" style="background:#fff;margin:12px 0 0;width:300px;font-size:20px">Account: <span id="contents-wrap" data-everframe-sensitive style="display:contents">99887766</span></p>
+    <!-- Sensitive element with CSS zoom: occupies 400x80. -->
+    <div id="zoomed" data-everframe-sensitive style="zoom:2;width:200px;height:40px;margin-top:12px;background:#fff">zoomed secret</div>
+    <div id="after-zoom" style="width:100px;height:30px;background:rgb(0,200,0)"></div>
   </div>
   <!-- Same import map as capture-cases.html (stands in for the consumer's bundler). -->
   <script type="importmap">
