@@ -16,7 +16,7 @@
   "files": ["dist", "library", "hook", "LICENSE", "NOTICE"],
   "scripts": {
     "build": "rm -rf dist && tsup && node scripts/build-library.mjs",
-    "test": "vitest run",
+    "test": "node scripts/ensure-brs.mjs && vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
@@ -29,7 +29,6 @@
   "devDependencies": {
     "@everframe/protocol": "workspace:*",
     "@types/node": "22.20.4",
-    "brs-node": "2.6.0",
     "tsup": "^8.0.0",
     "zod": "4.3.6"
   }

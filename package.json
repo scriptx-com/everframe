@@ -45,9 +45,7 @@
       "@expo/cli": "56.1.0",
       "react": "19.2.5",
       "react-dom": "19.2.5",
-      "zod": "4.3.6",
-      "@zenfs/core>@types/node": "22.20.4",
-      "@zenfs/streams>@types/node": "22.20.4"
+      "zod": "4.3.6"
     },
     "patchedDependencies": {
       "@expo/cli@56.1.0": "patches/@expo__cli@56.1.0.patch",

@@ -13,8 +13,16 @@ import { fileURLToPath } from 'node:url';
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const LIB_DIR = path.join(PKG, 'library/components/Everframe/lib');
 export const HOOK_DIR = path.join(PKG, 'hook');
-// The workspace uses node-linker=hoisted, so the bin normally lives at the repo root.
-const BRS_CLI = [path.join(PKG, 'node_modules/.bin/brs-cli'), path.join(PKG, '../../node_modules/.bin/brs-cli')].find(existsSync)!;
+// brs-node lives in test-tools/, a standalone install outside the pnpm workspace
+// (its native `canvas` dependency must not reach the shared node_modules).
+// The package `test` script installs it via scripts/ensure-brs.mjs.
+const BRS_CLI = path.join(PKG, 'test-tools/node_modules/.bin/brs-cli');
+if (!existsSync(BRS_CLI)) {
+  throw new Error(
+    `brs-cli not found at ${BRS_CLI}. Run \`pnpm --filter @everframe/roku test\` ` +
+      '(or `node scripts/ensure-brs.mjs` in packages/sdk-roku) to install the test interpreter.',
+  );
+}
 
 export function brsString(s: string): string {
   return '"' + s.replace(/"/g, '""') + '"';
