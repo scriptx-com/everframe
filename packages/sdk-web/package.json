@@ -63,7 +63,8 @@
     "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
     "clean": "rm -rf dist .turbo node_modules/.cache",
     "size-limit": "size-limit",
-    "perf:vitals": "node perf/vitals-harness.mjs"
+    "perf:vitals": "node perf/vitals-harness.mjs",
+    "perf:screenshot": "node perf/screenshot-harness.mjs"
   },
   "peerDependencies": {
     "konva": "^10.2.5",
