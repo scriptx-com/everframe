@@ -113,52 +113,54 @@ class _FlutterIosProbeAppState extends State<FlutterIosProbeApp> {
   Widget build(BuildContext context) => MaterialApp(
     home: Scaffold(
       appBar: AppBar(title: const Text('Everframe Flutter iOS probe')),
-      body: RepaintBoundary(
-        key: _boundaryKey,
-        child: ColoredBox(
-          color: Colors.white,
-          child: Column(
-            children: [
-              const SizedBox(height: 24),
-              Container(
-                key: Key(_secondScreen ? 'public-tile-b' : 'public-tile-a'),
-                height: 70,
-                width: 160,
-                color: _secondScreen
-                    ? const Color(0xFF0066FF)
-                    : const Color(0xFF00CC00),
-              ),
-              const SizedBox(height: 16),
-              EverframeSensitive(
-                registry: _sensitiveRegions,
-                child: const SizedBox(
+      body: SizedBox.expand(
+        child: RepaintBoundary(
+          key: _boundaryKey,
+          child: ColoredBox(
+            color: Colors.white,
+            child: Column(
+              children: [
+                const SizedBox(height: 24),
+                Container(
+                  key: Key(_secondScreen ? 'public-tile-b' : 'public-tile-a'),
                   height: 70,
                   width: 160,
-                  child: ColoredBox(
-                    key: Key('sensitive-tile'),
-                    color: Color(0xFFFF00FF),
+                  color: _secondScreen
+                      ? const Color(0xFF0066FF)
+                      : const Color(0xFF00CC00),
+                ),
+                const SizedBox(height: 16),
+                EverframeSensitive(
+                  registry: _sensitiveRegions,
+                  child: const SizedBox(
+                    height: 70,
+                    width: 160,
+                    child: ColoredBox(
+                      key: Key('sensitive-tile'),
+                      color: Color(0xFFFF00FF),
+                    ),
                   ),
                 ),
-              ),
-              Text(_secondScreen ? 'Screen B' : 'Screen A'),
-              ElevatedButton(
-                onPressed: _start,
-                child: const Text('Start dry run'),
-              ),
-              ElevatedButton(
-                onPressed: _next,
-                child: const Text('Next screen'),
-              ),
-              ElevatedButton(
-                onPressed: _open,
-                child: const Text('Open reporter'),
-              ),
-              ElevatedButton(
-                onPressed: _recordContext,
-                child: const Text('Record Dart context'),
-              ),
-              Text(_status),
-            ],
+                Text(_secondScreen ? 'Screen B' : 'Screen A'),
+                ElevatedButton(
+                  onPressed: _start,
+                  child: const Text('Start dry run'),
+                ),
+                ElevatedButton(
+                  onPressed: _next,
+                  child: const Text('Next screen'),
+                ),
+                ElevatedButton(
+                  onPressed: _open,
+                  child: const Text('Open reporter'),
+                ),
+                ElevatedButton(
+                  onPressed: _recordContext,
+                  child: const Text('Record Dart context'),
+                ),
+                Text(_status),
+              ],
+            ),
           ),
         ),
       ),

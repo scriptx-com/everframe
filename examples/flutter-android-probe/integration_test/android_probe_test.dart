@@ -9,11 +9,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-Future<List<int>> pixel(Uint8List png, int x, int y) async {
+Future<List<int>> centerPixel(Uint8List png, int y) async {
   final codec = await ui.instantiateImageCodec(png);
   final image = (await codec.getNextFrame()).image;
   final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-  final offset = (y * image.width + x) * 4;
+  final offset = (y * image.width + image.width ~/ 2) * 4;
   final rgba = data!.buffer.asUint8List().sublist(offset, offset + 4);
   image.dispose();
   codec.dispose();
@@ -46,10 +46,10 @@ void main() {
     expect(await recorder.sampleNow(), true);
     final frames = recorder.freeze();
     expect(frames.length, 2);
-    expect(await pixel(frames.first.png, 80, 50), [0, 204, 0, 255]);
-    expect(await pixel(frames.last.png, 80, 50), [0, 102, 255, 255]);
-    expect(await pixel(frames.first.png, 80, 140), [0, 0, 0, 255]);
-    expect(await pixel(frames.last.png, 80, 140), [0, 0, 0, 255]);
+    expect(await centerPixel(frames.first.png, 50), [0, 204, 0, 255]);
+    expect(await centerPixel(frames.last.png, 50), [0, 102, 255, 255]);
+    expect(await centerPixel(frames.first.png, 140), [0, 0, 0, 255]);
+    expect(await centerPixel(frames.last.png, 140), [0, 0, 0, 255]);
     expect(buffer.revoked, false);
   });
 

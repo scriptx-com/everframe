@@ -17,13 +17,15 @@ Every row below was submitted by the running emulator or simulator, appeared in 
 
 | Host | Dashboard event ID | Replay shown in dashboard |
 | --- | --- | --- |
-| Flutter Android, API 36 Pixel 9 Pro XL emulator | `d75252a1-e519-46e4-92d6-d8d0ef519bb7` | `everframe-vtree-v1`, 7.9 seconds |
+| Flutter Android, API 36 Pixel 9 Pro XL emulator | `72bc4977-52a0-44d9-9865-3679698cdd2f` | `everframe-vtree-v1`, 29.8 seconds |
 | KMP Android Compose, same emulator | `32c308a8-9b6f-476c-93a6-0c3a31a9874f` | `everframe-vtree-v1`, 14.0 seconds |
-| Flutter iOS, iPhone 18 Pro iOS 27.0 simulator | `38ddf51c-71a6-464b-8591-4cd3d4810e80` | `everframe-vtree-v1`, 1.8 seconds |
+| Flutter iOS, iPhone 18 Pro iOS 27.0 simulator | `3e6795de-df4a-48e5-9ee5-f00fc186b55d` | `everframe-vtree-v1`, 14.3 seconds |
 | KMP SwiftUI host, same simulator | `05dfadb7-4cfa-4eff-9f71-bf3b3e608f2f` | `everframe-video-v1`, 1.4 seconds |
 | KMP Compose iOS host, same simulator | `0b765054-f16d-4380-8030-2bbb5046ed3d` | `everframe-video-v1`, 1.8 seconds |
 
 The downloaded screenshots showed readable public content and black sensitive regions in the tested scenes. Flutter handled Dart error events reached the same local project from both Android and iOS. KMP Android sent its coded and throwable handled-error events. KMP iOS context breadcrumbs appeared in the manual report, but separate handled-error wire delivery was not established by this run.
+
+The first Flutter dashboard screenshots were only 175 px wide on Android and 186 px on iOS because the sample `RepaintBoundary` shrank to its content column. Full-width body capture was added to both samples with a regression test in each. Fresh reports above have masked screenshots at the full logical body widths: Android 448 × 889 and iOS 402 × 756. Their screenshot and replay attachments returned HTTP 200 with matching byte lengths and SHA-256 hashes. The dashboard rendered both new detail views and replay timelines. The Flutter sample capture still covers the Scaffold body, not the app bar or system chrome.
 
 The final five dashboard detail URLs use `/admin/projects/mobile-sdk-e2e/reports/<event ID>` on `localhost:5173`. Local screenshot and browser evidence was saved under `/tmp/everframe-*` and was not committed. The temporary Flutter iOS XCTest driver launched the installed Flutter app, tapped the native reporter, and asserted `Reporter: submitted`; it was removed from the KMP test source after the run. The KMP iOS UI tests use local app ID/key launch inputs for the real stack.
 
