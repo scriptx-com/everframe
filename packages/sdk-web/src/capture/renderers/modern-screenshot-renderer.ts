@@ -282,26 +282,14 @@ export function computeViewportCropRect(args: {
   return { sx, sy, sw, sh, outW, outH, noop };
 }
 
-/**
- * Crop the full-document render down to the current viewport at device-pixel
- * resolution, compensating the capture library's in-flow clone drift (see
- * bodyCloneDriftCssPx). Operates on the CANVAS the capture produced — before
- * any encode — so the crop costs one drawImage instead of the old pipeline's
- * PNG decode + re-encode. Where the drifted crop reaches past the bitmap's
- * right/bottom edge (the clone's last `drift` px of in-flow content were
- * pushed outside the fixed-size render), the output is padded with the
- * capture background white instead of shrinking — downstream area-selection
- * math relies on the shot being exactly viewport-sized. Returns the input
- * canvas untouched in environments without `window` (SSR / jsdom), when the
- * crop is a no-op, or when a 2d context is unavailable.
- */
-function cropCanvasToViewport(
+/** The live viewport's crop rect on `canvas` (null without `window` or when it misses). */
+function liveViewportCropRect(
   canvas: HTMLCanvasElement,
   pixelRatio: number,
-  drift: { x: number; y: number } = { x: 0, y: 0 },
-): HTMLCanvasElement {
-  if (typeof window === 'undefined') return canvas;
-  const rect = computeViewportCropRect({
+  drift: { x: number; y: number },
+): ViewportCropRect | null {
+  if (typeof window === 'undefined') return null;
+  return computeViewportCropRect({
     bmWidth: canvas.width,
     bmHeight: canvas.height,
     scrollX: window.scrollX || 0,
@@ -312,6 +300,22 @@ function cropCanvasToViewport(
     driftX: drift.x,
     driftY: drift.y,
   });
+}
+
+/**
+ * Crop the full-document render down to the current viewport at device-pixel
+ * resolution, compensating the capture library's in-flow clone drift (see
+ * bodyCloneDriftCssPx). Operates on the CANVAS the capture produced — before
+ * any encode — so the crop costs one drawImage instead of the old pipeline's
+ * PNG decode + re-encode. Where the drifted crop reaches past the bitmap's
+ * right/bottom edge (the clone's last `drift` px of in-flow content were
+ * pushed outside the fixed-size render), the output is padded with the
+ * capture background white instead of shrinking — downstream area-selection
+ * math relies on the shot being exactly viewport-sized. Returns the input
+ * canvas untouched when there is no crop rect (no `window`, e.g. SSR / jsdom), when the
+ * crop is a no-op, or when a 2d context is unavailable.
+ */
+function cropCanvasToViewport(canvas: HTMLCanvasElement, rect: ViewportCropRect | null): HTMLCanvasElement {
   if (!rect || rect.noop) return canvas;
   const { sx, sy, sw, sh, outW, outH } = rect;
   const out = document.createElement('canvas');
@@ -337,9 +341,11 @@ export interface ModernScreenshotRenderOptions {
 export interface ModernScreenshotRenderResult {
   canvas: HTMLCanvasElement;
   /**
-   * Whether the raw render was near-uniform, measured on the un-cropped
-   * domToCanvas result BEFORE any `maskPlan` painting — black mask boxes on a
-   * flat raster must not make it look like a real screenshot. An unavailable
+   * Whether the raw render was near-uniform, measured on the viewport
+   * region the crop ships (the whole canvas when no crop applies) BEFORE any
+   * `maskPlan` painting — black mask boxes on a flat raster must not make it
+   * look like a real screenshot, and neither may content scrolled out of
+   * view that the crop discards. An unavailable
    * check (null) counts as not blank.
    */
   blank: boolean;
@@ -421,13 +427,20 @@ export async function renderViewportWithModernScreenshot(
   // canvas — the old pipeline masked the full-document blob before
   // cropping, and masking after the crop paints at the wrong offset
   // on scrolled pages, shipping the content the mask exists to hide.
-  // Blank verdict BEFORE the mask paint — see ModernScreenshotRenderResult.
-  const blank = isCanvasBlank(canvas) === true;
+  // Blank verdict BEFORE the mask paint — see ModernScreenshotRenderResult —
+  // and on the viewport region the crop below ships, not the whole document:
+  // a contrasting header scrolled out of view must not make a flat viewport
+  // look like a real screenshot. The same rect then drives the crop.
+  const cropRect = liveViewportCropRect(canvas, pixelRatio, cloneDrift);
+  const blank =
+    (cropRect && !cropRect.noop
+      ? isCanvasBlank(canvas, { sx: cropRect.sx, sy: cropRect.sy, sw: cropRect.sw, sh: cropRect.sh })
+      : isCanvasBlank(canvas)) === true;
   if (opts.maskPlan && opts.maskPlan.length > 0) {
     // Rects arrive in requested-DPR device px; the canvas renders at
     // the (possibly capped) effective ratio — scale or the mask shifts
     // and exposes excluded pixels (codex round-4 finding).
     paintMaskRectsOnCanvas(canvas, opts.maskPlan, pixelRatio / (requestedRatio || 1));
   }
-  return { canvas: cropCanvasToViewport(canvas, pixelRatio, cloneDrift), blank };
+  return { canvas: cropCanvasToViewport(canvas, cropRect), blank };
 }

@@ -8,7 +8,6 @@ import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reas
 import { installVideoStandIns } from './video-frames.js';
 import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
 import { renderViewportWithSnapdom } from './renderers/snapdom-renderer.js';
-import { isCanvasBlank } from './blank-check.js';
 import { paintMaskRectsOnCanvas } from './mask-paint.js';
 export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
@@ -324,28 +323,31 @@ export async function captureScreenshot(
   type Attempt = { canvas: HTMLCanvasElement; renderer: Exclude<ScreenshotRenderer, 'none'> };
   const started = Date.now();
   const elapsed = (): number => Date.now() - started;
-  // null (check unavailable) counts as NOT blank — never discard a real shot.
-  const isBlank = (canvas: HTMLCanvasElement): boolean => isCanvasBlank(canvas) === true;
   let accepted: Attempt | null = null;
   let firstBlank: Attempt | null = null;
   let primaryTimedOut = false;
 
   try {
     try {
-      const canvas = await withDeadline(
+      // `blank` is measured by the renderer on the RAW raster — before its
+      // scrollbar padding and before mask boxes add edges to a flat canvas.
+      // `scrollX/Y` is the viewport origin read synchronously right before
+      // snapDOM started: snapDOM (`fast: false`) yields to the page while
+      // rendering, so reading scroll again after it settles would offset the
+      // maskPlan rects by wherever the user has scrolled since — shipping the
+      // very pixels the mask exists to hide.
+      const { canvas, blank, scrollX: originX, scrollY: originY } = await withDeadline(
         renderViewportWithSnapdom(root, { pixelRatio, filter: filterNode }),
         Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE),
         'snapdom',
       );
-      // Blank-check the RAW render, before mask boxes add edges to a flat canvas.
-      const blank = isBlank(canvas);
       if (opts.maskPlan && opts.maskPlan.length > 0) {
         paintMaskRectsOnCanvas(
           canvas,
           opts.maskPlan,
           pixelRatio / (requestedRatio || 1),
-          (typeof window !== 'undefined' ? window.scrollX || 0 : 0) * pixelRatio,
-          (typeof window !== 'undefined' ? window.scrollY || 0 : 0) * pixelRatio,
+          originX * pixelRatio,
+          originY * pixelRatio,
         );
       }
       const attempt: Attempt = { canvas, renderer: 'snapdom' };

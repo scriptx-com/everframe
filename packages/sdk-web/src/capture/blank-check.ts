@@ -38,12 +38,21 @@ export function isNearUniform(rgba: ArrayLike<number>, range: number = BLANK_LUM
   return true;
 }
 
+/** Source region (canvas px) to sample instead of the whole canvas. */
+export interface BlankCheckRegion {
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+}
+
 /**
- * Sample the canvas down and test it. `null` = the check could not run (no 2d
- * context, tainted canvas, detached engine) — callers must treat that as NOT
- * blank, so a missing capability never discards a real screenshot.
+ * Sample the canvas (or `region` of it — the part that will actually ship)
+ * down and test it. `null` = the check could not run (no 2d context, tainted
+ * canvas, detached engine) — callers must treat that as NOT blank, so a
+ * missing capability never discards a real screenshot.
  */
-export function isCanvasBlank(canvas: HTMLCanvasElement): boolean | null {
+export function isCanvasBlank(canvas: HTMLCanvasElement, region?: BlankCheckRegion): boolean | null {
   try {
     const sample = document.createElement('canvas');
     sample.width = BLANK_SAMPLE_WIDTH;
@@ -52,7 +61,11 @@ export function isCanvasBlank(canvas: HTMLCanvasElement): boolean | null {
     if (!ctx) return null;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT);
-    ctx.drawImage(canvas, 0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT);
+    if (region) {
+      ctx.drawImage(canvas, region.sx, region.sy, region.sw, region.sh, 0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT);
+    } else {
+      ctx.drawImage(canvas, 0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT);
+    }
     return isNearUniform(ctx.getImageData(0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT).data);
   } catch {
     return null;

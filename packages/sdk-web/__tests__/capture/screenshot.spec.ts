@@ -1014,6 +1014,49 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     expect(reason).toBeUndefined();
   });
 
+  it('offsets maskPlan by the scroll read right before the snapdom render, not by a scroll during it', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    const canvas = makeFillRecordingCanvas(fills);
+    Object.defineProperty(window, 'scrollX', { value: 0, configurable: true });
+    Object.defineProperty(window, 'scrollY', { value: 300, configurable: true });
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(async () => {
+        // The user scrolls while snapDOM (fast:false) yields mid-render.
+        Object.defineProperty(window, 'scrollY', { value: 700, configurable: true });
+        return { toCanvas: async () => canvas };
+      }),
+    }));
+    try {
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
+      // Root-relative y=320 in the viewport captured at scrollY=300 -> y=20 (minus 2px inflation);
+      // offsetting by the post-render 700 would paint at y=-382 and expose the content.
+      expect(fills).toEqual([[8, 18, 54, 24]]);
+    } finally {
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    }
+  });
+
+  it('blank-checks the fallback on the viewport region it ships, not the whole document canvas', async () => {
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('nope'); }) }));
+    const doc = makeCanvasStub({ width: 1024, height: 3000 }).stub;
+    mockModern(doc);
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1024);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(768);
+    Object.defineProperty(window, 'scrollY', { value: 500, configurable: true });
+    const root = document.createElement('div'); // not <body>: no clone-drift term
+    document.body.appendChild(root);
+    try {
+      const blank = await import('../../src/capture/blank-check.js');
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      await cap({ root, pixelRatio: 1 });
+      expect(blank.isCanvasBlank).toHaveBeenCalledWith(doc, { sx: 0, sy: 500, sw: 1024, sh: 768 });
+      expect(blank.isCanvasBlank).not.toHaveBeenCalledWith(doc);
+    } finally {
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    }
+  });
+
   it('flags screenshot_blank when both renderers are blank even with maskPlan painted', async () => {
     const snapFills: Array<[number, number, number, number]> = [];
     const modernFills: Array<[number, number, number, number]> = [];
