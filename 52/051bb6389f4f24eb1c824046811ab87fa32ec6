@@ -1,0 +1,39 @@
+packages/sdk-roku/__tests__/entry-points.spec.ts
+  s_d03518d0f16fdd::t_c6498c9f52e921 307-325
+packages/sdk-roku/__tests__/exitinfo.spec.ts
+  s_d03518d0f16fdd::t_c0484e59db6d03 8
+packages/sdk-roku/__tests__/hook.spec.ts
+  s_d03518d0f16fdd::t_3fb75bfc27d1d2 7
+packages/sdk-roku/__tests__/instrument.spec.ts
+  s_d03518d0f16fdd::t_2fba169db25bd3 15,65,289
+packages/sdk-roku/__tests__/queue.spec.ts
+  s_d03518d0f16fdd::t_9b199b0563a143 6,164-183
+packages/sdk-roku/__tests__/screen.spec.ts
+  s_d03518d0f16fdd::t_0a7280c81c4737 16,154,188
+packages/sdk-roku/library/components/Everframe/Everframe.xml
+  s_d03518d0f16fdd::t_fabab601b1a24e 22
+packages/sdk-roku/library/components/Everframe/lib/ef_envelope.brs
+  s_d03518d0f16fdd::t_78b0772dab210e 35,108-115
+packages/sdk-roku/library/components/Everframe/lib/ef_queue.brs
+  s_d03518d0f16fdd::t_02605dda8ffab8 27-34
+packages/sdk-roku/src/entry-points.ts
+  s_d03518d0f16fdd::t_119e57c1ba55b8 217-248
+packages/sdk-roku/src/instrument.ts
+  s_d03518d0f16fdd::t_6903ab46a985b3 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "52051bb6389f4f24eb1c824046811ab87fa32ec6",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
