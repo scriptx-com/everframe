@@ -95,6 +95,30 @@ test('scroller child with a class-applied transform keeps it and the scroll offs
   expect(near(r.samples.unshifted!, [255, 255, 255])).toBe(true);
 });
 
+test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  const pos = await page.evaluate(() => {
+    const el = document.getElementById('cx')!;
+    el.scrollIntoView();
+    const b = el.getBoundingClientRect();
+    return { cx: [b.left + b.width / 2, b.top + b.height / 2] as [number, number] };
+  });
+  const first = await captureAndSample(page, pos);
+  expect(first.renderer).toBe('snapdom');
+  expect(near(first.samples.cx!, [0, 0, 255])).toBe(true);
+
+  await page.evaluate(() => {
+    for (const sheet of Array.from(document.styleSheets)) {
+      for (const rule of Array.from(sheet.cssRules)) {
+        if (rule instanceof CSSStyleRule && rule.selectorText === '.cx') rule.style.background = 'rgb(0,255,0)';
+      }
+    }
+  });
+  const second = await captureAndSample(page, pos);
+  expect(second.renderer).toBe('snapdom');
+  expect(near(second.samples.cx!, [0, 255, 0])).toBe(true);
+});
+
 test('15k-node page is captured by snapdom and is not blank', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html?bulk=15000');
   const r = await captureAndSample(page, {});

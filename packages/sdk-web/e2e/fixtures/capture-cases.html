@@ -9,6 +9,10 @@
   body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e8ee; }
   main { padding: 32px; display: grid; gap: 16px; max-width: 720px; }
   .card { background: #171a23; border: 1px solid #2a2e3a; border-radius: 10px; padding: 20px; }
+  /* Restyled by script in the stale-style-cache e2e test. Lives in <head>:
+     a <style> inside the captured subtree is cloned with its ORIGINAL text,
+     so a CSSOM edit to it could never show up in any capture. */
+  .cx { width: 200px; height: 60px; background: rgb(0,0,255); }
   .swatch { height: 56px; border-radius: 8px; background: linear-gradient(90deg,#ff5f6d,#ffc371); }
 </style>
 </head>
@@ -33,6 +37,7 @@
       </div>
     </div>
   </section>
+  <section id="restyle" style="background:#fff;padding:8px"><div id="cx" class="cx"></div></section>
   <section id="bulk"></section>
   </main>
   <script>
@@ -59,14 +64,6 @@
   <script type="module">
     import { init } from '/dist/index.js';
     window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
-    document.getElementById('report').addEventListener('click', () => {
-      // Swallowed: open() resolves on submit and rejects if the reporter is
-      // not mounted. A spec that opens the dialog and then ends leaves this
-      // promise pending, and one that tears the page down mid-open would
-      // otherwise surface an unhandled rejection that has nothing to do with
-      // what is being tested.
-      window.__everframe.open().catch(() => {});
-    });
   </script>
 </body>
 </html>

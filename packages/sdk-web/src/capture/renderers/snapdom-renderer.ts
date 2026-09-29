@@ -102,6 +102,13 @@ export async function renderViewportWithSnapdom(
       filter: (el: Element) => opts.filter(el),
       filterMode: 'remove',
       embedFonts: 'auto',
+      // Clears snapDOM's per-element style snapshots on every capture (the
+      // resource cache - fonts, images - is kept). Without it, a script edit
+      // to an existing stylesheet rule (`rule.style.background = ...`) ships
+      // the PREVIOUS capture's styling. Repeat-capture memoization is also
+      // skipped today only because `filter` is a function - do not rely on
+      // that; this flag is the explicit guarantee.
+      invalidate: true,
     });
     return await capture.toCanvas();
   } finally {

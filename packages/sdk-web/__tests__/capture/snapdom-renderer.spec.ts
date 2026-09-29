@@ -31,6 +31,7 @@ describe('renderViewportWithSnapdom', () => {
       backgroundColor: '#ffffff',
       filterMode: 'remove',
       embedFonts: 'auto',
+      invalidate: true,
     });
     expect(typeof opts.filter).toBe('function');
   });
