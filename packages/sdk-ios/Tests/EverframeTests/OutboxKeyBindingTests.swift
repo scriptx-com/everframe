@@ -35,6 +35,32 @@ final class OutboxKeyBindingTests: XCTestCase {
         }
     }
 
+    func test_host_image_replay_survives_retry_with_exact_bytes() async throws {
+        RecordingURLProtocol.reset()
+        defer { RecordingURLProtocol.reset() }
+        RecordingURLProtocol.responseStatus = 503
+        let box = makeOutbox()
+        let session = stubbedSession(); defer { session.invalidateAndCancel() }
+        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key-A"), outbox: box, session: session)
+        let replay = Data(#"{"version":"everframe-vtree-v1","frames":[]}"#.utf8)
+        let attachment = ReportSubmitter.Attachment(
+            name: "replay", filename: "replay.json", contentType: "application/octet-stream",
+            data: replay, sha256Hex: "replay-hash")
+        let result = try await submitter.submit(
+            envelopeBytes: Data("{}".utf8), idempotencyKey: "image-replay-idem",
+            attachments: [attachment], endpoint: "https://a.example.com")
+        guard case .queued = result else { return XCTFail("retryable upload must queue") }
+        let queued = try XCTUnwrap(box.hydrate().first)
+        XCTAssertEqual(queued.attachmentRefs.count, 1)
+        XCTAssertEqual(queued.attachmentRefs[0].filename, "replay.json")
+        XCTAssertEqual(Data(base64Encoded: queued.attachmentRefs[0].dataBase64), replay)
+        RecordingURLProtocol.responseStatus = 200
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 0 })
+        XCTAssertEqual(box.count, 0)
+        XCTAssertEqual(RecordingURLProtocol.recorded.count, 2)
+    }
+
     private var tempDir: URL!
 
     override func setUpWithError() throws {
