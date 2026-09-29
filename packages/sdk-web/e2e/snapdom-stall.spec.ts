@@ -15,9 +15,12 @@ async function openStalled(page: Page): Promise<() => void> {
     held.push(() => route.fulfill({ status: 404 }).catch(() => undefined));
   });
   // The load event waits for the held font; the SDK is up at DOMContentLoaded.
+  await page.exposeFunction('__releaseStall', async () => {
+    await Promise.all(held.splice(0).map((release) => release()));
+  });
   await page.goto('/e2e/fixtures/stall.html', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!(window as unknown as { __everframe?: unknown }).__everframe);
-  return () => held.forEach((release) => void release());
+  return () => held.splice(0).forEach((release) => void release());
 }
 
 type Adapter = {
@@ -100,12 +103,16 @@ test('an element the app replaces DURING a stalled snapDOM clone is masked in th
     const a = w.__everframe.__adapter;
     const capture = a.captureScreenshot(); // its clone stalls on the iframe, before the holder
     await new Promise((res) => setTimeout(res, 300));
+    const w2 = window as unknown as { __releaseStall(): Promise<void> };
     const holder = document.getElementById('holder')!;
     const replacement = document.createElement('div');
     replacement.className = 'secret';
     replacement.setAttribute('data-everframe-sensitive', '');
     replacement.textContent = '5500 0000 0000 0004';
     holder.replaceChildren(replacement);
+    // Released well inside the primary budget: this capture must be the
+    // snapDOM one (a fallback would mask from a fresh list and prove nothing).
+    await w2.__releaseStall();
     const shot = await capture;
     const bmp = await createImageBitmap(shot.blob);
     const c = document.createElement('canvas');
@@ -123,6 +130,45 @@ test('an element the app replaces DURING a stalled snapDOM clone is masked in th
     };
   });
   release();
-  expect(['snapdom', 'modern-screenshot']).toContain(r.renderer);
+  expect(r.renderer).toBe('snapdom');
   for (const s of r.samples) expect(s.slice(0, 3).every((v) => v <= 40), JSON.stringify(s)).toBe(true);
+});
+
+test('snapDOM never restyles the live page: outlined root and content-visibility element untouched', async ({ page }) => {
+  test.setTimeout(60_000);
+  const release = await openStalled(page);
+  const r = await page.evaluate(async () => {
+    const a = (window as unknown as { __everframe: { __adapter: Adapter } }).__everframe.__adapter;
+    const cv = document.getElementById('cv')!;
+    const records: string[] = [];
+    const mo = new MutationObserver((list) => {
+      for (const m of list) records.push(`${(m.target as Element).id || (m.target as Element).tagName}:${m.attributeName}`);
+    });
+    mo.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+    mo.observe(cv, { attributes: true, attributeFilter: ['style'] });
+    let dirtyDuring = 0;
+    const iv = setInterval(() => {
+      if (document.body.getAttribute('style') !== null || cv.getAttribute('style') !== null) dirtyDuring++;
+    }, 4);
+    const started = performance.now();
+    await a.captureScreenshot();
+    const ms = performance.now() - started;
+    clearInterval(iv);
+    mo.disconnect();
+    return {
+      ms,
+      records,
+      dirtyDuring,
+      bodyStyle: document.body.getAttribute('style'),
+      cvStyle: cv.getAttribute('style'),
+      cvComputed: getComputedStyle(cv).contentVisibility,
+    };
+  });
+  release();
+  expect(r.ms).toBeGreaterThan(1_000); // the clone really was stalled
+  expect(r.records).toEqual([]);
+  expect(r.dirtyDuring).toBe(0);
+  expect(r.bodyStyle).toBeNull();
+  expect(r.cvStyle).toBeNull();
+  expect(r.cvComputed).toBe('auto');
 });

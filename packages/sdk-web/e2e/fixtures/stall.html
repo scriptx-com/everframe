@@ -6,7 +6,10 @@
 <meta charset="utf-8" />
 <title>Everframe stalled-capture e2e fixture</title>
 <style>
-  body { margin: 0; padding: 24px; background: #fff; font: 16px/1.5 system-ui, sans-serif; color: #111; }
+  /* An outlined capture root and a content-visibility:auto element: stock
+     snapDOM restyles both LIVE for the duration of its clone. */
+  body { margin: 0; padding: 24px; background: #fff; font: 16px/1.5 system-ui, sans-serif; color: #111; outline: 3px solid rgb(255, 0, 0); outline-offset: -3px; }
+  #cv { content-visibility: auto; contain-intrinsic-size: auto 60px; }
   /* Single-line ellipsis over two text nodes (snapDOM measures it on the live page). */
   #label { width: 90px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .secret { width: 200px; height: 40px; background: #fff; color: #000; margin-top: 16px; }
@@ -15,6 +18,7 @@
 </head>
 <body>
   <div id="label"></div>
+  <div id="cv">content-visibility: auto</div>
   <!-- Same-origin iframe whose web font request never completes (the e2e
        test holds /stall-font.woff2): snapDOM's clone of it stalls. It comes
        BEFORE the holder, so the holder is cloned only after the stall. -->
