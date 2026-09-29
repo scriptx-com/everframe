@@ -65,7 +65,9 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
                 _ = installSensitiveMarkers(args)
                 defer { clearMarkers() }
                 do {
-                    let outcome = try await EFReporterPresenter.openWithMaskedPng(maskedPng)
+                    let replayVTree = (args["replayVTree"] as? FlutterStandardTypedData)?.data
+                    let outcome = try await EFReporterPresenter.openWithMaskedPng(maskedPng,
+                        replayVTree: replayVTree)
                     switch outcome {
                     case .submitted(let reportId):
                         result(["status": "submitted", "reportId": reportId.uuidString])

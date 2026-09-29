@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:everframe_flutter/everframe_flutter.dart';
@@ -59,10 +60,17 @@ void main() {
     await tester.pump();
     final expected = tester.getRect(find.byKey(const Key('secret')));
     expect(expected.top, greaterThan(12));
+    final replay = SafeReplayBuffer();
+    final maskedFrame = await tester.runAsync(
+        () => captureRegisteredFrame(boundary, registry));
+    expect(maskedFrame, isNotNull);
+    expect(await tester.runAsync(() => replay.append(maskedFrame)), true);
+    replay.freeze();
     final pending =
         tester.runAsync(() => const EverframeNativeBridge().openReporter(
               boundaryKey: boundary,
               sensitiveRegions: registry,
+              replayBuffer: replay,
             ));
     await tester.pump();
     await pending;
@@ -70,6 +78,10 @@ void main() {
     final args = sent?.arguments as Map<Object?, Object?>;
     expect(args['pixelRatio'], tester.view.devicePixelRatio);
     expect(args['maskedPng'], isA<Uint8List>());
+    final timeline = jsonDecode(utf8.decode(args['replayVTree'] as Uint8List))
+        as Map<String, dynamic>;
+    expect(timeline['version'], 'everframe-vtree-v1');
+    expect((timeline['frames'] as List).length, 1);
     expect(args['sensitiveRects'], [
       {
         'left': expected.left,

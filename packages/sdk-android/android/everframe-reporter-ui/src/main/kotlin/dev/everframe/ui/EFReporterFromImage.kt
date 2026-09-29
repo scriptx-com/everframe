@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 
 /** Opens the native reporter with a host-rendered, already masked PNG. */
 object EFReporterFromImage {
-    suspend fun open(activity: Activity, maskedPng: ByteArray): ReportResult {
+    suspend fun open(activity: Activity, maskedPng: ByteArray, replayVTree: ByteArray? = null): ReportResult {
         if (maskedPng.size !in 8..10_000_000 ||
             !maskedPng.take(8).toByteArray().contentEquals(
                 byteArrayOf(137.toByte(), 80, 78, 71, 13, 10, 26, 10)
@@ -33,7 +33,10 @@ object EFReporterFromImage {
         return TXReporterPresenter(
             captureScreenshot = { _, _ -> capture },
             showDialog = { host, screenshot, frozen, extra ->
-                ReporterDialog.show(host, screenshot, frozen, extra, allowAdditionalScreenshots = false)
+                // Host-rendered reports never fall back to unmasked native video.
+                // An empty value keeps that policy when Flutter has no safe frames.
+                ReporterDialog.show(host, screenshot, frozen, extra,
+                    allowAdditionalScreenshots = false, hostReplayVTree = replayVTree ?: ByteArray(0))
             },
         ).openReporter(activity)
     }

@@ -1784,6 +1784,12 @@ public final class Everframe: @unchecked Sendable {
         return await session?.completeVideoForSubmit()
     }
 
+    /// Synchronous live gate for host-supplied Flutter replay upload checks.
+    @MainActor
+    internal func __hostReplayEnabledNow() -> Bool {
+        (__replayConfigOverrideForTesting ?? _replaySession?.currentConfig ?? .off).replayEnabled
+    }
+
     /// Called after the reporter window is removed, including successful Send.
     @MainActor
     public func __replayReporterDidClose() {

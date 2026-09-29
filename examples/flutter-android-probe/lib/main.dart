@@ -54,6 +54,7 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
         environment: 'development',
       );
       await _bridge.recordScreen('Screen A');
+      await WidgetsBinding.instance.endOfFrame;
       await _recorder.start();
       if (mounted) setState(() => _status = 'Native SDK started');
     } catch (error) {
@@ -79,6 +80,7 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
       final outcome = await _bridge.openReporter(
         boundaryKey: _boundaryKey,
         sensitiveRegions: _sensitiveRegions,
+        replayBuffer: wasRecording ? _replay : null,
       );
       if (mounted) setState(() => _status = 'Reporter: ${outcome.status}');
     } catch (error) {

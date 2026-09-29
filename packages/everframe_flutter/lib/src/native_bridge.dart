@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'sensitive_region.dart';
+import 'safe_replay_buffer.dart';
+import 'safe_replay_export.dart';
 
 /// Android reporter bridge for the unreleased mobile dry run.
 class EverframeNativeBridge {
@@ -33,9 +35,13 @@ class EverframeNativeBridge {
   Future<EverframeReporterOutcome> openReporter({
     GlobalKey? boundaryKey,
     SensitiveRegionRegistry? sensitiveRegions,
+    SafeReplayBuffer? replayBuffer,
   }) async {
     if ((boundaryKey == null) != (sensitiveRegions == null)) {
       throw ArgumentError('boundaryKey and sensitiveRegions must be paired');
+    }
+    if (replayBuffer != null && boundaryKey == null) {
+      throw ArgumentError('replayBuffer requires a Flutter boundary');
     }
     if (boundaryKey != null) {
       await WidgetsBinding.instance.endOfFrame;
@@ -54,11 +60,22 @@ class EverframeNativeBridge {
     final context = boundaryKey?.currentContext;
     final pixelRatio =
         context == null ? null : View.of(context).devicePixelRatio;
+    // captureMaskedFrame emits one pixel per logical Flutter point. A failed
+    // replay export omits replay while preserving the manual bug report.
+    Uint8List? replayVTree;
+    if (replayBuffer != null) {
+      try {
+        replayVTree = exportSafeReplayVTree(replayBuffer, scale: 1);
+      } on StateError {
+        replayVTree = null;
+      }
+    }
     final result = await _channel.invokeMapMethod<String, Object?>(
       'openReporter',
       {
         if (pixelRatio != null) 'pixelRatio': pixelRatio,
         if (maskedPng != null) 'maskedPng': maskedPng,
+        if (replayVTree != null) 'replayVTree': replayVTree,
         if (rects != null)
           'sensitiveRects': rects
               .map((rect) => {

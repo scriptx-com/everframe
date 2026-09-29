@@ -105,6 +105,7 @@ internal object ReporterDialog {
         reportCapture: FrozenReportCapture,
         hostExtra: String? = null,
         allowAdditionalScreenshots: Boolean = true,
+        hostReplayVTree: ByteArray? = null,
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
 
@@ -186,6 +187,7 @@ internal object ReporterDialog {
                                         capturedSession = capturedSession,
                                         hostExtra = hostExtra,
                                         includes = includes,
+                                        hostReplayVTree = hostReplayVTree,
                                     )
                                     deferred.complete(r)
                                 }
@@ -358,6 +360,7 @@ internal object ReporterDialog {
         capturedSession: dev.everframe.TXCapturedSession,
         hostExtra: String?,
         includes: dev.everframe.ui.details.ReporterIncludes,
+        hostReplayVTree: ByteArray? = null,
     ): ReportResult {
         try {
         // FOLLOW-UPS ITEM 9 — the config comes from the snapshot taken at the
@@ -440,11 +443,16 @@ internal object ReporterDialog {
             val isTablet = activity.resources.configuration.smallestScreenWidthDp >= 600
 
             // Select only the reporter-open owner's video; transport revalidates its live generation.
-            val video = if (reportCapture.matchesSession(capturedSession)) {
+            val authorization = if (hostReplayVTree != null)
+                ReportAuthorizationFactory.forHostReplay(capturedSession, reportCapture)
+            else ReportAuthorizationFactory.forCapture(capturedSession, reportCapture)
+            val hostReplay = if (hostReplayVTree != null && authorization.evaluate().replayAllowed)
+                FlutterVTreeAttachment.build(hostReplayVTree) else null
+            val video = if (hostReplayVTree == null && reportCapture.matchesSession(capturedSession)) {
                 reportCapture.exportVideo()?.let { NativeVideoAttachment().build(it) }
             } else null
-            val replayPart = video?.part
-            val replayEnvelopeAttachment = video?.envelope
+            val replayPart = hostReplay?.second ?: video?.part
+            val replayEnvelopeAttachment = hostReplay?.first ?: video?.envelope
 
             // 4. Build envelope.
             // 4a. Pull captured logs + network metadata from the shared ring
@@ -616,7 +624,7 @@ internal object ReporterDialog {
                 attachments = screenshotParts + listOfNotNull(replayPart),
                 identitySubject = if (identity.epochStillCurrent) capturedSession.user.identitySubject else null,
                 identityToken = identity.token,
-                authorization = ReportAuthorizationFactory.forCapture(capturedSession, reportCapture),
+                authorization = authorization,
             )
         } ?: ReportResult.Cancelled("submit_guard_failed")
         } finally { reportCapture.finishConsumption() }

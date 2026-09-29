@@ -115,6 +115,8 @@ public enum ReporterSubmission {
         /// Everframe.shared.setExtra(...) at presenter open-time and passed
         /// through here (NOT consumed inside submit). nil → no payload.extra.
         public let hostExtra: String?
+        /// Flutter's frozen, masked image timeline; validated before attachment.
+        public let hostReplayVTree: Data?
         /**
          Self-declared user (`setUser`, spec 2026-08-12) SNAPSHOTTED at the
          moment this report's submission began — the Send tap for the in-app
@@ -178,6 +180,7 @@ public enum ReporterSubmission {
             includeMetadata: Bool,
             extraOverrides: [String: String],
             hostExtra: String?,
+            hostReplayVTree: Data? = nil,
             capturedSession: EFCapturedSession,
             companionAttribution: String? = nil
         ) {
@@ -196,6 +199,7 @@ public enum ReporterSubmission {
             self.includeMetadata = includeMetadata
             self.extraOverrides = extraOverrides
             self.hostExtra = hostExtra
+            self.hostReplayVTree = hostReplayVTree
             self.capturedSession = capturedSession
             self.companionAttribution = companionAttribution
         }
@@ -471,7 +475,18 @@ public enum ReporterSubmission {
             ? await Everframe.shared.__replayCompleteVideo() : nil
         let artifact = replayClaim?.artifact
         let replayPart: ReplayPart?
-        if let artifact, replayClaim?.isValid == true, !inputs.capturedSession.isSuperseded, inputs.captureIsCurrent() {
+        let replayEnabled = (await Everframe.shared.currentReplayConfig()).replayEnabled
+        let hostReplayAllowed = inputs.hostReplayVTree != nil &&
+            replayEnabled &&
+            replayClaim?.isValid != false && !inputs.capturedSession.isSuperseded && inputs.captureIsCurrent()
+        if hostReplayAllowed, let hostBytes = inputs.hostReplayVTree {
+            artifact?.removeOwnedFile()
+            replayPart = buildFlutterReplayAttachment(hostBytes,
+                byteBudget: 25_000_000 - multipartAttachments.reduce(0) { $0 + $1.data.count })
+        } else if inputs.hostReplayVTree != nil {
+            artifact?.removeOwnedFile()
+            replayPart = nil
+        } else if let artifact, replayClaim?.isValid == true, !inputs.capturedSession.isSuperseded, inputs.captureIsCurrent() {
             replayPart = await buildReplayAttachment(artifact: artifact,
                 byteBudget: 25_000_000 - multipartAttachments.reduce(0) { $0 + $1.data.count })
         } else {
@@ -479,7 +494,10 @@ public enum ReporterSubmission {
             replayPart = nil
         }
 
-        if let replayPart = replayPart, replayClaim?.isValid == true, !inputs.capturedSession.isSuperseded, inputs.captureIsCurrent() {
+        if let replayPart = replayPart,
+           (inputs.hostReplayVTree != nil ? replayClaim?.isValid != false : replayClaim?.isValid == true),
+           !inputs.capturedSession.isSuperseded, inputs.captureIsCurrent(),
+           (inputs.hostReplayVTree == nil || Everframe.shared.__hostReplayEnabledNow()) {
             envelopeAttachments.append(replayPart.envelope)
             multipartAttachments.append(replayPart.multipart)
         } else if artifact != nil || !inputs.captureIsCurrent() {
@@ -674,7 +692,9 @@ public enum ReporterSubmission {
         // even after the movie was consumed into multipart Data. Never revive
         // that claim if capture is subsequently enabled again.
         if inputs.capturedSession.isRevoked { throw ReporterSubmissionError.revoked }
-        if replayClaim?.isValid == false || !inputs.captureIsCurrent(), multipartAttachments.contains(where: { $0.name == "replay" }) {
+        if replayClaim?.isValid == false || !inputs.captureIsCurrent() ||
+           (inputs.hostReplayVTree != nil && !Everframe.shared.__hostReplayEnabledNow()),
+           multipartAttachments.contains(where: { $0.name == "replay" }) {
             multipartAttachments.removeAll { $0.name == "replay" }
             envelopeAttachments.removeAll { $0.partName == "replay" }
             extra["captureControl.degradedReason"] = "replay_revoked"
@@ -683,7 +703,10 @@ public enum ReporterSubmission {
         let hasReplay = multipartAttachments.contains(where: { $0.name == "replay" })
         let capturedSession = inputs.capturedSession
         let authorizedSubmitter = submitter.authorizing {
-            !capturedSession.isRevoked && (!hasReplay || (replayClaim?.isValid == true && inputs.captureIsCurrent()))
+            !capturedSession.isRevoked && (!hasReplay ||
+                (inputs.captureIsCurrent() && (inputs.hostReplayVTree != nil
+                    ? (replayClaim?.isValid != false && Everframe.shared.__hostReplayEnabledNow())
+                    : replayClaim?.isValid == true)))
         }
         let idempotencyKey = UUID().uuidString
         func send(using sender: ReportSubmitter) async throws -> ReportResult {
@@ -718,6 +741,91 @@ public enum ReporterSubmission {
     struct ReplayPart {
         let envelope: EverframeAttachment
         let multipart: ReportSubmitter.Attachment
+    }
+
+    /// Accept only Flutter's masked, image-only VTree shape. The Dart buffer
+    /// proves capture privacy; this gate rejects malformed or expanded payloads.
+    internal static func buildFlutterReplayAttachment(
+        _ data: Data, byteBudget: Int
+    ) -> ReplayPart? {
+        guard data.count > 0, data.count <= min(8 * 1024 * 1024, byteBudget),
+              (try? JSONDecoder().decode(EverframeVTreeTimeline.self, from: data)) != nil,
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              Set(["version", "viewport", "frames", "assets"]).isSubset(of: Set(root.keys)),
+              Set(root.keys).isSubset(of: Set(["version", "viewport", "frames", "assets", "originEpochMs"])),
+              root["version"] as? String == "everframe-vtree-v1",
+              let viewport = root["viewport"] as? [String: NSNumber],
+              Set(viewport.keys) == Set(["width", "height", "scale"]),
+              viewport["scale"]?.doubleValue == 1,
+              let width = viewport["width"]?.doubleValue, width > 0,
+              let height = viewport["height"]?.doubleValue, height > 0,
+              let frames = root["frames"] as? [[String: Any]], frames.count >= 1, frames.count <= 151,
+              let assets = root["assets"] as? [String: [String: Any]], !assets.isEmpty else { return nil }
+        let replayStart = (root["originEpochMs"] as? NSNumber)?.doubleValue
+        if root["originEpochMs"] != nil && (replayStart == nil || !replayStart!.isFinite || replayStart! < 0) {
+            return nil
+        }
+
+        var used = Set<String>()
+        var lastTime = -1.0
+        for (index, frame) in frames.enumerated() {
+            guard Set(frame.keys) == Set(["timestamp", "ops"]),
+                  let time = (frame["timestamp"] as? NSNumber)?.doubleValue,
+                  time.isFinite, time >= lastTime, time <= 30_000,
+                  let ops = frame["ops"] as? [[String: Any]] else { return nil }
+            lastTime = time
+            if index == 0 {
+                guard time == 0, ops.count == 1,
+                      let op = ops.first, Set(op.keys) == Set(["op", "parent", "index", "node"]),
+                      op["op"] as? String == "add", op["parent"] as? String == "",
+                      (op["index"] as? NSNumber)?.intValue == 0,
+                      let node = op["node"] as? [String: Any],
+                      Set(node.keys) == Set(["id", "role", "frame", "imageRef", "children"]),
+                      node["id"] as? String == "flutter-root", node["role"] as? String == "image",
+                      (node["children"] as? [Any])?.isEmpty == true,
+                      let frameRect = node["frame"] as? [String: NSNumber],
+                      Set(frameRect.keys) == Set(["x", "y", "w", "h"]),
+                      frameRect["x"]?.doubleValue == 0, frameRect["y"]?.doubleValue == 0,
+                      frameRect["w"]?.doubleValue == width, frameRect["h"]?.doubleValue == height,
+                      let ref = node["imageRef"] as? String else { return nil }
+                used.insert(ref)
+            } else {
+                guard ops.count <= 1 else { return nil }
+                for op in ops {
+                    guard Set(op.keys) == Set(["op", "id", "imageRef"]),
+                          op["op"] as? String == "set", op["id"] as? String == "flutter-root",
+                          let ref = op["imageRef"] as? String else { return nil }
+                    used.insert(ref)
+                }
+            }
+        }
+        guard used == Set(assets.keys) else { return nil }
+        for (key, asset) in assets {
+            guard key.count == 16, key.allSatisfy({ $0.isHexDigit && !$0.isUppercase }),
+                  Set(asset.keys) == Set(["mime", "w", "h", "b64"]),
+                  asset["mime"] as? String == "image/png",
+                  let encoded = asset["b64"] as? String,
+                  let png = Data(base64Encoded: encoded), png.count >= 24,
+                  png.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) else { return nil }
+            let pixelsWide = png[16..<20].reduce(0) { ($0 << 8) | Int($1) }
+            let pixelsHigh = png[20..<24].reduce(0) { ($0 << 8) | Int($1) }
+            guard pixelsWide >= 1, pixelsWide <= 2048, pixelsHigh >= 1, pixelsHigh <= 2048,
+                  (asset["w"] as? NSNumber)?.doubleValue == Double(pixelsWide),
+                  (asset["h"] as? NSNumber)?.doubleValue == Double(pixelsHigh),
+                  Double(pixelsWide) == width, Double(pixelsHigh) == height else { return nil }
+            let assetHash = SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined()
+            guard String(assetHash.prefix(16)) == key else { return nil }
+        }
+        let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        return ReplayPart(envelope: EverframeAttachment(
+            byteLength: Double(data.count), contentType: "application/octet-stream",
+            durationMS: lastTime, format: .everframeVtreeV1,
+            height: nil, kind: .sessionReplay, partName: "replay",
+            replayStartEpochMS: replayStart, sha256: sha, width: nil
+        ), multipart: ReportSubmitter.Attachment(
+            name: "replay", filename: "replay.json", contentType: "application/octet-stream",
+            data: data, sha256Hex: sha
+        ))
     }
 
     /// Consumes one owned MP4. Read/hash work runs away from the reporter's

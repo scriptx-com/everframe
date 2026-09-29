@@ -30,6 +30,7 @@ class SafeReplayBuffer {
   final Duration Function()? now;
   final Future<bool> Function(Uint8List) _validate;
   final Stopwatch _clock = Stopwatch();
+  int _startEpochMs = DateTime.now().millisecondsSinceEpoch;
   final List<SafeReplayFrame> _frames = [];
   var _bytes = 0;
   var _generation = 0;
@@ -38,6 +39,7 @@ class SafeReplayBuffer {
 
   bool get revoked => _revoked;
   bool get frozen => _frozen;
+  int get startEpochMs => _startEpochMs;
   List<SafeReplayFrame> get frames => List.unmodifiable(
         _frames.map((frame) => SafeReplayFrame(frame.elapsed, frame.png)),
       );
@@ -78,6 +80,7 @@ class SafeReplayBuffer {
     _frames.clear();
     _bytes = 0;
     _clock.reset();
+    _startEpochMs = DateTime.now().millisecondsSinceEpoch;
   }
 
   List<SafeReplayFrame> freeze() {

@@ -67,4 +67,15 @@ void main() {
         throwsArgumentError);
     expect(calls, isEmpty);
   });
+
+  test('requires a Flutter boundary when passing replay', () async {
+    final buffer = SafeReplayBuffer(validate: (_) async => true);
+    await buffer.append(Uint8List.fromList([1]));
+    buffer.freeze();
+    expect(
+      () => const EverframeNativeBridge().openReporter(replayBuffer: buffer),
+      throwsArgumentError,
+    );
+    expect(calls, isEmpty);
+  });
 }

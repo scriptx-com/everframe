@@ -100,7 +100,8 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                     activeMarkers = markers
                     scope.launch {
                         try {
-                            val outcome = EFReporterFromImage.open(host, maskedPng)
+                            val outcome = EFReporterFromImage.open(host, maskedPng,
+                                call.argument<ByteArray>("replayVTree"))
                             result.success(when (outcome) {
                                 is ReportResult.Submitted -> mapOf("status" to "submitted", "reportId" to outcome.reportId.toString())
                                 is ReportResult.Queued -> mapOf("status" to "queued", "reportId" to outcome.reportId.toString())
