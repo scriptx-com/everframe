@@ -1723,6 +1723,11 @@ export function createWebPlatformAdapter(
           new Error('Everframe: capture is disabled — kill() was called on this client.'),
         );
       }
+      // Per-capture state: a previous capture's `screenshot_blank` /
+      // `screenshot_failed` (or renderer) must not stick to every later
+      // report in the session. The out-params below set them afresh.
+      lastDegradedReason = undefined;
+      lastScreenshotRenderer = undefined;
       return captureScreenshot({
         root: typeof document !== 'undefined' ? document.body : (undefined as unknown as HTMLElement),
         ...(_config.cspNonce !== undefined ? { cspNonce: _config.cspNonce } : {}),
