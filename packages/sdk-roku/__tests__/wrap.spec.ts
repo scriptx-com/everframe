@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+import { describe, it, expect } from 'vitest';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { Parser } from 'brighterscript';
+import { wrapFunctions, MARKER, type WrapTarget } from '../src/wrap.js';
+import { runBrs } from './brs-harness.js';
+
+const T = (entries: Record<string, WrapTarget>) => new Map(Object.entries(entries));
+
+describe('wrapFunctions', () => {
+  it('wraps on the same lines so line numbers are preserved', () => {
+    const src = ['sub Main()', '  print 1', 'end sub', ''].join('\n');
+    const out = wrapFunctions(src, T({ main: { entry: 'Main (source/main.brs)', isTask: false } }));
+    expect(out.code.split('\n')).toHaveLength(4);
+    expect(out.code.split('\n')[0]).toBe(`sub Main() : try ${MARKER}`);
+    expect(out.code.split('\n')[2]).toBe('catch everframe_e : Everframe_OnError(everframe_e, "Main (source/main.brs)", false) : throw everframe_e : end try : end sub');
+    expect(out.wrapped).toEqual(['Main']);
+    expect(Parser.parse(out.code).diagnostics).toEqual([]);
+  });
+
+  it('matches names case-insensitively and keeps trailing comments intact', () => {
+    const src = ['Function OnKeyEvent(k as string, p as boolean) as boolean \' handle keys', '  return false', 'End Function'].join('\n');
+    const out = wrapFunctions(src, T({ onkeyevent: { entry: 'onKeyEvent (components/Home.brs)', isTask: false, crumb: 'key' } }));
+    const first = out.code.split('\n')[0]!;
+    expect(first).toBe(`Function OnKeyEvent(k as string, p as boolean) as boolean : try : everframe_k = p : while everframe_k : Everframe_Crumb("tap", "key " + k, invalid) : everframe_k = false : end while ${MARKER} ' handle keys`);
+    expect(Parser.parse(out.code).diagnostics).toEqual([]);
+  });
+
+  it('adds the init lifecycle crumb', () => {
+    const out = wrapFunctions('sub init()\nend sub\n', T({ init: { entry: 'HomeScene', isTask: false, crumb: 'init' } }));
+    expect(out.code).toContain(`sub init() : try : Everframe_Crumb("lifecycle", "init HomeScene", invalid) ${MARKER}`);
+  });
+
+  it('is idempotent', () => {
+    const t = T({ main: { entry: 'Main', isTask: false } });
+    const once = wrapFunctions('sub Main()\n  print 1\nend sub\n', t).code;
+    const twice = wrapFunctions(once, t);
+    expect(twice.code).toBe(once);
+    expect(twice.wrapped).toEqual([]);
+  });
+
+  it('skips single-line functions and code before end', () => {
+    const src = ['sub a() : end sub', 'sub b()', '  x = 1 : end sub', 'sub c() : x = 1', 'end sub'].join('\n');
+    const out = wrapFunctions(src, T({ a: { entry: 'a', isTask: false }, b: { entry: 'b', isTask: false }, c: { entry: 'c', isTask: false } }));
+    expect(out.code).toBe(src);
+    expect(out.skipped.map((s) => s.fn).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('leaves unparsable files untouched', () => {
+    const src = 'sub broken(\n';
+    const out = wrapFunctions(src, T({ broken: { entry: 'x', isTask: false } }));
+    expect(out.code).toBe(src);
+    expect(out.skipped[0]!.reason).toMatch(/parse/);
+  });
+
+  it('preserves CRLF line endings', () => {
+    const out = wrapFunctions('sub Main()\r\n  print 1\r\nend sub\r\n', T({ main: { entry: 'Main', isTask: false } }));
+    expect(out.code.split('\r\n')).toHaveLength(4);
+  });
+
+  it('wrapped code runs: error is reported with entry, then re-thrown as a crash', async () => {
+    const src = ['sub Main()', '  Boom()', 'end sub', 'sub Boom()', '  x = invalid', '  x.go()', 'end sub', ''].join('\n');
+    const code = wrapFunctions(src, T({ main: { entry: 'Main (source/main.brs)', isTask: false } })).code;
+    const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
+    const app = path.join(dir, 'app.brs');
+    const stub = path.join(dir, 'stub.brs');
+    // Rename Main so the harness's own Main drives it.
+    writeFileSync(app, code.replace('sub Main()', 'sub App()'));
+    writeFileSync(stub, 'sub Everframe_OnError(e as object, entry as string, isTask as boolean)\n  print "EFTEST:" + FormatJson({ entry: entry, isTask: isTask, line: e.backtrace[e.backtrace.Count() - 1].line_number })\nend sub\n');
+    const { lines, stdout } = await runBrs([], 'App()', { extraFiles: [app, stub] });
+    expect(lines[0]).toEqual({ entry: 'Main (source/main.brs)', isTask: false, line: 6 });
+    expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
+  });
+
+  const STUBS =
+    'sub Everframe_Crumb(cat as string, msg as string, data as dynamic)\n  print "EFTEST:" + FormatJson({ crumb: [cat, msg] })\nend sub\n' +
+    'sub Everframe_OnError(e as object, entry as string, isTask as boolean)\n  print "EFTEST:" + FormatJson({ onError: entry })\nend sub\n';
+  const runWith = (code: string, mainBody: string) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
+    const app = path.join(dir, 'app.brs');
+    const stub = path.join(dir, 'stub.brs');
+    writeFileSync(app, code);
+    writeFileSync(stub, STUBS);
+    return runBrs([], mainBody, { extraFiles: [app, stub] });
+  };
+
+  it('crumb key variant runs: crumbs only on press, reports, then crashes', async () => {
+    const src = ['function OnKey(k as string, p as boolean) as boolean', '  x = invalid', '  x.go()', '  return true', 'end function', ''].join('\n');
+    const code = wrapFunctions(src, T({ onkey: { entry: 'OnKey (c.brs)', isTask: false, crumb: 'key' } })).code;
+    const { lines, stdout } = await runWith(code, '  try : OnKey("ok", false) : catch e : print "EFTEST:" + FormatJson({ released: true }) : end try\n  OnKey("ok", true)');
+    expect(Parser.parse(code).diagnostics).toEqual([]);
+    expect(lines).toEqual([{ onError: 'OnKey (c.brs)' }, { released: true }, { crumb: ['tap', 'key ok'] }, { onError: 'OnKey (c.brs)' }]);
+    expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
+  });
+
+  it('crumb init variant runs: crumb, report, crash', async () => {
+    const src = ['sub init()', '  x = invalid', '  x.go()', 'end sub', ''].join('\n');
+    const code = wrapFunctions(src, T({ init: { entry: 'HomeScene', isTask: false, crumb: 'init' } })).code;
+    const { lines, stdout } = await runWith(code, '  init()');
+    expect(Parser.parse(code).diagnostics).toEqual([]);
+    expect(lines).toEqual([{ crumb: ['lifecycle', 'init HomeScene'] }, { onError: 'HomeScene' }]);
+    expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
+  });
+});
