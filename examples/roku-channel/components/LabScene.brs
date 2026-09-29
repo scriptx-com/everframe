@@ -21,7 +21,6 @@ sub init()
     m.note = ""
     ' Set before anything that can fire an observer: on a real Roku, assigning
     ' the ComponentLibrary uri below calls onLibraryStatus synchronously.
-    m["exitSummary"] = "reading..."
     m.lab = CreateObject("roRegistrySection", "EverframeLab")
 
     content = CreateObject("roSGNode", "ContentNode")
@@ -58,16 +57,7 @@ sub init()
     m.statusTimer.control = "start"
 
     ' the app manager is MAIN/TASK-only; read exit info in a Task.
-    m["exitTask"] = CreateObject("roSGNode", "ExitInfoTask")
-    m.exitTask.observeField("summary", "onExitSummary")
-    m.exitTask.control = "RUN"
 
-    updateStatus()
-end sub
-
-sub onExitSummary()
-    summary = m.exitTask.summary
-    if summary <> invalid and summary <> "" then m["exitSummary"] = summary
     updateStatus()
 end sub
 
@@ -180,7 +170,7 @@ sub updateStatus()
     lines.Push("Library: " + LabStr(m.lib.loadStatus) + " (" + LabStr(m.cfg.libraryUri) + ")")
     lines.Push("SDK started: " + LabStr(m.started))
     lines.Push("Queued records: " + LabStr(LabQueueCount()))
-    lines.Push("Last exit: " + LabStr(m.exitSummary))
+    lines.Push("SDK last handled exit: " + LabStr(LabSdkLastExit()))
     lines.Push("User: " + LabStr(LabUser()))
     if m.note <> "" then lines.Push("")
     if m.note <> "" then lines.Push(m.note)
@@ -193,6 +183,15 @@ function LabStr(value as dynamic) as string
     if GetInterface(value, "ifString") <> invalid then return value
     if GetInterface(value, "ifToStr") <> invalid then return value.ToStr()
     return type(value)
+end function
+
+' GetLastExitInfo() hands its record to the FIRST caller per launch, so the lab
+' must not call it (it would starve the SDK's next-launch check). Show the exit
+' timestamp the SDK itself recorded instead.
+function LabSdkLastExit() as dynamic
+    sec = CreateObject("roRegistrySection", "Everframe")
+    if not sec.Exists("lastExitTs") then return "none yet"
+    return sec.Read("lastExitTs")
 end function
 
 function LabQueueCount() as integer

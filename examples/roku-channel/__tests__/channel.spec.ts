@@ -36,13 +36,11 @@ describe('crash lab channel source', () => {
     }
   });
 
-  it('reads exit info in a Task, never roAppManager on the render thread', () => {
-    const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
-    expect(scene).not.toMatch(/roAppManager/);
-    expect(scene).toMatch(/"ExitInfoTask"/);
-    const task = readFileSync(path.join(ROOT, 'components/ExitInfoTask.brs'), 'utf8');
-    expect(task).toMatch(/roAppManager/);
-    expect(task).toMatch(/FindMemberFunction\(am, "GetLastExitInfo"\)/);
+  it('never calls GetLastExitInfo itself (Roku hands the record to the first caller; the SDK must get it)', () => {
+    for (const f of files.filter((x) => x.endsWith('.brs'))) {
+      expect(readFileSync(f, 'utf8'), f).not.toMatch(/\.GetLastExitInfo\(|CreateObject\("roAppManager"\)/);
+    }
+    expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(/sec\.Read\("lastExitTs"\)/);
   });
 
   it('lists all nine scenarios in order', () => {
