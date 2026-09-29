@@ -358,8 +358,25 @@ interface AfterCloneContext {
 }
 
 function createScrollRestorePlugin(root: Element, state: Map<Element, ScrollerState>) {
+  /** Restored scroller clones and their live used size, re-pinned in beforeRender. */
+  const pinned: Array<[HTMLElement, { width: string; height: string }]> = [];
   return {
     name: 'everframe-scroll-restore',
+    /**
+     * snapDOM's shrink pass (filterMode 'remove') runs between afterClone and
+     * beforeRender: it sees a source with more element children than its
+     * clone - which a scroller still is when snapDOM lifted a position:fixed
+     * child out of it - and sets the clone to `height:auto; overflow:visible`,
+     * spilling its content over the page below. The scroller's live size and
+     * clipping are put back here, after that pass.
+     */
+    beforeRender(): void {
+      for (const [el, size] of pinned) {
+        el.style.width = size.width;
+        el.style.height = size.height;
+        el.style.overflow = 'hidden';
+      }
+    },
     afterClone(ctx: AfterCloneContext): void {
       if (!ctx.clone || !(ctx.nodeMap instanceof Map)) return;
       const nodeMap = ctx.nodeMap as Map<Node, Node>;
@@ -384,7 +401,14 @@ function createScrollRestorePlugin(root: Element, state: Map<Element, ScrollerSt
       // A scrolled capture root whose clone snapDOM did not map.
       const rootState = state.get(root);
       if (rootState && !nodeMap.has(ctx.clone)) todo.push([ctx.clone, rootState]);
-      for (const [el, st] of todo) restoreScroller(el, st, nodeMap);
+      for (const [el, st] of todo) {
+        restoreScroller(el, st, nodeMap);
+        const src = nodeMap.get(el) ?? (el === ctx.clone ? root : undefined);
+        if (el instanceof HTMLElement && src instanceof Element) {
+          const cs = getComputedStyle(src);
+          pinned.push([el, { width: cs.width, height: cs.height }]);
+        }
+      }
     },
   };
 }

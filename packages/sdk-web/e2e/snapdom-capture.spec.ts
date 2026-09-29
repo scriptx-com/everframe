@@ -230,6 +230,20 @@ test('stylesheet-sized scroller keeps its height and clipping: rows at live posi
   expectColoursAt(r, probe.colours);
 });
 
+test('stylesheet-sized scroller with a fixed child keeps its height and clipping', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  const probe = await scrollAndProbe(
+    page,
+    'css-rows-fixed',
+    { top: 600 },
+    { top: [20, 30], middle: [20, 150], bottom: [20, 270] },
+    { below: 'below-css-rows-fixed' },
+  );
+  const r = await captureAndSample(page, probe.pos);
+  expect(r.renderer).toBe('snapdom');
+  expectColoursAt(r, probe.colours);
+});
+
 test('horizontally scrolled flex carousel keeps its row layout and scroll offset', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const probe = await scrollAndProbe(page, 'carousel', { left: 450 }, {

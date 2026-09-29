@@ -175,7 +175,7 @@ describe('renderViewportWithSnapdom', () => {
 
   describe('nested scroll restoration', () => {
     type Ctx = { clone: Element; nodeMap: Map<Node, Node> };
-    type Plugin = { afterClone(ctx: Ctx): void };
+    type Plugin = { afterClone(ctx: Ctx): void; beforeRender(): void };
     const scrolled = (top = 800, left = 5): { host: HTMLElement; scroller: HTMLElement; child: HTMLElement } => {
       const host = document.createElement('div');
       const scroller = document.createElement('div');
@@ -428,6 +428,28 @@ describe('renderViewportWithSnapdom', () => {
       cap.release();
       await cap.done;
       expect(placeholder.style.transform).toBe('translate(-5px, -800px)');
+      host.remove();
+    });
+
+    it('re-pins restored scrollers\' size and clipping after snapDOM\'s shrink pass (beforeRender)', async () => {
+      const { host, scroller } = scrolled(600, 0);
+      scroller.style.width = '240px';
+      scroller.style.height = '300px';
+      const cap = await startCapture(host);
+      const ctx = cloneWithMap(host);
+      snapdomXo(ctx, host);
+      cap.plugin.afterClone(ctx);
+      // What snapDOM's shrink pass does to a scroller that lost a (lifted fixed) child.
+      const scrollerClone = ctx.clone.firstElementChild as HTMLElement;
+      scrollerClone.style.height = 'auto';
+      scrollerClone.style.width = 'auto';
+      scrollerClone.style.overflow = 'visible';
+      cap.plugin.beforeRender();
+      cap.release();
+      await cap.done;
+      expect(scrollerClone.style.height).toBe('300px');
+      expect(scrollerClone.style.width).toBe('240px');
+      expect(scrollerClone.style.overflow).toBe('hidden');
       host.remove();
     });
 

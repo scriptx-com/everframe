@@ -62,6 +62,10 @@
   <section id="rows" style="height:300px;overflow:auto;background:#fff"></section>
   <section id="css-rows" class="css-scroller"></section>
   <div id="below-css-rows" style="height:60px;background:rgb(255,128,0)"></div>
+  <!-- Stylesheet-sized scroller whose children include a position:fixed FAB
+       (snapDOM lifts it out of the scroller's clone). -->
+  <section id="css-rows-fixed" class="css-scroller"></section>
+  <div id="below-css-rows-fixed" style="height:60px;background:rgb(0,128,255)"></div>
   <section id="carousel" class="carousel"></section>
   <section id="grid" class="grid-scroller"></section>
   <section id="restyle" style="background:#fff;padding:8px"><div id="cx" class="cx"></div></section>
@@ -84,6 +88,10 @@
     };
     fill('rows', 20, 'height:60px;');
     fill('css-rows', 20, '');
+    fill('css-rows-fixed', 20, '');
+    const fab = document.getElementById('css-rows-fixed').appendChild(document.createElement('div'));
+    fab.id = 'fab';
+    fab.style.cssText = 'position:fixed;right:12px;bottom:12px;width:40px;height:40px;background:rgb(20,20,20)';
     fill('carousel', 10, '');
     fill('grid', 10, '');
   </script>
