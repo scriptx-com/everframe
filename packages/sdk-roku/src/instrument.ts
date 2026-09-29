@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, statSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { discoverEntryPoints, ALL_MECHANISMS, type Mechanism } from './entry-points.js';
 import { wrapFunctions, MARKER } from './wrap.js';
 
-export interface InstrumentOptions { root: string; out: string; exclude?: string[]; mechanisms?: Mechanism[]; dryRun?: boolean; bundleLibrary?: boolean }
+export interface InstrumentOptions { root: string; out?: string; exclude?: string[]; mechanisms?: Mechanism[]; dryRun?: boolean; bundleLibrary?: boolean }
 export interface InstrumentReport {
   wrapped: Array<{ file: string; fn: string }>;
   skipped: Array<{ file: string; fn: string; reason: string }>;
@@ -21,8 +21,12 @@ const hookSource = (f: string) =>
 
 export function instrument(opts: InstrumentOptions): InstrumentReport {
   const root = path.resolve(opts.root);
-  const out = path.resolve(opts.out);
-  if (root === out) throw new Error('--out must differ from the channel directory');
+  if (!opts.dryRun && !opts.out) throw new Error('--out is required unless --dry-run is set');
+  const out = opts.out ? path.resolve(opts.out) : '';
+  if (out) {
+    if (root === out) throw new Error('--out must differ from the channel directory');
+    if (out.startsWith(root + path.sep)) throw new Error('--out must not be inside the channel directory');
+  }
   const plan = discoverEntryPoints(root, {
     exclude: opts.exclude ?? [],
     mechanisms: new Set(opts.mechanisms ?? ALL_MECHANISMS),
@@ -58,9 +62,12 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
   mkdirSync(out, { recursive: true });
   cpSync(root, out, {
     recursive: true,
+    dereference: true,
     filter: (src) => {
-      if (src === out || src.startsWith(out + path.sep)) return false;
-      return !path.relative(root, src).split(path.sep).some((part) => part === '.git' || part === 'node_modules');
+      if (path.relative(root, src).split(path.sep).some((part) => part === '.git' || part === 'node_modules')) return false;
+      // symlinked directories can form cycles; discovery ignores them too
+      try { if (lstatSync(src).isSymbolicLink() && statSync(src).isDirectory()) return false; } catch { return false; }
+      return true;
     },
   });
   for (const [file, code] of rewritten) writeFileSync(path.join(out, file), code);

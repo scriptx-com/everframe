@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { XMLParser } from 'fast-xml-parser';
 import type { WrapTarget } from './wrap.js';
@@ -19,7 +19,9 @@ const TASK_RE = /functionName\s*=\s*"(\w+)"/gi;
 function walk(dir: string, root: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const abs = path.join(dir, name);
-    if (statSync(abs).isDirectory()) walk(abs, root, out);
+    const st = lstatSync(abs);
+    if (st.isSymbolicLink()) continue;
+    if (st.isDirectory()) walk(abs, root, out);
     else out.push(path.relative(root, abs).split(path.sep).join('/'));
   }
   return out;

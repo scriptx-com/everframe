@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, cpSync, mkdirSync, writeFileSync, symlinkSync, lstatSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,5 +87,42 @@ describe('instrument', () => {
 
   it('refuses to write into the source directory', () => {
     expect(() => instrument({ root: FIX, out: FIX })).toThrow(/out.*must differ/i);
+  });
+
+  it('dry run needs no --out', () => {
+    const r = instrument({ root: FIX, dryRun: true });
+    expect(r.wrapped.length).toBe(9);
+  });
+
+  it('requires --out when not a dry run', () => {
+    expect(() => instrument({ root: FIX })).toThrow(/--out is required/);
+  });
+
+  it('rejects --out inside the channel directory', () => {
+    expect(() => instrument({ root: FIX, out: path.join(FIX, 'build') })).toThrow(/--out must not be inside the channel directory/);
+    expect(existsSync(path.join(FIX, 'build'))).toBe(false);
+  });
+
+  it('does not write through symlinks or loop on symlink cycles', () => {
+    const base = tmp();
+    const chan = path.join(base, 'chan');
+    cpSync(FIX, chan, { recursive: true });
+    const outside = path.join(base, 'outside');
+    mkdirSync(outside);
+    const target = path.join(outside, 'Linked.brs');
+    writeFileSync(target, 'sub init()\nend sub\n');
+    symlinkSync(target, path.join(chan, 'components/Linked.brs'));
+    symlinkSync(chan, path.join(chan, 'components/loop'), 'dir');
+    writeFileSync(
+      path.join(chan, 'components/Linked.xml'),
+      '<?xml version="1.0" encoding="utf-8" ?>\n<component name="Linked" extends="Group">\n  <script type="text/brightscript" uri="Linked.brs" />\n</component>\n',
+    );
+    const before = read(target);
+    const out = path.join(base, 'out');
+    const r = instrument({ root: chan, out });
+    expect(r.wrapped.some((w) => w.file === 'components/Linked.brs')).toBe(true);
+    expect(read(target)).toBe(before);
+    expect(lstatSync(path.join(out, 'components/Linked.brs')).isSymbolicLink()).toBe(false);
+    expect(read(path.join(out, 'components/Linked.brs'))).toContain('Everframe_OnError');
   });
 });

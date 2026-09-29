@@ -29,7 +29,7 @@ function main(argv: string[]): number {
   if (bad?.length) { console.error(`Unknown mechanism(s): ${bad.join(', ')}`); return 2; }
   const report = instrument({
     root: positionals[1],
-    out: values.out ?? '',
+    ...(values.out ? { out: values.out } : {}),
     exclude: values.exclude ?? [],
     ...(mechanisms ? { mechanisms } : {}),
     dryRun: values['dry-run'] ?? false,
