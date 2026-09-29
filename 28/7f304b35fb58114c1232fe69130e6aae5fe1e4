@@ -1,0 +1,41 @@
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/HomeScene.brs
+  s_d03518d0f16fdd::t_5385fb71fc71a5 1-25
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/HomeScene.xml
+  s_d03518d0f16fdd::t_676973422a06f7 1-10
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/Loader.brs
+  s_d03518d0f16fdd::t_486f09d4ad329d 1-7
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/Loader.xml
+  s_d03518d0f16fdd::t_dc2ef4cb585f0c 1-9
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/Static.xml
+  s_d03518d0f16fdd::t_90dcb2f20e3c3a 1-4
+packages/sdk-roku/__tests__/fixtures/channel-basic/manifest
+  s_d03518d0f16fdd::t_5d50e453d35b1c 1-4
+packages/sdk-roku/__tests__/fixtures/channel-basic/source/main.brs
+  s_d03518d0f16fdd::t_d0bd8ed9891926 1-11
+packages/sdk-roku/__tests__/instrument.spec.ts
+  s_d03518d0f16fdd::t_729c61aa55f49b 1-91
+packages/sdk-roku/src/cli.ts
+  s_d03518d0f16fdd::t_bc4e6d72a37cf4 1-44
+packages/sdk-roku/src/entry-points.ts
+  s_d03518d0f16fdd::t_cc3bc64b575edc 1-89
+packages/sdk-roku/src/instrument.ts
+  s_d03518d0f16fdd::t_79d111cb2d5fdf 1-81
+packages/sdk-roku/tsup.config.ts
+  s_d03518d0f16fdd::t_2d0044a2e6a049 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "287f304b35fb58114c1232fe69130e6aae5fe1e4",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
