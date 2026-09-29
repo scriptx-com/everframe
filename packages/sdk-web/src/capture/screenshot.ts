@@ -35,8 +35,8 @@ export interface CaptureScreenshotOptions {
   /** CSP nonce — threaded into dynamically-injected styles to satisfy strict-CSP environments (Pitfall 11). */
   cspNonce?: string;
   /**
-   * Legacy auto-mask plan (rect-based). Painted post-capture via
-   * `applyMaskRectsToBlob` — kept for backwards-compat with callers that have
+   * Legacy auto-mask plan (rect-based). Painted onto the rendered canvas
+   * (mask-paint.ts) before the single encode — kept for backwards-compat with callers that have
    * rects but not the underlying DOM elements. New callers should prefer
    * `maskTargets` (live-DOM masking), which sidesteps the viewport→PNG
    * coordinate transform entirely.
@@ -63,8 +63,9 @@ export interface CaptureScreenshotOptions {
 }
 
 /**
- * 1x1 transparent PNG bytes — used as the degraded-result blob when
- * modern-screenshot fails. DEFE-02: never block submission on a screenshot failure.
+ * 1x1 transparent PNG bytes — used as the degraded-result blob when no
+ * renderer produced a usable canvas. DEFE-02: never block submission on a
+ * screenshot failure.
  */
 const TRANSPARENT_PIXEL_PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -74,23 +75,22 @@ const TRANSPARENT_PIXEL_PNG_BYTES = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
+/** WebP quality for the TV profile's single-pass encode (matches the relay hop's 0.85). */
+const WEBP_QUALITY = 0.85;
 
-/**
+/*
  * Wall-clock ceiling for the whole capture — per device tier, see
- * capture-profile.ts (10s desktop, 20s Smart-TV webviews where a legitimate
- * capture measures 8-12s).
+ * capture-profile.ts (10s desktop, 45s Smart-TV webviews), split between the
+ * renderers by PRIMARY_BUDGET_SHARE plus the ENCODE_FLOOR_MS encode slot.
  *
  * DEFENCE IN DEPTH, and the load-bearing part of it. `<video>` is handled
  * explicitly (see video-frames.ts), but that is a fix for the ONE unbounded
  * await we found by decompiling modern-screenshot — we cannot prove there isn't
- * another in the library's clone walk, and the failure mode is a permanently
- * stuck reporter rather than an error anyone can see. This makes a hang
- * structurally impossible: whatever stalls, the deadline rejects and capture
- * degrades to a transparent placeholder.
+ * another in either renderer's clone walk, and the failure mode is a
+ * permanently stuck reporter rather than an error anyone can see. This makes a
+ * hang structurally impossible: whatever stalls, the deadline rejects and
+ * capture degrades to a transparent placeholder.
  */
-
-/** WebP quality for the TV profile's single-pass encode (matches the relay hop's 0.85). */
-const WEBP_QUALITY = 0.85;
 
 /**
  * Raised when screenshot capture blows its deadline.
@@ -100,9 +100,9 @@ class CaptureTimeoutError extends Error {}
 /**
  * Reject if `work` has not settled within `ms`.
  *
- * Note this does not (and cannot) CANCEL the underlying work — modern-screenshot
- * does not take an AbortSignal. The stalled promise stays pending and becomes garbage
- * once unreferenced; what matters is that our caller stops waiting on it.
+ * Note this does not (and cannot) CANCEL the underlying work — neither
+ * renderer takes an AbortSignal. The stalled promise stays pending and becomes
+ * garbage once unreferenced; what matters is that our caller stops waiting on it.
  */
 function withDeadline<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -125,9 +125,9 @@ function withDeadline<T>(work: Promise<T>, ms: number, label: string): Promise<T
 
 /**
  * Hook into the document so any <style> tag inserted while the capture is running gets
- * the customer's CSP nonce. modern-screenshot injects <style> nodes for embedded font
- * CSS / inlined image data — without the nonce the strict-CSP page
- * blocks them (Pitfall 11) and the screenshot is empty.
+ * the customer's CSP nonce. The capture libraries may inject <style> nodes (embedded
+ * font CSS, inlined image data, measurement sandboxes) — without the nonce the
+ * strict-CSP page blocks them (Pitfall 11) and the screenshot is empty.
  */
 function applyNonceToFreshStyles(nonce: string): () => void {
   const observer = new MutationObserver((muts) => {
@@ -283,7 +283,7 @@ export async function captureScreenshot(
   let width = 0;
   let height = 0;
 
-  // Apply live-DOM masking to sensitive elements BEFORE modern-screenshot clones
+  // Apply live-DOM masking to sensitive elements BEFORE the renderer clones
   // the page. The capture library snapshots whatever the DOM looks like at
   // clone time, so the masked elements end up as solid-black boxes in the
   // PNG automatically — no post-capture coordinate transform required. The
@@ -315,7 +315,8 @@ export async function captureScreenshot(
 
   // snapDOM first (faster, and no blank rasters where modern-screenshot
   // produced them), with modern-screenshot as the fallback when snapDOM
-  // throws, stalls past its budget share, or hands back a blank canvas.
+  // throws, stalls past its budget share, or hands back a blank canvas
+  // (on TV only when it throws — see the policy below).
   // Both renderers return a VIEWPORT-sized canvas, which is encoded exactly
   // ONCE below. Every stage is deadline-guarded: a degraded engine's
   // canvas.toBlob can simply never invoke its callback, and an unguarded
@@ -421,8 +422,10 @@ export async function captureScreenshot(
   }
 
   // NOTE — the legacy `maskPlan` pass now runs on the CANVAS inside the
-  // deadline above (root-relative space, before the viewport crop). The
-  // primary masking path is live-DOM masking via `maskTargets`.
+  // deadline above: on the snapDOM path directly on the viewport-sized canvas
+  // (offset by the scroll position), on the modern-screenshot path in
+  // root-relative space before that renderer's viewport crop. The primary
+  // masking path is live-DOM masking via `maskTargets`.
 
   // NOTE — video frames are NOT composited on here. They ride in the DOM as
   // stand-ins (see installVideoStandIns above), so they are rendered by the
@@ -431,7 +434,7 @@ export async function captureScreenshot(
   // redaction applied a few lines up, as well as any element stacked over a
   // video. Do not reintroduce a post-redaction paint step.
 
-  // The success path already knows its dimensions from the cropped canvas —
+  // The success path already knows its dimensions from the chosen canvas —
   // only the degraded path (transparent-pixel placeholder) still resolves them
   // by decoding, falling back to the root element rect under jsdom.
   if (width === 0 || height === 0) {

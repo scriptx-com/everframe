@@ -4,9 +4,11 @@
 import type { Rect } from '@everframe/sdk-core';
 
 /**
- * Paint legacy `maskPlan` rects (root-relative DEVICE px) straight onto the
- * full-document capture canvas — same coordinate space, same 2px safety
- * inflation as `applyMaskRectsToBlob`, minus that path's decode/encode round.
+ * Paint legacy `maskPlan` rects (root-relative DEVICE px) straight onto a
+ * capture canvas: the full-document modern-screenshot fallback canvas (same
+ * coordinate space, no offsets) or the viewport-sized snapDOM canvas (offset
+ * by the scroll position via `offsetX`/`offsetY`). Same 2px safety inflation
+ * as `applyMaskRectsToBlob`, minus that path's decode/encode round.
  * Best-effort: a missing 2d context skips masking rather than failing the
  * capture (the caller's primary masking is live-DOM `maskTargets`).
  */

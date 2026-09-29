@@ -67,8 +67,7 @@ import {
   type ReplayDebugSources,
 } from './debug/seam.js';
 import { INGEST_URL } from './constants.js';
-import { captureScreenshot, applyMaskRectsToBlob } from './capture/screenshot.js';
-import type { ScreenshotRenderer } from './capture/screenshot.js';
+import { captureScreenshot, applyMaskRectsToBlob, type ScreenshotRenderer } from './capture/screenshot.js';
 import type { DegradedReason } from './internal/degraded-reasons.js';
 import { installConsolePatcher } from './capture/logs.js';
 import {
