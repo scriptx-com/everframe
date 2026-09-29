@@ -12,7 +12,7 @@ import java.security.MessageDigest
 import java.util.Base64
 
 @RunWith(RobolectricTestRunner::class)
-class FlutterVTreeAttachmentTest {
+class HostImageVTreeAttachmentTest {
     private fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256")
         .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
@@ -22,23 +22,23 @@ class FlutterVTreeAttachmentTest {
         return ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
     }
 
-    private fun timeline(secretText: String? = null): ByteArray {
+    private fun timeline(secretText: String? = null, rootId: String = "flutter-root"): ByteArray {
         val first = png(0xff00ff00.toInt())
         val second = png(0xff0000ff.toInt())
         val a = sha(first).take(16)
         val b = sha(second).take(16)
         return """{"version":"everframe-vtree-v1","originEpochMs":12345,"viewport":{"width":4,"height":2,"scale":1},
           "frames":[{"timestamp":0,"ops":[{"op":"add","parent":"","index":0,
-          "node":{"id":"flutter-root","role":"image","frame":{"x":0,"y":0,"w":4,"h":2},
+          "node":{"id":"$rootId","role":"image","frame":{"x":0,"y":0,"w":4,"h":2},
           "imageRef":"$a","children":[]${secretText?.let { ",\"text\":\"$it\"" } ?: ""}}}]},
-          {"timestamp":200,"ops":[{"op":"set","id":"flutter-root","imageRef":"$b"}]}],
+          {"timestamp":200,"ops":[{"op":"set","id":"$rootId","imageRef":"$b"}]}],
           "assets":{"$a":{"mime":"image/png","w":4,"h":2,"b64":"${Base64.getEncoder().encodeToString(first)}"},
           "$b":{"mime":"image/png","w":4,"h":2,"b64":"${Base64.getEncoder().encodeToString(second)}"}}}""".toByteArray()
     }
 
     @Test fun `accepts image-only masked timeline as replay attachment`() {
         val bytes = timeline()
-        val pair = FlutterVTreeAttachment.build(bytes)
+        val pair = HostImageVTreeAttachment.build(bytes)
         assertNotNull(pair)
         assertEquals("replay", pair!!.first.partName)
         assertEquals("application/octet-stream", pair.first.contentType)
@@ -48,8 +48,13 @@ class FlutterVTreeAttachmentTest {
     }
 
     @Test fun `rejects text payload and corruption`() {
-        assertNull(FlutterVTreeAttachment.build(timeline(secretText = "private")))
+        assertNull(HostImageVTreeAttachment.build(timeline(secretText = "private")))
         val corrupt = timeline().decodeToString().replace("everframe-vtree-v1", "unknown-v1").toByteArray()
-        assertNull(FlutterVTreeAttachment.build(corrupt))
+        assertNull(HostImageVTreeAttachment.build(corrupt))
+    }
+
+    @Test fun `accepts KMP root but rejects unknown root`() {
+        assertNotNull(HostImageVTreeAttachment.build(timeline(rootId = "kmp-root")))
+        assertNull(HostImageVTreeAttachment.build(timeline(rootId = "unknown-root")))
     }
 }

@@ -447,7 +447,7 @@ internal object ReporterDialog {
                 ReportAuthorizationFactory.forHostReplay(capturedSession, reportCapture)
             else ReportAuthorizationFactory.forCapture(capturedSession, reportCapture)
             val hostReplay = if (hostReplayVTree != null && authorization.evaluate().replayAllowed)
-                FlutterVTreeAttachment.build(hostReplayVTree) else null
+                HostImageVTreeAttachment.build(hostReplayVTree) else null
             val video = if (hostReplayVTree == null && reportCapture.matchesSession(capturedSession)) {
                 reportCapture.exportVideo()?.let { NativeVideoAttachment().build(it) }
             } else null

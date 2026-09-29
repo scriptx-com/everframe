@@ -16,8 +16,8 @@ import kotlinx.serialization.json.jsonObject
 import java.security.MessageDigest
 import java.util.Base64
 
-/** Narrow wire adapter for Flutter's already-masked image-only VTree export. */
-internal object FlutterVTreeAttachment {
+/** Narrow wire adapter for already-masked Flutter and KMP image timelines. */
+internal object HostImageVTreeAttachment {
     private const val MAX_BYTES = 8 * 1024 * 1024
     private val json = Json { ignoreUnknownKeys = false }
 
@@ -54,6 +54,7 @@ internal object FlutterVTreeAttachment {
         val assets = requireNotNull(timeline.assets)
         require(assets.isNotEmpty())
         val used = mutableSetOf<String>()
+        var rootId: String? = null
         var lastTime = -1.0
         timeline.frames.forEachIndexed { index, frame ->
             require(frame.timestamp.isFinite() && frame.timestamp >= lastTime && frame.timestamp <= 30_000.0)
@@ -62,7 +63,9 @@ internal object FlutterVTreeAttachment {
                 require(frame.timestamp == 0.0 && frame.ops.size == 1)
                 val op = frame.ops.single() as VOpAdd
                 require(op.parent == "" && op.index == 0L)
-                require(op.node.id == "flutter-root" && op.node.role == "image" && op.node.children.isEmpty())
+                require(op.node.id in setOf("flutter-root", "kmp-root") &&
+                    op.node.role == "image" && op.node.children.isEmpty())
+                rootId = op.node.id
                 require(op.node.text == null && op.node.frame.w == timeline.viewport.width &&
                     op.node.frame.h == timeline.viewport.height &&
                     op.node.frame.x == 0.0 && op.node.frame.y == 0.0)
@@ -70,7 +73,7 @@ internal object FlutterVTreeAttachment {
             } else {
                 require(frame.ops.size <= 1)
                 frame.ops.forEach { op ->
-                    require(op is VOpSet && op.id == "flutter-root")
+                    require(op is VOpSet && op.id == rootId)
                     used += requireNotNull(op.imageRef)
                     require(op.text == null && op.bg == null && op.frame == null)
                 }
