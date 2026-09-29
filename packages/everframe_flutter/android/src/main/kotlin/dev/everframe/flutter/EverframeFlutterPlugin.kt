@@ -16,6 +16,7 @@ import dev.everframe.config.Environment
 import dev.everframe.config.EverframeConfig
 import dev.everframe.config.ReportResult
 import dev.everframe.config.TXUser
+import dev.everframe.crash.CrashReporter
 import dev.everframe.ui.EFReporterFromImage
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.android.FlutterView
@@ -72,12 +73,13 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                     if (environment != Environment.development) {
                         return result.error("dry_run_only", "development environment required", null)
                     }
-                    // Native screenshots and automatic crash capture lack a Flutter privacy proof.
+                    // Flutter pixels are captured only through the masked Dart boundary.
+                    // Native crash capture also enables explicit handled Dart errors.
                     Everframe.start(appContext, EverframeConfig(
                         appId = appId,
                         sdkKey = sdkKey,
                         environment = environment,
-                        capture = CaptureConfig(screenshot = false, crash = false),
+                        capture = CaptureConfig(screenshot = false, crash = true),
                     ), activity)
                     result.success(null)
                 }
@@ -101,7 +103,7 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                     scope.launch {
                         try {
                             val outcome = EFReporterFromImage.open(host, maskedPng,
-                                call.argument<ByteArray>("replayVTree"))
+                                call.argument<ByteArray>("replayVTree"), sdkName = "everframe-flutter")
                             result.success(when (outcome) {
                                 is ReportResult.Submitted -> mapOf("status" to "submitted", "reportId" to outcome.reportId.toString())
                                 is ReportResult.Queued -> mapOf("status" to "queued", "reportId" to outcome.reportId.toString())
@@ -130,8 +132,24 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                 "addBreadcrumb" -> {
                     val message = call.argument<String>("message")
                         ?: return result.error("invalid_arguments", "message required", null)
-                    Everframe.addBreadcrumb(message, call.argument("kind"), call.argument("level"))
+                    @Suppress("UNCHECKED_CAST")
+                    val data = call.argument<Map<String, Any?>>("data")
+                    Everframe.addBreadcrumb(message, call.argument("kind"), call.argument("level"), data)
                     result.success(null)
+                }
+                "captureException" -> {
+                    val type = call.argument<String>("exceptionType")?.takeIf { it.isNotBlank() }
+                        ?: return result.error("invalid_arguments", "exceptionType required", null)
+                    val message = call.argument<String>("message")
+                        ?: return result.error("invalid_arguments", "message required", null)
+                    val frames = call.argument<List<String>>("framesRaw")
+                        ?: return result.error("invalid_arguments", "framesRaw required", null)
+                    val accepted = CrashReporter.captureHandledFacts(
+                        type.take(256), message.take(4096), frames.take(256).map { it.take(1024) },
+                        java.time.Instant.now().toString(), jsBundle = null,
+                        sdkName = "everframe-flutter")
+                    if (accepted) Everframe.requestOutboxDrain()
+                    result.success(accepted)
                 }
                 "kill" -> { clearMarkers(); Everframe.kill(); result.success(null) }
                 else -> result.notImplemented()

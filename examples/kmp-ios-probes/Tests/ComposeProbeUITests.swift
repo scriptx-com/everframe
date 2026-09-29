@@ -11,6 +11,8 @@ final class ComposeProbeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["started"].waitForExistence(timeout: 10))
         app.buttons["Next screen"].tap()
         XCTAssertTrue(app.staticTexts["Compose screen B"].waitForExistence(timeout: 10))
+        app.buttons["Exercise KMP context"].tap()
+        XCTAssertTrue(app.staticTexts["context requested"].waitForExistence(timeout: 10))
     }
 
     func testComposeHostOpensNativeReporter() {

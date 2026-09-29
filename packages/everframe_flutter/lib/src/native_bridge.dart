@@ -7,7 +7,7 @@ import 'sensitive_region.dart';
 import 'safe_replay_buffer.dart';
 import 'safe_replay_export.dart';
 
-/// Android reporter bridge for the unreleased mobile dry run.
+/// Native reporter bridge for the unreleased mobile dry run.
 class EverframeNativeBridge {
   const EverframeNativeBridge();
 
@@ -118,6 +118,68 @@ class EverframeNativeBridge {
         'kind': kind,
         'level': level,
       });
+
+  /// Persists a handled Dart error in the native SDK's encrypted error outbox.
+  /// A true result acknowledges local storage, not delivery to the server.
+  Future<bool> captureException(Object error, {StackTrace? stackTrace}) async {
+    final frames = (stackTrace ?? StackTrace.current)
+        .toString()
+        .split('\n')
+        .map((frame) => frame.trim())
+        .where((frame) => frame.isNotEmpty)
+        .take(256)
+        .map((frame) => frame.length > 1024 ? frame.substring(0, 1024) : frame)
+        .toList();
+    final message = error.toString();
+    return await _channel.invokeMethod<bool>('captureException', {
+          'exceptionType': error.runtimeType.toString(),
+          'message':
+              message.length > 4096 ? message.substring(0, 4096) : message,
+          'framesRaw': frames,
+        }) ??
+        false;
+  }
+
+  /// Adds opt-in network context without request or response content.
+  /// Paths, queries, fragments, credentials, headers, and bodies are omitted.
+  Future<void> recordNetwork({
+    required String method,
+    required Uri url,
+    required int statusCode,
+    int? durationMs,
+  }) {
+    const methods = {
+      'GET',
+      'HEAD',
+      'POST',
+      'PUT',
+      'PATCH',
+      'DELETE',
+      'OPTIONS'
+    };
+    if (!methods.contains(method)) throw ArgumentError.value(method, 'method');
+    if (!const {'http', 'https'}.contains(url.scheme) || url.host.isEmpty) {
+      throw ArgumentError.value(url, 'url', 'HTTP(S) URL required');
+    }
+    if (statusCode < 100 || statusCode > 599) {
+      throw ArgumentError.value(statusCode, 'statusCode');
+    }
+    if (durationMs != null && (durationMs < 0 || durationMs > 86400000)) {
+      throw ArgumentError.value(durationMs, 'durationMs');
+    }
+    final origin = url.origin;
+    return _channel.invokeMethod<void>('addBreadcrumb', {
+      'message': '$method $origin $statusCode',
+      'kind': 'network',
+      'level': statusCode >= 400 ? 'error' : 'info',
+      'data': {
+        'method': method,
+        'origin': origin,
+        'statusCode': statusCode,
+        if (durationMs != null) 'durationMs': durationMs,
+      },
+    });
+  }
 
   Future<void> kill() => _channel.invokeMethod<void>('kill');
 }

@@ -16,7 +16,9 @@ void main() {
       calls.add(call);
       return call.method == 'openReporter'
           ? {'status': 'cancelled', 'reason': 'dismissed'}
-          : null;
+          : call.method == 'captureException'
+              ? true
+              : null;
     });
   });
 
@@ -74,6 +76,66 @@ void main() {
     buffer.freeze();
     expect(
       () => const EverframeNativeBridge().openReporter(replayBuffer: buffer),
+      throwsArgumentError,
+    );
+    expect(calls, isEmpty);
+  });
+
+  test('forwards a handled Dart error with its original Dart stack', () async {
+    const bridge = EverframeNativeBridge();
+    final accepted = await bridge.captureException(
+      StateError('checkout failed'),
+      stackTrace: StackTrace.fromString('at checkout (lib/pay.dart:42:3)\n'),
+    );
+    expect(accepted, isTrue);
+    expect(calls.single.method, 'captureException');
+    expect(calls.single.arguments, {
+      'exceptionType': 'StateError',
+      'message': 'Bad state: checkout failed',
+      'framesRaw': ['at checkout (lib/pay.dart:42:3)'],
+    });
+  });
+
+  test('network context strips credentials, path, query, and fragment',
+      () async {
+    const bridge = EverframeNativeBridge();
+    await bridge.recordNetwork(
+      method: 'POST',
+      url: Uri.parse(
+          'https://alice:secret@api.example.com/private/customer/123?token=secret#frag'),
+      statusCode: 201,
+      durationMs: 93,
+    );
+    expect(calls.single.method, 'addBreadcrumb');
+    expect(calls.single.arguments, {
+      'message': 'POST https://api.example.com 201',
+      'kind': 'network',
+      'level': 'info',
+      'data': {
+        'method': 'POST',
+        'origin': 'https://api.example.com',
+        'statusCode': 201,
+        'durationMs': 93,
+      },
+    });
+  });
+
+  test('invalid network input never crosses the native bridge', () async {
+    const bridge = EverframeNativeBridge();
+    expect(
+      () => bridge.recordNetwork(
+        method: 'POST /secret',
+        url: Uri.parse('https://example.com'),
+        statusCode: 200,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => bridge.recordNetwork(
+        method: 'GET',
+        url: Uri.parse('file:///private/secret'),
+        statusCode: 200,
+      ),
       throwsArgumentError,
     );
     expect(calls, isEmpty);

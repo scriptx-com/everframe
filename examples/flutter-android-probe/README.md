@@ -3,7 +3,7 @@
 
 # Flutter Android dry run
 
-This unreleased sample checks the Android method-channel bridge and captures two masked Flutter renderer frames after a real tap. The native reporter, Flutter replay buffer, and report outbox are still separate. No report submission is exercised.
+This unreleased sample checks the Android method-channel bridge, captures masked Flutter renderer frames, and passes them to the native reporter. A local dry run submitted a report with a masked screenshot and replay to a loopback fake ingest. See `docs/dry-runs/flutter-android-native-bridge.md` for the evidence and limits.
 
 The sample requires disposable `0.9.0-DEV` Android SDK artifacts. For emulator builds, use a local ingest address:
 
@@ -19,4 +19,4 @@ MAVEN_LOCAL_REPOSITORY=/tmp/everframe-flutter-android-m2 flutter build apk --deb
 MAVEN_LOCAL_REPOSITORY=/tmp/everframe-flutter-android-m2 flutter test integration_test/android_probe_test.dart -d emulator-5554
 ```
 
-The app uses a throwaway key unless `EVERFRAME_APP_ID` and `EVERFRAME_SDK_KEY` are supplied as Dart defines. The bridge accepts only the development environment and starts the native SDK with screenshots and automatic crash capture disabled. Its `Start dry run` button invokes the native SDK; `Open reporter` invokes the native UI. The integration test only checks method-channel start/context/kill routing and the masked Flutter A/B frames. Native replay may still be enabled by server configuration, so use only a throwaway project for this probe. The reporter open/cancel/submit path, platform-view handling, Dart error capture, network hooks, Flutter SDK identity, offline retry, and dashboard delivery remain unverified.
+The app uses a throwaway key unless `EVERFRAME_APP_ID` and `EVERFRAME_SDK_KEY` are supplied as Dart defines. The bridge accepts only the development environment and starts the native SDK with additional screenshots and automatic crash capture disabled. `Start dry run` invokes the native SDK; `Open reporter` captures a masked Flutter screenshot and opens the native UI. `Record Dart context` explicitly stores a handled Dart error and adds an origin-only network breadcrumb. The integration test checks method-channel routing, handled-error storage acknowledgement, and masked Flutter A/B frames. Local manual submissions exercised the reporter and Flutter SDK identity; one later manual report omitted replay, which remains under investigation. Embedded platform views, automatic Dart error and network hooks, offline retry, real devices, and dashboard delivery remain unverified.

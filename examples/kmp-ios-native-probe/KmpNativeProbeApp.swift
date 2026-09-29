@@ -36,6 +36,13 @@ struct KmpNativeProbeView: View {
                 client.addBreadcrumb(message: "next screen", kind: "tap", level: nil)
             }
             .disabled(!started)
+            Button("Exercise KMP context") {
+                client.captureHandledError(code: "catalog_load_failed")
+                client.captureException(error: KotlinThrowable(message: "safe sample failure"))
+                client.recordNetworkOperation(operation: "catalog_fetch", method: "GET", statusCode: 503, durationMs: 42)
+                reporterStatus = "context requested"
+            }
+            .disabled(!started)
             Button("Open native reporter") {
                 client.openReporter { outcome in
                     DispatchQueue.main.async { reporterStatus = outcome.status }

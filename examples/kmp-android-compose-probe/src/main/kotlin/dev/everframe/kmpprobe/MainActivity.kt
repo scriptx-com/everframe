@@ -61,6 +61,12 @@ private fun ProbeScene(client: EverframeKmp) {
             client.addBreadcrumb("next screen", kind = "tap")
         }, enabled = started) { Text("Next screen") }
         Button(onClick = {
+            client.captureHandledError("catalog_load_failed")
+            client.captureException(IllegalStateException("safe sample failure"))
+            client.recordNetworkOperation("catalog_fetch", "GET", 503, 42)
+            status = "context requested"
+        }, enabled = started) { Text("Exercise KMP context") }
+        Button(onClick = {
             client.openReporter { status = it.status }
         }, enabled = started) { Text("Open native reporter") }
         Button(onClick = {

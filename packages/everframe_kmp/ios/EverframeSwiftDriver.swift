@@ -13,7 +13,9 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
               host == "127.0.0.1" || host == "localhost" else { return false }
         var capture = CaptureConfig()
         capture.screenshot = false
-        capture.crash = false
+        capture.crash = true
+        capture.network = true
+        capture.networkBodies = false
         do {
             // The Swift SDK currently names its key `appId`.
             try Everframe.shared.start(config: EverframeConfig(
@@ -36,11 +38,19 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
         Everframe.shared.addBreadcrumb(message: message, kind: kind, level: level)
     }
 
+    public func captureHandledError(code: String) {
+        Everframe.shared.captureException(KmpHandledError(code: code), options: nil, sdkName: "everframe-kmp")
+    }
+
+    public func captureException(error: KotlinThrowable) {
+        Everframe.shared.captureException(error.asError(), options: nil, sdkName: "everframe-kmp")
+    }
+
     public func openReporter(completion: @escaping (EverframeReportOutcome) -> Void) {
         Task { @MainActor in
             EFReporterPresenter.installResolver()
             do {
-                let outcome = try await Everframe.shared.report.open()
+                let outcome = try await EFReporterPresenter.openAndAwait(sdkName: "everframe-kmp")
                 switch outcome {
                 case .submitted(let reportId):
                     completion(EverframeReportOutcome(status: "submitted", reportId: reportId.uuidString, reason: nil))
@@ -56,4 +66,9 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
     }
 
     public func kill() { Everframe.shared.kill() }
+}
+
+private struct KmpHandledError: LocalizedError {
+    let code: String
+    var errorDescription: String? { "KMP handled error: \(code)" }
 }

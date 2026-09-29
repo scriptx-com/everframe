@@ -38,7 +38,7 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             }
             var capture = CaptureConfig()
             capture.screenshot = false
-            capture.crash = false
+            capture.crash = true
             do {
                 // The iOS native SDK currently calls its SDK key `appId`.
                 try Everframe.shared.start(config: EverframeConfig(
@@ -67,7 +67,7 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
                 do {
                     let replayVTree = (args["replayVTree"] as? FlutterStandardTypedData)?.data
                     let outcome = try await EFReporterPresenter.openWithMaskedPng(maskedPng,
-                        replayVTree: replayVTree)
+                        replayVTree: replayVTree, sdkName: "everframe-flutter")
                     switch outcome {
                     case .submitted(let reportId):
                         result(["status": "submitted", "reportId": reportId.uuidString])
@@ -103,8 +103,29 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             Everframe.shared.addBreadcrumb(
                 message: message,
                 kind: args["kind"] as? String,
-                level: args["level"] as? String)
+                level: args["level"] as? String,
+                data: args["data"] as? [String: Any])
             result(nil)
+        case "captureException":
+            guard let exceptionType = args["exceptionType"] as? String,
+                  !exceptionType.isEmpty,
+                  let message = args["message"] as? String,
+                  let framesRaw = args["framesRaw"] as? [String] else {
+                result(FlutterError(code: "invalid_arguments", message: "Dart error facts required", details: nil))
+                return
+            }
+            let facts: [String: Any] = [
+                "exceptionType": String(exceptionType.prefix(256)),
+                "message": String(message.prefix(4096)),
+                "framesRaw": framesRaw.prefix(256).map { String($0.prefix(1024)) },
+                "occurredAt": ISO8601DateFormatter().string(from: Date()),
+            ]
+            guard let json = try? JSONSerialization.data(withJSONObject: facts),
+                  let encoded = String(data: json, encoding: .utf8) else {
+                result(false)
+                return
+            }
+            result(CrashReporter.captureHandledFacts(json: encoded, sdkName: "everframe-flutter"))
         case "kill":
             Task { @MainActor in
                 clearMarkers()

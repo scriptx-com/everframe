@@ -37,7 +37,7 @@ class AndroidEverframeDriver(
                 appId = appId,
                 sdkKey = sdkKey,
                 environment = Environment.development,
-                capture = CaptureConfig(screenshot = false, crash = false),
+                capture = CaptureConfig(screenshot = false, crash = true, network = true, networkBodies = false),
             ), currentActivity)
             Everframe.captureGate.also { if (it) beginCapture() }
         } catch (_: Exception) {
@@ -52,6 +52,14 @@ class AndroidEverframeDriver(
     override fun recordScreen(name: String) { Everframe.recordScreen(name) }
     override fun addBreadcrumb(message: String, kind: String?, level: String?) {
         Everframe.addBreadcrumb(message, kind, level)
+    }
+
+    override fun captureHandledError(code: String) {
+        Everframe.captureException(KmpHandledException(code), null, "everframe-kmp")
+    }
+
+    override fun captureException(error: Throwable) {
+        Everframe.captureException(error, null, "everframe-kmp")
     }
 
     override fun openReporter(completion: (EverframeReportOutcome) -> Unit) {
@@ -74,7 +82,7 @@ class AndroidEverframeDriver(
                 }
                 val maskedPng = screenshot.pngBytes.copyOf()
                 screenshot.bitmap.recycle()
-                val outcome = EFReporterFromImage.open(host, maskedPng, hostReplay)
+                val outcome = EFReporterFromImage.open(host, maskedPng, hostReplay, sdkName = "everframe-kmp")
                 completion(when (outcome) {
                     is ReportResult.Submitted -> EverframeReportOutcome("submitted", outcome.reportId.toString())
                     is ReportResult.Queued -> EverframeReportOutcome("queued", outcome.reportId.toString())
@@ -121,3 +129,5 @@ class AndroidEverframeDriver(
         }
     }
 }
+
+private class KmpHandledException(code: String) : RuntimeException("KMP handled error: $code")

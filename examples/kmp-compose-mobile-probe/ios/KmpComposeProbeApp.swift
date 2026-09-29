@@ -27,6 +27,13 @@ struct KmpComposeProbeHostView: View {
             ComposeControllerHost { name in
                 if started { client.recordScreen(name: name) }
             }
+            Button("Exercise KMP context") {
+                client.captureHandledError(code: "catalog_load_failed")
+                client.captureException(error: KotlinThrowable(message: "safe sample failure"))
+                client.recordNetworkOperation(operation: "catalog_fetch", method: "GET", statusCode: 503, durationMs: 42)
+                status = "context requested"
+            }
+            .disabled(!started)
             Button("Open native reporter") {
                 client.openReporter { outcome in
                     DispatchQueue.main.async { status = outcome.status }

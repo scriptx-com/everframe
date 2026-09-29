@@ -28,7 +28,8 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
   final _replay = SafeReplayBuffer();
   late final _bridge = widget.bridge ?? const EverframeNativeBridge();
   late final _recorder = SafeReplayRecorder(
-    capture: () => captureRegisteredFrame(_boundaryKey, _sensitiveRegions),
+    capture: () =>
+        captureRegisteredFrameAfterFrame(_boundaryKey, _sensitiveRegions),
     buffer: _replay,
   );
   bool _secondScreen = false;
@@ -73,14 +74,39 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
     }
   }
 
+  Future<void> _recordContext() async {
+    try {
+      await _bridge.recordNetwork(
+        method: 'GET',
+        url: Uri.parse('https://api.example.com/orders/123?token=private'),
+        statusCode: 503,
+        durationMs: 93,
+      );
+      final accepted = await _bridge.captureException(
+        StateError('probe checkout failure'),
+        stackTrace: StackTrace.current,
+      );
+      if (mounted) setState(() => _status = 'Dart error stored: $accepted');
+    } catch (error) {
+      if (mounted) setState(() => _status = 'Context failed: $error');
+    }
+  }
+
   Future<void> _open() async {
     final wasRecording = _recorder.active;
     if (wasRecording) _recorder.freeze();
+    debugPrint(
+      'Flutter replay before reporter: active=$wasRecording '
+      'frames=${_replay.frames.length} revoked=${_replay.revoked}',
+    );
     try {
       final outcome = await _bridge.openReporter(
         boundaryKey: _boundaryKey,
         sensitiveRegions: _sensitiveRegions,
         replayBuffer: wasRecording ? _replay : null,
+      );
+      debugPrint(
+        'Flutter reporter outcome: ${outcome.status} ${outcome.reason}',
       );
       if (mounted) setState(() => _status = 'Reporter: ${outcome.status}');
     } catch (error) {
@@ -133,6 +159,10 @@ class _FlutterAndroidProbeAppState extends State<FlutterAndroidProbeApp> {
               ElevatedButton(
                 onPressed: _open,
                 child: const Text('Open reporter'),
+              ),
+              ElevatedButton(
+                onPressed: _recordContext,
+                child: const Text('Record Dart context'),
               ),
               Text(_status),
             ],

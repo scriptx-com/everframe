@@ -152,3 +152,13 @@ Future<Uint8List?> captureRegisteredFrame(
   if (rects == null) return null;
   return captureMaskedFrame(boundaryKey, rects);
 }
+
+/// Samples after layout and paint so a transient dirty boundary does not
+/// revoke an otherwise safe replay. Geometry is read only after that frame.
+Future<Uint8List?> captureRegisteredFrameAfterFrame(
+  GlobalKey boundaryKey,
+  SensitiveRegionRegistry registry,
+) async {
+  await WidgetsBinding.instance.endOfFrame;
+  return captureRegisteredFrame(boundaryKey, registry);
+}

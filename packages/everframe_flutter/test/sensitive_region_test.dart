@@ -61,8 +61,8 @@ void main() {
     final expected = tester.getRect(find.byKey(const Key('secret')));
     expect(expected.top, greaterThan(12));
     final replay = SafeReplayBuffer();
-    final maskedFrame = await tester.runAsync(
-        () => captureRegisteredFrame(boundary, registry));
+    final maskedFrame =
+        await tester.runAsync(() => captureRegisteredFrame(boundary, registry));
     expect(maskedFrame, isNotNull);
     expect(await tester.runAsync(() => replay.append(maskedFrame)), true);
     replay.freeze();
@@ -136,6 +136,50 @@ void main() {
     expect(
         await tester.runAsync(() => pixel(second!, 110, 30)), [0, 0, 0, 255]);
     expect(await tester.runAsync(() => pixel(second!, 20, 30)),
+        [255, 255, 255, 255]);
+  });
+
+  testWidgets(
+      'replay waits for a new Flutter frame before masking moved content',
+      (tester) async {
+    final registry = SensitiveRegionRegistry();
+    final boundary = GlobalKey();
+    final moved = ValueNotifier(false);
+    await tester.pumpWidget(MaterialApp(
+      home: RepaintBoundary(
+        key: boundary,
+        child: SizedBox(
+          width: 200,
+          height: 100,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: moved,
+            builder: (_, second, __) => Stack(children: [
+              const ColoredBox(color: Color(0xFFFFFFFF)),
+              Positioned(
+                left: second ? 100 : 10,
+                top: 20,
+                width: 40,
+                height: 30,
+                child: EverframeSensitive(
+                  registry: registry,
+                  child: const ColoredBox(color: Color(0xFFFF00FF)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    moved.value = true;
+    final pending = tester
+        .runAsync(() => captureRegisteredFrameAfterFrame(boundary, registry));
+    await tester.pump();
+    final frame = await pending;
+    expect(frame, isNotNull);
+    expect(await tester.runAsync(() => pixel(frame!, 110, 30)), [0, 0, 0, 255]);
+    expect(await tester.runAsync(() => pixel(frame!, 20, 30)),
         [255, 255, 255, 255]);
   });
 

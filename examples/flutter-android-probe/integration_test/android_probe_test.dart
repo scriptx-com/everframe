@@ -63,14 +63,29 @@ void main() {
     await bridge.setUser(id: 'dry-run-user');
     await bridge.recordScreen('Flutter checkout');
     await bridge.addBreadcrumb('Tapped continue', kind: 'ui');
+    await bridge.recordNetwork(
+      method: 'GET',
+      url: Uri.parse('https://api.example.com/orders/123?token=private'),
+      statusCode: 503,
+      durationMs: 93,
+    );
+    expect(
+      await bridge.captureException(
+        StateError('Flutter integration probe'),
+        stackTrace: StackTrace.fromString('at checkout (lib/pay.dart:42:3)'),
+      ),
+      isTrue,
+    );
     await bridge.kill();
     await expectLater(
       bridge.openReporter(),
-      throwsA(isA<PlatformException>().having(
-        (error) => error.code,
-        'code',
-        'not_started',
-      )),
+      throwsA(
+        isA<PlatformException>().having(
+          (error) => error.code,
+          'code',
+          'not_started',
+        ),
+      ),
     );
   });
 }

@@ -28,7 +28,8 @@ class _FlutterIosProbeAppState extends State<FlutterIosProbeApp> {
   final _replay = SafeReplayBuffer();
   late final _bridge = widget.bridge ?? const EverframeNativeBridge();
   late final _recorder = SafeReplayRecorder(
-    capture: () => captureRegisteredFrame(_boundaryKey, _sensitiveRegions),
+    capture: () =>
+        captureRegisteredFrameAfterFrame(_boundaryKey, _sensitiveRegions),
     buffer: _replay,
   );
   bool _secondScreen = false;
@@ -70,6 +71,24 @@ class _FlutterIosProbeAppState extends State<FlutterIosProbeApp> {
       await _bridge.recordScreen(_secondScreen ? 'Screen B' : 'Screen A');
     } catch (_) {
       // Screen changes also work before the native SDK is configured.
+    }
+  }
+
+  Future<void> _recordContext() async {
+    try {
+      await _bridge.recordNetwork(
+        method: 'GET',
+        url: Uri.parse('https://api.example.com/orders/123?token=private'),
+        statusCode: 503,
+        durationMs: 93,
+      );
+      final accepted = await _bridge.captureException(
+        StateError('probe checkout failure'),
+        stackTrace: StackTrace.current,
+      );
+      if (mounted) setState(() => _status = 'Dart error stored: $accepted');
+    } catch (error) {
+      if (mounted) setState(() => _status = 'Context failed: $error');
     }
   }
 
@@ -133,6 +152,10 @@ class _FlutterIosProbeAppState extends State<FlutterIosProbeApp> {
               ElevatedButton(
                 onPressed: _open,
                 child: const Text('Open reporter'),
+              ),
+              ElevatedButton(
+                onPressed: _recordContext,
+                child: const Text('Record Dart context'),
               ),
               Text(_status),
             ],
