@@ -7,7 +7,7 @@ import type { Rect } from '@everframe/sdk-core';
  * Paint legacy `maskPlan` rects (root-relative DEVICE px) straight onto a
  * capture canvas: the full-document modern-screenshot fallback canvas (same
  * coordinate space, no offsets) or the viewport-sized snapDOM canvas (offset
- * by the scroll position via `offsetX`/`offsetY`). Same 2px safety inflation
+ * by the root's viewport position via `offsetX`/`offsetY`). Same 2px safety inflation
  * as `applyMaskRectsToBlob`, minus that path's decode/encode round.
  * Best-effort: a missing 2d context skips masking rather than failing the
  * capture (the caller's primary masking is live-DOM `maskTargets`).
@@ -17,7 +17,7 @@ export function paintMaskRectsOnCanvas(
   rects: Rect[],
   /** effective (capped) ratio ÷ requested ratio — 1 whenever no cap applied. */
   scale = 1,
-  /** Effective device px to subtract — the scroll offset for a viewport-cropped canvas. */
+  /** Effective device px to subtract — minus the root's viewport origin for a viewport-sized canvas. */
   offsetX = 0,
   offsetY = 0,
 ): void {

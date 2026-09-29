@@ -24,180 +24,177 @@ export interface SnapdomRenderOptions {
   filter: (node: Node) => boolean;
 }
 
-/** Live-DOM attribute on a scrolled element: `<token>|<id>|<scrollLeft>|<scrollTop>`. */
-export const SCROLLER_ATTR = 'data-everframe-scroller';
-/** Live-DOM attribute on a scrolled element's element child: `<token>|<id>|<transform>`. */
-export const SCROLL_ATTR = 'data-everframe-scroll';
-/** Live-DOM attribute on an inline `position:absolute` descendant: `<token>|<json>`. */
-export const SCROLL_ABS_ATTR = 'data-everframe-scroll-abs';
-
-const ALL_SCROLL_ATTRS = [SCROLLER_ATTR, SCROLL_ATTR, SCROLL_ABS_ATTR] as const;
-
-/** Per inline-absolute descendant: its original inline offsets + every scrolled ancestor. */
-interface AbsTag {
-  top: string;
-  left: string;
-  /** [scroller id, scrollLeft, scrollTop, 1 when that scroller's snapDOM offset is wrong for it]. */
-  s: Array<[number, number, number, 0 | 1]>;
+/** Live scroll state of one scrolled element, captured before snapDOM starts. */
+interface ScrollerState {
+  left: number;
+  top: number;
+  /**
+   * Per live element child: the full transform its clone gets (the scroll
+   * translate composed with the child's own computed transform), or null
+   * when the child does not scroll with the content (see childShift).
+   */
+  children: Map<Element, string | null>;
 }
 
 /**
- * snapDOM 3.2.0 restores nested scroll ITSELF (its internal `xo` pass, run in
- * the clone step before any `afterClone` plugin): for every scrolled element
- * except the capture root it moves all of the clone's children into an
- * `all:unset` wrapper div carrying `transform: translate(-left, -top)`, and
- * adds `+left`/`+top` to the inline `left`/`top` of every descendant whose
- * INLINE style says `position: absolute|fixed` (to keep elements anchored
- * outside the scroller in place). That is right for in-flow content, but the
- * counter-offset is wrong for an absolute element whose containing block is
- * the scroller or lies inside it — that element must scroll with the content,
- * yet ends up rendered unscrolled.
- *
- * Exactly one restoration per scroller:
- * - where the clone shows snapDOM's wrapper, snapDOM's shift is kept and the
- *   plugin only reverts the counter-offset on inline-absolute descendants
- *   whose containing block is the scroller or inside it;
- * - where it does not (a future snapDOM that stops wrapping, a non-HTML
- *   clone), the plugin falls back to its own restoration, mirroring
- *   modern-screenshot's restoreScrollPosition: each element child gets its
- *   fully composed transform (`translate(-left, -top)` followed by the child's
- *   live computed transform, so class transforms survive). Only the classic
- *   `transform` property is used (`translate` is missing on Chrome 79 / webOS 6).
- *
- * Each capture stamps its tags with a unique token. The clone plugin applies
- * only its own token's tags and strips foreign ones from the CLONE (a tag left
- * on the live DOM by an abandoned, never-settled capture must not shift
- * anything); cleanup removes only live tags still carrying its token, so a
- * late settle of an abandoned capture cannot strip a newer capture's tags.
- *
- * Limitations: direct text-node children of a scroller are not shifted on the
- * fallback path; the containing block is approximated as the nearest ancestor
- * with a non-static position or a transform.
+ * Whether an element's computed style makes it the containing block of its
+ * absolutely positioned descendants: a non-static position, or any of the
+ * other containing-block creators (transform, perspective, filter,
+ * backdrop-filter, layout/paint containment, container queries, and
+ * will-change naming one of those).
  */
-function tagScrollState(root: HTMLElement, token: string): HTMLElement[] {
-  const tagged: HTMLElement[] = [];
+export function establishesAbsoluteContainingBlock(cs: CSSStyleDeclaration): boolean {
+  if (cs.position && cs.position !== 'static') return true;
+  return establishesFixedContainingBlock(cs);
+}
+
+/** The subset that also captures `position: fixed` descendants. */
+function establishesFixedContainingBlock(cs: CSSStyleDeclaration): boolean {
+  const set = (v: string | undefined): boolean => !!v && v !== 'none' && v !== 'normal';
+  if (set(cs.transform) || set(cs.perspective) || set(cs.filter)) return true;
+  const backdrop =
+    (cs as unknown as Record<string, string | undefined>).backdropFilter ??
+    (cs as unknown as Record<string, string | undefined>).webkitBackdropFilter;
+  if (set(backdrop)) return true;
+  const contain = cs.contain ?? '';
+  if (/\b(layout|paint|strict|content)\b/.test(contain)) return true;
+  const containerType = (cs as unknown as Record<string, string | undefined>).containerType ?? '';
+  if (containerType && containerType !== 'normal') return true;
+  const willChange = cs.willChange ?? '';
+  return /\b(transform|translate|rotate|scale|perspective|filter|backdrop-filter|contain|position)\b/.test(willChange);
+}
+
+/**
+ * The clone transform for one element child of a scrolled element, or null
+ * when it must stay put:
+ * - fixed / sticky children are re-placed by snapDOM itself from their LIVE
+ *   rects (its freezeViewportPositioned pass), so they already show where the
+ *   user saw them;
+ * - an absolute child whose containing block is outside the scroller does
+ *   not move when the scroller scrolls.
+ */
+function childShift(child: Element, scroller: CSSStyleDeclaration, left: number, top: number): string | null {
+  const cs = getComputedStyle(child);
+  const pos = cs.position;
+  if (pos === 'fixed' || pos === 'sticky' || pos === '-webkit-sticky') return null;
+  if (pos === 'absolute' && !establishesAbsoluteContainingBlock(scroller)) return null;
+  const shift = `translate(${-left}px, ${-top}px)`;
+  return cs.transform && cs.transform !== 'none' ? `${shift} ${cs.transform}` : shift;
+}
+
+/**
+ * snapDOM clones carry no scroll offsets. snapDOM 3.2.0 has its own nested
+ * scroll pass (`xo`, run in the clone step before any `afterClone` plugin):
+ * it moves every scrolled clone's children into one `all:unset;
+ * display:inline-block` wrapper translated by the scroll offset, and adds
+ * the offset back onto the inline `top`/`left` of every descendant whose
+ * inline position is absolute (fixed ones are turned absolute too). That
+ * breaks three ways: the counter-offset leaves absolute content anchored
+ * inside the scroller unscrolled; the inline-block wrapper collapses flex and
+ * grid layouts (a horizontal carousel stacks vertically); and the lost child
+ * count trips snapDOM's later shrink pass (filterMode 'remove'), which sets
+ * a stylesheet-sized scroller to `height:auto; overflow:visible`, spilling
+ * its rows over the content below.
+ *
+ * So the plugin undoes that pass — unwraps the wrapper and reverts the
+ * counter-offsets — and restores each scroller once, itself, mirroring
+ * modern-screenshot's restoreScrollPosition: every element child's clone
+ * gets `translate(-left, -top)` composed with the child's live computed
+ * transform (class transforms survive; only the classic `transform` property
+ * is used, `translate` is missing on Chrome 79 / webOS 6).
+ *
+ * All state lives in memory for this one capture and clones are matched to
+ * their live originals through snapDOM's `ctx.nodeMap` (clone -> source), so
+ * overlapping or abandoned captures cannot see or disturb each other and the
+ * live DOM is never written to.
+ *
+ * Limitations: direct text-node children of a scroller are not shifted; an
+ * absolute element deeper in a shifted child whose containing block is
+ * outside the scroller is shifted with that child.
+ */
+function collectScrollState(root: HTMLElement): Map<Element, ScrollerState> {
+  const state = new Map<Element, ScrollerState>();
   const skip = new Set<Element>([root, document.documentElement, document.body]);
-  const all = Array.from(root.querySelectorAll<HTMLElement>('*'));
-  const scrollers = new Map<Element, [number, number, number]>();
-  for (const el of all) {
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>('*'))) {
     if (skip.has(el)) continue;
     const left = el.scrollLeft;
     const top = el.scrollTop;
     if (left === 0 && top === 0) continue;
-    const id = scrollers.size;
-    scrollers.set(el, [id, left, top]);
-    el.setAttribute(SCROLLER_ATTR, `${token}|${id}|${left}|${top}`);
-    tagged.push(el);
-    for (const child of Array.from(el.children) as HTMLElement[]) {
-      const computed = getComputedStyle(child).transform;
-      const shift = `translate(${-left}px, ${-top}px)`;
-      const transform = computed && computed !== 'none' ? `${shift} ${computed}` : shift;
-      child.setAttribute(SCROLL_ATTR, `${token}|${id}|${transform}`);
-      tagged.push(child);
+    const scrollerStyle = getComputedStyle(el);
+    const children = new Map<Element, string | null>();
+    for (const child of Array.from(el.children)) {
+      children.set(child, childShift(child, scrollerStyle, left, top));
+    }
+    state.set(el, { left, top, children });
+  }
+  return state;
+}
+
+/** snapDOM's scroll wrapper: the scroller clone's sole child node, a style-only div it created. */
+function snapdomScrollWrapper(scrollerClone: Element, nodeMap: Map<Node, Node>): HTMLElement | null {
+  const only = scrollerClone.childNodes.length === 1 ? scrollerClone.firstChild : null;
+  if (!(only instanceof HTMLElement) || only.tagName !== 'DIV' || nodeMap.has(only)) return null;
+  if (only.attributes.length !== 1 || !only.hasAttribute('style')) return null;
+  return only.style.willChange === 'transform' && only.style.transform.startsWith('translate(') ? only : null;
+}
+
+/** Undo snapDOM's `xo` pass on one scroller clone: revert the counter-offsets, then unwrap. */
+function undoSnapdomScroll(
+  scrollerClone: Element,
+  wrapper: HTMLElement,
+  st: ScrollerState,
+  nodeMap: Map<Node, Node>,
+): void {
+  for (const el of Array.from(wrapper.querySelectorAll<HTMLElement>('*'))) {
+    const style = el.style;
+    if (!style || style.position !== 'absolute') continue;
+    const src = nodeMap.get(el) as HTMLElement | undefined;
+    if (src?.style?.position === 'absolute' && getComputedStyle(src).position === 'absolute') {
+      // An inline-absolute original: snapDOM's counter-offset was the only
+      // change to these two properties, so restore them verbatim (keeps `auto`).
+      style.top = src.style.top;
+      style.left = src.style.left;
+    } else {
+      style.top = `${(parseFloat(style.top) || 0) - st.top}px`;
+      style.left = `${(parseFloat(style.left) || 0) - st.left}px`;
     }
   }
-  if (scrollers.size === 0) return tagged;
-  for (const el of all) {
-    if (el.style?.position !== 'absolute') continue;
-    const cb = containingBlock(el, root);
-    const s: AbsTag['s'] = [];
-    for (let a = el.parentElement; a && a !== root; a = a.parentElement) {
-      const info = scrollers.get(a);
-      if (!info) continue;
-      const wrong = cb !== null && (cb === a || a.contains(cb)) ? 1 : 0;
-      s.push([info[0], info[1], info[2], wrong]);
-    }
-    if (!s.some((entry) => entry[3] === 1)) continue;
-    const tag: AbsTag = { top: el.style.top, left: el.style.left, s };
-    el.setAttribute(SCROLL_ABS_ATTR, `${token}|${JSON.stringify(tag)}`);
-    tagged.push(el);
-  }
-  return tagged;
+  while (wrapper.firstChild) scrollerClone.insertBefore(wrapper.firstChild, wrapper);
+  wrapper.remove();
 }
 
-/** Nearest ancestor that establishes an absolute containing block (approximation). */
-function containingBlock(el: HTMLElement, root: HTMLElement): Element | null {
-  for (let a = el.parentElement; a; a = a.parentElement) {
-    const cs = getComputedStyle(a);
-    if (cs.position !== 'static' || (cs.transform && cs.transform !== 'none')) return a;
-    if (a === root) return null;
-  }
-  return null;
+interface AfterCloneContext {
+  clone?: Element | null | undefined;
+  /** snapDOM's clone -> live source map (typed `unknown`; a Map in 3.2.0, populated before `afterClone`). */
+  nodeMap?: unknown;
 }
 
-/** snapDOM's scroll wrapper: the scroller's sole child, an attribute-less (style-only) div. */
-function hasSnapdomScrollWrapper(scroller: Element): boolean {
-  const only = scroller.childNodes.length === 1 ? scroller.firstChild : null;
-  if (!(only instanceof HTMLElement) || only.tagName !== 'DIV') return false;
-  if (only.attributes.length !== 1 || !only.hasAttribute('style')) return false;
-  return only.style.willChange === 'transform' && only.style.transform.startsWith('translate(');
-}
-
-/** Split `<token>|<rest>`; null when malformed. */
-function splitTag(value: string | null): [string, string] | null {
-  if (!value) return null;
-  const bar = value.indexOf('|');
-  return bar < 0 ? null : [value.slice(0, bar), value.slice(bar + 1)];
-}
-
-function createScrollRestorePlugin(token: string) {
+function createScrollRestorePlugin(state: Map<Element, ScrollerState>) {
   return {
     name: 'everframe-scroll-restore',
-    afterClone(ctx: { clone?: Element | null }): void {
-      const clone = ctx.clone;
-      if (!clone) return;
-      const selector = ALL_SCROLL_ATTRS.map((a) => `[${a}]`).join(',');
-      const nodes: Element[] = clone.matches?.(selector) ? [clone] : [];
-      nodes.push(...Array.from(clone.querySelectorAll(selector)));
-      /** Own-token payload for `attr`, stripping the attribute from the clone either way. */
-      const take = (el: Element, attr: string): string | null => {
-        if (!el.hasAttribute(attr)) return null;
-        const parts = splitTag(el.getAttribute(attr));
-        el.removeAttribute(attr);
-        return parts && parts[0] === token ? parts[1] : null;
-      };
-
-      const wrapped = new Set<number>();
-      for (const el of nodes) {
-        const payload = take(el, SCROLLER_ATTR);
-        if (payload === null) continue;
-        const id = Number(payload.split('|')[0]);
-        if (hasSnapdomScrollWrapper(el)) wrapped.add(id);
+    afterClone(ctx: AfterCloneContext): void {
+      if (!ctx.clone || !(ctx.nodeMap instanceof Map)) return;
+      const nodeMap = ctx.nodeMap as Map<Node, Node>;
+      const scrollers: Array<[Element, ScrollerState]> = [];
+      for (const [clone, src] of nodeMap) {
+        const st = state.get(src as Element);
+        if (st && clone.nodeType === 1) scrollers.push([clone as Element, st]);
       }
-      for (const el of nodes) {
-        const payload = take(el, SCROLL_ATTR);
-        if (payload === null) continue;
-        const bar = payload.indexOf('|');
-        const id = Number(payload.slice(0, bar));
-        const transform = payload.slice(bar + 1);
-        const style = (el as HTMLElement).style;
-        if (!wrapped.has(id) && style && transform) style.transform = transform;
-      }
-      for (const el of nodes) {
-        const payload = take(el, SCROLL_ABS_ATTR);
-        if (payload === null) continue;
-        const style = (el as HTMLElement).style;
-        if (!style || style.position !== 'absolute') continue;
-        let tag: AbsTag;
-        try {
-          tag = JSON.parse(payload) as AbsTag;
-        } catch {
-          continue;
+      for (const [scrollerClone, st] of scrollers) {
+        const wrapper = snapdomScrollWrapper(scrollerClone, nodeMap);
+        if (wrapper) undoSnapdomScroll(scrollerClone, wrapper, st, nodeMap);
+        const plain = `translate(${-st.left}px, ${-st.top}px)`;
+        for (const child of Array.from(scrollerClone.children) as HTMLElement[]) {
+          const src = nodeMap.get(child) as Element | undefined;
+          // Unmapped children are snapDOM's own in-flow stand-ins (e.g. the
+          // placeholder holding a frozen sticky element's slot): they scroll.
+          const transform = src ? st.children.get(src) : plain;
+          if (transform && child.style) child.style.transform = transform;
         }
-        // Only scrollers snapDOM actually wrapped applied a counter-offset.
-        const applied = tag.s.filter(([id]) => wrapped.has(id));
-        if (!applied.some((entry) => entry[3] === 1)) continue;
-        const kept = applied.filter((entry) => entry[3] === 0);
-        const keptLeft = kept.reduce((sum, entry) => sum + entry[1], 0);
-        const keptTop = kept.reduce((sum, entry) => sum + entry[2], 0);
-        style.left = kept.length === 0 ? tag.left : `${(parseFloat(tag.left) || 0) + keptLeft}px`;
-        style.top = kept.length === 0 ? tag.top : `${(parseFloat(tag.top) || 0) + keptTop}px`;
       }
     },
   };
 }
-
-let captureSeq = 0;
 
 /**
  * `clip: 'viewport'` sizes the canvas from documentElement.clientWidth/Height,
@@ -234,12 +231,13 @@ export interface SnapdomRenderResult {
    */
   blank: boolean;
   /**
-   * Window scroll (CSS px) read synchronously right before snapDOM started:
-   * the viewport origin of this canvas. snapDOM yields while rendering, so a
-   * scroll read after it settles may describe a different viewport.
+   * The capture root's viewport rect (CSS px), read synchronously right
+   * before snapDOM started: where the root sits on this viewport-sized
+   * canvas, so root-relative mask rects map onto it. snapDOM yields while
+   * rendering, so a read after it settles may describe a different viewport.
    */
-  scrollX: number;
-  scrollY: number;
+  rootLeft: number;
+  rootTop: number;
 }
 
 export async function renderViewportWithSnapdom(
@@ -247,13 +245,11 @@ export async function renderViewportWithSnapdom(
   opts: SnapdomRenderOptions,
 ): Promise<SnapdomRenderResult> {
   const { snapdom } = await import('@zumer/snapdom');
-  const token = `${Date.now().toString(36)}-${(captureSeq++).toString(36)}`;
-  const tagged = tagScrollState(root, token);
-  const scrollX = typeof window !== 'undefined' ? window.scrollX || 0 : 0;
-  const scrollY = typeof window !== 'undefined' ? window.scrollY || 0 : 0;
+  const scrollState = collectScrollState(root);
+  const rootRect = root.getBoundingClientRect();
   try {
     const capture = await snapdom(root, {
-      ...(tagged.length > 0 ? { plugins: [createScrollRestorePlugin(token)] } : {}),
+      ...(scrollState.size > 0 ? { plugins: [createScrollRestorePlugin(scrollState)] } : {}),
       clip: 'viewport',
       fast: false,
       scale: 1,
@@ -272,12 +268,13 @@ export async function renderViewportWithSnapdom(
     });
     const raw = await capture.toCanvas();
     const blank = isCanvasBlank(raw) === true;
-    return { canvas: padToViewport(raw, opts.pixelRatio), blank, scrollX, scrollY };
+    return {
+      canvas: padToViewport(raw, opts.pixelRatio),
+      blank,
+      rootLeft: rootRect.left,
+      rootTop: rootRect.top,
+    };
   } finally {
-    for (const el of tagged) {
-      for (const attr of ALL_SCROLL_ATTRS) {
-        if (el.getAttribute(attr)?.startsWith(`${token}|`)) el.removeAttribute(attr);
-      }
-    }
+    scrollState.clear();
   }
 }

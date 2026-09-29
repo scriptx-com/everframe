@@ -967,16 +967,25 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
       toBlob: (cb: (b: Blob | null) => void, type?: string) => cb(new Blob([PNG_BYTES], { type: type ?? 'image/png' })),
     } as unknown as HTMLCanvasElement;
     mockSnapdom(canvas);
-    Object.defineProperty(window, 'scrollY', { value: 300, configurable: true });
-    Object.defineProperty(window, 'scrollX', { value: 0, configurable: true });
-    try {
-      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
-      await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
-      // Root-relative y=320 at scrollY=300 lands at viewport y=20 (minus the 2px inflation).
-      expect(fills).toContainEqual([8, 18, 54, 24]);
-    } finally {
-      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
-    }
+    // A margin-0 <body> scrolled by 300 sits at viewport top -300 (jsdom has no layout).
+    vi.spyOn(document.body, 'getBoundingClientRect').mockReturnValue({ left: 0, top: -300 } as DOMRect);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
+    // Root-relative y=320 at scrollY=300 lands at viewport y=20 (minus the 2px inflation).
+    expect(fills).toContainEqual([8, 18, 54, 24]);
+  });
+
+  it('maps maskPlan through a custom root\'s viewport position (not just the window scroll)', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(fills, 800, 600));
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({ left: 200, top: 100, width: 300, height: 200 } as DOMRect);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    // Sensitive box at root-relative (0,0), 40x20; ratio 2 on both sides.
+    await cap({ root, pixelRatio: 2, maskPlan: [{ x: 0, y: 0, width: 80, height: 40 }] });
+    // snapDOM draws the root at viewport (200,100) => device (400,200); minus the 2px inflation.
+    expect(fills).toEqual([[398, 198, 84, 44]]);
   });
 
   /** Canvas stub whose 2d context records mask fills, so tests can see paint order. */
@@ -1017,24 +1026,20 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
   it('offsets maskPlan by the scroll read right before the snapdom render, not by a scroll during it', async () => {
     const fills: Array<[number, number, number, number]> = [];
     const canvas = makeFillRecordingCanvas(fills);
-    Object.defineProperty(window, 'scrollX', { value: 0, configurable: true });
-    Object.defineProperty(window, 'scrollY', { value: 300, configurable: true });
+    let bodyTop = -300; // margin-0 <body> at scrollY 300
+    vi.spyOn(document.body, 'getBoundingClientRect').mockImplementation(() => ({ left: 0, top: bodyTop }) as DOMRect);
     vi.doMock('@zumer/snapdom', () => ({
       snapdom: vi.fn(async () => {
         // The user scrolls while snapDOM (fast:false) yields mid-render.
-        Object.defineProperty(window, 'scrollY', { value: 700, configurable: true });
+        bodyTop = -700;
         return { toCanvas: async () => canvas };
       }),
     }));
-    try {
-      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
-      await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
-      // Root-relative y=320 in the viewport captured at scrollY=300 -> y=20 (minus 2px inflation);
-      // offsetting by the post-render 700 would paint at y=-382 and expose the content.
-      expect(fills).toEqual([[8, 18, 54, 24]]);
-    } finally {
-      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
-    }
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
+    // Root-relative y=320 in the viewport captured at scrollY=300 -> y=20 (minus 2px inflation);
+    // offsetting by the post-render 700 would paint at y=-382 and expose the content.
+    expect(fills).toEqual([[8, 18, 54, 24]]);
   });
 
   it('blank-checks the fallback on the viewport region it ships, not the whole document canvas', async () => {

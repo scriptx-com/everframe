@@ -331,12 +331,14 @@ export async function captureScreenshot(
     try {
       // `blank` is measured by the renderer on the RAW raster — before its
       // scrollbar padding and before mask boxes add edges to a flat canvas.
-      // `scrollX/Y` is the viewport origin read synchronously right before
-      // snapDOM started: snapDOM (`fast: false`) yields to the page while
-      // rendering, so reading scroll again after it settles would offset the
-      // maskPlan rects by wherever the user has scrolled since — shipping the
-      // very pixels the mask exists to hide.
-      const { canvas, blank, scrollX: originX, scrollY: originY } = await withDeadline(
+      // `rootLeft/rootTop` is the capture root's viewport rect, read
+      // synchronously right before snapDOM started. maskPlan rects are
+      // ROOT-relative; snapDOM's viewport clip draws the root at that rect,
+      // so the rect (not the window scroll - which only matches for a
+      // margin-0 <body> root) maps them onto the canvas. Reading it after the
+      // render settles would use wherever the page has scrolled since
+      // (snapDOM `fast: false` yields), shipping the pixels the mask hides.
+      const { canvas, blank, rootLeft, rootTop } = await withDeadline(
         renderViewportWithSnapdom(root, { pixelRatio, filter: filterNode }),
         Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE),
         'snapdom',
@@ -346,8 +348,8 @@ export async function captureScreenshot(
           canvas,
           opts.maskPlan,
           pixelRatio / (requestedRatio || 1),
-          originX * pixelRatio,
-          originY * pixelRatio,
+          -rootLeft * pixelRatio,
+          -rootTop * pixelRatio,
         );
       }
       const attempt: Attempt = { canvas, renderer: 'snapdom' };
@@ -425,7 +427,7 @@ export async function captureScreenshot(
 
   // NOTE — the legacy `maskPlan` pass now runs on the CANVAS inside the
   // deadline above: on the snapDOM path directly on the viewport-sized canvas
-  // (offset by the scroll position), on the modern-screenshot path in
+  // (offset by the root's viewport position), on the modern-screenshot path in
   // root-relative space before that renderer's viewport crop. The primary
   // masking path is live-DOM masking via `maskTargets`.
 

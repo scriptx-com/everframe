@@ -174,134 +174,151 @@ describe('renderViewportWithSnapdom', () => {
   });
 
   describe('nested scroll restoration', () => {
-    const ATTR = 'data-everframe-scroll';
-    const SCROLLER = 'data-everframe-scroller';
-    const ABS = 'data-everframe-scroll-abs';
-    const TAGS = [ATTR, SCROLLER, ABS];
-    const scrolled = (): { host: HTMLElement; scroller: HTMLElement; child: HTMLElement } => {
+    type Ctx = { clone: Element; nodeMap: Map<Node, Node> };
+    type Plugin = { afterClone(ctx: Ctx): void };
+    const scrolled = (top = 800, left = 5): { host: HTMLElement; scroller: HTMLElement; child: HTMLElement } => {
       const host = document.createElement('div');
       const scroller = document.createElement('div');
       const child = document.createElement('p');
       scroller.appendChild(child);
       host.appendChild(scroller);
       document.body.appendChild(host);
-      Object.defineProperty(scroller, 'scrollTop', { value: 800, configurable: true });
-      Object.defineProperty(scroller, 'scrollLeft', { value: 5, configurable: true });
+      setScroll(scroller, top, left);
       return { host, scroller, child };
+    };
+    const setScroll = (el: HTMLElement, top: number, left: number): void => {
+      Object.defineProperty(el, 'scrollTop', { value: top, configurable: true });
+      Object.defineProperty(el, 'scrollLeft', { value: left, configurable: true });
     };
     const okCanvas = async (): Promise<{ toCanvas: () => Promise<HTMLCanvasElement> }> => ({
       toCanvas: async () => document.createElement('canvas'),
     });
-    const hasAnyTag = (el: Element): boolean => TAGS.some((t) => el.hasAttribute(t));
-
-    type Plugin = { afterClone(ctx: { clone: Element }): void };
-    /**
-     * Runs a capture of `host` whose snapdom mock clones it DURING the call
-     * (as snapDOM does - live tags are copied onto the clone) and hands back
-     * that clone plus the plugin, so tests can simulate snapDOM's own clone
-     * work before running afterClone.
-     */
-    const captureClone = async (host: HTMLElement): Promise<{ plugin: Plugin; clone: HTMLElement }> => {
-      let plugins: Plugin[] | undefined;
-      let clone!: HTMLElement;
-      vi.doMock('@zumer/snapdom', () => ({
-        snapdom: vi.fn(async (_r: HTMLElement, opts: { plugins?: Plugin[] }) => {
-          plugins = opts.plugins;
-          clone = host.cloneNode(true) as HTMLElement;
-          return okCanvas();
-        }),
-      }));
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      await renderViewportWithSnapdom(host, { pixelRatio: 1, filter: () => true });
-      expect(plugins).toHaveLength(1);
-      return { plugin: plugins![0]!, clone };
+    /** snapDOM-style deep clone with its clone -> source nodeMap. */
+    const cloneWithMap = (src: Element): Ctx => {
+      const nodeMap = new Map<Node, Node>();
+      const walk = (s: Element): Element => {
+        const c = s.cloneNode(false) as Element;
+        nodeMap.set(c, s);
+        for (const k of Array.from(s.childNodes)) c.appendChild(k.nodeType === 1 ? walk(k as Element) : k.cloneNode(true));
+        return c;
+      };
+      return { clone: walk(src), nodeMap };
     };
-    /** What snapDOM 3.2.0's own scroll pass (`xo`) does to a scrolled element's clone. */
-    const snapdomWrap = (scrollerClone: HTMLElement, left: number, top: number): HTMLElement => {
-      for (const el of Array.from(scrollerClone.querySelectorAll<HTMLElement>('*'))) {
-        const pos = el.style.position;
-        if (pos === 'absolute' || pos === 'fixed') {
-          el.style.top = `${(parseFloat(el.style.top) || 0) + top}px`;
-          el.style.left = `${(parseFloat(el.style.left) || 0) + left}px`;
+    /** What snapDOM 3.2.0's own scroll pass (`xo`) does to every scrolled clone (non-root). */
+    const snapdomXo = (ctx: Ctx, root: Element): void => {
+      for (const [c, s] of ctx.nodeMap) {
+        const src = s as HTMLElement;
+        const left = src.scrollLeft;
+        const top = src.scrollTop;
+        if (src === root || !(left || top)) continue;
+        const clone = c as HTMLElement;
+        clone.style.overflow = 'hidden';
+        for (const el of Array.from(clone.querySelectorAll<HTMLElement>('*'))) {
+          const pos = el.style.position;
+          if (pos === 'absolute' || pos === 'fixed') {
+            el.style.top = `${(parseFloat(el.style.top) || 0) + top}px`;
+            el.style.left = `${(parseFloat(el.style.left) || 0) + left}px`;
+            if (pos === 'fixed') el.style.position = 'absolute';
+          }
         }
+        const wrap = document.createElement('div');
+        wrap.style.all = 'unset';
+        wrap.style.transform = `translate(${-left}px, ${-top}px)`;
+        wrap.style.willChange = 'transform';
+        wrap.style.display = 'inline-block';
+        wrap.style.width = '100%';
+        while (clone.firstChild) wrap.appendChild(clone.firstChild);
+        clone.appendChild(wrap);
       }
-      const wrap = document.createElement('div');
-      wrap.style.all = 'unset';
-      wrap.style.transform = `translate(${-left}px, ${-top}px)`;
-      wrap.style.willChange = 'transform';
-      wrap.style.display = 'inline-block';
-      wrap.style.width = '100%';
-      while (scrollerClone.firstChild) wrap.appendChild(scrollerClone.firstChild);
-      scrollerClone.appendChild(wrap);
-      return wrap;
+    };
+    /** Starts a capture whose snapdom call stays pending; returns its plugin and a release. */
+    const startCapture = async (host: HTMLElement): Promise<{ plugin: Plugin; release: () => void; done: Promise<unknown> }> => {
+      let plugin: Plugin | undefined;
+      let release!: () => void;
+      vi.doMock('@zumer/snapdom', () => ({
+        snapdom: vi.fn(
+          (_r: HTMLElement, opts: { plugins?: Plugin[] }) =>
+            new Promise((resolve) => {
+              plugin = opts.plugins?.[0];
+              release = () => resolve(okCanvas());
+            }),
+        ),
+      }));
+      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      const done = renderViewportWithSnapdom(host, { pixelRatio: 1, filter: () => true });
+      await vi.waitFor(() => expect(plugin).toBeDefined());
+      vi.resetModules();
+      return { plugin: plugin!, release, done };
+    };
+    /** Full round: capture, snapDOM-style clone (+ its xo pass unless disabled), our afterClone. */
+    const restore = async (host: HTMLElement, xo = true): Promise<Ctx> => {
+      const cap = await startCapture(host);
+      const ctx = cloneWithMap(host);
+      if (xo) snapdomXo(ctx, host);
+      cap.plugin.afterClone(ctx);
+      cap.release();
+      await cap.done;
+      return ctx;
     };
 
-    it('tags scrolled elements and their children during the call and untags afterwards', async () => {
-      const { host, scroller, child } = scrolled();
-      let during: string | null = null;
-      let scrollerDuring: string | null = null;
+    it('never writes to the live DOM', async () => {
+      const { host } = scrolled();
+      const before = host.outerHTML;
+      let during = '';
       vi.doMock('@zumer/snapdom', () => ({
         snapdom: vi.fn(async () => {
-          during = child.getAttribute(ATTR);
-          scrollerDuring = scroller.getAttribute(SCROLLER);
+          during = host.outerHTML;
           return okCanvas();
         }),
       }));
       const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
       await renderViewportWithSnapdom(host, { pixelRatio: 1, filter: () => true });
-      expect(during).toMatch(/^[^|]+\|0\|translate\(-5px, -800px\)$/);
-      expect(scrollerDuring).toMatch(/^[^|]+\|0\|5\|800$/);
-      expect(hasAnyTag(scroller)).toBe(false);
-      expect(hasAnyTag(child)).toBe(false);
+      expect(during).toBe(before);
+      expect(host.outerHTML).toBe(before);
       host.remove();
     });
 
-    it('untags even when snapdom rejects', async () => {
-      const { host, scroller, child } = scrolled();
-      vi.doMock('@zumer/snapdom', () => ({
-        snapdom: vi.fn(async () => {
-          throw new Error('boom');
-        }),
-      }));
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      await expect(renderViewportWithSnapdom(host, { pixelRatio: 1, filter: () => true })).rejects.toThrow('boom');
-      expect(hasAnyTag(child)).toBe(false);
-      expect(hasAnyTag(scroller)).toBe(false);
-      host.remove();
-    });
-
-    it('keeps snapDOM\'s own wrapper shift and does NOT shift the children again (one restoration)', async () => {
-      const { host } = scrolled();
-      const { plugin, clone } = await captureClone(host);
+    it('unwraps snapDOM\'s wrapper and shifts each child exactly once', async () => {
+      const { host, scroller } = scrolled();
+      scroller.appendChild(document.createElement('p'));
+      const { clone } = await restore(host);
       const scrollerClone = clone.firstElementChild as HTMLElement;
-      const wrap = snapdomWrap(scrollerClone, 5, 800);
-      plugin.afterClone({ clone });
-      const childClone = wrap.firstElementChild as HTMLElement;
-      expect(childClone.style.transform).toBe('');
-      expect(wrap.style.transform).toBe('translate(-5px, -800px)');
-      expect(Array.from(clone.querySelectorAll('*')).some(hasAnyTag)).toBe(false);
+      // Child count restored (snapDOM's shrink pass compares it with the source).
+      expect(scrollerClone.childElementCount).toBe(2);
+      for (const c of Array.from(scrollerClone.children) as HTMLElement[]) {
+        expect(c.tagName).toBe('P');
+        expect(c.style.transform).toBe('translate(-5px, -800px)');
+      }
+      expect(scrollerClone.style.overflow).toBe('hidden'); // snapDOM's clipping kept
       host.remove();
     });
 
-    it('falls back to its own per-child translate when snapDOM did not wrap the scroller', async () => {
+    it('unwraps a flex scroller too, so its children stay flex items', async () => {
+      const { host, scroller } = scrolled(0, 450);
+      scroller.style.display = 'flex';
+      scroller.appendChild(document.createElement('p'));
+      const { clone } = await restore(host);
+      const scrollerClone = clone.firstElementChild as HTMLElement;
+      expect(Array.from(scrollerClone.children).map((c) => c.tagName)).toEqual(['P', 'P']);
+      expect((scrollerClone.firstElementChild as HTMLElement).style.transform).toBe('translate(-450px, 0px)');
+      host.remove();
+    });
+
+    it('restores by itself when snapDOM did not wrap the scroller', async () => {
       const { host } = scrolled();
-      const { plugin, clone } = await captureClone(host);
-      plugin.afterClone({ clone });
-      const childClone = clone.querySelector('p') as HTMLElement;
-      expect(childClone.style.transform).toBe('translate(-5px, -800px)');
-      expect(Array.from(clone.querySelectorAll('*')).some(hasAnyTag)).toBe(false);
+      const { clone } = await restore(host, false);
+      expect((clone.querySelector('p') as HTMLElement).style.transform).toBe('translate(-5px, -800px)');
       host.remove();
     });
 
-    it('fallback composes a class-applied transform after the scroll translate', async () => {
+    it('composes a class-applied transform after the scroll translate', async () => {
       const { host, child } = scrolled();
       const real = window.getComputedStyle.bind(window);
       vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudo?: string | null) => {
         const cs = real(el, pseudo);
-        return el === child ? ({ transform: 'matrix(2, 0, 0, 2, 0, 0)' } as CSSStyleDeclaration) : cs;
+        return el === child ? ({ position: 'static', transform: 'matrix(2, 0, 0, 2, 0, 0)' } as CSSStyleDeclaration) : cs;
       });
-      const { plugin, clone } = await captureClone(host);
-      plugin.afterClone({ clone });
+      const { clone } = await restore(host);
       expect((clone.querySelector('p') as HTMLElement).style.transform).toBe(
         'translate(-5px, -800px) matrix(2, 0, 0, 2, 0, 0)',
       );
@@ -309,88 +326,116 @@ describe('renderViewportWithSnapdom', () => {
       host.remove();
     });
 
-    it('reverts snapDOM\'s counter-offset on an inline-absolute element whose containing block scrolls', async () => {
+    it('reverts snapDOM\'s counter-offset on inline-absolute descendants (keeping `auto`)', async () => {
       const { host, child } = scrolled();
       child.style.position = 'relative';
       const abs = document.createElement('div');
       abs.style.position = 'absolute';
       abs.style.top = '900px';
-      child.appendChild(abs);
-      const { plugin, clone } = await captureClone(host);
-      snapdomWrap(clone.firstElementChild as HTMLElement, 5, 800);
-      const absClone = clone.querySelector('p > div') as HTMLElement;
-      expect(absClone.style.top).toBe('1700px'); // what snapDOM leaves: unscrolled
-      plugin.afterClone({ clone });
-      expect(absClone.style.top).toBe('900px'); // scrolls with its containing block via the wrapper
-      expect(absClone.style.left).toBe('');
-      expect(absClone.hasAttribute(ABS)).toBe(false);
+      const autoAbs = document.createElement('div');
+      autoAbs.style.position = 'absolute';
+      child.append(abs, autoAbs);
+      const { clone } = await restore(host);
+      const [absClone, autoClone] = Array.from(clone.querySelectorAll('p > div')) as HTMLElement[];
+      expect(absClone!.style.top).toBe('900px'); // not snapDOM's unscrolled 1700px
+      expect(absClone!.style.left).toBe('');
+      expect(autoClone!.style.top).toBe('');
+      expect((clone.querySelector('p') as HTMLElement).style.transform).toBe('translate(-5px, -800px)');
       host.remove();
     });
 
-    it('leaves snapDOM\'s counter-offset on an inline-absolute element anchored outside the scroller', async () => {
+    it('does not shift an absolute child anchored outside a static scroller', async () => {
       const { host, scroller } = scrolled();
-      host.style.position = 'relative';
       const abs = document.createElement('div');
       abs.style.position = 'absolute';
       abs.style.top = '10px';
       scroller.appendChild(abs);
-      let absTag: string | null = 'unset';
-      vi.doMock('@zumer/snapdom', () => ({
-        snapdom: vi.fn(async () => {
-          absTag = abs.getAttribute(ABS);
-          return okCanvas();
-        }),
-      }));
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      await renderViewportWithSnapdom(host, { pixelRatio: 1, filter: () => true });
-      expect(absTag).toBeNull();
+      const { clone } = await restore(host);
+      const absClone = clone.firstElementChild!.lastElementChild as HTMLElement;
+      expect(absClone.style.transform).toBe('');
+      expect(absClone.style.top).toBe('10px');
       host.remove();
     });
 
-    it('ignores and strips (in the clone only) tags left by an abandoned capture with another token', async () => {
+    it('shifts an absolute child when the scroller is its containing block via contain: layout', async () => {
+      const { host, scroller } = scrolled();
+      const abs = document.createElement('div');
+      abs.style.position = 'absolute';
+      abs.style.top = '10px';
+      scroller.appendChild(abs);
+      const real = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudo?: string | null) => {
+        const cs = real(el, pseudo);
+        if (el !== scroller) return cs;
+        return { position: 'static', transform: 'none', contain: 'layout' } as unknown as CSSStyleDeclaration;
+      });
+      const { clone } = await restore(host);
+      vi.restoreAllMocks();
+      const absClone = clone.firstElementChild!.lastElementChild as HTMLElement;
+      expect(absClone.style.transform).toBe('translate(-5px, -800px)');
+      expect(absClone.style.top).toBe('10px');
+      host.remove();
+    });
+
+    it('leaves fixed and sticky children to snapDOM (placed from their live rects)', async () => {
+      const { host, scroller } = scrolled();
+      const sticky = document.createElement('div');
+      sticky.style.position = 'sticky';
+      scroller.appendChild(sticky);
+      const { clone } = await restore(host);
+      expect((clone.firstElementChild!.lastElementChild as HTMLElement).style.transform).toBe('');
+      host.remove();
+    });
+
+    it('shifts snapDOM-inserted (unmapped) in-flow children with the content', async () => {
       const { host } = scrolled();
-      // A sibling whose container is no longer scrolled still carries a stale
-      // tag from a capture that never settled.
-      const stale = document.createElement('div');
-      const staleChild = document.createElement('span');
-      staleChild.setAttribute(ATTR, 'stale-token|0|translate(0px, -999px)');
-      stale.setAttribute(SCROLLER, 'stale-token|0|0|999');
-      stale.appendChild(staleChild);
-      host.appendChild(stale);
-      const { plugin, clone } = await captureClone(host);
-      plugin.afterClone({ clone });
-      const staleChildClone = clone.querySelector('span') as HTMLElement;
-      expect(staleChildClone.style.transform).toBe('');
-      expect(staleChildClone.hasAttribute(ATTR)).toBe(false);
-      expect((clone.lastElementChild as HTMLElement).hasAttribute(SCROLLER)).toBe(false);
-      // The live DOM's foreign tags are not ours to touch.
-      expect(staleChild.getAttribute(ATTR)).toBe('stale-token|0|translate(0px, -999px)');
-      expect(stale.getAttribute(SCROLLER)).toBe('stale-token|0|0|999');
+      const cap = await startCapture(host);
+      const ctx = cloneWithMap(host);
+      const placeholder = document.createElement('div');
+      ctx.clone.firstElementChild!.appendChild(placeholder);
+      snapdomXo(ctx, host);
+      cap.plugin.afterClone(ctx);
+      cap.release();
+      await cap.done;
+      expect(placeholder.style.transform).toBe('translate(-5px, -800px)');
       host.remove();
     });
 
-    it('a late-settling older capture does not strip a newer capture tags', async () => {
-      const { host, child } = scrolled();
-      const releases: Array<() => void> = [];
-      vi.doMock('@zumer/snapdom', () => ({
-        snapdom: vi.fn(
-          () =>
-            new Promise((resolve) => {
-              releases.push(() => resolve(okCanvas()));
-            }),
-        ),
-      }));
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      const a = renderViewportWithSnapdom(host, { pixelRatio: 1, filter: () => true });
-      await vi.waitFor(() => expect(releases).toHaveLength(1));
-      const b = renderViewportWithSnapdom(host, { pixelRatio: 1, filter: () => true });
-      await vi.waitFor(() => expect(releases).toHaveLength(2));
-      releases[0]!();
-      await a;
-      expect(child.hasAttribute(ATTR)).toBe(true);
-      releases[1]!();
-      await b;
-      expect(child.hasAttribute(ATTR)).toBe(false);
+    it('overlapping captures each restore their own offsets', async () => {
+      const { host, scroller, child } = scrolled(800, 0);
+      child.style.position = 'relative';
+      const abs = document.createElement('div');
+      abs.style.position = 'absolute';
+      abs.style.top = '900px';
+      child.appendChild(abs);
+      const a = await startCapture(host); // A records scrollTop 800 ...
+      setScroll(scroller, 300, 0);
+      const b = await startCapture(host); // ... B records 300 before A has cloned
+      const ctxB = cloneWithMap(host);
+      snapdomXo(ctxB, host);
+      b.plugin.afterClone(ctxB);
+      setScroll(scroller, 800, 0);
+      const ctxA = cloneWithMap(host);
+      snapdomXo(ctxA, host);
+      a.plugin.afterClone(ctxA);
+      a.release();
+      b.release();
+      await Promise.all([a.done, b.done]);
+      expect((ctxA.clone.querySelector('p') as HTMLElement).style.transform).toBe('translate(0px, -800px)');
+      expect((ctxB.clone.querySelector('p') as HTMLElement).style.transform).toBe('translate(0px, -300px)');
+      expect((ctxA.clone.querySelector('p > div') as HTMLElement).style.top).toBe('900px');
+      expect((ctxB.clone.querySelector('p > div') as HTMLElement).style.top).toBe('900px');
+      host.remove();
+    });
+
+    it('is inert without a snapDOM nodeMap', async () => {
+      const { host } = scrolled();
+      const cap = await startCapture(host);
+      const ctx = cloneWithMap(host);
+      cap.plugin.afterClone({ clone: ctx.clone } as unknown as Ctx);
+      cap.release();
+      await cap.done;
+      expect((ctx.clone.querySelector('p') as HTMLElement).style.transform).toBe('');
       host.remove();
     });
 
@@ -403,21 +448,54 @@ describe('renderViewportWithSnapdom', () => {
       expect('plugins' in opts).toBe(false);
     });
 
-    it('reports the window scroll read right before snapdom started, not after it settled', async () => {
-      Object.defineProperty(window, 'scrollY', { value: 300, configurable: true });
+    it('reports the root rect read right before snapdom started, not after it settled', async () => {
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+      let rect = { left: 200, top: 100 };
+      vi.spyOn(root, 'getBoundingClientRect').mockImplementation(() => rect as DOMRect);
       vi.doMock('@zumer/snapdom', () => ({
         snapdom: vi.fn(async () => {
-          Object.defineProperty(window, 'scrollY', { value: 900, configurable: true });
+          rect = { left: 200, top: -500 }; // page scrolled mid-render
           return okCanvas();
         }),
       }));
-      try {
-        const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-        const out = await renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true });
-        expect(out.scrollY).toBe(300);
-      } finally {
-        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
-      }
+      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      const out = await renderViewportWithSnapdom(root, { pixelRatio: 1, filter: () => true });
+      expect(out.rootLeft).toBe(200);
+      expect(out.rootTop).toBe(100);
+      vi.restoreAllMocks();
+      root.remove();
+    });
+  });
+
+  describe('establishesAbsoluteContainingBlock', () => {
+    const cs = (o: Record<string, string>): CSSStyleDeclaration =>
+      ({ position: 'static', transform: 'none', ...o }) as unknown as CSSStyleDeclaration;
+    it.each([
+      [{ position: 'relative' }],
+      [{ transform: 'matrix(1, 0, 0, 1, 0, 0)' }],
+      [{ perspective: '500px' }],
+      [{ filter: 'blur(1px)' }],
+      [{ backdropFilter: 'blur(2px)' }],
+      [{ contain: 'layout' }],
+      [{ contain: 'paint' }],
+      [{ contain: 'strict' }],
+      [{ contain: 'content' }],
+      [{ containerType: 'inline-size' }],
+      [{ willChange: 'transform' }],
+      [{ willChange: 'filter' }],
+    ])('true for %o', async (o) => {
+      const { establishesAbsoluteContainingBlock } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      expect(establishesAbsoluteContainingBlock(cs(o))).toBe(true);
+    });
+    it.each([
+      [{}],
+      [{ contain: 'none' }],
+      [{ contain: 'size' }],
+      [{ filter: 'none', perspective: 'none', willChange: 'auto', containerType: 'normal' }],
+    ])('false for %o', async (o) => {
+      const { establishesAbsoluteContainingBlock } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      expect(establishesAbsoluteContainingBlock(cs(o))).toBe(false);
     });
   });
 });
