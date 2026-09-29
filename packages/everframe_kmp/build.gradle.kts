@@ -103,6 +103,17 @@ signing {
     }
 }
 
+val cleanCentralBundleRepository = tasks.register<Delete>("cleanCentralBundleRepository") {
+    delete(layout.buildDirectory.dir("central-bundle/repository"))
+}
+
+tasks.matching {
+    it.name.startsWith("publish") &&
+        it.name.endsWith("PublicationToCentralBundleRepository")
+}.configureEach {
+    dependsOn(cleanCentralBundleRepository)
+}
+
 tasks.register<Zip>("centralPortalBundle") {
     group = "publishing"
     dependsOn("publishAllPublicationsToCentralBundleRepository")
