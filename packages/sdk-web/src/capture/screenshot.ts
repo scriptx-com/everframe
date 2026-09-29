@@ -7,11 +7,10 @@ import { applyDomMask } from '../sensitive/registry.js';
 import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reasons.js';
 import { installVideoStandIns, POSTER_LOAD_TIMEOUT_MS } from './video-frames.js';
 import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
-import { renderViewportWithSnapdom, SnapdomBusyError } from './renderers/snapdom-renderer.js';
 import { paintMaskRectsOnCanvas } from './mask-paint.js';
-import { expandMaskTargets } from './renderers/clone-mask.js';
 import {
   collectSensitiveRects,
+  expandMaskTargets,
   paintViewportRects,
   rectsMoved,
   VIEWPORT_ALIGNED,
@@ -381,38 +380,7 @@ async function captureExclusive(
     opts.__setDegradedReason?.(reason);
   };
 
-  // Swap each <video> for a same-sized stand-in carrying its current frame,
-  // because filterNode below drops every <video> from the clone and a filtered
-  // node contributes NO LAYOUT BOX — measured, an in-flow 320x180 video made
-  // everything beneath it render 180px too high. The stand-in holds the box
-  // open and shows the frame; see video-frames.ts for the full reasoning.
-  //
-  // BEFORE the capture, so the frame matches the moment the rest of the page
-  // was sampled rather than lagging it. A sensitive video's stand-in carries
-  // no frame, and both renderers mask the stand-in with its video.
   let restoreVideoStandIns: () => void = () => undefined;
-  try {
-    restoreVideoStandIns = await installVideoStandIns(root, {
-      pixelRatio,
-      maskTargets,
-    });
-  } catch {
-    // An enhancement; never let it cost us the screenshot.
-    restoreVideoStandIns = () => undefined;
-  }
-
-  // Layer 2 of masking (pixel-mask.ts): the live viewport rects of
-  // everything sensitive, read now and again after rendering, are painted
-  // black on whichever canvas ships - so nothing inside a sensitive element's
-  // on-screen area survives whatever a renderer did with its clone. If
-  // anything moved while rendering, both reads are painted (fail closed)
-  // rather than one guessed.
-  const sensitivityNow = (): ((el: Element) => boolean) => {
-    const listed = new Set<Element>(expandMaskTargets(resolveMaskTargets()));
-    const live = opts.isSensitive;
-    return (el) => listed.has(el) || (live?.(el) ?? false);
-  };
-  const sensitiveBefore = collectSensitiveRects(root, sensitivityNow());
 
   // snapDOM first (faster, and no blank rasters where modern-screenshot
   // produced them), with modern-screenshot as the fallback when snapDOM
@@ -427,7 +395,7 @@ async function captureExclusive(
     renderer: Exclude<ScreenshotRenderer, 'none'>;
     offsets: readonly CanvasOffset[];
   };
-  const started = Date.now();
+  let started = Date.now();
   const elapsed = (): number => Date.now() - started;
   let accepted: Attempt | null = null;
   let firstBlank: Attempt | null = null;
@@ -438,6 +406,41 @@ async function captureExclusive(
   const primaryBudgetMs = Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE);
 
   try {
+    // Swap each <video> for a same-sized stand-in carrying its current frame,
+    // because filterNode below drops every <video> from the clone and a filtered
+    // node contributes NO LAYOUT BOX — measured, an in-flow 320x180 video made
+    // everything beneath it render 180px too high. The stand-in holds the box
+    // open and shows the frame; see video-frames.ts for the full reasoning.
+    //
+    // BEFORE the capture, so the frame matches the moment the rest of the page
+    // was sampled rather than lagging it. A sensitive video's stand-in carries
+    // no frame, and both renderers mask the stand-in with its video.
+    // Inside the try: whatever throws from here on, the finally below puts
+    // the videos back.
+    try {
+      restoreVideoStandIns = await installVideoStandIns(root, {
+        pixelRatio,
+        maskTargets,
+      });
+    } catch {
+      // An enhancement; never let it cost us the screenshot.
+      restoreVideoStandIns = () => undefined;
+    }
+
+    // Layer 2 of masking (pixel-mask.ts): the live viewport rects of
+    // everything sensitive, read now and again after rendering, are painted
+    // black on whichever canvas ships - so nothing inside a sensitive element's
+    // on-screen area survives whatever a renderer did with its clone. If
+    // anything moved while rendering, both reads are painted (fail closed)
+    // rather than one guessed.
+    const sensitivityNow = (): ((el: Element) => boolean) => {
+      const listed = new Set<Element>(expandMaskTargets(resolveMaskTargets()));
+      const live = opts.isSensitive;
+      return (el) => listed.has(el) || (live?.(el) ?? false);
+    };
+    const sensitiveBefore = collectSensitiveRects(root, sensitivityNow());
+
+    started = Date.now();
     try {
       // `blank` is measured by the renderer on the RAW raster — before its
       // scrollbar padding and before mask boxes add edges to a flat canvas.
@@ -451,13 +454,17 @@ async function captureExclusive(
       const { canvas, blank, rootLeft, rootTop } = await withDeadline(
         // A still-running earlier snapDOM capture is waited for within the
         // same budget; past it the renderer refuses (SnapdomBusyError).
-        renderViewportWithSnapdom(root, {
-          pixelRatio,
-          filter: filterNode,
-          busyWaitMs: primaryBudgetMs,
-          maskTargets: resolveMaskTargets,
-          ...(opts.isSensitive ? { isSensitive: opts.isSensitive } : {}),
-        }),
+        // Loaded lazily (with clone-mask.ts) so the snapDOM glue stays out
+        // of the always-loaded graph.
+        import('./renderers/snapdom-renderer.js').then(({ renderViewportWithSnapdom }) =>
+          renderViewportWithSnapdom(root, {
+            pixelRatio,
+            filter: filterNode,
+            busyWaitMs: primaryBudgetMs,
+            maskTargets: resolveMaskTargets,
+            ...(opts.isSensitive ? { isSensitive: opts.isSensitive } : {}),
+          }),
+        ),
         primaryBudgetMs,
         'snapdom',
       );
@@ -486,7 +493,7 @@ async function captureExclusive(
       // than starting a second renderer on a CPU still busy with snapDOM.
       primaryTimedOut =
         err instanceof CaptureTimeoutError ||
-        err instanceof SnapdomBusyError ||
+        (err instanceof Error && err.name === 'SnapdomBusyError') ||
         err instanceof SnapdomGeometryError;
     }
 

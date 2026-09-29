@@ -105,6 +105,32 @@ describe('collectSensitiveRects', () => {
     expect(out).toContainEqual({ x: 24, y: 300, width: 120, height: 60 });
   });
 
+  it('clips descendants to a sensitive scroller: public content below stays unmasked', () => {
+    document.body.innerHTML = `<div id="sc" ${SENS} style="overflow-x:auto;overflow-y:auto;height:100px"><div id="tall">x</div></div>`;
+    const sc = document.getElementById('sc')!;
+    const tall = document.getElementById('tall')!;
+    boxes(sc, rect(0, 50, 300, 100));
+    boxes(tall, rect(0, 50, 300, 2000));
+    textBoxes(new Map([[tall.firstChild!, [rect(0, 1500, 20, 20)]]]));
+    const out = collectSensitiveRects(document.body, bySensAttr);
+    expect(out).toContainEqual({ x: 0, y: 50, width: 300, height: 100 });
+    // Nothing reaches below the scroller's box; the scrolled-away text is gone.
+    expect(Math.max(...out.map((r) => r.y + r.height))).toBe(150);
+  });
+
+  it('clips only the overflowing axis, and never an absolute/fixed descendant', () => {
+    document.body.innerHTML =
+      `<div id="sc" ${SENS} style="overflow-x:hidden;overflow-y:visible"><div id="wide">w</div><div id="abs" style="position:absolute">a</div></div>`;
+    // (jsdom does not expand the `overflow` shorthand: longhands throughout.)
+    boxes(document.getElementById('sc')!, rect(10, 10, 100, 50));
+    boxes(document.getElementById('wide')!, rect(10, 10, 500, 400));
+    boxes(document.getElementById('abs')!, rect(600, 600, 40, 40));
+    textBoxes(new Map());
+    const out = collectSensitiveRects(document.body, bySensAttr);
+    expect(out).toContainEqual({ x: 10, y: 10, width: 100, height: 400 });
+    expect(out).toContainEqual({ x: 600, y: 600, width: 40, height: 40 });
+  });
+
   it('treats a throwing predicate as sensitive', () => {
     document.body.innerHTML = '<div id="d">x</div>';
     boxes(document.getElementById('d')!, rect(1, 2, 3, 4));

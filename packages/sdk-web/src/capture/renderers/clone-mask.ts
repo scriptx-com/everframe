@@ -25,16 +25,7 @@ import { STAND_IN_ATTR } from '../video-frames.js';
  * box to its pristine state once more.
  */
 
-/** Mask targets plus the video stand-ins of sensitive videos (the video itself never renders). */
-export function expandMaskTargets(targets: readonly Element[]): Element[] {
-  const out = new Set<Element>(targets);
-  for (const el of targets) {
-    if (el.tagName !== 'VIDEO') continue;
-    const next = el.nextElementSibling;
-    if (next?.hasAttribute(STAND_IN_ATTR)) out.add(next);
-  }
-  return [...out];
-}
+export { expandMaskTargets } from '../pixel-mask.js';
 
 /** Inline style of the black box standing in for `src` (null: the element renders no box). */
 export function blackBoxCss(src: Element, clone: HTMLElement | null): string | null {
@@ -200,6 +191,16 @@ function parentAcrossShadow(node: Node): Node | null {
 }
 
 /**
+ * Parent in the FLAT tree: a slotted node renders inside its assigned
+ * <slot>, so a sensitive slot (or anything around it in the shadow tree)
+ * covers it; everything else follows parentAcrossShadow.
+ */
+function flatParent(node: Node): Node | null {
+  const slot = (node as Element | Text).assignedSlot;
+  return slot ?? parentAcrossShadow(node);
+}
+
+/**
  * snapDOM plugin masking every clone node whose live source is sensitive at
  * mask time (`isTarget` on the source or any source ancestor). Runs in
  * `afterClone` and again in `beforeRender`, after snapDOM's later passes.
@@ -230,7 +231,7 @@ export function createCloneMaskPlugin(isTarget: (el: Element) => boolean) {
           result = video?.tagName === 'VIDEO' && sensitive(video);
         }
       }
-      if (!result) result = sensitive(parentAcrossShadow(node));
+      if (!result) result = sensitive(flatParent(node));
       memo.set(node, result);
       return result;
     };

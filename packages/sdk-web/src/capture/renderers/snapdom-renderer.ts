@@ -110,7 +110,13 @@ export interface SnapdomRenderResult {
 }
 
 /** A previous snapDOM capture is still running (see renderViewportWithSnapdom). */
-export class SnapdomBusyError extends Error {}
+export class SnapdomBusyError extends Error {
+  // Matched by name: screenshot.ts loads this module lazily.
+  constructor(message: string) {
+    super(message);
+    this.name = 'SnapdomBusyError';
+  }
+}
 
 /** The running snapDOM capture, settled only when snapDOM's own work has finished. */
 let inflight: Promise<void> | null = null;

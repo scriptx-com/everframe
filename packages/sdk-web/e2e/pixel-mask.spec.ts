@@ -16,13 +16,14 @@ type Result = {
   brightest: number;
   pixels: number;
   neighbour: number[];
+  darkest: number;
 };
 
 /**
  * Black-check every live rect and sample one neighbour point on a capture
  * blob. Runs in the page; `scale` maps viewport CSS px onto the bitmap.
  */
-const INSPECT = `async (blob, rects, neighbour) => {
+const INSPECT = `async (blob, rects, neighbour, clean = []) => {
   const bmp = await createImageBitmap(blob);
   const c = document.createElement('canvas');
   c.width = bmp.width;
@@ -42,14 +43,20 @@ const INSPECT = `async (blob, rects, neighbour) => {
     pixels += d.length / 4;
   }
   const n = Array.from(ctx.getImageData(Math.round(neighbour[0] * scale), Math.round(neighbour[1] * scale), 1, 1).data);
-  return { brightest, pixels, neighbour: n };
+  // Darkest pixel (by its brightest channel) across the regions that must stay page-coloured.
+  let darkest = 255;
+  for (const r of clean) {
+    const d = ctx.getImageData(Math.floor(r.x * scale), Math.floor(r.y * scale), Math.ceil(r.width * scale), Math.ceil(r.height * scale)).data;
+    for (let i = 0; i < d.length; i += 4) darkest = Math.min(darkest, Math.max(d[i], d[i + 1], d[i + 2]));
+  }
+  return { brightest, pixels, neighbour: n, darkest };
 }`;
 
 /** Capture through the real adapter; `prepare` returns the live rects and a neighbour point. */
-async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdrop'): Promise<Result> {
+async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdrop' | 'shadow' | 'scroller'): Promise<Result> {
   return page.evaluate(
     async ({ scenario, inspectSrc }) => {
-      const inspect = (0, eval)(inspectSrc) as (b: Blob, r: Rect[], n: [number, number]) => Promise<Omit<Result, 'renderer' | 'rects'>>;
+      const inspect = (0, eval)(inspectSrc) as (b: Blob, r: Rect[], n: [number, number], clean?: Rect[]) => Promise<Omit<Result, 'renderer' | 'rects'>>;
       const w = window as unknown as {
         __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
       };
@@ -57,6 +64,7 @@ async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdro
         Array.from(list, (r) => ({ x: r.left, y: r.top, width: r.width, height: r.height })).filter((r) => r.width > 0 && r.height > 0);
       let rects: Rect[];
       let neighbourOf: Element;
+      let clean: Rect[] = [];
       if (scenario === 'stroke') {
         const range = document.createRange();
         range.selectNodeContents(document.getElementById('stroke-wrap')!);
@@ -65,6 +73,18 @@ async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdro
       } else if (scenario === 'slot') {
         rects = plain(document.getElementById('slotted')!.getClientRects());
         neighbourOf = document.getElementById('slotted')!;
+      } else if (scenario === 'shadow') {
+        const span = document.getElementById('shadowed')!;
+        rects = plain(span.getClientRects());
+        neighbourOf = document.getElementById('shadow-vault')!;
+        // Where the span's 40px-down text-shadow would paint.
+        clean = rects.map((r) => ({ x: r.x, y: r.y + 40, width: r.width, height: r.height }));
+      } else if (scenario === 'scroller') {
+        rects = plain(document.getElementById('scroller')!.getClientRects());
+        neighbourOf = document.getElementById('scroller')!;
+        // The public box right below the scroller, 2000px of scrolled content "over" it.
+        const pub = document.getElementById('below-scroller')!.getBoundingClientRect();
+        clean = [{ x: pub.left + 4, y: pub.top + 4, width: pub.width - 8, height: pub.height - 8 }];
       } else {
         rects = plain(document.getElementById('bd-text')!.getClientRects());
         neighbourOf = document.getElementById('bd-text')!;
@@ -81,7 +101,7 @@ async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdro
       } else {
         shot = w.__everframe.__adapter.captureScreenshot();
       }
-      const out = await inspect((await shot).blob, rects, neighbour);
+      const out = await inspect((await shot).blob, rects, neighbour, clean);
       return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, rects, ...out };
     },
     { scenario, inspectSrc: INSPECT },
@@ -116,6 +136,23 @@ test('text under a backdrop-filter overlay that turns sensitive mid-capture ship
   const r = await captureAdapter(page, 'backdrop');
   expect(r.renderer).toBe('snapdom');
   expectMasked(r);
+});
+
+test('slotted text under a sensitive <slot> ships no text-shadow outside the black box', async ({ page }) => {
+  await page.goto('/e2e/fixtures/pixel-mask.html');
+  const r = await captureAdapter(page, 'shadow');
+  expect(r.renderer).toBe('snapdom');
+  expectMasked(r);
+  expect(r.darkest).toBeGreaterThan(150); // no dark shadow glyphs 40px below
+});
+
+test('a sensitive scroller is black; public content below it is not blacked out by its scrolled content', async ({ page }) => {
+  await page.goto('/e2e/fixtures/pixel-mask.html');
+  const r = await captureAdapter(page, 'scroller');
+  expect(r.renderer).toBe('snapdom');
+  expect(r.rects.length).toBeGreaterThan(0);
+  expect(r.brightest).toBeLessThanOrEqual(8);
+  expect(r.darkest).toBeGreaterThan(150); // the green box below, untouched
 });
 
 // captureScreenshot with a custom root is not on the published surface: the

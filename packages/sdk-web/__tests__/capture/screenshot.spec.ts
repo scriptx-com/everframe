@@ -879,6 +879,52 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     expect(r.height).toBe(150);
   });
 
+  it('puts the videos back when resolving mask targets throws after the stand-ins went in', async () => {
+    document.body.innerHTML = '<video id="v"></video>';
+    const video = document.getElementById('v') as HTMLVideoElement;
+    let installed = 0;
+    vi.resetModules();
+    vi.doMock('../../src/capture/video-frames.js', async (importOriginal) => {
+      const real = await importOriginal<typeof import('../../src/capture/video-frames.js')>();
+      return {
+        ...real,
+        // What the real installer does to a visible video: hide it, stand-in after it.
+        installVideoStandIns: vi.fn(async () => {
+          installed += 1;
+          const prev = video.getAttribute('style');
+          video.style.setProperty('display', 'none', 'important');
+          const standIn = document.createElement('div');
+          standIn.setAttribute(real.STAND_IN_ATTR, '');
+          video.after(standIn);
+          return () => {
+            standIn.remove();
+            if (prev === null) video.removeAttribute('style');
+            else video.setAttribute('style', prev);
+          };
+        }),
+      };
+    });
+    mockSnapdom(makeCanvasStub().stub);
+    mockModern(makeCanvasStub().stub);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let calls = 0;
+    const maskTargets = (): Element[] => {
+      calls += 1;
+      if (calls >= 2) throw new Error('registry exploded');
+      return [];
+    };
+    let err: string | undefined;
+    let reason: string | undefined;
+    await cap({ root: document.body, maskTargets, __setDegradedReason: (x) => { reason = x; } }).catch((e) => { err = String(e); });
+    vi.doUnmock('../../src/capture/video-frames.js');
+    expect(installed).toBe(1);
+    expect(calls).toBeGreaterThanOrEqual(2);
+    expect(video.getAttribute('style')).toBeNull();
+    expect(document.querySelectorAll('[data-everframe-video-stand-in], video + *').length).toBe(0);
+    expect(err).toBeUndefined(); // the placeholder ships instead of a rejection
+    expect(reason).toBe(DEGRADED_REASONS.screenshot_failed);
+  });
+
   it('falls back to modern-screenshot when snapdom throws, without a degraded reason', async () => {
     vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('nope'); }) }));
     const domToCanvas = mockModern(makeCanvasStub().stub);
@@ -1007,6 +1053,9 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
       vi.doMock('@zumer/snapdom', () => ({ snapdom }));
       const domToCanvas = mockModern(makeCanvasStub().stub);
       const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      // screenshot.ts loads the snapDOM renderer lazily: have it loaded, so
+      // A reaches snapDOM within the zero-time advance below.
+      await import('../../src/capture/renderers/snapdom-renderer.js');
       const renderers: string[] = [];
       const a = cap({ root: document.body, __setRenderer: (x) => { renderers.push(`a:${x}`); } });
       await vi.advanceTimersByTimeAsync(0);

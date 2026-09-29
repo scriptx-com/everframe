@@ -155,6 +155,31 @@ describe('createCloneMaskPlugin', () => {
     expect(clone.textContent).not.toContain('shadow secret');
   });
 
+  it('follows assignedSlot: light-DOM content slotted into a sensitive <slot> is masked', () => {
+    document.body.innerHTML = '<main><div id="host"><span id="slotted">slotted secret</span></div></main>';
+    const host = document.getElementById('host')!;
+    const slotted = document.getElementById('slotted')!;
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<div id="frame"><slot></slot></div>';
+    const slot = shadow.querySelector('slot')!;
+    expect(slotted.assignedSlot).toBe(slot);
+    // snapDOM flattens the slot: the slotted clone sits where the slot was.
+    const main = document.querySelector('main')!;
+    const clone = main.cloneNode(false) as Element;
+    const slottedClone = slotted.cloneNode(true) as Element;
+    clone.appendChild(slottedClone);
+    const nodeMap = new Map<Node, Node>([[clone, main], [slottedClone, slotted]]);
+    // The slot itself, and (separately) a shadow-tree element around it.
+    createCloneMaskPlugin(listed(slot)).afterClone({ clone, nodeMap });
+    expect(clone.textContent).not.toContain('slotted secret');
+    const clone2 = main.cloneNode(false) as Element;
+    const slottedClone2 = slotted.cloneNode(true) as Element;
+    clone2.appendChild(slottedClone2);
+    const frame = shadow.getElementById('frame')!;
+    createCloneMaskPlugin(listed(frame)).afterClone({ clone: clone2, nodeMap: new Map<Node, Node>([[clone2, main], [slottedClone2, slotted]]) });
+    expect(clone2.textContent).not.toContain('slotted secret');
+  });
+
   it('beforeRender masks what became sensitive after afterClone', () => {
     document.body.innerHTML = '<main><div id="a">alpha</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);

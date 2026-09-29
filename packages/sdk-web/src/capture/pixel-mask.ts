@@ -13,6 +13,17 @@ import { STAND_IN_ATTR } from './video-frames.js';
  * rects; nothing is restyled.
  */
 
+/** Mask targets plus the video stand-ins of sensitive videos (the video itself never renders). */
+export function expandMaskTargets(targets: readonly Element[]): Element[] {
+  const out = new Set<Element>(targets);
+  for (const el of targets) {
+    if (el.tagName !== 'VIDEO') continue;
+    const next = el.nextElementSibling;
+    if (next?.hasAttribute(STAND_IN_ATTR)) out.add(next);
+  }
+  return [...out];
+}
+
 export interface ViewportRect {
   x: number;
   y: number;
@@ -33,36 +44,89 @@ function renderedChildren(node: Element): Node[] {
   return Array.from((shadow ?? node).childNodes);
 }
 
-function pushRects(out: ViewportRect[], list: ArrayLike<DOMRect>): void {
+/** A viewport-space clip box (edges; +-Infinity = unclipped on that side). */
+interface Clip {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
+
+const UNCLIPPED: Clip = { l: -Infinity, t: -Infinity, r: Infinity, b: Infinity };
+
+function pushRects(out: ViewportRect[], list: ArrayLike<DOMRect>, clip: Clip): void {
   for (let i = 0; i < list.length; i++) {
     const r = list[i]!;
-    if (r.width > 0 && r.height > 0) out.push({ x: r.left, y: r.top, width: r.width, height: r.height });
+    const l = Math.max(r.left, clip.l);
+    const t = Math.max(r.top, clip.t);
+    const w = Math.min(r.left + r.width, clip.r) - l;
+    const h = Math.min(r.top + r.height, clip.b) - t;
+    if (w > 0 && h > 0) out.push({ x: l, y: t, width: w, height: h });
   }
 }
 
-/** Every rendered box and text run of `node` and its flattened subtree. */
-function coverSubtree(node: Node, out: ViewportRect[]): void {
+/** overflow values that clip exactly at the box (`clip` may paint past it via overflow-clip-margin). */
+const CLIPS = /^(hidden|auto|scroll|overlay)$/;
+
+/**
+ * The clip `el` imposes on its descendants, intersected with the one it is
+ * under. Its border box is used (the padding box it really clips to is
+ * inside it: over-masking by a border, never under-masking).
+ */
+function clipFor(el: Element, cs: CSSStyleDeclaration | null, outer: Clip): Clip {
+  if (!cs) return outer;
+  const clipX = CLIPS.test(cs.overflowX);
+  const clipY = CLIPS.test(cs.overflowY);
+  if (!clipX && !clipY) return outer;
+  const r = el.getBoundingClientRect();
+  return {
+    l: clipX ? Math.max(outer.l, r.left) : outer.l,
+    r: clipX ? Math.min(outer.r, r.left + r.width) : outer.r,
+    t: clipY ? Math.max(outer.t, r.top) : outer.t,
+    b: clipY ? Math.min(outer.b, r.top + r.height) : outer.b,
+  };
+}
+
+function styleOf(el: Element): CSSStyleDeclaration | null {
+  try {
+    return el.ownerDocument?.defaultView?.getComputedStyle(el) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every rendered box and text run of `node` and its flattened subtree, each
+ * clipped by the overflow clips between it and the sensitive element (the
+ * sensitive element's own boxes are never clipped). An absolutely or fixed
+ * positioned element may escape clips above it, so it drops them (fail
+ * closed: larger, never smaller).
+ */
+function coverSubtree(node: Node, out: ViewportRect[], clip: Clip): void {
   if (node.nodeType === 3) {
     const range = node.ownerDocument?.createRange?.();
     if (range && typeof range.getClientRects === 'function') {
       range.selectNodeContents(node);
-      pushRects(out, range.getClientRects());
+      pushRects(out, range.getClientRects(), clip);
     } else if (node.parentElement) {
       // No Range geometry (non-browser environments): the parent's boxes.
-      pushRects(out, node.parentElement.getClientRects());
+      pushRects(out, node.parentElement.getClientRects(), clip);
     }
     return;
   }
   if (node.nodeType !== 1) return;
   const el = node as Element;
+  const cs = styleOf(el);
+  const own = cs && (cs.position === 'absolute' || cs.position === 'fixed') ? UNCLIPPED : clip;
   // Per line box for inline elements; nothing for display:contents / slots
   // (their children are covered below).
-  pushRects(out, el.getClientRects());
+  pushRects(out, el.getClientRects(), own);
   // A sensitive video never renders; its frame is on the stand-in after it.
   if (el.tagName === 'VIDEO' && el.nextElementSibling?.hasAttribute(STAND_IN_ATTR)) {
-    pushRects(out, el.nextElementSibling.getClientRects());
+    pushRects(out, el.nextElementSibling.getClientRects(), own);
   }
-  for (const child of renderedChildren(el)) coverSubtree(child, out);
+  const inner = clipFor(el, cs, own);
+  for (const child of renderedChildren(el)) coverSubtree(child, out, inner);
 }
 
 /**
@@ -90,7 +154,7 @@ export function collectSensitiveRects(
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) out.push({ x: r.left, y: r.top, width: r.width, height: r.height });
       }
-      coverSubtree(el, out);
+      coverSubtree(el, out, UNCLIPPED);
       return;
     }
     for (const child of renderedChildren(el)) visit(child);
