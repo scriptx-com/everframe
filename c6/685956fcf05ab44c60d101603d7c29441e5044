@@ -1,0 +1,49 @@
+packages/sdk-roku/__tests__/memory.spec.ts
+  s_d03518d0f16fdd::t_4a6a65bc984976 1-120
+packages/sdk-roku/__tests__/crumbs.spec.ts
+  s_d03518d0f16fdd::t_c2c655280e51a1 1-105
+packages/sdk-roku/README.md
+  s_d03518d0f16fdd::t_c1b070434d5a94 183-190
+packages/sdk-roku/__tests__/envelope.spec.ts
+  s_d03518d0f16fdd::t_e9df78300f5af6 54-80
+packages/sdk-roku/__tests__/exitinfo.spec.ts
+  s_d03518d0f16fdd::t_a1e8631c3a181a 146-196
+packages/sdk-roku/__tests__/hook.spec.ts
+  s_d03518d0f16fdd::t_3121d42e199ba7 25-39
+packages/sdk-roku/hook/everframe_hook.brs
+  s_d03518d0f16fdd::t_9b66d721865b35 13-16,23
+packages/sdk-roku/library/components/Everframe/Everframe.brs
+  s_d03518d0f16fdd::t_ea82c16541ac39 14-19,31-40,63-66,89-93,133-167
+packages/sdk-roku/library/components/Everframe/Everframe.xml
+  s_d03518d0f16fdd::t_26c76ea80be51e 19
+packages/sdk-roku/library/components/Everframe/EverframeReporter.brs
+  s_d03518d0f16fdd::t_07fca4e549720a 5-7,30-40,59,62-77,79-85,89-158
+packages/sdk-roku/library/components/Everframe/EverframeReporter.xml
+  s_d03518d0f16fdd::t_e3583d080c5c92 20
+packages/sdk-roku/library/components/Everframe/lib/ef_crumbs.brs
+  s_d03518d0f16fdd::t_726715e626174d 1-72
+packages/sdk-roku/library/components/Everframe/lib/ef_envelope.brs
+  s_d03518d0f16fdd::t_23e099d5bafeac 40-41,81-98
+packages/sdk-roku/library/components/Everframe/lib/ef_exitinfo.brs
+  s_d03518d0f16fdd::t_0bf521f7108443 74-87,89,101-102,106-112
+packages/sdk-roku/library/components/Everframe/lib/ef_memory.brs
+  s_d03518d0f16fdd::t_b45560ae4d8400 1-82
+packages/sdk-roku/library/components/Everframe/lib/ef_util.brs
+  s_d03518d0f16fdd::t_2bf675b968f849 95-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c6685956fcf05ab44c60d101603d7c29441e5044",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
