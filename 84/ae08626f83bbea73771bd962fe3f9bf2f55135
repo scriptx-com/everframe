@@ -1,0 +1,31 @@
+examples/roku-channel/__tests__/channel.spec.ts
+  s_d03518d0f16fdd::t_503d524befa06c 39-47
+examples/roku-channel/__tests__/run-roku-helpers.spec.ts
+  s_d03518d0f16fdd::t_c8e55b59c973ed 9,82-92
+examples/roku-channel/__tests__/run-roku.spec.ts
+  s_d03518d0f16fdd::t_9fa06d8fdd0c26 40-41,75
+examples/roku-channel/components/ExitInfoTask.brs
+  s_d03518d0f16fdd::t_ab1421053ca844 1-27
+examples/roku-channel/components/ExitInfoTask.xml
+  s_d03518d0f16fdd::t_b62a847af999c8 1-9
+examples/roku-channel/components/LabScene.brs
+  s_d03518d0f16fdd::t_73e6d2758e7764 57-67,179
+examples/roku-channel/scripts/run-roku.mjs
+  s_d03518d0f16fdd::t_a86ecaf1b77849 23,25,175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "84ae08626f83bbea73771bd962fe3f9bf2f55135",
+  "prompts": {},
+  "sessions": {
+    "s_d03518d0f16fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7698ec89-d774-4a82-b0d6-d94fd7ba9760",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
