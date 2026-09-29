@@ -1,0 +1,21 @@
+packages/sdk-web/__tests__/reporter-ui/ReporterDialog.spec.tsx
+  s_f1f3a292ebd900::t_dca041e6154d03 74,498-576
+packages/sdk-web/src/reporter-ui/ReporterDialog.tsx
+  s_f1f3a292ebd900::t_e5826746502d64 37,131-136,140-168,179-180,309-312,319,333,453,504-505,526-536
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "bf25c987b70c5e02704004babb7a00c5402cd374",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
