@@ -45,6 +45,9 @@ sub Main()
         info = am.GetLastExitInfo()
         if type(info) = "roAssociativeArray" and info["exit_code"] <> invalid and info["timestamp"] <> invalid then
             sec = CreateObject("roRegistrySection", "Everframe")
+            ' Keep the exited session's screen and breadcrumbs with the exit.
+            if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
+            if sec.Exists("crumbs") then info["efCrumbs"] = sec.Read("crumbs")
             sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
         end if
     catch e
@@ -55,7 +58,7 @@ sub Main()
 end sub
 ```
 
-Roku returns the previous launch's exit record (`GetLastExitInfo`, Roku OS 13.0+) only to your channel's own code. Called from inside the Everframe ComponentLibrary it always answers `EXIT_UNKNOWN` with no timestamp, so the library cannot read it itself. These lines store the record in the registry (section `Everframe`, key `pendingExit`); the library picks it up after `start()` and reports it. Without them, tier 1 still sends `captureException` reports, but crashes that end the channel are not detected. Tier 2 inserts the equivalent call (`Everframe_RecordLastExit()`) into `Main` / `RunUserInterface` for you.
+Roku returns the previous launch's exit record (`GetLastExitInfo`, Roku OS 13.0+) only to your channel's own code. Called from inside the Everframe ComponentLibrary it always answers `EXIT_UNKNOWN` with no timestamp, so the library cannot read it itself. These lines store the record in the registry (section `Everframe`, key `pendingExit`); the library picks it up after `start()` and reports it, together with the screen and breadcrumbs of the session that ended (copied before the new launch writes its own). A crash already reported by `try`/`catch` is matched to its exit by kind, not by clock, because the device clock and the exit timestamp can differ by tens of seconds. Without them, tier 1 still sends `captureException` reports, but crashes that end the channel are not detected. Tier 2 inserts the equivalent call (`Everframe_RecordLastExit()`) into `Main` / `RunUserInterface` for you.
 
 > **Warning:** calling `GetLastExitInfo()` in your own code as well is fine: reading it does not consume the record. Call it from `Main()` or a Task only, never from the render thread (a component's `init`, observers, or `onKeyEvent`): `roAppManager` cannot be created there.
 

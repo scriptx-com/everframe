@@ -85,6 +85,31 @@ function EfX_TakePrevCrumbs(sec as object) as object
     return crumbs
 end function
 
+' Main() runs before this session writes anything, so the "screen" and
+' "crumbs" it copies into "pendingExit" ("efScreen", "efCrumbs") are still the
+' exited session's. They win over "prevScreen"/"prevCrumbs" (rotated by
+' start(), after which the host may already have set a new screen).
+function EfX_SnapCrumbs(info as object, fallback as object) as object
+    raw = info["efCrumbs"]
+    if raw = invalid or GetInterface(raw, "ifString") = invalid then return fallback
+    crumbs = invalid
+    if raw <> "" then crumbs = ParseJson(raw)
+    if type(crumbs) <> "roArray" then return fallback
+    return crumbs
+end function
+
+function EfX_SnapScreen(info as object, fallback as dynamic) as dynamic
+    raw = info["efScreen"]
+    if raw = invalid or GetInterface(raw, "ifString") = invalid then return fallback
+    s = EfS_Normalize(raw)
+    if s = invalid then return fallback
+    return s
+end function
+
+function EfX_IsCrashCode(code as string) as boolean
+    return code = "EXIT_BRIGHTSCRIPT_CRASH" or Instr(1, UCase(code), "CRASH") > 0
+end function
+
 function EfX_Process(sec as object, info as dynamic) as string
     prevCrumbs = EfX_TakePrevCrumbs(sec)
     prevScreen = EfS_TakePrev(sec)
@@ -98,15 +123,22 @@ function EfX_Process(sec as object, info as dynamic) as string
         lastCrash = EfU_ReadOrInvalid(sec, "lastCrashT")
         lastCrashMs = invalid
         if lastCrash <> invalid then lastCrashMs = ParseJson(lastCrash)
-        if lastCrashMs <> invalid and Abs(exitMs - lastCrashMs) <= 30000 then
+        ' No timestamp comparison: the OS exit time and the channel's roDateTime
+        ' clock differ by tens of seconds on device. A Path A fatal crash always
+        ' ends its session and "lastCrashT" is deleted at every exit check, so a
+        ' present "lastCrashT" plus a crash-type exit is the same crash. Memory
+        ' and system kills stay separate reports (they are not a BrightScript
+        ' crash, so Path A's record does not describe them).
+        if lastCrashMs <> invalid and EfX_IsCrashCode(info.exit_code) then
             ' Path A saw this crash: enrich its record (if still queued), never
             ' duplicate. Its own live crumbs, screen and memory reading are kept.
             EfQ_AttachExit(sec, lastCrashMs, EfX_Meta(info))
             result = "merged"
         else
             rec = EfX_ToRecord(info)
-            rec.crumbs = prevCrumbs
-            if prevScreen <> invalid then rec.route = prevScreen
+            rec.crumbs = EfX_SnapCrumbs(info, prevCrumbs)
+            route = EfX_SnapScreen(info, prevScreen)
+            if route <> invalid then rec.route = route
             ' The reporter's last reading from the session that exited; it is
             ' read here, before this session's reporter overwrites "mem".
             mem = EfU_ReadMem(sec, exitMs)

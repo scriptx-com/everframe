@@ -50,6 +50,10 @@ sub Everframe__StoreExit(info as dynamic)
         if type(info) = "roAssociativeArray" then
             if Everframe__IsStr(info["exit_code"]) and Everframe__IsStr(info["timestamp"]) then
                 sec = CreateObject("roRegistrySection", "Everframe")
+                ' Snapshot the exited session's screen and crumbs now: Main runs
+                ' before this launch writes any of its own.
+                if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
+                if sec.Exists("crumbs") then info["efCrumbs"] = sec.Read("crumbs")
                 sec.Write("pendingExit", FormatJson(info))
                 sec.Flush()
             end if

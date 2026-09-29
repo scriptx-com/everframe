@@ -3,9 +3,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { runBrs, brsString, LIB_DIR } from './brs-harness.js';
+import { runBrs, brsString, LIB_DIR, HOOK_DIR } from './brs-harness.js';
 
-const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_screen.brs', 'ef_exitinfo.brs'];
+const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_screen.brs', 'ef_crumbs.brs', 'ef_exitinfo.brs'];
+const HOOK = path.join(HOOK_DIR, 'everframe_hook.brs');
 const INFO = (code: string, ts = '2026-09-29T10:00:05Z', log = '') =>
   `{ exit_code: "${code}", timestamp: "${ts}", app_state: "foreground", media_player_state: "stopped", mem_limit: 512, console_log: ${log || '""'} }`;
 
@@ -64,6 +65,79 @@ describe('ef_exitinfo.brs', () => {
       print "EFTEST:" + FormatJson({ r: r, n: items.Count(), code: items[0].rec.exitInfo.exitCode, lastCrash: sec.Exists("lastCrashT") })
     `);
     expect(lines[0]).toEqual({ r: 'merged', n: 1, code: 'EXIT_BRIGHTSCRIPT_CRASH', lastCrash: false });
+  });
+
+  it('merges by kind, not clock: device skew (OS exit 45 s ahead of the channel clock) is still the same crash', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      exitMs = EfU_MsFromIso("2026-09-29T12:29:32Z")
+      pathA = { v: 1, id: "aaaaaaaa-1", t: exitMs - 45000, kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [] }
+      EfQ_Put(sec, pathA)
+      r = EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH', '2026-09-29T12:29:32Z')})
+      items = EfQ_List(sec)
+      print "EFTEST:" + FormatJson({ r: r, n: items.Count(), kind: items[0].rec.kind, code: items[0].rec.exitInfo.exitCode, lastCrash: sec.Exists("lastCrashT") })
+    `);
+    expect(lines[0]).toEqual({ r: 'merged', n: 1, kind: 'crash', code: 'EXIT_BRIGHTSCRIPT_CRASH', lastCrash: false });
+  });
+
+  it('suppresses (queue empty) for a skewed crash whose Path A record was already sent, any *CRASH* code', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      sec.Write("lastCrashT", (EfU_MsFromIso("2026-09-29T12:29:32Z") - 600000).ToStr())
+      r = EfX_Process(sec, ${INFO('EXIT_NATIVE_CRASH', '2026-09-29T12:29:32Z')})
+      print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count() })
+    `);
+    expect(lines[0]).toEqual({ r: 'merged', n: 0 });
+  });
+
+  it('a memory/system kill is still reported separately even when lastCrashT is present', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      sec.Write("lastCrashT", EfU_MsFromIso("2026-09-29T10:00:03Z").ToStr())
+      r = EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
+      print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count(), left: sec.Exists("lastCrashT") })
+    `);
+    expect(lines[0]).toEqual({ r: 'reported', n: 1, left: false });
+  });
+
+  // Device sequence: session 1 setScreen("Lab") then DetailsScreen, crash. Session 2:
+  // Main records pendingExit, start() rotates, the host sets "Lab", the reporter
+  // processes the exit. The report must carry session 1's screen and crumbs.
+  it('exit report keeps the crashed session\'s screen and crumbs although the new session already set a screen', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      ' session 1 state left in the registry
+      EfS_Persist(sec, "DetailsScreen")
+      EfC_Persist(sec, [{ t: 1790000000000&, seq: 0, kind: "navigation", message: "screen: DetailsScreen" }])
+      ' session 2: Main() -> Everframe__StoreExit (before anything is written)
+      Everframe__StoreExit(${INFO('EXIT_OUT_OF_MEMORY')})
+      ' start() rotation, then the host's immediate setScreen("Lab") and a crumb
+      EfC_Rotate(sec)
+      EfS_Rotate(sec)
+      EfS_Persist(sec, "Lab")
+      EfC_Persist(sec, [{ t: 1790000009000&, seq: 0, kind: "navigation", message: "screen: Lab" }])
+      ' reporter Task
+      r = EfX_Process(sec, EfX_TakePending(sec))
+      rec = EfQ_List(sec)[0].rec
+      print "EFTEST:" + FormatJson({ r: r, route: rec.route, crumbs: rec.crumbs, screenNow: sec.Read("screen") })
+    `, { extraFiles: [HOOK] });
+    expect(lines[0]).toEqual({
+      r: 'reported',
+      route: 'DetailsScreen',
+      crumbs: [{ t: 1790000000000, seq: 0, kind: 'navigation', message: 'screen: DetailsScreen' }],
+      screenNow: 'Lab',
+    });
+  });
+
+  it('without a Main snapshot the rotated prevScreen/prevCrumbs still apply', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      sec.Write("prevScreen", "DetailsScreen")
+      EfS_Persist(sec, "Lab")
+      EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
+      print "EFTEST:" + FormatJson(EfQ_List(sec)[0].rec.route)
+    `);
+    expect(lines[0]).toBe('DetailsScreen');
   });
 
   it('serializes the merged exitInfo key in camelCase', async () => {
