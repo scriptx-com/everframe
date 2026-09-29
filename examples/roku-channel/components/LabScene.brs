@@ -163,5 +163,10 @@ function LabLastExit() as string
     if FindMemberFunction(am, "GetLastExitInfo") = invalid then return "n/a (Roku OS < 13)"
     info = am.GetLastExitInfo()
     if type(info) <> "roAssociativeArray" then return "none"
-    return info.exit_code + " at " + info.timestamp
+    code = info.exit_code
+    if code = invalid then return "none"
+    text = code.ToStr()
+    ts = info.timestamp
+    if ts <> invalid then text = text + " at " + ts.ToStr()
+    return text
 end function

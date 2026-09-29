@@ -13,6 +13,7 @@
   "devDependencies": {
     "@everframe/roku": "workspace:*",
     "brighterscript": "0.73.5",
+    "fflate": "^0.8.3",
     "fast-xml-parser": "^5.11.2",
     "roku-deploy": "3.18.4"
   }
