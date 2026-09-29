@@ -13,7 +13,7 @@ import { ReportEnvelope } from '@everframe/protocol';
 import { runBrs, LIB_DIR, HOOK_DIR } from './brs-harness.js';
 
 const NODE = path.join(LIB_DIR, '..', 'Everframe.brs');
-const NODE_LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_crumbs.brs', 'ef_screen.brs'];
+const NODE_LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs', 'ef_crumbs.brs', 'ef_screen.brs'];
 const Strict = (ReportEnvelope as unknown as z.ZodObject<z.ZodRawShape>).catchall(z.never());
 
 describe('ef_screen.brs', () => {
@@ -151,7 +151,7 @@ describe('route on reports', () => {
     expect(lines[0][2].context).not.toHaveProperty('route');
   });
 
-  const EXIT_LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_screen.brs', 'ef_exitinfo.brs'];
+  const EXIT_LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs', 'ef_screen.brs', 'ef_exitinfo.brs'];
   const INFO = (code: string) =>
     `{ exit_code: "${code}", timestamp: "2026-09-29T10:00:05Z", app_state: "foreground", media_player_state: "stopped", mem_limit: 512, console_log: "" }`;
 
@@ -185,7 +185,7 @@ describe('hook: Everframe_Screen and the route on Path A records', () => {
   const HOOK = path.join(HOOK_DIR, 'everframe_hook.brs');
 
   it('Everframe_Screen is a silent no-op with no Everframe node, for any input', async () => {
-    const { lines } = await runBrs(['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'], `
+    const { lines } = await runBrs(['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'], `
       Everframe_Screen("DetailsScreen")
       Everframe_Screen(invalid)
       Everframe_Screen({})

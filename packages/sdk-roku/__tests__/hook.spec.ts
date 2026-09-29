@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { runBrs, HOOK_DIR } from './brs-harness.js';
 
-const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'];
+const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'];
 
 describe('everframe_hook.brs (no SceneGraph node yet)', () => {
   it('persists a fatal record with entry context and main thread', async () => {

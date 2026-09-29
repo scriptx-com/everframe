@@ -12,7 +12,7 @@ import { runBrs } from './brs-harness.js';
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/channel-basic');
 const tmp = () => mkdtempSync(path.join(tmpdir(), 'efinst-'));
 const read = (p: string) => readFileSync(p, 'utf8');
-const HOOKS = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'];
+const HOOKS = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'];
 const stripComments = (t: string) => t.replace(/<!--[\s\S]*?-->/g, '');
 const compXml = (name: string, ext: string, body: string) =>
   `<?xml version="1.0" encoding="utf-8" ?>\n<component name="${name}" extends="${ext}">\n${body}</component>\n`;
@@ -62,7 +62,7 @@ describe('instrument', () => {
     const out = tmp();
     const r = instrument({ root: FIX, out });
     const home = read(path.join(out, 'components/HomeScene.xml'));
-    for (const f of ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs']) {
+    for (const f of ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs']) {
       expect(home).toContain(`uri="pkg:/components/everframe_hook/${f}"`);
       expect(existsSync(path.join(out, 'components/everframe_hook', f))).toBe(true);
       expect(existsSync(path.join(out, 'source/everframe', f))).toBe(true);
@@ -286,7 +286,7 @@ describe('instrument', () => {
       expect(withInline).toContain(']]></script>\n  <script type="text/brightscript" uri="pkg:/components/everframe_hook/everframe_hook.brs" />');
       expect(stripComments(withInline).match(/everframe_hook\//g)).toHaveLength(HOOKS.length);
       const none = injectHookImports(compXml('B', 'Group', '  <!-- <script uri="z.brs" /> -->\n'));
-      expect(none).toMatch(/ef_queue\.brs" \/>\n<\/component>\n$/);
+      expect(none).toMatch(/ef_fingerprint\.brs" \/>\n<\/component>\n$/);
       for (const f of HOOKS) expect(stripComments(none)).toContain(`pkg:/components/everframe_hook/${f}`);
       expect(injectHookImports(none)).toBe(none);
       expect(() => injectHookImports('<component name="C" extends="Group" />')).toThrow(/no <script> or <\/component>/);

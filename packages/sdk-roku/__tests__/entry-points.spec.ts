@@ -304,3 +304,22 @@ describe('excluded components', () => {
     expect(initOf(plan, 'components/Shared.brs')?.entry).toBe('Keep');
   });
 });
+
+describe('externally selected Task functions', () => {
+  it('a functionName set on a Task by another component (or Main) targets every Task component\'s scripts', () => {
+    const root = channel([['MainScene', 'Scene'], ['Loader', 'Task'], ['BaseTask', 'Task'], ['Worker', 'BaseTask'], ['Widget', 'Group']]);
+    writeFileSync(path.join(root, 'components', 'MainScene.brs'), 'sub init()\n  m.loader = CreateObject("roSGNode", "Loader")\n  m.loader.functionName = "loadContent"\n  m.loader.control = "RUN"\nend sub\n');
+    mkdirSync(path.join(root, 'source'), { recursive: true });
+    writeFileSync(path.join(root, 'source', 'main.brs'), 'sub Main()\n  t = CreateObject("roSGNode", "Worker")\n  t.functionName = "crunch"\nend sub\n');
+    const plan = discoverEntryPoints(root, { exclude: [], mechanisms: all });
+    for (const file of ['components/Loader.brs', 'components/Worker.brs', 'components/BaseTask.brs']) {
+      expect(plan.files.get(file)?.get('loadcontent'), file).toMatchObject({ isTask: true });
+      expect(plan.files.get(file)?.get('crunch'), file).toMatchObject({ isTask: true });
+    }
+    expect(plan.files.get('components/Widget.brs')?.get('loadcontent')).toBeUndefined();
+    const off = discoverEntryPoints(root, { exclude: ['components/Loader.brs'], mechanisms: new Set<Mechanism>(['init']) });
+    expect(off.files.get('components/Worker.brs')?.get('loadcontent')).toBeUndefined();
+    const ex = discoverEntryPoints(root, { exclude: ['components/Loader.brs'], mechanisms: all });
+    expect(ex.files.get('components/Loader.brs')).toBeUndefined();
+  });
+});

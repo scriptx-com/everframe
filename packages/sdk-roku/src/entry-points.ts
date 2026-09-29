@@ -214,6 +214,38 @@ export function discoverEntryPoints(
   // After every component's own pass, so an ancestor's own init/key/callback targets win the first-target slot.
   for (const f of pushedUp) f();
 
+  // `task.functionName = "x"` is usually set by whoever creates the Task (a scene,
+  // Main), not in the Task's own scripts, and the receiving type is not knowable
+  // statically: every name assigned anywhere becomes a task target in every Task
+  // component's scripts. Only a file that defines the function is wrapped.
+  if (on('task')) {
+    const taskNames = new Set<string>();
+    const scan = (file: string) => {
+      let text = '';
+      try { text = readFileSync(path.join(root, file), 'utf8'); } catch { return; }
+      for (const m of text.matchAll(TASK_RE)) taskNames.add(m[1]!);
+    };
+    // Main's scripts and included components' scripts (an excluded component's code is not ours to wrap for).
+    const sources = all.filter((x) => x.startsWith('source/') && !x.startsWith('source/everframe/') && x.endsWith('.brs'));
+    for (const f of new Set([...sources, ...plan.components.filter((c) => !c.excluded).flatMap((c) => c.scripts)])) {
+      if (!excluded(f, opts.exclude)) scan(f);
+    }
+    const isTaskComponent = (name: string): boolean => {
+      const seen = new Set<string>();
+      for (let c: string | undefined = name; c && !seen.has(c.toLowerCase()); c = parents.get(c.toLowerCase())) {
+        if (c.toLowerCase() === 'task') return true;
+        seen.add(c.toLowerCase());
+      }
+      return false;
+    };
+    for (const c of plan.components) {
+      if (c.excluded || !isTaskComponent(c.name)) continue;
+      for (const s of c.scripts) {
+        for (const fn of taskNames) add(plan, s, fn, { entry: `${fn} (${s})`, isTask: true });
+      }
+    }
+  }
+
   // SceneGraph runs every ancestor's init() too, with m.top.subtype() the created
   // type. A screen without its own init() is covered by the nearest ancestor that
   // defines one: nothing to add when that ancestor is a screen itself (its init

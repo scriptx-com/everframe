@@ -32,7 +32,7 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
         handled: rec.handled,
         fatal: rec.fatal,
         "occurredAt": EfU_IsoFromMs(rec.t),
-        fingerprint: EfFp_Compute(rec.exceptionType, rec.frames)
+        fingerprint: EfE_Fingerprint(rec)
     }
     if rec.thread <> invalid then crash["threadName"] = rec.thread
     details = {}
@@ -104,4 +104,12 @@ function EfE_Metadata(rec as object) as dynamic
         meta["memory"] = m2
     end if
     return meta
+end function
+
+' The fingerprint EfQ_Fit stored before trimming; computed here only for a
+' record that has none.
+function EfE_Fingerprint(rec as object) as string
+    fp = rec.fp
+    if fp <> invalid and GetInterface(fp, "ifString") <> invalid and fp <> "" then return fp
+    return EfFp_Compute(rec.exceptionType, rec.frames)
 end function

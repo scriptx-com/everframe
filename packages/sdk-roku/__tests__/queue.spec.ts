@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { runBrs } from './brs-harness.js';
 
-const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'];
+const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'];
 const REC = (t: string) => `{ v: 1, id: "id-${t}-xxxxxxxx", t: ${t}&, kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [] }`;
 
 describe('ef_queue.brs', () => {
@@ -160,5 +160,25 @@ describe('ef_queue.brs', () => {
       print "EFTEST:" + FormatJson({ key: key, marker: store.DoesExist("lastCrashT") })
     `);
     expect(lines[0]).toEqual({ key: '', marker: false });
+  });
+
+  it('stores the fingerprint of the untrimmed frames, so trimming and exit enrichment keep the group', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      frames = []
+      for i = 0 to 11
+        frames.Push({ "function": "fn" + i.ToStr() + String(60, "x"), file: "pkg:/components/" + String(80, "p") + ".brs", line: i, raw: String(200, "r") })
+      end for
+      rec = { v: 1, id: "id-fp-xxxxxxxx", t: 1790000000100&, kind: "crash", handled: false, fatal: true, exceptionType: "RuntimeError(&hEC)", message: "m", frames: frames, crumbs: [] }
+      want = EfFp_Compute("RuntimeError(&hEC)", frames)
+      EfQ_Put(sec, rec)
+      stored = EfQ_List(sec)[0].rec
+      EfQ_AttachExit(sec, 1790000000100&, { "exitCode": "EXIT_BRIGHTSCRIPT_CRASH", "consoleLog": String(1000, "l") })
+      enriched = EfQ_List(sec)[0].rec
+      print "EFTEST:" + FormatJson({ want: want, stored: stored.fp, enriched: enriched.fp, trimmed: enriched.frames.Count() < 12 })
+    `);
+    expect(lines[0].stored).toBe(lines[0].want);
+    expect(lines[0].enriched).toBe(lines[0].want);
+    expect(lines[0].trimmed).toBe(true);
   });
 });

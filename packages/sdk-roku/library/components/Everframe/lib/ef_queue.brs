@@ -24,6 +24,14 @@ function EfQ_Keys(sec as object) as object
 end function
 
 function EfQ_Fit(rec as object) as string
+    ' Fingerprint from the untrimmed frames, before any are dropped below, so
+    ' trimming, exit enrichment and retries never change a report's group.
+    if rec.fp = invalid then
+        try
+            rec["fp"] = EfFp_Compute(rec.exceptionType, rec.frames)
+        catch e
+        end try
+    end if
     json = FormatJson(rec)
     while Len(json) > EfQ_MaxChars() and rec.crumbs <> invalid and rec.crumbs.Count() > 0
         rec.crumbs.Shift()

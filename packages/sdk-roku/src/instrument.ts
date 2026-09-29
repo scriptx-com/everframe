@@ -29,7 +29,7 @@ export const OUT_MARKER = '.everframe-build';
 const MARKER_TEXT = 'Created by everframe-roku instrument';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const HOOK_SET = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'];
+const HOOK_SET = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'];
 const hookSource = (f: string) =>
   f === 'everframe_hook.brs' ? path.join(PKG, 'hook', f) : path.join(PKG, 'library/components/Everframe/lib', f);
 
