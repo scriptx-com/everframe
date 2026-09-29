@@ -1,0 +1,64 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe final pixel-mask e2e fixture</title>
+<style>
+  body { margin: 0; font: 20px/1.5 system-ui, sans-serif; }
+  /* A flat, non-black backdrop so "untouched" neighbour samples read a known colour. */
+  #page { box-sizing: border-box; padding: 24px; background: rgb(0, 120, 255); height: 800px; }
+  .row { margin: 0 0 24px; width: 420px; color: #fff; }
+  /* Inherited by the sensitive display:contents wrapper's bare text. */
+  #stroke-line { -webkit-text-stroke: 1px white; color: rgb(0, 120, 255); }
+  #bd-wrap { position: relative; width: 420px; height: 60px; margin: 0 0 24px; }
+  #bd-text { margin: 0; color: #fff; }
+  #bd-overlay { position: absolute; inset: 0; backdrop-filter: opacity(1); -webkit-backdrop-filter: opacity(1); }
+  #secret-img { display: block; width: 120px; height: 60px; }
+</style>
+</head>
+<body>
+  <div id="page">
+    <!-- (a) stroked text in a sensitive display:contents wrapper -->
+    <p id="stroke-line" class="row">Acct: <span id="stroke-wrap" data-everframe-sensitive style="display:contents">99887766 55443322</span></p>
+    <!-- (b) sensitive <slot> with slotted private text -->
+    <x-vault id="vault" class="row"><span id="slotted">PIN 4455 6677</span></x-vault>
+    <!-- (c) text under a backdrop-filter overlay; made sensitive by the spec -->
+    <div id="bd-wrap"><p id="bd-text">IBAN LT12 3456 7890</p><div id="bd-overlay"></div></div>
+    <!-- (d) sensitive <img> captured as the root -->
+    <img id="secret-img" data-everframe-sensitive alt="" />
+  </div>
+  <script>
+    customElements.define('x-vault', class extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' }).innerHTML =
+          '<span style="color:#fff">Label: </span><slot id="secret-slot" data-everframe-sensitive></slot>';
+      }
+    });
+    // A flat red image, generated so the fixture carries no binary.
+    const c = document.createElement('canvas');
+    c.width = 120;
+    c.height = 60;
+    const g = c.getContext('2d');
+    g.fillStyle = 'rgb(255, 0, 0)';
+    g.fillRect(0, 0, 120, 60);
+    document.getElementById('secret-img').src = c.toDataURL('image/png');
+  </script>
+  <!-- Same import map as capture-cases.html (stands in for the consumer's bundler). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

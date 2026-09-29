@@ -143,6 +143,8 @@ const TEXT_MASK_CSS = [
   'background:#000 !important',
   'text-shadow:none !important',
   'text-decoration:none !important',
+  'text-decoration-color:transparent !important',
+  '-webkit-text-stroke:0 transparent !important',
   'caret-color:transparent !important',
 ].join(';');
 

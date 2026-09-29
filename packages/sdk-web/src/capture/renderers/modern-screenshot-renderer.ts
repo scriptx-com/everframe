@@ -5,6 +5,7 @@ import type { Rect } from '@everframe/sdk-core';
 import { FAST_CLONE_STYLE_PROPERTIES, type CaptureProfile } from '../capture-profile.js';
 import { paintMaskRectsOnCanvas } from '../mask-paint.js';
 import { isCanvasBlank } from '../blank-check.js';
+import type { CanvasOffset } from '../pixel-mask.js';
 
 /**
  * Ceiling on modern-screenshot's PRE-CLONE pass, which awaits the load of every
@@ -349,6 +350,33 @@ export interface ModernScreenshotRenderResult {
    * check (null) counts as not blank.
    */
   blank: boolean;
+  /**
+   * Where live viewport content can land on `canvas` (pixel-mask.ts):
+   * in-flow content of a <body> root at its viewport position, but content
+   * anchored to the initial containing block shifted by the clone drift (see
+   * bodyCloneDriftCssPx); any other root is rendered root-relative and
+   * cropped at the window scroll. Every candidate is listed.
+   */
+  offsets: CanvasOffset[];
+}
+
+/** See ModernScreenshotRenderResult.offsets. */
+function viewportOffsets(
+  root: HTMLElement,
+  drift: { x: number; y: number },
+  crop: ViewportCropRect | null,
+  pixelRatio: number,
+): CanvasOffset[] {
+  const offsets: CanvasOffset[] = [{ dx: 0, dy: 0 }];
+  if (drift.x !== 0 || drift.y !== 0) offsets.push({ dx: -drift.x, dy: -drift.y });
+  if (root.tagName !== 'BODY') {
+    // The raster starts at the root's box; the crop then cuts at `sx/sy`.
+    const r = root.getBoundingClientRect();
+    const cx = crop && !crop.noop ? crop.sx / pixelRatio : 0;
+    const cy = crop && !crop.noop ? crop.sy / pixelRatio : 0;
+    offsets.push({ dx: -r.left - cx, dy: -r.top - cy });
+  }
+  return offsets;
 }
 
 /**
@@ -442,5 +470,9 @@ export async function renderViewportWithModernScreenshot(
     // and exposes excluded pixels (codex round-4 finding).
     paintMaskRectsOnCanvas(canvas, opts.maskPlan, pixelRatio / (requestedRatio || 1));
   }
-  return { canvas: cropCanvasToViewport(canvas, cropRect), blank };
+  return {
+    canvas: cropCanvasToViewport(canvas, cropRect),
+    blank,
+    offsets: viewportOffsets(root, cloneDrift, cropRect, pixelRatio),
+  };
 }

@@ -10,6 +10,13 @@ import { renderViewportWithModernScreenshot } from './renderers/modern-screensho
 import { renderViewportWithSnapdom, SnapdomBusyError } from './renderers/snapdom-renderer.js';
 import { paintMaskRectsOnCanvas } from './mask-paint.js';
 import { expandMaskTargets } from './renderers/clone-mask.js';
+import {
+  collectSensitiveRects,
+  paintViewportRects,
+  rectsMoved,
+  VIEWPORT_ALIGNED,
+  type CanvasOffset,
+} from './pixel-mask.js';
 export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
 
@@ -394,6 +401,19 @@ async function captureExclusive(
     restoreVideoStandIns = () => undefined;
   }
 
+  // Layer 2 of masking (pixel-mask.ts): the live viewport rects of
+  // everything sensitive, read now and again after rendering, are painted
+  // black on whichever canvas ships - so nothing inside a sensitive element's
+  // on-screen area survives whatever a renderer did with its clone. If
+  // anything moved while rendering, both reads are painted (fail closed)
+  // rather than one guessed.
+  const sensitivityNow = (): ((el: Element) => boolean) => {
+    const listed = new Set<Element>(expandMaskTargets(resolveMaskTargets()));
+    const live = opts.isSensitive;
+    return (el) => listed.has(el) || (live?.(el) ?? false);
+  };
+  const sensitiveBefore = collectSensitiveRects(root, sensitivityNow());
+
   // snapDOM first (faster, and no blank rasters where modern-screenshot
   // produced them), with modern-screenshot as the fallback when snapDOM
   // throws, stalls past its budget share, or hands back a blank canvas
@@ -402,7 +422,11 @@ async function captureExclusive(
   // ONCE below. Every stage is deadline-guarded: a degraded engine's
   // canvas.toBlob can simply never invoke its callback, and an unguarded
   // await would hang capture forever (DEFE-02).
-  type Attempt = { canvas: HTMLCanvasElement; renderer: Exclude<ScreenshotRenderer, 'none'> };
+  type Attempt = {
+    canvas: HTMLCanvasElement;
+    renderer: Exclude<ScreenshotRenderer, 'none'>;
+    offsets: readonly CanvasOffset[];
+  };
   const started = Date.now();
   const elapsed = (): number => Date.now() - started;
   let accepted: Attempt | null = null;
@@ -453,7 +477,7 @@ async function captureExclusive(
           -rootTop * pixelRatio,
         );
       }
-      const attempt: Attempt = { canvas, renderer: 'snapdom' };
+      const attempt: Attempt = { canvas, renderer: 'snapdom', offsets: VIEWPORT_ALIGNED };
       if (blank) firstBlank = attempt;
       else accepted = attempt;
     } catch (err) {
@@ -480,7 +504,7 @@ async function captureExclusive(
         // after (the snapDOM path never touches the page).
         const fallbackTargets = expandMaskTargets(resolveMaskTargets());
         const restoreDomMask = fallbackTargets.length > 0 ? applyDomMask(fallbackTargets) : (): void => undefined;
-        let rendered: { canvas: HTMLCanvasElement; blank: boolean };
+        let rendered: Awaited<ReturnType<typeof renderViewportWithModernScreenshot>>;
         try {
           // The renderer measures `blank` itself, before it paints maskPlan.
           rendered = await withDeadline(
@@ -497,8 +521,8 @@ async function captureExclusive(
         } finally {
           restoreDomMask();
         }
-        const { canvas, blank } = rendered;
-        const attempt: Attempt = { canvas, renderer: 'modern-screenshot' };
+        const { canvas, blank, offsets } = rendered;
+        const attempt: Attempt = { canvas, renderer: 'modern-screenshot', offsets };
         if (!blank) accepted = attempt;
         else firstBlank ??= attempt;
       } catch {
@@ -508,6 +532,16 @@ async function captureExclusive(
 
     const chosen: Attempt | null = accepted ?? firstBlank;
     if (chosen) {
+      // After the blank verdicts (taken on the raw renders), before encode.
+      // snapDOM's canvas is viewport-aligned at `pixelRatio`; the fallback
+      // reports where viewport content can land on its cropped canvas.
+      const sensitiveAfter = collectSensitiveRects(root, sensitivityNow());
+      const rects = rectsMoved(sensitiveBefore, sensitiveAfter)
+        ? [...sensitiveBefore, ...sensitiveAfter]
+        : sensitiveAfter;
+      if (!paintViewportRects(chosen.canvas, rects, pixelRatio, chosen.offsets)) {
+        throw new Error('sensitive content present but the canvas cannot be masked');
+      }
       const encoded = await withDeadline(
         encodeCanvas(chosen.canvas, profile.preferWebP),
         Math.max(ENCODE_FLOOR_MS, profile.deadlineMs - elapsed()),
