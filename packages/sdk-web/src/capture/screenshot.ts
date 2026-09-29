@@ -5,7 +5,7 @@ import type { ScreenshotResult, Rect } from '@everframe/sdk-core';
 import { sha256Hex } from './sha256.js';
 import { applyDomMask } from '../sensitive/registry.js';
 import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reasons.js';
-import { installVideoStandIns } from './video-frames.js';
+import { installVideoStandIns, POSTER_LOAD_TIMEOUT_MS } from './video-frames.js';
 import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
 import { renderViewportWithSnapdom, SnapdomBusyError } from './renderers/snapdom-renderer.js';
 import { paintMaskRectsOnCanvas } from './mask-paint.js';
@@ -253,8 +253,66 @@ export function __filterNodeForTests(node: Node): boolean {
 }
 
 
+/**
+ * Captures never overlap. Each one mutates the LIVE page for its duration -
+ * live-DOM masks (applyDomMask saves and restores inline styles), video
+ * stand-ins, and snapDOM's own clone-time rewrites - and interleaved captures
+ * corrupt each other's save/restore: B saving A's masked styles as
+ * "original" leaves an element masked for good, and A restoring while B
+ * clones leaks sensitive pixels into B. So each capture takes a slot in this
+ * queue before it touches the page and gives it up as soon as the page is
+ * restored (the `finally` below), before its placeholder/hash tail.
+ *
+ * That page-mutating section always ends: every await in it is bounded
+ * (poster loads by POSTER_LOAD_TIMEOUT_MS, renderers and encode by the
+ * deadlines). Belt and braces anyway: a capture that waits longer than any
+ * previous one could take ships the degraded placeholder WITHOUT touching
+ * the page, rather than overlap it.
+ */
+let captureTail: Promise<void> = Promise.resolve();
+const QUEUE_SLACK_MS = 5_000;
+
 export async function captureScreenshot(
   opts: CaptureScreenshotOptions = {},
+): Promise<ScreenshotResult> {
+  const previous = captureTail;
+  let release!: () => void;
+  const slot = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  captureTail = previous.then(() => slot);
+  const profile = getCaptureProfile();
+  const maxWaitMs = profile.deadlineMs + ENCODE_FLOOR_MS + POSTER_LOAD_TIMEOUT_MS + QUEUE_SLACK_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const ready = await Promise.race([
+    previous.then(() => true),
+    new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), maxWaitMs);
+    }),
+  ]);
+  clearTimeout(timer);
+  try {
+    if (!ready) {
+      opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_failed);
+      opts.__setRenderer?.('none');
+      const blob = new Blob([TRANSPARENT_PIXEL_PNG_BYTES as BlobPart], { type: 'image/png' });
+      return {
+        blob,
+        width: 1,
+        height: 1,
+        sha256: await sha256Hex(blob),
+        degradedReason: DEGRADED_REASONS.screenshot_failed,
+      };
+    }
+    return await captureExclusive(opts, release);
+  } finally {
+    release();
+  }
+}
+
+async function captureExclusive(
+  opts: CaptureScreenshotOptions,
+  releasePage: () => void,
 ): Promise<ScreenshotResult> {
   const root = opts.root ?? document.body;
   const restoreObserver = opts.cspNonce ? applyNonceToFreshStyles(opts.cspNonce) : () => undefined;
@@ -427,6 +485,8 @@ export async function captureScreenshot(
     // above — leaving a page with display:none videos and orphaned stand-in
     // divs would be a far worse bug than a failed screenshot.
     restoreVideoStandIns();
+    // The page is back to its resting state: the next capture may start.
+    releasePage();
   }
 
   // No usable canvas (or the encode failed) — ship the placeholder with an

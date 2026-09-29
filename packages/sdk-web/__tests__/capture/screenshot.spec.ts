@@ -1243,6 +1243,9 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
       const a = cap({ root: document.body });
       await vi.advanceTimersByTimeAsync(0);
       const b = cap({ root: document.body, __setDegradedReason: (x) => { reasons.push(x); } });
+      // A times out and restores the page; B (queued behind it) then finds
+      // A's abandoned snapDOM run still going for its whole primary budget.
+      await vi.advanceTimersByTimeAsync(45_000 * 0.6 + 1);
       await vi.advanceTimersByTimeAsync(45_000 * 0.6 + 1);
       const [, rb] = await Promise.all([a, b]);
       expect(snapdom).toHaveBeenCalledTimes(1);
@@ -1267,6 +1270,75 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
       expect(renderer).toBe('none');
       expect(new Uint8Array(await r.blob.arrayBuffer())).toEqual(PNG_BYTES);
     });
+  });
+
+  it('overlapping captures masking the same element never interleave their mask/restore', async () => {
+    const secret = document.createElement('div');
+    secret.setAttribute('style', 'color: red');
+    document.body.appendChild(secret);
+    const original = secret.getAttribute('style');
+    const seenAtClone: string[] = [];
+    const releases: Array<() => void> = [];
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(() => {
+        seenAtClone.push(secret.getAttribute('style') ?? '');
+        return new Promise((resolve) =>
+          releases.push(() => resolve({ toCanvas: async () => makeCanvasStub().stub })),
+        );
+      }),
+    }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    const a = cap({ root: document.body, maskTargets: [secret] });
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    const b = cap({ root: document.body, maskTargets: [secret] });
+    await new Promise((r) => setTimeout(r, 20));
+    // B has not touched the page while A is cloning: masked once, by A.
+    expect(releases).toHaveLength(1);
+    expect(secret.getAttribute('style')).toBe(seenAtClone[0]);
+    releases[0]!();
+    await a;
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    releases[1]!();
+    await b;
+    for (const style of seenAtClone) {
+      // Masked at the moment each clone ran, and exactly once (never A's mask saved as B's "original").
+      expect(style.match(/background-color: #000 !important/g)).toHaveLength(1);
+      expect(style.startsWith('color: red')).toBe(true);
+    }
+    expect(secret.getAttribute('style')).toBe(original);
+    secret.remove();
+  });
+
+  it('a capture that out-waits a stuck earlier one ships the placeholder without touching the page', async () => {
+    vi.useFakeTimers();
+    try {
+      // The earlier capture hangs inside its page-mutating section.
+      vi.doMock('../../src/capture/video-frames.js', async (orig) => ({
+        ...(await orig<typeof import('../../src/capture/video-frames.js')>()),
+        installVideoStandIns: vi.fn(() => new Promise(() => undefined)),
+      }));
+      const snapdom = vi.fn(async () => ({ toCanvas: async () => makeCanvasStub().stub }));
+      vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+      const secret = document.createElement('div');
+      document.body.appendChild(secret);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      void cap({ root: document.body, maskTargets: [secret] });
+      await vi.advanceTimersByTimeAsync(0);
+      const maskedByStuck = secret.getAttribute('style');
+      let reason: string | undefined;
+      const b = cap({ root: document.body, maskTargets: [secret], __setDegradedReason: (x) => { reason = x; } });
+      await vi.advanceTimersByTimeAsync(10_000 + 2_000 + 600 + 5_000 + 1);
+      const rb = await b;
+      expect(reason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(rb.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(new Uint8Array(await rb.blob.arrayBuffer())).toEqual(PNG_BYTES);
+      expect(snapdom).not.toHaveBeenCalled();
+      expect(secret.getAttribute('style')).toBe(maskedByStuck); // B never masked or restored it
+      secret.remove();
+    } finally {
+      vi.doUnmock('../../src/capture/video-frames.js');
+      vi.useRealTimers();
+    }
   });
 
   it('restores DOM masks and video stand-ins after a snapdom capture', async () => {

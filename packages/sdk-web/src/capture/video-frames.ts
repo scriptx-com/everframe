@@ -92,33 +92,16 @@
  */
 
 /**
- * Videos currently stood in for, ACROSS ALL IN-FLIGHT CAPTURES.
- *
- * Captures can overlap: the companion bridge calls `captureScreenshot`
- * independently of the reporter, and React Strict Mode double-invokes effects.
- * Without this, the second capture would read the FIRST one's
- * `display: none !important` as the video's original state, and its teardown
- * would then "restore" the video to hidden — leaving the customer with a
- * permanently invisible video. That is the worst outcome in this whole file:
- * a broken page long after the report was sent.
- *
- * So the first capture to reach a video owns it, and the record is
- * reference-counted: later captures reuse the same stand-in (which is already
- * showing exactly what they want) and the video is only restored once the LAST
- * capture releases it. A WeakMap so a video removed from the page mid-capture
- * is still collectable.
+ * One capture's record of a video it stood in for. Captures never overlap
+ * (captureScreenshot runs them through a queue and restores the page before
+ * the next one starts), so a video is only ever stood in for by one capture
+ * at a time and its "original" display is always the page's own.
  */
 interface StandInRecord {
-  count: number;
+  video: HTMLVideoElement;
   standIn: HTMLElement;
   previousInlineDisplay: string;
   previousInlineDisplayPriority: string;
-}
-const activeStandIns = new WeakMap<HTMLVideoElement, StandInRecord>();
-
-/** Test seam — asserts a video is currently stood in for. */
-export function hasActiveStandIn(video: HTMLVideoElement): boolean {
-  return activeStandIns.has(video);
 }
 
 /** Marks the elements we inject, so teardown can find them and never guess. */
@@ -264,24 +247,6 @@ export function collectVideos(root: ParentNode): HTMLVideoElement[] {
   if ((root as Element).tagName === 'VIDEO') out.push(root as unknown as HTMLVideoElement);
   visit(root);
   return out;
-}
-
-/**
- * Remove a stand-in's content, keeping its box.
- *
- * Used when an overlapping capture considers a video sensitive that the
- * capture which created the stand-in did not. Suppression is MONOTONIC — the
- * most restrictive concurrent capture wins and the frame is never put back —
- * because the alternative is deciding which of two in-flight captures a frame
- * is allowed to reach, and getting that wrong leaks it.
- */
-export function stripStandInContent(standIn: HTMLElement): void {
-  standIn.style.removeProperty('background-image');
-  standIn.style.removeProperty('background-color');
-  standIn.style.removeProperty('background-size');
-  standIn.style.removeProperty('background-position');
-  standIn.style.removeProperty('background-repeat');
-  standIn.style.removeProperty('box-shadow');
 }
 
 /**
@@ -688,8 +653,6 @@ export async function installVideoStandIns(
 
   const ratio = opts.pixelRatio > 0 ? opts.pixelRatio : 1;
   const maskTargets = opts.maskTargets ?? [];
-  /** Videos another capture already owns; we hold a reference, not the state. */
-  const adopted: HTMLVideoElement[] = [];
 
   // PASS 1 — synchronous: measure and read every frame that can be read.
   const viewportW = window.innerWidth;
@@ -706,19 +669,6 @@ export async function installVideoStandIns(
 
   for (const video of videos) {
     if (!video.parentNode) continue;
-    // Already stood in for by an overlapping capture: adopt it rather than
-    // stacking a second stand-in and mis-recording the "original" display.
-    const existing = activeStandIns.get(video);
-    if (existing) {
-      existing.count += 1;
-      adopted.push(video);
-      // The stand-in was built for ANOTHER capture, which may not have
-      // considered this video sensitive. Re-judge it against ours and strip the
-      // frame if we would not have shown it — otherwise an unmasked capture's
-      // stand-in carries a masked frame straight into our report.
-      if (isExcludedFromCapture(video, maskTargets)) stripStandInContent(existing.standIn);
-      continue;
-    }
     // The VISUAL rect, used only to decide whether there is anything to do and
     // how many pixels the frame will actually occupy on screen. The stand-in's
     // own dimensions come from untransformedBorderBox instead — these two
@@ -769,7 +719,7 @@ export async function installVideoStandIns(
     });
   }
 
-  if (candidates.length === 0 && adopted.length === 0) return noop;
+  if (candidates.length === 0) return noop;
 
   // PASS 2 — the only await, and only for videos with a poster to fall back to.
   //
@@ -790,17 +740,8 @@ export async function installVideoStandIns(
 
   // PASS 3 — mutate. Kept last and tight so the window in which the customer's
   // DOM differs from its resting state is as short as possible.
-  const owned: HTMLVideoElement[] = [];
+  const owned: StandInRecord[] = [];
   for (const c of candidates) {
-    // Re-checked here, not just in pass 1: pass 2 awaited, and an overlapping
-    // capture may have claimed this video in the meantime.
-    const existing = activeStandIns.get(c.video);
-    if (existing) {
-      existing.count += 1;
-      adopted.push(c.video);
-      if (c.excluded) stripStandInContent(existing.standIn);
-      continue;
-    }
     const standIn = buildStandIn(c.video, {
       frame: c.frame,
       placeholder: !c.excluded && !c.frame,
@@ -815,28 +756,17 @@ export async function installVideoStandIns(
     // `!important` so a stylesheet rule with higher specificity cannot leave
     // the video visible alongside its stand-in, which would double the box.
     c.video.style.setProperty('display', 'none', 'important');
-    activeStandIns.set(c.video, {
-      count: 1,
-      standIn,
-      previousInlineDisplay,
-      previousInlineDisplayPriority,
-    });
-    owned.push(c.video);
+    owned.push({ video: c.video, standIn, previousInlineDisplay, previousInlineDisplayPriority });
   }
 
-  if (owned.length === 0 && adopted.length === 0) return noop;
+  if (owned.length === 0) return noop;
 
   let restored = false;
   return (): void => {
     if (restored) return;
     restored = true;
-    for (const video of [...owned, ...adopted]) {
-      const record = activeStandIns.get(video);
-      if (!record) continue;
-      record.count -= 1;
-      // Another capture is still relying on this stand-in; it restores.
-      if (record.count > 0) continue;
-      activeStandIns.delete(video);
+    for (const record of owned) {
+      const video = record.video;
       try {
         record.standIn.remove();
       } catch {
