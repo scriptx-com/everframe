@@ -1,0 +1,31 @@
+packages/sdk-web/.size-limit.json
+  s_f1f3a292ebd900::t_afbbf5b2e16323 7,14
+packages/sdk-web/NOTICE
+  s_f1f3a292ebd900::t_f32ff90fcdd941 78-102
+packages/sdk-web/e2e/fixtures/plain.html
+  s_f1f3a292ebd900::t_45ae1dc7fbe525 33
+packages/sdk-web/e2e/static-server.mjs
+  s_f1f3a292ebd900::t_2bc688598b34d6 42
+packages/sdk-web/package.json
+  s_f1f3a292ebd900::t_f495e6cc3c543d 93
+packages/sdk-web/tsup.config.ts
+  s_f1f3a292ebd900::t_af155f20960ca3 133
+pnpm-lock.yaml
+  s_f1f3a292ebd900::t_d4fa03b6de6430 490-492,2850-2852,8192-8193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a0d356ebacdbe578d78eb38b55427499ec4a1747",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
