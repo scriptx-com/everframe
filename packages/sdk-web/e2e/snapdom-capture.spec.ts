@@ -70,7 +70,29 @@ test('nested scroll container shows its scrolled position', async ({ page }) => 
     return { marker: [b.left + 20, b.top + 20] as [number, number] };
   });
   const r = await captureAndSample(page, pos);
+  expect(r.renderer).toBe('snapdom');
   expect(near(r.samples.marker!, [255, 0, 255])).toBe(true);
+});
+
+test('scroller child with a class-applied transform keeps it and the scroll offset', async ({ page }) => {
+  await page.goto('/e2e/fixtures/capture-cases.html');
+  await page.evaluate(() => {
+    const el = document.getElementById('classy')!;
+    el.scrollIntoView();
+    el.scrollTop = 800;
+  });
+  const pos = await page.evaluate(() => {
+    const b = document.getElementById('classy-marker')!.getBoundingClientRect();
+    return {
+      marker: [b.left + 20, b.top + 20] as [number, number],
+      // the un-shifted x position must NOT be coloured
+      unshifted: [b.left - 20, b.top + 20] as [number, number],
+    };
+  });
+  const r = await captureAndSample(page, pos);
+  expect(r.renderer).toBe('snapdom');
+  expect(near(r.samples.marker!, [0, 0, 255])).toBe(true);
+  expect(near(r.samples.unshifted!, [255, 255, 255])).toBe(true);
 });
 
 test('15k-node page is captured by snapdom and is not blank', async ({ page }) => {
