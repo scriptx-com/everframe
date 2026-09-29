@@ -1043,6 +1043,64 @@ describe('captureScreenshot — snapdom primary with fallback', () => {
     expect(r.width).toBe(320);
   });
 
+  describe('TV profile: fallback only on a real snapDOM error', () => {
+    let restoreUa: (() => void) | null = null;
+    beforeEach(() => {
+      restoreUa = stubUserAgent(WEBOS_UA);
+    });
+    afterEach(() => {
+      restoreUa?.();
+      restoreUa = null;
+      vi.useRealTimers();
+    });
+
+    it('ships a blank snapdom canvas flagged screenshot_blank without running the fallback', async () => {
+      mockSnapdom(makeCanvasStub({ width: 320, height: 200 }).stub);
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      blankState.value = true;
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let reason: string | undefined;
+      let renderer: string | undefined;
+      const r = await cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+      expect(domToCanvas).not.toHaveBeenCalled();
+      expect(reason).toBe(DEGRADED_REASONS.screenshot_blank);
+      expect(renderer).toBe('snapdom');
+      expect(r.width).toBe(320);
+    });
+
+    it('still falls back when snapdom throws a real error (Chrome-53-era TVs)', async () => {
+      vi.doMock('@zumer/snapdom', () => ({
+        snapdom: vi.fn(async () => {
+          throw new TypeError('s.append is not a function');
+        }),
+      }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let reason: string | undefined;
+      let renderer: string | undefined;
+      await cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+      expect(domToCanvas).toHaveBeenCalledTimes(1);
+      expect(renderer).toBe('modern-screenshot');
+      expect(reason).toBeUndefined();
+    });
+
+    it('degrades to the placeholder without the fallback when snapdom blows its deadline share', async () => {
+      vi.useFakeTimers();
+      vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(() => new Promise(() => undefined)) }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let reason: string | undefined;
+      let renderer: string | undefined;
+      const p = cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+      await vi.advanceTimersByTimeAsync(45_000 * 0.6 + 1);
+      const r = await p;
+      expect(domToCanvas).not.toHaveBeenCalled();
+      expect(reason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(renderer).toBe('none');
+      expect(new Uint8Array(await r.blob.arrayBuffer())).toEqual(PNG_BYTES);
+    });
+  });
+
   it('restores DOM masks and video stand-ins after a snapdom capture', async () => {
     mockSnapdom(makeCanvasStub().stub);
     const secret = document.createElement('div');

@@ -327,6 +327,7 @@ export async function captureScreenshot(
   const isBlank = (canvas: HTMLCanvasElement): boolean => isCanvasBlank(canvas) === true;
   let accepted: Attempt | null = null;
   let firstBlank: Attempt | null = null;
+  let primaryTimedOut = false;
 
   try {
     try {
@@ -349,11 +350,19 @@ export async function captureScreenshot(
       const attempt: Attempt = { canvas, renderer: 'snapdom' };
       if (blank) firstBlank = attempt;
       else accepted = attempt;
-    } catch {
-      // Fall through to the fallback renderer.
+    } catch (err) {
+      // Fall through to the fallback renderer (subject to the TV policy below).
+      primaryTimedOut = err instanceof CaptureTimeoutError;
     }
 
-    if (!accepted) {
+    // TV profile: the fallback runs only when snapDOM threw a real error — a
+    // blank snapDOM canvas ships flagged, and a snapDOM timeout degrades to
+    // the placeholder. See CaptureProfile.fallbackOnlyOnPrimaryError.
+    const runFallback =
+      !accepted &&
+      (!profile.fallbackOnlyOnPrimaryError || (firstBlank === null && !primaryTimedOut));
+
+    if (runFallback) {
       try {
         // The renderer measures `blank` itself, before it paints maskPlan.
         const { canvas, blank } = await withDeadline(
