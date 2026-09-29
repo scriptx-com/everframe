@@ -68,6 +68,7 @@ import {
 } from './debug/seam.js';
 import { INGEST_URL } from './constants.js';
 import { captureScreenshot, applyMaskRectsToBlob } from './capture/screenshot.js';
+import type { ScreenshotRenderer } from './capture/screenshot.js';
 import type { DegradedReason } from './internal/degraded-reasons.js';
 import { installConsolePatcher } from './capture/logs.js';
 import {
@@ -207,6 +208,8 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * envelope.captureControl.degradedReason. Non-enumerable getter — never iterated.
    */
   readonly __lastDegradedReason?: DegradedReason;
+  /** Renderer that produced the last capture ('none' = degraded placeholder). Non-enumerable; test/diagnostic only. */
+  readonly __lastScreenshotRenderer?: ScreenshotRenderer;
   /**
    * Test-only cleanup hook (plan 03-02) — calls every capture-patcher uninstaller so
    * specs can guarantee teardown without leaving global console/fetch/XHR mutated. NOT
@@ -501,6 +504,7 @@ export function createWebPlatformAdapter(
     throw new Error(`WebPlatformAdapter.${m} not implemented in 03-01 — filled by plan ${plan}`);
   };
   let lastDegradedReason: DegradedReason | undefined;
+  let lastScreenshotRenderer: ScreenshotRenderer | undefined;
 
   // F17/F18 (round-4 review) — set once by onKill() (called from sdk-core's
   // client.kill(), see PlatformAdapter.onKill's doc comment), never reset.
@@ -1731,6 +1735,9 @@ export function createWebPlatformAdapter(
         __setDegradedReason: (r: DegradedReason) => {
           lastDegradedReason = r;
         },
+        __setRenderer: (r: ScreenshotRenderer) => {
+          lastScreenshotRenderer = r;
+        },
       });
     },
     captureFocusedNode: (): FocusedNode | null =>
@@ -2088,6 +2095,11 @@ export function createWebPlatformAdapter(
   // structuredClone never trip over it (Plan 04 + Plan 07 read this property directly).
   Object.defineProperty(adapter, '__lastDegradedReason', {
     get: () => lastDegradedReason,
+    enumerable: false,
+    configurable: false,
+  });
+  Object.defineProperty(adapter, '__lastScreenshotRenderer', {
+    get: () => lastScreenshotRenderer,
     enumerable: false,
     configurable: false,
   });
