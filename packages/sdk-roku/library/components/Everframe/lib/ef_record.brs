@@ -23,5 +23,7 @@ function EfR_FromException(e as dynamic, mechanism as string, handled as boolean
         "appVersion": CreateObject("roAppInfo").GetVersion(),
         crumbs: []
     }
+    build = CreateObject("roAppInfo").GetValue("build_version")
+    if build <> invalid and build <> "" then rec["appBuild"] = build
     return rec
 end function

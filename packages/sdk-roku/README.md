@@ -49,9 +49,9 @@ sub Main()
             ' Keep the exited session's screen and breadcrumbs with the exit.
             if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
             if sec.Exists("crumbs") then info["efCrumbs"] = sec.Read("crumbs")
-            ' Skip sessions that ran with start({ enabled: false }), and keep an exit the
-            ' SDK has not taken yet (library not loaded last launch) over a normal one.
-            keep = sec.Exists("disabled") or (sec.Exists("pendingExit") and info["exit_code"] = "EXIT_USER_NAV")
+            ' Skip sessions that ran with start({ enabled: false }), and never replace an
+            ' exit the SDK has not taken yet (the library did not load last launch).
+            keep = sec.Exists("disabled") or sec.Exists("pendingExit")
             if not keep then sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
         end if
     catch e

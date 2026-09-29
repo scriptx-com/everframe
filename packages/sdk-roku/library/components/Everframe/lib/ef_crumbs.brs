@@ -13,7 +13,7 @@
 '   prevCrumbs  <= 2000, transient: exists only between start() and the
 '               reporter's startup exit check, while "crumbs" is still small
 '   screen, prevScreen: <= 128 each (ef_screen.brs)
-'   mem, rl, lastExitTs, lastCrashT: small; pendingExit: transient
+'   mem, rl, lastExitTs, lastCrashT, ver, prevVer: small; pendingExit: transient
 
 function EfC_MaxPersist() as integer
     return 20

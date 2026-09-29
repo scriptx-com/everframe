@@ -313,4 +313,17 @@ describe('ef_exitinfo.brs', () => {
       expect(lines[0]).toEqual({ r: 'reported', n: 1 });
     });
   }
+
+  it('an exit processed after an app update carries the exited session\'s version (prevVer), then prevVer is gone', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      sec.Write("ver", FormatJson({ "v": "1.0.0", "b": "7" }))
+      EfU_RotateVersion(sec)
+      now = ParseJson(sec.Read("ver"))
+      r = EfX_Process(sec, ${INFO('EXIT_CHANNEL_MEM_LIMIT_FG')})
+      rec = EfQ_List(sec)[0].rec
+      print "EFTEST:" + FormatJson({ r: r, v: rec.appVersion, b: rec.appBuild, prev: sec.Exists("prevVer"), now: now.v = CreateObject("roAppInfo").GetVersion() })
+    `);
+    expect(lines[0]).toEqual({ r: 'reported', v: '1.0.0', b: '7', prev: false, now: true });
+  });
 });

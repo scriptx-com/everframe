@@ -101,4 +101,19 @@ describe('ef_envelope.brs', () => {
     expect(part.type).toBe('application/json');
     expect(JSON.parse(await part.text())).toEqual({ x: 1 });
   });
+
+  it('a record keeps its own session\'s version and build, not the running app\'s', async () => {
+    const { lines } = await runBrs(LIBS, `
+      ctx = EfE_Context("0.1.0")
+      ctx.app.build = "9"
+      base = { v: 1, id: "id-v-xxxxxxxx", t: 1790000000100&, kind: "crash", handled: false, fatal: true, mechanism: "exit-info", exceptionType: "E", message: "m", frames: [], crumbs: [] }
+      a = EfE_Build(base, ctx, EfU_NowMs()).context.app
+      base["appVersion"] = "1.0.0"
+      b = EfE_Build(base, ctx, EfU_NowMs()).context.app
+      base["appBuild"] = "7"
+      c = EfE_Build(base, ctx, EfU_NowMs()).context.app
+      print "EFTEST:" + FormatJson({ a: a.build, b: [b.version, b.build], c: [c.version, c.build] })
+    `);
+    expect(lines[0]).toEqual({ a: '9', b: ['1.0.0', null], c: ['1.0.0', '7'] });
+  });
 });

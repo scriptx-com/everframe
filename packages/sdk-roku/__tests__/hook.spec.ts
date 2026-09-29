@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { runBrs, HOOK_DIR } from './brs-harness.js';
 
 const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'];
@@ -197,5 +198,30 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
       print "EFTEST:" + FormatJson({ r: r, crumbs: rec.crumbs.Count(), user: rec.user = invalid, route: rec.route = invalid })
     `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs'), node] });
     expect(lines[0]).toEqual({ r: [false, false, false], crumbs: 0, user: true, route: true });
+  });
+
+  it('the README tier 1 Main() snippet stores an exit, never replaces a pending one, and skips disabled sessions', async () => {
+    const readme = readFileSync(path.join(HOOK_DIR, '..', 'README.md'), 'utf8');
+    const block = readme.match(/```brightscript\n' source\/main\.brs\n([\s\S]*?)```/)![1]!;
+    const lines = block.split('\n');
+    const from = lines.findIndex((l) => l.includes('if type(info) = "roAssociativeArray"'));
+    const to = lines.findIndex((l, i) => i > from && l === '        end if');
+    const store = lines.slice(from, to + 1).join('\n');
+    const run = (setup: string) => runBrs(LIBS, `
+      sec0 = EfU_Section()
+      ${setup}
+      info = { exit_code: "EXIT_BRIGHTSCRIPT_CRASH", timestamp: "2026-09-29T10:00:00.000Z" }
+${store}
+      s = EfU_Section()
+      out = invalid
+      if s.Exists("pendingExit") then out = ParseJson(s.Read("pendingExit"))
+      print "EFTEST:" + FormatJson(out)
+    `);
+    const fresh = await run('sec0.Write("screen", "Home")');
+    expect(fresh.lines[0]).toMatchObject({ exit_code: 'EXIT_BRIGHTSCRIPT_CRASH', efScreen: 'Home' });
+    const pending = await run('sec0.Write("pendingExit", FormatJson({ exit_code: "EXIT_CHANNEL_MEM_LIMIT_FG", timestamp: "x" }))');
+    expect(pending.lines[0]).toMatchObject({ exit_code: 'EXIT_CHANNEL_MEM_LIMIT_FG' });
+    const disabled = await run('sec0.Write("disabled", "1")');
+    expect(disabled.lines[0]).toBeNull();
   });
 });

@@ -52,6 +52,7 @@ function start(config as object) as boolean
         ' attaches "prevCrumbs" to the previous session's exit-info record.
         EfC_Rotate(sec)
         EfS_Rotate(sec)
+        EfU_RotateVersion(sec)
         m.sec = sec
         if m.crumbs.Count() > 0 then
             EfC_Persist(sec, m.crumbs)

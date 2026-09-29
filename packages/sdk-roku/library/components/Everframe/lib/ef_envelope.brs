@@ -48,10 +48,15 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
     reporter = { title: EfU_Truncate(crash.exceptionType + ": " + crash.message, 200), description: "" }
     if rec.user <> invalid then reporter.user = rec.user
 
-    appVersion = ctx.app.version
-    if rec.appVersion <> invalid then appVersion = rec.appVersion
-    app = { name: ctx.app.name, version: appVersion }
+    ' A record carries the version (and build) of the session it happened in,
+    ' which after an app update differs from the running one.
+    app = { name: ctx.app.name, version: ctx.app.version }
     if ctx.app.build <> invalid then app.build = ctx.app.build
+    if rec.appVersion <> invalid then
+        app.version = rec.appVersion
+        app.Delete("build")
+        if rec.appBuild <> invalid then app.build = rec.appBuild
+    end if
 
     context = {
         app: app,

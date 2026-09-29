@@ -150,3 +150,20 @@ function EfU_IsAbnormalExit(code as dynamic) as boolean
     if known.DoesExist(code) then return true
     return Instr(1, UCase(code), "CRASH") > 0
 end function
+
+' This session's app version/build as JSON { "v", "b"? }.
+function EfU_VersionJson() as string
+    ai = CreateObject("roAppInfo")
+    out = { "v": ai.GetVersion() }
+    build = ai.GetValue("build_version")
+    if build <> invalid and build <> "" then out["b"] = build
+    return FormatJson(out)
+end function
+
+' start(): the previous session's "ver" becomes "prevVer" (read by the exit
+' check, which runs after start), then "ver" records this session's.
+sub EfU_RotateVersion(sec as object)
+    if sec.Exists("ver") then sec.Write("prevVer", sec.Read("ver")) else sec.Delete("prevVer")
+    sec.Write("ver", EfU_VersionJson())
+    sec.Flush()
+end sub

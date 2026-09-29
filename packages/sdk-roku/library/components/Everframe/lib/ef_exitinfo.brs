@@ -40,6 +40,8 @@ function EfX_ToRecord(info as object) as object
         crumbs: [],
         "exitInfo": meta
     }
+    build = CreateObject("roAppInfo").GetValue("build_version")
+    if build <> invalid and build <> "" then rec["appBuild"] = build
     parsed = EfF_ParseConsoleLog(info.console_log)
     if parsed <> invalid then
         rec["exceptionType"] = EfF_ExceptionType(parsed.number)
@@ -104,6 +106,12 @@ end function
 function EfX_Process(sec as object, info as dynamic) as string
     prevCrumbs = EfX_TakePrevCrumbs(sec)
     prevScreen = EfS_TakePrev(sec)
+    prevVer = invalid
+    if sec.Exists("prevVer") then
+        prevVer = ParseJson(sec.Read("prevVer"))
+        sec.Delete("prevVer")
+        sec.Flush()
+    end if
     if type(info) <> "roAssociativeArray" then return "none"
     if info.exit_code = invalid or info.timestamp = invalid then return "none"
     if EfU_ReadOrInvalid(sec, "lastExitTs") = info.timestamp then return "none"
@@ -128,6 +136,12 @@ function EfX_Process(sec as object, info as dynamic) as string
             result = "merged"
         else
             rec = EfX_ToRecord(info)
+            ' The exited session's version, not this (possibly updated) one.
+            if type(prevVer) = "roAssociativeArray" and prevVer.v <> invalid then
+                rec["appVersion"] = prevVer.v
+                rec.Delete("appBuild")
+                if prevVer.b <> invalid then rec["appBuild"] = prevVer.b
+            end if
             rec.crumbs = EfX_SnapCrumbs(info, prevCrumbs)
             route = EfX_SnapScreen(info, prevScreen)
             if route <> invalid then rec.route = route
