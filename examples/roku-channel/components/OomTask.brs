@@ -16,5 +16,7 @@ sub exhaustMemory()
         chunk.SetResize(4 * 1024 * 1024, false)
         chunk[4 * 1024 * 1024 - 1] = 1
         hog.Push(chunk)
+        ' Climb gradually (~16 MB/s) so the SDK's 5 s memory poll sees 75/90/95 %.
+        sleep(250)
     end while
 end sub
