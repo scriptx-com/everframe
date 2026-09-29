@@ -22,7 +22,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('reports an OOM exit as a new record with exit metadata', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       r = EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
       rec = EfQ_List(sec)[0].rec
       print "EFTEST:" + FormatJson({ r: r, rec: rec, lastExitTs: sec.Read("lastExitTs") })
@@ -36,7 +36,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('ignores an exit already handled (same timestamp on the next launch)', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       a = EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
       b = EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
       print "EFTEST:" + FormatJson({ a: a, b: b, n: EfQ_List(sec).Count() })
@@ -46,7 +46,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('records a normal exit timestamp without reporting', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       r = EfX_Process(sec, ${INFO('EXIT_UNKNOWN')})
       print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count(), ts: sec.Read("lastExitTs") })
       print "EFTEST:" + FormatJson(EfX_Process(sec, invalid))
@@ -57,7 +57,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('suppresses Path B when Path A recorded the crash (merges exit info)', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       pathA = { v: 1, id: "aaaaaaaa-1", t: EfU_MsFromIso("2026-09-29T10:00:03Z"), kind: "crash", handled: false, fatal: true, exceptionType: "RuntimeError(&hEC)", message: "m", frames: [], crumbs: [] }
       EfQ_Put(sec, pathA)
       r = EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH')})
@@ -69,7 +69,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('merges by kind, not clock: device skew (OS exit 45 s ahead of the channel clock) is still the same crash', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       exitMs = EfU_MsFromIso("2026-09-29T12:29:32Z")
       pathA = { v: 1, id: "aaaaaaaa-1", t: exitMs - 45000, kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [] }
       EfQ_Put(sec, pathA)
@@ -82,7 +82,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('suppresses (queue empty) for a skewed crash whose Path A record was already sent, any *CRASH* code', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("lastCrashT", (EfU_MsFromIso("2026-09-29T12:29:32Z") - 600000).ToStr())
       r = EfX_Process(sec, ${INFO('EXIT_NATIVE_CRASH', '2026-09-29T12:29:32Z')})
       print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count() })
@@ -92,7 +92,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('a memory/system kill is still reported separately even when lastCrashT is present', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("lastCrashT", EfU_MsFromIso("2026-09-29T10:00:03Z").ToStr())
       r = EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
       print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count(), left: sec.Exists("lastCrashT") })
@@ -105,7 +105,7 @@ describe('ef_exitinfo.brs', () => {
   // processes the exit. The report must carry session 1's screen and crumbs.
   it('exit report keeps the crashed session\'s screen and crumbs although the new session already set a screen', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       ' session 1 state left in the registry
       EfS_Persist(sec, "DetailsScreen")
       EfC_Persist(sec, [{ t: 1790000000000&, seq: 0, kind: "navigation", message: "screen: DetailsScreen" }])
@@ -131,7 +131,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('without a Main snapshot the rotated prevScreen/prevCrumbs still apply', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevScreen", "DetailsScreen")
       EfS_Persist(sec, "Lab")
       EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
@@ -142,7 +142,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('serializes the merged exitInfo key in camelCase', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       pathA = { v: 1, id: "aaaaaaaa-1", t: EfU_MsFromIso("2026-09-29T10:00:03Z"), kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [] }
       k = EfQ_Put(sec, pathA)
       EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH')})
@@ -156,7 +156,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('suppresses Path B when the Path A record was already sent', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("lastCrashT", EfU_MsFromIso("2026-09-29T10:00:03Z").ToStr())
       r = EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH')})
       print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count() })
@@ -167,7 +167,7 @@ describe('ef_exitinfo.brs', () => {
   it('parses frames from console_log when present', async () => {
     const log = `"boom. (runtime error &hec) in pkg:/components/A.brs(9)" + Chr(10) + "Backtrace:" + Chr(10) + "#0  Function go() As Void" + Chr(10) + "   file/line: pkg:/components/A.brs(9)"`;
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH', '2026-09-29T10:00:05Z', log)})
       print "EFTEST:" + FormatJson(EfQ_List(sec)[0].rec)
     `);
@@ -180,7 +180,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('EfX_TakePending returns the stored record once and deletes the key', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("pendingExit", ${brsString(DEVICE_JSON)})
       sec.Flush()
       a = EfX_TakePending(sec)
@@ -191,7 +191,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('EfX_TakePending drops garbled or non-object values', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       out = []
       for each raw in ["{not json", "[1,2]", "42", ""]
         sec.Write("pendingExit", raw)
@@ -206,7 +206,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('a device record taken from pendingExit is processed (ms timestamp), then de-duplicated', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("pendingExit", ${brsString(DEVICE_JSON)})
       a = EfX_Process(sec, EfX_TakePending(sec))
       sec.Write("pendingExit", ${brsString(DEVICE_JSON)})
@@ -219,7 +219,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('attaches the previous session\'s persisted crumbs (prevCrumbs) and deletes them', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevCrumbs", "[{""t"":1790000000000,""seq"":3,""kind"":""custom"",""message"":""before crash""}]")
       r = EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
       print "EFTEST:" + FormatJson({ r: r, crumbs: EfQ_List(sec)[0].rec.crumbs, left: sec.Exists("prevCrumbs") })
@@ -229,7 +229,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('a merged Path A record keeps its own crumbs; prevCrumbs is still deleted', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       pathA = { v: 1, id: "aaaaaaaa-1", t: EfU_MsFromIso("2026-09-29T10:00:03Z"), kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [{ t: 1&, seq: 0, kind: "tap", message: "own" }] }
       EfQ_Put(sec, pathA)
       sec.Write("prevCrumbs", "[{""t"":2,""seq"":9,""kind"":""custom"",""message"":""persisted""}]")
@@ -241,7 +241,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('prevCrumbs is deleted even when no exit is pending or the exit was normal', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevCrumbs", "[]")
       a = EfX_Process(sec, invalid)
       l1 = sec.Exists("prevCrumbs")
@@ -254,7 +254,7 @@ describe('ef_exitinfo.brs', () => {
 
   it('snapshots the previous session\'s memory reading onto the exit record (only when fresh)', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       exitMs = EfU_MsFromIso("2026-09-29T10:00:05Z")
       sec.Write("mem", FormatJson({ "percent": 97, "limitMb": 286, "t": exitMs - 4000 }))
       EfX_Process(sec, ${INFO('EXIT_OUT_OF_MEMORY')})
@@ -272,5 +272,34 @@ describe('ef_exitinfo.brs', () => {
     const src = readFileSync(path.join(LIB_DIR, '..', 'EverframeReporter.brs'), 'utf8');
     expect(src).not.toMatch(/roAppManager|GetLastExitInfo\(/);
     expect(src).toMatch(/EfX_Process\(m\.sec, EfX_TakePending\(m\.sec\)\)/);
+  });
+
+  it('EfX_ClearRecovered drops a crash marker the channel outlived and keeps a fresh one', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      now = EfU_NowMs()
+      sec.Write("lastCrashT", (now - 3000).ToStr())
+      EfX_ClearRecovered(sec, now)
+      fresh = sec.Exists("lastCrashT")
+      sec.Write("lastCrashT", (now - 60000).ToStr())
+      EfX_ClearRecovered(sec, now)
+      stale = sec.Exists("lastCrashT")
+      sec.Write("lastCrashT", "garbage")
+      EfX_ClearRecovered(sec, now)
+      print "EFTEST:" + FormatJson({ fresh: fresh, stale: stale, garbage: sec.Exists("lastCrashT") })
+    `);
+    expect(lines[0]).toEqual({ fresh: true, stale: false, garbage: false });
+  });
+
+  it('a Path A error the host recovered from does not swallow a later crash exit', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      recovered = { v: 1, id: "aaaaaaaa-1", t: EfU_NowMs() - 60000, kind: "crash", handled: false, fatal: true, exceptionType: "RuntimeError(&hEC)", message: "caught by host", frames: [], crumbs: [] }
+      EfQ_Put(sec, recovered)
+      EfX_ClearRecovered(sec, EfU_NowMs())
+      r = EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH')})
+      print "EFTEST:" + FormatJson({ r: r, n: EfQ_List(sec).Count() })
+    `);
+    expect(lines[0]).toEqual({ r: 'reported', n: 2 });
   });
 });

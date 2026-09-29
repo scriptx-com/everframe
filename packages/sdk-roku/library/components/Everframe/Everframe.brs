@@ -27,11 +27,24 @@ function start(config as object) as boolean
             print "[everframe] start() needs { sdkKey }"
             return false
         end if
-        if config.enabled = false then return false
+        sec = EfU_Section()
+        if config.enabled = false then
+            ' Remembered so the injected hook stops recording too, and nothing
+            ' captured now is uploaded by a later enabled start().
+            sec.Write("disabled", "1")
+            for each k in EfQ_Keys(sec)
+                sec.Delete(k)
+            end for
+            sec.Flush()
+            return false
+        end if
+        if sec.Exists("disabled") then
+            sec.Delete("disabled")
+            sec.Flush()
+        end if
         if config.maxBreadcrumbs <> invalid then m["maxCrumbs"] = EfU_MaxCrumbs(config.maxBreadcrumbs)
         ' Rotate before anything of this session is persisted: the reporter
         ' attaches "prevCrumbs" to the previous session's exit-info record.
-        sec = CreateObject("roRegistrySection", "Everframe")
         EfC_Rotate(sec)
         EfS_Rotate(sec)
         m.sec = sec
@@ -60,11 +73,12 @@ end function
 
 function captureException(e as dynamic) as boolean
     try
+        sec = EfU_Section()
+        if EfU_IsDisabled(sec) then return false
         rec = EfR_FromException(e, "captureException", true)
         rec.crumbs = getCrumbs(invalid)
         if m.user <> invalid then rec.user = m.user
         if m.screen <> invalid then rec.route = m.screen
-        sec = CreateObject("roRegistrySection", "Everframe")
         mem = EfU_ReadMem(sec, rec.t)
         if mem <> invalid then rec.memory = mem
         EfQ_Put(sec, rec)

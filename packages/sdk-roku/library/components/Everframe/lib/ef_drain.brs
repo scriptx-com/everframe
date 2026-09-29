@@ -6,7 +6,8 @@
 ' network failure). `state` = { seen: {}, allowed: {} } persists across drains.
 
 ' Returns true when records remain that should be retried later. The crash-loop
-' guard is charged once per record (state.allowed), not once per attempt.
+' guard is charged once per record (state.allowed and the record's own
+' "allowed" flag), not once per attempt or per launch.
 ' With no device/app context (ctx invalid) nothing is sent or removed: a record
 ' only counts as unbuildable when the context is known to be good.
 function EfD_Drain(sec as object, ctx as dynamic, state as object, post as function) as boolean
@@ -22,10 +23,17 @@ function EfD_Drain(sec as object, ctx as dynamic, state as object, post as funct
         if env = invalid then
             EfQ_Remove(sec, item.key)
         else
-            send = state.allowed.DoesExist(item.key)
+            ' "allowed" is also stored on the record, so an offline record is
+            ' charged once in total, not once per launch that retries it.
+            send = state.allowed.DoesExist(item.key) or item.rec.DoesExist("allowed")
             if not send then
                 send = EfQ_Allow(sec, env.payload.crash.fingerprint, EfU_NowMs(), state.seen)
-                if send then state.allowed[item.key] = true
+                if send then
+                    state.allowed[item.key] = true
+                    item.rec["allowed"] = true
+                    sec.Write(item.key, EfQ_Fit(item.rec))
+                    sec.Flush()
+                end if
             end if
             if not send then
                 EfQ_Remove(sec, item.key)

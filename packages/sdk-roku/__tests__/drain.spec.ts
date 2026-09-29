@@ -9,7 +9,7 @@ const REC = (t: string, msg = 'm', type = 'RuntimeError(&hEC)') => `{ v: 1, id: 
 // The stub sender pops scripted statuses off m.statuses and logs each call in m.calls.
 const PRELUDE = `
   m.calls = []
-  sec = CreateObject("roRegistrySection", "Everframe")
+  sec = EfU_Section()
   ctx = EfE_Context("0.1.0")
   state = { seen: {}, allowed: {} }
 `;
@@ -107,5 +107,24 @@ describe('ef_drain.brs', () => {
       print "EFTEST:" + FormatJson({ retry: retry, left: EfQ_List(sec).Count(), calls: m.calls.Count() })
     `);
     expect(lines[0]).toEqual({ retry: true, left: 2, calls: 1 });
+  });
+
+  it('charges the crash-loop guard once per record across launches while offline', async () => {
+    // Each launch has a fresh in-memory state; 5 offline launches, then online.
+    const { lines } = await go([0, 0, 0, 0, 0, 200], `
+      EfQ_Put(sec, ${REC('1790000000100')})
+      for i = 1 to 5
+        EfD_Drain(sec, ctx, { seen: {}, allowed: {} }, Stub)
+      end for
+      rl = ParseJson(sec.Read("rl"))
+      charges = 0
+      for each k in rl
+        charges = charges + rl[k].Count()
+      end for
+      left = EfQ_List(sec).Count()
+      EfD_Drain(sec, ctx, { seen: {}, allowed: {} }, Stub)
+      print "EFTEST:" + FormatJson({ charges: charges, left: left, calls: m.calls.Count(), leftAfter: EfQ_List(sec).Count() })
+    `);
+    expect(lines[0]).toEqual({ charges: 1, left: 1, calls: 6, leftAfter: 0 });
   });
 });

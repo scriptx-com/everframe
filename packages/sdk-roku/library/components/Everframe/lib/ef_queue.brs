@@ -47,6 +47,29 @@ function EfQ_Fit(rec as object) as string
         end if
         json = FormatJson(rec)
     end if
+    ' Last resort, so a stored record never exceeds EfQ_MaxChars() (the
+    ' registry is ~16KB for everything): outer frames, then short caps on
+    ' every free-text field, then the remaining frames.
+    while Len(json) > EfQ_MaxChars() and rec.frames <> invalid and rec.frames.Count() > 1
+        rec.frames.Pop()
+        json = FormatJson(rec)
+    end while
+    if Len(json) > EfQ_MaxChars() then
+        if rec.exitInfo <> invalid then rec.exitInfo.Delete("consoleLog")
+        if type(rec.user) = "roAssociativeArray" then
+            for each k in rec.user
+                rec.user[k] = EfU_Truncate(rec.user[k], 64)
+            end for
+        end if
+        for each k in ["message", "exceptionType", "context", "route"]
+            if rec[k] <> invalid then rec[k] = EfU_Truncate(rec[k], 128)
+        end for
+        json = FormatJson(rec)
+    end if
+    if Len(json) > EfQ_MaxChars() then
+        rec.frames = []
+        json = FormatJson(rec)
+    end if
     return json
 end function
 

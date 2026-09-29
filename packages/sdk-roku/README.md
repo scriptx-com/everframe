@@ -44,7 +44,8 @@ sub Main()
         am = CreateObject("roAppManager")
         info = am.GetLastExitInfo()
         if type(info) = "roAssociativeArray" and info["exit_code"] <> invalid and info["timestamp"] <> invalid then
-            sec = CreateObject("roRegistrySection", "Everframe")
+            ' One section per channel: Roku shares the registry across a developer's channels.
+            sec = CreateObject("roRegistrySection", "Everframe_" + CreateObject("roAppInfo").GetID())
             ' Keep the exited session's screen and breadcrumbs with the exit.
             if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
             if sec.Exists("crumbs") then info["efCrumbs"] = sec.Read("crumbs")
@@ -58,7 +59,7 @@ sub Main()
 end sub
 ```
 
-Roku returns the previous launch's exit record (`GetLastExitInfo`, Roku OS 13.0+) only to your channel's own code. Called from inside the Everframe ComponentLibrary it always answers `EXIT_UNKNOWN` with no timestamp, so the library cannot read it itself. These lines store the record in the registry (section `Everframe`, key `pendingExit`); the library picks it up after `start()` and reports it, together with the screen and breadcrumbs of the session that ended (copied before the new launch writes its own). A crash already reported by `try`/`catch` is matched to its exit by kind, not by clock, because the device clock and the exit timestamp can differ by tens of seconds. Without them, tier 1 still sends `captureException` reports, but crashes that end the channel are not detected. Tier 2 inserts the equivalent call (`Everframe_RecordLastExit()`) into `Main` / `RunUserInterface` for you.
+Roku returns the previous launch's exit record (`GetLastExitInfo`, Roku OS 13.0+) only to your channel's own code. Called from inside the Everframe ComponentLibrary it always answers `EXIT_UNKNOWN` with no timestamp, so the library cannot read it itself. These lines store the record in the registry (section `Everframe_<channel ID>`, key `pendingExit`); the library picks it up after `start()` and reports it, together with the screen and breadcrumbs of the session that ended (copied before the new launch writes its own). A crash already reported by `try`/`catch` is matched to its exit by kind, not by clock, because the device clock and the exit timestamp can differ by tens of seconds. Without them, tier 1 still sends `captureException` reports, but crashes that end the channel are not detected. Tier 2 inserts the equivalent call (`Everframe_RecordLastExit()`) into `Main` / `RunUserInterface` for you.
 
 > **Warning:** calling `GetLastExitInfo()` in your own code as well is fine: reading it does not consume the record. Call it from `Main()` or a Task only, never from the render thread (a component's `init`, observers, or `onKeyEvent`): `roAppManager` cannot be created there.
 
@@ -82,7 +83,7 @@ end sub
 | --- | --- | --- |
 | `sdkKey` | required | Your Everframe SDK key |
 | `endpoint` | `https://everframe.dev` | Ingest host. For self-testing only |
-| `enabled` | `true` | Set `false` to turn the SDK off |
+| `enabled` | `true` | Set `false` to turn the SDK off. This is remembered on the device: queued reports are discarded, and instrumented code records nothing until a later `start()` without it. |
 | `maxBreadcrumbs` | `50` | Breadcrumb ring size. An integer, clamped to 1–50; other values are ignored |
 
 ## Tier 1: ComponentLibrary, remote
@@ -234,17 +235,17 @@ m.global.everframe.callFunc("setScreen", "Details")
 
 `setScreen(name)` records the screen the viewer is on. Every report sent after that carries it as `context.route`, and each change leaves a `navigation` breadcrumb `screen: <name>` with `data: { from, to }` (`from` is left out for the first screen). The name is trimmed and cut to 128 characters; numbers and booleans become strings; blank, `invalid` or non-scalar names and a repeat of the current screen are ignored. It returns `true` when the screen changed. `getScreen(invalid)` returns the current screen, or `invalid` before the first call.
 
-The current screen is also written to the registry (section `Everframe`, key `screen`) on every change. A crash that only the next launch can detect (the exit reason from `GetLastExitInfo`) carries the screen from the session that exited, and a crash caught in-process carries the screen current at the time. Calls made before `start()` are kept in memory and written when `start()` runs.
+The current screen is also written to the registry (section `Everframe_<channel ID>`, key `screen`) on every change. A crash that only the next launch can detect (the exit reason from `GetLastExitInfo`) carries the screen from the session that exited, and a crash caught in-process carries the screen current at the time. Calls made before `start()` are kept in memory and written when `start()` runs.
 
 With tier 2 you usually do not need to call it: see [Automatic screens](#automatic-screens).
 
 ## Breadcrumbs across crashes and memory pressure
 
-Both tiers keep the latest 20 breadcrumbs in the registry (section `Everframe`, key `crumbs`, at most 2000 characters), written at most once every 2 seconds. On the next `start()` they move to `prevCrumbs`, and a crash detected on that launch from the exit reason carries them, so a report reconstructed from `GetLastExitInfo` still shows what happened before it. Reports caught in-process use the live breadcrumbs.
+Both tiers keep the latest 20 breadcrumbs in the registry (section `Everframe_<channel ID>`, key `crumbs`, at most 2000 characters), written at most once every 2 seconds. On the next `start()` they move to `prevCrumbs`, and a crash detected on that launch from the exit reason carries them, so a report reconstructed from `GetLastExitInfo` still shows what happened before it. Reports caught in-process use the live breadcrumbs.
 
 Where `roAppMemoryMonitor` is available, the SDK's reporter Task checks memory use every 5 seconds. It leaves a `custom` breadcrumb at level `warn` the first time use crosses 75, 90 and 95 % of the channel's limit (for example `memory 90% of 286 MB`), and one for the OS memory warning event. Every report carries the latest reading in `details.metadata.memory` as `{ percent, limitMb }`; a crash found on the next launch carries the last reading taken before it.
 
-The registry holds up to 6 queued reports of 2000 characters each plus the breadcrumbs and the current screen (at most 128 characters), about 14 KB of Roku's 16 KB per channel. Leave room for your own registry data accordingly.
+The registry holds up to 6 queued reports of 2000 characters each plus the breadcrumbs and the current screen (at most 128 characters), about 14 KB of Roku's 16 KB registry. Leave room for your own registry data accordingly. The section name includes the channel ID (`roAppInfo.GetID()`, `dev` when sideloaded) because Roku shares the registry between channels signed with the same developer key.
 
 ## Endpoint
 

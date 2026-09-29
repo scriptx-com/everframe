@@ -3,7 +3,7 @@
 '
 ' Path B: turn roAppManager.GetLastExitInfo() (Roku OS 13.0+) into a record.
 ' Roku returns the record only to the channel's own code, never to this
-' ComponentLibrary, so the channel's Main() stores it in registry "Everframe"/
+' ComponentLibrary, so the channel's Main() stores it in registry "Everframe_<channel id>"/
 ' "pendingExit" (Everframe_RecordLastExit in the hook, or the README snippet)
 ' and the reporter takes it with EfX_TakePending. GetLastExitInfo keeps
 ' returning the same exit until the next one, so the handled timestamp is
@@ -124,8 +124,9 @@ function EfX_Process(sec as object, info as dynamic) as string
         lastCrashMs = invalid
         if lastCrash <> invalid then lastCrashMs = ParseJson(lastCrash)
         ' No timestamp comparison: the OS exit time and the channel's roDateTime
-        ' clock differ by tens of seconds on device. A Path A fatal crash always
-        ' ends its session and "lastCrashT" is deleted at every exit check, so a
+        ' clock differ by tens of seconds on device. A Path A crash that ends its
+        ' session leaves "lastCrashT" (EfX_ClearRecovered drops it when the
+        ' channel survived), and it is deleted at every exit check, so a
         ' present "lastCrashT" plus a crash-type exit is the same crash. Memory
         ' and system kills stay separate reports (they are not a BrightScript
         ' crash, so Path A's record does not describe them).
@@ -151,3 +152,18 @@ function EfX_Process(sec as object, info as dynamic) as string
     sec.Flush()
     return result
 end function
+
+' Path A writes "lastCrashT" as it re-throws. A channel still running well
+' after that means the host caught the re-throw: that error did not end the
+' session, so the next crash exit must be reported, not merged into it. The
+' reporter calls this on every wake (<= 5 s); both times come from roDateTime.
+sub EfX_ClearRecovered(sec as object, nowMs as dynamic)
+    raw = EfU_ReadOrInvalid(sec, "lastCrashT")
+    if raw = invalid then return
+    t = invalid
+    if raw <> "" then t = ParseJson(raw)
+    if not EfU_IsNum(t) or nowMs - t > 10000 then
+        sec.Delete("lastCrashT")
+        sec.Flush()
+    end if
+end sub

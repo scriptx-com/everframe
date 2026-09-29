@@ -9,7 +9,7 @@ const REC = (t: string) => `{ v: 1, id: "id-${t}-xxxxxxxx", t: ${t}&, kind: "cra
 describe('ef_queue.brs', () => {
   it('stores records one per key, lists oldest first, removes', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       k2 = EfQ_Put(sec, ${REC('1790000000200')})
       k1 = EfQ_Put(sec, ${REC('1790000000100')})
       items = EfQ_List(sec)
@@ -26,7 +26,7 @@ describe('ef_queue.brs', () => {
   it('keeps at most 6 records, dropping the oldest', async () => {
     const puts = Array.from({ length: 8 }, (_, i) => `EfQ_Put(sec, ${REC(String(1790000000000 + i))})`).join('\n');
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       ${puts}
       items = EfQ_List(sec)
       print "EFTEST:" + FormatJson({ n: items.Count(), first: items[0].rec.t.ToStr() })
@@ -56,7 +56,7 @@ describe('ef_queue.brs', () => {
 
   it('attaches exit info to the record with matching t', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       EfQ_Put(sec, ${REC('1790000000100')})
       ok = EfQ_AttachExit(sec, 1790000000100&, { exitCode: "EXIT_BRIGHTSCRIPT_CRASH" })
       miss = EfQ_AttachExit(sec, 1790000000999&, { exitCode: "X" })
@@ -67,7 +67,7 @@ describe('ef_queue.brs', () => {
 
   it('allows a fingerprint once per launch and 3 times per hour', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       now = 1790000000000&
       out = []
       out.Push(EfQ_Allow(sec, "fp1", now, {}))
@@ -85,7 +85,7 @@ describe('ef_queue.brs', () => {
   it('does not treat the rate-limit key as a record', async () => {
     const puts = Array.from({ length: 6 }, (_, i) => `EfQ_Put(sec, ${REC(String(1790000000000 + i))})`).join('\n');
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       EfQ_Allow(sec, "fp1", 1790000000000&, {})
       ${puts}
       items = EfQ_List(sec)
@@ -114,7 +114,7 @@ describe('ef_queue.brs', () => {
 
   it('prunes fingerprints whose timestamps are all older than an hour when rewriting rl', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       now = 1790000000000&
       EfQ_Allow(sec, "old", now, {})
       EfQ_Allow(sec, "mixed", now, {})
@@ -125,5 +125,21 @@ describe('ef_queue.brs', () => {
     `);
     expect(lines[0].keys.sort()).toEqual(['fresh', 'mixed']);
     expect(lines[0].mixed).toBe(1);
+  });
+
+  it('EfQ_Fit never returns more than EfQ_MaxChars(), whatever the record holds', async () => {
+    const { lines } = await runBrs(LIBS, `
+      frames = []
+      for i = 0 to 30
+        frames.Push({ "function": String(120, "f"), file: "pkg:/" + String(150, "p") + ".brs", line: i, raw: String(300, "r") })
+      end for
+      rec = { v: 1, id: "id-big-xxxxxxxx", t: 1790000000100&, kind: "crash", handled: false, fatal: true, exceptionType: String(500, "E"), message: String(5000, "m"), frames: frames, crumbs: [], context: String(300, "c"), route: String(300, "s"), user: { id: String(900, "i"), email: String(900, "e"), "displayName": String(900, "d") }, "exitInfo": { "exitCode": "EXIT_BRIGHTSCRIPT_CRASH", "consoleLog": String(1000, "l") } }
+      json = EfQ_Fit(rec)
+      back = ParseJson(json)
+      print "EFTEST:" + FormatJson({ len: Len(json), max: EfQ_MaxChars(), parsed: type(back) = "roAssociativeArray", frames: back.frames.Count() })
+    `);
+    expect(lines[0].parsed).toBe(true);
+    expect(lines[0].len).toBeLessThanOrEqual(lines[0].max);
+    expect(lines[0].frames).toBeGreaterThanOrEqual(1);
   });
 });

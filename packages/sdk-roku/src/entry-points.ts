@@ -47,7 +47,8 @@ export function screenVia(name: string, parents: Map<string, string>, patterns: 
 
 export interface EntryPlan {
   files: Map<string, Map<string, WrapTarget>>;
-  components: Array<{ xml: string; name: string; scripts: string[] }>;
+  /** Every component, excluded ones too (`excluded`: no targets of its own, but it still needs the hook imports when a script it shares is wrapped). */
+  components: Array<{ xml: string; name: string; scripts: string[]; excluded: boolean }>;
   /** Every component whose own name or an ancestor's matched --screens, and the matched name. */
   screens: Array<{ component: string; via: string }>;
 }
@@ -108,24 +109,45 @@ export function discoverEntryPoints(
   // Pass 1: inheritance map from every component XML (excluded ones still count as ancestors).
   const parsed: Array<{ rel: string; comp: any }> = [];
   const parents = new Map<string, string>();
+  const byName = new Map<string, { rel: string; comp: any }>();
   for (const rel of all.filter((f) => f.startsWith('components/') && f.endsWith('.xml'))) {
     let comp: any;
     try { comp = xml.parse(readFileSync(path.join(root, rel), 'utf8'))?.component; } catch { continue; }
     if (!comp?.name) continue;
     if (comp.extends) parents.set(String(comp.name).toLowerCase(), String(comp.extends));
     parsed.push({ rel, comp });
+    if (!byName.has(String(comp.name).toLowerCase())) byName.set(String(comp.name).toLowerCase(), { rel, comp });
   }
+  const scriptsOf = (rel: string, comp: any): string[] => [comp.script].flat().filter(Boolean)
+    .map((s: { uri?: string }) => s.uri ?? '')
+    .filter((u: string) => u.endsWith('.brs'))
+    .map((u: string) => (u.startsWith('pkg:/') ? u.slice(5) : path.posix.join(path.posix.dirname(rel), u)))
+    .filter((s: string) => !s.startsWith('components/everframe_hook/'));
+  // Callbacks a component declares (interface onChange / functions) or wires up in its scripts (observeField, functionName).
+  const callbacks = (rel: string, comp: any): Array<[string, WrapTarget, Mechanism]> => {
+    const out: Array<[string, WrapTarget, Mechanism]> = [];
+    const iface = comp.interface ?? {};
+    for (const f of [iface.field].flat().filter(Boolean)) {
+      if (f.onChange) out.push([f.onChange, { entry: '', isTask: false }, 'observer']);
+    }
+    for (const f of [iface.function].flat().filter(Boolean)) {
+      if (f.name) out.push([f.name, { entry: '', isTask: false }, 'callfunc']);
+    }
+    for (const s of scriptsOf(rel, comp)) {
+      let text = '';
+      try { text = readFileSync(path.join(root, s), 'utf8'); } catch { continue; }
+      for (const m of text.matchAll(OBSERVE_RE)) out.push([m[1]!, { entry: '', isTask: false }, 'observer']);
+      for (const m of text.matchAll(TASK_RE)) out.push([m[1]!, { entry: '', isTask: true }, 'task']);
+    }
+    return out;
+  };
 
   for (const { rel, comp } of parsed) {
-    if (excluded(rel, opts.exclude)) continue;
-    const scripts: string[] = [comp.script].flat().filter(Boolean)
-      .map((s: { uri?: string }) => s.uri ?? '')
-      .filter((u: string) => u.endsWith('.brs'))
-      .map((u: string) => (u.startsWith('pkg:/') ? u.slice(5) : path.posix.join(path.posix.dirname(rel), u)))
-      .filter((s: string) => !s.startsWith('components/everframe_hook/') && !excluded(s, opts.exclude));
-    plan.components.push({ xml: rel, name: comp.name, scripts });
+    const skip = excluded(rel, opts.exclude);
+    const scripts = scriptsOf(rel, comp).filter((s) => !excluded(s, opts.exclude));
+    plan.components.push({ xml: rel, name: comp.name, scripts, excluded: skip });
+    if (skip) continue;
 
-    const iface = comp.interface ?? {};
     // Lifecycle crumbs only for the scene: every component's init would flood the ring.
     const isScene = comp.extends === 'Scene';
     const via = on('init') ? screenVia(String(comp.name), parents, opts.screens ?? []) : undefined;
@@ -138,18 +160,17 @@ export function discoverEntryPoints(
         ...(isScreen ? { screen: SCREEN_EXPR, screenVia: via } : {}),
       }, 'init'],
       ['onKeyEvent', { entry: '', isTask: false, crumb: 'key' }, 'key'],
+      ...callbacks(rel, comp),
     ];
-    for (const f of [iface.field].flat().filter(Boolean)) {
-      if (f.onChange) targets.push([f.onChange, { entry: '', isTask: false }, 'observer']);
-    }
-    for (const f of [iface.function].flat().filter(Boolean)) {
-      if (f.name) targets.push([f.name, { entry: '', isTask: false }, 'callfunc']);
-    }
-    for (const s of scripts) {
-      let text = '';
-      try { text = readFileSync(path.join(root, s), 'utf8'); } catch { continue; }
-      for (const m of text.matchAll(OBSERVE_RE)) targets.push([m[1]!, { entry: '', isTask: false }, 'observer']);
-      for (const m of text.matchAll(TASK_RE)) targets.push([m[1]!, { entry: '', isTask: true }, 'task']);
+    // Inherited callbacks: a base Task's script may set functionName to a function this
+    // component defines. Ancestors (excluded or not) contribute callbacks, never init/screen.
+    const seen = new Set([String(comp.name).toLowerCase()]);
+    for (let p = parents.get(String(comp.name).toLowerCase()); p && !seen.has(p.toLowerCase());) {
+      seen.add(p.toLowerCase());
+      const anc = byName.get(p.toLowerCase());
+      if (!anc) break;
+      targets.push(...callbacks(anc.rel, anc.comp));
+      p = parents.get(p.toLowerCase());
     }
     for (const s of scripts) {
       for (const [fn, t, mech] of targets) {

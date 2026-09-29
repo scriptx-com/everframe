@@ -13,7 +13,7 @@ end sub
 sub EfRep_Run()
     port = CreateObject("roMessagePort")
     m.top.observeField("flush", port)
-    m.sec = CreateObject("roRegistrySection", "Everframe")
+    m.sec = EfU_Section()
     m.state = { seen: {}, allowed: {} }
     backoff = 0
     m.ctx = invalid
@@ -78,6 +78,11 @@ sub EfRep_Idle(port as object, ms as integer)
         end if
         msg = wait(timeout, port)
         EfRep_FlushCrumbs()
+        try
+            EfX_ClearRecovered(m.sec, EfU_NowMs())
+        catch e
+            print "[everframe] crash marker check failed: "; e.message
+        end try
         if type(msg) = "roAppMemoryNotificationEvent" then
             EfRep_MemWarning(msg)
         else if msg <> invalid then

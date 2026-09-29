@@ -40,7 +40,7 @@ describe('ef_screen.brs', () => {
 
   it('rotate moves "screen" to "prevScreen"; with no "screen" a stale "prevScreen" is dropped', async () => {
     const { lines } = await runBrs(['ef_util.brs', 'ef_screen.brs'], `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevScreen", "Old")
       EfS_Persist(sec, "Details")
       EfS_Rotate(sec)
@@ -54,7 +54,7 @@ describe('ef_screen.brs', () => {
 
   it('EfS_TakePrev returns the previous screen once and deletes the key', async () => {
     const { lines } = await runBrs(['ef_util.brs', 'ef_screen.brs'], `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevScreen", "Details")
       a = EfS_TakePrev(sec)
       b = EfS_TakePrev(sec)
@@ -70,7 +70,7 @@ describe('Everframe node: setScreen / getScreen', () => {
   it('stores the screen, adds a navigation crumb, persists "screen", and ignores repeats and junk', async () => {
     const { lines } = await runBrs(NODE_LIBS, `
       init()
-      m.sec = CreateObject("roRegistrySection", "Everframe")
+      m.sec = EfU_Section()
       r = [setScreen("Home"), setScreen("  Details "), setScreen("Details"), setScreen(invalid), setScreen(""), setScreen({})]
       print "EFTEST:" + FormatJson({ r: r, screen: getScreen(invalid), stored: m.sec.Read("screen"), crumbs: getCrumbs(invalid) })
     `, { extraFiles: [NODE] });
@@ -88,7 +88,7 @@ describe('Everframe node: setScreen / getScreen', () => {
     const { lines } = await runBrs(NODE_LIBS, `
       init()
       setScreen("Home")
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       print "EFTEST:" + FormatJson({ screen: getScreen(invalid), stored: sec.Exists("screen") })
     `, { extraFiles: [NODE] });
     expect(lines[0]).toEqual({ screen: 'Home', stored: false });
@@ -101,7 +101,7 @@ describe('Everframe node: setScreen / getScreen', () => {
       captureException("no screen")
       setScreen("Player")
       captureException("with screen")
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       recs = EfQ_List(sec)
       out = []
       for each item in recs
@@ -157,7 +157,7 @@ describe('route on reports', () => {
 
   it('an exit-info record carries the previous session\'s screen (prevScreen), which is then deleted', async () => {
     const { lines } = await runBrs(EXIT_LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevScreen", "DetailsScreen")
       r = EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH')})
       print "EFTEST:" + FormatJson({ r: r, route: EfQ_List(sec)[0].rec.route, left: sec.Exists("prevScreen") })
@@ -167,7 +167,7 @@ describe('route on reports', () => {
 
   it('prevScreen is deleted even with no pending exit, and a merged Path A record keeps its own route', async () => {
     const { lines } = await runBrs(EXIT_LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevScreen", "Stale")
       EfX_Process(sec, invalid)
       l1 = sec.Exists("prevScreen")

@@ -38,8 +38,10 @@ interface Edit { line: number; col: number; text: string }
 const brsQuote = (s: string) => '"' + s.replace(/"/g, '""') + '"';
 
 export function wrapFunctions(source: string, targets: Map<string, WrapTarget>): WrapResult {
-  const eol = source.includes('\r\n') ? '\r\n' : '\n';
-  const lines = source.split(eol);
+  // [line0, eol0, line1, eol1, ...]: each line keeps its own terminator; the
+  // lexer's three newline forms, so line i (at 2i) is the parser's line i.
+  const parts = source.split(/(\r\n|\r|\n)/);
+  const lines = parts.filter((_, i) => i % 2 === 0);
   const parsed = Parser.parse(source);
   if (parsed.diagnostics.length > 0) {
     return { code: source, wrapped: [], skipped: [{ fn: '*', reason: `parse error: ${parsed.diagnostics[0]!.message}` }] };
@@ -100,8 +102,8 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
   // Apply bottom-up / right-to-left so earlier positions stay valid.
   edits.sort((a, b) => b.line - a.line || b.col - a.col);
   for (const e of edits) {
-    const l = lines[e.line]!;
-    lines[e.line] = l.slice(0, e.col) + e.text + l.slice(e.col);
+    const l = parts[e.line * 2]!;
+    parts[e.line * 2] = l.slice(0, e.col) + e.text + l.slice(e.col);
   }
-  return { code: lines.join(eol), wrapped, skipped };
+  return { code: parts.join(''), wrapped, skipped };
 }

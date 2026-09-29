@@ -113,3 +113,20 @@ function EfU_ReadMem(sec as object, atMs as dynamic) as dynamic
     if EfU_IsNum(mem.limitMb) then out["limitMb"] = mem.limitMb
     return out
 end function
+
+' Roku shares the registry between every channel signed with the same
+' developer key, so the section carries the channel ID ("dev" when
+' sideloaded): one channel never drains another's reports.
+function EfU_SectionName() as string
+    return "Everframe_" + CreateObject("roAppInfo").GetID()
+end function
+
+function EfU_Section() as object
+    return CreateObject("roRegistrySection", EfU_SectionName())
+end function
+
+' start({ enabled: false }) sets "disabled"; the hook and captureException
+' then record nothing until a start() without it.
+function EfU_IsDisabled(sec as object) as boolean
+    return sec.Exists("disabled")
+end function

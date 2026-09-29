@@ -61,6 +61,18 @@ describe('wrapFunctions', () => {
     expect(out.code.split('\r\n')).toHaveLength(4);
   });
 
+  it('mixed CRLF/LF: edits land on the parser\'s lines and every terminator is kept', () => {
+    const src = "' header\r\nsub helper()\n  print 0\nend sub\r\nsub Main()\n  print 1\r\n  print 2\nend sub\r\n";
+    const out = wrapFunctions(src, T({ main: { entry: 'Main', isTask: false } }));
+    expect(out.wrapped).toEqual(['Main']);
+    expect(Parser.parse(out.code).diagnostics).toEqual([]);
+    expect(out.code).toBe(
+      "' header\r\nsub helper()\n  print 0\nend sub\r\n" +
+      `sub Main() : try ${MARKER}\n  print 1\r\n  print 2\n` +
+      'catch everframe_e : Everframe_OnError(everframe_e, "Main", false) : throw everframe_e : end try : end sub\r\n',
+    );
+  });
+
   it('wrapped code runs: error is reported with entry, then re-thrown as a crash', async () => {
     const src = ['sub Main()', '  Boom()', 'end sub', 'sub Boom()', '  x = invalid', '  x.go()', 'end sub', ''].join('\n');
     const code = wrapFunctions(src, T({ main: { entry: 'Main (source/main.brs)', isTask: false } })).code;

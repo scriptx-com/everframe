@@ -90,7 +90,7 @@ describe('ef_memory.brs (memory pressure thresholds)', () => {
 
   it('EfU_ReadMem returns a fresh reading, ignores stale or garbled ones', async () => {
     const { lines } = await runBrs(['ef_util.brs'], `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       a = EfU_ReadMem(sec, 1000&)
       sec.Write("mem", "{""percent"":88,""limitMb"":286,""t"":1790000000000}")
       b = EfU_ReadMem(sec, 1790000010000&)

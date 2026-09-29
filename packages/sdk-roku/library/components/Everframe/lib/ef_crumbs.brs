@@ -2,7 +2,7 @@
 ' SPDX-FileCopyrightText: 2026 ScriptX
 '
 ' Breadcrumbs that survive a crash. The Everframe node keeps its in-memory
-' ring buffer and also persists the latest crumbs to registry "Everframe"/
+' ring buffer and also persists the latest crumbs to registry "Everframe_<channel id>"/
 ' "crumbs". start() rotates them to "prevCrumbs" before the new session writes
 ' anything, and the reporter attaches "prevCrumbs" to the next-launch exit-info
 ' record (EfX_Process), then deletes it.

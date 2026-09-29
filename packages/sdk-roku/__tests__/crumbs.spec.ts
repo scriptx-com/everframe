@@ -49,7 +49,7 @@ describe('ef_crumbs.brs (breadcrumbs persisted across a crash)', () => {
 
   it('rotate moves "crumbs" to "prevCrumbs" (overwriting) and clears "crumbs"', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevCrumbs", "[{""old"":1}]")
       sec.Write("crumbs", "[{""seq"":7}]")
       EfC_Rotate(sec)
@@ -60,7 +60,7 @@ describe('ef_crumbs.brs (breadcrumbs persisted across a crash)', () => {
 
   it('rotate with no "crumbs" drops a stale "prevCrumbs" from an older session', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       sec.Write("prevCrumbs", "[{""old"":1}]")
       EfC_Rotate(sec)
       print "EFTEST:" + FormatJson({ prev: sec.Exists("prevCrumbs"), has: sec.Exists("crumbs") })
@@ -70,7 +70,7 @@ describe('ef_crumbs.brs (breadcrumbs persisted across a crash)', () => {
 
   it('persist writes the serialized crumbs to "crumbs"', async () => {
     const { lines } = await runBrs(LIBS, `
-      sec = CreateObject("roRegistrySection", "Everframe")
+      sec = EfU_Section()
       ${crumbsLiteral(3)}
       EfC_Persist(sec, crumbs)
       print "EFTEST:" + FormatJson({ raw: sec.Read("crumbs") })

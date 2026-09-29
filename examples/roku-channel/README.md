@@ -42,7 +42,7 @@ Flags:
 | Flag | Effect |
 |---|---|
 | `--no-deploy` | Build and package only (`.build/everframe-crash-lab.zip`); do not sideload. `pnpm --filter @everframe/example-roku build:roku` is the same. |
-| `--no-instrument` | Skip the `everframe-roku instrument` step (the SDK is still started, but there are no automatic wrappers). |
+| `--no-instrument` | Skip the `everframe-roku instrument` step (the SDK is still started, but there are no automatic wrappers, and no next-launch exit reports either: the lab's `Main()` has no tier 1 exit snippet). |
 | `--remote-library <url>` | Load the SDK component library from an `http(s)` URL instead of bundling it in the channel. |
 | `--logs` | After sideloading, stream the Roku debug console (`<ROKU_HOST>:8085`) to the terminal and to `.build/console.log`. Retries the connection for up to 15 s while the channel starts; Ctrl+C stops it. |
 

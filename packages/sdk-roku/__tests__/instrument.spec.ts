@@ -6,12 +6,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Parser } from 'brighterscript';
-import { instrument } from '../src/instrument.js';
+import { instrument, injectHookImports, OUT_MARKER } from '../src/instrument.js';
 import { runBrs } from './brs-harness.js';
 
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/channel-basic');
 const tmp = () => mkdtempSync(path.join(tmpdir(), 'efinst-'));
 const read = (p: string) => readFileSync(p, 'utf8');
+const HOOKS = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'];
+const stripComments = (t: string) => t.replace(/<!--[\s\S]*?-->/g, '');
+const compXml = (name: string, ext: string, body: string) =>
+  `<?xml version="1.0" encoding="utf-8" ?>\n<component name="${name}" extends="${ext}">\n${body}</component>\n`;
+const scriptTag = (uri: string) => `  <script type="text/brightscript" uri="${uri}" />\n`;
 /** brs-cli stand-ins for the hook functions an instrumented init() calls. */
 const STUBS = (dir: string) => {
   const f = path.join(dir, 'stubs.brs');
@@ -181,6 +186,142 @@ describe('instrument', () => {
     expect(read(target)).toBe(before);
     expect(lstatSync(path.join(out, 'components/Linked.brs')).isSymbolicLink()).toBe(false);
     expect(read(path.join(out, 'components/Linked.brs'))).toContain('Everframe_OnError');
+  });
+  describe('output path aliasing', () => {
+    /** A channel copy that also holds a normal `.everframe-build/` build directory. */
+    const chanWithBuildDir = () => {
+      const base = tmp();
+      const chan = path.join(base, 'chan');
+      cpSync(FIX, chan, { recursive: true });
+      mkdirSync(path.join(chan, '.everframe-build'));
+      writeFileSync(path.join(chan, '.everframe-build', 'old.txt'), 'x');
+      return { base, chan };
+    };
+
+    it('refuses --out that is a symlink to the channel (a .everframe-build/ dir is not a marker)', () => {
+      const { base, chan } = chanWithBuildDir();
+      const alias = path.join(base, 'alias');
+      symlinkSync(chan, alias, 'dir');
+      expect(() => instrument({ root: chan, out: alias })).toThrow(/must differ/);
+      expect(() => instrument({ root: alias, out: chan })).toThrow(/must differ/);
+      expect(existsSync(path.join(chan, 'manifest'))).toBe(true);
+      expect(existsSync(path.join(chan, 'components/HomeScene.brs'))).toBe(true);
+    });
+
+    it('refuses --out that is (an alias of) an ancestor of the channel', () => {
+      const { base, chan } = chanWithBuildDir();
+      mkdirSync(path.join(base, '.everframe-build'));
+      const alias = path.join(tmp(), 'alias');
+      symlinkSync(base, alias, 'dir');
+      expect(() => instrument({ root: chan, out: alias })).toThrow(/must not contain the channel/);
+      expect(() => instrument({ root: chan, out: path.join(chan, '..') + '/' })).toThrow(/must not contain the channel/);
+      expect(existsSync(path.join(chan, 'manifest'))).toBe(true);
+    });
+
+    it('--out inside the real channel is skipped even when the channel is named through a symlink', () => {
+      const { base, chan } = chanWithBuildDir();
+      rmSync(path.join(chan, '.everframe-build'), { recursive: true });
+      const alias = path.join(base, 'alias');
+      symlinkSync(chan, alias, 'dir');
+      const out = path.join(chan, 'build');
+      expect(instrument({ root: alias, out }).wrapped.length).toBe(9);
+      expect(instrument({ root: alias, out }).wrapped.length).toBe(9);
+      expect(existsSync(path.join(out, 'build'))).toBe(false);
+      expect(read(path.join(out, 'components/HomeScene.brs'))).toContain('Everframe_OnError');
+      // --out named through the alias, not yet existing: canonicalised via its nearest existing ancestor.
+      const out2 = path.join(alias, 'b2', 'nested');
+      expect(instrument({ root: chan, out: out2 }).wrapped.length).toBe(9);
+      expect(instrument({ root: chan, out: out2 }).wrapped.length).toBe(9);
+      expect(existsSync(path.join(chan, 'b2/nested/components/HomeScene.brs'))).toBe(true);
+      expect(existsSync(path.join(chan, 'b2/nested/b2/nested'))).toBe(false);
+    });
+
+    it('only clears a directory whose marker is a regular file written by this tool', () => {
+      const cases: Array<(out: string) => void> = [
+        (out) => mkdirSync(path.join(out, OUT_MARKER)),
+        (out) => writeFileSync(path.join(out, OUT_MARKER), 'something else\n'),
+        (out) => {
+          const real = path.join(tmp(), 'marker');
+          writeFileSync(real, 'Created by everframe-roku instrument. This directory is cleared on every run.\n');
+          symlinkSync(real, path.join(out, OUT_MARKER));
+        },
+      ];
+      for (const plant of cases) {
+        const out = tmp();
+        writeFileSync(path.join(out, 'precious.txt'), 'keep me');
+        plant(out);
+        expect(() => instrument({ root: FIX, out })).toThrow(/refusing to overwrite/);
+        expect(read(path.join(out, 'precious.txt'))).toBe('keep me');
+      }
+      const out = tmp();
+      instrument({ root: FIX, out });
+      writeFileSync(path.join(out, 'stale.txt'), 'x');
+      instrument({ root: FIX, out });
+      expect(existsSync(path.join(out, 'stale.txt'))).toBe(false);
+      expect(lstatSync(path.join(out, OUT_MARKER)).isFile()).toBe(true);
+    });
+  });
+
+  describe('hook imports and XML comments', () => {
+    it('injects after the last active script, never into a trailing comment', () => {
+      const chan = path.join(tmp(), 'chan');
+      cpSync(FIX, chan, { recursive: true });
+      const commented = '  <!-- <script type="text/brightscript" uri="Old.brs" /> -->\n' +
+        '  <!-- <script type="text/brightscript" uri="pkg:/components/everframe_hook/everframe_hook.brs" /> -->\n';
+      writeFileSync(path.join(chan, 'components/Cmt.xml'), compXml('Cmt', 'Group', scriptTag('Cmt.brs') + commented));
+      writeFileSync(path.join(chan, 'components/Cmt.brs'), 'sub init()\n  print 1\nend sub\n');
+      const out = tmp();
+      const r = instrument({ root: chan, out });
+      const text = read(path.join(out, 'components/Cmt.xml'));
+      expect(text).toContain(commented);
+      const active = stripComments(text);
+      for (const f of HOOKS) expect(active).toContain(`uri="pkg:/components/everframe_hook/${f}"`);
+      expect(active.indexOf('everframe_hook.brs')).toBeGreaterThan(active.indexOf('uri="Cmt.brs"'));
+      expect(r.injected).toContain('components/Cmt.xml');
+    });
+
+    it('injectHookImports: ignores commented and CDATA scripts; with no active script inserts before </component>; idempotent', () => {
+      const cdata = '  <script type="text/brightscript"><![CDATA[ x = "<script uri=\\"a.brs\\"/>" ]]></script>\n  <!-- <script uri="z.brs" /> -->\n';
+      const withInline = injectHookImports(compXml('A', 'Group', cdata));
+      expect(withInline).toContain(']]></script>\n  <script type="text/brightscript" uri="pkg:/components/everframe_hook/everframe_hook.brs" />');
+      expect(stripComments(withInline).match(/everframe_hook\//g)).toHaveLength(HOOKS.length);
+      const none = injectHookImports(compXml('B', 'Group', '  <!-- <script uri="z.brs" /> -->\n'));
+      expect(none).toMatch(/ef_queue\.brs" \/>\n<\/component>\n$/);
+      for (const f of HOOKS) expect(stripComments(none)).toContain(`pkg:/components/everframe_hook/${f}`);
+      expect(injectHookImports(none)).toBe(none);
+      expect(() => injectHookImports('<component name="C" extends="Group" />')).toThrow(/no <script> or <\/component>/);
+    });
+  });
+
+  it('an excluded component sharing a wrapped script still gets the hook imports', () => {
+    const chan = path.join(tmp(), 'chan');
+    cpSync(FIX, chan, { recursive: true });
+    writeFileSync(path.join(chan, 'components/Keep.xml'), compXml('Keep', 'Group', scriptTag('Shared.brs')));
+    writeFileSync(path.join(chan, 'components/Drop.xml'), compXml('Drop', 'Group', scriptTag('pkg:/components/Shared.brs')));
+    writeFileSync(path.join(chan, 'components/Shared.brs'), 'sub init()\n  print 1\nend sub\n');
+    const out = tmp();
+    const r = instrument({ root: chan, out, exclude: ['components/Drop.xml'] });
+    expect(r.wrapped).toContainEqual({ file: 'components/Shared.brs', fn: 'init' });
+    for (const x of ['Keep', 'Drop']) {
+      for (const f of HOOKS) expect(read(path.join(out, `components/${x}.xml`)), x).toContain(`pkg:/components/everframe_hook/${f}`);
+      expect(r.injected).toContain(`components/${x}.xml`);
+    }
+    // Excluding a component whose script is not shared leaves it untouched.
+    const r2 = instrument({ root: chan, out: tmp(), exclude: ['components/Drop.xml', 'components/Keep.xml'] });
+    expect(r2.injected).not.toContain('components/Drop.xml');
+  });
+
+  it('wraps a Task function whose functionName is set by the base Task', () => {
+    const chan = path.join(tmp(), 'chan');
+    cpSync(FIX, chan, { recursive: true });
+    writeFileSync(path.join(chan, 'components/BaseTask.xml'), compXml('BaseTask', 'Task', scriptTag('BaseTask.brs')));
+    writeFileSync(path.join(chan, 'components/BaseTask.brs'), 'sub init()\n  m.top.functionName = "runTask"\nend sub\n');
+    writeFileSync(path.join(chan, 'components/MyTask.xml'), compXml('MyTask', 'BaseTask', scriptTag('MyTask.brs')));
+    writeFileSync(path.join(chan, 'components/MyTask.brs'), 'sub runTask()\n  print 1\nend sub\n');
+    const out = tmp();
+    const r = instrument({ root: chan, out });
+    expect(r.wrapped).toContainEqual({ file: 'components/MyTask.brs', fn: 'runTask' });
+    expect(read(path.join(out, 'components/MyTask.brs'))).toContain('Everframe_OnError(everframe_e, "runTask (components/MyTask.brs)", true)');
   });
   describe('screens', () => {
     const withScreens = () => {

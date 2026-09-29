@@ -225,7 +225,7 @@ end function
 ' it into "pendingExit"; the SDK's reporter takes it and stores the handled
 ' timestamp in "lastExitTs". Show both instead.
 function LabSdkLastExit() as dynamic
-    sec = CreateObject("roRegistrySection", "Everframe")
+    sec = CreateObject("roRegistrySection", "Everframe_" + CreateObject("roAppInfo").GetID())
     pending = ""
     if sec.Exists("pendingExit") then pending = " (exit pending for the SDK)"
     if not sec.Exists("lastExitTs") then return "none yet" + pending
@@ -233,7 +233,7 @@ function LabSdkLastExit() as dynamic
 end function
 
 function LabQueueCount() as integer
-    sec = CreateObject("roRegistrySection", "Everframe")
+    sec = CreateObject("roRegistrySection", "Everframe_" + CreateObject("roAppInfo").GetID())
     n = 0
     for each k in sec.GetKeyList()
         if Left(k, 1) = "r" and Instr(1, "0123456789", Mid(k, 2, 1)) > 0 then n = n + 1
@@ -262,7 +262,7 @@ end function
 ' The SDK reporter (a Task) polls the app memory monitor and persists its latest
 ' reading in "mem"; the render thread cannot use the monitor itself.
 function LabMemory() as dynamic
-    sec = CreateObject("roRegistrySection", "Everframe")
+    sec = CreateObject("roRegistrySection", "Everframe_" + CreateObject("roAppInfo").GetID())
     if not sec.Exists("mem") then return "no reading yet"
     mem = ParseJson(sec.Read("mem"))
     if type(mem) <> "roAssociativeArray" or mem.percent = invalid then return "-"

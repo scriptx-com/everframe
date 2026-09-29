@@ -147,3 +147,75 @@ describe('screen inheritance', () => {
     expect(plan.screens).toEqual([]);
   });
 });
+
+describe('inherited callbacks', () => {
+  const xml = (name: string, ext: string, script: string, iface = '') =>
+    `<?xml version="1.0" encoding="utf-8" ?>\n<component name="${name}" extends="${ext}">\n${iface}  <script type="text/brightscript" uri="${script}" />\n</component>\n`;
+  function chan(files: Record<string, string>): string {
+    const root = mkdtempSync(path.join(tmpdir(), 'efcb-'));
+    mkdirSync(path.join(root, 'components'), { recursive: true });
+    for (const [f, t] of Object.entries(files)) writeFileSync(path.join(root, 'components', f), t);
+    return root;
+  }
+
+  it('a derived Task gets the functionName / observer / interface callbacks its ancestors declare', () => {
+    const root = chan({
+      'BaseTask.xml': xml('BaseTask', 'Task', 'BaseTask.brs',
+        '  <interface>\n    <field id="req" type="string" onChange="onReq" />\n    <function name="doIt" />\n  </interface>\n'),
+      'BaseTask.brs': 'sub init()\n  m.top.functionName = "runTask"\n  m.top.observeField("x", "onX")\nend sub\n',
+      'Mid.xml': xml('Mid', 'BaseTask', 'Mid.brs'),
+      'Mid.brs': 'sub other()\n  print 1\nend sub\n',
+      'MyTask.xml': xml('MyTask', 'Mid', 'MyTask.brs'),
+      'MyTask.brs': 'sub runTask()\n  print 1\nend sub\n',
+    });
+    const plan = discoverEntryPoints(root, { exclude: [], mechanisms: all, screens: [] });
+    const own = plan.files.get('components/MyTask.brs')!;
+    expect(own.get('runtask')).toMatchObject({ isTask: true, entry: 'runTask (components/MyTask.brs)' });
+    expect(own.get('onx')).toMatchObject({ isTask: false });
+    expect(own.get('onreq')).toMatchObject({ isTask: false });
+    expect(own.get('doit')).toMatchObject({ isTask: false });
+    // Only callbacks are inherited: init / screen targets stay per component.
+    expect(own.get('init')).toMatchObject({ entry: 'MyTask' });
+  });
+
+  it('an excluded ancestor still contributes callbacks; cycles and unknown parents end the walk', () => {
+    const root = chan({
+      'A.xml': xml('A', 'B', 'A.brs'),
+      'A.brs': 'sub init()\n  m.top.functionName = "fromA"\nend sub\n',
+      'B.xml': xml('B', 'A', 'B.brs'),
+      'B.brs': 'sub fromA()\n  print 1\nend sub\n',
+      'Base.xml': xml('Base', 'Nope', 'Base.brs'),
+      'Base.brs': 'sub init()\n  m.top.functionName = "go"\nend sub\n',
+      'Kid.xml': xml('Kid', 'Base', 'Kid.brs'),
+      'Kid.brs': 'sub go()\n  print 1\nend sub\n',
+    });
+    const plan = discoverEntryPoints(root, { exclude: ['components/Base.*'], mechanisms: all, screens: [] });
+    expect(plan.files.get('components/B.brs')?.get('froma')).toMatchObject({ isTask: true });
+    expect(plan.files.get('components/Kid.brs')?.get('go')).toMatchObject({ isTask: true });
+    expect(plan.files.has('components/Base.brs')).toBe(false);
+  });
+
+  it('respects --mechanisms for inherited callbacks', () => {
+    const root = chan({
+      'BaseTask.xml': xml('BaseTask', 'Task', 'BaseTask.brs'),
+      'BaseTask.brs': 'sub init()\n  m.top.functionName = "runTask"\nend sub\n',
+      'MyTask.xml': xml('MyTask', 'BaseTask', 'MyTask.brs'),
+      'MyTask.brs': 'sub runTask()\n  print 1\nend sub\n',
+    });
+    const plan = discoverEntryPoints(root, { exclude: [], mechanisms: new Set<Mechanism>(['init']), screens: [] });
+    expect(plan.files.get('components/MyTask.brs')?.has('runtask')).toBe(false);
+  });
+});
+
+describe('excluded components', () => {
+  it('are listed with excluded: true and their resolved scripts, but get no targets of their own', () => {
+    const root = channel([['Keep', 'Group', 'Shared.brs'], ['Drop', 'Group', 'Shared.brs'], ['Solo', 'Group', 'Solo.brs']]);
+    const plan = discoverEntryPoints(root, { exclude: ['components/Drop.xml', 'components/Solo.xml'], mechanisms: all, screens: [] });
+    const byName = Object.fromEntries(plan.components.map((c) => [c.name, c]));
+    expect(byName.Keep).toMatchObject({ xml: 'components/Keep.xml', scripts: ['components/Shared.brs'], excluded: false });
+    expect(byName.Drop).toMatchObject({ xml: 'components/Drop.xml', scripts: ['components/Shared.brs'], excluded: true });
+    expect(byName.Solo).toMatchObject({ excluded: true });
+    expect(plan.files.has('components/Solo.brs')).toBe(false);
+    expect(initOf(plan, 'components/Shared.brs')?.entry).toBe('Keep');
+  });
+});

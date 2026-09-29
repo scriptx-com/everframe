@@ -7,10 +7,11 @@
 
 sub Everframe_OnError(e as object, entry as string, isTask as boolean)
     try
+        sec = EfU_Section()
+        if EfU_IsDisabled(sec) then return
         rec = EfR_FromException(e, "try-catch", false)
         rec.context = EfU_Truncate(entry, 256)
         rec.thread = Everframe__Thread(isTask)
-        sec = CreateObject("roRegistrySection", "Everframe")
         ' Latest reading the SDK reporter persisted (invalid when none or stale).
         mem = EfU_ReadMem(sec, rec.t)
         if mem <> invalid then rec.memory = mem
@@ -32,7 +33,7 @@ end sub
 ' Call first thing in Main() (the instrumented build does). Roku returns the
 ' previous launch's exit record only to the channel's own code: the same call
 ' from the Everframe ComponentLibrary always gets EXIT_UNKNOWN with no
-' timestamp. The record is stored in registry "Everframe"/"pendingExit"; the
+' timestamp. The record is stored in registry "Everframe_<channel id>"/"pendingExit"; the
 ' library's reporter takes it from there. roAppManager is not available on the
 ' render thread, so this must run in Main (or a Task), never in a component.
 sub Everframe_RecordLastExit()
@@ -49,7 +50,7 @@ sub Everframe__StoreExit(info as dynamic)
     try
         if type(info) = "roAssociativeArray" then
             if Everframe__IsStr(info["exit_code"]) and Everframe__IsStr(info["timestamp"]) then
-                sec = CreateObject("roRegistrySection", "Everframe")
+                sec = EfU_Section()
                 ' Snapshot the exited session's screen and crumbs now: Main runs
                 ' before this launch writes any of its own.
                 if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")

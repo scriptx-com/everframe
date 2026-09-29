@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { copyFileSync, cpSync, existsSync, lstatSync, statSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, lstatSync, statSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { discoverEntryPoints, ALL_MECHANISMS, DEFAULT_SCREENS, type Mechanism } from './entry-points.js';
@@ -22,6 +22,7 @@ export interface InstrumentReport {
 
 /** Written into every --out by a successful run; only a marked dir is ever cleared. */
 export const OUT_MARKER = '.everframe-build';
+const MARKER_TEXT = 'Created by everframe-roku instrument';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOOK_SET = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs'];
@@ -29,15 +30,16 @@ const hookSource = (f: string) =>
   f === 'everframe_hook.brs' ? path.join(PKG, 'hook', f) : path.join(PKG, 'library/components/Everframe/lib', f);
 
 export function instrument(opts: InstrumentOptions): InstrumentReport {
-  const root = path.resolve(opts.root);
+  // Canonical paths throughout: a symlinked or `..`-spelled --out must not alias the channel.
+  const root = canonical(opts.root);
   if (!opts.dryRun && !opts.out) throw new Error('--out is required unless --dry-run is set');
-  const out = opts.out ? path.resolve(opts.out) : '';
+  const out = opts.out ? canonical(opts.out) : '';
   if (out) {
     if (root === out) throw new Error('--out must differ from the channel directory');
-    if (root.startsWith(out + path.sep)) throw new Error('--out must not contain the channel directory');
+    if (isInside(root, out)) throw new Error('--out must not contain the channel directory');
   }
   // --out may be a subdirectory of the channel (e.g. ./.everframe-build): skip it everywhere.
-  const outInside = out !== '' && out.startsWith(root + path.sep);
+  const outInside = out !== '' && isInside(out, root);
   const plan = discoverEntryPoints(root, {
     exclude: opts.exclude ?? [],
     mechanisms: new Set(opts.mechanisms ?? ALL_MECHANISMS),
@@ -63,20 +65,18 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
   }
 
   for (const sc of plan.screens) {
-    const c = plan.components.find((x) => x.name === sc.component);
+    const c = plan.components.find((x) => x.name === sc.component && !x.excluded);
     const file = c?.scripts.find((f) => emittedIn.has(f));
     report.screens.push({ component: sc.component, via: sc.via, ...(file ? { file } : {}) });
   }
 
   const xmlEdits = new Map<string, string>();
+  // Excluded components too: one sharing a wrapped script would otherwise call undefined Everframe_* functions.
   for (const c of plan.components) {
     if (!c.scripts.some((s) => filesWithWraps.has(s))) continue;
     const text = readFileSync(path.join(root, c.xml), 'utf8');
-    const missing = HOOK_SET.filter((f) => !text.includes(`pkg:/components/everframe_hook/${f}`));
-    if (missing.length === 0) { report.injected.push(c.xml); continue; }
-    const tags = missing.map((f) => `\n  <script type="text/brightscript" uri="pkg:/components/everframe_hook/${f}" />`).join('');
-    const lastScript = /(<script\b[^>]*\/>|<\/script>)(?![\s\S]*(<script\b[^>]*\/>|<\/script>))/i;
-    xmlEdits.set(c.xml, text.replace(lastScript, (m) => m + tags));
+    const next = injectHookImports(text);
+    if (next !== text) xmlEdits.set(c.xml, next);
     report.injected.push(c.xml);
   }
 
@@ -98,9 +98,62 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
     cpSync(zip, dest);
     report.libraryZip = path.relative(out, dest);
   }
-  writeFileSync(path.join(out, OUT_MARKER), 'Created by everframe-roku instrument. This directory is cleared on every run.\n');
+  writeFileSync(path.join(out, OUT_MARKER), `${MARKER_TEXT}. This directory is cleared on every run.\n`);
   return report;
 }
+
+/** `[start, end)` ranges of `<!-- -->` comments and CDATA sections; an unterminated one runs to the end. */
+function inertRanges(text: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  const re = /<!--|<!\[CDATA\[/g;
+  for (let m; (m = re.exec(text));) {
+    const close = m[0] === '<!--' ? '-->' : ']]>';
+    const end = text.indexOf(close, m.index + m[0].length);
+    const stop = end < 0 ? text.length : end + close.length;
+    ranges.push([m.index, stop]);
+    re.lastIndex = stop;
+  }
+  return ranges;
+}
+
+/**
+ * Adds the hook <script> imports a component XML lacks, after its last active
+ * script element (`<script .../>` or `</script>` outside comments/CDATA), else
+ * before `</component>`. Commented-out imports do not count as present.
+ */
+export function injectHookImports(text: string): string {
+  const inert = inertRanges(text);
+  const live = (i: number) => !inert.some(([a, b]) => i >= a && i < b);
+  const active = inert.reduceRight((t, [a, b]) => t.slice(0, a) + t.slice(b), text);
+  const missing = HOOK_SET.filter((f) => !active.includes(`pkg:/components/everframe_hook/${f}`));
+  if (missing.length === 0) return text;
+  const tags = missing.map((f) => `\n  <script type="text/brightscript" uri="pkg:/components/everframe_hook/${f}" />`).join('');
+  const last = (re: RegExp) => [...text.matchAll(re)].filter((m) => live(m.index)).at(-1);
+  const script = last(/<script\b[^>]*\/>|<\/script\s*>/gi);
+  if (script) {
+    const at = script.index + script[0].length;
+    return text.slice(0, at) + tags + text.slice(at);
+  }
+  const end = last(/<\/component\s*>/gi);
+  if (!end) throw new Error('component XML has no <script> or </component> to add the hook imports to');
+  return text.slice(0, end.index) + tags.slice(1) + '\n' + text.slice(end.index);
+}
+
+/** realpath, or for a path that does not exist yet, the realpath of its nearest existing ancestor plus the rest. */
+function canonical(p: string): string {
+  let head = path.resolve(p);
+  const rest: string[] = [];
+  for (;;) {
+    try { return path.join(realpathSync.native(head), ...rest); } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT' || path.dirname(head) === head) throw e;
+    }
+    rest.unshift(path.basename(head));
+    head = path.dirname(head);
+  }
+}
+
+/** `child` is strictly below `parent` (both canonical). */
+const isInside = (child: string, parent: string) => child.startsWith(parent.endsWith(path.sep) ? parent : parent + path.sep);
 
 /**
  * Copies the channel into `out`, dereferencing file symlinks (so writes never go
@@ -132,11 +185,17 @@ function prepareOut(out: string) {
     if (!statSync(out).isDirectory()) throw new Error(`--out ${out} exists and is not a directory`);
     const entries = readdirSync(out);
     if (entries.length > 0) {
-      if (!entries.includes(OUT_MARKER)) {
+      if (!hasMarker(out)) {
         throw new Error(`refusing to overwrite a directory everframe-roku did not create: ${out} (use an empty or new directory)`);
       }
       for (const e of entries) rmSync(path.join(out, e), { recursive: true, force: true });
     }
   }
   mkdirSync(out, { recursive: true });
+}
+
+/** A regular file (not a directory such as a channel's own ./.everframe-build, not a symlink) holding the text this tool writes. */
+function hasMarker(out: string): boolean {
+  const f = path.join(out, OUT_MARKER);
+  try { return lstatSync(f).isFile() && readFileSync(f, 'utf8').startsWith(MARKER_TEXT); } catch { return false; }
 }
