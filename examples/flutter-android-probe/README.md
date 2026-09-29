@@ -3,7 +3,7 @@
 
 # Flutter Android dry run
 
-This unreleased sample checks the Android method-channel bridge, captures masked Flutter renderer frames, and passes them to the native reporter. It submitted a report with a masked screenshot and replay to both a loopback fake ingest and a local API/dashboard. See `docs/dry-runs/flutter-android-native-bridge.md` and `docs/dry-runs/flutter-kmp-local-dashboard-e2e.md` for evidence and limits.
+This unreleased sample checks the Android method-channel bridge, captures masked Flutter renderer frames, and passes them to the native reporter. It submitted a report with a masked screenshot and replay to both a loopback fake ingest and a local API/dashboard. These runs cover only the sample scene and emulator.
 
 The sample requires local `0.10.0-DEV` Android SDK artifacts. For emulator builds, use a local ingest address:
 

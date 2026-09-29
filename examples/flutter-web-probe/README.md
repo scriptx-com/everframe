@@ -7,4 +7,4 @@ An unreleased, fake-key Flutter scene that connects masked renderer PNGs and a b
 
 Run `flutter test`, `flutter analyze`, and `flutter build web --release` here. At the public repository root run `EVERFRAME_INGEST_URL=http://127.0.0.1:8938 pnpm --filter @everframe/web... build`. Then run `cd packages/sdk-web && pnpm exec playwright test --config playwright.flutter-probe.config.ts`.
 
-The HTML page refuses an SDK bundle whose ingest URL is not the loopback probe server. [Dry-run evidence and remaining gates](../../docs/dry-runs/flutter-web-capture.md) cover the browser measurements. This sample is not a released Flutter web SDK.
+The HTML page refuses an SDK bundle whose ingest URL is not the loopback probe server. Browser checks covered this fixed scene, including its registered HTML platform view; arbitrary platform views and renderers remain unverified. This sample is not a released Flutter web SDK.
