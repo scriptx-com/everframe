@@ -4,7 +4,7 @@
 function LabScenarios() as object
     return [
         { id: "crash_select", title: "1  Crash: list selection (render thread)" },
-        { id: "crash_key", title: "2  Crash: press ✱ (onKeyEvent)" },
+        { id: "crash_key", title: "2  Crash: press ✱/options (onKeyEvent)" },
         { id: "crash_task", title: "3  Crash: inside a Task" },
         { id: "crash_main", title: "4  Crash: before the scene (next launch)" },
         { id: "handled", title: "5  Report handled error" },
@@ -41,9 +41,18 @@ sub init()
     m.excludedTimer.duration = 0.1
     m.excludedTimer.observeField("fire", "onCrashExcluded")
 
+    ' Scenario 8 waits for the queue to drain before crashing (see onLoopTick).
     m.loopTimer = m.top.createChild("Timer")
-    m.loopTimer.duration = 1
-    m.loopTimer.observeField("fire", "onLoopCrash")
+    m.loopTimer.duration = 0.5
+    m.loopTimer.repeat = true
+    m.loopTimer.observeField("fire", "onLoopTick")
+    m.loopClock = CreateObject("roTimespan")
+
+    m.statusTimer = m.top.createChild("Timer")
+    m.statusTimer.duration = 1.5
+    m.statusTimer.repeat = true
+    m.statusTimer.observeField("fire", "onStatusTick")
+    m.statusTimer.control = "start"
 
     updateStatus()
 end sub
@@ -60,6 +69,7 @@ sub onLibraryStatus()
             m.lab.Write("loopLeft", (Val(left) - 1).ToStr())
             m.lab.Flush()
             m.note = "crash loop: " + (Val(left) - 1).ToStr() + " left after this one"
+            m.loopClock.Mark()
             m.loopTimer.control = "start"
         end if
     end if
@@ -71,7 +81,7 @@ sub onItemSelected()
     if id = "crash_select" then
         LabCrashNow("list selection")
     else if id = "crash_key" then
-        m.note = "press ✱ (options) now"
+        m.note = "press ✱/options now"
     else if id = "crash_task" then
         m.crashTask = CreateObject("roSGNode", "CrashTask")
         m.crashTask.control = "RUN"
@@ -104,8 +114,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
     return false
 end function
 
-sub onLoopCrash()
-    LabCrashNow("crash loop")
+sub onStatusTick()
+    updateStatus()
+end sub
+
+' Crash only once the SDK's queue has drained (so the drain POST is not raced),
+' but never before ~2 s, and give up waiting after 15 s.
+sub onLoopTick()
+    ms = m.loopClock.TotalMilliseconds()
+    drained = LabQueueCount() = 0 and ms >= 2000
+    if drained or ms >= 15000 then
+        m.loopTimer.control = "stop"
+        if not drained then m.note = "queue did not drain - check ingest"
+        LabCrashNow("crash loop")
+    end if
 end sub
 
 sub LabCrashNow(where as string)
@@ -144,6 +166,7 @@ sub updateStatus()
     lines.Push("SDK started: " + m.started.ToStr())
     lines.Push("Queued records: " + LabQueueCount().ToStr())
     lines.Push("Last exit: " + LabLastExit())
+    lines.Push("User: " + LabUser())
     if m.note <> "" then lines.Push("")
     if m.note <> "" then lines.Push(m.note)
     m.status.text = lines.Join(Chr(10))
@@ -168,5 +191,17 @@ function LabLastExit() as string
     text = code.ToStr()
     ts = info.timestamp
     if ts <> invalid then text = text + " at " + ts.ToStr()
+    return text
+end function
+
+function LabUser() as string
+    ef = m.global.everframe
+    if ef = invalid then return "—"
+    u = ef.callFunc("getUser", invalid)
+    if type(u) <> "roAssociativeArray" then return "—"
+    text = ""
+    if u.id <> invalid then text = u.id.ToStr()
+    if u.email <> invalid then text = text + " " + u.email.ToStr()
+    if text = "" then return "—"
     return text
 end function

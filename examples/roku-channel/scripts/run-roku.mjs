@@ -92,7 +92,7 @@ export function ingestWarning(endpoint) {
 // Streams the Roku debug console (telnet 8085) into a file, retrying while the
 // channel is still starting. `done` resolves when the socket closes and rejects
 // if no connection could be made within timeoutMs. `close()` stops everything.
-export function streamLogs(host, { port = 8085, logFile = path.join(BUILD, 'console.log'), retryMs = 1000, timeoutMs = 15000, quiet = false } = {}) {
+export function streamLogs(host, { port = 8085, logFile = path.join(BUILD, 'console.log'), retryMs = 1000, timeoutMs = 15000, attemptMs = 3000, quiet = false } = {}) {
   mkdirSync(path.dirname(logFile), { recursive: true });
   const out = createWriteStream(logFile);
   const started = Date.now();
@@ -103,18 +103,29 @@ export function streamLogs(host, { port = 8085, logFile = path.join(BUILD, 'cons
   const done = new Promise((resolve, reject) => (settle = { resolve, reject }));
   done.catch(() => {});
 
+  let connectedOnce = false;
+  // Overall connect budget: a blackholed host (SYNs dropped) must not outlive it.
+  const deadline = setTimeout(() => {
+    if (!connectedOnce) finish(new Error(`could not connect to ${host}:${port} within ${timeoutMs / 1000}s`));
+  }, timeoutMs);
   const finish = (err) => {
     if (closed) return;
     closed = true;
     clearTimeout(timer);
+    clearTimeout(deadline);
     sock?.destroy();
     out.end(() => (err ? settle.reject(err) : settle.resolve()));
   };
   const attempt = () => {
     sock = net.connect(port, host);
     let connected = false;
+    sock.setTimeout(Math.max(1, Math.min(attemptMs, timeoutMs - (Date.now() - started))), () => {
+      if (!connected) sock.destroy(); // 'close' follows and drives the retry / deadline
+    });
     sock.on('connect', () => {
       connected = true;
+      connectedOnce = true;
+      sock.setTimeout(0);
       if (!quiet) console.log(`[crash-lab] connected to ${host}:${port}`);
     });
     sock.on('data', (d) => {

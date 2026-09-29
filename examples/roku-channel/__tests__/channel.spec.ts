@@ -52,4 +52,21 @@ describe('crash lab channel source', () => {
     expect(scene).toMatch(/observeField\("fire", "onCrashExcluded"\)/);
     expect(scene).not.toMatch(/\bonCrashExcluded\(\)/); // never called directly from wrapped code
   });
+
+  it('crashes the loop scenario from a repeating Timer callback after the queue drains', () => {
+    const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    expect(scene).toMatch(/observeField\("fire", "onLoopTick"\)/);
+    const body = scene.match(/sub onLoopTick\(\)([\s\S]*?)end sub/)?.[1] ?? '';
+    expect(body).toMatch(/LabQueueCount\(\) = 0/);
+    expect(body).toMatch(/15000/);
+    expect(body).toMatch(/LabCrashNow\("crash loop"\)/);
+    expect(scene).toMatch(/m\.loopTimer\.repeat = true/);
+  });
+
+  it('refreshes the status panel on a timer and shows a guarded user line', () => {
+    const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
+    expect(scene).toMatch(/observeField\("fire", "onStatusTick"\)/);
+    expect(scene).toMatch(/callFunc\("getUser", invalid\)/);
+    expect(scene).toMatch(/"User: "/);
+  });
 });

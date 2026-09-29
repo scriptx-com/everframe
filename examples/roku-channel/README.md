@@ -54,17 +54,25 @@ Select a row with OK. "Relaunch" means press Home, then open the channel again
 (or run `run:roku` again if the channel was killed). The SDK sends a persisted
 crash on the launch after it happened.
 
+"Path A" is the in-process try/catch wrapper that `everframe-roku instrument`
+adds around your code; it reports a crash immediately. "exit-info" is
+next-launch detection via `GetLastExitInfo` (Roku OS 13+), used when nothing
+could catch the crash.
+
 | # | Row | Press / relaunch | Expect in the dashboard | Proves |
 |---|---|---|---|---|
 | 1 | Crash: list selection (render thread) | OK on the row. The channel crashes; relaunch once. | A crash with the frame at the exact line and `threadName: render`. | Path A via an observer wrapper. |
-| 2 | Crash: press ✱ (options key) | OK on the row, then press `*` (options). Relaunch once. | A crash from `onKeyEvent`. The breadcrumb evidence is the options-key crumb (the list consumes navigation keys, so only the options key is recorded). | Path A via `onKeyEvent`; key-press breadcrumbs. |
+| 2 | Crash: press ✱/options (options key) | OK on the row, then press `*` (options). Relaunch once. | A crash from `onKeyEvent`. The breadcrumb evidence is the options-key crumb (the list consumes navigation keys, so only the options key is recorded). | Path A via `onKeyEvent`; key-press breadcrumbs. |
 | 3 | Crash: inside a Task | OK on the row. Relaunch once. | A crash with `threadName` = `CrashTask`. | Path A on a Task thread. |
 | 4 | Crash: before the scene (next launch) | OK on the row (it arms a flag), then relaunch **twice**: the first relaunch crashes in `Main()`, the second sends the report. | A crash raised before any Everframe node exists. | Hook with no Everframe node: persisted from `Main()`, sent on the launch after. |
 | 5 | Report handled error | OK on the row. No relaunch; the channel keeps running. | An error report with `source: error`. | `captureException`. |
 | 6 | Crash: excluded file (next launch only) | Roku OS 13+. OK on the row; the channel crashes about 0.1 s later. Relaunch once. | A crash reconstructed from exit info, with the console log parsed. | Not wrapped, so only the next-launch `exit-info` path runs, with `console_log` parsing. |
 | 7 | Out of memory (in a Task) | Roku OS 13+. OK on the row; the OS kills the channel. Relaunch once. | An exit-info report with `EXIT_CHANNEL_MEM_LIMIT_FG` or `EXIT_OUT_OF_MEMORY`. It shows only via exit info because `OomTask.brs` is excluded from instrumentation. | The out-of-memory exit code on the next launch. |
-| 8 | Crash loop x4 | OK on the row (it crashes and arms a counter of 4). Keep relaunching until the status panel says `0 left`. | At most 3 reports for the loop's fingerprint. | Crash-loop guard: at most 3 reports per fingerprint per hour. |
+| 8 | Crash loop x4 | OK on the row (it crashes and arms a counter of 4). Relaunch until the status panel shows `0 left after this one`; after that crash, relaunch once more (the channel stays up) so the 4th record drains and is dropped by the guard. Each loop launch waits for the queue to drain before crashing (up to 15 s). | Exactly 3 loop reports for that fingerprint. The first crash (list selection) is a separate issue with a different fingerprint. | Crash-loop guard: at most 3 reports per fingerprint per hour. |
 | 9 | Set user + add breadcrumbs | OK on the row, then trigger any crash (row 1 is easiest) and relaunch. | On that report: user id `"42"` (the numeric id 42 arrives as the string `"42"`), email `lab@example.com`, and a `crash lab breadcrumb` custom breadcrumb. | `setUser` with a numeric id sent as a string; custom breadcrumb on the next report. |
+
+Running row 8 again within an hour yields 0 new loop reports (the guard is still
+active). An abandoned loop self-drains after the remaining launches.
 
 Rows 6 and 7 need `GetLastExitInfo`, which exists from Roku OS 13. On older
 firmware the status panel shows `Last exit: n/a (Roku OS < 13)`.

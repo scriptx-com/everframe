@@ -69,4 +69,13 @@ describe('streamLogs', () => {
     const handle = streamLogs('127.0.0.1', { port: 1, logFile, retryMs: 20, timeoutMs: 150, quiet: true });
     await expect(handle.done).rejects.toThrow(/could not connect/i);
   });
+
+  it('enforces the overall deadline against a blackholed host', async () => {
+    const logFile = path.join(mkdtempSync(path.join(tmpdir(), 'roku-log-')), 'console.log');
+    const t0 = Date.now();
+    // 10.255.255.1 is non-routable: SYNs are dropped, so connect never completes on its own.
+    const handle = streamLogs('10.255.255.1', { port: 8085, logFile, retryMs: 20, timeoutMs: 400, quiet: true });
+    await expect(handle.done).rejects.toThrow(/could not connect/i);
+    expect(Date.now() - t0).toBeLessThan(1500);
+  });
 });
