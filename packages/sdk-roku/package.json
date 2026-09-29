@@ -1,0 +1,35 @@
+{
+  "name": "@everframe/roku",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Roku (BrightScript / SceneGraph) SDK for Everframe — automatic crash and error reporting.",
+  "author": { "name": "Scriptx, UAB", "email": "support@everframe.dev", "url": "https://everframe.dev" },
+  "keywords": ["roku", "brightscript", "scenegraph", "crash-reporting", "everframe"],
+  "homepage": "https://everframe.dev",
+  "bugs": { "url": "https://github.com/scriptx-com/everframe/issues" },
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "repository": { "type": "git", "url": "git+https://github.com/scriptx-com/everframe.git", "directory": "packages/sdk-roku" },
+  "publishConfig": { "access": "public" },
+  "bin": { "everframe-roku": "./dist/cli.js" },
+  "files": ["dist", "library", "hook", "LICENSE", "NOTICE"],
+  "scripts": {
+    "build": "rm -rf dist && tsup && node scripts/build-library.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "brighterscript": "0.73.5",
+    "fast-xml-parser": "^5.11.2",
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@everframe/protocol": "workspace:*",
+    "@types/node": "^22.0.0",
+    "brs-node": "2.6.0",
+    "tsup": "^8.0.0"
+  }
+}
