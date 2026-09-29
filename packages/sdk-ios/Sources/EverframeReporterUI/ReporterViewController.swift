@@ -70,6 +70,7 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
     let showWatermark: Bool
     private let allowsAdditionalScreenshots: Bool
     private let hostReplayVTree: Data?
+    private let sdkName: String
     private let onComplete: (Result<ReportResult, Error>) -> Void
 
     // UI — outer scroll + content stack. Phase 13.1 plan 13.1-01: the
@@ -143,6 +144,7 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
         showWatermark: Bool = true,
         allowsAdditionalScreenshots: Bool = true,
         hostReplayVTree: Data? = nil,
+        sdkName: String = "everframe-ios",
         onComplete: @escaping (Result<ReportResult, Error>) -> Void
     ) {
         self.captureResult = captureResult
@@ -151,6 +153,7 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
         self.showWatermark = showWatermark
         self.allowsAdditionalScreenshots = allowsAdditionalScreenshots
         self.hostReplayVTree = hostReplayVTree
+        self.sdkName = sdkName
         self.onComplete = onComplete
         // shots[0] = the open-time capture. When captureResult is nil
         // (defensive — sendTapped already early-returns on that case) seed
@@ -1101,6 +1104,7 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
             extraOverrides: [:],
             hostExtra: extraForEnvelope,
             hostReplayVTree: hostReplayVTree,
+            sdkName: sdkName,
             // External review, finding 3 (Serious) — THE SUBMIT BOUNDARY for
             // the in-app reporter. Read synchronously in the Send handler, not
             // inside `ReporterSubmission.submit(_:)`: the `Task` below already

@@ -106,6 +106,7 @@ internal object ReporterDialog {
         hostExtra: String? = null,
         allowAdditionalScreenshots: Boolean = true,
         hostReplayVTree: ByteArray? = null,
+        sdkName: String = "everframe-android",
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
 
@@ -188,6 +189,7 @@ internal object ReporterDialog {
                                         hostExtra = hostExtra,
                                         includes = includes,
                                         hostReplayVTree = hostReplayVTree,
+                                        sdkName = sdkName,
                                     )
                                     deferred.complete(r)
                                 }
@@ -361,6 +363,7 @@ internal object ReporterDialog {
         hostExtra: String?,
         includes: dev.everframe.ui.details.ReporterIncludes,
         hostReplayVTree: ByteArray? = null,
+        sdkName: String = "everframe-android",
     ): ReportResult {
         try {
         // FOLLOW-UPS ITEM 9 — the config comes from the snapshot taken at the
@@ -504,6 +507,7 @@ internal object ReporterDialog {
             val builder = EnvelopeBuilder(EnvelopeBuilder.DefaultRedactor)
             val encoded = builder.buildEncoded(
                 sdkVersion = Everframe.SDK_VERSION,
+                sdkName = sdkName,
                 title = title,
                 description = description,
                 formFactor = if (isTablet) "tablet" else "phone",

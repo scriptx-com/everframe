@@ -60,7 +60,9 @@ public enum EFReporterPresenter {
 
     /// Host-rendered PNG for Flutter and other surfaces UIKit cannot snapshot.
     /// The caller must bake sensitive regions black before passing bytes here.
-    public static func openWithMaskedPng(_ pngData: Data, replayVTree: Data? = nil) async throws -> ReportResult {
+    public static func openWithMaskedPng(
+        _ pngData: Data, replayVTree: Data? = nil, sdkName: String = "everframe-ios"
+    ) async throws -> ReportResult {
         guard pngData.count >= 8, pngData.count <= 10_000_000,
               pngData.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]),
               let image = UIImage(data: pngData),
@@ -77,14 +79,18 @@ public enum EFReporterPresenter {
         // Host-rendered capture owns replay for this report. An empty value
         // keeps the native video fallback off when Flutter has no safe frames.
         return try await openAndAwait(captureOverride: capture,
-                                      hostReplayVTree: replayVTree ?? Data())
+                                      hostReplayVTree: replayVTree ?? Data(), sdkName: sdkName)
     }
 
     /// Opens the reporter and resolves when the user submits or cancels.
     /// Idempotency: if a reporter is already open, the second call resolves
     /// immediately with .cancelled (we never stack reporter windows).
     public static func openAndAwait(captureOverride: ScreenshotCapture.Result? = nil,
-                                    hostReplayVTree: Data? = nil) async throws -> ReportResult {
+                                    hostReplayVTree: Data? = nil,
+                                    sdkName: String = "everframe-ios") async throws -> ReportResult {
+        guard ["everframe-ios", "everframe-flutter", "everframe-kmp"].contains(sdkName) else {
+            return .cancelled
+        }
         if pendingResolve != nil { return .cancelled }
 
         // Final whole-branch review, fix round 2, Critical 1 — re-warm the
@@ -189,6 +195,7 @@ public enum EFReporterPresenter {
                 showWatermark: showWatermark,
                 allowsAdditionalScreenshots: captureOverride == nil,
                 hostReplayVTree: hostReplayVTree,
+                sdkName: sdkName,
                 onComplete: { result in resolveResult(result) }
             )
             let nav = UINavigationController(rootViewController: vc)

@@ -117,6 +117,7 @@ public enum ReporterSubmission {
         public let hostExtra: String?
         /// Flutter's frozen, masked image timeline; validated before attachment.
         public let hostReplayVTree: Data?
+        public let sdkName: String
         /**
          Self-declared user (`setUser`, spec 2026-08-12) SNAPSHOTTED at the
          moment this report's submission began — the Send tap for the in-app
@@ -181,6 +182,7 @@ public enum ReporterSubmission {
             extraOverrides: [String: String],
             hostExtra: String?,
             hostReplayVTree: Data? = nil,
+            sdkName: String = "everframe-ios",
             capturedSession: EFCapturedSession,
             companionAttribution: String? = nil
         ) {
@@ -200,6 +202,7 @@ public enum ReporterSubmission {
             self.extraOverrides = extraOverrides
             self.hostExtra = hostExtra
             self.hostReplayVTree = hostReplayVTree
+            self.sdkName = sdkName
             self.capturedSession = capturedSession
             self.companionAttribution = companionAttribution
         }
@@ -535,7 +538,7 @@ public enum ReporterSubmission {
         func encodeEnvelope() throws -> Data {
             try builder.buildEncoded(
             reportId: reportId,
-            sdkName: "everframe-ios",
+            sdkName: inputs.sdkName,
             sdkVersion: Everframe.SDK_VERSION,
             logs: logRows,
             networkRows: networkRows,
