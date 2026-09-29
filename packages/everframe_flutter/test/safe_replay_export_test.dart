@@ -74,4 +74,23 @@ void main() {
     revoked.freeze();
     expect(() => exportSafeReplayVTree(revoked, scale: 1), throwsStateError);
   });
+
+  test('rapid samples stay within the native VTree frame limit', () async {
+    var elapsed = Duration.zero;
+    final buffer = SafeReplayBuffer(
+      now: () => elapsed,
+      validate: (_) async => true,
+    );
+    final frame = await png(0xff00ff00);
+    for (var i = 0; i < 200; i++) {
+      elapsed = Duration(milliseconds: i * 100);
+      expect(await buffer.append(frame), true);
+    }
+
+    expect(buffer.frames, hasLength(SafeReplayBuffer.maxFrames));
+    buffer.freeze();
+    final timeline = jsonDecode(utf8.decode(exportSafeReplayVTree(buffer, scale: 1)))
+        as Map<String, dynamic>;
+    expect(timeline['frames'], hasLength(SafeReplayBuffer.maxFrames));
+  });
 }

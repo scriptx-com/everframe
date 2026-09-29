@@ -15,7 +15,7 @@ if let sdkPath = ProcessInfo.processInfo.environment["EVERFRAME_SDK_IOS_ROOT"],
     nativeSDK = .package(name: "Everframe", path: sdkPath)
 } else {
     nativeSDK = .package(url: "https://github.com/scriptx-com/everframe.git",
-                         .upToNextMinor(from: "0.10.0"))
+                         .upToNextMinor(from: "0.10.1"))
 }
 
 let package = Package(

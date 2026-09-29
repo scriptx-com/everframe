@@ -31,7 +31,7 @@ kotlin {
 
 dependencies {
     implementation(project(":everframeKmp"))
-    implementation("dev.everframe:core:0.10.0-DEV")
+    implementation("dev.everframe:core:0.10.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation(platform("androidx.compose:compose-bom:2025.10.01"))
     implementation("androidx.compose.material3:material3")

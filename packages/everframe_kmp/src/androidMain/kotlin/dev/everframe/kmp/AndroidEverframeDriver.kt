@@ -21,15 +21,31 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 
 /** Android adapter with masked, image-only replay for Compose hosts. */
 class AndroidEverframeDriver(
     private val context: Context,
-    private val currentActivity: Activity?,
+    currentActivity: Activity?,
+    private val allowCaptureWithoutSensitiveMarkers: () -> Boolean = { false },
 ) : EverframeNativeDriver {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var captureJob: Job? = null
     private var replay = AndroidImageReplayBuffer()
+    private var activityRef = currentActivity?.let(::WeakReference)
+    private var started = false
+
+    private fun hostActivity(): Activity? = activityRef?.get()?.takeUnless { it.isFinishing || it.isDestroyed }
+
+    /** Bind the visible Activity on creation/resume and pass null when it stops. */
+    fun bindActivity(activity: Activity?) {
+        if (activityRef?.get() === activity) return
+        captureJob?.cancel()
+        captureJob = null
+        replay = AndroidImageReplayBuffer()
+        activityRef = activity?.let(::WeakReference)
+        if (activity != null && started && Everframe.captureGate) beginCapture()
+    }
 
     override fun start(appId: String, sdkKey: String, environment: String): Boolean {
         return try {
@@ -39,8 +55,11 @@ class AndroidEverframeDriver(
                 sdkKey = sdkKey,
                 environment = nativeEnvironment,
                 capture = CaptureConfig(screenshot = false, crash = true, network = true, networkBodies = false),
-            ), currentActivity)
-            Everframe.captureGate.also { if (it) beginCapture() }
+            ), hostActivity())
+            Everframe.captureGate.also {
+                started = it
+                if (it) beginCapture()
+            }
         } catch (_: Exception) {
             false
         }
@@ -70,15 +89,24 @@ class AndroidEverframeDriver(
                 captureJob = null
                 val hostReplay = replay.export()
                 replay = AndroidImageReplayBuffer()
-                val host = currentActivity
+                val host = hostActivity()
                 if (host == null) {
                     completion(EverframeReportOutcome("failed", reason = "no_activity"))
                     return@launch
                 }
                 val sensitive = SensitiveRectRegistry.collectInWindowCoords(host)
+                if (sensitive.isEmpty() && !allowCaptureWithoutSensitiveMarkers()) {
+                    completion(EverframeReportOutcome("failed", reason = "sensitive_markers_missing"))
+                    return@launch
+                }
                 val screenshot = ScreenshotCapture.captureBeforeReporter(host, sensitive)
                 if (screenshot == null) {
                     completion(EverframeReportOutcome("failed", reason = "capture_unavailable"))
+                    return@launch
+                }
+                if (host !== hostActivity()) {
+                    screenshot.bitmap.recycle()
+                    completion(EverframeReportOutcome("failed", reason = "activity_changed"))
                     return@launch
                 }
                 val maskedPng = screenshot.pngBytes.copyOf()
@@ -92,7 +120,7 @@ class AndroidEverframeDriver(
             } catch (error: Exception) {
                 completion(EverframeReportOutcome("failed", reason = error.message))
             } finally {
-                if (Everframe.captureGate) beginCapture()
+                if (started && Everframe.captureGate) beginCapture()
             }
         }
     }
@@ -101,30 +129,48 @@ class AndroidEverframeDriver(
         captureJob?.cancel()
         captureJob = null
         replay = AndroidImageReplayBuffer()
+        started = false
         Everframe.kill()
     }
 
     private fun beginCapture() {
         captureJob?.cancel()
         replay = AndroidImageReplayBuffer()
-        val host = currentActivity ?: return
         captureJob = scope.launch {
             // Give Compose one settled frame after the Start button changes state.
             delay(250)
+            var lastHost: Activity? = null
             while (isActive && Everframe.captureGate) {
+                val host = hostActivity()
+                if (host == null) {
+                    replay = AndroidImageReplayBuffer()
+                    lastHost = null
+                    delay(1_000)
+                    continue
+                }
+                if (host !== lastHost) {
+                    replay = AndroidImageReplayBuffer()
+                    lastHost = host
+                }
                 val sensitive = SensitiveRectRegistry.collectInWindowCoords(host)
                 // Require a proven sensitive marker before
                 // retaining any frame; uncertainty discards the whole ring.
-                if (sensitive.isEmpty()) { replay = AndroidImageReplayBuffer(); break }
+                if (sensitive.isEmpty() && !allowCaptureWithoutSensitiveMarkers()) {
+                    replay = AndroidImageReplayBuffer()
+                    delay(1_000)
+                    continue
+                }
                 val screenshot = ScreenshotCapture.captureBeforeReporter(host, sensitive)
-                if (!isActive || !Everframe.captureGate || screenshot == null) {
+                if (!isActive || !Everframe.captureGate || host !== hostActivity() || screenshot == null) {
                     screenshot?.bitmap?.recycle()
                     replay = AndroidImageReplayBuffer()
-                    break
+                    if (!isActive || !Everframe.captureGate) break
+                    delay(1_000)
+                    continue
                 }
                 val accepted = replay.add(screenshot.widthPx, screenshot.heightPx, screenshot.pngBytes)
                 screenshot.bitmap.recycle()
-                if (!accepted) { replay = AndroidImageReplayBuffer(); break }
+                if (!accepted) replay = AndroidImageReplayBuffer()
                 delay(1_000)
             }
         }

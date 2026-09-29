@@ -28,10 +28,29 @@ import dev.everframe.kmp.EverframeKmpConfig
 import dev.everframe.sensitive.txSensitive
 
 class MainActivity : ComponentActivity() {
+    private lateinit var driver: AndroidEverframeDriver
+    private lateinit var client: EverframeKmp
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val client = EverframeKmp(AndroidEverframeDriver(applicationContext, this))
+        driver = AndroidEverframeDriver(applicationContext, this)
+        client = EverframeKmp(driver)
         setContent { ProbeScene(client) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        driver.bindActivity(this)
+    }
+
+    override fun onStop() {
+        driver.bindActivity(null)
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        client.kill()
+        super.onDestroy()
     }
 }
 

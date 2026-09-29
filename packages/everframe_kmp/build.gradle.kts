@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "dev.everframe"
-version = providers.gradleProperty("everframeKmpVersion").orElse("0.1.0").get()
+version = providers.gradleProperty("everframeKmpVersion").orElse("0.1.1").get()
 
 val everframeNativeVersion = providers.gradleProperty("everframeNativeVersion")
     .orElse("[0.10.0,0.11.0)")

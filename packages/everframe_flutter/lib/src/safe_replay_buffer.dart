@@ -14,6 +14,8 @@ class SafeReplayFrame {
 /// Small in-memory proof of a bounded, privacy-checked Flutter frame replay.
 /// Each frame must already be masked; validation runs before it enters the ring.
 class SafeReplayBuffer {
+  static const int maxFrames = 151;
+
   SafeReplayBuffer({
     this.maxAge = const Duration(seconds: 30),
     this.maxBytes = 8 * 1024 * 1024,
@@ -67,7 +69,9 @@ class SafeReplayBuffer {
     _frames.add(SafeReplayFrame(timestamp, copy));
     _bytes += copy.length;
     while (_frames.isNotEmpty &&
-        (_bytes > maxBytes || timestamp - _frames.first.elapsed > maxAge)) {
+        (_frames.length > maxFrames ||
+            _bytes > maxBytes ||
+            timestamp - _frames.first.elapsed > maxAge)) {
       _bytes -= _frames.removeAt(0).png.length;
     }
     return true;

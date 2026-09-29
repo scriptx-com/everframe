@@ -13,6 +13,7 @@ internal class AndroidImageReplayBuffer(
     private val maxAgeMs: Long = 30_000,
     private val maxRawBytes: Int = 5 * 1024 * 1024,
 ) {
+    private companion object { const val MAX_FRAMES = 151 }
     private data class Frame(val elapsedMs: Long, val width: Int, val height: Int, val png: ByteArray)
 
     private val startedAtEpochMs = System.currentTimeMillis()
@@ -28,7 +29,7 @@ internal class AndroidImageReplayBuffer(
         frames.addLast(Frame(elapsed, width, height, copy))
         rawBytes += copy.size
         while (frames.isNotEmpty() &&
-            (rawBytes > maxRawBytes || elapsed - frames.first().elapsedMs > maxAgeMs)) {
+            (frames.size > MAX_FRAMES || rawBytes > maxRawBytes || elapsed - frames.first().elapsedMs > maxAgeMs)) {
             rawBytes -= frames.removeFirst().png.size
         }
         return true
