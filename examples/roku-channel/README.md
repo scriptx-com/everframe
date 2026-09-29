@@ -46,6 +46,8 @@ Flags:
 | `--remote-library <url>` | Load the SDK component library from an `http(s)` URL instead of bundling it in the channel. |
 | `--logs` | After sideloading, stream the Roku debug console (`<ROKU_HOST>:8085`) to the terminal and to `.build/console.log`. Retries the connection for up to 15 s while the channel starts; Ctrl+C stops it. |
 
+The script calls roku-deploy's API with an explicit `rootDir`. In your own project the `roku-deploy` CLI ignores arguments and reads `rokudeploy.json` from the current directory, so run it from inside the instrumented folder (`cd .everframe-build && roku-deploy`); see the [SDK README](../../packages/sdk-roku/README.md#tier-2-build-step-instrumentation).
+
 The script rebuilds `packages/sdk-roku` every run, so the channel always uses
 the SDK in this workspace. Instrumentation excludes `components/Excluded.brs`
 and `components/OomTask.brs` on purpose (see rows 6 and 7).

@@ -101,16 +101,50 @@ Trade-offs compared with bundling:
 
 ## Tier 2: build-step instrumentation
 
-Add a build step that rewrites a copy of your channel and packages that copy. Instrument release and beta builds, and keep day-to-day development builds uninstrumented (see [Effect on debugging](#effect-on-debugging)):
+Add one Everframe build step that writes an instrumented copy of your channel to `.everframe-build`, then point whatever tool you use at that folder. Instrument release and beta builds, and keep day-to-day development builds uninstrumented (see [Effect on debugging](#effect-on-debugging)):
 
 ```json
 {
   "scripts": {
+    "everframe:build": "everframe-roku instrument ./ --out ./.everframe-build --bundle-library",
     "deploy:dev": "roku-deploy --rootDir ./",
-    "deploy:release": "everframe-roku instrument ./ --out ./.everframe-build --bundle-library && roku-deploy --rootDir ./.everframe-build"
+    "deploy:release": "npm run everframe:build && cd .everframe-build && roku-deploy"
   }
 }
 ```
+
+`.everframe-build` is a complete channel folder: the instrument step copies the whole channel, including `rokudeploy.json`. That is why `deploy:release` runs `roku-deploy` from inside it, where its default `rootDir: "./"` is the instrumented copy. `roku-deploy` 3.x ignores command-line arguments and reads its options only from `rokudeploy.json` / `bsconfig.json` in the current directory, so `roku-deploy --rootDir ./.everframe-build` would silently deploy your uninstrumented channel. Keep the `cd` in the same script as the deploy tool: a `cd` in one npm script does not carry over to the next.
+
+### Using the build with your tools
+
+- **roku-deploy:** the `deploy:release` script above.
+- **VS Code BrightScript extension:** add a task that runs the build, and point the launch configuration at the output folder.
+
+  `.vscode/tasks.json`:
+
+  ```json
+  {
+    "version": "2.0.0",
+    "tasks": [
+      { "label": "everframe:build", "type": "npm", "script": "everframe:build" }
+    ]
+  }
+  ```
+
+  `.vscode/launch.json` (add to your existing BrightScript configuration):
+
+  ```json
+  {
+    "type": "brightscript",
+    "request": "launch",
+    "name": "Everframe release build",
+    "rootDir": "${workspaceFolder}/.everframe-build",
+    "preLaunchTask": "everframe:build"
+  }
+  ```
+
+  Keep your normal launch configuration (with `"rootDir": "${workspaceFolder}"`) for debugging; the debugger stops in different places in the instrumented copy.
+- **Any other tool, CI or signed packaging:** run `everframe:build`, then zip or deploy the contents of `.everframe-build` with your own tooling.
 
 If your scene loads the bundled zip, keep a copy of it in `components/` so uninstrumented dev builds can load the library too (with the tier 1 `Main()` lines, uninstrumented builds still report crashes on the next launch; the instrumented `Main` records the exit itself, so the two do not conflict).
 
@@ -153,7 +187,7 @@ Instrumentation changes how a crash looks in the BrightScript debugger. The orig
 - the debugger stops on the wrapped function's `end sub` / `end function` line, not on the line that failed;
 - the stack has already unwound to that function, so the local variables of the failing line (and of any functions it called) are gone.
 
-The report sent to Everframe still carries the original error, message and backtrace. Because of the debugger change, instrument release and beta builds and deploy unmodified sources while you develop, as in the `deploy:dev` / `deploy:release` example above.
+The report sent to Everframe still carries the original error, message and backtrace. Because of the debugger change, instrument release and beta builds and deploy unmodified sources while you develop, as in the `deploy:dev` / `deploy:release` scripts above.
 
 ### Options
 
