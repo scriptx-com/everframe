@@ -1,0 +1,64 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe capture cases e2e fixture</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e8ee; }
+  main { padding: 32px; display: grid; gap: 16px; max-width: 720px; }
+  .card { background: #171a23; border: 1px solid #2a2e3a; border-radius: 10px; padding: 20px; }
+  .swatch { height: 56px; border-radius: 8px; background: linear-gradient(90deg,#ff5f6d,#ffc371); }
+</style>
+</head>
+<body>
+  <main style="font:16px/1.5 system-ui,sans-serif">
+  <section id="sparse" style="height:900px;background:#fff;color:#111;padding:24px">Only one short line.</section>
+  <section id="dark" style="height:900px;background:#0d1117;color:#e8e6e3;padding:24px">
+    <div id="secret" data-everframe-sensitive style="width:240px;height:40px;background:#fff;color:#000">4111 1111 1111 1111</div>
+    <video id="vid" width="320" height="180" poster="data:image/gif;base64,R0lGODlhAQABAIAAAP8AAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:block"></video>
+    <div id="after-video" style="width:120px;height:30px;background:rgb(0,200,0)"></div>
+  </section>
+  <section id="nested" style="height:300px;overflow:auto;background:#fff">
+    <div style="height:1200px;position:relative">
+      <div id="nested-marker" style="position:absolute;top:900px;width:200px;height:60px;background:rgb(255,0,255)"></div>
+    </div>
+  </section>
+  <section id="bulk"></section>
+  </main>
+  <script>
+    // Optional heavy mode: ?bulk=15000 adds nodes below the fold.
+    const n = +(new URLSearchParams(location.search).get('bulk') || 0);
+    const bulk = document.getElementById('bulk');
+    for (let i = 0; i < n; i++) bulk.appendChild(document.createElement('span')).textContent = i + ' ';
+  </script>
+  <!-- The eager entry reaches its two runtime dependencies by a BARE dynamic
+       specifier (`modern-screenshot` for capture, `rrweb` for replay). A real
+       consumer's bundler resolves those; a browser loading raw ESM cannot, and
+       the SDK fails closed — capture silently degrades to a 1x1 transparent
+       placeholder. The import map is this fixture standing in for the
+       bundler; e2e/static-server.mjs serves both under /vendor/. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+    document.getElementById('report').addEventListener('click', () => {
+      // Swallowed: open() resolves on submit and rejects if the reporter is
+      // not mounted. A spec that opens the dialog and then ends leaves this
+      // promise pending, and one that tears the page down mid-open would
+      // otherwise surface an unhandled rejection that has nothing to do with
+      // what is being tested.
+      window.__everframe.open().catch(() => {});
+    });
+  </script>
+</body>
+</html>
