@@ -33,7 +33,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 
-/** Android half of the unreleased Flutter native reporter dry run. */
+/** Android bridge to the native Everframe reporter. */
 class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var appContext: Context
@@ -70,9 +70,6 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                     val environment = call.argument<String>("environment")
                         ?.let { Environment.entries.firstOrNull { entry -> entry.name == it } }
                         ?: return result.error("invalid_arguments", "environment invalid", null)
-                    if (environment != Environment.development) {
-                        return result.error("dry_run_only", "development environment required", null)
-                    }
                     // Flutter pixels are captured only through the masked Dart boundary.
                     // Native crash capture also enables explicit handled Dart errors.
                     Everframe.start(appContext, EverframeConfig(

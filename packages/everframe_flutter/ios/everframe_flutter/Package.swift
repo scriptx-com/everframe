@@ -4,11 +4,18 @@
 import PackageDescription
 import Foundation
 
-// Flutter links plugins into an ephemeral SwiftPM directory. The local SDK
-// path must therefore be absolute for this unreleased source dry run.
-guard let sdkPath = ProcessInfo.processInfo.environment["EVERFRAME_SDK_IOS_ROOT"],
-      sdkPath.hasPrefix("/") else {
-    fatalError("EVERFRAME_SDK_IOS_ROOT must be an absolute path to packages/sdk-ios")
+// Consumers resolve the published native SDK. Contributors can point at the
+// source package while developing changes that have not been released yet.
+let nativeSDK: Package.Dependency
+if let sdkPath = ProcessInfo.processInfo.environment["EVERFRAME_SDK_IOS_ROOT"],
+   !sdkPath.isEmpty {
+    guard sdkPath.hasPrefix("/") else {
+        fatalError("EVERFRAME_SDK_IOS_ROOT must be an absolute path to packages/sdk-ios")
+    }
+    nativeSDK = .package(name: "Everframe", path: sdkPath)
+} else {
+    nativeSDK = .package(url: "https://github.com/scriptx-com/everframe.git",
+                         .upToNextMinor(from: "0.10.0"))
 }
 
 let package = Package(
@@ -17,7 +24,7 @@ let package = Package(
     products: [.library(name: "everframe-flutter", targets: ["everframe_flutter"])],
     dependencies: [
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
-        .package(name: "Everframe", path: sdkPath),
+        nativeSDK,
     ],
     targets: [
         .target(

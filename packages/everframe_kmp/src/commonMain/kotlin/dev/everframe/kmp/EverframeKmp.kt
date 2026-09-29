@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.kmp
 
-/** Unreleased mobile integration contract. Native reporters remain owned by the host platform. */
+/** Mobile integration contract. Native reporters remain owned by the host platform. */
 class EverframeKmpConfig(
     val appId: String,
     val sdkKey: String,
-    val environment: String = "development",
+    val environment: String = "production",
 )
 
 class EverframeReportOutcome(
@@ -22,7 +22,7 @@ class EverframeReportOutcome(
 
 /** Swift hosts implement this protocol to call the existing Swift-only Everframe SDK. */
 interface EverframeNativeDriver {
-    fun start(appId: String, sdkKey: String): Boolean
+    fun start(appId: String, sdkKey: String, environment: String): Boolean
     fun setUser(id: String?, email: String?, displayName: String?)
     fun recordScreen(name: String)
     fun addBreadcrumb(message: String, kind: String?, level: String?)
@@ -38,8 +38,9 @@ class EverframeKmp(private val driver: EverframeNativeDriver) {
     private val methods = setOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
 
     fun start(config: EverframeKmpConfig): Boolean {
-        if (config.environment != "development" || config.appId.isBlank() || config.sdkKey.isBlank()) return false
-        started = driver.start(config.appId, config.sdkKey)
+        if (config.environment !in setOf("development", "staging", "production") ||
+            config.appId.isBlank() || config.sdkKey.isBlank()) return false
+        started = driver.start(config.appId, config.sdkKey, config.environment)
         return started
     }
 

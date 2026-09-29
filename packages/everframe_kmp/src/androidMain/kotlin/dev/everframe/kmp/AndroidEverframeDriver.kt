@@ -22,7 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/** Local Android adapter with masked, image-only replay for Compose hosts. */
+/** Android adapter with masked, image-only replay for Compose hosts. */
 class AndroidEverframeDriver(
     private val context: Context,
     private val currentActivity: Activity?,
@@ -31,12 +31,13 @@ class AndroidEverframeDriver(
     private var captureJob: Job? = null
     private var replay = AndroidImageReplayBuffer()
 
-    override fun start(appId: String, sdkKey: String): Boolean {
+    override fun start(appId: String, sdkKey: String, environment: String): Boolean {
         return try {
+            val nativeEnvironment = Environment.entries.firstOrNull { it.name == environment } ?: return false
             Everframe.start(context, EverframeConfig(
                 appId = appId,
                 sdkKey = sdkKey,
-                environment = Environment.development,
+                environment = nativeEnvironment,
                 capture = CaptureConfig(screenshot = false, crash = true, network = true, networkBodies = false),
             ), currentActivity)
             Everframe.captureGate.also { if (it) beginCapture() }
@@ -112,7 +113,7 @@ class AndroidEverframeDriver(
             delay(250)
             while (isActive && Everframe.captureGate) {
                 val sensitive = SensitiveRectRegistry.collectInWindowCoords(host)
-                // This dry-run adapter requires a proven sensitive marker before
+                // Require a proven sensitive marker before
                 // retaining any frame; uncertainty discards the whole ring.
                 if (sensitive.isEmpty()) { replay = AndroidImageReplayBuffer(); break }
                 val screenshot = ScreenshotCapture.captureBeforeReporter(host, sensitive)

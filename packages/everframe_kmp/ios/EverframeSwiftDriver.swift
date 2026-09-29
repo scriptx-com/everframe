@@ -8,9 +8,14 @@ import EverframeReporterUI
 /// Objective-C-visible Kotlin protocol implemented by Swift, then passed to shared Kotlin logic.
 /// This avoids trying to cinterop a Swift-only SDK into Kotlin/Native.
 public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
-    public func start(appId: String, sdkKey: String) -> Bool {
-        guard let host = IngestEndpoint.url.host,
-              host == "127.0.0.1" || host == "localhost" else { return false }
+    public func start(appId: String, sdkKey: String, environment environmentName: String) -> Bool {
+        let environment: EverframeConfig.Environment
+        switch environmentName {
+        case "development": environment = .development
+        case "staging": environment = .staging
+        case "production": environment = .production
+        default: return false
+        }
         var capture = CaptureConfig()
         capture.screenshot = false
         capture.crash = true
@@ -19,7 +24,7 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
         do {
             // The Swift SDK currently names its key `appId`.
             try Everframe.shared.start(config: EverframeConfig(
-                appId: sdkKey, environment: .development, capture: capture))
+                appId: sdkKey, environment: environment, capture: capture))
             return Everframe.shared.captureGate
         } catch {
             return false

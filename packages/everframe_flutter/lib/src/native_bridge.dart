@@ -7,7 +7,7 @@ import 'sensitive_region.dart';
 import 'safe_replay_buffer.dart';
 import 'safe_replay_export.dart';
 
-/// Native reporter bridge for the unreleased mobile dry run.
+/// Native reporter bridge for Flutter Android and iOS hosts.
 class EverframeNativeBridge {
   const EverframeNativeBridge();
 
@@ -16,14 +16,15 @@ class EverframeNativeBridge {
   Future<void> start({
     required String appId,
     required String sdkKey,
-    String environment = 'development',
+    String environment = 'production',
   }) {
     if (appId.isEmpty || sdkKey.isEmpty) {
       throw ArgumentError('appId and sdkKey are required');
     }
-    if (environment != 'development') {
+    if (!const {'development', 'staging', 'production'}
+        .contains(environment)) {
       throw ArgumentError.value(
-          environment, 'environment', 'dry-run bridge requires development');
+          environment, 'environment', 'unsupported environment');
     }
     return _channel.invokeMethod<void>('start', {
       'appId': appId,

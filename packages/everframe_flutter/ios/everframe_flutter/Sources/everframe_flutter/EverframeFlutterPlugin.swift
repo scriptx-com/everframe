@@ -24,16 +24,19 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
         let args = call.arguments as? [String: Any] ?? [:]
         switch call.method {
         case "start":
-            guard let environment = args["environment"] as? String,
-                  environment == "development",
+            guard let environmentName = args["environment"] as? String,
                   let sdkKey = args["sdkKey"] as? String,
                   !sdkKey.isEmpty else {
-                result(FlutterError(code: "invalid_arguments", message: "development key required", details: nil))
+                result(FlutterError(code: "invalid_arguments", message: "environment and SDK key required", details: nil))
                 return
             }
-            guard let host = IngestEndpoint.url.host,
-                  host == "127.0.0.1" || host == "localhost" else {
-                result(FlutterError(code: "dry_run_only", message: "loopback ingest required", details: nil))
+            let environment: EverframeConfig.Environment
+            switch environmentName {
+            case "development": environment = .development
+            case "staging": environment = .staging
+            case "production": environment = .production
+            default:
+                result(FlutterError(code: "invalid_arguments", message: "environment invalid", details: nil))
                 return
             }
             var capture = CaptureConfig()
@@ -42,7 +45,7 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             do {
                 // The iOS native SDK currently calls its SDK key `appId`.
                 try Everframe.shared.start(config: EverframeConfig(
-                    appId: sdkKey, environment: .development, capture: capture))
+                    appId: sdkKey, environment: environment, capture: capture))
                 Task { @MainActor in
                     EFReporterPresenter.installResolver()
                     result(nil)

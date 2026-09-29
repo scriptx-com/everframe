@@ -52,6 +52,7 @@ private fun ProbeScene(client: EverframeKmp) {
             started = client.start(EverframeKmpConfig(
                 appId = BuildConfig.EVERFRAME_APP_ID,
                 sdkKey = BuildConfig.EVERFRAME_SDK_KEY,
+                environment = "development",
             ))
             status = if (started) "started" else "start blocked"
         }) { Text("Start Everframe") }

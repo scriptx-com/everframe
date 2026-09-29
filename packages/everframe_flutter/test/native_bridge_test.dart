@@ -57,6 +57,23 @@ void main() {
             status: 'cancelled', reason: 'dismissed'));
   });
 
+  test('passes production configuration to the native bridge', () async {
+    const bridge = EverframeNativeBridge();
+    await bridge.start(appId: 'app_test', sdkKey: 'evf_live_test');
+    expect(calls.single.arguments, {
+      'appId': 'app_test',
+      'sdkKey': 'evf_live_test',
+      'environment': 'production',
+    });
+  });
+
+  test('passes staging configuration to the native bridge', () async {
+    const bridge = EverframeNativeBridge();
+    await bridge.start(
+        appId: 'app_test', sdkKey: 'evf_live_test', environment: 'staging');
+    expect(calls.single.arguments['environment'], 'staging');
+  });
+
   test('rejects invalid configuration before crossing bridge', () async {
     const bridge = EverframeNativeBridge();
     expect(() => bridge.start(appId: '', sdkKey: 'txx_dev_test'),
@@ -65,7 +82,7 @@ void main() {
         () => bridge.start(
             appId: 'app_test',
             sdkKey: 'txx_dev_test',
-            environment: 'production'),
+            environment: 'unknown'),
         throwsArgumentError);
     expect(calls, isEmpty);
   });

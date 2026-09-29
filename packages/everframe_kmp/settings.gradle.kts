@@ -18,4 +18,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "everframe-kmp-dry-run"
+rootProject.name = "everframe-kmp"
