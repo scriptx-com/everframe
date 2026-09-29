@@ -99,4 +99,16 @@ describe('ef_queue.brs', () => {
     expect(lines[0].keys).not.toContain('rl');
     expect(lines[0].rl).toBe(true);
   });
+
+  it('keeps exitInfo.consoleLog camelCase and tails it to 256 chars in the last Fit stage', async () => {
+    const { lines } = await runBrs(LIBS, `
+      rec = { v: 1, id: "id-x-xxxxxxxx", t: 1780000000000&, kind: "exit", fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [] }
+      rec["exitInfo"] = { exitCode: "EXIT_X" }
+      rec.exitInfo["consoleLog"] = String(2500, "a")
+      print "EFTEST:" + FormatJson({ json: EfQ_Fit(rec) })
+    `);
+    const stored = JSON.parse(lines[0].json);
+    expect(Object.keys(stored.exitInfo)).toContain('consoleLog');
+    expect(stored.exitInfo.consoleLog).toHaveLength(256);
+  });
 });

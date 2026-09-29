@@ -43,7 +43,7 @@ function EfQ_Fit(rec as object) as string
             f.raw = EfU_Truncate(f.raw, 96)
         end for
         if rec.exitInfo <> invalid and rec.exitInfo.consoleLog <> invalid then
-            rec.exitInfo.consoleLog = EfU_Tail(rec.exitInfo.consoleLog, 256)
+            rec.exitInfo["consoleLog"] = EfU_Tail(rec.exitInfo.consoleLog, 256)
         end if
         json = FormatJson(rec)
     end if
@@ -89,7 +89,7 @@ function EfQ_AttachExit(sec as object, t as dynamic, exitInfo as object) as bool
         if Left(k, Len(prefix)) = prefix then
             rec = ParseJson(sec.Read(k))
             if type(rec) = "roAssociativeArray" then
-                rec.exitInfo = exitInfo
+                rec["exitInfo"] = exitInfo
                 sec.Write(k, EfQ_Fit(rec))
                 sec.Flush()
                 return true

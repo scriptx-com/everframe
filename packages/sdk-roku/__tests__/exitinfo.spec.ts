@@ -64,6 +64,20 @@ describe('ef_exitinfo.brs', () => {
     expect(lines[0]).toEqual({ r: 'merged', n: 1, code: 'EXIT_BRIGHTSCRIPT_CRASH', lastCrash: false });
   });
 
+  it('serializes the merged exitInfo key in camelCase', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = CreateObject("roRegistrySection", "Everframe")
+      pathA = { v: 1, id: "aaaaaaaa-1", t: EfU_MsFromIso("2026-09-29T10:00:03Z"), kind: "crash", handled: false, fatal: true, exceptionType: "E", message: "m", frames: [], crumbs: [] }
+      k = EfQ_Put(sec, pathA)
+      EfX_Process(sec, ${INFO('EXIT_BRIGHTSCRIPT_CRASH')})
+      print "EFTEST:" + FormatJson({ raw: sec.Read(k) })
+    `);
+    const stored = JSON.parse(lines[0].raw);
+    expect(Object.keys(stored)).toContain('exitInfo');
+    expect(Object.keys(stored)).not.toContain('exitinfo');
+    expect(Object.keys(stored.exitInfo)).toEqual(expect.arrayContaining(['exitCode', 'memLimitMb', 'appState', 'mediaPlayerState']));
+  });
+
   it('suppresses Path B when the Path A record was already sent', async () => {
     const { lines } = await runBrs(LIBS, `
       sec = CreateObject("roRegistrySection", "Everframe")
