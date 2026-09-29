@@ -10,7 +10,7 @@ const base = () => ({
   sensitiveMagentaFraction: 0,
   sensitiveBlackFraction: 1,
   canvasFrameHashes: ['frame-a', 'frame-b'],
-  apiOrigins: ['http://127.0.0.1:8937'],
+  apiOrigins: ['http://127.0.0.1:8938'],
 });
 
 test('rejects a 1×1 fallback even if its mask pixels are black', () => {
@@ -43,7 +43,7 @@ test('requires two distinct canvas frames for visual replay', () => {
 test('flags any Everframe API origin outside loopback', () => {
   const result = classifyStockEvidence({
     ...base(),
-    apiOrigins: ['http://127.0.0.1:8937', 'https://everframe.dev'],
+    apiOrigins: ['http://127.0.0.1:8938', 'https://everframe.dev'],
   });
   expect(result.reasons).toContain('non-local Everframe API origin: https://everframe.dev');
 });

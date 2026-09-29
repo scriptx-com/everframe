@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const EXAMPLE = fileURLToPath(new URL('..', import.meta.url));
 const WEB = resolve(EXAMPLE, 'build/web');
 const SDK = resolve(EXAMPLE, '../../packages/sdk-web/dist/browser');
-const PORT = 8937;
+const PORT = 8938;
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',

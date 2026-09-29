@@ -7,7 +7,7 @@ export default defineConfig({
   testMatch: /.*\.probe\.ts$/,
   timeout: 60_000,
   use: {
-    baseURL: 'http://127.0.0.1:8937',
+    baseURL: 'http://127.0.0.1:8938',
     ...devices['Desktop Chrome'],
     viewport: { width: 1280, height: 720 },
     deviceScaleFactor: 1,
@@ -18,7 +18,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
     command: 'node ../../examples/flutter-web-probe/scripts/serve.mjs',
-    url: 'http://127.0.0.1:8937/',
+    url: 'http://127.0.0.1:8938/',
     reuseExistingServer: false,
     timeout: 30_000,
   },

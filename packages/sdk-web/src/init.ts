@@ -168,6 +168,13 @@ let current: InternalHandle | null = null;
 
 export function init(config: WebEverframeConfig): Everframe {
   assertBrowser();
+  if (config.sdkName !== undefined &&
+      (config.sdkName !== 'everframe-flutter' || typeof config.visualCapture?.captureScreenshot !== 'function' ||
+       typeof config.sdkVersion !== 'string' || config.sdkVersion.length === 0)) {
+    throw new Error('Everframe: Flutter web identity requires a renderer capture provider and SDK version.');
+  }
+  const sdkName = config.sdkName ?? VANILLA_SDK_NAME;
+  const sdkVersion = config.sdkName ? config.sdkVersion! : PKG_VERSION;
 
   // One reporter per page. Returning the live handle beats throwing: a
   // hot-reloading dev server calls init() repeatedly and should not hard-crash
@@ -210,8 +217,8 @@ export function init(config: WebEverframeConfig): Everframe {
   // ever be observed under the wrong sdk name/version. `everframe-web` is what
   // distinguishes a Vue/Svelte/plain-HTML host's reports from a React host's.
   const adapter: WebPlatformAdapter = createWebPlatformAdapter(config, {
-    sdkName: VANILLA_SDK_NAME,
-    sdkVersion: PKG_VERSION,
+    sdkName,
+    sdkVersion,
   });
   const client = createClient(adapter);
   client.init(config);
@@ -261,7 +268,7 @@ export function init(config: WebEverframeConfig): Everframe {
     apiKey: config.apiKey,
     apiUrl: INGEST_URL,
     isKilled,
-    sdkVersion: PKG_VERSION,
+    sdkVersion,
     // Task 11 (spec 2026-09-10 — playback session identity). Both halves are
     // read fresh on every call: the collector invokes this once per SUMMARY,
     // so a session that starts anonymous and then signs in becomes attributed
@@ -342,7 +349,7 @@ export function init(config: WebEverframeConfig): Everframe {
   __setCompanionHost({
     config,
     adapter,
-    sdkName: VANILLA_SDK_NAME,
+    sdkName,
     sdkVersion: PKG_VERSION,
     // Getters, not captured values — read at submit time so a sign-in/out
     // between init and submit is reflected.
@@ -639,8 +646,8 @@ export function init(config: WebEverframeConfig): Everframe {
           // defaults to `everframe-react` and mislabels this host's entire
           // in-app report stream. Same constant the adapter's crash path and
           // the companion host seam are constructed with, above.
-          sdkName: VANILLA_SDK_NAME,
-          sdkVersion: PKG_VERSION,
+          sdkName,
+          sdkVersion,
           draft,
           bundle,
           outbox: adapter.outbox,

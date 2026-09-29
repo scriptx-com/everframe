@@ -2,8 +2,15 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import type { EverframeConfig } from '@everframe/sdk-core';
 import type { ReporterTheme } from '../branding/theme.js';
+import type { HostVisualCapture } from '../capture/host-visual.js';
 
 export interface WebEverframeConfig extends EverframeConfig {
+  /** Flutter web adapter attribution; absent keeps ordinary web identity. */
+  sdkName?: 'everframe-flutter';
+  /** Flutter package version when sdkName is everframe-flutter. */
+  sdkVersion?: string;
+  /** Renderer-owned masked PNG and optional image replay. No DOM fallback on capture failure. */
+  visualCapture?: HostVisualCapture;
   /** CSP nonce threaded into screenshot lib + injected styles. Required under strict CSP. */
   cspNonce?: string;
   /** Console patcher overrides — capacity defaults to 250; levels defaults to all 5. */

@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:everframe_flutter/everframe_flutter.dart'
     show
         EverframeSensitive,
         SafeReplayBuffer,
+        SafeReplayRecorder,
         SensitiveRegionRegistry,
-        captureRegisteredFrame;
+        captureRegisteredFrame,
+        exportSafeReplayVTree;
 import 'package:flutter/material.dart';
 
 import 'platform_view.dart';
@@ -43,7 +46,46 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
       widget.replayBuffer ?? SafeReplayBuffer();
   late final SensitiveRegionRegistry _sensitiveRegions =
       widget.sensitiveRegions ?? SensitiveRegionRegistry();
+  late final SafeReplayRecorder _recorder = SafeReplayRecorder(
+    capture: _captureFrame,
+    buffer: _replay,
+    interval: const Duration(milliseconds: 500),
+    onFrame: () {
+      final frames = _replay.frames;
+      if (frames.isNotEmpty) widget.onSafeFrame?.call(frames.last.png);
+    },
+  );
   bool _secondScreen = false;
+
+  Future<Uint8List?> _captureFrame() async {
+    await WidgetsBinding.instance.endOfFrame;
+    return captureRegisteredFrame(_boundaryKey, _sensitiveRegions);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      installWebBridge(
+        capture: _captureFrame,
+        startReplay: () => unawaited(_recorder.start()),
+        freezeReplay: _recorder.freeze,
+        takeReplay: () => exportSafeReplayVTree(_replay, scale: 1),
+        resetReplay: () {
+          _recorder.discard();
+          unawaited(_recorder.start());
+        },
+        stopReplay: _recorder.discard,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _recorder.discard();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -84,7 +126,10 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                     top: 240,
                     width: 160,
                     height: 80,
-                    child: buildPlatformView()),
+                    child: EverframeSensitive(
+                      registry: _sensitiveRegions,
+                      child: buildPlatformView(),
+                    )),
                 Positioned(
                   left: 300,
                   top: 40,
@@ -104,9 +149,7 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                   top: 170,
                   child: ElevatedButton(
                     onPressed: () async {
-                      await WidgetsBinding.instance.endOfFrame;
-                      final bytes = await captureRegisteredFrame(
-                          _boundaryKey, _sensitiveRegions);
+                      final bytes = await _captureFrame();
                       final accepted = await _replay.append(bytes);
                       if (accepted && bytes != null) {
                         widget.onSafeFrame?.call(bytes);

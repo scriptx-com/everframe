@@ -31,7 +31,7 @@ export function classifyStockEvidence(input: StockEvidenceInput): StockEvidenceR
   if (!maskSafe) reasons.push('sensitive tile is not safely masked');
   if (!visualReplay) reasons.push('replay lacks two distinct canvas frames');
   for (const origin of input.apiOrigins) {
-    if (origin !== 'http://127.0.0.1:8937') {
+    if (origin !== 'http://127.0.0.1:8938') {
       reasons.push(`non-local Everframe API origin: ${origin}`);
     }
   }

@@ -11,10 +11,21 @@
   <script src="flutter_bootstrap.js" async></script>
   <script type="module">
     import { init, INGEST_URL } from '/sdk/index.js';
-    if (INGEST_URL !== 'http://127.0.0.1:8937') {
+    import { flutterVisualCapture } from './probe_visual.js';
+    if (INGEST_URL !== 'http://127.0.0.1:8938') {
       throw new Error('Flutter probe requires an SDK bundle configured for loopback ingest');
     }
-    window.__everframeProbe = init({ apiKey: 'pk_flutter_probe', appVersion: '0.0.0-probe' });
+    const start = () => {
+      window.__everframeProbe = init({
+        apiKey: 'pk_flutter_probe',
+        appVersion: '0.0.0-probe',
+        sdkName: 'everframe-flutter',
+        sdkVersion: '0.0.0+1',
+        visualCapture: flutterVisualCapture(),
+      });
+    };
+    if (window.everframeFlutterBridgeReady) start();
+    else window.addEventListener('everframe-flutter-ready', start, { once: true });
   </script>
 </body>
 </html>
