@@ -142,3 +142,49 @@ test('a pinned iframe capture never restyles the iframe root (outline) or its co
   expect(r.styleChanges).toEqual([]);
   expect(Math.abs(r.dotTop - r.liveDotTop)).toBeLessThanOrEqual(2);
 });
+
+// The nested capture restores the iframe's own scroll; the pin must not shift it again.
+test('a scrolled same-origin iframe is captured at its scroll position', async ({ page, browserName }) => {
+  // KNOWN GAP: on WebKit snapDOM's nested render of a scrolled iframe comes
+  // back without the scrolled content (blank), so the capture falls back to
+  // modern-screenshot. Not a leak; tracked as a follow-up.
+  test.fixme(browserName === 'webkit', 'snapDOM renders a scrolled iframe blank on WebKit');
+  await page.goto('/e2e/fixtures/plain.html');
+  const r = await page.evaluate(async () => {
+    document.body.style.cssText = 'background:rgb(200,200,200);min-height:100vh';
+    document.querySelector('main')!.remove();
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
+    frame.srcdoc =
+      '<!doctype html><html><head><style>html{background:#fff}body{margin:0;height:1000px}' +
+      '#dot{position:relative;top:300px;width:300px;height:20px;background:rgb(255,0,255)}</style></head>' +
+      '<body><div id="dot"></div></body></html>';
+    await new Promise((resolve) => {
+      frame.onload = resolve;
+      document.body.appendChild(frame);
+    });
+    frame.contentWindow!.scrollTo(0, 200);
+    const liveDotTop = frame.getBoundingClientRect().top + frame.contentDocument!.getElementById('dot')!.getBoundingClientRect().top;
+    const w = window as unknown as {
+      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+    };
+    const shot = await w.__everframe.__adapter.captureScreenshot();
+    const bmp = await createImageBitmap(shot.blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    const scale = bmp.width / window.innerWidth;
+    const x = Math.round((40 + 150) * scale);
+    let dotTop = -1;
+    for (let y = 40; y < 340 && dotTop < 0; y++) {
+      const d = ctx.getImageData(x, Math.round(y * scale), 1, 1).data;
+      if (d[0]! > 200 && d[1]! < 60 && d[2]! > 200) dotTop = y;
+    }
+    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, liveDotTop, dotTop, scrolled: frame.contentWindow!.scrollY };
+  });
+  expect(r.renderer).toBe('snapdom');
+  expect(r.scrolled).toBe(200);
+  expect(Math.abs(r.dotTop - r.liveDotTop), JSON.stringify(r)).toBeLessThanOrEqual(2);
+});
