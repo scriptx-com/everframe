@@ -87,13 +87,21 @@ function parseSrcset(value: string): Array<{ url: string; descriptor: string }> 
 /** One width (`300w`) or density (`1x`, `1.5x`, `.5x`) descriptor — never free text. */
 const SRCSET_DESCRIPTOR_RE = /^(?:\d+w|(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?x)$/;
 
-/** Each candidate sanitized; bogus descriptors or unsafe URLs drop that candidate. */
-export function sanitizeSrcset(value: string, base: string): string | null {
+/**
+ * Each candidate sanitized; bogus descriptors or unsafe URLs drop that
+ * candidate. `mapUrl` post-processes each sanitized URL (path redaction).
+ */
+export function sanitizeSrcset(
+  value: string,
+  base: string,
+  mapUrl: (url: string) => string = (url) => url,
+): string | null {
   const out: string[] = [];
   for (const { url, descriptor } of parseSrcset(value)) {
     if (descriptor !== '' && !SRCSET_DESCRIPTOR_RE.test(descriptor)) continue;
-    const clean = sanitizeHttpUrl(url, base);
-    if (clean === null) continue;
+    const sanitized = sanitizeHttpUrl(url, base);
+    if (sanitized === null) continue;
+    const clean = mapUrl(sanitized);
     // A URL ending in ',' would re-parse as "URL with no descriptor".
     const encoded = clean.replace(/,+$/, (commas) => '%2C'.repeat(commas.length));
     out.push(descriptor === '' ? encoded : `${encoded} ${descriptor}`);

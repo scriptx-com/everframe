@@ -21,13 +21,17 @@
 // single-pass scanner (no regex over unbounded input), identifiers are read
 // with their escapes decoded the way the browser reads them (`u\72l(` IS
 // `url(`), and rule nesting is capped. LAZY (tv-snapshot chunk).
+import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { isAriaStateValue } from './allowlists.js';
 import { fragmentId, isDataUrl, sanitizeHttpUrl } from './url-sanitize.js';
+import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
 
 export interface CssScrubContext {
   masked: boolean;
   retainedIds: ReadonlySet<string>;
   baseHref: string;
+  /** Customer redaction rules; URL paths are pattern-redacted with them. */
+  redaction?: RedactionEngineConfig | undefined;
 }
 
 /** Deeper at-rule nesting is dropped; real stylesheets nest a handful of levels. */
@@ -276,7 +280,8 @@ function sanitizeCssUrl(raw: string, ctx: CssScrubContext): string | null {
   if (id !== null) return ctx.retainedIds.has(id) ? `#${id}` : null;
   if (raw.trim().startsWith('#')) return null;
   if (isDataUrl(raw)) return ctx.masked ? null : raw.trim();
-  return sanitizeHttpUrl(raw, ctx.baseHref);
+  const clean = sanitizeHttpUrl(raw, ctx.baseHref);
+  return clean === null ? null : redactUrlPath(clean, pageRedactionConfig(ctx.redaction));
 }
 
 // ── exception checks ──────────────────────────────────────────────────────

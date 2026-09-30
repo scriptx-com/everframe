@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { beforeEach, describe, expect, it } from 'vitest';
+import { MAX_PATTERN_TEXT_LENGTH } from '../../../src/capture/tv-snapshot/page-redact.js';
 import { collectRetainedIds, scrubSnapshotTree } from '../../../src/capture/tv-snapshot/snapshot-scrub.js';
 import type { SnDocument } from '../../../src/capture/tv-snapshot/sn-types.js';
 import { doc, el, find, resetIds, text } from './sn-builders.js';
@@ -197,5 +198,126 @@ describe('snapshot scrubber', () => {
     const started = performance.now();
     scrub(root);
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  describe('URL paths are pattern-redacted (DOM and CSS)', () => {
+    const EMAIL = 'alice@example.test';
+    const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.c2lnbmF0dXJlMTIzNDU2';
+    const CARD = '4111111111111111';
+    const SECRETS = [EMAIL, 'alice%40example.test', 'eyJzdWIiOiJhbGljZSJ9', CARD];
+    const parses = (url: string): void => {
+      expect(() => new URL(url)).not.toThrow();
+      expect(new URL(url).href).toBe(url);
+    };
+
+    it('redacts emails, JWTs and card numbers in src, href, srcset and poster', () => {
+      const img = el('img', {
+        src: `/u/${EMAIL}/p.png`,
+        srcset: `/reset/${JWT}/1.png 1x, https://cdn.example.test/c/${CARD}.png 2x`,
+      });
+      const encoded = el('img', { src: '/u/alice%40example.test/p.png' });
+      const video = el('video', { poster: `https://cdn.example.test/${JWT}/v.jpg` });
+      const link = el('a', { href: `/user/${EMAIL}` });
+      const use = el('use', { 'xlink:href': `https://cdn.example.test/${EMAIL}.svg` }, [], { isSVG: true });
+      const root = page(img, encoded, video, link, el('svg', {}, [use], { isSVG: true }));
+      scrub(root);
+      expect(findLeaks(JSON.stringify(root), SECRETS)).toEqual([]);
+      expect(img.attributes.src).toBe('https://app.example.test/u/%5BREDACTED%3AEMAIL%5D/p.png');
+      expect(encoded.attributes.src).toBe('https://app.example.test/u/%5BREDACTED%3AEMAIL%5D/p.png');
+      expect(link.attributes.href).toBe('https://app.example.test/user/%5BREDACTED%3AEMAIL%5D');
+      for (const url of [img.attributes.src, encoded.attributes.src, video.attributes.poster, link.attributes.href, use.attributes['xlink:href']]) {
+        parses(url as string);
+      }
+      const candidates = String(img.attributes.srcset).split(', ');
+      expect(candidates).toHaveLength(2);
+      for (const c of candidates) {
+        const [url, descriptor] = c.split(' ');
+        parses(url!);
+        expect(descriptor).toMatch(/^[12]x$/);
+      }
+    });
+
+    it('leaves an ordinary path byte-for-byte unchanged', () => {
+      const img = el('img', { src: 'https://cdn.example.test/posters/show-12/p%20q.png' });
+      scrub(page(img));
+      expect(img.attributes.src).toBe('https://cdn.example.test/posters/show-12/p%20q.png');
+    });
+
+    it('redacts url(), image-set, @import and @font-face src targets in CSS', () => {
+      const sheet = el('style', {
+        _cssText:
+          `@import url("https://cdn.example.test/${EMAIL}/a.css");` +
+          `@font-face{font-family:f;src:url(/fonts/${JWT}.woff2)}` +
+          `.a{background-image:image-set(url("/i/${CARD}.png") 1x)}` +
+          `.b{background:url(/u/${EMAIL}.png)}`,
+      });
+      const inline = el('div', { style: `background-image:url('/p/${JWT}/x.png')` });
+      const root = doc(el('html', {}, [el('head', {}, [sheet]), el('body', {}, [inline])]));
+      scrub(root);
+      const json = JSON.stringify(root);
+      expect(findLeaks(json, SECRETS)).toEqual([]);
+      const urls = [...`${String(sheet.attributes._cssText)}${String(inline.attributes.style)}`.matchAll(/url\("([^"]*)"\)/g)].map((m) => m[1]!);
+      expect(urls).toHaveLength(5);
+      for (const url of urls) parses(url);
+      expect(urls.every((u) => u.includes('REDACTED'))).toBe(true);
+    });
+
+    it('redacts a ~20k-char URL path in well under a second', () => {
+      const img = el('img', { src: `/${'a'.repeat(20_000)}`, srcset: `/${'a.'.repeat(10_000)} 1x` });
+      const started = performance.now();
+      scrub(page(img));
+      expect(performance.now() - started).toBeLessThan(1000);
+      parses(img.attributes.src as string);
+    });
+  });
+
+  describe('truncation never leaves a partial token', () => {
+    it('backs up to the start of an email the cap cuts through', () => {
+      const prefix = '!'.repeat(MAX_PATTERN_TEXT_LENGTH - 9);
+      const t = text(`${prefix}alice@example.test tail`);
+      scrub(page(el('p', {}, [t])));
+      expect(t.textContent).toBe(prefix);
+    });
+
+    it('backs up past a card number the cap cuts between digit groups', () => {
+      const prefix = '!'.repeat(MAX_PATTERN_TEXT_LENGTH - 14);
+      const t = text(`${prefix}4111 1111 1111 1111 tail`);
+      scrub(page(el('p', {}, [t])));
+      expect(t.textContent).toBe(prefix);
+    });
+
+    it('backs up past a card number the cap cuts inside a digit group', () => {
+      const prefix = '!'.repeat(MAX_PATTERN_TEXT_LENGTH - 12);
+      const t = text(`${prefix}4111-1111-1111-1111 tail`);
+      scrub(page(el('p', {}, [t])));
+      expect(t.textContent).toBe(prefix);
+    });
+
+    it('cuts plain prose at the cap', () => {
+      const t = text('!'.repeat(MAX_PATTERN_TEXT_LENGTH + 50));
+      scrub(page(el('p', {}, [t])));
+      expect(t.textContent).toHaveLength(MAX_PATTERN_TEXT_LENGTH);
+    });
+  });
+
+  describe('doctype', () => {
+    const doctype = (name: string, publicId: string, systemId: string) => ({ type: 1 as const, id: 800, name, publicId, systemId });
+
+    it('keeps a standard DTD (it decides the document mode)', () => {
+      const dt = doctype('html', '-//W3C//DTD HTML 4.01 Transitional//EN', 'http://www.w3.org/TR/html4/loose.dtd');
+      scrub(doc(dt, el('html')));
+      expect(dt).toEqual(doctype('html', '-//W3C//DTD HTML 4.01 Transitional//EN', 'http://www.w3.org/TR/html4/loose.dtd'));
+      const html5 = doctype('html', '', '');
+      scrub(doc(html5, el('html')));
+      expect(html5).toEqual(doctype('html', '', ''));
+    });
+
+    it('clears page-chosen identifiers and names', () => {
+      const dt = doctype('Alice', 'Alice Smith', `https://evil.test/${'alice@example.test'}.dtd?u=1`);
+      const root = doc(dt, el('html'));
+      scrub(root);
+      expect(dt).toEqual(doctype('', '', ''));
+      expect(findLeaks(JSON.stringify(root), ['Alice', 'alice@example.test'])).toEqual([]);
+    });
   });
 });

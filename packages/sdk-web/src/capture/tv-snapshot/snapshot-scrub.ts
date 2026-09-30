@@ -7,20 +7,22 @@
 // and wrong for a screenshot (scrolled rails render from the top, selection
 // styling and icons vanish). Every retained slot is shape-validated.
 // LAZY (tv-snapshot chunk).
-import { redactStringContent, type RedactionEngineConfig } from '@everframe/sdk-core';
+import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { MASK_PLACEHOLDER } from '../replay/mask-mapping.js';
-import { replayRedactionConfig } from '../replay/scrub.js';
+import { pageRedactionConfig, redactPageString, redactUrlPath } from './page-redact.js';
 import { scrubCssText, scrubInlineStyle, type CssScrubContext } from './css-scrub.js';
 import { fragmentId, isDataUrl, sanitizeHttpUrl, sanitizeSrcset } from './url-sanitize.js';
 import { isAllowedSvgAttr, isAriaStateValue } from './allowlists.js';
 import {
   SN_CDATA,
   SN_COMMENT,
+  SN_DOCTYPE,
   SN_ELEMENT,
   SN_TEXT,
   type SnAttributeValue,
   type SnElement,
   type SnNode,
+  type SnOther,
 } from './sn-types.js';
 
 export interface SnapshotScrubContext extends CssScrubContext {
@@ -35,62 +37,16 @@ const BASE_ATTRS = new Set([
 const URL_ATTRS = new Set(['href', 'src', 'poster', 'xlink:href']);
 const LINK_TAGS = new Set(['a', 'area']);
 
-// ── bounded pattern scrub (S18) ────────────────────────────────────────────
-// The shared redaction engine's JWT and email patterns are unanchored `+`/`{8,}`
-// runs: on a long run of word characters they backtrack quadratically (20k
-// chars ≈ 0.6 s on a laptop, far worse on a TV CPU). Every character those
-// patterns can match is in TOKEN_CHAR, so capping each maximal TOKEN_CHAR run
-// bounds every match attempt; an over-long run is a blob or a token, never
-// display text, and is masked whole. Prose and CJK are untouched.
-
-/** No legitimate email or display word is longer; a longer JWT is masked whole. */
-const MAX_TOKEN_RUN = 128;
-/** Far more text than one TV-screen node shows; the rest is dropped before any regex. */
-const MAX_PATTERN_TEXT_LENGTH = 65_536;
-
-/** [A-Za-z0-9._%+@-] — the union of the engine's JWT and email character classes. */
-function isTokenChar(code: number): boolean {
-  return (
-    (code >= 48 && code <= 57) ||
-    (code >= 65 && code <= 90) ||
-    (code >= 97 && code <= 122) ||
-    code === 46 || code === 95 || code === 37 || code === 43 || code === 64 || code === 45
-  );
-}
-
-function maskLongTokenRuns(s: string): string {
-  let out = '';
-  let copied = 0;
-  let i = 0;
-  while (i < s.length) {
-    if (!isTokenChar(s.charCodeAt(i))) {
-      i++;
-      continue;
-    }
-    const start = i;
-    while (i < s.length && isTokenChar(s.charCodeAt(i))) i++;
-    if (i - start > MAX_TOKEN_RUN) {
-      out += s.slice(copied, start) + MASK_PLACEHOLDER;
-      copied = i;
-    }
-  }
-  return copied === 0 ? s : out + s.slice(copied);
-}
-
-function redactPageString(value: string, config: RedactionEngineConfig): string {
-  const capped = value.length > MAX_PATTERN_TEXT_LENGTH ? value.slice(0, MAX_PATTERN_TEXT_LENGTH) : value;
-  return redactStringContent(maskLongTokenRuns(capped), config);
-}
-
 // ── attributes ─────────────────────────────────────────────────────────────
 
-function sanitizeDomUrl(value: string, ctx: SnapshotScrubContext): string | null {
+function sanitizeDomUrl(value: string, ctx: SnapshotScrubContext, config: RedactionEngineConfig): string | null {
   const id = fragmentId(value);
   if (id !== null) return ctx.retainedIds.has(id) ? `#${id}` : null;
   const t = value.trim();
   if (t.startsWith('#')) return null;
   if (isDataUrl(t)) return !ctx.masked && /^data:image\//i.test(t) ? t : null;
-  return sanitizeHttpUrl(t, ctx.baseHref);
+  const clean = sanitizeHttpUrl(t, ctx.baseHref);
+  return clean === null ? null : redactUrlPath(clean, config);
 }
 
 function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: RedactionEngineConfig): void {
@@ -121,13 +77,13 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
     }
     if (lower === 'srcset') {
       if (typeof value === 'string') {
-        const srcset = sanitizeSrcset(value, ctx.baseHref);
+        const srcset = sanitizeSrcset(value, ctx.baseHref, (url) => redactUrlPath(url, config));
         if (srcset !== null) next[key] = srcset;
       }
       continue;
     }
     if (URL_ATTRS.has(lower)) {
-      const url = sanitizeDomUrl(String(value), ctx);
+      const url = sanitizeDomUrl(String(value), ctx, config);
       if (url !== null) next[key] = url;
       else if (lower === 'href' && LINK_TAGS.has(tag)) next[key] = '#'; // keeps :link styling, carries nothing
       continue;
@@ -149,6 +105,59 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
   node.attributes = next;
 }
 
+// ── doctype ────────────────────────────────────────────────────────────────
+
+// The standard DTD identifiers (HTML 2.0–4.01, XHTML 1.0/1.1/Basic, the HTML5
+// legacy-compat string). They decide quirks/limited-quirks mode, so a known
+// one is kept verbatim; anything else is page-chosen text and is cleared.
+const DTD_PUBLIC_IDS = new Set(
+  [
+    '-//IETF//DTD HTML//EN',
+    '-//IETF//DTD HTML 2.0//EN',
+    '-//W3C//DTD HTML 3.2//EN',
+    '-//W3C//DTD HTML 3.2 Final//EN',
+    '-//W3C//DTD HTML 4.0//EN',
+    '-//W3C//DTD HTML 4.0 Transitional//EN',
+    '-//W3C//DTD HTML 4.0 Frameset//EN',
+    '-//W3C//DTD HTML 4.01//EN',
+    '-//W3C//DTD HTML 4.01 Transitional//EN',
+    '-//W3C//DTD HTML 4.01 Frameset//EN',
+    '-//W3C//DTD XHTML 1.0 Strict//EN',
+    '-//W3C//DTD XHTML 1.0 Transitional//EN',
+    '-//W3C//DTD XHTML 1.0 Frameset//EN',
+    '-//W3C//DTD XHTML 1.1//EN',
+    '-//W3C//DTD XHTML Basic 1.0//EN',
+    '-//W3C//DTD XHTML Basic 1.1//EN',
+    '-//WAPFORUM//DTD XHTML Mobile 1.0//EN',
+    '-//WAPFORUM//DTD XHTML Mobile 1.1//EN',
+    '-//WAPFORUM//DTD XHTML Mobile 1.2//EN',
+  ].map((id) => id.toLowerCase()),
+);
+const DTD_SYSTEM_PATHS = [
+  'TR/html4/strict.dtd', 'TR/html4/loose.dtd', 'TR/html4/frameset.dtd',
+  'TR/REC-html40/strict.dtd', 'TR/REC-html40/loose.dtd', 'TR/REC-html40/frameset.dtd',
+  'TR/xhtml1/DTD/xhtml1-strict.dtd', 'TR/xhtml1/DTD/xhtml1-transitional.dtd', 'TR/xhtml1/DTD/xhtml1-frameset.dtd',
+  'TR/xhtml11/DTD/xhtml11.dtd', 'TR/xhtml-basic/xhtml-basic10.dtd', 'TR/xhtml-basic/xhtml-basic11.dtd',
+];
+const DTD_SYSTEM_IDS = new Set(
+  ['about:legacy-compat'].concat(
+    DTD_SYSTEM_PATHS.map((p) => `http://www.w3.org/${p}`.toLowerCase()),
+    DTD_SYSTEM_PATHS.map((p) => `https://www.w3.org/${p}`.toLowerCase()),
+  ),
+);
+
+/**
+ * A doctype keeps only what sets the document mode: the `html` name and a
+ * standard public/system identifier. (A system id also matters for mode —
+ * HTML 4.01 Transitional with one is limited-quirks, without one quirks — so
+ * a STANDARD one is kept; any other is cleared.)
+ */
+function scrubDoctype(node: SnOther): void {
+  if (node.name !== undefined && node.name.toLowerCase() !== 'html') node.name = '';
+  if (node.publicId !== undefined && !DTD_PUBLIC_IDS.has(node.publicId.toLowerCase())) node.publicId = '';
+  if (node.systemId !== undefined && !DTD_SYSTEM_IDS.has(node.systemId.toLowerCase())) node.systemId = '';
+}
+
 // ── tree walk ──────────────────────────────────────────────────────────────
 
 /**
@@ -166,7 +175,7 @@ function survivingIds(ids: ReadonlySet<string>, config: RedactionEngineConfig): 
 
 /** Scrub a serialized snapshot tree in place. Iterative: page-controlled depth never grows the stack. */
 export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void {
-  const config = replayRedactionConfig(ctx.redaction);
+  const config = pageRedactionConfig(ctx.redaction);
   const scrubCtx: SnapshotScrubContext = { ...ctx, retainedIds: survivingIds(ctx.retainedIds, config) };
   const stack: Array<{ node: SnNode; parentTag: string | null }> = [{ node: root, parentTag: null }];
   for (let item = stack.pop(); item !== undefined; item = stack.pop()) {
@@ -176,6 +185,10 @@ export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void
         parentTag === 'style' || node.isStyle === true
           ? scrubCssText(node.textContent, scrubCtx)
           : redactPageString(node.textContent, config);
+      continue;
+    }
+    if (node.type === SN_DOCTYPE) {
+      scrubDoctype(node);
       continue;
     }
     if (node.type === SN_COMMENT || node.type === SN_CDATA) {
