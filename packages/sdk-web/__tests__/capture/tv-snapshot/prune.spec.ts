@@ -3,7 +3,7 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { pruneSnapshot, type PruneDeps, type PruneRect } from '../../../src/capture/tv-snapshot/prune.js';
-import type { SnElement } from '../../../src/capture/tv-snapshot/sn-types.js';
+import type { SnElement, SnNode } from '../../../src/capture/tv-snapshot/sn-types.js';
 import { doc, el, find, resetIds, text } from './sn-builders.js';
 import { findLeaks } from './leak-assert.js';
 
@@ -11,6 +11,8 @@ const VIEWPORT = { width: 1280, height: 720 };
 const rect = (left: number, top: number, width: number, height: number): PruneRect => ({
   left, top, width, height, right: left + width, bottom: top + height,
 });
+/** Placeholder declarations are all !important (author resets cannot resize them). */
+const imp = (css: string): string => css.split(';').map((d) => `${d}!important`).join(';');
 const ON = rect(0, 0, 100, 20);
 const ABOVE = rect(0, -1300, 1280, 1200);
 
@@ -54,9 +56,9 @@ describe('pruneSnapshot', () => {
     const result = pruneSnapshot(root, deps);
     expect(previous.childNodes).toEqual([]);
     expect(previous.attributes).toEqual({
-      style: expect.stringContaining('display:block;position:static;box-sizing:border-box;width:1280px;height:1200px'),
+      style: expect.stringContaining(imp('display:block;position:static;box-sizing:border-box;width:1280px;height:1200px')),
     });
-    expect(String(previous.attributes.style)).toContain('margin:10px 0px 20px 0px');
+    expect(String(previous.attributes.style)).toContain(imp('margin:10px 0px 20px 0px'));
     expect(String(previous.attributes.style)).toContain('visibility:hidden');
     expect(findLeaks(JSON.stringify(root), ['PREVIOUSSCREEN'])).toEqual([]);
     expect(current.childNodes).toHaveLength(1);
@@ -80,8 +82,8 @@ describe('pruneSnapshot', () => {
     const body = el('body', {}, [abs, none]);
     pruneSnapshot(doc(el('html', {}, [body])), deps);
     expect(body.childNodes).toEqual([abs, none]);
-    expect(abs.attributes).toEqual({ style: 'display:none' });
-    expect(none.attributes).toEqual({ style: 'display:none' });
+    expect(abs.attributes).toEqual({ style: imp('display:none') });
+    expect(none.attributes).toEqual({ style: imp('display:none') });
     expect(abs.childNodes).toEqual([]);
   });
 
@@ -127,7 +129,7 @@ describe('pruneSnapshot', () => {
     expect(result.masked).toBe(true);
     const style = String(vault.attributes.style);
     expect(Object.keys(vault.attributes)).toEqual(['style']);
-    expect(style).toContain('width:300px;height:80px');
+    expect(style).toContain(imp('width:300px;height:80px'));
     expect(style).toContain('position:absolute');
     expect(style).toContain('top:10px');
     expect(style).toContain('background:#000');
@@ -164,7 +166,7 @@ describe('pruneSnapshot', () => {
     const result = pruneSnapshot(doc(el('html', {}, [el('body', {}, [icon])])), deps);
     expect(result.pruned).toBe(1);
     expect(icon.childNodes).toEqual([]);
-    expect(String(icon.attributes.style)).toContain('display:inline-block;position:static;box-sizing:border-box;width:24px;height:24px');
+    expect(String(icon.attributes.style)).toContain(imp('display:inline-block;position:static;box-sizing:border-box;width:24px;height:24px'));
   });
 
   it('prunes off-screen inline replaced elements inside a visible block to same-box inline-block placeholders with no URL (S20)', () => {
@@ -188,8 +190,8 @@ describe('pruneSnapshot', () => {
     for (const [node, w, h] of [[img, 200, 120], [video, 320, 180], [imageInput, 40, 40]] as const) {
       expect(Object.keys(node.attributes)).toEqual(['style']);
       const style = String(node.attributes.style);
-      expect(style).toContain(`display:inline-block;position:static;box-sizing:border-box;width:${w}px;height:${h}px`);
-      expect(style).toContain('margin:0px 8px 0px 0px');
+      expect(style).toContain(imp(`display:inline-block;position:static;box-sizing:border-box;width:${w}px;height:${h}px`));
+      expect(style).toContain(imp('margin:0px 8px 0px 0px'));
       expect(style).toContain('visibility:hidden');
       expect(node.childNodes).toEqual([]);
     }
@@ -205,6 +207,123 @@ describe('pruneSnapshot', () => {
     pruneSnapshot(doc(el('html', {}, [el('body', {}, [p])])), deps);
     expect(span.attributes).toEqual({ class: 's' });
     expect(input.attributes).toEqual({ type: 'text' });
+  });
+
+  it('prunes an off-screen screen holding an icon that defines a clipPath id, re-homing only the definitions (fix 1)', () => {
+    const { bind, deps } = harness();
+    const clip = el('clipPath', { id: 'clip0' }, [el('rect', { width: '24', height: '24' }, [], { isSVG: true })], { isSVG: true });
+    const defs = el('defs', {}, [clip], { isSVG: true });
+    const icon = bind(
+      el('svg', { class: 'icon', width: '24', height: '24', 'aria-label': 'ICONLABEL' }, [
+        el('title', {}, [text('ICONTITLE')], { isSVG: true }),
+        el('g', { 'clip-path': 'url(#clip0)' }, [el('path', { d: 'M0 0L24 24' }, [], { isSVG: true })], { isSVG: true }),
+        defs,
+      ], { isSVG: true }),
+      { rect: ABOVE, style: { display: 'inline' } },
+    );
+    const link = bind(el('a', { href: 'https://secret.test/account' }, [text('SECRETLINK')]), { rect: ABOVE });
+    const section = bind(el('section', {}, [text('SECRETTEXT'), link, icon]), { rect: ABOVE, size: { width: 1280, height: 1200 } });
+    const current = bind(el('main', {}, [text('visible')]));
+    const root = doc(el('html', {}, [el('body', {}, [section, current])]));
+    pruneSnapshot(root, deps);
+    expect(section.childNodes).toEqual([icon]);
+    expect(String(section.attributes.style)).toContain(imp('width:1280px;height:1200px'));
+    expect(icon.attributes).toEqual({ width: '0', height: '0', style: imp('position:absolute;width:0;height:0;overflow:hidden') });
+    expect(icon.childNodes).toEqual([defs]);
+    expect(defs.childNodes).toEqual([clip]);
+    expect(findLeaks(JSON.stringify(root), ['SECRETTEXT', 'SECRETLINK', 'secret.test', 'ICONTITLE', 'ICONLABEL', 'M0 0L24'])).toEqual([]);
+  });
+
+  it('carries definitions to the topmost pruned ancestor and keeps them out of display:none (fix 1)', () => {
+    const { bind, deps } = harness();
+    const sprite = bind(el('svg', {}, [el('symbol', { id: 'play' }, [el('path', { d: 'M1 1' }, [], { isSVG: true })], { isSVG: true })], { isSVG: true }), { rect: ABOVE });
+    const inner = bind(el('div', {}, [sprite]), { rect: ABOVE });
+    const overlay = bind(el('div', {}, [inner, text('OVERLAYTEXT')]), { rect: ABOVE, style: { position: 'absolute' } });
+    const root = doc(el('html', {}, [el('body', {}, [overlay])]));
+    pruneSnapshot(root, deps);
+    expect(overlay.childNodes).toEqual([sprite]);
+    expect(overlay.attributes).toEqual({
+      style: imp('display:block;position:absolute;width:0;height:0;overflow:hidden;visibility:hidden'),
+    });
+    expect(sprite.childNodes).toHaveLength(1);
+    expect(findLeaks(JSON.stringify(root), ['OVERLAYTEXT'])).toEqual([]);
+  });
+
+  it('prunes an off-screen svg whose only ids are on non-definition elements', () => {
+    const { bind, deps } = harness();
+    const exported = bind(el('svg', {}, [el('g', { id: 'Layer_1' }, [el('path', { d: 'M0 0' }, [], { isSVG: true })], { isSVG: true })], { isSVG: true }), { rect: ABOVE });
+    const result = pruneSnapshot(doc(el('html', {}, [el('body', {}, [exported])])), deps);
+    expect(result.pruned).toBe(1);
+    expect(exported.childNodes).toEqual([]);
+  });
+
+  describe('collapsed child margins on block placeholders (fix 2)', () => {
+    const zero = { marginTop: '0px', marginBottom: '0px' };
+    const pruneOne = (children: (b: ReturnType<typeof harness>['bind']) => SnNode[], sectionStyle: Partial<CSSStyleDeclaration> = zero, bodyStyle?: Partial<CSSStyleDeclaration>) => {
+      const { bind, deps } = harness();
+      const section = bind(el('section', {}, children(bind)), { rect: ABOVE, style: sectionStyle });
+      const body = el('body', {}, [section]);
+      if (bodyStyle) bind(body, { style: bodyStyle });
+      pruneSnapshot(doc(el('html', {}, [body])), deps);
+      return String(section.attributes.style);
+    };
+    const h = (b: ReturnType<typeof harness>['bind'], tag: string, style: Partial<CSSStyleDeclaration>, kids: SnNode[] = [text('T')]) =>
+      b(el(tag, {}, kids), { rect: ABOVE, style });
+
+    it('adds the first child top margin and the last child bottom margin that collapse through it', () => {
+      const style = pruneOne((b) => [h(b, 'h2', { marginTop: '24px', marginBottom: '16px' }), h(b, 'p', { marginTop: '12px', marginBottom: '12px' })]);
+      expect(style).toContain(imp('margin:24px 0px 12px 0px'));
+    });
+
+    it('combines positive and negative margins (max positive + most negative)', () => {
+      const style = pruneOne((b) => [h(b, 'h2', { marginTop: '-5px', marginBottom: '30px' })], { marginTop: '10px', marginBottom: '-8px' });
+      expect(style).toContain(imp('margin:5px 0px 22px 0px'));
+    });
+
+    it('follows the chain through nested collapsing blocks', () => {
+      const style = pruneOne((b) => [h(b, 'div', zero, [h(b, 'div', zero, [h(b, 'h2', { marginTop: '30px', marginBottom: '0px' })])])]);
+      expect(style).toContain(imp('margin:30px 0px 0px 0px'));
+    });
+
+    it('skips out-of-flow first children and whitespace text', () => {
+      const style = pruneOne((b) => [text('\n  '), h(b, 'div', { position: 'absolute', marginTop: '99px' }), h(b, 'h2', { marginTop: '18px', marginBottom: '0px' })]);
+      expect(style).toContain(imp('margin:18px 0px 0px 0px'));
+    });
+
+    it('stops at leading text, padding/border, BFC roots and flex parents', () => {
+      const child = (b: ReturnType<typeof harness>['bind']) => [h(b, 'h2', { marginTop: '24px', marginBottom: '24px' })];
+      expect(pruneOne((b) => [text('lead'), ...child(b), text('tail')])).toContain(imp('margin:0px 0px 0px 0px'));
+      expect(pruneOne(child, { ...zero, paddingTop: '1px', borderBottomWidth: '2px' })).toContain(imp('margin:0px 0px 0px 0px'));
+      expect(pruneOne(child, { ...zero, overflow: 'hidden', overflowX: 'hidden', overflowY: 'hidden' })).toContain(imp('margin:0px 0px 0px 0px'));
+      expect(pruneOne(child, { ...zero, display: 'flow-root' })).toContain(imp('margin:0px 0px 0px 0px'));
+      expect(pruneOne(child, zero, { display: 'flex' })).toContain(imp('margin:0px 0px 0px 0px'));
+    });
+
+    it('bounds the probe depth', () => {
+      const style = pruneOne((b) => {
+        let node = h(b, 'h2', { marginTop: '40px', marginBottom: '0px' });
+        for (let i = 0; i < 20; i++) node = h(b, 'div', zero, [node]);
+        return [node];
+      });
+      expect(style).toContain(imp('margin:40px 0px 0px 0px')); // pruned children carry their collapsed margin up
+    });
+  });
+
+  it('keeps display:list-item on list placeholders so counters do not restart', () => {
+    const { bind, deps } = harness();
+    const li = bind(el('li', {}, [text('ITEM')]), { rect: ABOVE, style: { display: 'list-item' } });
+    pruneSnapshot(doc(el('html', {}, [el('body', {}, [el('ol', {}, [li])])])), deps);
+    expect(String(li.attributes.style)).toContain(imp('display:list-item'));
+  });
+
+  it('strips text- and URL-bearing attributes from kept off-screen inline elements', () => {
+    const { bind, deps } = harness();
+    const link = bind(
+      el('a', { class: 'k', href: 'https://secret.test/', title: 'TIP', 'aria-label': 'LABEL', 'data-user': 'alice', alt: 'ALT', placeholder: 'PH' }, [text('x')]),
+      { rect: rect(1400, 0, 50, 20), style: { display: 'inline' } },
+    );
+    pruneSnapshot(doc(el('html', {}, [el('body', {}, [bind(el('p', {}, [link]))])])), deps);
+    expect(link.attributes).toEqual({ class: 'k' });
   });
 
   it('records every pruned or masked node id, descendants included, as hidden', () => {
@@ -232,8 +351,8 @@ describe('pruneSnapshot', () => {
     expect(scroller.childNodes).toEqual(rows);
     for (const row of rows.slice(0, 3)) {
       expect(row.childNodes).toEqual([]);
-      expect(String(row.attributes.style)).toContain('width:1280px;height:200px');
-      expect(String(row.attributes.style)).toContain('margin:0px 0px 0px 0px');
+      expect(String(row.attributes.style)).toContain(imp('width:1280px;height:200px'));
+      expect(String(row.attributes.style)).toContain(imp('margin:0px 0px 0px 0px'));
       expect(String(row.attributes.style)).toContain('visibility:hidden');
     }
     expect(rows[3]?.childNodes).toHaveLength(1);
@@ -294,7 +413,7 @@ describe('pruneSnapshot', () => {
     const result = pruneSnapshot(root, deps);
     expect(result.masked).toBe(true);
     expect(forged.childNodes).toEqual([]);
-    expect(forged.attributes).toEqual({ style: 'display:inline-block;width:1px;height:2px;background:#000' });
+    expect(forged.attributes).toEqual({ style: imp('display:inline-block;width:1px;height:2px;background:#000') });
     expect(findLeaks(JSON.stringify(root), ['evil.test', 'SECRET'])).toEqual([]);
   });
 
