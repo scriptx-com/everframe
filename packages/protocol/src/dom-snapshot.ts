@@ -22,6 +22,12 @@ export const MAX_DOM_SNAPSHOT_COMPRESSED_BYTES = 2 * 1024 * 1024;
 export const MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES = 10 * 1024 * 1024;
 /** Largest node count a consumer will rebuild. A heavy TV page is ~4,100. */
 export const MAX_DOM_SNAPSHOT_NODES = 50_000;
+/**
+ * Deepest element nesting a consumer will rebuild (`<html>` is depth 1). The
+ * render service rejects anything deeper, so the SDK treats a deeper snapshot
+ * as a capture failure instead of uploading one that cannot render.
+ */
+export const MAX_DOM_SNAPSHOT_DEPTH = 1024;
 /** Largest viewport edge, in CSS pixels, a render will allocate. */
 export const MAX_RENDER_VIEWPORT_EDGE = 4096;
 
@@ -140,6 +146,30 @@ export function countDomSnapshotNodes(snapshot: DomSnapshotV1, limit: number): n
     }
   }
   return count;
+}
+
+/**
+ * Element nesting depth of the serialized tree (`<html>` = 1; only element
+ * nodes add a level), iteratively (no recursion on attacker-shaped depth).
+ * Returns early with `limit + 1` once the limit is exceeded.
+ */
+export function domSnapshotDepth(snapshot: DomSnapshotV1, limit: number): number {
+  const stack: Array<{ node: unknown; depth: number }> = [{ node: snapshot.events[1].data.node, depth: 0 }];
+  let max = 0;
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!;
+    if (depth > max) {
+      max = depth;
+      if (max > limit) return limit + 1;
+    }
+    const children = (node as { childNodes?: unknown } | null)?.childNodes;
+    if (!Array.isArray(children)) continue;
+    for (const child of children) {
+      const isElement = (child as { type?: unknown } | null)?.type === 2;
+      stack.push({ node: child, depth: isElement ? depth + 1 : depth });
+    }
+  }
+  return max;
 }
 
 /** Part name for shot `shotNumber` (1-based): `dom-snapshot`, `dom-snapshot-2`, … */

@@ -14,8 +14,13 @@
  * through this so `\x01data:` or `da\tta:` are classified as the browser would.
  */
 function normalizeUrl(value: string): string {
-  // eslint-disable-next-line no-control-regex
-  return value.replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, '').replace(/[\t\n\r]/g, '');
+  // Trimmed by index, not by a `[…]+$` regex: that backtracks quadratically on
+  // a long interior run of spaces (S18 — page-controlled input on TV CPUs).
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charCodeAt(start) <= 0x20) start++;
+  while (end > start && value.charCodeAt(end - 1) <= 0x20) end--;
+  return value.slice(start, end).replace(/[\t\n\r]/g, '');
 }
 
 const FRAGMENT_RE = /^#([^\s#]+)$/;
@@ -30,6 +35,30 @@ export function fragmentId(raw: string): string | null {
   } catch {
     return id;
   }
+}
+
+/**
+ * rrweb-snapshot absolutizes every CSS `url()` against the document, so
+ * `url(#clip)` arrives as `url(https://host/dir/#clip)`. A fragment URL whose
+ * non-fragment part resolves to the document itself (`baseHref`, already
+ * reduced to scheme + host + path) or to its directory is a same-document
+ * reference again → the (decoded) id. Anything else → null.
+ */
+export function documentFragmentId(raw: string, baseHref: string): string | null {
+  const value = normalizeUrl(raw);
+  const hash = value.indexOf('#');
+  if (hash <= 0 || baseHref === '') return null;
+  const id = fragmentId(value.slice(hash));
+  if (id === null) return null;
+  let url: URL;
+  try {
+    url = new URL(value.slice(0, hash), baseHref);
+  } catch {
+    return null;
+  }
+  const target = `${url.protocol}//${url.host}${url.pathname}`;
+  const dir = baseHref.slice(0, baseHref.lastIndexOf('/') + 1);
+  return target === baseHref || target === dir ? id : null;
 }
 
 export function isDataUrl(raw: string): boolean {

@@ -94,6 +94,7 @@
     "@zumer/snapdom": "3.2.0",
     "modern-screenshot": "^4.7.0",
     "rrweb": "2.0.1",
+    "rrweb-snapshot": "2.1.6",
     "zod": "^4.3.0"
   },
   "devDependencies": {

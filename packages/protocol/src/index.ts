@@ -17,11 +17,11 @@ export { MAX_REPORT_SHOTS, MAX_INGEST_FILE_PARTS } from './limits.js';
 export {
   DOM_SNAPSHOT_VERSION, DOM_SNAPSHOT_PART, DOM_SNAPSHOT_CONTENT_TYPE,
   MAX_DOM_SNAPSHOT_COMPRESSED_BYTES, MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES,
-  MAX_DOM_SNAPSHOT_NODES, MAX_RENDER_VIEWPORT_EDGE,
+  MAX_DOM_SNAPSHOT_NODES, MAX_DOM_SNAPSHOT_DEPTH, MAX_RENDER_VIEWPORT_EDGE,
   RenderPlatform, RenderViewport, RenderFontStatus, DomSnapshotMedia, DomSnapshotFonts,
   DomSnapshotContext, DomSnapshotMetaEvent, DomSnapshotFullSnapshotEvent, DomSnapshotV1,
   CaptureControlRender,
-  parseDomSnapshot, countDomSnapshotNodes, domSnapshotPartName, parseDomSnapshotPartName,
+  parseDomSnapshot, countDomSnapshotNodes, domSnapshotDepth, domSnapshotPartName, parseDomSnapshotPartName,
   readCaptureControlRender,
 } from './dom-snapshot.js';
 export type { ParseDomSnapshotResult } from './dom-snapshot.js';

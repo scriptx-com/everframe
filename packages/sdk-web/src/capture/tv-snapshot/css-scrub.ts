@@ -23,7 +23,7 @@
 // `url(`), and rule nesting is capped. LAZY (tv-snapshot chunk).
 import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { isAriaStateValue } from './allowlists.js';
-import { fragmentId, isDataUrl, sanitizeHttpUrl } from './url-sanitize.js';
+import { documentFragmentId, fragmentId, isDataUrl, sanitizeHttpUrl } from './url-sanitize.js';
 import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
 
 export interface CssScrubContext {
@@ -276,7 +276,7 @@ function urlTokenValue(args: string): string {
 }
 
 function sanitizeCssUrl(raw: string, ctx: CssScrubContext): string | null {
-  const id = fragmentId(raw);
+  const id = fragmentId(raw) ?? documentFragmentId(raw, ctx.baseHref);
   if (id !== null) return ctx.retainedIds.has(id) ? `#${id}` : null;
   if (raw.trim().startsWith('#')) return null;
   if (isDataUrl(raw)) return ctx.masked ? null : raw.trim();

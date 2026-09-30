@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
 import {
+  documentFragmentId,
   fragmentId,
   isDataUrl,
   sanitizeHttpUrl,
@@ -100,5 +101,33 @@ describe('sanitizeMetaHref (scheme allowlist)', () => {
     expect(sanitizeMetaHref('data:/Alice Smith')).toBe('');
     expect(sanitizeMetaHref('javascript:/Alice')).toBe('');
     expect(sanitizeMetaHref('app://pkg/Alice/index.html')).toBe('');
+  });
+});
+
+describe('documentFragmentId (rrweb-absolutized CSS fragments)', () => {
+  const PAGE = 'https://app.example.test/tv/home';
+  it('recognizes a fragment resolved against the document or its directory', () => {
+    expect(documentFragmentId('https://app.example.test/tv/#clip', PAGE)).toBe('clip');
+    expect(documentFragmentId('https://app.example.test/tv/home#clip', PAGE)).toBe('clip');
+    expect(documentFragmentId(' https://app.example.test/tv/?q=1#grad%201 ', PAGE)).toBe('grad 1');
+    expect(documentFragmentId('file:///apps/com.x/#clip', 'file:///apps/com.x/index.html')).toBe('clip');
+  });
+  it('rejects other documents, empty fragments and bare fragments', () => {
+    expect(documentFragmentId('https://app.example.test/tv/sprite.svg#clip', PAGE)).toBeNull();
+    expect(documentFragmentId('https://cdn.example.test/tv/#clip', PAGE)).toBeNull();
+    expect(documentFragmentId('https://app.example.test/tv/#', PAGE)).toBeNull();
+    expect(documentFragmentId('#clip', PAGE)).toBeNull(); // fragmentId's job
+    expect(documentFragmentId('https://app.example.test/tv/#clip', '')).toBeNull();
+  });
+});
+
+describe('URL normalization stays linear (S18)', () => {
+  it('handles a long interior run of spaces in well under a second', () => {
+    const nearMiss = `a${' '.repeat(40_000)}a`;
+    const started = performance.now();
+    expect(sanitizeHttpUrl(nearMiss, BASE)).not.toBeUndefined();
+    expect(fragmentId(nearMiss)).toBeNull();
+    expect(documentFragmentId(`${nearMiss}#x`, BASE)).toBeNull();
+    expect(performance.now() - started).toBeLessThan(1000);
   });
 });

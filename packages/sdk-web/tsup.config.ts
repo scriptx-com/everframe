@@ -129,6 +129,11 @@ const vanillaEntry = {
     'react-konva',
     'konva',
     'rrweb',
+    // One-off TV DOM snapshots (spec 2026-09-29). rrweb 2.0.1 does not
+    // re-export `snapshot`, and its `record()` shares a module-level mirror
+    // with the live replay recorder, so the TV path uses rrweb-snapshot
+    // directly — bundled, reached only through the lazy tv-snapshot chunk.
+    'rrweb-snapshot',
     'modern-screenshot',
     '@zumer/snapdom',
   ],
