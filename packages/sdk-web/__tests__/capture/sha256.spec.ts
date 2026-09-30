@@ -105,4 +105,18 @@ describe('sha256Hex — Web Crypto path', () => {
     expect(await sha256Hex(new Blob(['abc']))).toBe(ABC);
     expect(digest).toHaveBeenCalledTimes(1);
   });
+
+  it('hands a whole-buffer view to Web Crypto as is, and copies only a partial view', async () => {
+    const digest = vi.fn((alg: string, data: BufferSource) => webcrypto.subtle.digest(alg, data));
+    vi.stubGlobal('crypto', { subtle: { digest } });
+    const whole = ascii('abc');
+    expect(await sha256HexOfBytes(whole)).toBe(ABC);
+    expect(digest.mock.calls[0]![1]).toBe(whole);
+    const partial = ascii('xxabcxx').subarray(2, 5);
+    expect(await sha256HexOfBytes(partial)).toBe(ABC);
+    const passed = digest.mock.calls[1]![1] as Uint8Array;
+    expect(passed).not.toBe(partial);
+    expect(passed.byteLength).toBe(3);
+    expect(passed.buffer.byteLength).toBe(3);
+  });
 });

@@ -7,7 +7,6 @@ import {
   __internalClientState,
   IDENTITY_PROVIDER_TIMEOUT_MS,
   resolveClientExtra,
-  sha256BytesHex,
   type EverframeClient,
   type ThreadClientState,
   type UserMetadata,
@@ -24,6 +23,7 @@ import {
   setupVitals,
   INGEST_URL,
   createScreenRecorder,
+  sha256Hex,
   type WebPlatformAdapter,
   type WebEverframeConfig,
   type ReporterResult,
@@ -79,25 +79,12 @@ const TOAST_RETRY = "Saved offline — will retry when you're back online.";
 const TOAST_ERROR = "Couldn't send report. Check your SDK key configuration.";
 
 /**
- * SHA-256 hex of raw bytes — used for the session-replay attachment ref. Web
- * Crypto when present; the pure-JS sdk-core digest otherwise (`crypto.subtle`
- * is absent on insecure plain-http pages, e.g. hosted smart-TV apps).
+ * SHA-256 hex of raw bytes — the session-replay attachment ref. Delegates to
+ * @everframe/web's `sha256Hex` (Web Crypto, pure-JS fallback on insecure
+ * pages) so React and vanilla hosts produce the same digest by construction.
  */
-async function sha256OfBytes(bytes: Uint8Array): Promise<string> {
-  const subtle = typeof crypto !== 'undefined' ? crypto.subtle : undefined;
-  if (subtle !== undefined && subtle !== null && typeof subtle.digest === 'function') {
-    try {
-      // Copy into a fresh ArrayBuffer-backed view so the digest input is a plain
-      // BufferSource (avoids SharedArrayBuffer-typed slice unions under strict TS).
-      const copy = new Uint8Array(bytes.byteLength);
-      copy.set(bytes);
-      const digest = await subtle.digest('SHA-256', copy);
-      return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-    } catch {
-      // Fall through to the pure-JS digest.
-    }
-  }
-  return sha256BytesHex(bytes);
+function sha256OfBytes(bytes: Uint8Array): Promise<string> {
+  return sha256Hex(new Blob([bytes as BlobPart]));
 }
 
 // Keep this component as a const expression. When the public screen exports are

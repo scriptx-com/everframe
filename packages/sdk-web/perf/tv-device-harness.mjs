@@ -103,7 +103,13 @@ createServer(async (req, res) => {
   if (req.method === 'POST' && path === '/results') {
     const chunks = [];
     for await (const c of req) chunks.push(c);
-    const r = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    let r;
+    try {
+      r = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch {
+      res.writeHead(400).end();
+      return;
+    }
     const tag = `${TARGET}-${r.mode}-${n++}`;
     if (r.image) await writeFile(join(OUT, `${tag}.webp`), Buffer.from(r.image.webp, 'base64'));
     let leaks = null;

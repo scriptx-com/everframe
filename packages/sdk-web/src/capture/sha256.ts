@@ -17,13 +17,13 @@ function toHex(digest: ArrayBuffer): string {
  */
 export async function sha256HexOfBytes(bytes: Uint8Array): Promise<string> {
   const subtle = typeof crypto !== 'undefined' ? crypto.subtle : undefined;
-  if (subtle !== undefined && subtle !== null && typeof subtle.digest === 'function') {
+  if (subtle && typeof subtle.digest === 'function') {
     try {
-      // A fresh ArrayBuffer-backed copy: the digest input must be a plain
-      // BufferSource, never a view onto a larger or shared buffer.
-      const copy = new Uint8Array(bytes.byteLength);
-      copy.set(bytes);
-      return toHex(await subtle.digest('SHA-256', copy));
+      // Web Crypto must see exactly these bytes: a view spanning its whole
+      // buffer goes as is, anything partial is copied (`slice` allocates a
+      // fresh ArrayBuffer). A shared buffer rejects and takes the fallback.
+      const whole = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength;
+      return toHex(await subtle.digest('SHA-256', (whole ? bytes : bytes.slice()) as Uint8Array<ArrayBuffer>));
     } catch {
       // Fall through to the pure-JS digest.
     }

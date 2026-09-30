@@ -173,7 +173,9 @@ one JSON line per shot. It bundles `perf/tv-device/entry.ts` (the SDK
 **source**, plus `@everframe/protocol` and `@everframe/sdk-core` source) with
 esbuild for an old TV Chromium, serves `perf/tv-device/harness.html` on
 `0.0.0.0`, collects each shot on `POST /results`, and writes the images and
-decompressed snapshots to `perf/tv-device/out/` (git-ignored). A manual run,
+decompressed snapshots to `perf/tv-device/out/` (git-ignored). The server binds
+`0.0.0.0` and serves everything under `perf/tv-device/` to the LAN, so run it
+only on a trusted network. A manual run,
 not CI. It needs a reachable API whose `GET /api/config` answers
 `screenshotRender: true` and whose `POST /api/render` reaches a render
 service, plus an SDK key for that API.
