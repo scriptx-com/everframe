@@ -14,7 +14,7 @@ import {
   MAX_DOM_SNAPSHOT_DEPTH,
   type DomSnapshotV1,
 } from '@everframe/protocol';
-import { captureTvShot, isWeakTvProfile, packSnapshot, type TvShotDeps } from '../../../src/capture/tv-snapshot/tv-snapshot.js';
+import { captureTvShot, isWeakTvProfile, packSnapshot, WEAK_TV_SNAPSHOT_MAX_ELEMENTS, type TvShotDeps } from '../../../src/capture/tv-snapshot/tv-snapshot.js';
 
 const WEBOS6 = 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36 WebAppManager';
 const WEBOS4 = 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.34 Safari/537.36 WebAppManager';
@@ -164,6 +164,42 @@ describe('captureTvShot', () => {
     const shot = await captureTvShot(deps({ gzip: async () => { throw new Error('no CompressionStream'); } })).shot;
     expect(shot).toEqual({ image });
     expect(renderSnapshot).not.toHaveBeenCalled();
+  });
+
+  describe('weak-profile freeze guard (1,000 elements)', () => {
+    const page = (elements: number): void => {
+      // html, head, body are 3 of them.
+      document.body.innerHTML = '<i></i>'.repeat(elements - 3);
+      expect(document.getElementsByTagName('*').length).toBe(elements);
+    };
+
+    it('exports the cap', () => {
+      expect(WEAK_TV_SNAPSHOT_MAX_ELEMENTS).toBe(1000);
+    });
+
+    it('a weak profile above the cap takes no snapshot and no fallback: screenshot_unavailable', async () => {
+      page(WEAK_TV_SNAPSHOT_MAX_ELEMENTS + 1);
+      const d = deps({ userAgent: WEBOS4 });
+      const shot = await captureTvShot(d).shot;
+      expect(takeDomSnapshot).not.toHaveBeenCalled();
+      expect(renderSnapshot).not.toHaveBeenCalled();
+      expect(d.fallbackCapture).not.toHaveBeenCalled();
+      expect(shot).toEqual({ degradedReason: 'screenshot_unavailable' });
+    });
+
+    it('a weak profile at the cap still snapshots', async () => {
+      page(WEAK_TV_SNAPSHOT_MAX_ELEMENTS);
+      vi.mocked(renderSnapshot).mockResolvedValue({ ok: false, reason: 'render_failed' });
+      await captureTvShot(deps({ userAgent: WEBOS4 })).shot;
+      expect(takeDomSnapshot).toHaveBeenCalledTimes(1);
+    });
+
+    it('a capable profile above the cap still snapshots', async () => {
+      page(WEAK_TV_SNAPSHOT_MAX_ELEMENTS + 500);
+      vi.mocked(renderSnapshot).mockResolvedValue({ ok: false, reason: 'render_failed' });
+      await captureTvShot(deps({ userAgent: WEBOS6 })).shot;
+      expect(takeDomSnapshot).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('classifies weak profiles', () => {

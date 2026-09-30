@@ -10,6 +10,11 @@
 //   snapshot OK, render fails   → snapshot alone, screenshot_render_failed
 //   snapshot fails              → bounded on-device snapDOM — skipped on weak
 //                                 profiles (Chrome < 60) and above 3000 elements
+//
+// A weak profile does not even take the snapshot above
+// WEAK_TV_SNAPSHOT_MAX_ELEMENTS: it is synchronous, and measured on webOS 4
+// (Chrome 53) it blocks the page ~2.2 s at 1,000 elements and ~5.3 s at
+// 3,000. Such a shot is screenshot_unavailable, without freezing the app.
 //   nothing                     → screenshot_unavailable (never a blank image)
 import { gzipBytes } from '@everframe/sdk-core';
 import type { ScreenshotResult } from '@everframe/sdk-core';
@@ -36,6 +41,17 @@ import { takeDomSnapshot, type SnapshotDeps, type TakenSnapshot } from './serial
 import { renderSnapshot, type RenderDeps } from './render-client.js';
 
 export { SNAPDOM_FALLBACK_MAX_ELEMENTS, MIN_FALLBACK_CHROME_MAJOR, isWeakTvProfile };
+
+/** Above this many elements a weak TV profile skips the (synchronous) snapshot. */
+export const WEAK_TV_SNAPSHOT_MAX_ELEMENTS = 1000;
+
+/** Weak profile and a page big enough to freeze it for seconds. One cheap live count. */
+function snapshotTooCostly(deps: TvShotDeps): boolean {
+  return (
+    isWeakTvProfile(deps.userAgent) &&
+    deps.snapshot.doc.getElementsByTagName('*').length > WEAK_TV_SNAPSHOT_MAX_ELEMENTS
+  );
+}
 
 export interface TvShotDeps {
   snapshot: SnapshotDeps;
@@ -107,7 +123,7 @@ export function captureTvShot(deps: TvShotDeps): { snapshotted: Promise<void>; s
     // and serialization. Any throw — including a RangeError from rrweb-snapshot
     // recursing through an extremely deep live DOM (serialize restores the
     // live DOM in its own finally) — is a snapshot failure.
-    taken = takeDomSnapshot(deps.snapshot);
+    if (!snapshotTooCostly(deps)) taken = takeDomSnapshot(deps.snapshot);
   } catch {
     taken = null;
   }
