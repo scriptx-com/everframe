@@ -386,3 +386,25 @@ describe('masked @font-face descriptor values (final review finding 8)', () => {
     expect(scrubCssText('@font-face{font-family:"F";font-display:whatever}', open)).toBe('@font-face{font-family:"F";font-display:whatever}');
   });
 });
+
+describe('image() on any page (final review finding 9)', () => {
+  it.each([
+    ['unmasked', open],
+    ['masked', masked],
+  ] as const)('drops a declaration using image("…?t=…") on a %s page', (_label, ctx) => {
+    const out = scrubCssText('a{background-image:image("https://cdn.example.test/p.png?t=SECRET");color:red}', ctx);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toBe('a{color:red}');
+  });
+
+  it('drops image() in an inline style too, keeping the rest', () => {
+    const out = scrubInlineStyle('background:IMAGE(\'https://cdn.example.test/p.png?t=SECRET\'), red;width:4px', open);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toBe('width:4px');
+  });
+
+  it('still keeps url() and image-set() on an unmasked page', () => {
+    const out = scrubCssText('a{background:url(https://cdn.example.test/p.png?t=SECRET)}', open);
+    expect(out).toBe('a{background:url("https://cdn.example.test/p.png")}');
+  });
+});

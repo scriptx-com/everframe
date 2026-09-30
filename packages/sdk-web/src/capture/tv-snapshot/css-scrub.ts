@@ -5,7 +5,8 @@
 //
 // ALWAYS: every url(), image-set()/-webkit-image-set(), @import and
 // @font-face src URL goes through the one URL sanitizer; fragment refs survive
-// only when they name a retained id.
+// only when they name a retained id. A declaration using image() (a URL as a
+// bare string, never rendered by Chromium) is dropped whole.
 //
 // ON A MASKED PAGE ONLY: every string token is removed except (1) font-family
 // names (`font-family`, `font`, `local()`), (2) URL targets (which are
@@ -457,6 +458,10 @@ function scrubValue(prop: string, value: string, ctx: CssScrubContext, block: De
       continue;
     }
     if (ctx.masked && lower === 'attr') return null; // pulls page text into `content`
+    // image("…") takes a URL as a plain string the url() branch never sees.
+    // No Chromium renders it (the declaration is invalid there anyway), so it
+    // is dropped whole rather than parsed, on every page.
+    if (lower === 'image' || lower === '-webkit-image') return null;
     i = j + 1; // any other function: keep scanning its arguments
   }
   return out + value.slice(run);
