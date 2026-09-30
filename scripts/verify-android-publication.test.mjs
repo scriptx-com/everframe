@@ -10,7 +10,7 @@ import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
 const verifier = path.join(root, 'scripts/verify-android-publication.sh');
-const artifacts = ['protocol', 'core', 'reporter-ui', 'media3', 'everframe-gradle-plugin'];
+const artifacts = ['protocol', 'core', 'reporter-ui', 'media3', 'gradle-plugin'];
 const version = '0.9.0';
 const formerName = 'trace' + 'itx';
 const formerGroup = `com.${formerName}`;
@@ -40,7 +40,7 @@ function fixture() {
     writeFileSync(`${prefix}.pom`, `<?xml version="1.0"?><project><groupId>dev.everframe</groupId><artifactId>${artifact}</artifactId><version>${version}</version><dependencies><dependency><groupId>dev.everframe</groupId><artifactId>protocol</artifactId><version>${version}</version></dependency></dependencies></project>`);
     zip(`${prefix}-sources.jar`, { [`dev/everframe/${artifact.replaceAll('-', '')}/Source.kt`]: 'package dev.everframe' });
     zip(`${prefix}-javadoc.jar`, { 'index.html': '<html>Everframe</html>' });
-    if (artifact === 'everframe-gradle-plugin') {
+    if (artifact === 'gradle-plugin') {
       zip(`${prefix}.jar`, { 'dev/everframe/gradle/EverframePlugin.class': 'class' });
     } else if (artifact === 'reporter-ui') {
       const classes = `${prefix}-classes.jar`;
@@ -57,6 +57,10 @@ function fixture() {
       });
     }
   }
+  const markerDirectory = path.join(repository, 'dev/everframe/dev.everframe.gradle.plugin', version);
+  mkdirSync(markerDirectory, { recursive: true });
+  writeFileSync(path.join(markerDirectory, `dev.everframe.gradle.plugin-${version}.pom`),
+    `<project><groupId>dev.everframe</groupId><artifactId>dev.everframe.gradle.plugin</artifactId><version>${version}</version><dependencies><dependency><groupId>dev.everframe</groupId><artifactId>gradle-plugin</artifactId><version>${version}</version></dependency></dependencies></project>`);
   return repository;
 }
 
@@ -73,6 +77,21 @@ test('accepts the canonical dev.everframe publication tree', () => {
   try {
     const result = verify(repository);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
+});
+
+test('rejects a plugin marker that still points at the old implementation artifact', () => {
+  const repository = fixture();
+  try {
+    const marker = path.join(repository, 'dev/everframe/dev.everframe.gradle.plugin', version,
+      `dev.everframe.gradle.plugin-${version}.pom`);
+    writeFileSync(marker, readFileSync(marker, 'utf8').replace('<artifactId>gradle-plugin</artifactId>',
+      '<artifactId>everframe-gradle-plugin</artifactId>'));
+    const result = verify(repository);
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /does not point to the gradle-plugin artifact/);
   } finally {
     rmSync(repository, { recursive: true, force: true });
   }

@@ -32,6 +32,7 @@ verify_artifact() {
     [[ -f "${javadoc}" ]] || fail "missing ${javadoc}"
 
     grep -q '<groupId>dev.everframe</groupId>' "${pom}" || fail "${pom} does not use dev.everframe"
+    grep -Fq "<artifactId>${artifact}</artifactId>" "${pom}" || fail "${pom} has the wrong artifact ID"
     if grep -Fq "${FORMER_GROUP}" "${pom}"; then
         fail "${pom} contains former Maven coordinates"
     fi
@@ -48,7 +49,12 @@ verify_artifact protocol aar
 verify_artifact core aar
 verify_artifact reporter-ui aar
 verify_artifact media3 aar
-verify_artifact everframe-gradle-plugin jar
+verify_artifact gradle-plugin jar
+
+PLUGIN_MARKER="${GROUP_DIRECTORY}/dev.everframe.gradle.plugin/${VERSION}/dev.everframe.gradle.plugin-${VERSION}.pom"
+[[ -f "${PLUGIN_MARKER}" ]] || fail "missing ${PLUGIN_MARKER}"
+grep -Fq '<artifactId>gradle-plugin</artifactId>' "${PLUGIN_MARKER}" ||
+    fail "${PLUGIN_MARKER} does not point to the gradle-plugin artifact"
 
 CORE_AAR="${GROUP_DIRECTORY}/core/${VERSION}/core-${VERSION}.aar"
 CORE_CLASSES="$(mktemp)"

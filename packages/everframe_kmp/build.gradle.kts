@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import java.util.Properties
+
 plugins {
     kotlin("multiplatform") version "2.4.20"
     id("com.android.kotlin.multiplatform.library") version "9.1.0"
@@ -9,10 +11,16 @@ plugins {
 }
 
 group = "dev.everframe"
-version = providers.gradleProperty("everframeKmpVersion").orElse("0.1.1").get()
+val mobileReleaseVersion = providers.gradleProperty("everframeVersion").orElse(provider {
+    val androidProperties = Properties()
+    file("../sdk-android/android/gradle.properties").inputStream().use(androidProperties::load)
+    androidProperties.getProperty("everframeVersion")
+        ?: error("everframeVersion is missing from the Android release properties")
+}).get()
+version = mobileReleaseVersion
 
 val everframeNativeVersion = providers.gradleProperty("everframeNativeVersion")
-    .orElse("[0.10.0,0.11.0)")
+    .orElse(mobileReleaseVersion)
 
 kotlin {
     android {

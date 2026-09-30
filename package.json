@@ -23,6 +23,7 @@
     "check:brand": "node scripts/brand-identity.mjs",
     "test:boundary": "node --test scripts/public-boundary.test.mjs",
     "test:release-readiness": "node --test scripts/release-readiness.test.mjs",
+    "build:mobile-maven-bundle": "node scripts/build-mobile-maven-bundle.mjs",
     "gen-web-config": "pnpm --filter examples-react-web gen-web-config",
     "gen-rn-config": "pnpm --filter examples-react-native sync-env",
     "gen-ios-config": "pnpm --filter @everframe/example-ios-native-marker gen-ios-config",

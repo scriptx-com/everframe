@@ -18,4 +18,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "everframe-kmp"
+rootProject.name = "kmp"

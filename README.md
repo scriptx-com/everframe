@@ -138,6 +138,12 @@ JavaScript packages are published to npm, the Flutter plugin is published to
 published as Maven packages, and tagged Apple releases provide binary
 XCFrameworks for Swift Package Manager consumers.
 
+The Android and KMP Maven artifacts share one version and one Central Portal
+upload. Run `pnpm build:mobile-maven-bundle` with `SIGNING_KEY` and
+`SIGNING_PASSWORD` set to build and verify the signed bundle. Use
+`pnpm build:mobile-maven-bundle --prepare` to inspect an unsigned bundle
+before signing; that ZIP cannot be uploaded to Maven Central.
+
 The root [`Package.swift`](Package.swift) is the binary manifest used by Apple
 SDK consumers. Source development and tests use
 [`packages/sdk-ios/Package.swift`](packages/sdk-ios/Package.swift).

@@ -18,14 +18,17 @@ test('Everframe npm SDKs remain on their fixed 0.9.0 release', () => {
   assert.equal(JSON.parse(read('packages/identity/package.json')).version, '0.3.0');
 });
 
-test('Flutter and KMP native dependencies match the native 0.10.1 release', () => {
+test('mobile release versions and Maven artifact names remain aligned', () => {
   assert.match(read('packages/everframe_flutter/pubspec.yaml'), /^version: 0\.1\.1$/m);
   assert.match(read('packages/everframe_flutter/android/build.gradle.kts'), /^version = "0\.1\.1"$/m);
   assert.match(read('packages/everframe_flutter/ios/everframe_flutter.podspec'), /s\.version = '0\.1\.1'/);
-  assert.match(read('packages/sdk-android/android/gradle.properties'), /^everframeVersion=0\.10\.1$/m);
+  assert.match(read('packages/sdk-android/android/gradle.properties'), /^everframeVersion=0\.10\.2$/m);
   assert.match(read('packages/sdk-ios/Everframe.podspec'), /spec\.version\s+=\s+"0\.10\.1"/);
   assert.match(read('packages/sdk-ios/Package.binary.swift'), /let binaryVersion = "0\.10\.1"/);
   assert.match(read('packages/everframe_flutter/android/build.gradle.kts'), /\[0\.10\.0,0\.11\.0\)/);
   assert.match(read('packages/everframe_flutter/ios/everframe_flutter.podspec'), /~> 0\.10\.1/);
-  assert.match(read('packages/everframe_kmp/build.gradle.kts'), /\[0\.10\.0,0\.11\.0\)/);
+  assert.match(read('packages/everframe_kmp/build.gradle.kts'), /version = mobileReleaseVersion/);
+  assert.match(read('packages/everframe_kmp/build.gradle.kts'), /\.orElse\(mobileReleaseVersion\)/);
+  assert.match(read('packages/everframe_kmp/settings.gradle.kts'), /^rootProject\.name = "kmp"$/m);
+  assert.match(read('packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts'), /artifactId = "gradle-plugin"/);
 });
