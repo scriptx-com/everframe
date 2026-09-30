@@ -64,7 +64,8 @@
     "clean": "rm -rf dist .turbo node_modules/.cache",
     "size-limit": "size-limit",
     "perf:vitals": "node perf/vitals-harness.mjs",
-    "perf:screenshot": "node perf/screenshot-harness.mjs"
+    "perf:screenshot": "node perf/screenshot-harness.mjs",
+    "perf:tv-device": "node perf/tv-device-harness.mjs"
   },
   "peerDependencies": {
     "konva": "^10.2.5",
@@ -107,6 +108,7 @@
     "@everframe/sdk-core": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.27.7",
     "hls.js": "^1.7.2",
     "jsdom": "^29.1.1",
     "konva": "^10.2.5",

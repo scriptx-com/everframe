@@ -1,0 +1,9 @@
+{
+  "id": "com.everframe.tvsnapshot",
+  "version": "0.0.1",
+  "vendor": "Everframe",
+  "type": "web",
+  "main": "index.html",
+  "title": "Everframe TV snapshot harness",
+  "icon": "icon.png"
+}
