@@ -32,8 +32,10 @@ void main() {
       (tester) async {
     final key = GlobalKey();
     final sensitiveRegions = SensitiveRegionRegistry();
-    await tester.pumpWidget(
-        FlutterProbeApp(boundaryKey: key, sensitiveRegions: sensitiveRegions));
+    await tester.pumpWidget(FlutterProbeApp(
+        boundaryKey: key,
+        sensitiveRegions: sensitiveRegions,
+        startReporter: false));
     await tester.pump();
 
     final a = await tester
@@ -76,7 +78,8 @@ void main() {
         await captureMaskedFrame(key, [const Rect.fromLTWH(40, 140, 160, 80)]),
         isNull);
 
-    await tester.pumpWidget(FlutterProbeApp(boundaryKey: key));
+    await tester
+        .pumpWidget(FlutterProbeApp(boundaryKey: key, startReporter: false));
     await tester.pump();
     expect(
         await captureMaskedFrame(key, [const Rect.fromLTWH(-1, 140, 160, 80)]),

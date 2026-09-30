@@ -5,7 +5,7 @@
 
 This source probe checks the Android method-channel bridge, captures masked Flutter renderer frames, and passes them to the native reporter. It submitted a report with a masked screenshot and replay to both a loopback fake ingest and a local API/dashboard. These runs cover only the sample scene and emulator. Customer apps install the [published Flutter plugin](https://pub.dev/packages/everframe_flutter); this probe uses local source paths to test development builds.
 
-The sample requires local `0.10.0-DEV` Android SDK artifacts. For emulator builds, use a local ingest address:
+The sample requires local `0.10.2-DEV` Android SDK artifacts. For emulator builds, use a local ingest address:
 
 ```sh
 cd packages/sdk-android/android

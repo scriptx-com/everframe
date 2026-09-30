@@ -153,7 +153,7 @@ export function App(): React.JSX.Element {
         )}
 
         <TabBar active={tab} onSelect={selectTab} />
-        <ReportFab />
+        <ReportFab onCompanion={() => selectTab('companion')} />
       </View>
     </EverframeProvider>
   );

@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('safe submit scene contains no magenta sensitive tile',
       (tester) async {
-    await tester.pumpWidget(const FlutterProbeApp(safeVisualMode: true));
+    await tester.pumpWidget(
+        const FlutterProbeApp(safeVisualMode: true, startReporter: false));
 
     final tile =
         tester.widget<ColoredBox>(find.byKey(const Key('sensitive-tile')));
@@ -17,7 +18,7 @@ void main() {
 
   testWidgets('shows public and sensitive tiles, then changes screens',
       (tester) async {
-    await tester.pumpWidget(const FlutterProbeApp());
+    await tester.pumpWidget(const FlutterProbeApp(startReporter: false));
 
     expect(find.byKey(const Key('public-tile-a')), findsOneWidget);
     expect(find.byKey(const Key('sensitive-tile')), findsOneWidget);
@@ -36,6 +37,7 @@ void main() {
     final replay = SafeReplayBuffer();
     var exported = 0;
     await tester.pumpWidget(FlutterProbeApp(
+      startReporter: false,
       replayBuffer: replay,
       onSafeFrame: (_) {
         exported++;

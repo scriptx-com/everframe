@@ -12,7 +12,7 @@
   <script type="module">
     import { init, INGEST_URL } from '/sdk/index.js';
     import { flutterVisualCapture } from './assets/packages/everframe_flutter/assets/visual_capture.js';
-    if (INGEST_URL !== 'http://127.0.0.1:8938') {
+    if (!['http://127.0.0.1:8938', 'http://127.0.0.1:8787'].includes(INGEST_URL)) {
       throw new Error('Flutter probe requires an SDK bundle configured for loopback ingest');
     }
     window.everframeFlutterInit = (config) => {

@@ -26,12 +26,14 @@ class FlutterProbeApp extends StatefulWidget {
       {super.key,
       this.boundaryKey,
       this.safeVisualMode = false,
+      this.startReporter = true,
       this.onSafeFrame,
       this.replayBuffer,
       this.sensitiveRegions});
 
   final GlobalKey? boundaryKey;
   final bool safeVisualMode;
+  final bool startReporter;
   final void Function(Uint8List)? onSafeFrame;
   final SafeReplayBuffer? replayBuffer;
   final SensitiveRegionRegistry? sensitiveRegions;
@@ -59,10 +61,13 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || !widget.startReporter) return;
       _webCapture.install();
       unawaited(_webBridge.start(
-        sdkKey: 'pk_flutter_probe',
+        sdkKey: const String.fromEnvironment(
+          'EVERFRAME_SDK_KEY',
+          defaultValue: 'pk_flutter_probe',
+        ),
         appVersion: '0.0.0-probe',
       ));
     });

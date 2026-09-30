@@ -36,7 +36,9 @@ struct KmpComposeProbeHostView: View {
             .disabled(!started)
             Button("Open native reporter") {
                 client.openReporter { outcome in
-                    DispatchQueue.main.async { status = outcome.status }
+                    DispatchQueue.main.async {
+                        status = outcome.reason.map { "\(outcome.status): \($0)" } ?? outcome.status
+                    }
                 }
             }
             .disabled(!started)

@@ -4,7 +4,8 @@ plugins {
     kotlin("multiplatform") version "2.4.20"
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.20"
     id("org.jetbrains.compose") version "1.13.0-alpha01"
-    id("com.android.library") version "8.7.2"
+    id("com.android.library") version "9.1.0"
+    id("com.android.kotlin.multiplatform.library") version "9.1.0" apply false
 }
 
 kotlin {
