@@ -10,8 +10,8 @@
 // post-Chrome-53 built-in.
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
-import { build, type Plugin } from 'esbuild';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { build, type BuildOptions, type Plugin } from 'esbuild';
 import { ensureGlobalThis, globalScope } from '../../src/internal/global-scope.js';
 
 const PKG = path.resolve(__dirname, '..', '..');
@@ -104,3 +104,92 @@ describe('global-scope helpers', () => {
     expect(other).not.toHaveProperty('globalThis');
   });
 });
+
+// Regex SYNTAX that no transpiler can lower for an old engine: lookbehind
+// (Chrome 62), named groups (64), `\p{…}` (64) and the `s` flag (62). In a
+// regex LITERAL any of them is a SyntaxError for the whole module at load —
+// a lookbehind in vitals/sanitize-source.ts kept the entire SDK from loading
+// on webOS 4. Detected with esbuild itself: told the engine lacks these
+// features, esbuild rewrites every literal that uses one into a
+// `new RegExp(…)` call, so any difference in that count is such a literal.
+const OLD_REGEX: BuildOptions['supported'] = {
+  'regexp-dot-all-flag': false,
+  'regexp-lookbehind-assertions': false,
+  'regexp-named-capture-groups': false,
+  'regexp-unicode-property-escapes': false,
+};
+
+async function eagerCode(supported: BuildOptions['supported']): Promise<string> {
+  const outdir = path.join(PKG, '.regex-probe-out');
+  const result = await build({
+    absWorkingDir: PKG,
+    entryPoints: ['src/index.ts'],
+    bundle: true,
+    splitting: true,
+    write: false,
+    outdir,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    ...(supported !== undefined ? { supported } : {}),
+    metafile: true,
+    logLevel: 'silent',
+    define: { __EVERFRAME_INGEST_URL__: '""' },
+  });
+  // The always-loaded graph: the entry plus every chunk it imports statically.
+  const outputs = result.metafile!.outputs;
+  const entry = Object.keys(outputs).find((k) => outputs[k]!.entryPoint === 'src/index.ts')!;
+  const eager = new Set<string>();
+  const queue = [entry];
+  while (queue.length > 0) {
+    const next = queue.pop()!;
+    if (eager.has(next)) continue;
+    eager.add(next);
+    for (const imp of outputs[next]!.imports) if (imp.kind === 'import-statement') queue.push(imp.path);
+  }
+  const wanted = new Set([...eager].map((k) => path.resolve(PKG, k)));
+  return result.outputFiles.filter((f) => wanted.has(f.path)).map((f) => f.text).join('\n');
+}
+
+const regexCtorCount = (code: string): number => code.split('new RegExp(').length - 1;
+
+describe('no regex literal an old TV engine cannot parse', () => {
+  it('the always-loaded bundle (entry + static chunks) has none', async () => {
+    const [modern, old] = await Promise.all([eagerCode(undefined), eagerCode(OLD_REGEX)]);
+    expect(regexCtorCount(old) - regexCtorCount(modern)).toBe(0);
+  }, 120_000);
+
+  it('the TV-path bundle has none', async () => {
+    const base = {
+      entryPoints: [path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts'), path.join(SRC, 'companion/companion-submit.ts')],
+      bundle: true, write: false, outdir: '/tmp/tv-path-regex', format: 'esm' as const, platform: 'browser' as const,
+      target: 'es2022', logLevel: 'silent' as const, define: { __EVERFRAME_INGEST_URL__: '""' }, plugins: [tvPathOnly],
+    };
+    const text = async (supported?: BuildOptions['supported']) =>
+      (await build({ ...base, ...(supported !== undefined ? { supported } : {}) })).outputFiles.map((f) => f.text).join('\n');
+    expect(regexCtorCount(await text(OLD_REGEX)) - regexCtorCount(await text())).toBe(0);
+  }, 60_000);
+
+  it('no SDK source file writes one as a literal (a guarded new RegExp string is the only allowed form)', () => {
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const full = path.join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(name)) {
+          readFileSync(full, 'utf8').split('\n').forEach((line, i) => {
+            const t = line.trim();
+            if (t.startsWith('//') || t.startsWith('/*') || t.startsWith('*')) return;
+            if (!/\(\?<[=!A-Za-z]|\\[pP]\{/.test(line)) return;
+            // Inside a string handed to `new RegExp` (runtime-compiled, try/catch-guarded) is fine.
+            if (/new RegExp\(\s*['"`]/.test(line)) return;
+            offenders.push(`${path.relative(PKG, full)}:${i + 1}: ${t}`);
+          });
+        }
+      }
+    };
+    walk(SRC);
+    expect(offenders).toEqual([]);
+  });
+});
+

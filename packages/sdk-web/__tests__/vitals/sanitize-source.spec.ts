@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { describe, expect, it } from 'vitest';
-import { sanitizeSource, protocolForPath, scrubUrlsInText } from '../../src/vitals/sanitize-source.js';
+import { afterEach, describe, expect, it } from 'vitest';
+import { sanitizeSource, protocolForPath, scrubUrlsInText, __useWordCharFallbackForTests } from '../../src/vitals/sanitize-source.js';
 
 describe('sanitizeSource', () => {
   const base = 'https://app.example.com/watch/';
@@ -93,3 +93,82 @@ describe('protocolForPath', () => {
   it.each([['/a/b.m3u8', 'hls'], ['/x.mpd', 'dash'], ['/x.mp4', 'progressive'], ['/x.ogg', 'progressive'], ['/x.aac', 'progressive'], ['/x.mp3', 'progressive'], ['/x', 'unknown'], ['/x.txt', 'unknown']])(
     '%s → %s', (p, expected) => expect(protocolForPath(p)).toBe(expected));
 });
+
+// The relative-URL pass used to be a lookbehind + `\p{…}` regex literal, a
+// SyntaxError at module load below Chrome 62/64 (webOS 4 = Chrome 53) that
+// kept the whole SDK from loading. The scan that replaced it must behave
+// exactly like that regex.
+describe('scrubUrlsInText — lookbehind-free relative-URL pass', () => {
+  // The original pattern, built from a string so this spec itself parses anywhere.
+  const ORIGINAL = new RegExp('(?<![\\p{L}\\p{N}_])\\/\\/?[^\\s"\'<>)]+', 'gu');
+  const original = (text: string): string =>
+    text.replace(/https?:\/\/[^\s"'<>)]+/gi, (m) => {
+      try {
+        const u = new URL(m);
+        return `${u.origin}${u.pathname}`;
+      } catch {
+        return m;
+      }
+    }).replace(ORIGINAL, (m) => {
+      const cut = m.search(/[?#]/);
+      return cut === -1 || cut === m.length - 1 ? m : m.slice(0, cut);
+    });
+  const CASES = [
+    'request to /license?token=SECRET failed',
+    'manifest at //cdn.example/manifest.mpd?sig=SECRET rejected',
+    'a//x?y and b/c?d',
+    '功/x?y 成功/失败?请重试',
+    'café/thé?peut-être',
+    '(/p?q=1) "/q#frag" \'/r?s\'',
+    '𝒳/astral?letter 😀/emoji?not-letter',
+    'x_/under?score 9/digit?q ½/half?q',
+    '/start?of=string',
+    'ends with /help? ',
+    'Did you mean /help? Try again.',
+    '/ lone slash, // double, /// triple?x',
+    '\u3001/ideographic-comma?q \u3005/iteration?q',
+    'https://license.example.com/v1/widevine?token=SECRET then /rel?t=1',
+    '',
+  ];
+
+  it.each(CASES)('matches the original regex on %j', (text) => {
+    expect(scrubUrlsInText(text)).toBe(original(text));
+  });
+
+  it('matches it on 2,000 generated strings', () => {
+    const alphabet = ['/', '//', '?', '#', 'a', '_', '9', '功', 'é', ' ', '"', ')', '<', '😀', '\u3001', 'x=1'];
+    let seed = 42;
+    const rand = (n: number): number => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % n;
+    };
+    for (let k = 0; k < 2000; k++) {
+      let text = '';
+      for (let j = rand(12); j >= 0; j--) text += alphabet[rand(alphabet.length)];
+      expect(scrubUrlsInText(text), JSON.stringify(text)).toBe(original(text));
+    }
+  });
+
+  describe('without Unicode property escapes (Chrome < 64 fallback)', () => {
+    afterEach(() => __useWordCharFallbackForTests(false));
+
+    it.each([
+      ['請求 /license?token=SECRET 失敗', '請求 /license 失敗'],
+      ['成功/失败?请重试', '成功/失败?请重试'],
+      ['café/thé?peut-être', 'café/thé?peut-être'],
+      ['and/or?maybe', 'and/or?maybe'],
+      ['「/license?token=SECRET」', '「/license'], // (the closing bracket rides in the match, as with the regex)
+    ])('%j → %j', (text, expected) => {
+      __useWordCharFallbackForTests(true);
+      expect(scrubUrlsInText(text)).toBe(expected);
+    });
+  });
+
+  it('scans a 20k-character near-miss in under a second', () => {
+    const text = 'a/'.repeat(10_000);
+    const started = performance.now();
+    scrubUrlsInText(text);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
