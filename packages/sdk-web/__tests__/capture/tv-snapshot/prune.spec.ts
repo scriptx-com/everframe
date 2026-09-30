@@ -167,6 +167,46 @@ describe('pruneSnapshot', () => {
     expect(String(icon.attributes.style)).toContain('display:inline-block;position:static;box-sizing:border-box;width:24px;height:24px');
   });
 
+  it('prunes off-screen inline replaced elements inside a visible block to same-box inline-block placeholders with no URL (S20)', () => {
+    const { bind, deps } = harness();
+    const inlineOff = { display: 'inline', marginTop: '0px', marginRight: '8px', marginBottom: '0px', marginLeft: '0px' };
+    const img = bind(el('img', { src: 'https://cdn.test/OFFSCREENIMG.png', srcset: 'https://cdn.test/OFFSCREENIMG@2x.png 2x', alt: 'x' }), {
+      rect: rect(1400, 100, 200, 120), size: { width: 200, height: 120 }, style: inlineOff,
+    });
+    const video = bind(el('video', { poster: 'https://cdn.test/OFFSCREENPOSTER.jpg', src: 'https://cdn.test/OFFSCREENVIDEO.mp4' }), {
+      rect: rect(1700, 100, 320, 180), size: { width: 320, height: 180 }, style: inlineOff,
+    });
+    const imageInput = bind(el('input', { type: 'IMAGE', src: 'https://cdn.test/OFFSCREENINPUT.png' }), {
+      rect: rect(2100, 100, 40, 40), size: { width: 40, height: 40 }, style: inlineOff,
+    });
+    const onImg = bind(el('img', { src: 'https://cdn.test/visible.png' }), { rect: rect(10, 100, 200, 120), style: { display: 'inline' } });
+    const row = bind(el('div', { class: 'row' }, [onImg, img, video, imageInput]), { rect: rect(0, 100, 1280, 120) });
+    const root = doc(el('html', {}, [el('body', {}, [row])]));
+    const result = pruneSnapshot(root, deps);
+    expect(row.childNodes).toEqual([onImg, img, video, imageInput]);
+    expect(onImg.attributes).toEqual({ src: 'https://cdn.test/visible.png' });
+    for (const [node, w, h] of [[img, 200, 120], [video, 320, 180], [imageInput, 40, 40]] as const) {
+      expect(Object.keys(node.attributes)).toEqual(['style']);
+      const style = String(node.attributes.style);
+      expect(style).toContain(`display:inline-block;position:static;box-sizing:border-box;width:${w}px;height:${h}px`);
+      expect(style).toContain('margin:0px 8px 0px 0px');
+      expect(style).toContain('visibility:hidden');
+      expect(node.childNodes).toEqual([]);
+    }
+    expect(result.pruned).toBe(3);
+    expect(findLeaks(JSON.stringify(root), ['OFFSCREENIMG', 'OFFSCREENPOSTER', 'OFFSCREENVIDEO', 'OFFSCREENINPUT'])).toEqual([]);
+  });
+
+  it('still never prunes an off-screen inline non-replaced element or a text input', () => {
+    const { bind, deps } = harness();
+    const span = bind(el('span', { class: 's' }, [text('t')]), { rect: rect(1400, 0, 50, 20), style: { display: 'inline' } });
+    const input = bind(el('input', { type: 'text' }), { rect: rect(1400, 0, 50, 20), style: { display: 'inline' } });
+    const p = bind(el('p', {}, [span, input]));
+    pruneSnapshot(doc(el('html', {}, [el('body', {}, [p])])), deps);
+    expect(span.attributes).toEqual({ class: 's' });
+    expect(input.attributes).toEqual({ type: 'text' });
+  });
+
   it('records every pruned or masked node id, descendants included, as hidden', () => {
     const { bind, deps } = harness();
     const inner = el('button', { id: 'b' });

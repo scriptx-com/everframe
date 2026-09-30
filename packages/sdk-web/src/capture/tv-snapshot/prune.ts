@@ -75,6 +75,15 @@ const ALWAYS_VISIBLE = new Set(['html', 'body']);
 const NEVER_PRUNE = new Set(['style', 'link', 'meta', 'title']);
 const REMOVE = new Set(['script', 'noscript', 'base']);
 const SKIP_ATTR = 'data-everframe-skip-capture';
+/** Atomic-box (replaced) elements: pruned even when inline (ruling S20). */
+const REPLACED = new Set(['img', 'video', 'canvas', 'picture', 'iframe', 'object', 'embed']);
+
+function isReplaced(node: SnElement): boolean {
+  const tag = node.tagName.toLowerCase();
+  if (REPLACED.has(tag)) return true;
+  if (tag !== 'input' || !hasOwn(node.attributes, 'type')) return false;
+  return String(node.attributes.type).trim().toLowerCase() === 'image';
+}
 
 function hasOwn(obj: object, key: string): boolean {
   // Object.hasOwn is missing on old TV Chromium.
@@ -267,9 +276,14 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     }
     const style = styleOnce(f);
     // Inline boxes span line fragments and display:contents has no box, so
-    // neither can be replaced by a same-box placeholder. An <svg> root is an
-    // atomic replaced box even when inline, so it is pruned (ruling 8).
-    if (f.mode === 'judge' && style !== null && (style.display === 'inline' || style.display === 'contents')) {
+    // neither can be replaced by a same-box placeholder. <svg> roots and
+    // replaced elements (img, video, …) are atomic boxes even when inline, so
+    // they are pruned to an inline-block of the same size (rulings 8, S20).
+    if (
+      f.mode === 'judge' &&
+      style !== null &&
+      (style.display === 'contents' || (style.display === 'inline' && !isReplaced(node)))
+    ) {
       return 'hidden';
     }
     result.pruned++;
