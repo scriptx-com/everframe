@@ -155,3 +155,13 @@ Note the raw (non-delta) `hls`/`hls-off` heap rows are both negative and are
 **not** meaningful signals about the SDK on their own — hls.js's own
 buffer-eviction behavior over the 60 s window dominates them in either
 direction, which is exactly why the `hls-off` baseline exists.
+
+## Screenshot capture harness
+
+`pnpm build && pnpm perf:screenshot` loads `e2e/fixtures/capture-cases.html`
+(served by `e2e/static-server.mjs`) at 0, 5000 and 15000 bulk nodes, captures
+through the real adapter at 1x and 4x CPU throttle (`RUNS` per case, default
+3, `PERF_PORT` default `8898`), and prints one line per case: median total
+capture time, median longest main-thread block, and the renderer that produced
+the image (`snapdom` or the fallback) with any degraded reason such as
+`screenshot_blank`. Local fixtures only; a manual run, not CI.

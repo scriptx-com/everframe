@@ -5,6 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computeViewportCropRect } from '../../src/capture/screenshot.js';
 import { DEGRADED_REASONS } from '../../src/internal/degraded-reasons.js';
 
+/** Existing modern-screenshot assertions now describe the FALLBACK renderer. */
+function mockSnapdomUnavailable(): void {
+  vi.doMock('@zumer/snapdom', () => ({
+    snapdom: vi.fn(async () => {
+      throw new Error('snapdom unavailable (test)');
+    }),
+  }));
+}
+
 // 1x1 transparent PNG bytes for jsdom mocks
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -56,6 +65,7 @@ function stubUserAgent(ua: string): () => void {
 
 describe('captureScreenshot', () => {
   beforeEach(() => {
+    mockSnapdomUnavailable();
     document.body.innerHTML =
       '<div data-testid="root" style="width: 200px; height: 100px;">hello</div>';
     if (typeof globalThis.createImageBitmap !== 'function') {
@@ -68,6 +78,7 @@ describe('captureScreenshot', () => {
     }
   });
   afterEach(() => {
+    vi.doUnmock('@zumer/snapdom');
     vi.restoreAllMocks();
     vi.resetModules();
     document.body.innerHTML = '';
@@ -355,6 +366,7 @@ describe('captureScreenshot — TV capture profile', () => {
   let restoreUa: (() => void) | null = null;
 
   beforeEach(() => {
+    mockSnapdomUnavailable();
     document.body.innerHTML = '<div style="width: 200px; height: 100px;">hello</div>';
     if (typeof globalThis.createImageBitmap !== 'function') {
       globalThis.createImageBitmap = (async () => ({
@@ -365,6 +377,7 @@ describe('captureScreenshot — TV capture profile', () => {
     }
   });
   afterEach(() => {
+    vi.doUnmock('@zumer/snapdom');
     restoreUa?.();
     restoreUa = null;
     vi.restoreAllMocks();
@@ -605,6 +618,7 @@ describe('captureScreenshot — deadline handling', () => {
   let restoreUa: (() => void) | null = null;
 
   beforeEach(() => {
+    mockSnapdomUnavailable();
     document.body.innerHTML = '<div style="width: 200px; height: 100px;">hello</div>';
     if (typeof globalThis.createImageBitmap !== 'function') {
       globalThis.createImageBitmap = (async () => ({
@@ -615,6 +629,7 @@ describe('captureScreenshot — deadline handling', () => {
     }
   });
   afterEach(() => {
+    vi.doUnmock('@zumer/snapdom');
     restoreUa?.();
     restoreUa = null;
     vi.useRealTimers();
@@ -728,6 +743,7 @@ describe('captureScreenshot — off-screen image skipping', () => {
   const SHARED = 'https://cdn.example.com/shared.jpg';
 
   beforeEach(() => {
+    mockSnapdomUnavailable();
     Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true });
     Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
     document.body.innerHTML = '';
@@ -740,6 +756,7 @@ describe('captureScreenshot — off-screen image skipping', () => {
     }
   });
   afterEach(() => {
+    vi.doUnmock('@zumer/snapdom');
     vi.restoreAllMocks();
     vi.resetModules();
     document.body.innerHTML = '';
@@ -816,5 +833,633 @@ describe('captureScreenshot — off-screen image skipping', () => {
     await cap({ root: document.body });
     expect(opts).not.toHaveProperty('fetchFn');
     vi.doUnmock('modern-screenshot');
+  });
+});
+
+describe('captureScreenshot — snapdom primary with fallback', () => {
+  const blankState = { value: false as boolean | null };
+
+  beforeEach(() => {
+    document.body.innerHTML = '<div style="width:200px;height:100px">hello</div>';
+    blankState.value = false;
+    vi.doMock('../../src/capture/blank-check.js', () => ({
+      isCanvasBlank: vi.fn(() => blankState.value),
+    }));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.doUnmock('@zumer/snapdom');
+    vi.doUnmock('modern-screenshot');
+    vi.doUnmock('../../src/capture/blank-check.js');
+    document.body.innerHTML = '';
+  });
+
+  function mockSnapdom(canvas: HTMLCanvasElement) {
+    const snapdom = vi.fn(async () => ({ toCanvas: async () => canvas }));
+    vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+    return snapdom;
+  }
+  function mockModern(canvas: HTMLCanvasElement) {
+    const domToCanvas = vi.fn(async () => canvas);
+    vi.doMock('modern-screenshot', () => ({ domToCanvas }));
+    return domToCanvas;
+  }
+
+  it('uses snapdom and never loads modern-screenshot when snapdom succeeds', async () => {
+    const { stub } = makeCanvasStub({ width: 300, height: 150 });
+    mockSnapdom(stub);
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    const r = await cap({ root: document.body, __setRenderer: (x) => { renderer = x; } });
+    expect(renderer).toBe('snapdom');
+    expect(domToCanvas).not.toHaveBeenCalled();
+    expect(r.width).toBe(300);
+    expect(r.height).toBe(150);
+  });
+
+  it('puts the videos back when resolving mask targets throws after the stand-ins went in', async () => {
+    document.body.innerHTML = '<video id="v"></video>';
+    const video = document.getElementById('v') as HTMLVideoElement;
+    let installed = 0;
+    vi.resetModules();
+    vi.doMock('../../src/capture/video-frames.js', async (importOriginal) => {
+      const real = await importOriginal<typeof import('../../src/capture/video-frames.js')>();
+      return {
+        ...real,
+        // What the real installer does to a visible video: hide it, stand-in after it.
+        installVideoStandIns: vi.fn(async () => {
+          installed += 1;
+          const prev = video.getAttribute('style');
+          video.style.setProperty('display', 'none', 'important');
+          const standIn = document.createElement('div');
+          standIn.setAttribute(real.STAND_IN_ATTR, '');
+          video.after(standIn);
+          return () => {
+            standIn.remove();
+            if (prev === null) video.removeAttribute('style');
+            else video.setAttribute('style', prev);
+          };
+        }),
+      };
+    });
+    mockSnapdom(makeCanvasStub().stub);
+    mockModern(makeCanvasStub().stub);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let calls = 0;
+    const maskTargets = (): Element[] => {
+      calls += 1;
+      if (calls >= 2) throw new Error('registry exploded');
+      return [];
+    };
+    let err: string | undefined;
+    let reason: string | undefined;
+    await cap({ root: document.body, maskTargets, __setDegradedReason: (x) => { reason = x; } }).catch((e) => { err = String(e); });
+    vi.doUnmock('../../src/capture/video-frames.js');
+    expect(installed).toBe(1);
+    expect(calls).toBeGreaterThanOrEqual(2);
+    expect(video.getAttribute('style')).toBeNull();
+    expect(document.querySelectorAll('[data-everframe-video-stand-in], video + *').length).toBe(0);
+    expect(err).toBeUndefined(); // the placeholder ships instead of a rejection
+    expect(reason).toBe(DEGRADED_REASONS.screenshot_failed);
+  });
+
+  it('falls back to modern-screenshot when snapdom throws, without a degraded reason', async () => {
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('nope'); }) }));
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    let reason: string | undefined;
+    await cap({ root: document.body, __setRenderer: (x) => { renderer = x; }, __setDegradedReason: (x) => { reason = x; } });
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    expect(renderer).toBe('modern-screenshot');
+    expect(reason).toBeUndefined();
+  });
+
+  it('falls back when snapdom returns a blank canvas', async () => {
+    mockSnapdom(makeCanvasStub().stub);
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const blank = await import('../../src/capture/blank-check.js');
+    (blank.isCanvasBlank as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(true)   // snapdom canvas
+      .mockReturnValueOnce(false); // fallback canvas
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    await cap({ root: document.body, __setRenderer: (x) => { renderer = x; } });
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    expect(renderer).toBe('modern-screenshot');
+  });
+
+  it('ships the image but flags screenshot_blank when both renderers are blank', async () => {
+    mockSnapdom(makeCanvasStub({ width: 320, height: 200 }).stub);
+    mockModern(makeCanvasStub({ width: 10, height: 10 }).stub);
+    blankState.value = true;
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let reason: string | undefined;
+    let renderer: string | undefined;
+    const r = await cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+    expect(reason).toBe(DEGRADED_REASONS.screenshot_blank);
+    // The first (primary) blank attempt is the one shipped — a truly empty page is not data loss.
+    expect(renderer).toBe('snapdom');
+    expect(r.width).toBe(320);
+  });
+
+  it('overlapping captures each return their OWN degraded reason on the result', async () => {
+    const canvasA = makeCanvasStub({ width: 300, height: 150 }).stub;
+    const canvasB = makeCanvasStub({ width: 300, height: 150 }).stub;
+    const modernA = makeCanvasStub({ width: 300, height: 150 }).stub;
+    const releases: Array<() => void> = [];
+    const canvases = [canvasA, canvasB];
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(() => {
+        const canvas = canvases[releases.length]!;
+        return new Promise((resolve) => releases.push(() => resolve({ toCanvas: async () => canvas })));
+      }),
+    }));
+    mockModern(modernA);
+    const blank = await import('../../src/capture/blank-check.js');
+    // A: both renderers blank. B: clean.
+    (blank.isCanvasBlank as ReturnType<typeof vi.fn>).mockImplementation((c: unknown) => c === canvasA || c === modernA);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    const shared: Array<string | undefined> = [];
+    const setShared = (r: string): void => { shared.push(r); };
+    const a = cap({ root: document.body, __setDegradedReason: setShared });
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    const b = cap({ root: document.body, __setDegradedReason: setShared });
+    // snapDOM runs are serialized: B's snapDOM starts only once A's settles,
+    // while the two captures themselves still overlap.
+    releases[0]!();
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    releases[1]!();
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra.degradedReason).toBe(DEGRADED_REASONS.screenshot_blank);
+    expect(rb.degradedReason).toBeUndefined();
+    expect('degradedReason' in rb).toBe(false);
+  });
+
+  it('puts screenshot_failed on the placeholder result', async () => {
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('a'); }) }));
+    vi.doMock('modern-screenshot', () => ({ domToCanvas: vi.fn(async () => { throw new Error('b'); }) }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    const r = await cap({ root: document.body });
+    expect(r.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+  });
+
+  it('treats an unavailable blank check (null) as not blank', async () => {
+    const { stub } = makeCanvasStub();
+    mockSnapdom(stub);
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    blankState.value = null;
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root: document.body });
+    expect(domToCanvas).not.toHaveBeenCalled();
+  });
+
+  it('degrades to the placeholder with screenshot_failed when both renderers throw', async () => {
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('a'); }) }));
+    vi.doMock('modern-screenshot', () => ({ domToCanvas: vi.fn(async () => { throw new Error('b'); }) }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let reason: string | undefined;
+    let renderer: string | undefined;
+    const r = await cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+    expect(reason).toBe(DEGRADED_REASONS.screenshot_failed);
+    expect(renderer).toBe('none');
+    expect(new Uint8Array(await r.blob.arrayBuffer())).toEqual(PNG_BYTES);
+  });
+
+  it('still runs the fallback when snapdom never settles, within deadline + encode floor', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(() => new Promise(() => undefined)) }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let renderer: string | undefined;
+      const p = cap({ root: document.body, __setRenderer: (x) => { renderer = x; } });
+      await vi.advanceTimersByTimeAsync(10_000 * 0.6 + 1);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await p;
+      expect(domToCanvas).toHaveBeenCalledTimes(1);
+      expect(renderer).toBe('modern-screenshot');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a capture that finds a never-settling snapDOM run skips snapDOM and falls back (off TV)', async () => {
+    vi.useFakeTimers();
+    try {
+      const snapdom = vi.fn(() => new Promise(() => undefined));
+      vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      // screenshot.ts loads the snapDOM renderer lazily: have it loaded, so
+      // A reaches snapDOM within the zero-time advance below.
+      await import('../../src/capture/renderers/snapdom-renderer.js');
+      const renderers: string[] = [];
+      const a = cap({ root: document.body, __setRenderer: (x) => { renderers.push(`a:${x}`); } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(snapdom).toHaveBeenCalledTimes(1);
+      const b = cap({ root: document.body, __setRenderer: (x) => { renderers.push(`b:${x}`); } });
+      await vi.advanceTimersByTimeAsync(10_000 * 0.6 + 1);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await Promise.all([a, b]);
+      expect(snapdom).toHaveBeenCalledTimes(1); // B never started a second snapDOM run
+      expect(domToCanvas).toHaveBeenCalledTimes(2);
+      expect(renderers.sort()).toEqual(['a:modern-screenshot', 'b:modern-screenshot']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('paints legacy maskPlan rects offset by scroll on the viewport-cropped snapdom canvas', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    const canvas = {
+      width: 200, height: 100,
+      getContext: () => ({ fillStyle: '', fillRect: (x: number, y: number, w: number, h: number) => fills.push([x, y, w, h]) }),
+      toBlob: (cb: (b: Blob | null) => void, type?: string) => cb(new Blob([PNG_BYTES], { type: type ?? 'image/png' })),
+    } as unknown as HTMLCanvasElement;
+    mockSnapdom(canvas);
+    // A margin-0 <body> scrolled by 300 sits at viewport top -300 (jsdom has no layout).
+    vi.spyOn(document.body, 'getBoundingClientRect').mockReturnValue({ left: 0, top: -300 } as DOMRect);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
+    // Root-relative y=320 at scrollY=300 lands at viewport y=20 (minus the 2px inflation).
+    expect(fills).toContainEqual([8, 18, 54, 24]);
+  });
+
+  it('maps maskPlan through a custom root\'s viewport position (not just the window scroll)', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(fills, 800, 600));
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({ left: 200, top: 100, width: 300, height: 200 } as DOMRect);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    // Sensitive box at root-relative (0,0), 40x20; ratio 2 on both sides.
+    await cap({ root, pixelRatio: 2, maskPlan: [{ x: 0, y: 0, width: 80, height: 40 }] });
+    // snapDOM draws the root at viewport (200,100) => device (400,200); minus the 2px inflation.
+    expect(fills).toEqual([[398, 198, 84, 44]]);
+  });
+
+  /** Canvas stub whose 2d context records mask fills, so tests can see paint order. */
+  function makeFillRecordingCanvas(fills: Array<[number, number, number, number]>, width = 200, height = 100) {
+    return {
+      width, height,
+      getContext: () => ({ fillStyle: '', fillRect: (x: number, y: number, w: number, h: number) => fills.push([x, y, w, h]) }),
+      toBlob: (cb: (b: Blob | null) => void, type?: string) => cb(new Blob([PNG_BYTES], { type: type ?? 'image/png' })),
+    } as unknown as HTMLCanvasElement;
+  }
+
+  it('blank-checks the snapdom canvas BEFORE painting maskPlan, so a masked flat canvas still falls back', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(fills));
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const fillsAtCheck: number[] = [];
+    const blank = await import('../../src/capture/blank-check.js');
+    (blank.isCanvasBlank as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(() => { fillsAtCheck.push(fills.length); return true; }) // snapdom canvas
+      .mockImplementationOnce(() => false); // fallback canvas
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    let reason: string | undefined;
+    await cap({
+      root: document.body,
+      pixelRatio: 1,
+      maskPlan: [{ x: 10, y: 20, width: 50, height: 20 }],
+      __setRenderer: (x) => { renderer = x; },
+      __setDegradedReason: (x) => { reason = x; },
+    });
+    expect(fillsAtCheck).toEqual([0]);
+    expect(fills.length).toBeGreaterThan(0); // the mask was still painted on the snapdom canvas
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    expect(renderer).toBe('modern-screenshot');
+    expect(reason).toBeUndefined();
+  });
+
+  it('fails closed when the root moves during the render: the masked snapDOM canvas is not shipped (off TV -> fallback)', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    const canvas = makeFillRecordingCanvas(fills);
+    let bodyTop = -300; // margin-0 <body> at scrollY 300
+    vi.spyOn(document.body, 'getBoundingClientRect').mockImplementation(() => ({ left: 0, top: bodyTop }) as DOMRect);
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(async () => {
+        // The user scrolls while snapDOM (fast:false) yields mid-render; snapDOM
+        // may have re-cloned at the new position, so the origin is unknowable.
+        bodyTop = -700;
+        return { toCanvas: async () => canvas };
+      }),
+    }));
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    await cap({
+      root: document.body,
+      pixelRatio: 1,
+      maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }],
+      __setRenderer: (x) => { renderer = x; },
+    });
+    expect(fills).toEqual([]); // no mask painted at a guessed origin
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    expect(renderer).toBe('modern-screenshot');
+  });
+
+  it('keeps the snapDOM canvas when the root did not move (no maskPlan-driven fallback)', async () => {
+    const fills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(fills));
+    vi.spyOn(document.body, 'getBoundingClientRect').mockReturnValue({ left: 0, top: -300 } as DOMRect);
+    const domToCanvas = mockModern(makeCanvasStub().stub);
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root: document.body, pixelRatio: 1, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
+    expect(fills).toEqual([[8, 18, 54, 24]]);
+    expect(domToCanvas).not.toHaveBeenCalled();
+  });
+
+  it('blank-checks the fallback on the viewport region it ships, not the whole document canvas', async () => {
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('nope'); }) }));
+    const doc = makeCanvasStub({ width: 1024, height: 3000 }).stub;
+    mockModern(doc);
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1024);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(768);
+    Object.defineProperty(window, 'scrollY', { value: 500, configurable: true });
+    const root = document.createElement('div'); // not <body>: no clone-drift term
+    document.body.appendChild(root);
+    try {
+      const blank = await import('../../src/capture/blank-check.js');
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      await cap({ root, pixelRatio: 1 });
+      expect(blank.isCanvasBlank).toHaveBeenCalledWith(doc, { sx: 0, sy: 500, sw: 1024, sh: 768 });
+      expect(blank.isCanvasBlank).not.toHaveBeenCalledWith(doc);
+    } finally {
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    }
+  });
+
+  it('flags screenshot_blank when both renderers are blank even with maskPlan painted', async () => {
+    const snapFills: Array<[number, number, number, number]> = [];
+    const modernFills: Array<[number, number, number, number]> = [];
+    mockSnapdom(makeFillRecordingCanvas(snapFills, 320, 200));
+    const domToCanvas = mockModern(makeFillRecordingCanvas(modernFills));
+    const fillsAtCheck: number[] = [];
+    const blank = await import('../../src/capture/blank-check.js');
+    (blank.isCanvasBlank as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(() => { fillsAtCheck.push(snapFills.length); return true; })
+      .mockImplementationOnce(() => { fillsAtCheck.push(modernFills.length); return true; });
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    let renderer: string | undefined;
+    let reason: string | undefined;
+    const r = await cap({
+      root: document.body,
+      pixelRatio: 1,
+      maskPlan: [{ x: 10, y: 20, width: 50, height: 20 }],
+      __setRenderer: (x) => { renderer = x; },
+      __setDegradedReason: (x) => { reason = x; },
+    });
+    expect(domToCanvas).toHaveBeenCalledTimes(1);
+    // Both verdicts were taken on the raw, un-masked renders.
+    expect(fillsAtCheck).toEqual([0, 0]);
+    expect(modernFills.length).toBeGreaterThan(0);
+    expect(reason).toBe(DEGRADED_REASONS.screenshot_blank);
+    expect(renderer).toBe('snapdom');
+    expect(r.width).toBe(320);
+  });
+
+  describe('TV profile: fallback only on a real snapDOM error', () => {
+    let restoreUa: (() => void) | null = null;
+    beforeEach(() => {
+      restoreUa = stubUserAgent(WEBOS_UA);
+    });
+    afterEach(() => {
+      restoreUa?.();
+      restoreUa = null;
+      vi.useRealTimers();
+    });
+
+    it('ships a blank snapdom canvas flagged screenshot_blank without running the fallback', async () => {
+      mockSnapdom(makeCanvasStub({ width: 320, height: 200 }).stub);
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      blankState.value = true;
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let reason: string | undefined;
+      let renderer: string | undefined;
+      const r = await cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+      expect(domToCanvas).not.toHaveBeenCalled();
+      expect(reason).toBe(DEGRADED_REASONS.screenshot_blank);
+      expect(renderer).toBe('snapdom');
+      expect(r.width).toBe(320);
+    });
+
+    it('still falls back when snapdom throws a real error (Chrome-53-era TVs)', async () => {
+      vi.doMock('@zumer/snapdom', () => ({
+        snapdom: vi.fn(async () => {
+          throw new TypeError('s.append is not a function');
+        }),
+      }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let reason: string | undefined;
+      let renderer: string | undefined;
+      await cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+      expect(domToCanvas).toHaveBeenCalledTimes(1);
+      expect(renderer).toBe('modern-screenshot');
+      expect(reason).toBeUndefined();
+    });
+
+    it('a root that moved during the render ships the placeholder with legacy masks (no fallback on TV)', async () => {
+      let bodyTop = -300;
+      vi.spyOn(document.body, 'getBoundingClientRect').mockImplementation(() => ({ left: 0, top: bodyTop }) as DOMRect);
+      vi.doMock('@zumer/snapdom', () => ({
+        snapdom: vi.fn(async () => {
+          bodyTop = -700;
+          return { toCanvas: async () => makeCanvasStub().stub };
+        }),
+      }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      const r = await cap({ root: document.body, maskPlan: [{ x: 10, y: 320, width: 50, height: 20 }] });
+      expect(domToCanvas).not.toHaveBeenCalled();
+      expect(r.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+    });
+
+    it('a capture that finds snapDOM still busy ships the placeholder without the fallback', async () => {
+      vi.useFakeTimers();
+      const snapdom = vi.fn(() => new Promise(() => undefined));
+      vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      const reasons: string[] = [];
+      const a = cap({ root: document.body });
+      await vi.advanceTimersByTimeAsync(0);
+      const b = cap({ root: document.body, __setDegradedReason: (x) => { reasons.push(x); } });
+      // A times out and restores the page; B (queued behind it) then finds
+      // A's abandoned snapDOM run still going for its whole primary budget.
+      await vi.advanceTimersByTimeAsync(45_000 * 0.6 + 1);
+      await vi.advanceTimersByTimeAsync(45_000 * 0.6 + 1);
+      const [, rb] = await Promise.all([a, b]);
+      expect(snapdom).toHaveBeenCalledTimes(1);
+      expect(domToCanvas).not.toHaveBeenCalled(); // no second renderer on a TV CPU
+      expect(reasons).toEqual([DEGRADED_REASONS.screenshot_failed]);
+      expect(rb.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(new Uint8Array(await rb.blob.arrayBuffer())).toEqual(PNG_BYTES);
+    });
+
+    it('degrades to the placeholder without the fallback when snapdom blows its deadline share', async () => {
+      vi.useFakeTimers();
+      vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(() => new Promise(() => undefined)) }));
+      const domToCanvas = mockModern(makeCanvasStub().stub);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let reason: string | undefined;
+      let renderer: string | undefined;
+      const p = cap({ root: document.body, __setDegradedReason: (x) => { reason = x; }, __setRenderer: (x) => { renderer = x; } });
+      await vi.advanceTimersByTimeAsync(45_000 * 0.6 + 1);
+      const r = await p;
+      expect(domToCanvas).not.toHaveBeenCalled();
+      expect(reason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(renderer).toBe('none');
+      expect(new Uint8Array(await r.blob.arrayBuffer())).toEqual(PNG_BYTES);
+    });
+  });
+
+  type MaskPlugin = { name: string; afterClone(ctx: { clone: Element; nodeMap: Map<Node, Node> }): void };
+  /** Runs a mask plugin over a one-level clone of `host` built with a snapDOM-style nodeMap. */
+  function cloneThroughPlugin(host: Element, plugin: MaskPlugin): Element {
+    const nodeMap = new Map<Node, Node>();
+    const clone = host.cloneNode(false) as Element;
+    nodeMap.set(clone, host);
+    for (const child of Array.from(host.children)) {
+      const c = child.cloneNode(true) as Element;
+      nodeMap.set(c, child);
+      clone.appendChild(c);
+    }
+    plugin.afterClone({ clone, nodeMap });
+    return clone;
+  }
+
+  it('snapDOM captures never touch the live element: masks are applied on the clone', async () => {
+    const secret = document.createElement('div');
+    secret.setAttribute('style', 'color: red');
+    document.body.appendChild(secret);
+    const stylesAtClone: Array<string | null> = [];
+    const plugins: MaskPlugin[] = [];
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn(async (_r: HTMLElement, opts: { plugins?: MaskPlugin[] }) => {
+        stylesAtClone.push(secret.getAttribute('style'));
+        plugins.push(...(opts.plugins ?? []));
+        return { toCanvas: async () => makeCanvasStub().stub };
+      }),
+    }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await Promise.all([
+      cap({ root: document.body, maskTargets: [secret] }),
+      cap({ root: document.body, maskTargets: [secret] }),
+    ]);
+    expect(stylesAtClone).toEqual(['color: red', 'color: red']);
+    expect(secret.getAttribute('style')).toBe('color: red');
+    expect(plugins.map((p) => p.name)).toEqual(['everframe-clone-mask', 'everframe-clone-mask']);
+    const clone = cloneThroughPlugin(document.body, plugins[0]!);
+    expect(clone.querySelector('[style="color: red"]')).toBeNull(); // the sensitive clone was replaced
+    secret.remove();
+  });
+
+  it('resolves function mask targets after the snapDOM admission wait: a replaced element is masked', async () => {
+    const holder = document.createElement('div');
+    let secret = document.createElement('div');
+    secret.className = 'secret';
+    holder.appendChild(secret);
+    document.body.appendChild(holder);
+    const releases: Array<() => void> = [];
+    const plugins: MaskPlugin[] = [];
+    vi.doMock('@zumer/snapdom', () => ({
+      snapdom: vi.fn((_r: HTMLElement, opts: { plugins?: MaskPlugin[] }) => {
+        plugins.push(...(opts.plugins ?? []));
+        return new Promise((resolve) =>
+          releases.push(() => resolve({ toCanvas: async () => makeCanvasStub().stub })),
+        );
+      }),
+    }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    const resolver = vi.fn(() => Array.from(holder.querySelectorAll('.secret')));
+    const a = cap({ root: document.body, maskTargets: resolver });
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    const b = cap({ root: document.body, maskTargets: resolver });
+    await new Promise((r) => setTimeout(r, 20));
+    // The app replaces the sensitive element while B waits.
+    const original = secret;
+    secret = document.createElement('div');
+    secret.className = 'secret';
+    holder.replaceChild(secret, original);
+    releases[0]!();
+    await a;
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    releases[1]!();
+    await b;
+    // B's plugin masks the replacement, not the detached original.
+    const clone = cloneThroughPlugin(holder, plugins[1]!);
+    expect(clone.querySelector('.secret')).toBeNull();
+    expect(clone.firstElementChild!.getAttribute('style')).toContain('background: rgb(0, 0, 0)');
+    expect(original.getAttribute('style')).toBeNull();
+    expect(secret.getAttribute('style')).toBeNull(); // the live page is never touched
+    holder.remove();
+  });
+
+  it('the modern-screenshot fallback masks the LIVE element only while it renders', async () => {
+    const secret = document.createElement('div');
+    secret.setAttribute('style', 'color: red');
+    document.body.appendChild(secret);
+    vi.doMock('@zumer/snapdom', () => ({ snapdom: vi.fn(async () => { throw new Error('nope'); }) }));
+    let styleWhileRendering: string | null = null;
+    vi.doMock('modern-screenshot', () => ({
+      domToCanvas: vi.fn(async () => {
+        styleWhileRendering = secret.getAttribute('style');
+        return makeCanvasStub().stub;
+      }),
+    }));
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root: document.body, maskTargets: () => [secret] });
+    expect(styleWhileRendering).toContain('background-color: #000 !important');
+    expect(secret.getAttribute('style')).toBe('color: red');
+    secret.remove();
+  });
+
+  it('a capture that out-waits a stuck earlier one ships the placeholder without touching the page', async () => {
+    vi.useFakeTimers();
+    try {
+      // The earlier capture hangs inside its page-mutating section.
+      vi.doMock('../../src/capture/video-frames.js', async (orig) => ({
+        ...(await orig<typeof import('../../src/capture/video-frames.js')>()),
+        installVideoStandIns: vi.fn(() => new Promise(() => undefined)),
+      }));
+      const snapdom = vi.fn(async () => ({ toCanvas: async () => makeCanvasStub().stub }));
+      vi.doMock('@zumer/snapdom', () => ({ snapdom }));
+      const secret = document.createElement('div');
+      document.body.appendChild(secret);
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      void cap({ root: document.body, maskTargets: [secret] });
+      await vi.advanceTimersByTimeAsync(0);
+      const maskedByStuck = secret.getAttribute('style');
+      let reason: string | undefined;
+      const b = cap({ root: document.body, maskTargets: [secret], __setDegradedReason: (x) => { reason = x; } });
+      await vi.advanceTimersByTimeAsync(10_000 + 2_000 + 600 + 5_000 + 1);
+      const rb = await b;
+      expect(reason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(rb.degradedReason).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(new Uint8Array(await rb.blob.arrayBuffer())).toEqual(PNG_BYTES);
+      expect(snapdom).not.toHaveBeenCalled();
+      expect(secret.getAttribute('style')).toBe(maskedByStuck); // B never masked or restored it
+      secret.remove();
+    } finally {
+      vi.doUnmock('../../src/capture/video-frames.js');
+      vi.useRealTimers();
+    }
+  });
+
+  it('restores DOM masks and video stand-ins after a snapdom capture', async () => {
+    mockSnapdom(makeCanvasStub().stub);
+    const secret = document.createElement('div');
+    secret.textContent = 'secret';
+    document.body.appendChild(secret);
+    const before = secret.getAttribute('style');
+    const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+    await cap({ root: document.body, maskTargets: [secret] });
+    expect(secret.getAttribute('style')).toBe(before);
   });
 });

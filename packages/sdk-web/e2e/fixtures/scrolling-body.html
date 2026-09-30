@@ -1,0 +1,36 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe scrolling-body e2e fixture</title>
+<style>
+  /* The document never scrolls; <body> - the capture root - scrolls on its own. */
+  html { overflow: hidden; height: 100%; }
+  body { margin: 0; height: 600px; overflow: auto; background: #fff; font: 16px/1.5 system-ui, sans-serif; }
+  .spacer { height: 400px; background: #fff; }
+  .band { height: 100px; }
+</style>
+</head>
+<body>
+  <div class="spacer"></div>
+  <div id="marker" class="band" style="background:rgb(0,160,0)"></div>
+  <div id="secret" data-everframe-sensitive class="band" style="background:#fff;color:#000">4111 1111 1111 1111</div>
+  <div style="height:1500px;background:rgb(0,0,200)"></div>
+  <!-- Same import map as capture-cases.html (stands in for the consumer's bundler). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>
