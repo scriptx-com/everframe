@@ -19,7 +19,7 @@ const vp8x = (w: number, h: number) => riff('VP8X', [0, 0, 0, 0, (w - 1) & 0xff,
 const GZ = new Uint8Array([0x1f, 0x8b, 8, 0]);
 const base = { url: 'https://api.example.test/api/render', sdkKey: 'k', fallbackSize: { width: 2560, height: 1440 } };
 const webp = (bytes: Uint8Array, meta?: string) =>
-  new Response(bytes, { status: 200, headers: { 'content-type': 'image/webp', ...(meta !== undefined ? { [RENDER_META_HEADER]: meta } : {}) } });
+  new Response(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, { status: 200, headers: { 'content-type': 'image/webp', ...(meta !== undefined ? { [RENDER_META_HEADER]: meta } : {}) } });
 
 afterEach(() => vi.useRealTimers());
 
