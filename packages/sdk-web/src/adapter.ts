@@ -74,7 +74,7 @@ import {
 import { INGEST_URL } from './constants.js';
 import { captureScreenshot, applyMaskRectsToBlob, type ScreenshotRenderer } from './capture/screenshot.js';
 import { isTvUserAgent } from './capture/capture-profile.js';
-import { imageShot, type ShotCapture, type ShotCaptureOptions } from './capture/shot-capture.js';
+import { boundedTvFallbackShot, imageShot, type ShotCapture, type ShotCaptureOptions } from './capture/shot-capture.js';
 import type { DegradedReason } from './internal/degraded-reasons.js';
 import { installConsolePatcher } from './capture/logs.js';
 import {
@@ -1792,9 +1792,16 @@ export function createWebPlatformAdapter(
   };
 
   // A failed chunk load (or a throw out of captureTvShot) falls back to the
-  // on-device capture, exactly as a TV without the render service would.
+  // on-device capture under the SAME bounds as the snapshot path's own
+  // fallback: a weak profile or a page above 3000 elements is unavailable
+  // rather than a multi-second snapDOM run on TV silicon.
   const tvShot = (started: ReturnType<typeof startTvShot> = startTvShot()): Promise<ShotCapture> =>
-    started.then((s) => s.shot, () => captureMasked().then(imageShot)).then(noteShot);
+    started
+      .then(
+        (s) => s.shot,
+        () => boundedTvFallbackShot(captureMasked, document, navigator.userAgent),
+      )
+      .then(noteShot);
 
   /**
    * Opens the reporter. On the TV path the synchronous snapshot runs FIRST

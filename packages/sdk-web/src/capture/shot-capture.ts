@@ -35,6 +35,38 @@ export function imageShot(image: ScreenshotResult): ShotCapture {
   return image.degradedReason !== undefined ? { image, degradedReason: image.degradedReason } : { image };
 }
 
+/** Above this many elements the on-device snapDOM fallback is too slow for a TV. */
+export const SNAPDOM_FALLBACK_MAX_ELEMENTS = 3000;
+/** Chromium majors below this are weak TV profiles: no on-device fallback. */
+export const MIN_FALLBACK_CHROME_MAJOR = 60;
+
+export function isWeakTvProfile(ua: string): boolean {
+  const m = /Chrome\/(\d+)/.exec(ua);
+  return m === null || Number(m[1]) < MIN_FALLBACK_CHROME_MAJOR;
+}
+
+/**
+ * The smart-TV path's bounded on-device fallback: skipped (unavailable) on a
+ * weak profile or above SNAPDOM_FALLBACK_MAX_ELEMENTS, and a failed capture
+ * is unavailable too. Here (eager) rather than in the lazy tv-snapshot chunk
+ * because it is also what runs when that chunk fails to load.
+ */
+export async function boundedTvFallbackShot(
+  capture: () => Promise<ScreenshotResult>,
+  doc: Document,
+  userAgent: string,
+): Promise<ShotCapture> {
+  const unavailable: ShotCapture = { degradedReason: DEGRADED_REASONS.screenshot_unavailable };
+  if (isWeakTvProfile(userAgent)) return unavailable;
+  if (doc.getElementsByTagName('*').length > SNAPDOM_FALLBACK_MAX_ELEMENTS) return unavailable;
+  try {
+    const image = await capture();
+    return image.degradedReason === DEGRADED_REASONS.screenshot_failed ? unavailable : imageShot(image);
+  } catch {
+    return unavailable;
+  }
+}
+
 export interface ShotCaptureOptions {
   /**
    * Hand out the smart-TV pre-capture taken as the reporter opened. ONLY the

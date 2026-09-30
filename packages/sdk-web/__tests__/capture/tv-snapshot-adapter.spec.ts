@@ -156,6 +156,38 @@ describe("smart-TV snapshot gate", () => {
     await expect(adapter.__captureShot!()).resolves.toEqual({ image: IMAGE });
   });
 
+  it("a failed TV module on a weak profile (Chrome < 60) is unavailable, not a snapDOM run (final review finding 6)", async () => {
+    const { captureScreenshot } = await import("../../src/capture/screenshot.js");
+    vi.mocked(captureTvShot).mockImplementation(() => {
+      throw new Error("chunk failed");
+    });
+    const { adapter } = await adapterFor({
+      ua: "Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.34 Safari/537.36 WebAppManager",
+      screenshotRender: true,
+    });
+    vi.mocked(captureScreenshot).mockClear();
+    await expect(adapter.__captureShot!()).resolves.toEqual({ degradedReason: "screenshot_unavailable" });
+    expect(captureScreenshot).not.toHaveBeenCalled();
+  });
+
+  it("a failed TV module on a page above 3000 elements is unavailable, not a snapDOM run (final review finding 6)", async () => {
+    const { captureScreenshot } = await import("../../src/capture/screenshot.js");
+    vi.mocked(captureTvShot).mockImplementation(() => {
+      throw new Error("chunk failed");
+    });
+    const { adapter } = await adapterFor({ ua: WEBOS_UA, screenshotRender: true });
+    const host = document.createElement("div");
+    for (let i = 0; i < 3001; i++) host.appendChild(document.createElement("span"));
+    document.body.appendChild(host);
+    try {
+      vi.mocked(captureScreenshot).mockClear();
+      await expect(adapter.__captureShot!()).resolves.toEqual({ degradedReason: "screenshot_unavailable" });
+      expect(captureScreenshot).not.toHaveBeenCalled();
+    } finally {
+      host.remove();
+    }
+  });
+
   it("opens the reporter only after the snapshot is taken, and hands the dialog that same capture", async () => {
     let snapshotTaken!: () => void;
     const snapshotted = new Promise<void>((resolve) => {

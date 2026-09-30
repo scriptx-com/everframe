@@ -24,12 +24,18 @@ import {
 } from '@everframe/protocol';
 import { DEGRADED_REASONS } from '../../internal/degraded-reasons.js';
 import { sha256Hex } from '../sha256.js';
-import { imageShot, type CapturedSnapshot, type ShotCapture } from '../shot-capture.js';
+import {
+  boundedTvFallbackShot,
+  isWeakTvProfile,
+  MIN_FALLBACK_CHROME_MAJOR,
+  SNAPDOM_FALLBACK_MAX_ELEMENTS,
+  type CapturedSnapshot,
+  type ShotCapture,
+} from '../shot-capture.js';
 import { takeDomSnapshot, type SnapshotDeps, type TakenSnapshot } from './serialize.js';
 import { renderSnapshot, type RenderDeps } from './render-client.js';
 
-export const SNAPDOM_FALLBACK_MAX_ELEMENTS = 3000;
-export const MIN_FALLBACK_CHROME_MAJOR = 60;
+export { SNAPDOM_FALLBACK_MAX_ELEMENTS, MIN_FALLBACK_CHROME_MAJOR, isWeakTvProfile };
 
 export interface TvShotDeps {
   snapshot: SnapshotDeps;
@@ -37,11 +43,6 @@ export interface TvShotDeps {
   fallbackCapture: () => Promise<ScreenshotResult>;
   userAgent: string;
   gzip?: (bytes: Uint8Array) => Promise<Uint8Array>;
-}
-
-export function isWeakTvProfile(ua: string): boolean {
-  const m = /Chrome\/(\d+)/.exec(ua);
-  return m === null || Number(m[1]) < MIN_FALLBACK_CHROME_MAJOR;
 }
 
 /**
@@ -63,16 +64,8 @@ export async function packSnapshot(
   return { bytes, byteLength: bytes.byteLength, sha256: await sha256Hex(new Blob([bytes as BlobPart])) };
 }
 
-async function fallbackShot(deps: TvShotDeps): Promise<ShotCapture> {
-  const unavailable: ShotCapture = { degradedReason: DEGRADED_REASONS.screenshot_unavailable };
-  if (isWeakTvProfile(deps.userAgent)) return unavailable;
-  if (deps.snapshot.doc.getElementsByTagName('*').length > SNAPDOM_FALLBACK_MAX_ELEMENTS) return unavailable;
-  try {
-    const image = await deps.fallbackCapture();
-    return image.degradedReason === DEGRADED_REASONS.screenshot_failed ? unavailable : imageShot(image);
-  } catch {
-    return unavailable;
-  }
+function fallbackShot(deps: TvShotDeps): Promise<ShotCapture> {
+  return boundedTvFallbackShot(deps.fallbackCapture, deps.snapshot.doc, deps.userAgent);
 }
 
 async function finishTvShot(taken: TakenSnapshot | null, deps: TvShotDeps): Promise<ShotCapture> {
