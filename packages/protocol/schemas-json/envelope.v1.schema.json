@@ -1148,6 +1148,7 @@
               "video",
               "audio",
               "session-replay",
+              "dom-snapshot",
               "other"
             ],
             "$id": "AttachmentKind"

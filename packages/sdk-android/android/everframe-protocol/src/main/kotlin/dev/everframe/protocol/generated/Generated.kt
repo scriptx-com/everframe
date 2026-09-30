@@ -93,6 +93,7 @@ object EverframeFormatSerializer : KSerializer<Format> {
 enum class AttachmentKind(val value: String) {
     @SerialName("annotated-screenshot") AnnotatedScreenshot("annotated-screenshot"),
     @SerialName("audio") Audio("audio"),
+    @SerialName("dom-snapshot") DOMSnapshot("dom-snapshot"),
     @SerialName("other") Other("other"),
     @SerialName("screenshot") Screenshot("screenshot"),
     @SerialName("session-replay") SessionReplay("session-replay"),

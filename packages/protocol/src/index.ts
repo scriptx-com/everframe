@@ -13,6 +13,7 @@ export { ReportEnvelope, SDKPlatform, FormFactor } from './envelope.js';
 export { UINode, UITree } from './ui-tree.js';
 export { FocusedNode } from './focus.js';
 export { AttachmentRef, AttachmentKind, ReplayFormat } from './attachments.js';
+export { MAX_REPORT_SHOTS, MAX_INGEST_FILE_PARTS } from './limits.js';
 export { Breadcrumb, BreadcrumbKind, BreadcrumbLevel } from './breadcrumb.js';
 // PROTO-03 relay control-frame schema — namespaced to avoid collisions with
 // envelope-side names (e.g. ReportAssembled, ReportSubmit are relay-specific

@@ -229,6 +229,7 @@ public enum EverframeFormat: String, Codable {
 public enum EverframeAttachmentKind: String, Codable {
     case annotatedScreenshot = "annotated-screenshot"
     case audio = "audio"
+    case domSnapshot = "dom-snapshot"
     case other = "other"
     case screenshot = "screenshot"
     case sessionReplay = "session-replay"
