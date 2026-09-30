@@ -4,13 +4,13 @@
     "path": "dist/index.js",
     "limit": "145 KB",
     "gzip": true,
-    "ignore": ["./rrweb-*.js", "./dist-*.js", "./react-island-*.js", "./browser-*.js", "./snapdom-*.js"]
+    "ignore": ["./rrweb-*.js", "./dist-*.js", "./react-island-*.js", "./browser-*.js", "./snapdom-*.js", "./tv-snapshot-*.js", "./companion-submit-*.js"]
   },
   {
     "name": "@everframe/web browser entry — the ALWAYS-LOADED cost for a `<script type=\"module\">` page with no bundler at all. Same graph as the ESM entry with EVERY dependency inlined, so nothing is left for the browser to resolve; `splitting: true` is what keeps React, konva, rrweb and modern-screenshot in lazy chunks, which is why this costs about what the ESM entry does instead of the 391 kB the IIFE it replaced did. Turn splitting off and this measures 400 kB — the 145 kB budget here is the guard. `ignore` names exactly the lazy chunks. Checked by `pnpm size-limit` only — nothing in CI runs it yet.",
     "path": "dist/browser/index.js",
     "limit": "145 KB",
     "gzip": true,
-    "ignore": ["./rrweb-*.js", "./dist-*.js", "./react-island-*.js", "./browser-*.js", "./snapdom-*.js"]
+    "ignore": ["./rrweb-*.js", "./dist-*.js", "./react-island-*.js", "./browser-*.js", "./snapdom-*.js", "./tv-snapshot-*.js", "./companion-submit-*.js"]
   }
 ]

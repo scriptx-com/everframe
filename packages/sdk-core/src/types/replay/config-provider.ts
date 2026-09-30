@@ -296,6 +296,11 @@ export const ReplayConfigResponse = z.object({
     .strict()
     .optional()
     .catch(undefined),
+  // Smart-TV snapshot path kill switch (spec 2026-09-29): true only when the
+  // server has a render service. The server emits it ONLY for SDKs that send
+  // the `screenshotrender` feature token, because this schema is .strict() and
+  // an unknown key would fail every older SDK's whole config parse.
+  screenshotRender: z.boolean().optional().catch(undefined),
 }).strict();
 
 export type ReplayConfig = z.infer<typeof ReplayConfigResponse>;

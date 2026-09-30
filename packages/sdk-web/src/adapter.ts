@@ -17,6 +17,7 @@ import type {
   ThreadClient,
   IdentityTokenReader,
   UserMetadata,
+  ScreenshotResult,
 } from '@everframe/sdk-core';
 import {
   createConfigProvider,
@@ -56,7 +57,11 @@ import {
   type ResourceRing,
 } from './resources/index.js';
 import type { FocusedNode } from '@everframe/protocol';
-import { DEFAULT_RESOURCE_WINDOW_SEC } from '@everframe/protocol';
+import {
+  DEFAULT_RESOURCE_WINDOW_SEC,
+  RENDER_PATH,
+  SCREENSHOT_RENDER_SDK_FEATURE,
+} from '@everframe/protocol';
 import type { WebEverframeConfig } from './internal/types.js';
 import type { ReporterResult } from './reporter-types.js';
 import { sensitiveRegistry } from './sensitive/registry.js';
@@ -68,6 +73,8 @@ import {
 } from './debug/seam.js';
 import { INGEST_URL } from './constants.js';
 import { captureScreenshot, applyMaskRectsToBlob, type ScreenshotRenderer } from './capture/screenshot.js';
+import { isTvUserAgent } from './capture/capture-profile.js';
+import { imageShot, type ShotCapture } from './capture/shot-capture.js';
 import type { DegradedReason } from './internal/degraded-reasons.js';
 import { installConsolePatcher } from './capture/logs.js';
 import {
@@ -211,6 +218,15 @@ export interface WebPlatformAdapter extends PlatformAdapter {
   readonly __lastDegradedReason?: DegradedReason;
   /** Renderer that produced the last capture ('none' = degraded placeholder). Non-enumerable; test/diagnostic only. */
   readonly __lastScreenshotRenderer?: ScreenshotRenderer;
+  /**
+   * Smart-TV snapshot path (spec 2026-09-29): one shot as the internal capture
+   * result — image, DOM snapshot, both, or neither (`screenshot_unavailable`).
+   * Rejects after `kill()`. Optional: ReporterDialog is public and hand-wired
+   * companion hosts implement this seam themselves (see captureShotVia).
+   */
+  __captureShot?(): Promise<ShotCapture>;
+  /** True when this client captures shots through the server render path. */
+  __tvSnapshotPathActive?(): boolean;
   /**
    * Test-only cleanup hook (plan 03-02) — calls every capture-patcher uninstaller so
    * specs can guarantee teardown without leaving global console/fetch/XHR mutated. NOT
@@ -956,8 +972,8 @@ export function createWebPlatformAdapter(
       // replies; reporter identity recognition, spec 2026-08-06; dashboard
       // companion badge override, plan 2026-08-25; reporter branding, spec
       // 2026-08-25; session vitals, spec 2026-09-01; report resource window,
-      // spec 2026-09-05; dashboard report hotkey): declare ALL EIGHT tokens so
-      // the server emits every
+      // spec 2026-09-05; dashboard report hotkey; smart-TV server render, spec
+      // 2026-09-29): declare ALL NINE tokens so the server emits every
       // feature-gated config block on this one shared /api/config fetch.
       // Omitting 'identity' here means the server never sends the `identity`
       // block at all — `identity.enabled` stays undefined forever with
@@ -976,6 +992,9 @@ export function createWebPlatformAdapter(
         'vitals',
         'resources',
         'reporthotkey',
+        // Without it the server never sends `screenshotRender`, and the
+        // smart-TV snapshot path stays off (this config schema is .strict()).
+        SCREENSHOT_RENDER_SDK_FEATURE,
       ],
     });
     const provider = configProvider;
@@ -1099,6 +1118,11 @@ export function createWebPlatformAdapter(
         }
       } catch {
         /* swallow — DEFE-02 */
+      }
+      // Smart-TV snapshot path: warm the lazy chunk so opening the reporter
+      // does not pay the fetch. A failed load is retried at capture time.
+      if (tvSnapshotPathActive()) {
+        void import('./capture/tv-snapshot/tv-snapshot.js').catch(() => undefined);
       }
     };
 
@@ -1692,6 +1716,122 @@ export function createWebPlatformAdapter(
     }
   }
 
+  // ── Smart-TV snapshot path (spec 2026-09-29) ─────────────────────────────
+  // A TV screenshot is a one-off masked DOM snapshot rendered by the server.
+  // Gate: TV user agent AND /api/config.screenshotRender — the server-side
+  // kill switch. Everything that builds snapshots is in the lazy tv-snapshot
+  // chunk; this block is only the gate, the pre-capture and diagnostics.
+  const TV_PRE_CAPTURE_OPEN_CEILING_MS = 3_000;
+  const TV_PRE_CAPTURE_TTL_MS = 30_000;
+  let tvPreCapture: { at: number; shot: Promise<ShotCapture> } | null = null;
+
+  /** The on-device (snapDOM / modern-screenshot) capture with live-DOM masking. */
+  const captureMasked = (): Promise<ScreenshotResult> => {
+    // Per-capture state: a previous capture's `screenshot_blank` /
+    // `screenshot_failed` (or renderer) must not stick to every later
+    // report in the session. The out-params below set them afresh.
+    lastDegradedReason = undefined;
+    lastScreenshotRenderer = undefined;
+    return captureScreenshot({
+      root: typeof document !== 'undefined' ? document.body : (undefined as unknown as HTMLElement),
+      ...(_config.cspNonce !== undefined ? { cspNonce: _config.cspNonce } : {}),
+      // Live-DOM masking (Element-based) — the renderer sees pre-blacked
+      // elements in its clone, so masks land at the exact pixel position
+      // by construction. Replaces the previous rect-based maskPlan whose
+      // viewport→PNG coordinate transform was brittle on phones (subpixel
+      // rounding, font-metric drift, modal-open layout shifts).
+      // A resolver, not a snapshot: called once this capture's turn in the
+      // capture queue comes up, so an element the app replaced while the
+      // capture waited is the one that gets masked.
+      maskTargets: () => sensitiveRegistry.snapshotElements(),
+      // ...and judged again, per cloned node, when the snapDOM clone is masked.
+      isSensitive: (el: Element) => sensitiveRegistry.isSensitive(el),
+      __setDegradedReason: (r: DegradedReason) => {
+        lastDegradedReason = r;
+      },
+      __setRenderer: (r: ScreenshotRenderer) => {
+        lastScreenshotRenderer = r;
+      },
+    });
+  };
+
+  function tvSnapshotPathActive(): boolean {
+    if (!isTvUserAgent()) return false;
+    try {
+      return configProvider?.get().screenshotRender === true;
+    } catch {
+      return false;
+    }
+  }
+
+  const startTvShot = () =>
+    import('./capture/tv-snapshot/tv-snapshot.js').then((m) =>
+      m.captureTvShot({
+        snapshot: {
+          win: window,
+          doc: document,
+          sensitiveElements: () => sensitiveRegistry.snapshotElements(),
+          isSensitive: (el: Element) => sensitiveRegistry.isSensitive(el),
+          redaction: _config.redaction,
+        },
+        render: {
+          url: `${INGEST_URL.replace(/\/$/, '')}${RENDER_PATH}`,
+          sdkKey: _config.apiKey,
+          fetchImpl: fetch.bind(globalThis),
+        },
+        fallbackCapture: captureMasked,
+        userAgent: navigator.userAgent,
+      }),
+    );
+
+  const noteShot = (shot: ShotCapture): ShotCapture => {
+    lastDegradedReason = shot.degradedReason as DegradedReason | undefined;
+    if (shot.image !== undefined && shot.snapshot !== undefined) lastScreenshotRenderer = 'server';
+    return shot;
+  };
+
+  // A failed chunk load (or a throw out of captureTvShot) falls back to the
+  // on-device capture, exactly as a TV without the render service would.
+  const tvShot = (started: ReturnType<typeof startTvShot> = startTvShot()): Promise<ShotCapture> =>
+    started.then((s) => s.shot, () => captureMasked().then(imageShot)).then(noteShot);
+
+  /**
+   * Opens the reporter. On the TV path the synchronous snapshot runs FIRST
+   * (spec: before the reporter UI opens, so its block overlaps the open
+   * transition and the dialog never appears in it); the dialog's own capture
+   * then consumes that pre-capture. Bounded: a snapshot module that never
+   * answers cannot keep the reporter shut.
+   */
+  const openModal = (): void => {
+    if (!tvSnapshotPathActive()) {
+      try {
+        showModal();
+      } catch {
+        /* swallow — DEFE-02 */
+      }
+      return;
+    }
+    const started = startTvShot();
+    const shot = tvShot(started);
+    // Observed here so a pre-capture nobody consumes (dialog cancelled,
+    // kill()) never surfaces as an unhandled rejection; the consumer still
+    // sees the original promise and its outcome.
+    shot.catch(() => undefined);
+    tvPreCapture = { at: Date.now(), shot };
+    const snapshotted = started.then((s) => s.snapshotted, () => undefined);
+    const ceiling = new Promise<void>((resolve) => setTimeout(resolve, TV_PRE_CAPTURE_OPEN_CEILING_MS));
+    void Promise.race([snapshotted, ceiling]).then(() => {
+      // kill() while the snapshot was being taken: the reporter stays shut,
+      // exactly as `__openReporter` refuses to open on a killed client.
+      if (reportingKilled) return;
+      try {
+        showModal();
+      } catch {
+        /* swallow — DEFE-02 */
+      }
+    });
+  };
+
   const adapter = {
     captureException: (error: unknown, options?: CaptureExceptionOptions): void =>
       crashSink?.(error, 'captureException', options),
@@ -1724,33 +1864,23 @@ export function createWebPlatformAdapter(
           new Error('Everframe: capture is disabled — kill() was called on this client.'),
         );
       }
-      // Per-capture state: a previous capture's `screenshot_blank` /
-      // `screenshot_failed` (or renderer) must not stick to every later
-      // report in the session. The out-params below set them afresh.
-      lastDegradedReason = undefined;
-      lastScreenshotRenderer = undefined;
-      return captureScreenshot({
-        root: typeof document !== 'undefined' ? document.body : (undefined as unknown as HTMLElement),
-        ...(_config.cspNonce !== undefined ? { cspNonce: _config.cspNonce } : {}),
-        // Live-DOM masking (Element-based) — the renderer sees pre-blacked
-        // elements in its clone, so masks land at the exact pixel position
-        // by construction. Replaces the previous rect-based maskPlan whose
-        // viewport→PNG coordinate transform was brittle on phones (subpixel
-        // rounding, font-metric drift, modal-open layout shifts).
-        // A resolver, not a snapshot: called once this capture's turn in the
-        // capture queue comes up, so an element the app replaced while the
-        // capture waited is the one that gets masked.
-        maskTargets: () => sensitiveRegistry.snapshotElements(),
-        // ...and judged again, per cloned node, when the snapDOM clone is masked.
-        isSensitive: (el: Element) => sensitiveRegistry.isSensitive(el),
-        __setDegradedReason: (r: DegradedReason) => {
-          lastDegradedReason = r;
-        },
-        __setRenderer: (r: ScreenshotRenderer) => {
-          lastScreenshotRenderer = r;
-        },
-      });
+      return captureMasked();
     },
+    __captureShot: (): Promise<ShotCapture> => {
+      // Same kill gate (and the same rejection) as captureScreenshot — it
+      // also refuses a pre-capture taken before kill().
+      if (reportingKilled) {
+        return Promise.reject(
+          new Error('Everframe: capture is disabled — kill() was called on this client.'),
+        );
+      }
+      const pre = tvPreCapture;
+      tvPreCapture = null;
+      if (pre !== null && Date.now() - pre.at < TV_PRE_CAPTURE_TTL_MS) return pre.shot;
+      if (tvSnapshotPathActive()) return tvShot();
+      return captureMasked().then(imageShot);
+    },
+    __tvSnapshotPathActive: (): boolean => tvSnapshotPathActive(),
     captureFocusedNode: (): FocusedNode | null =>
       reportingKilled ? null : captureFocusedNodeImpl(),
     // These two read the page-global ring buffers, which `onKill()` has also
@@ -1778,7 +1908,7 @@ export function createWebPlatformAdapter(
         // `useEverframe().open()`. sdk-core's report() flow is a distinct caller
         // and resolves separately via __resolveReporterUI.
         try {
-          showModal();
+          openModal();
         } catch {
           /* swallow — DEFE-02 */
         }
@@ -1830,7 +1960,7 @@ export function createWebPlatformAdapter(
         pendingOpenResolve = resolve;
       });
       try {
-        showModal();
+        openModal();
       } catch {
         /* swallow — DEFE-02 */
       }
@@ -1979,6 +2109,9 @@ export function createWebPlatformAdapter(
       // declaration for why that is required rather than sloppy.
       reportingKilled = true;
       reportingOwnership += 1;
+      // A smart-TV pre-capture taken before kill() must never be handed out
+      // after a revive (`__rebindCrumbHooks`) either.
+      tvPreCapture = null;
       stopPeriodicRefresh();
       // Codex round-3 finding 1 (P1) — stop the page-global console/fetch/XHR
       // patchers writing into the raw buffers. They stay INSTALLED (they are
