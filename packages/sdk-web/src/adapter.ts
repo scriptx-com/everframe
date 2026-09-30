@@ -123,6 +123,7 @@ import {
 } from './internal/sdk-identity.js';
 import { PKG_VERSION } from './internal/version.js';
 import { captureUserSnapshot } from './internal/user-snapshot.js';
+import { globalScope } from './internal/global-scope.js';
 
 /**
  * The structural slice of sdk-core's `IdentityTokenHolder` that this adapter
@@ -963,7 +964,7 @@ export function createWebPlatformAdapter(
 
     configProvider = createConfigProvider({
       fetchImpl:
-        typeof fetch !== 'undefined' ? fetch.bind(globalThis) : (async () => {
+        typeof fetch !== 'undefined' ? fetch.bind(globalScope()) : (async () => {
           throw new Error('no fetch');
         }),
       configUrl: baseConfigUrl,
@@ -1222,7 +1223,7 @@ export function createWebPlatformAdapter(
     const provider = configProvider;
     const reporterApi = createReporterApi({
       fetchImpl:
-        typeof fetch !== 'undefined' ? fetch.bind(globalThis) : (async () => {
+        typeof fetch !== 'undefined' ? fetch.bind(globalScope()) : (async () => {
           throw new Error('no fetch');
         }),
       baseUrl: INGEST_URL,
@@ -1778,7 +1779,7 @@ export function createWebPlatformAdapter(
         render: {
           url: `${INGEST_URL.replace(/\/$/, '')}${RENDER_PATH}`,
           sdkKey: _config.apiKey,
-          fetchImpl: fetch.bind(globalThis),
+          fetchImpl: fetch.bind(globalScope()),
         },
         fallbackCapture: captureMasked,
         userAgent: navigator.userAgent,

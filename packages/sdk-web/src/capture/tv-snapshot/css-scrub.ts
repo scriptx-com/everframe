@@ -26,6 +26,7 @@ import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { isAriaStateValue } from './allowlists.js';
 import { documentFragmentId, fragmentId, isDataUrl, sanitizeHttpUrl } from './url-sanitize.js';
 import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
+import { globalScope } from '../../internal/global-scope.js';
 
 export interface CssScrubContext {
   masked: boolean;
@@ -46,6 +47,16 @@ const MAX_ATTRIBUTE_SELECTOR_LENGTH = 256;
 const RR_SPLIT = '/* rr_split */';
 
 // ── characters and escapes ─────────────────────────────────────────────────
+
+/**
+ * `String.prototype.trimEnd` (Chrome 66+) for Chrome 53 TV engines: drops
+ * trailing JS whitespace (the set `trim` uses, which `\s` matches). Linear.
+ */
+function trimEndWs(s: string): string {
+  let end = s.length;
+  while (end > 0 && /\s/.test(s.charAt(end - 1))) end--;
+  return end === s.length ? s : s.slice(0, end);
+}
 
 function isIdentCode(code: number): boolean {
   return (
@@ -447,7 +458,7 @@ function scrubValue(prop: string, value: string, ctx: CssScrubContext, block: De
       continue;
     }
     if (fontSrc && (lower === 'format' || lower === 'tech')) {
-      out = (out + value.slice(run, i)).trimEnd();
+      out = trimEndWs(out + value.slice(run, i));
       i = run = findTopLevel(value, j + 1, ')') + 1;
       continue;
     }
@@ -552,7 +563,7 @@ const VENDOR_PREFIX_RE = /^-(?:webkit|moz|ms|o)-/;
 type SupportsFn = (property: string, value: string) => boolean;
 
 function engineSupports(): SupportsFn | null {
-  const css = (globalThis as { CSS?: { supports?: unknown } }).CSS;
+  const css = (globalScope() as { CSS?: { supports?: unknown } }).CSS;
   return css !== undefined && typeof css.supports === 'function' ? (css.supports as SupportsFn).bind(css) : null;
 }
 
@@ -645,7 +656,7 @@ function isValidDeclaration(block: DeclarationBlock, prop: string, value: string
 
 /** `value !important` → [value, true]; a hand scan, not a regex over page text. */
 function splitImportant(value: string): [string, boolean] {
-  const t = value.trimEnd();
+  const t = trimEndWs(value);
   if (t.length < 10 || t.slice(-9).toLowerCase() !== 'important') return [t, false];
   let k = t.length - 9;
   while (k > 0 && isSpace(t[k - 1])) k--;
@@ -722,7 +733,7 @@ function scrubAtStatement(prelude: string, ctx: CssScrubContext): string {
     const clean = sanitizeCssUrl(target, ctx);
     const cleanTail = scrubPrelude(tail, ctx);
     if (clean === null || cleanTail === null) return '';
-    return `@import url("${escapeCssString(clean)}")${cleanTail.trimEnd()};`;
+    return `@import url("${escapeCssString(clean)}")${trimEndWs(cleanTail)};`;
   }
   if (name === 'layer' || (name === 'namespace' && !ctx.masked)) {
     const clean = scrubPrelude(prelude, ctx);

@@ -29,6 +29,7 @@ import {
   sniffImageMime,
   type StashedCapture,
 } from './bridge-helpers.js';
+import { globalScope } from '../internal/global-scope.js';
 
 export interface CompanionSubmitInput {
   msg: ReportSubmit;
@@ -365,7 +366,7 @@ export async function runCompanionSubmit(input: CompanionSubmitInput): Promise<v
  */
 function withCompanionAttribution(
   token: string | null,
-  base: typeof fetch = globalThis.fetch.bind(globalThis),
+  base: typeof fetch = globalScope().fetch.bind(globalScope()),
 ): typeof fetch {
   if (!token) return base;
   return (async (input: RequestInfo | URL, init?: RequestInit) => {

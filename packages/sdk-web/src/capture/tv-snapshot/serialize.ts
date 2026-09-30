@@ -19,6 +19,7 @@ import { defaultSizeOf, pruneSnapshot, type PruneDeps } from './prune.js';
 import { collectRetainedIds, scrubSnapshotTree } from './snapshot-scrub.js';
 import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
 import { sanitizeMetaHref } from './url-sanitize.js';
+import { ensureGlobalThis } from '../../internal/global-scope.js';
 import { buildSnapshotContext, focusedSnapshotId, viewportEdge, type DomSnapshotDoc } from './context.js';
 import type { SnDocument } from './sn-types.js';
 
@@ -60,6 +61,8 @@ function metaHref(href: string, redaction: RedactionEngineConfig | undefined): s
 
 /** Synchronous; throws when the page cannot be serialized (the caller falls back). */
 export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
+  // rrweb-snapshot reads bare `globalThis` (Chrome 71+); TVs run Chrome 53.
+  ensureGlobalThis();
   const { win, doc } = deps;
   const mirror = createMirror();
   let inputMasked = false;

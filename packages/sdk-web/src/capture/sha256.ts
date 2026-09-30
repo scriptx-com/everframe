@@ -5,7 +5,11 @@ import { sha256BytesHex } from '@everframe/sdk-core';
 import { readBlobArrayBuffer } from '../internal/blob.js';
 
 function toHex(digest: ArrayBuffer): string {
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  // No padStart (Chrome 57+): smart-TV engines run Chrome 53.
+  const bytes = new Uint8Array(digest);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) hex += (bytes[i]! < 16 ? '0' : '') + bytes[i]!.toString(16);
+  return hex;
 }
 
 /**
