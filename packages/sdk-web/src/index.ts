@@ -172,11 +172,14 @@ export {
   __companionSeamTicket,
 } from './companion/host-seam.js';
 export type { CompanionHost, CompanionSeamTicket } from './companion/host-seam.js';
-// Only the SETTER is re-exported. `__getCompanionBadgeServerConfig` and
-// `__subscribeCompanionBadgeServerConfig` are consumed exclusively inside this
-// package (reporter-ui/CompanionBadge.tsx, companion/singleton.ts) by relative
-// path, so exporting them here only widened the published `.d.ts`.
-export { __setCompanionBadgeServerConfig } from './companion/server-config.js';
+// The getter and subscriber are exported too: dist/ui.js imports them from
+// this entry (CompanionBadge), so the badge reads the same box the adapter
+// writes — see scripts/ui-shared-modules.ts.
+export {
+  __setCompanionBadgeServerConfig,
+  __getCompanionBadgeServerConfig,
+  __subscribeCompanionBadgeServerConfig,
+} from './companion/server-config.js';
 
 // ── Test seams ──────────────────────────────────────────────────────────
 // Not product API. Exported only because `@everframe/react`'s specs — which
