@@ -1,0 +1,35 @@
+.changeset/tv-chrome53-builtins.md
+  s_f1f3a292ebd900::t_c4682697ff10b9 1-8
+packages/sdk-core/src/transport/compression.ts
+  s_f1f3a292ebd900::t_5c84598b5566ab 8-9
+packages/sdk-web/__tests__/bundle/tv-path-builtins.spec.ts
+  s_f1f3a292ebd900::t_4dd38d7d144df8 1-106
+packages/sdk-web/src/adapter.ts
+  s_f1f3a292ebd900::t_4ac588d68b7aaa 126,967,1226,1782
+packages/sdk-web/src/capture/sha256.ts
+  s_f1f3a292ebd900::t_bdde50e025d2f2 8-12
+packages/sdk-web/src/capture/tv-snapshot/css-scrub.ts
+  s_f1f3a292ebd900::t_7b2a86c79bb61a 29,51-60,461,566,659,736
+packages/sdk-web/src/capture/tv-snapshot/serialize.ts
+  s_f1f3a292ebd900::t_03b4cedd46dca0 22,64-65
+packages/sdk-web/src/companion/companion-submit.ts
+  s_f1f3a292ebd900::t_5830c67a6217f0 32,369
+packages/sdk-web/src/internal/global-scope.ts
+  s_f1f3a292ebd900::t_246672a36d57f0 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4b902cc00d7762f7e16fe1b858f636deadad6c44",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
