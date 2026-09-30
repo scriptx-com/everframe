@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { defineConfig, type Options } from 'tsup';
 import { fileURLToPath } from 'node:url';
+import { uiSharedModulesPlugin } from './scripts/ui-shared-modules.js';
 
 // `@everframe/protocol` is bundled from SOURCE, not from its own minified
 // single-file `dist/index.js` (same aliasing sdk-react does for this
@@ -268,6 +269,10 @@ const reactEntry = {
     'konva',
   ],
   noExternal: ['@everframe/sdk-core', '@everframe/protocol'],
+  // Stateful modules the vanilla entry writes and `/ui` components read are
+  // imported from ./index.js rather than inlined, so a React host gets ONE
+  // instance of each — see scripts/ui-shared-modules.ts.
+  esbuildPlugins: [uiSharedModulesPlugin],
   splitting: false,
   treeshake: true,
   // Same release policy as the vanilla entry above — see its esbuildOptions
