@@ -200,6 +200,15 @@ describe('snapshot scrubber', () => {
     expect(performance.now() - started).toBeLessThan(1000);
   });
 
+  it('blanks <title> text, in head and inside SVG (final review finding 7)', () => {
+    const title = el('title', {}, [text('Alice Smith — account')]);
+    const svgTitle = el('title', {}, [text('SVGTOOLTIP')], { isSVG: true });
+    const root = doc(el('html', {}, [el('head', {}, [title]), el('body', {}, [el('svg', {}, [svgTitle], { isSVG: true })])]));
+    scrub(root);
+    expect(findLeaks(JSON.stringify(root), ['Alice Smith', 'SVGTOOLTIP'])).toEqual([]);
+    expect(title.childNodes).toHaveLength(1);
+  });
+
   describe('URL paths are pattern-redacted (DOM and CSS)', () => {
     const EMAIL = 'alice@example.test';
     const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.c2lnbmF0dXJlMTIzNDU2';

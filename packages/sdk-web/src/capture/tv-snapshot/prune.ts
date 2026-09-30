@@ -34,7 +34,15 @@
 // containing block, a fixed box escapes all of them. Bare text directly inside
 // an invisible element is masked even when a `visibility:visible` descendant
 // keeps the element itself. Occlusion by other layers is NOT modelled.
+//
+// A closed <select> (a dropdown, not a listbox) shows only its selected
+// option, and that option is an input VALUE (masked like every input value):
+// it stays selected with its text replaced by the mask placeholder; every
+// other option's text is blanked. None of it is judged by layout (Chromium
+// reports zero boxes for it), and the select keeps its measured size so the
+// blanked options cannot narrow it.
 // The one computed-style read per judged element feeds all of this.
+import { MASK_PLACEHOLDER } from '../replay/mask-mapping.js';
 import { SN_DOCUMENT, SN_ELEMENT, SN_TEXT, type SnAttributeValue, type SnElement, type SnNode, type SnParent } from './sn-types.js';
 
 export interface PruneRect {
@@ -78,10 +86,12 @@ type Verdict = 'remove' | 'visible' | 'hidden' | 'keep';
  * - `head`: head content — never pruned, never visible.
  * - `svg`: an SVG root — judged by its own rect; content is not judged.
  * - `svgContent`: inside an SVG — no layout reads, no pruning.
+ * - `selectContent`: inside a closed <select> — no layout reads, no pruning;
+ *   text blanked (the selected option's is the mask placeholder).
  * - `judge`: an element with a live box — pruned when neither it nor any
  *   descendant is seen.
  */
-type Mode = 'root' | 'transparent' | 'always' | 'head' | 'svg' | 'svgContent' | 'judge';
+type Mode = 'root' | 'transparent' | 'always' | 'head' | 'svg' | 'svgContent' | 'selectContent' | 'judge';
 
 interface Frame {
   node: SnParent;
@@ -94,6 +104,10 @@ interface Frame {
   maskText: boolean;
   /** Mask this element's OWN bare text children (it is visibility:hidden / opacity:0). Not inherited. */
   hideText: boolean;
+  /** Empty this element's OWN bare text children (an unselected option of a closed select). */
+  blankText: boolean;
+  /** A closed (dropdown) <select>: its children become `selectContent`. */
+  closedSelect: boolean;
   /** This element or an ancestor has opacity:0 — every descendant is invisible. */
   faded: boolean;
   /** The element's own box is seen (see header). Judged/svg frames only. */
@@ -346,6 +360,12 @@ function collapsesThrough(s: CSSStyleDeclaration, side: 'top' | 'bottom'): boole
     : num(s.borderBottomWidth) === 0 && num(s.paddingBottom) === 0;
 }
 
+/** A dropdown select (not `multiple`, `size` ≤ 1) — it shows only its selected option. */
+function isClosedSelect(live: Element): boolean {
+  const select = live as HTMLSelectElement;
+  return select.multiple !== true && !(typeof select.size === 'number' && select.size > 1);
+}
+
 /** Whether overflow on one axis clips its content (hidden, clip, auto, scroll). */
 function clipsAxis(value: string | undefined): boolean {
   return value === 'hidden' || value === 'clip' || value === 'auto' || value === 'scroll' || value === 'overlay';
@@ -423,6 +443,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     node, mode, live, rect, style: undefined,
     maskText: parent?.maskText ?? false,
     hideText: false,
+    blankText: false,
+    closedSelect: false,
     faded: parent?.faded ?? false,
     seen: false,
     clip: parent?.clip ?? VIEWPORT,
@@ -542,6 +564,26 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const inherit = parent.maskText;
     if (parent.mode === 'head' || tag === 'head') return frame(node, 'head', live, null, parent);
     if (parent.mode === 'svg' || parent.mode === 'svgContent') return frame(node, 'svgContent', live, null, parent);
+    if (parent.closedSelect || parent.mode === 'selectContent') {
+      const inSelect = frame(node, 'selectContent', live, null, parent);
+      inSelect.hideText = parent.hideText;
+      inSelect.blankText = true;
+      stripContentAttrs(node); // an option/optgroup `label` is displayed text
+      if (hasOwn(node.attributes, 'label')) delete node.attributes.label;
+      if (tag === 'option' && live !== null && (live as HTMLOptionElement).selected === true) {
+        // Shown in the closed box: keep it selected (rrweb drops `selected`
+        // for masked inputs) and show the masked value in its place.
+        node.attributes.selected = true;
+        let first: SnNode | undefined;
+        for (const child of node.childNodes) if (child.type === SN_TEXT) { first = child; break; }
+        if (first !== undefined && first.type === SN_TEXT) {
+          first.textContent = MASK_PLACEHOLDER;
+          node.childNodes = [first];
+        }
+        inSelect.blankText = false;
+      }
+      return inSelect;
+    }
     if (ALWAYS_VISIBLE.has(tag)) {
       // html/body are never pruned; their opacity/visibility still hides content.
       const always = frame(node, 'always', live, null, parent);
@@ -566,6 +608,14 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     }
     const judged = frame(node, 'judge', live, rect, parent);
     judgeBox(judged, parent);
+    if (tag === 'select' && isClosedSelect(live)) {
+      // Pin the measured box: blanked options would otherwise narrow it.
+      judged.closedSelect = true;
+      const size = deps.sizeOf(live, rect);
+      const pin = important(['box-sizing:border-box', `width:${px(size.width)}`, `height:${px(size.height)}`]);
+      const own = hasOwn(node.attributes, 'style') ? node.attributes.style : undefined;
+      node.attributes.style = typeof own === 'string' && own !== '' ? `${pin};${own}` : pin;
+    }
     if (!inherit && deps.isSensitive(live)) {
       // A sensitive display:contents wrapper cannot be blocked (it has no box);
       // the registry blocks its element children. Its BARE text would still
@@ -635,6 +685,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         return 'visible';
       case 'head':
       case 'svgContent':
+      case 'selectContent':
         return 'hidden';
       default:
         break;
@@ -692,7 +743,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       } else if (child.type === SN_DOCUMENT) {
         stack.push(frame(child, 'transparent', null, null, top));
       } else {
-        if ((top.maskText || top.hideText) && child.type === SN_TEXT) child.textContent = child.textContent.replace(/\S/g, '•');
+        if (top.blankText && child.type === SN_TEXT) child.textContent = '';
+        else if ((top.maskText || top.hideText) && child.type === SN_TEXT) child.textContent = child.textContent.replace(/\S/g, '•');
         top.kept.push(child);
       }
       continue;

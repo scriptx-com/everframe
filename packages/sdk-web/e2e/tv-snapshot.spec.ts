@@ -258,12 +258,12 @@ test('in-viewport content that is hidden, transparent or clipped out of a scroll
   // 220px = one tile + gap: t-0 now sits wholly left of the rail's padding
   // box, t-4/t-5 wholly right of it, all of them inside the viewport.
   await page.evaluate(() => { document.getElementById('rail')!.scrollLeft = 220; });
-  const ids = ['h-head', 't-1', 't-2', 'h-after', 'rail'];
+  const ids = ['h-head', 't-1', 't-2', 'h-after', 'rail', 'plan', 'after-select'];
   const live = await liveBoxes(page, ids);
   const shot = await shoot(page);
   expect(shot).toMatchObject({ hasImage: true, hasSnapshot: true });
   const { text, doc } = decode(bodies[0]!);
-  expect(findLeaks(text, ['HIDDENOVERLAY', '4921', 'FADEDPANEL', 'RAILSCROLLEDOUT', 'RAILCLIPPEDOUT'])).toEqual([]);
+  expect(findLeaks(text, ['HIDDENOVERLAY', '4921', 'FADEDPANEL', 'RAILSCROLLEDOUT', 'RAILCLIPPEDOUT', 'UNSELECTEDOPTION', 'Basic'])).toEqual([]);
   expect(text).toContain('VISIBLETILEONE');
   expect(text).toContain('VISIBLETILETWO');
 
@@ -271,6 +271,15 @@ test('in-viewport content that is hidden, transparent or clipped out of a scroll
   expectSameBoxes(live, rebuilt.boxes, 1);
   // The pruned tiles kept their boxes, so the rail still scrolls to the same offset.
   expect(rebuilt.railScrollLeft).toBeGreaterThanOrEqual(218);
+  // The closed select still shows its selected option — masked, as every
+  // input value is — at its live width (#after-select above proves the
+  // blanked options did not narrow it).
+  const shown = await rebuilt.page.evaluate(() => {
+    const d = (window as unknown as { __frame: HTMLIFrameElement }).__frame.contentDocument!;
+    const sel = d.getElementById('plan') as HTMLSelectElement;
+    return sel.options[sel.selectedIndex]?.textContent ?? null;
+  });
+  expect(shown).toBe('***');
 });
 
 test('keeps focus, dark media, ARIA state, grid areas and SVG refs on a masked page', async ({ page }) => {

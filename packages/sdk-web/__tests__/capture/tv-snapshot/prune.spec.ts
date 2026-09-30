@@ -607,3 +607,54 @@ describe('pruneSnapshot — hidden, transparent and clipped content (final revie
     expect(reads).toBeLessThanOrEqual(5_002 + 16);
   });
 });
+
+describe('pruneSnapshot — closed <select> shows only its selected option (final review finding 7)', () => {
+  const body = (children: SnNode[]): SnNode => doc(el('html', {}, [el('head'), el('body', {}, children)]));
+  const ZERO = rect(0, 0, 0, 0);
+
+  it('shows the selected option as a masked value, blanks the others, and pins the select size', () => {
+    const { bind, deps } = harness();
+    const a = bind(el('option', { value: 'a', title: 'OPTTITLE' }, [text('Alice Smith account')]), { rect: ZERO });
+    const b = bind(el('option', { value: 'b', selected: true }, [text('Standard plan')]), { rect: ZERO, attrs: { selected: '' } });
+    const g = bind(el('optgroup', { label: 'GROUPLABEL' }, [
+      bind(el('option', { label: 'OPTLABEL' }, [text('Bob Jones account')]), { rect: ZERO }),
+    ]), { rect: ZERO });
+    const select = bind(el('select', { style: 'color:red' }, [a, b, g]), { rect: rect(40, 40, 180, 32), size: { width: 180, height: 32 } });
+    const root = body([select]);
+    const result = pruneSnapshot(root, deps);
+    const json = JSON.stringify(root);
+    // The selected option is an input value: masked like every other one, but still selected.
+    expect(findLeaks(json, ['Standard plan', 'Alice Smith', 'Bob Jones', 'GROUPLABEL', 'OPTLABEL', 'OPTTITLE'])).toEqual([]);
+    expect(b.attributes.selected).toBe(true);
+    expect(b.childNodes).toEqual([expect.objectContaining({ textContent: '***' })]);
+    expect(a.childNodes).toEqual([expect.objectContaining({ textContent: '' })]);
+    expect(select.childNodes).toEqual([a, b, g]); // options stay: :nth-child and the selected index hold
+    expect(select.attributes.style).toBe(`${imp('box-sizing:border-box;width:180px;height:32px')};color:red`);
+    expect(result.pruned).toBe(0);
+  });
+
+  it('never reads layout for options of a closed select', () => {
+    const { bind, deps } = harness();
+    const opt = bind(el('option', {}, [text('x')]), { rect: ZERO });
+    const select = bind(el('select', {}, [opt]));
+    const reads: Element[] = [];
+    const { rectOf, styleOf } = deps;
+    deps.rectOf = (e) => (reads.push(e), rectOf(e));
+    deps.styleOf = (e) => (reads.push(e), styleOf(e));
+    pruneSnapshot(body([select]), deps);
+    expect(reads).not.toContain(deps.nodeFor(opt.id));
+  });
+
+  it('a listbox select (multiple) keeps its visible options, judged by layout as usual', () => {
+    const { bind, deps } = harness();
+    const one = bind(el('option', {}, [text('LISTONE')]), { rect: rect(40, 40, 100, 18) });
+    const two = bind(el('option', {}, [text('LISTTWO')]), { rect: rect(40, 58, 100, 18) });
+    const select = bind(el('select', { multiple: true }, [one, two]), { rect: rect(40, 40, 120, 80), attrs: { multiple: '' } });
+    const root = body([select]);
+    pruneSnapshot(root, deps);
+    const json = JSON.stringify(root);
+    expect(json).toContain('LISTONE');
+    expect(json).toContain('LISTTWO');
+    expect(select.attributes).not.toHaveProperty('style');
+  });
+});

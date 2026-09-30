@@ -181,10 +181,13 @@ export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void
   for (let item = stack.pop(); item !== undefined; item = stack.pop()) {
     const { node, parentTag } = item;
     if (node.type === SN_TEXT) {
+      // A <title> (document or SVG tooltip) is never on screen: blank it.
       node.textContent =
-        parentTag === 'style' || node.isStyle === true
-          ? scrubCssText(node.textContent, scrubCtx)
-          : redactPageString(node.textContent, config);
+        parentTag === 'title'
+          ? ''
+          : parentTag === 'style' || node.isStyle === true
+            ? scrubCssText(node.textContent, scrubCtx)
+            : redactPageString(node.textContent, config);
       continue;
     }
     if (node.type === SN_DOCTYPE) {
