@@ -177,7 +177,11 @@ describe('takeDomSnapshot', () => {
     document.body.innerHTML = `<section id="s"></section>${html}`;
     const taken = take();
     expect(JSON.stringify(taken.doc)).toContain('deep');
-  });
+    // Generous timeout: pruning reads computed style once per element, and
+    // jsdom's getComputedStyle walks the whole ancestor chain (~2 s here
+    // alone, past the 10 s default under a loaded full-suite run). Chromium
+    // answers from its style tree; the real-browser deep-DOM e2e covers that.
+  }, 30_000);
 });
 
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
