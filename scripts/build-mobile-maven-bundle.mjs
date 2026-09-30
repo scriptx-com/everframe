@@ -3,15 +3,24 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { constants, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const android = path.join(root, 'packages/sdk-android/android');
 const kmp = path.join(root, 'packages/everframe_kmp');
-const prepareOnly = process.argv.includes('--prepare');
-if (process.argv.length > (prepareOnly ? 3 : 2)) {
-  throw new Error('Usage: node scripts/build-mobile-maven-bundle.mjs [--prepare]');
+const usage = 'Usage: node scripts/build-mobile-maven-bundle.mjs [--prepare] [--output <new-zip-path>]';
+let prepareOnly = false;
+let outputPath;
+for (let i = 2; i < process.argv.length; i += 1) {
+  const arg = process.argv[i];
+  if (arg === '--prepare' && !prepareOnly) {
+    prepareOnly = true;
+  } else if (arg === '--output' && !outputPath && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
+    outputPath = path.resolve(process.argv[++i]);
+  } else {
+    throw new Error(usage);
+  }
 }
 
 const versionLine = readFileSync(path.join(android, 'gradle.properties'), 'utf8')
@@ -92,5 +101,10 @@ if (!prepareOnly) {
 
 const bundle = path.join(work, `everframe-mobile-${version}.zip`);
 run('zip', ['-q', '-r', bundle, 'dev'], { cwd: repository });
+if (outputPath) {
+  mkdirSync(path.dirname(outputPath), { recursive: true });
+  copyFileSync(bundle, outputPath, constants.COPYFILE_EXCL);
+}
 console.log(`${prepareOnly ? 'Unsigned preparation bundle' : 'Signed release bundle'}: ${bundle}`);
+if (outputPath) console.log(`Release bundle copied to: ${outputPath}`);
 if (prepareOnly) console.log('The unsigned preparation bundle cannot be uploaded to Maven Central.');
