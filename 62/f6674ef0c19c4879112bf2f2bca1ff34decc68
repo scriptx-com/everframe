@@ -1,0 +1,21 @@
+packages/sdk-react/tsup.config.ts
+  s_f1f3a292ebd900::t_fca1bf40e93e65 27-31,128
+packages/sdk-web/tsup.config.ts
+  s_f1f3a292ebd900::t_6878c493c6364b 4-19,187,277,377
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "62f6674ef0c19c4879112bf2f2bca1ff34decc68",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
