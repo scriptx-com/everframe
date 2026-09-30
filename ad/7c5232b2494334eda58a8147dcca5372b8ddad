@@ -1,0 +1,26 @@
+packages/sdk-web/src/companion/companion-submit.ts
+  s_f1f3a292ebd900::t_0dd4cc574af166 1-376
+packages/sdk-web/__tests__/companion/companion-submit-snapshot.spec.ts
+  s_f1f3a292ebd900::t_05c70657a6b3c0 1-285
+packages/sdk-web/src/companion/capture-bridge.ts
+  s_f1f3a292ebd900::t_e1c03b848ce133 327-330,349-352,399-404
+  s_f1f3a292ebd900::t_73b4cb1463cb9f 7-8,51,137-140,214-226,228-268,311,323-326,347-348,393,428,482,491,494-518
+packages/sdk-web/__tests__/companion-preview.spec.ts
+  s_f1f3a292ebd900::t_7e9abe8aab70b1 395-397,403-408,413,416,418,421,424,431,433,436,440,443,449,452,455,460,463,472
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ad7c5232b2494334eda58a8147dcca5372b8ddad",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
