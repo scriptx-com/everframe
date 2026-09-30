@@ -96,7 +96,7 @@ function scrubText(value: string, config: RedactionEngineConfig): string {
 }
 
 /** The redaction config the replay scrub runs with: email ON (replay is high-liability). */
-function replayRedactionConfig(base?: RedactionEngineConfig): RedactionEngineConfig {
+export function replayRedactionConfig(base?: RedactionEngineConfig): RedactionEngineConfig {
   const maskInputs = new Set<'email' | 'tel' | 'creditcard' | 'ssn'>(base?.maskInputs ?? []);
   maskInputs.add('email');
   return {
