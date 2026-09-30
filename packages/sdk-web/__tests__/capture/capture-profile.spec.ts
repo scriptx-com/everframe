@@ -75,6 +75,12 @@ describe('getCaptureProfile', () => {
     expect(getCaptureProfile(IPHONE_UA).viewportOnlyClone).toBe(true);
   });
 
+  it('restricts the screenshot fallback to real snapDOM errors on TV only', () => {
+    expect(getCaptureProfile(WEBOS_UA).fallbackOnlyOnPrimaryError).toBe(true);
+    expect(getCaptureProfile(DESKTOP_UA).fallbackOnlyOnPrimaryError).toBe(false);
+    expect(getCaptureProfile(IPHONE_UA).fallbackOnlyOnPrimaryError).toBe(false);
+  });
+
   it('returns the default profile for a phone browser', () => {
     expect(getCaptureProfile(IPHONE_UA).fastClone).toBe(false);
   });

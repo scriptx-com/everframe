@@ -31,6 +31,14 @@ interface SensitiveRegistry {
    * capture rect painting. Dedup semantics match `snapshot()`.
    */
   snapshotElements(): Element[];
+  /**
+   * Whether `el` ITSELF is sensitive right now, by the same rules as
+   * snapshotElements(): a registered ref, the data-everframe-sensitive
+   * attribute, or a password input. Callers that mask a clone check each
+   * source node's ancestry with this at mask time, so an element added or
+   * replaced after a snapshot was taken is still caught.
+   */
+  isSensitive(el: Element): boolean;
   __clearForTesting(): void;
 }
 
@@ -243,6 +251,9 @@ function createSensitiveRegistry(): SensitiveRegistry {
         // Walk into the children (recursively) and mask the actual rendered
         // boxes instead.
         if (isContentsBox(el)) {
+          // The wrapper itself too: its inline `color: transparent` is
+          // inherited by direct text children, which have no box to mask.
+          out.push(el);
           for (const child of Array.from(el.children)) add(child);
           return;
         }
@@ -266,6 +277,11 @@ function createSensitiveRegistry(): SensitiveRegistry {
         }
       }
       return out;
+    },
+    isSensitive(el: Element): boolean {
+      if (refs.has(el)) return true;
+      if (typeof el.hasAttribute === 'function' && el.hasAttribute(SENSITIVE_ATTR)) return true;
+      return el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'password';
     },
     __clearForTesting() {
       refs.clear();

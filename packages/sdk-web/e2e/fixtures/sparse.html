@@ -1,0 +1,38 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe sparse page e2e fixture</title>
+<style>
+  /* A viewport-filling white page: nothing but the one line below may give
+     the capture any contrast, so the blank check is judged on the text alone. */
+  html, body { margin: 0; height: 100%; background: #fff; }
+  p { margin: 0; padding: 16px; font: 16px/1.5 system-ui, sans-serif; color: #111; }
+</style>
+</head>
+<body>
+  <p id="line">Only one short line.</p>
+  <script>
+    // ?empty=1 removes the line: a genuinely blank page.
+    if (new URLSearchParams(location.search).get('empty') === '1') document.getElementById('line').remove();
+  </script>
+  <!-- Same import map as capture-cases.html: stands in for the consumer's
+       bundler so the SDK's bare dynamic specifiers resolve (served under
+       /vendor/ by e2e/static-server.mjs). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

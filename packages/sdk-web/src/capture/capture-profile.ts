@@ -63,6 +63,21 @@ export interface CaptureProfile {
    * blank.
    */
   viewportOnlyClone: boolean;
+  /**
+   * Run the modern-screenshot fallback ONLY when snapDOM threw/rejected with a
+   * real error — never for a blank snapDOM canvas and never after snapDOM's
+   * deadline share ran out (screenshot.ts).
+   *
+   * TV only. modern-screenshot takes 12-16s on TV silicon (measured on LG
+   * webOS 6) and freezes the UI for that whole time; two renderers must not
+   * compete for a TV CPU. A uniform canvas is also often legitimate on a TV:
+   * a black DRM-protected or video frame IS the screen. So a blank snapDOM
+   * canvas ships as-is flagged `screenshot_blank`, and a snapDOM timeout -
+   * or a capture that found an earlier snapDOM run still busy past its
+   * budget - ships the degraded placeholder. Chrome-53-era TVs still reach the
+   * fallback, because snapDOM throws there rather than rendering.
+   */
+  fallbackOnlyOnPrimaryError: boolean;
 }
 
 const DEFAULT_PROFILE: CaptureProfile = {
@@ -90,6 +105,7 @@ const DEFAULT_PROFILE: CaptureProfile = {
   // virtualized container parked offscreen with children transformed into view
   // is kept), and only when it is out-of-flow, so no sibling reflows.
   viewportOnlyClone: true,
+  fallbackOnlyOnPrimaryError: false,
 };
 
 const TV_PROFILE: CaptureProfile = {
@@ -126,6 +142,7 @@ const TV_PROFILE: CaptureProfile = {
   livePreview: false,
   preferWebP: true,
   viewportOnlyClone: true,
+  fallbackOnlyOnPrimaryError: true,
 };
 
 /**

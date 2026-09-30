@@ -34,6 +34,7 @@ import { AreaCaptureOverlay } from './AreaCaptureOverlay.js';
 import { cropBlob } from './crop-blob.js';
 import { Watermark } from './Watermark.js';
 import { sha256Hex } from '../capture/sha256.js';
+import { DEGRADED_REASONS } from '../internal/degraded-reasons.js';
 import {
   __getBrandingServerConfig,
   __subscribeBrandingServerConfig,
@@ -127,7 +128,42 @@ interface DialogCaptureState {
   network: NetworkEntry[];
   metadata: DeviceMetadata | null;
   focused: FocusedNode | null;
+  /**
+   * The open-time degraded reason NOT carried by a retained shot: any
+   * non-screenshot reason, or a screenshot reason when the open-time capture
+   * produced no shot at all. A screenshot reason for a shot lives on that
+   * shot (`ReportScreenshot.degradedReason`) — see submittedDegradedReason.
+   */
   degradedReason: string | undefined;
+}
+
+const SCREENSHOT_REASONS: ReadonlySet<string> = new Set([
+  DEGRADED_REASONS.screenshot_failed,
+  DEGRADED_REASONS.screenshot_blank,
+]);
+
+/** The adapter's degraded reason when it describes the screenshot just taken. */
+function screenshotReason(reason: string | undefined): string | undefined {
+  return reason !== undefined && SCREENSHOT_REASONS.has(reason) ? reason : undefined;
+}
+
+/**
+ * The single captureControl.degradedReason a report ships, derived at SUBMIT
+ * time from the shots still in the strip — so an added blank shot flags the
+ * report, and deleting a flagged shot drops its flag. A failed shot outranks
+ * a blank one; with neither, the open-time non-shot reason stands.
+ */
+export function submittedDegradedReason(
+  shots: ReadonlyArray<{ degradedReason?: string | undefined }>,
+  baseReason: string | undefined,
+): string | undefined {
+  if (shots.some((s) => s.degradedReason === DEGRADED_REASONS.screenshot_failed)) {
+    return DEGRADED_REASONS.screenshot_failed;
+  }
+  if (shots.some((s) => s.degradedReason === DEGRADED_REASONS.screenshot_blank)) {
+    return DEGRADED_REASONS.screenshot_blank;
+  }
+  return baseReason;
 }
 
 /** Per-shot capture state Tasks 7/9 build on — one entry per screenshot in the strip. */
@@ -140,6 +176,8 @@ interface ReportScreenshot {
   pixelRatio: number;
   annotations: Annotation[];
   source: 'auto' | 'manual';
+  /** screenshot_blank / screenshot_failed reported for THIS shot when it was captured. */
+  degradedReason?: string | undefined;
 }
 
 /**
@@ -268,13 +306,20 @@ export function ReporterDialog({
         }
       })();
       if (cancelled) return;
+      // Read off the RESULT, not adapter.__lastDegradedReason: that getter is
+      // shared, and an overlapping capture resets it before this one's caller
+      // gets to read it.
+      const openReason: string | undefined = screenshot?.degradedReason;
+      // A screenshot reason travels with the shot it describes; everything
+      // else (or a screenshot reason with no shot to carry it) stays here.
+      const shotReason = screenshot ? screenshotReason(openReason) : undefined;
       setBundle({
         screenshot,
         logs,
         network,
         metadata,
         focused,
-        degradedReason: adapter.__lastDegradedReason,
+        degradedReason: shotReason !== undefined ? undefined : openReason,
       });
       if (screenshot) {
         const id = 'shot-1';
@@ -288,6 +333,7 @@ export function ReporterDialog({
             pixelRatio: effectiveCaptureRatio(screenshot.width, metadata?.pixelRatio ?? 1),
             annotations: [],
             source: 'auto',
+            ...(shotReason !== undefined ? { degradedReason: shotReason } : {}),
           },
         ]);
         setActiveShotId(id);
@@ -407,7 +453,7 @@ export function ReporterDialog({
       logs: bundle?.logs ?? [],
       network: bundle?.network ?? [],
       metadata: bundle?.metadata ?? null,
-      degradedReason: bundle?.degradedReason,
+      degradedReason: submittedDegradedReason(screenshots, bundle?.degradedReason),
       redactedLogIndices: redactedLogs,
     };
     const draft: ReporterCompletePayload = {
@@ -458,6 +504,8 @@ export function ReporterDialog({
       // TV/desktop, and scaling a selection by the uncapped DPR crops the
       // wrong region (codex round-2 finding 2).
       const shot = await adapter.captureScreenshot();
+      // Per-result reason (see the open-time capture): never the shared getter.
+      const shotReason = screenshotReason(shot.degradedReason);
       const dpr = effectiveCaptureRatio(shot.width);
       let blob = shot.blob;
       let width = shot.width;
@@ -478,7 +526,17 @@ export function ReporterDialog({
       const id = `shot-${screenshots.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
       setScreenshots((prev) => [
         ...prev,
-        { id, blob, sha256, width, height, pixelRatio: dpr, annotations: [], source: 'manual' },
+        {
+          id,
+          blob,
+          sha256,
+          width,
+          height,
+          pixelRatio: dpr,
+          annotations: [],
+          source: 'manual',
+          ...(shotReason !== undefined ? { degradedReason: shotReason } : {}),
+        },
       ]);
       setActiveShotId(id);
     } catch {

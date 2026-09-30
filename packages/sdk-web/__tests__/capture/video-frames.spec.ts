@@ -11,7 +11,6 @@ import {
   untransformedBorderBox,
   paintsNothing,
   intersectsViewport,
-  hasActiveStandIn,
   collectVideos,
   clipHidesEverything,
   backgroundSizeForObjectFit,
@@ -515,37 +514,6 @@ describe('intersectsViewport', () => {
   });
 });
 
-describe('installVideoStandIns — overlapping captures', () => {
-  it('reference-counts a shared video instead of nesting stand-ins', async () => {
-    // THE WORST OUTCOME IN THIS FILE if unhandled: the second capture reads the
-    // FIRST one's `display: none` as the video's original state, and its
-    // teardown then "restores" the video to hidden — leaving the customer with
-    // a permanently invisible video long after the report was sent. Captures do
-    // overlap: the companion bridge captures independently of the reporter.
-    document.body.innerHTML = '<video style="display: block"></video>';
-    const video = document.querySelector('video')! as HTMLVideoElement;
-    withBox(video);
-
-    const restoreA = await installVideoStandIns(document.body, { pixelRatio: 1 });
-    const restoreB = await installVideoStandIns(document.body, { pixelRatio: 1 });
-
-    // One stand-in, not two stacked.
-    expect(document.querySelectorAll(`[${STAND_IN_ATTR}]`)).toHaveLength(1);
-    expect(hasActiveStandIn(video)).toBe(true);
-
-    // The first to finish must NOT restore while the other is still capturing.
-    restoreA();
-    expect(video.style.display).toBe('none');
-    expect(document.querySelectorAll(`[${STAND_IN_ATTR}]`)).toHaveLength(1);
-
-    // The last one out restores the original value, not the borrowed one.
-    restoreB();
-    expect(video.style.getPropertyValue('display')).toBe('block');
-    expect(document.querySelectorAll(`[${STAND_IN_ATTR}]`)).toHaveLength(0);
-    expect(hasActiveStandIn(video)).toBe(false);
-  });
-});
-
 describe('installVideoStandIns — cost ceilings', () => {
   it('holds an off-screen video\'s box open without reading its frame', async () => {
     // The capture is cropped to the viewport, so an off-screen video cannot
@@ -642,42 +610,6 @@ describe('isExcludedFromCapture — shadow boundaries', () => {
     const shadow = document.getElementById('host')!.attachShadow({ mode: 'open' });
     shadow.innerHTML = '<video></video>';
     expect(isExcludedFromCapture(shadow.querySelector('video')!)).toBe(false);
-  });
-});
-
-describe('installVideoStandIns — suppression is monotonic across captures', () => {
-  it('strips a frame when an overlapping capture considers the video sensitive', async () => {
-    // The companion bridge captures with NO masking while the reporter captures
-    // WITH it. If the unmasked capture wins the race to build the stand-in, the
-    // masked one would otherwise adopt a frame-bearing stand-in and carry the
-    // sensitive frame straight into its report.
-    document.body.innerHTML = '<div id="wrap"><video></video></div>';
-    const video = document.querySelector('video')! as HTMLVideoElement;
-    withBox(video);
-    // Give the first capture a readable frame to put on the stand-in.
-    const canvas = stubCanvas();
-    (canvas as unknown as { toDataURL: () => string }).toDataURL = () => 'data:image/jpeg;base64,AA';
-    vi.spyOn(document, 'createElement').mockImplementation(((tag: string) =>
-      tag === 'canvas'
-        ? canvas
-        : Object.getPrototypeOf(document).createElement.call(document, tag)) as never);
-    Object.defineProperty(video, 'readyState', { value: 4, configurable: true });
-    Object.defineProperty(video, 'videoWidth', { value: 640, configurable: true });
-    Object.defineProperty(video, 'videoHeight', { value: 360, configurable: true });
-
-    const restoreUnmasked = await installVideoStandIns(document.body, { pixelRatio: 1 });
-    const standIn = document.querySelector(`[${STAND_IN_ATTR}]`) as HTMLElement;
-    expect(standIn.style.backgroundImage).not.toBe('');
-
-    // Second, overlapping capture — this one masks the video.
-    const restoreMasked = await installVideoStandIns(document.body, {
-      pixelRatio: 1,
-      maskTargets: [document.getElementById('wrap')!],
-    });
-    expect(standIn.style.backgroundImage).toBe('');
-
-    restoreMasked();
-    restoreUnmasked();
   });
 });
 

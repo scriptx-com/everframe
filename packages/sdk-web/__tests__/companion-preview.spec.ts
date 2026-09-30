@@ -501,6 +501,7 @@ describe('capture-bridge preview routing', () => {
     livePreview: true,
     preferWebP: true,
     viewportOnlyClone: false,
+    fallbackOnlyOnPrimaryError: false,
   });
 
   it('starts a loop when a host is present and stops on phone-side preview.stop', async () => {

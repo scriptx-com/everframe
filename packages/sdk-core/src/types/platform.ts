@@ -61,6 +61,13 @@ export interface ScreenshotResult {
   width: number;
   height: number;
   sha256: string; // hex
+  /**
+   * Degraded reason for THIS capture when the image is shipped but flagged
+   * (e.g. 'screenshot_blank', or 'screenshot_failed' for a placeholder).
+   * Carried on each result so overlapping captures cannot overwrite each
+   * other's verdict. Absent for a clean capture.
+   */
+  degradedReason?: string;
 }
 
 // OutboxAdapter — full impl in Plan 01-04. Stub the contract so PlatformAdapter compiles.

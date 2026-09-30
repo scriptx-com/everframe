@@ -120,6 +120,15 @@ test('the SDK threads cspNonce to the reporter stylesheet it injects at mount', 
   await page.getByTestId('submit-report').click();
   await page.waitForTimeout(3000);
 
+  // The reporter's capture must have been rendered by snapDOM under the
+  // strict policy, not silently handed to the modern-screenshot fallback.
+  const renderer = await page.evaluate(
+    () =>
+      (window as unknown as { __everframe?: { __adapter?: { __lastScreenshotRenderer?: string } } })
+        .__everframe?.__adapter?.__lastScreenshotRenderer,
+  );
+  expect(renderer).toBe('snapdom');
+
   const styles = await page.evaluate(
     () => (window as unknown as { __styles?: { nonce: string; snippet: string }[] }).__styles ?? [],
   );

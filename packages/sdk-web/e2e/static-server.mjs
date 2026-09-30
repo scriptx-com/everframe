@@ -39,6 +39,7 @@ const PORT = Number(process.env.E2E_PORT ?? 8899);
  */
 const VENDOR = {
   '/vendor/modern-screenshot.js': fileURLToPath(import.meta.resolve('modern-screenshot')),
+  '/vendor/snapdom.js': fileURLToPath(import.meta.resolve('@zumer/snapdom')),
   '/vendor/rrweb.js': fileURLToPath(import.meta.resolve('rrweb')),
 };
 

@@ -1,0 +1,36 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe ellipsis e2e fixture</title>
+<style>
+  body { margin: 0; padding: 24px; background: #fff; font: 16px/1.5 system-ui, sans-serif; color: #111; }
+  /* Single-line ellipsis over two separate text nodes: snapDOM ellipsizes the
+     LIVE text while it clones, merging both into the first node. */
+  #price { width: 90px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+  <div id="price"></div>
+  <script>
+    const price = document.getElementById('price');
+    price.append(document.createTextNode('$1,234,567.00'), document.createTextNode(' / month'));
+  </script>
+  <!-- Same import map as capture-cases.html (stands in for the consumer's bundler). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>
