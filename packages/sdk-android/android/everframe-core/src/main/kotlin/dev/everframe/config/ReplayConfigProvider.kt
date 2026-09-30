@@ -249,7 +249,7 @@ private object NetworkBodiesConfigWireSerializer : KSerializer<NetworkBodiesConf
 
 // Mirrors the server's identity block (recognition spec 2026-08-06,
 // the server configuration contract's `IdentityBlockSchema`). Sent ONLY
-// when the caller declared `identity` in `X-TX-SDK-Features` — see
+// when the caller declared `identity` in `X-Everframe-SDK-Features` — see
 // [ReplayConfigProvider.SDK_FEATURES_HEADER_VALUE]. Unlike `replies`, there
 // is no separate app-level enable flag: `enabled` means exactly "this
 // project has a signing secret configured".
@@ -288,7 +288,7 @@ private object IdentityConfigWireSerializer : KSerializer<IdentityConfigWire> {
 
 /**
  * Server-driven companion name-badge override (plan 2026-08-25). Present
- * only when this SDK declared `companionbadge` in X-TX-SDK-Features.
+ * only when this SDK declared `companionbadge` in X-Everframe-SDK-Features.
  * `position` stays a STRING here (the wire shape); resolution to
  * [dev.everframe.companion.CompanionBadgePosition] happens at the badge via
  * parseCompanionBadgePositionOrNull, so an unrecognised future position
@@ -323,7 +323,7 @@ object CompanionBadgeConfigWireSerializer : KSerializer<CompanionBadgeConfigWire
 
 /**
  * Reporter branding: watermark + theme (Android spec 2026-08-26). Present
- * only when this SDK declared `branding` in X-TX-SDK-Features.
+ * only when this SDK declared `branding` in X-Everframe-SDK-Features.
  *
  * Decoded ELEMENT-WISE rather than through a surrogate data class: the
  * surrogate pattern above still throws on a wrong-typed field, failing the
@@ -395,7 +395,7 @@ object BrandingConfigWireSerializer : KSerializer<BrandingConfigWire> {
 /**
  * Report Resource Window (spec 2026-09-05). Mirrors the server's
  * `resources: { enabled, windowSec }` block (the ingest API's config-route.ts).
- * Present only when this SDK declares `resources` in `X-TX-SDK-Features` —
+ * Present only when this SDK declares `resources` in `X-Everframe-SDK-Features` —
  * same capability-negotiation doctrine as `identity`/`companionBadge`/
  * `branding` above. Without declaring the token the server never emits this
  * block at all, and the feature is silently, permanently off (the
@@ -726,7 +726,7 @@ class ReplayConfigProvider(
                 .get()
                 .header("Authorization", "Bearer $apiKey")
                 .header("Accept", "application/json")
-                .header("X-TX-SDK-Features", SDK_FEATURES_HEADER_VALUE)
+                .header("X-Everframe-SDK-Features", SDK_FEATURES_HEADER_VALUE)
                 .build()
 
             fetcher.fetch(req).use { resp ->
@@ -819,7 +819,7 @@ class ReplayConfigProvider(
 
     companion object {
         /**
-         * Capability tokens sent as `X-TX-SDK-Features`. The server returns a
+         * Capability tokens sent as `X-Everframe-SDK-Features`. The server returns a
          * config block ONLY for capabilities the caller declares
          * (the server configuration contract) — so adding a block here is a
          * prerequisite for receiving it, not a formality. Mirrors iOS's

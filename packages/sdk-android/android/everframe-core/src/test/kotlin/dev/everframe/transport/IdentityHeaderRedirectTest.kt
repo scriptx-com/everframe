@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Independent review, round 13, Serious — `MultipartUploader` attaches
-// `X-TX-Identity-Token` (a real person's bearer credential) to the ingest
+// `X-Everframe-Identity-Token` (a real person's bearer credential) to the ingest
 // POST, and the default OkHttpClient follows redirects. OkHttp strips
 // `Authorization` on a cross-origin redirect but does NOT strip custom
 // headers, so the identity header rode straight through to whatever host
 // a redirect pointed at. `ReportSubmitter.buildIsolatedClient()` now wires
 // `IdentityHeaderRedirectGuard`, a network interceptor that strips
-// `X-TX-Identity-Token` on any hop whose scheme+host+port differs from the
+// `X-Everframe-Identity-Token` on any hop whose scheme+host+port differs from the
 // call's ORIGINAL request, while leaving same-origin redirects untouched.
 //
 // This suite drives that fix through the REAL production path — it

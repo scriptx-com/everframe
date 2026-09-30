@@ -3,7 +3,7 @@
 //
 // The last hop of companion attribution (spec 2026-08-07): a token captured
 // off the relay socket must land on the ingest POST as
-// `X-TX-Companion-Attribution`, and must be entirely absent for every ordinary
+// `X-Everframe-Companion-Attribution`, and must be entirely absent for every ordinary
 // (QR / in-process reporter) submit.
 //
 // These drive the real `ReportSubmitter` → `MultipartUploader` pair against
@@ -76,7 +76,7 @@ class CompanionAttributionHeaderTest {
         )
 
         val recorded = server.takeRequestOrFail()
-        assertEquals("attr_tok_1", recorded.getHeader("X-TX-Companion-Attribution"))
+        assertEquals("attr_tok_1", recorded.getHeader("X-Everframe-Companion-Attribution"))
         // The rest of the locked wire format is untouched.
         assertEquals("Bearer test-sdk-key", recorded.getHeader("Authorization"))
         assertEquals("idem-1", recorded.getHeader("X-Everframe-Idempotency-Key"))
@@ -93,6 +93,6 @@ class CompanionAttributionHeaderTest {
             attachments = emptyList(),
         )
 
-        assertNull(server.takeRequestOrFail().getHeader("X-TX-Companion-Attribution"))
+        assertNull(server.takeRequestOrFail().getHeader("X-Everframe-Companion-Attribution"))
     }
 }

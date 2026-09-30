@@ -7,7 +7,7 @@
 // The two ends of that chain are covered elsewhere:
 //   • relay socket -> RelayWSClient.getCompanionAttribution()
 //     — RelayWSClientAnnounceTest / RelayWSClientTest
-//   • ReportSubmitter -> MultipartUploader -> X-TX-Companion-Attribution
+//   • ReportSubmitter -> MultipartUploader -> X-Everframe-Companion-Attribution
 //     — transport/CompanionAttributionHeaderTest (literal token)
 //
 // Neither touches the wiring that connects them. These tests drive real
@@ -138,7 +138,7 @@ class CompanionAttributionFlowTest {
         assertEquals(
             "the report must carry its own session's token onto the ingest POST",
             "attr_tok_bond",
-            recorded.getHeader("X-TX-Companion-Attribution"),
+            recorded.getHeader("X-Everframe-Companion-Attribution"),
         )
     }
 
@@ -153,7 +153,7 @@ class CompanionAttributionFlowTest {
 
         assertNull(
             "a QR-paired report must not be credited to any dashboard user",
-            recorded.getHeader("X-TX-Companion-Attribution"),
+            recorded.getHeader("X-Everframe-Companion-Attribution"),
         )
     }
 
@@ -169,7 +169,7 @@ class CompanionAttributionFlowTest {
             requestAttributionToken = "attr_fresh",
         )
 
-        assertEquals("attr_fresh", recorded.getHeader("X-TX-Companion-Attribution"))
+        assertEquals("attr_fresh", recorded.getHeader("X-Everframe-Companion-Attribution"))
     }
 
     // ---------------- PR-fix 1: the report owns its token ----------------
@@ -213,7 +213,7 @@ class CompanionAttributionFlowTest {
                 "also consumes B's single-use token, so B's own next report " +
                 "would land unattributed",
             "attr_user_a_report",
-            recorded.getHeader("X-TX-Companion-Attribution"),
+            recorded.getHeader("X-Everframe-Companion-Attribution"),
         )
     }
 
@@ -255,7 +255,7 @@ class CompanionAttributionFlowTest {
         assertEquals(
             "user A's report must keep user A's token across a client swap",
             "attr_user_a_report",
-            recorded.getHeader("X-TX-Companion-Attribution"),
+            recorded.getHeader("X-Everframe-Companion-Attribution"),
         )
     }
 
@@ -286,7 +286,7 @@ class CompanionAttributionFlowTest {
         )
         assertNull(
             "a QR-paired report must never pick up a token minted for someone else",
-            recorded.getHeader("X-TX-Companion-Attribution"),
+            recorded.getHeader("X-Everframe-Companion-Attribution"),
         )
     }
 

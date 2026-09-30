@@ -713,7 +713,7 @@ class EnvelopeUserTest {
                     "A's SDK key, even though B's token subject matches and B is also identity-enabled — " +
                     "the drain was initiated under project A and must be judged against project A's " +
                     "epoch, not whatever project happens to be live once the drain actually runs.",
-                recorded?.getHeader("X-TX-Identity-Token"),
+                recorded?.getHeader("X-Everframe-Identity-Token"),
             )
         } finally {
             server.shutdown()
