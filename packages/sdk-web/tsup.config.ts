@@ -1,6 +1,22 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { defineConfig, type Options } from 'tsup';
+import { fileURLToPath } from 'node:url';
+
+// `@everframe/protocol` is bundled from SOURCE, not from its own minified
+// single-file `dist/index.js` (same aliasing sdk-react does for this
+// package's source). The package is `sideEffects: false`, but that only lets
+// the bundler drop whole MODULES — inside one pre-bundled file every schema's
+// `z.object(…).meta(…)` call looks side-effectful and stays, so the eager
+// entry paid for every envelope, relay and vtree schema whether or not
+// anything in it imported them. From source, a schema module nothing imports
+// is dropped outright. This is the always-loaded budget's lever: the 145 kB
+// limit does not move (see .size-limit.json). Applied to every entry so all
+// three graphs see the same protocol modules.
+const PROTOCOL_SRC = fileURLToPath(new URL('../protocol/src/index.ts', import.meta.url));
+const withProtocolFromSource = (options: { alias?: Record<string, string> }): void => {
+  options.alias = { ...options.alias, '@everframe/protocol': PROTOCOL_SRC };
+};
 
 const vanillaEntry = {
   // Single always-loaded entry. NOTHING reachable from it may statically
@@ -168,6 +184,7 @@ const vanillaEntry = {
     // etc.) stay readable regardless — minify doesn't rename named exports.
     // Internal-only components (sdk-core implementations bundled via
     // `noExternal`) get fully mangled.
+    withProtocolFromSource(options);
     options.keepNames = false;
     // Strip console.log / console.debug / console.trace at build time —
     // dev-only diagnostics shouldn't ship to consumers. console.warn and
@@ -257,6 +274,7 @@ const reactEntry = {
   // comment for why keepNames is off and mangleProps is not set.
   minify: true,
   esbuildOptions(options) {
+    withProtocolFromSource(options);
     options.keepNames = false;
     options.pure = ['console.log', 'console.debug', 'console.trace'];
     options.drop = ['debugger'];
@@ -356,6 +374,7 @@ const browserEntry = {
   // esbuildOptions comment for why keepNames is off, why console.log / debug /
   // trace are stripped, and why mangleProps is deliberately not set.
   esbuildOptions(options) {
+    withProtocolFromSource(options);
     options.keepNames = false;
     options.pure = ['console.log', 'console.debug', 'console.trace'];
     options.drop = ['debugger'];
