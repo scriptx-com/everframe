@@ -7,8 +7,8 @@ Native Android SDK for Everframe — in-app bug reporting with annotated screens
 session replay, log/network ring buffers, and a built-in Compose reporter UI.
 Covers phone, tablet, and Android TV.
 
-Maven Central currently serves version `0.10.0`. This branch prepares the
-`0.10.2` Android release, including the shorter Gradle plugin artifact name.
+Maven Central serves version `0.10.2`, including the shorter Gradle plugin
+artifact name.
 
 ---
 
@@ -22,7 +22,7 @@ Maven Central currently serves version `0.10.0`. This branch prepares the
 | `dev.everframe:media3` | Media3 and ExoPlayer diagnostics | optional |
 | `dev.everframe:gradle-plugin` | Optional R8 keep rules and Compose display name preservation | optional; available with 0.10.2 |
 
-Android modules ship under one version. The published `0.10.0` plugin uses the
+Android modules ship under one version. The older `0.10.0` plugin uses the
 older `dev.everframe:everframe-gradle-plugin` artifact; Gradle plugin users keep
 the same `id("dev.everframe")` when moving to `0.10.2`.
 
