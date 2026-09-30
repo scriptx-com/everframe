@@ -54,13 +54,24 @@ interface Clip {
 
 const UNCLIPPED: Clip = { l: -Infinity, t: -Infinity, r: Infinity, b: Infinity };
 
-function pushRects(out: ViewportRect[], list: ArrayLike<DOMRect>, clip: Clip): void {
+/** How far to grow rects on each side (CSS px). */
+interface Grow {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
+
+const NO_GROW: Grow = { l: 0, t: 0, r: 0, b: 0 };
+
+function pushRects(out: ViewportRect[], list: ArrayLike<DOMRect>, clip: Clip, grow: Grow = NO_GROW): void {
   for (let i = 0; i < list.length; i++) {
     const r = list[i]!;
-    const l = Math.max(r.left, clip.l);
-    const t = Math.max(r.top, clip.t);
-    const w = Math.min(r.left + r.width, clip.r) - l;
-    const h = Math.min(r.top + r.height, clip.b) - t;
+    if (!(r.width > 0 && r.height > 0)) continue;
+    const l = Math.max(r.left - grow.l, clip.l);
+    const t = Math.max(r.top - grow.t, clip.t);
+    const w = Math.min(r.left + r.width + grow.r, clip.r) - l;
+    const h = Math.min(r.top + r.height + grow.b, clip.b) - t;
     if (w > 0 && h > 0) out.push({ x: l, y: t, width: w, height: h });
   }
 }
@@ -87,6 +98,30 @@ function clipFor(el: Element, cs: CSSStyleDeclaration | null, outer: Clip): Clip
   };
 }
 
+/**
+ * How far text paints past its line boxes on each side (CSS px): every
+ * text-shadow's offset plus blur, and the text stroke. Those pixels are in
+ * no client rect, and a shadow can sit far from its glyphs.
+ */
+function textInkOverflow(cs: CSSStyleDeclaration | null): Grow {
+  if (!cs) return NO_GROW;
+  const stroke = parseFloat(cs.getPropertyValue('-webkit-text-stroke-width')) || 0;
+  const g = { l: stroke, t: stroke, r: stroke, b: stroke };
+  const shadow = cs.getPropertyValue('text-shadow');
+  if (shadow && shadow !== 'none') {
+    // Colours first (their commas and numbers are not lengths), then one list per shadow.
+    for (const one of shadow.replace(/[a-z-]*\([^)]*\)/gi, '').split(',')) {
+      const [x = 0, y = 0, b = 0] = (one.match(/-?[\d.]+(?=px)/g) ?? []).map(Number);
+      const blur = Math.abs(b);
+      g.l = Math.max(g.l, blur - x);
+      g.r = Math.max(g.r, blur + x);
+      g.t = Math.max(g.t, blur - y);
+      g.b = Math.max(g.b, blur + y);
+    }
+  }
+  return g;
+}
+
 function styleOf(el: Element): CSSStyleDeclaration | null {
   try {
     return el.ownerDocument?.defaultView?.getComputedStyle(el) ?? null;
@@ -102,20 +137,24 @@ function styleOf(el: Element): CSSStyleDeclaration | null {
  * positioned element may escape clips above it, so it drops them (fail
  * closed: larger, never smaller).
  */
-function coverSubtree(node: Node, out: ViewportRect[], clip: Clip): void {
+function coverSubtree(node: Node, out: ViewportRect[], clip: Clip, excluded: (el: Element) => boolean): void {
   if (node.nodeType === 3) {
+    // Text inherits along the flat tree: from its slot when it is slotted.
+    const from = (node as Text).assignedSlot ?? node.parentElement;
+    const grow = from ? textInkOverflow(styleOf(from)) : NO_GROW;
     const range = node.ownerDocument?.createRange?.();
     if (range && typeof range.getClientRects === 'function') {
       range.selectNodeContents(node);
-      pushRects(out, range.getClientRects(), clip);
+      pushRects(out, range.getClientRects(), clip, grow);
     } else if (node.parentElement) {
       // No Range geometry (non-browser environments): the parent's boxes.
-      pushRects(out, node.parentElement.getClientRects(), clip);
+      pushRects(out, node.parentElement.getClientRects(), clip, grow);
     }
     return;
   }
   if (node.nodeType !== 1) return;
   const el = node as Element;
+  if (excluded(el)) return; // the renderers never draw it
   const cs = styleOf(el);
   const own = cs && (cs.position === 'absolute' || cs.position === 'fixed') ? UNCLIPPED : clip;
   // Per line box for inline elements; nothing for display:contents / slots
@@ -126,17 +165,19 @@ function coverSubtree(node: Node, out: ViewportRect[], clip: Clip): void {
     pushRects(out, el.nextElementSibling.getClientRects(), own);
   }
   const inner = clipFor(el, cs, own);
-  for (const child of renderedChildren(el)) coverSubtree(child, out, inner);
+  for (const child of renderedChildren(el)) coverSubtree(child, out, inner, excluded);
 }
 
 /**
  * Viewport rects of every element under `root` (flattened tree: open shadow
  * roots and slot assignments followed) for which `isSensitive` holds, plus
  * everything rendered inside it. A sensitive root yields its full rect.
+ * Subtrees `isExcluded` holds for (what the renderers leave out) are skipped.
  */
 export function collectSensitiveRects(
   root: Element,
   isSensitive: (el: Element) => boolean,
+  isExcluded: (el: Element) => boolean = () => false,
 ): ViewportRect[] {
   const out: ViewportRect[] = [];
   const judge = (el: Element): boolean => {
@@ -146,15 +187,25 @@ export function collectSensitiveRects(
       return true; // never unmask on an error
     }
   };
+  const excluded = (el: Element): boolean => {
+    try {
+      return isExcluded(el);
+    } catch {
+      return false; // never unmask on an error
+    }
+  };
   const visit = (node: Node): void => {
     if (node.nodeType !== 1) return;
     const el = node as Element;
+    // Excluded from the capture (the SDK's own chrome): nothing of it is
+    // rendered, so nothing of it is painted over the page beneath.
+    if (el !== root && excluded(el)) return;
     if (judge(el)) {
       if (el === root) {
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) out.push({ x: r.left, y: r.top, width: r.width, height: r.height });
       }
-      coverSubtree(el, out, UNCLIPPED);
+      coverSubtree(el, out, UNCLIPPED, (e) => e !== root && excluded(e));
       return;
     }
     for (const child of renderedChildren(el)) visit(child);

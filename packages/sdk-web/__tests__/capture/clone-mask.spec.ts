@@ -180,6 +180,30 @@ describe('createCloneMaskPlugin', () => {
     expect(clone2.textContent).not.toContain('slotted secret');
   });
 
+  it('masks bare light-DOM text snapDOM copied (unmapped) into a host whose slot is sensitive', () => {
+    document.body.innerHTML = '<main><div id="host">SECRET 8877</div><div id="open">public</div></main>';
+    const host = document.getElementById('host')!;
+    host.attachShadow({ mode: 'open' }).innerHTML = '<slot data-everframe-sensitive></slot>';
+    const open = document.getElementById('open')!;
+    open.attachShadow({ mode: 'open' }).innerHTML = '<slot></slot>';
+    // snapDOM-style: host clones mapped, the flattened text clones NOT mapped.
+    const main = document.querySelector('main')!;
+    const clone = main.cloneNode(false) as Element;
+    const hostClone = host.cloneNode(false) as Element;
+    hostClone.appendChild(document.createTextNode('SECRET 8877'));
+    const openClone = open.cloneNode(false) as Element;
+    openClone.appendChild(document.createTextNode('public'));
+    clone.append(hostClone, openClone);
+    const nodeMap = new Map<Node, Node>([[clone, main], [hostClone, host], [openClone, open]]);
+    const isSlotAttr = (el: Element): boolean => el.hasAttribute('data-everframe-sensitive');
+    createCloneMaskPlugin(isSlotAttr).afterClone({ clone, nodeMap });
+    const wrap = hostClone.firstChild as HTMLElement;
+    expect(wrap.nodeType).toBe(1);
+    expect(wrap.style.color).toBe('transparent');
+    expect(wrap.getAttribute('style')).toContain('text-shadow: none');
+    expect(openClone.firstChild!.nodeType).toBe(3); // a non-sensitive slot's text is left alone
+  });
+
   it('beforeRender masks what became sensitive after afterClone', () => {
     document.body.innerHTML = '<main><div id="a">alpha</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);

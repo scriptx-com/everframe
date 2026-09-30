@@ -131,6 +131,36 @@ describe('collectSensitiveRects', () => {
     expect(out).toContainEqual({ x: 600, y: 600, width: 40, height: 40 });
   });
 
+  it('skips subtrees the capture excludes, even when they are sensitive', () => {
+    document.body.innerHTML = `<div id="badge" data-everframe-skip-capture="true" ${SENS}><span id="pin">1234</span></div><div id="s" ${SENS}>x</div>`;
+    boxes(document.getElementById('badge')!, rect(500, 500, 100, 40));
+    boxes(document.getElementById('pin')!, rect(510, 505, 40, 20));
+    boxes(document.getElementById('s')!, rect(0, 0, 10, 10));
+    textBoxes(new Map());
+    const out = collectSensitiveRects(document.body, bySensAttr, (el) => el.getAttribute('data-everframe-skip-capture') === 'true');
+    expect(out).toEqual([{ x: 0, y: 0, width: 10, height: 10 }]);
+  });
+
+  it('grows sensitive text runs by their text-shadow (per side) and stroke', () => {
+    document.body.innerHTML = `<p id="p" ${SENS}>SECRET</p>`;
+    const p = document.getElementById('p')!;
+    boxes(p);
+    // jsdom computes neither property: serve the browser's computed form.
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element) => {
+      if (el !== p) return real(el);
+      const props: Record<string, string> = {
+        'text-shadow': 'rgba(0, 0, 0, 0.5) 3px 40px 2px',
+        '-webkit-text-stroke-width': '1px',
+      };
+      return { position: 'static', overflowX: 'visible', overflowY: 'visible', getPropertyValue: (k: string) => props[k] ?? '' } as unknown as CSSStyleDeclaration;
+    });
+    textBoxes(new Map([[p.firstChild!, [rect(100, 100, 60, 20)]]]));
+    const out = collectSensitiveRects(document.body, bySensAttr);
+    // left: max(stroke 1, blur 2 - 3) = 1; right: 2 + 3 = 5; top: max(1, 2 - 40) = 1; bottom: 2 + 40 = 42
+    expect(out).toEqual([{ x: 99, y: 99, width: 66, height: 63 }]);
+  });
+
   it('treats a throwing predicate as sensitive', () => {
     document.body.innerHTML = '<div id="d">x</div>';
     boxes(document.getElementById('d')!, rect(1, 2, 3, 4));

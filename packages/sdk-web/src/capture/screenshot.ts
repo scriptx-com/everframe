@@ -272,6 +272,12 @@ const filterNode = (node: Node): boolean => {
   return el.getAttribute('data-everframe-skip-capture') !== 'true';
 };
 
+/**
+ * What the renderers leave out that the pixel mask must leave alone too: the
+ * SDK's own chrome. <video> is filtered only because a stand-in renders it.
+ */
+const excludedFromCapture = (el: Element): boolean => el.tagName !== 'VIDEO' && !filterNode(el);
+
 /** Test seam — the real clone filter, callable directly without mocking modern-screenshot. */
 export function __filterNodeForTests(node: Node): boolean {
   return filterNode(node);
@@ -438,7 +444,7 @@ async function captureExclusive(
       const live = opts.isSensitive;
       return (el) => listed.has(el) || (live?.(el) ?? false);
     };
-    const sensitiveBefore = collectSensitiveRects(root, sensitivityNow());
+    const sensitiveBefore = collectSensitiveRects(root, sensitivityNow(), excludedFromCapture);
 
     started = Date.now();
     try {
@@ -542,7 +548,7 @@ async function captureExclusive(
       // After the blank verdicts (taken on the raw renders), before encode.
       // snapDOM's canvas is viewport-aligned at `pixelRatio`; the fallback
       // reports where viewport content can land on its cropped canvas.
-      const sensitiveAfter = collectSensitiveRects(root, sensitivityNow());
+      const sensitiveAfter = collectSensitiveRects(root, sensitivityNow(), excludedFromCapture);
       const rects = rectsMoved(sensitiveBefore, sensitiveAfter)
         ? [...sensitiveBefore, ...sensitiveAfter]
         : sensitiveAfter;

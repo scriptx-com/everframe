@@ -17,6 +17,7 @@ type Result = {
   pixels: number;
   neighbour: number[];
   darkest: number;
+  mixed: boolean;
 };
 
 /**
@@ -43,17 +44,25 @@ const INSPECT = `async (blob, rects, neighbour, clean = []) => {
     pixels += d.length / 4;
   }
   const n = Array.from(ctx.getImageData(Math.round(neighbour[0] * scale), Math.round(neighbour[1] * scale), 1, 1).data);
-  // Darkest pixel (by its brightest channel) across the regions that must stay page-coloured.
+  // Across the regions that must not show content: the darkest pixel (by its
+  // brightest channel), and whether dark and bright pixels mix there (glyphs).
   let darkest = 255;
+  let dark = 0;
+  let bright = 0;
   for (const r of clean) {
     const d = ctx.getImageData(Math.floor(r.x * scale), Math.floor(r.y * scale), Math.ceil(r.width * scale), Math.ceil(r.height * scale)).data;
-    for (let i = 0; i < d.length; i += 4) darkest = Math.min(darkest, Math.max(d[i], d[i + 1], d[i + 2]));
+    for (let i = 0; i < d.length; i += 4) {
+      const v = Math.max(d[i], d[i + 1], d[i + 2]);
+      darkest = Math.min(darkest, v);
+      if (v < 40) dark++;
+      if (v > 150) bright++;
+    }
   }
-  return { brightest, pixels, neighbour: n, darkest };
+  return { brightest, pixels, neighbour: n, darkest, mixed: dark > 0 && bright > 0 };
 }`;
 
 /** Capture through the real adapter; `prepare` returns the live rects and a neighbour point. */
-async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdrop' | 'shadow' | 'scroller'): Promise<Result> {
+async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdrop' | 'shadow' | 'scroller' | 'direct'): Promise<Result> {
   return page.evaluate(
     async ({ scenario, inspectSrc }) => {
       const inspect = (0, eval)(inspectSrc) as (b: Blob, r: Rect[], n: [number, number], clean?: Rect[]) => Promise<Omit<Result, 'renderer' | 'rects'>>;
@@ -79,6 +88,13 @@ async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdro
         neighbourOf = document.getElementById('shadow-vault')!;
         // Where the span's 40px-down text-shadow would paint.
         clean = rects.map((r) => ({ x: r.x, y: r.y + 40, width: r.width, height: r.height }));
+      } else if (scenario === 'direct') {
+        const range = document.createRange();
+        range.selectNodeContents(document.getElementById('direct-vault')!);
+        rects = plain(range.getClientRects());
+        neighbourOf = document.getElementById('direct-vault')!;
+        // Where the 40px-down text-shadow would paint, clear of the (inflated) mask above it.
+        clean = rects.map((r) => ({ x: r.x, y: r.y + 40, width: r.width, height: r.height }));
       } else if (scenario === 'scroller') {
         rects = plain(document.getElementById('scroller')!.getClientRects());
         neighbourOf = document.getElementById('scroller')!;
@@ -89,9 +105,14 @@ async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdro
         rects = plain(document.getElementById('bd-text')!.getClientRects());
         neighbourOf = document.getElementById('bd-text')!;
       }
-      // A point on the blue page 8 px below the element's box.
+      // A point on the blue page 8 px below the element's box - or, where a
+      // text-shadow paints below, 8 px right of the last text run.
       const b = neighbourOf.getBoundingClientRect();
-      const neighbour: [number, number] = [b.left + 20, b.bottom + 8];
+      const last = rects[rects.length - 1];
+      const neighbour: [number, number] =
+        (scenario === 'shadow' || scenario === 'direct') && last
+          ? [last.x + last.width + 8, last.y + last.height / 2]
+          : [b.left + 20, b.bottom + 8];
       let shot: Promise<{ blob: Blob }>;
       if (scenario === 'backdrop') {
         // The text becomes sensitive while the capture is already running.
@@ -143,7 +164,7 @@ test('slotted text under a sensitive <slot> ships no text-shadow outside the bla
   const r = await captureAdapter(page, 'shadow');
   expect(r.renderer).toBe('snapdom');
   expectMasked(r);
-  expect(r.darkest).toBeGreaterThan(150); // no dark shadow glyphs 40px below
+  expect(r.mixed).toBe(false); // no shadow glyphs 40px below: uniformly page or mask
 });
 
 test('a sensitive scroller is black; public content below it is not blacked out by its scrolled content', async ({ page }) => {
@@ -153,6 +174,42 @@ test('a sensitive scroller is black; public content below it is not blacked out 
   expect(r.rects.length).toBeGreaterThan(0);
   expect(r.brightest).toBeLessThanOrEqual(8);
   expect(r.darkest).toBeGreaterThan(150); // the green box below, untouched
+});
+
+test('bare text slotted into a sensitive <slot> ships black, its displaced text-shadow too', async ({ page }) => {
+  await page.goto('/e2e/fixtures/pixel-mask.html');
+  const r = await captureAdapter(page, 'direct');
+  expect(r.renderer).toBe('snapdom');
+  expect(r.rects.length).toBeGreaterThan(0);
+  expect(r.pixels).toBeGreaterThan(100);
+  expect(r.brightest).toBeLessThanOrEqual(8);
+  // No readable shadow glyphs: the region is uniformly masked black or plain page, never a mix.
+  expect(r.mixed).toBe(false);
+});
+
+test('SDK chrome that is both excluded and sensitive leaves no black box over the app', async ({ page }) => {
+  await page.goto('/e2e/fixtures/pixel-mask.html');
+  const r = await page.evaluate(async () => {
+    const w = window as unknown as {
+      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+    };
+    const b = document.getElementById('badge')!.getBoundingClientRect();
+    const shot = await w.__everframe.__adapter.captureScreenshot();
+    const bmp = await createImageBitmap(shot.blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    const scale = bmp.width / window.innerWidth;
+    const d = ctx.getImageData(Math.floor(b.left * scale), Math.floor(b.top * scale), Math.floor(b.width * scale), Math.floor(b.height * scale)).data;
+    let dark = 0;
+    for (let i = 0; i < d.length; i += 4) if (Math.max(d[i]!, d[i + 1]!, d[i + 2]!) < 40) dark++;
+    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, dark, pixels: d.length / 4 };
+  });
+  expect(r.renderer).toBe('snapdom');
+  expect(r.pixels).toBeGreaterThan(1000);
+  expect(r.dark).toBe(0); // the page under the badge, not a black box (nor the badge itself)
 });
 
 // captureScreenshot with a custom root is not on the published surface: the

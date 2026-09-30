@@ -146,10 +146,40 @@ function maskContentsChildren(
   nodeMap: Map<Node, Node>,
   owned: WeakSet<Node>,
 ): void {
-  // The span is unknown to snapDOM's style pass, so it carries the text's
-  // live font explicitly - the masked run must advance exactly like the text.
+  const css = textMaskCss(src);
+  for (const child of Array.from(clone.childNodes)) {
+    if (owned.has(child)) {
+      (child as HTMLElement).style.cssText = css;
+      continue;
+    }
+    if (child.nodeType === 3) {
+      if (!(child as Text).data.trim()) continue;
+      wrapMasked(child as Text, css, owned);
+    } else if (child.nodeType === 1 && !nodeMap.has(child)) {
+      // Synthesized by snapDOM (inlined pseudo-elements and the like): no
+      // live source to judge, inside a sensitive wrapper - drop it.
+      child.remove();
+    }
+  }
+}
+
+/** Replace a text clone by a masking span around it (kept in `owned`). */
+function wrapMasked(text: Text, css: string, owned: WeakSet<Node>): void {
+  const span = (text.ownerDocument ?? document).createElement('span');
+  span.style.cssText = css;
+  owned.add(span);
+  text.replaceWith(span);
+  span.appendChild(text);
+}
+
+/**
+ * Inline style masking a run of text inherited from `src`. The span is
+ * unknown to snapDOM's style pass, so it carries the text's live font
+ * explicitly - the masked run must advance exactly like the text.
+ */
+function textMaskCss(src: Element): string {
   const cs = getComputedStyle(src);
-  const css = [
+  return [
     TEXT_MASK_CSS,
     `font-family:${cs.fontFamily} !important`,
     `font-size:${cs.fontSize} !important`,
@@ -163,24 +193,6 @@ function maskContentsChildren(
     `text-transform:${cs.textTransform} !important`,
     `white-space:${cs.whiteSpace} !important`,
   ].join(';');
-  for (const child of Array.from(clone.childNodes)) {
-    if (owned.has(child)) {
-      (child as HTMLElement).style.cssText = css;
-      continue;
-    }
-    if (child.nodeType === 3) {
-      if (!(child as Text).data.trim()) continue;
-      const span = (clone.ownerDocument ?? document).createElement('span');
-      span.style.cssText = css;
-      owned.add(span);
-      child.replaceWith(span);
-      span.appendChild(child);
-    } else if (child.nodeType === 1 && !nodeMap.has(child)) {
-      // Synthesized by snapDOM (inlined pseudo-elements and the like): no
-      // live source to judge, inside a sensitive wrapper - drop it.
-      child.remove();
-    }
-  }
 }
 
 /** Nearest ancestor across shadow boundaries (a shadow root hands over to its host). */
@@ -198,6 +210,34 @@ function parentAcrossShadow(node: Node): Node | null {
 function flatParent(node: Node): Node | null {
   const slot = (node as Element | Text).assignedSlot;
   return slot ?? parentAcrossShadow(node);
+}
+
+/**
+ * snapDOM flattens a shadow host's slots without mapping the light-DOM TEXT
+ * it copies into the host's clone, so the nodeMap pass never sees it. Such a
+ * text clone is judged by the host's light-DOM text it came from (same data;
+ * with none matching, by all of it - fail closed) along the flat tree, and
+ * masked like the text of a sensitive display:contents wrapper.
+ */
+function maskSlottedText(
+  root: Element,
+  nodeMap: Map<Node, Node>,
+  sensitive: (node: Node | null) => boolean,
+  owned: WeakSet<Node>,
+): void {
+  const walker = (root.ownerDocument ?? document).createTreeWalker(root, 4 /* SHOW_TEXT */);
+  const hits: Array<[Text, Element]> = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const text = n as Text;
+    const parent = text.parentNode;
+    if (nodeMap.has(text) || !parent || owned.has(parent) || !text.data.trim()) continue;
+    const host = nodeMap.get(parent) as Element | undefined;
+    if (host?.nodeType !== 1 || !host.shadowRoot) continue;
+    const light = Array.from(host.childNodes).filter((c): c is Text => c.nodeType === 3);
+    const same = light.filter((c) => c.data === text.data);
+    if ((same.length > 0 ? same : light).some((c) => sensitive(c))) hits.push([text, host]);
+  }
+  for (const [text, host] of hits) wrapMasked(text, textMaskCss(host), owned);
 }
 
 /**
@@ -288,6 +328,7 @@ export function createCloneMaskPlugin(isTarget: (el: Element) => boolean) {
       clone.replaceWith(box);
       boxes.push([box, css, null]);
     }
+    maskSlottedText(root, nodeMap, sensitive, owned);
   };
 
   return {
