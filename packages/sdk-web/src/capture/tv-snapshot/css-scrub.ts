@@ -551,9 +551,81 @@ function engineSupports(): SupportsFn | null {
   return css !== undefined && typeof css.supports === 'function' ? (css.supports as SupportsFn).bind(css) : null;
 }
 
+// @font-face descriptor VALUES (masked pages): tight patterns over short,
+// whitespace/comma-split tokens (S18: length-capped, anchored, no nested
+// quantifiers), so no descriptor can carry arbitrary text.
+const FONT_NUMBER_RE = /^(?:\d{1,4}(?:\.\d{1,6})?|\.\d{1,6})$/;
+const FONT_PERCENT_RE = /^(?:\d{1,4}(?:\.\d{1,6})?|\.\d{1,6})%$/;
+const FONT_ANGLE_RE = /^-?(?:\d{1,4}(?:\.\d{1,6})?|\.\d{1,6})(?:deg|grad|rad|turn)$/;
+const UNICODE_RANGE_RE = /^u\+[0-9a-f?]{1,6}(?:-[0-9a-f]{1,6})?$/;
+const FONT_DISPLAY = new Set(['auto', 'block', 'swap', 'fallback', 'optional']);
+const FONT_STRETCH_KEYWORDS = new Set([
+  'normal', 'ultra-condensed', 'extra-condensed', 'condensed', 'semi-condensed',
+  'semi-expanded', 'expanded', 'extra-expanded', 'ultra-expanded',
+]);
+const METRIC_OVERRIDES = new Set(['ascent-override', 'descent-override', 'line-gap-override']);
+
+function tokens(value: string, separator: ',' | ' '): string[] {
+  const out: string[] = [];
+  for (const part of value.split(separator === ',' ? ',' : /\s+/)) {
+    const t = part.trim();
+    if (t !== '') out.push(t);
+  }
+  return out;
+}
+
+/** One or two tokens, each accepted by `ok`. */
+function oneOrTwo(value: string, ok: (t: string) => boolean): boolean {
+  const t = tokens(value, ' ');
+  return (t.length === 1 || t.length === 2) && t.every(ok);
+}
+
+/** Whether a masked @font-face descriptor's value is well-formed (unknown descriptors: never). */
+function validFontFaceDescriptor(prop: string, value: string): boolean {
+  if (!FONT_FACE_DESCRIPTORS.has(prop)) return false;
+  if (value.length > MAX_DESCRIPTOR_LENGTH) return false;
+  const v = value.trim().toLowerCase();
+  switch (prop) {
+    case 'font-family':
+    case 'src':
+      return true; // names and scrubbed URLs, handled by scrubValue
+    case 'font-display':
+      return FONT_DISPLAY.has(v);
+    case 'unicode-range': {
+      const ranges = tokens(v, ',');
+      return ranges.length > 0 && ranges.every((r) => UNICODE_RANGE_RE.test(r));
+    }
+    case 'font-weight':
+      return oneOrTwo(v, (t) => t === 'normal' || t === 'bold' || FONT_NUMBER_RE.test(t));
+    case 'font-stretch':
+      return oneOrTwo(v, (t) => FONT_STRETCH_KEYWORDS.has(t) || FONT_PERCENT_RE.test(t));
+    case 'font-style': {
+      const t = tokens(v, ' ');
+      if (t.length === 1) return t[0] === 'normal' || t[0] === 'italic' || t[0] === 'oblique';
+      return t[0] === 'oblique' && t.length <= 3 && t.slice(1).every((a) => FONT_ANGLE_RE.test(a));
+    }
+    case 'size-adjust':
+      return FONT_PERCENT_RE.test(v);
+    case 'font-named-instance':
+      return v === 'auto';
+    default:
+      break;
+  }
+  if (METRIC_OVERRIDES.has(prop)) return v === 'normal' || FONT_PERCENT_RE.test(v);
+  // font-feature-settings / font-variation-settings are also properties: the
+  // engine validates them; without CSS.supports they are dropped.
+  const supports = engineSupports();
+  if (supports === null) return false;
+  try {
+    return supports(prop, value);
+  } catch {
+    return false;
+  }
+}
+
 /** Would the browser accept `prop: value` here? (Masked pages keep only these.) */
 function isValidDeclaration(block: DeclarationBlock, prop: string, value: string): boolean {
-  if (block === 'font-face') return FONT_FACE_DESCRIPTORS.has(prop);
+  if (block === 'font-face') return validFontFaceDescriptor(prop, value);
   if (block === 'page' && PAGE_DESCRIPTORS.has(prop)) return true;
   const supports = engineSupports();
   if (supports !== null) {

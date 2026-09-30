@@ -327,3 +327,62 @@ describe('fix round 1 — browser preprocessing, prototype keys, invalid declara
     expect(performance.now() - started).toBeLessThan(1000);
   });
 });
+
+describe('masked @font-face descriptor values (final review finding 8)', () => {
+  const face = (decls: string): string => scrubCssText(`@font-face{font-family:"F";${decls}}`, masked);
+  const kept = (decl: string): void => expect(face(decl), decl).toBe(`@font-face{font-family:"F";${decl}}`);
+  const dropped = (decl: string): void => expect(face(decl), decl).toBe('@font-face{font-family:"F"}');
+
+  it.each([
+    'unicode-range:U+0000-00FF, U+0131, U+4??',
+    'font-display:swap',
+    'font-weight:400',
+    'font-weight:100 900',
+    'font-weight:bold',
+    'font-style:italic',
+    'font-style:oblique 10deg 20deg',
+    'font-stretch:condensed',
+    'font-stretch:75% 125%',
+    'ascent-override:90%',
+    'descent-override:normal',
+    'line-gap-override:0%',
+    'size-adjust:105.5%',
+    'font-named-instance:auto',
+  ])('keeps a well-formed %s', (decl) => kept(decl));
+
+  it.each([
+    'unicode-range:Alice Smith',
+    'unicode-range:U+0000-00FF, Alice',
+    'font-display:Alice',
+    'font-weight:Alice Smith',
+    'font-weight:400 500 600',
+    'font-style:oblique Alice',
+    'font-style:italic 10deg',
+    'font-stretch:Alice',
+    'ascent-override:Alice',
+    'size-adjust:normal',
+    'font-named-instance:"Alice Smith"',
+    'font-feature-settings:"Alice Smith"',
+    'font-variation-settings:"Alice Smith" 1',
+  ])('drops a malformed %s', (decl) => dropped(decl));
+
+  it('keeps an engine-valid font-feature-settings when CSS.supports agrees, drops it without CSS.supports', () => {
+    // (Quoted feature tags are strings, which a masked page drops anyway.)
+    vi.stubGlobal('CSS', { supports: (p: string, v: string) => p === 'font-feature-settings' && v === 'normal' });
+    kept('font-feature-settings:normal');
+    dropped('font-variation-settings:normal');
+    vi.stubGlobal('CSS', undefined);
+    dropped('font-feature-settings:normal');
+    vi.unstubAllGlobals();
+  });
+
+  it('a 20k-character near-miss unicode-range is rejected in under a second', () => {
+    const started = performance.now();
+    dropped(`unicode-range:${'U+0000-00FF,'.repeat(1_700)}X`);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it('leaves @font-face descriptors alone on an unmasked page', () => {
+    expect(scrubCssText('@font-face{font-family:"F";font-display:whatever}', open)).toBe('@font-face{font-family:"F";font-display:whatever}');
+  });
+});
