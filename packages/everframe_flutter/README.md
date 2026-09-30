@@ -3,7 +3,7 @@
 
 # Everframe Flutter
 
-[`everframe_flutter`](https://pub.dev/packages/everframe_flutter) is the published
+[`everframe_flutter`](https://pub.dev/packages/everframe_flutter) is the
 Everframe plugin for Flutter apps on Android, iOS, and web. Create a **Flutter**
 integration in the Everframe dashboard to get its app ID and SDK key.
 
@@ -78,11 +78,9 @@ identify their host platform.
 
 The Android and iOS simulator samples submitted masked screenshots and replay
 to a local dashboard. Physical-device behavior, production delivery, and
-offline retry after process restart remain unverified. The Flutter web source
-now includes a browser target; its masked screenshot, image replay, reporter,
-and retry paths passed Chromium probes. The published 0.1.1 package predates
-this addition, so release the next pub.dev version before using web in a
-customer app. macOS remains an unreleased probe.
+offline retry after process restart remain unverified. Flutter web's masked
+screenshot, image replay, reporter, and retry paths passed Chromium probes.
+macOS remains an unreleased probe.
 
 ## Flutter web
 

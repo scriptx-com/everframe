@@ -12,6 +12,7 @@ export default defineConfig({
   // bundle level too).
   entry: [
     "src/index.ts",
+    "src/index.web.ts",
     "src/NativeEverframe.ts",
     "src/integrations/console.ts",
     "src/integrations/react-navigation.ts",
@@ -55,7 +56,7 @@ export default defineConfig({
   // `worker_threads` in the published chunk. Metro has no Node built-ins, so
   // an optimized Android bundle fails before the app can be installed.
   platform: "browser",
-  external: ["react", "react-native", "bippy"],
+  external: ["react", "react-native", "bippy", "@everframe/react"],
   // Bundle internal workspace packages into this dist — none of them exist
   // on npm (they're `private: true` workspace siblings), so the published
   // RN package must inline their code. Without this, the published bundle

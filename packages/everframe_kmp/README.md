@@ -11,9 +11,9 @@ The bridge starts the native SDK in `production` by default and also accepts `de
 
 `captureHandledError("catalog_load_failed")` accepts a stable lowercase code, not an exception message or user text. `captureException(caughtThrowable)` forwards the original Kotlin failure; on iOS, the Swift driver bridges its `KotlinThrowable.asError()` into the native handled-error path. Its message follows the native SDK's redaction and limits, so callers should still avoid putting secrets in exception text. `recordNetworkOperation("catalog_fetch", "GET", 503, 42)` adds a bounded network breadcrumb without a URL, headers, or body. It is not a replacement for the native SDK's OkHttp interceptor or iOS URLSession capture when full network rows are needed. These calls require a started client and still obey native capture gates.
 
-## Browser source target
+## Browser target
 
-The source now declares a Kotlin/JS browser target and an
+The package declares a Kotlin/JS browser target and an
 `EverframeBrowserDriver`. It uses the same `EverframeKmp` calls as Android and
 iOS. The browser host supplies `@everframe/web`'s `init` function and a
 renderer-owned visual provider; `createCanvasVisualCapture` from the Web SDK
@@ -31,8 +31,8 @@ owns the reporter UI, delivery, and retry. No screen-recording permission is
 needed. The browser canvas report and replay passed a Chromium loopback probe;
 an installed third-party Compose browser app has not been verified.
 
-## Release status
+## Install
 
-Maven Central publishes the shared mobile `0.10.2` release under `dev.everframe:kmp`, alongside `dev.everframe:core`, `reporter-ui`, `protocol`, `media3`, and `gradle-plugin`. That published version has no JS target; the next coordinated mobile release must include `kmp-js` and a compatible Web SDK release before browser consumers can install it. The older `dev.everframe:everframe-kmp:0.1.0` coordinate remains available for existing consumers.
+Maven Central publishes the shared module under `dev.everframe:kmp`, alongside `dev.everframe:core`, `reporter-ui`, `protocol`, `media3`, and `gradle-plugin`. The Kotlin/JS browser artifact is `dev.everframe:kmp-js`; use the matching version for all Maven modules. The older `dev.everframe:everframe-kmp:0.1.0` coordinate remains available for existing consumers.
 
 Add `implementation("dev.everframe:kmp:0.10.2")` to the shared Kotlin module. Gradle selects the matching `kmp-*` platform artifact. For local source testing, publish the Android 0.10.2 modules first and point `MAVEN_LOCAL_REPOSITORY` at that repository. On iOS, link native Everframe 0.10.1 or newer and add `ios/EverframeSwiftDriver.swift` from the KMP sources JAR to the host target alongside the KMP framework. The iOS host remains responsible for packaging the KMP framework and native Swift SDK.
