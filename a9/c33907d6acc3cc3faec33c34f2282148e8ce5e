@@ -1,0 +1,219 @@
+.changeset/roku-protocol.md
+  s_f1f3a292ebd900::t_e8450742fd1cb3 1-8
+.changeset/sdk-roku-initial.md
+  s_f1f3a292ebd900::t_bc84b0b25770c3 1-8
+.changeset/ui-shared-state.md
+  s_f1f3a292ebd900::t_1b0e2f4533c4f1 1-8
+.env.example
+  s_f1f3a292ebd900::t_69c626ad21de70 9-11
+examples/roku-channel/.gitignore
+  s_f1f3a292ebd900::t_cd99c4244f3965 1-4
+examples/roku-channel/README.md
+  s_f1f3a292ebd900::t_ad59792d831e1b 1-111
+examples/roku-channel/__tests__/channel.spec.ts
+  s_f1f3a292ebd900::t_bba00a51496794 1-117
+examples/roku-channel/__tests__/run-roku-helpers.spec.ts
+  s_f1f3a292ebd900::t_98dcf5353a1181 1-92
+examples/roku-channel/__tests__/run-roku.spec.ts
+  s_f1f3a292ebd900::t_07fa82171e1ec2 1-107
+examples/roku-channel/components/CrashTask.brs
+  s_f1f3a292ebd900::t_67ccf674baf8d3 1-11
+examples/roku-channel/components/CrashTask.xml
+  s_f1f3a292ebd900::t_d71e581631474f 1-6
+examples/roku-channel/components/DetailsScreen.brs
+  s_f1f3a292ebd900::t_4d4eaf780e6282 1-9
+examples/roku-channel/components/DetailsScreen.xml
+  s_f1f3a292ebd900::t_dfe9c8291647d0 1-12
+examples/roku-channel/components/Excluded.brs
+  s_f1f3a292ebd900::t_74744b1edae8b1 1-11
+examples/roku-channel/components/LabScene.brs
+  s_f1f3a292ebd900::t_1489138f0b2981 1-274
+examples/roku-channel/components/LabScene.xml
+  s_f1f3a292ebd900::t_ade22162594c65 1-15
+examples/roku-channel/components/OomTask.brs
+  s_f1f3a292ebd900::t_3885e8d54dd923 1-22
+examples/roku-channel/components/OomTask.xml
+  s_f1f3a292ebd900::t_24f329d4442622 1-6
+examples/roku-channel/manifest
+  s_f1f3a292ebd900::t_6dd95d2076efe1 1-9
+examples/roku-channel/package.json
+  s_f1f3a292ebd900::t_751bbe9598e29a 1-20
+examples/roku-channel/scripts/run-roku.mjs
+  s_f1f3a292ebd900::t_3313bdfe59fc67 1-217
+examples/roku-channel/source/main.brs
+  s_f1f3a292ebd900::t_a9879838d623c3 1-29
+examples/roku-channel/vitest.config.ts
+  s_f1f3a292ebd900::t_eca7ce0fef6b3d 1-15
+packages/protocol/__tests__/fixtures/roku-crash-envelope.json
+  s_f1f3a292ebd900::t_4960042c676362 1-42
+packages/protocol/__tests__/platform-enum.spec.ts
+  s_f1f3a292ebd900::t_869fa01cd8fe20 7
+packages/protocol/__tests__/roku-envelope.spec.ts
+  s_f1f3a292ebd900::t_e7384728ab7cf1 1-34
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_f1f3a292ebd900::t_dc31826d25328a 42-43,58-59
+packages/protocol/src/envelope.ts
+  s_f1f3a292ebd900::t_828cfed1597158 45
+packages/protocol/src/sdk-platform.ts
+  s_f1f3a292ebd900::t_6da2b383bdfd7e 6
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_f1f3a292ebd900::t_3d940efa1c1136 479,491
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_f1f3a292ebd900::t_0dc3a83b9defae 1848,1857
+packages/sdk-roku/LICENSE
+  s_f1f3a292ebd900::t_78e8a8348b19df 1-21
+packages/sdk-roku/NOTICE
+  s_f1f3a292ebd900::t_d9e42a7faa6ff9 1-12
+packages/sdk-roku/README.md
+  s_f1f3a292ebd900::t_3638dad7e0374c 1-264
+packages/sdk-roku/__tests__/brs-harness.ts
+  s_f1f3a292ebd900::t_03b1de093312a7 1-50
+packages/sdk-roku/__tests__/cli.spec.ts
+  s_f1f3a292ebd900::t_d9ed9a6aff2b1e 1-45
+packages/sdk-roku/__tests__/crumbs.spec.ts
+  s_f1f3a292ebd900::t_80bb2c0646db59 1-114
+packages/sdk-roku/__tests__/drain.spec.ts
+  s_f1f3a292ebd900::t_bfbec8fa0c1dee 1-141
+packages/sdk-roku/__tests__/entry-points.spec.ts
+  s_f1f3a292ebd900::t_f7718603d9775a 1-325
+packages/sdk-roku/__tests__/envelope.spec.ts
+  s_f1f3a292ebd900::t_4b5b2f2d472041 1-119
+packages/sdk-roku/__tests__/exitinfo.spec.ts
+  s_f1f3a292ebd900::t_14b9ea414373f3 1-329
+packages/sdk-roku/__tests__/fingerprint.spec.ts
+  s_f1f3a292ebd900::t_746d02afdd922f 1-21
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/HomeScene.brs
+  s_f1f3a292ebd900::t_d3b4ae60d8294a 1-25
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/HomeScene.xml
+  s_f1f3a292ebd900::t_d85e3adc1d0f7d 1-10
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/Loader.brs
+  s_f1f3a292ebd900::t_a104786f6c52cc 1-7
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/Loader.xml
+  s_f1f3a292ebd900::t_b593239a5dcfbe 1-9
+packages/sdk-roku/__tests__/fixtures/channel-basic/components/Static.xml
+  s_f1f3a292ebd900::t_dd7dd87704469b 1-4
+packages/sdk-roku/__tests__/fixtures/channel-basic/manifest
+  s_f1f3a292ebd900::t_a94a2a5ae38d98 1-4
+packages/sdk-roku/__tests__/fixtures/channel-basic/source/main.brs
+  s_f1f3a292ebd900::t_4c0eb58d4326bf 1-11
+packages/sdk-roku/__tests__/fixtures/console-crash.txt
+  s_f1f3a292ebd900::t_0b2ddec7149dea 1-10
+packages/sdk-roku/__tests__/frames.spec.ts
+  s_f1f3a292ebd900::t_f5de5edd5b67d8 1-87
+packages/sdk-roku/__tests__/hook.spec.ts
+  s_f1f3a292ebd900::t_d2bcf359c05099 1-227
+packages/sdk-roku/__tests__/instrument.spec.ts
+  s_f1f3a292ebd900::t_fbfe559bf6e531 1-498
+packages/sdk-roku/__tests__/key-case.spec.ts
+  s_f1f3a292ebd900::t_0d5cccdd089eec 1-82
+packages/sdk-roku/__tests__/library-build.spec.ts
+  s_f1f3a292ebd900::t_40e0131fb72230 1-46
+packages/sdk-roku/__tests__/memory.spec.ts
+  s_f1f3a292ebd900::t_15cd828cabc136 1-120
+packages/sdk-roku/__tests__/queue.spec.ts
+  s_f1f3a292ebd900::t_09fdcb3a987479 1-184
+packages/sdk-roku/__tests__/screen.spec.ts
+  s_f1f3a292ebd900::t_54719547b9cd49 1-205
+packages/sdk-roku/__tests__/util.spec.ts
+  s_f1f3a292ebd900::t_242d20cb9bc52d 1-74
+packages/sdk-roku/__tests__/version.spec.ts
+  s_f1f3a292ebd900::t_98d7c27491ba73 1-50
+packages/sdk-roku/__tests__/wrap.spec.ts
+  s_f1f3a292ebd900::t_c52b8eed4976ac 1-207
+packages/sdk-roku/hook/everframe_hook.brs
+  s_f1f3a292ebd900::t_b8418070d686ad 1-145
+packages/sdk-roku/library/components/Everframe/Everframe.brs
+  s_f1f3a292ebd900::t_92d3239cd93023 1-236
+packages/sdk-roku/library/components/Everframe/Everframe.xml
+  s_f1f3a292ebd900::t_86eaebe91c731a 1-25
+packages/sdk-roku/library/components/Everframe/EverframeReporter.brs
+  s_f1f3a292ebd900::t_949476e427d7ee 1-203
+packages/sdk-roku/library/components/Everframe/EverframeReporter.xml
+  s_f1f3a292ebd900::t_695c0980b33dae 1-22
+packages/sdk-roku/library/components/Everframe/lib/ef_crumbs.brs
+  s_f1f3a292ebd900::t_316e39133ba523 1-74
+packages/sdk-roku/library/components/Everframe/lib/ef_drain.brs
+  s_f1f3a292ebd900::t_08a84d7d3f609f 1-61
+packages/sdk-roku/library/components/Everframe/lib/ef_envelope.brs
+  s_f1f3a292ebd900::t_af184250785e29 1-120
+packages/sdk-roku/library/components/Everframe/lib/ef_exitinfo.brs
+  s_f1f3a292ebd900::t_595e1ea48ecddc 1-174
+packages/sdk-roku/library/components/Everframe/lib/ef_fingerprint.brs
+  s_f1f3a292ebd900::t_3caec4335ea3c0 1-26
+packages/sdk-roku/library/components/Everframe/lib/ef_frames.brs
+  s_f1f3a292ebd900::t_c4666f8a35f851 1-77
+packages/sdk-roku/library/components/Everframe/lib/ef_memory.brs
+  s_f1f3a292ebd900::t_d33ae1c5b713bf 1-82
+packages/sdk-roku/library/components/Everframe/lib/ef_multipart.brs
+  s_f1f3a292ebd900::t_659206d90b48a1 1-15
+packages/sdk-roku/library/components/Everframe/lib/ef_queue.brs
+  s_f1f3a292ebd900::t_8ad13017188de3 1-173
+packages/sdk-roku/library/components/Everframe/lib/ef_record.brs
+  s_f1f3a292ebd900::t_649c81c381357e 1-29
+packages/sdk-roku/library/components/Everframe/lib/ef_screen.brs
+  s_f1f3a292ebd900::t_2fac0536976f9f 1-59
+packages/sdk-roku/library/components/Everframe/lib/ef_util.brs
+  s_f1f3a292ebd900::t_fc705f908fda83 1-169
+packages/sdk-roku/library/components/Everframe/lib/ef_version.brs
+  s_f1f3a292ebd900::t_9cdf016e4ccdff 1-6
+packages/sdk-roku/library/manifest
+  s_f1f3a292ebd900::t_4c58b65fa171bd 1-7
+packages/sdk-roku/package.json
+  s_f1f3a292ebd900::t_6c94b445212169 1-36
+packages/sdk-roku/scripts/build-library.mjs
+  s_f1f3a292ebd900::t_d3fe0ec04d8ac7 1-27
+packages/sdk-roku/scripts/ensure-brs.mjs
+  s_f1f3a292ebd900::t_6a0b66c5cb2d1d 1-60
+packages/sdk-roku/scripts/sync-version.mjs
+  s_f1f3a292ebd900::t_6af3866a83b7ed 1-45
+packages/sdk-roku/src/cli-main.ts
+  s_f1f3a292ebd900::t_3b9cbdb5b0324a 1-54
+packages/sdk-roku/src/cli.ts
+  s_f1f3a292ebd900::t_8f25ae5ce050c0 1-6
+packages/sdk-roku/src/entry-points.ts
+  s_f1f3a292ebd900::t_26a06d130534d9 1-279
+packages/sdk-roku/src/instrument.ts
+  s_f1f3a292ebd900::t_7c92811cb842f9 1-220
+packages/sdk-roku/src/wrap.ts
+  s_f1f3a292ebd900::t_3589b4b93c5da4 1-126
+packages/sdk-roku/test-tools/.npmrc
+  s_f1f3a292ebd900::t_f593cca2f98fb4 1-9
+packages/sdk-roku/test-tools/package.json
+  s_f1f3a292ebd900::t_d76fdd99041912 1-10
+packages/sdk-roku/test-tools/pnpm-lock.yaml
+  s_f1f3a292ebd900::t_8f1ab5ee623fa3 1-2283
+packages/sdk-roku/tsconfig.json
+  s_f1f3a292ebd900::t_f8b38d28794d2a 1-5
+packages/sdk-roku/tsup.config.ts
+  s_f1f3a292ebd900::t_21efe7cf1295e5 1-14
+packages/sdk-roku/vitest.config.ts
+  s_f1f3a292ebd900::t_a3c5951db40a63 1-16
+packages/sdk-web/__tests__/bundle/ui-shared-modules.spec.ts
+  s_f1f3a292ebd900::t_c9481950f7e859 1-76
+packages/sdk-web/scripts/ui-shared-modules.ts
+  s_f1f3a292ebd900::t_296476e7d70740 1-43
+packages/sdk-web/src/index.ts
+  s_f1f3a292ebd900::t_021039c35f1ec4 175-182
+packages/sdk-web/tsup.config.ts
+  s_f1f3a292ebd900::t_a43bea5b3bddd0 5,272-275
+pnpm-lock.yaml
+  s_f1f3a292ebd900::t_83eaa089995d09 207-224,509-533,2148-2150,2327-2332,2897-2899,2991-2997,3109-3112,3143-3146,3217-3226,3355-3357,3390-3392,3583-3585,3689-3695,3881-3884,3893-3895,3909-3912,3945-3947,3956-3958,4037-4039,4043-4045,4069-4071,4163-4166,4509-4513,4562-4565,4656-4658,4686-4689,4799-4801,4969-4975,4997-4999,5022-5024,5045-5048,5070-5072,5117-5119,5254-5256,5273-5275,5344-5346,5513-5515,5661-5687,5794-5801,7655-7656,7880-7885,8415-8418,8488-8494,8643-8644,8675-8703,8759-8778,8923-8924,8964-8965,9143-9144,9271-9284,9467-9470,9477-9478,9489-9492,9515-9516,9523-9524,9618-9619,9624-9630,9639-9642,9711-9712,10362-10366,10415-10416,10506-10507,10530-10531,10615-10616,10866-10879,10897-10898,10920-10921,10940-10954,11014-11015,11065-11066,11205-11208,11223-11226,11288-11289,11428-11429,11530-11553,11641-11647
+public-boundary.json
+  s_f1f3a292ebd900::t_20163476a3538f 8,62,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a9c33907d6acc3cc3faec33c34f2282148e8ce5e",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
