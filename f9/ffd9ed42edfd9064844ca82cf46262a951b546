@@ -1,0 +1,27 @@
+packages/sdk-web/__tests__/capture/tv-snapshot/allowlists.spec.ts
+  s_f1f3a292ebd900::t_cd27ed804ce445 1-89
+packages/sdk-web/__tests__/capture/tv-snapshot/leak-assert.ts
+  s_f1f3a292ebd900::t_ea74595e45bc27 1-43
+packages/sdk-web/__tests__/capture/tv-snapshot/url-sanitize.spec.ts
+  s_f1f3a292ebd900::t_316d58076e014c 1-101
+packages/sdk-web/src/capture/tv-snapshot/allowlists.ts
+  s_f1f3a292ebd900::t_2e00a8acbf2be5 1-162
+packages/sdk-web/src/capture/tv-snapshot/url-sanitize.ts
+  s_f1f3a292ebd900::t_ac3cee67b5e68d 1-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f9ffd9ed42edfd9064844ca82cf46262a951b546",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
