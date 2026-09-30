@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { scrubCssText, scrubInlineStyle, type CssScrubContext } from '../../../src/capture/tv-snapshot/css-scrub.js';
 import { findLeaks } from './leak-assert.js';
 
@@ -220,6 +220,108 @@ describe('linear on slow TV CPUs (~20k-char near-miss inputs, S18)', () => {
     ['deep nesting', () => scrubCssText(`${'@media all{'.repeat(N / 11)}`, masked)],
   ];
   it.each(cases)('%s', (_name, run) => {
+    const started = performance.now();
+    run();
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('fix round 1 — browser preprocessing, prototype keys, invalid declarations, escaping', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('ends strings at CR, CRLF and FF exactly as the browser does (CSS Syntax §3.3)', () => {
+    for (const nl of ['\r', '\r\n', '\f']) {
+      const sheet = scrubCssText(`#v::before{font-family:"x${nl};content:'Alice Smith';x:"}b{color:red}`, masked);
+      expect(findLeaks(sheet, PHRASE)).toEqual([]);
+      const inline = scrubInlineStyle(`font-family:"x${nl};--patient-name:Alice Smith;y:"`, masked);
+      expect(findLeaks(inline, PHRASE)).toEqual([]);
+      expect(inline).not.toContain('--patient-name');
+    }
+  });
+
+  it('maps NUL to U+FFFD before scanning', () => {
+    expect(scrubCssText('a{color:red}\u0000b{color:blue}', masked)).not.toContain('\u0000');
+  });
+
+  it('drops an unclosed string in every mode — re-emitted it would swallow the output after it', () => {
+    for (const ctx of [masked, open]) {
+      const out = scrubCssText('a{font-family:"x\n;content:\'Alice Smith\'}b{font-family:"y;content:\'SECRET\';z"}', ctx);
+      expect(out).not.toMatch(/font-family:"x/);
+      expect(scrubCssText('a[title="x\n]{color:red}b{color:blue}', ctx)).toBe('b{color:blue}');
+    }
+    expect(scrubCssText('@font-face{font-family:F;src:local("x\n)}', masked)).not.toContain('local');
+  });
+
+  it('drops a dangling backslash that would escape the scrubber\'s own `}`', () => {
+    expect(scrubCssText('a{color:red\\', open)).toBe('');
+    expect(scrubInlineStyle('color:red\\', open)).toBe('');
+  });
+
+  it('never reaches Object.prototype through an attribute-selector name', () => {
+    for (const name of ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty']) {
+      const sheet = `[${name}="x"]{color:red}[${name}=x]{color:red}b{color:blue}`;
+      expect(() => scrubCssText(sheet, masked)).not.toThrow();
+      expect(scrubCssText(sheet, masked)).toBe('b{color:blue}');
+    }
+  });
+
+  it('masked, no CSS.supports (name allowlist fallback): drops unknown properties, keeps known and prefixed ones', () => {
+    vi.stubGlobal('CSS', {});
+    expect(scrubInlineStyle('patient: Alice Smith; color: red; -webkit-box-flex: 1; -webkit-patient: Alice Smith', masked)).toBe(
+      'color:red;-webkit-box-flex:1',
+    );
+    expect(scrubCssText('a{patient:Alice Smith;width:1px}', masked)).toBe('a{width:1px}');
+    vi.stubGlobal('CSS', undefined);
+    expect(scrubInlineStyle('patient: Alice Smith; color: red', masked)).toBe('color:red');
+  });
+
+  it('masked, with CSS.supports: keeps only what the engine accepts, asked without !important', () => {
+    const calls: Array<[string, string]> = [];
+    const valid = new Map([['color', /^(?:red|blue)$/], ['width', /^\d+px$/]]);
+    vi.stubGlobal('CSS', {
+      supports: (p: string, v: string) => {
+        calls.push([p, v]);
+        return valid.get(p)?.test(v) ?? false;
+      },
+    });
+    expect(scrubInlineStyle('patient: Alice Smith; color: Alice Smith; color: red !important; width: 2px', masked)).toBe(
+      'color:red !important;width:2px',
+    );
+    expect(calls).toContainEqual(['color', 'red']);
+    // @font-face descriptors are not properties; they use their own allowlist.
+    expect(scrubCssText('@font-face{font-family:"F";src:url(https://f.example.test/f.woff2);patient:Alice Smith}', masked)).toBe(
+      '@font-face{font-family:"F";src:url("https://f.example.test/f.woff2")}',
+    );
+  });
+
+  it('falls back to the allowlist when CSS.supports throws', () => {
+    vi.stubGlobal('CSS', {
+      supports: () => {
+        throw new Error('boom');
+      },
+    });
+    expect(scrubInlineStyle('patient: Alice Smith; color: red', masked)).toBe('color:red');
+  });
+
+  it('unmasked pages keep unknown declarations (no masking there)', () => {
+    expect(scrubInlineStyle('patient: Alice; color: red', open)).toBe('patient:Alice;color:red');
+  });
+
+  it('escapes every control character in re-emitted URL strings', () => {
+    const out = scrubCssText('a{background:url("data:text/plain,a\\1 b\\7f c\\9 d")}', open);
+    // eslint-disable-next-line no-control-regex
+    expect(out).not.toMatch(/[\u0000-\u001f\u007f]/);
+    expect(out).toBe('a{background:url("data:text/plain,a\\1 b\\7f c\\9 d")}');
+  });
+
+  it.each([
+    ['CR runs', () => scrubCssText(`a{font-family:"${'\r'.repeat(20_000)}`, masked)],
+    ['FF-separated strings', () => scrubCssText(`a{font-family:${'"\f'.repeat(10_000)}}`, masked)],
+    ['many unknown declarations', () => scrubInlineStyle('patient:x;'.repeat(2_000), masked)],
+    ['dangling escapes', () => scrubCssText(`${'a\\\n'.repeat(6_000)}{color:red}`, masked)],
+  ])('stays linear: %s', (_name, run) => {
     const started = performance.now();
     run();
     expect(performance.now() - started).toBeLessThan(1000);

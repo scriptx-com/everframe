@@ -121,7 +121,8 @@ function startsIdent(s: string, i: number): boolean {
 
 // ── scanning primitives ────────────────────────────────────────────────────
 
-function skipString(s: string, i: number): number {
+/** s[i] is a quote → [end, closed]; an unclosed (bad) string ends at a newline or the input's end. */
+function scanString(s: string, i: number): [number, boolean] {
   const quote = s[i];
   let j = i + 1;
   while (j < s.length) {
@@ -130,11 +131,35 @@ function skipString(s: string, i: number): number {
       j += 2;
       continue;
     }
-    if (c === quote) return j + 1;
-    if (c === '\n') return j; // an unterminated (bad) string ends at the newline
+    if (c === quote) return [j + 1, true];
+    if (c === '\n') return [j, false];
     j++;
   }
-  return s.length;
+  return [s.length, false];
+}
+
+function skipString(s: string, i: number): number {
+  return scanString(s, i)[0];
+}
+
+/** Does `s` (already top-level-scanned text) hold only closed strings? */
+function stringsClosed(s: string): boolean {
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (c === '\\') {
+      i += 2;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      const [end, closed] = scanString(s, i);
+      if (!closed) return false;
+      i = end;
+      continue;
+    }
+    i++;
+  }
+  return true;
 }
 
 function skipComment(s: string, i: number): number {
@@ -231,8 +256,12 @@ function cssStringValue(literal: string): string {
   return unescape(body, true);
 }
 
+/** Quote-safe and control-free: `\\`, `"` and every C0/DEL char become escapes. */
 function escapeCssString(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\a ');
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[\\"\x00-\x1f\x7f]/g, (c) =>
+    c === '\\' || c === '"' ? `\\${c}` : `\\${c.charCodeAt(0).toString(16)} `,
+  );
 }
 
 /** The target inside `url( … )` — quoted or not — decoded. */
@@ -252,7 +281,7 @@ function sanitizeCssUrl(raw: string, ctx: CssScrubContext): string | null {
 
 // ── exception checks ──────────────────────────────────────────────────────
 
-const GRID_CELL_RE = /^(?:\.+|-?[_a-zA-Z\u0080-￿][-_a-zA-Z0-9\u0080-￿]*|--[-_a-zA-Z0-9\u0080-￿]*)$/;
+const GRID_CELL_RE = /^(?:\.+|-?[_a-zA-Z\u0080-\uFFFF][-_a-zA-Z0-9\u0080-\uFFFF]*|--[-_a-zA-Z0-9\u0080-\uFFFF]*)$/;
 
 function validGridAreaString(literal: string): boolean {
   if (literal.length > MAX_GRID_STRING_LENGTH) return false;
@@ -297,22 +326,29 @@ function allowedAttributeSelector(inner: string): boolean {
     while (isSpace(inner[i])) i++;
   }
   if (i < inner.length) return false;
-  const allowed = ARIA_STATE_VALUES[name];
-  return allowed !== undefined && allowed.has(value);
+  // Own keys only: `[constructor=x]` must not reach Object.prototype.
+  if (!Object.prototype.hasOwnProperty.call(ARIA_STATE_VALUES, name)) return false;
+  return ARIA_STATE_VALUES[name]!.has(value);
 }
 
 /** A selector (or a prelude's selector-bearing text); null → drop the rule. */
 function scrubSelector(selector: string, ctx: CssScrubContext): string | null {
-  if (!ctx.masked) return selector;
   let i = 0;
   while (i < selector.length) {
     const c = selector[i]!;
     if (c === '\\') {
+      if (!isValidEscape(selector, i)) return null; // would escape the `{` we emit next
       i += 2;
       continue;
     }
-    if (c === '"' || c === "'") return null;
-    if (c === '[') {
+    if (c === '"' || c === "'") {
+      // Masked: no strings. Open: an unclosed one would swallow the output after it.
+      const [end, closed] = scanString(selector, i);
+      if (ctx.masked || !closed) return null;
+      i = end;
+      continue;
+    }
+    if (c === '[' && ctx.masked) {
       const close = findTopLevel(selector, i + 1, ']');
       if (close >= selector.length || !allowedAttributeSelector(selector.slice(i + 1, close))) return null;
       i = close + 1;
@@ -360,22 +396,25 @@ function scrubImageSet(args: string, ctx: CssScrubContext): string | null {
 }
 
 /** A declaration value (or an at-rule prelude), or null when the whole thing must go. */
-function scrubValue(prop: string, value: string, ctx: CssScrubContext, fontFace: boolean): string | null {
+function scrubValue(prop: string, value: string, ctx: CssScrubContext, block: DeclarationBlock | null): string | null {
   const fontNames = prop === 'font-family' || prop === 'font';
   const gridAreas = prop === 'grid-template-areas' || prop === 'grid-template' || prop === 'grid';
-  const fontSrc = fontFace && prop === 'src';
+  const fontSrc = block === 'font-face' && prop === 'src';
   let out = '';
   let run = 0; // start of the not-yet-copied raw text
   let i = 0;
   while (i < value.length) {
     const c = value[i]!;
     if (c === '"' || c === "'") {
-      const end = skipString(value, i);
-      const literal = value.slice(i, end);
-      if (ctx.masked && !fontNames && !(gridAreas && validGridAreaString(literal))) return null;
+      // An unclosed string is invalid CSS, and re-emitted it would swallow (and
+      // re-tokenize) whatever the scrubber writes after it — drop it in every mode.
+      const [end, closed] = scanString(value, i);
+      if (!closed) return null;
+      if (ctx.masked && !fontNames && !(gridAreas && validGridAreaString(value.slice(i, end)))) return null;
       i = end;
       continue;
     }
+    if (c === '\\' && !isValidEscape(value, i)) return null; // would escape the `;`/`}` emitted next
     if (!startsIdent(value, i)) {
       i++;
       continue;
@@ -408,13 +447,119 @@ function scrubValue(prop: string, value: string, ctx: CssScrubContext, fontFace:
       continue;
     }
     if (fontSrc && lower === 'local') {
-      i = findTopLevel(value, j + 1, ')') + 1; // the font name, kept verbatim
+      const close = findTopLevel(value, j + 1, ')'); // the font name, kept verbatim
+      if (close >= value.length || !stringsClosed(value.slice(j + 1, close))) return null;
+      i = close + 1;
       continue;
     }
     if (ctx.masked && lower === 'attr') return null; // pulls page text into `content`
     i = j + 1; // any other function: keep scanning its arguments
   }
   return out + value.slice(run);
+}
+
+// ── declaration validity (masked pages) ───────────────────────────────────
+
+type DeclarationBlock = 'style' | 'font-face' | 'page' | 'counter-style';
+
+/** Descriptors of @font-face / @page, which `CSS.supports()` does not know. */
+const FONT_FACE_DESCRIPTORS = new Set(
+  (
+    'font-family src font-style font-weight font-stretch font-display unicode-range font-feature-settings ' +
+    'font-variation-settings font-named-instance ascent-override descent-override line-gap-override size-adjust'
+  ).split(' '),
+);
+const PAGE_DESCRIPTORS = new Set(['size', 'page-orientation', 'marks', 'bleed']);
+
+/**
+ * Fallback when `CSS.supports` is missing: standard property names (vendor
+ * prefixes stripped before the lookup). Names only — a stricter engine check
+ * is always preferred.
+ */
+const KNOWN_PROPERTIES = new Set(
+  (
+    'accent-color align-content align-items align-self all animation animation-composition animation-delay ' +
+    'animation-direction animation-duration animation-fill-mode animation-iteration-count animation-name ' +
+    'animation-play-state animation-timing-function appearance aspect-ratio backdrop-filter backface-visibility ' +
+    'background background-attachment background-blend-mode background-clip background-color background-image ' +
+    'background-origin background-position background-position-x background-position-y background-repeat ' +
+    'background-size block-size border border-block border-block-color border-block-end border-block-end-color ' +
+    'border-block-end-style border-block-end-width border-block-start border-block-start-color ' +
+    'border-block-start-style border-block-start-width border-block-style border-block-width border-bottom ' +
+    'border-bottom-color border-bottom-left-radius border-bottom-right-radius border-bottom-style ' +
+    'border-bottom-width border-collapse border-color border-end-end-radius border-end-start-radius border-image ' +
+    'border-image-outset border-image-repeat border-image-slice border-image-source border-image-width ' +
+    'border-inline border-inline-color border-inline-end border-inline-end-color border-inline-end-style ' +
+    'border-inline-end-width border-inline-start border-inline-start-color border-inline-start-style ' +
+    'border-inline-start-width border-inline-style border-inline-width border-left border-left-color ' +
+    'border-left-style border-left-width border-radius border-right border-right-color border-right-style ' +
+    'border-right-width border-spacing border-start-end-radius border-start-start-radius border-style border-top ' +
+    'border-top-color border-top-left-radius border-top-right-radius border-top-style border-top-width ' +
+    'border-width bottom box-decoration-break box-shadow box-sizing break-after break-before break-inside ' +
+    'caption-side caret-color clear clip clip-path clip-rule color color-interpolation color-interpolation-filters ' +
+    'color-scheme column-count column-fill column-gap column-rule column-rule-color column-rule-style ' +
+    'column-rule-width column-span column-width columns contain contain-intrinsic-size container ' +
+    'container-name container-type content content-visibility counter-increment counter-reset counter-set ' +
+    'cursor cx cy d direction display dominant-baseline empty-cells fill fill-opacity fill-rule filter flex ' +
+    'flex-basis flex-direction flex-flow flex-grow flex-shrink flex-wrap float flood-color flood-opacity font ' +
+    'font-family font-feature-settings font-kerning font-optical-sizing font-size font-size-adjust font-stretch ' +
+    'font-style font-synthesis font-variant font-variant-caps font-variant-east-asian font-variant-ligatures ' +
+    'font-variant-numeric font-variation-settings font-weight gap grid grid-area grid-auto-columns ' +
+    'grid-auto-flow grid-auto-rows grid-column grid-column-end grid-column-gap grid-column-start grid-gap ' +
+    'grid-row grid-row-end grid-row-gap grid-row-start grid-template grid-template-areas grid-template-columns ' +
+    'grid-template-rows height hyphens image-orientation image-rendering inline-size inset inset-block ' +
+    'inset-block-end inset-block-start inset-inline inset-inline-end inset-inline-start isolation ' +
+    'justify-content justify-items justify-self left letter-spacing lighting-color line-break line-clamp ' +
+    'line-height list-style list-style-image list-style-position list-style-type margin margin-block ' +
+    'margin-block-end margin-block-start margin-bottom margin-inline margin-inline-end margin-inline-start ' +
+    'margin-left margin-right margin-top marker marker-end marker-mid marker-start mask mask-clip mask-composite ' +
+    'mask-image mask-mode mask-origin mask-position mask-repeat mask-size mask-type max-block-size max-height ' +
+    'max-inline-size max-width min-block-size min-height min-inline-size min-width mix-blend-mode object-fit ' +
+    'object-position offset offset-distance offset-path offset-rotate opacity order orphans outline ' +
+    'outline-color outline-offset outline-style outline-width overflow overflow-anchor overflow-wrap ' +
+    'overflow-x overflow-y overscroll-behavior overscroll-behavior-x overscroll-behavior-y padding ' +
+    'padding-block padding-block-end padding-block-start padding-bottom padding-inline padding-inline-end ' +
+    'padding-inline-start padding-left padding-right padding-top page-break-after page-break-before ' +
+    'page-break-inside paint-order perspective perspective-origin place-content place-items place-self ' +
+    'pointer-events position quotes r resize right rotate row-gap rx ry scale scroll-behavior scroll-margin ' +
+    'scroll-padding scroll-snap-align scroll-snap-stop scroll-snap-type shape-image-threshold shape-margin ' +
+    'shape-outside shape-rendering stop-color stop-opacity stroke stroke-dasharray stroke-dashoffset ' +
+    'stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width tab-size table-layout ' +
+    'text-align text-align-last text-anchor text-combine-upright text-decoration text-decoration-color ' +
+    'text-decoration-line text-decoration-skip-ink text-decoration-style text-decoration-thickness ' +
+    'text-emphasis text-emphasis-color text-emphasis-position text-emphasis-style text-indent text-justify ' +
+    'text-orientation text-overflow text-rendering text-shadow text-size-adjust text-transform ' +
+    'text-underline-offset text-underline-position text-wrap top touch-action transform transform-box ' +
+    'transform-origin transform-style transition transition-behavior transition-delay transition-duration ' +
+    'transition-property transition-timing-function translate unicode-bidi user-select vector-effect ' +
+    'vertical-align visibility white-space widows width will-change word-break word-spacing word-wrap ' +
+    'writing-mode x y z-index zoom box-align box-flex box-orient box-pack font-smoothing tap-highlight-color ' +
+    'text-fill-color text-stroke text-stroke-color text-stroke-width osx-font-smoothing'
+  ).split(' '),
+);
+
+const VENDOR_PREFIX_RE = /^-(?:webkit|moz|ms|o)-/;
+
+type SupportsFn = (property: string, value: string) => boolean;
+
+function engineSupports(): SupportsFn | null {
+  const css = (globalThis as { CSS?: { supports?: unknown } }).CSS;
+  return css !== undefined && typeof css.supports === 'function' ? (css.supports as SupportsFn).bind(css) : null;
+}
+
+/** Would the browser accept `prop: value` here? (Masked pages keep only these.) */
+function isValidDeclaration(block: DeclarationBlock, prop: string, value: string): boolean {
+  if (block === 'font-face') return FONT_FACE_DESCRIPTORS.has(prop);
+  if (block === 'page' && PAGE_DESCRIPTORS.has(prop)) return true;
+  const supports = engineSupports();
+  if (supports !== null) {
+    try {
+      return supports(prop, value);
+    } catch {
+      // fall through to the name allowlist
+    }
+  }
+  return KNOWN_PROPERTIES.has(prop.replace(VENDOR_PREFIX_RE, ''));
 }
 
 /** `value !important` → [value, true]; a hand scan, not a regex over page text. */
@@ -428,7 +573,7 @@ function splitImportant(value: string): [string, boolean] {
 
 const PROPERTY_RE = /^-?[a-z_][-a-z0-9_]*$/;
 
-function scrubDeclarations(body: string, ctx: CssScrubContext, fontFace: boolean): string {
+function scrubDeclarations(body: string, ctx: CssScrubContext, block: DeclarationBlock): string {
   const out: string[] = [];
   let i = 0;
   while (i < body.length) {
@@ -448,9 +593,12 @@ function scrubDeclarations(body: string, ctx: CssScrubContext, fontFace: boolean
     const prop = custom ? rawProp : rawProp.toLowerCase();
     if (!custom && !PROPERTY_RE.test(prop)) continue;
     const [value, important] = splitImportant(declaration.slice(colon + 1).trim());
-    const clean = scrubValue(prop, value, ctx, fontFace);
-    if (clean === null || clean.trim() === '') continue;
-    out.push(`${prop}:${clean.trim()}${important ? ' !important' : ''}`);
+    const clean = scrubValue(prop, value, ctx, block)?.trim() ?? '';
+    if (clean === '') continue;
+    // Masked: an unknown or invalid declaration renders nothing but would carry
+    // its text verbatim (`patient: Alice Smith`), so only valid ones survive.
+    if (ctx.masked && !isValidDeclaration(block, prop, clean)) continue;
+    out.push(`${prop}:${clean}${important ? ' !important' : ''}`);
   }
   return out.join(';');
 }
@@ -463,7 +611,7 @@ function atName(prelude: string): string {
 
 /** An at-rule prelude: URLs sanitized, and on a masked page no strings or valued attribute selectors. */
 function scrubPrelude(prelude: string, ctx: CssScrubContext): string | null {
-  const value = scrubValue('', prelude, ctx, false);
+  const value = scrubValue('', prelude, ctx, null);
   return value === null ? null : scrubSelector(value, ctx);
 }
 
@@ -505,14 +653,14 @@ function scrubAtStatement(prelude: string, ctx: CssScrubContext): string {
 function scrubAtBlock(prelude: string, body: string, ctx: CssScrubContext, depth: number): string {
   const name = atName(prelude);
   if (name === 'font-face') {
-    const declarations = scrubDeclarations(body, ctx, true);
+    const declarations = scrubDeclarations(body, ctx, 'font-face');
     return declarations === '' ? '' : `@font-face{${declarations}}`;
   }
   // @document / @-moz-document preludes are URL matchers; masked @counter-style carries text.
   if (name === 'counter-style' && ctx.masked) return '';
   const cleanPrelude = scrubPrelude(prelude, ctx);
   if (cleanPrelude === null) return '';
-  if (name === 'page' || name === 'counter-style') return `${cleanPrelude}{${scrubDeclarations(body, ctx, false)}}`;
+  if (name === 'page' || name === 'counter-style') return `${cleanPrelude}{${scrubDeclarations(body, ctx, name)}}`;
   if (RULE_LIST_AT_RULES.has(name)) return `${cleanPrelude}{${scrubRuleList(body, ctx, depth + 1)}}`;
   return ''; // @document, @property, @font-feature-values, @font-palette-values, unknown
 }
@@ -549,18 +697,29 @@ function scrubRuleList(s: string, ctx: CssScrubContext, depth: number): string {
     }
     const selector = scrubSelector(prelude, ctx);
     if (selector === null) continue;
-    const declarations = scrubDeclarations(body, ctx, false);
+    const declarations = scrubDeclarations(body, ctx, 'style');
     if (declarations !== '') out += `${selector}{${declarations}}`;
   }
   return out;
 }
 
+/**
+ * CSS Syntax §3.3 input preprocessing, which the browser applies before it
+ * tokenizes: CR, CRLF and FF are newlines (they end a string), NUL is U+FFFD.
+ * Scanning the raw text instead would disagree with the browser about where
+ * a string ends.
+ */
+function preprocess(css: string): string {
+  // eslint-disable-next-line no-control-regex
+  return css.replace(/\r\n?|\f/g, '\n').replace(/\x00/g, '\uFFFD');
+}
+
 /** Stylesheet text (`_cssText`, `<style>` text). */
 export function scrubCssText(css: string, ctx: CssScrubContext): string {
-  return scrubRuleList(stripComments(css), ctx, 0);
+  return scrubRuleList(stripComments(preprocess(css)), ctx, 0);
 }
 
 /** A `style` attribute. */
 export function scrubInlineStyle(css: string, ctx: CssScrubContext): string {
-  return scrubDeclarations(stripComments(css), ctx, false);
+  return scrubDeclarations(stripComments(preprocess(css)), ctx, 'style');
 }
