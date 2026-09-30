@@ -34,7 +34,17 @@ export interface CssScrubContext {
   baseHref: string;
   /** Customer redaction rules; URL paths are pattern-redacted with them. */
   redaction?: RedactionEngineConfig | undefined;
+  /**
+   * Per-snapshot memo of declaration validity (`block|prop|value` → valid).
+   * A masked page asks the engine (`CSS.supports`) once per declaration, and
+   * TV pages repeat the same few declarations on every tile.
+   */
+  validity?: Map<string, boolean> | undefined;
 }
+
+/** Memo bounds: keys longer than this are not cached; the map stops growing at this size. */
+export const SCRUB_MEMO_MAX_KEY = 1024;
+export const SCRUB_MEMO_MAX_ENTRIES = 4096;
 
 /** Deeper at-rule nesting is dropped; real stylesheets nest a handful of levels. */
 const MAX_RULE_DEPTH = 32;
@@ -654,6 +664,17 @@ function isValidDeclaration(block: DeclarationBlock, prop: string, value: string
   return KNOWN_PROPERTIES.has(prop.replace(VENDOR_PREFIX_RE, ''));
 }
 
+function validDeclarationMemo(ctx: CssScrubContext, block: DeclarationBlock, prop: string, value: string): boolean {
+  const memo = ctx.validity;
+  const key = `${block}|${prop}|${value}`;
+  if (memo === undefined || key.length > SCRUB_MEMO_MAX_KEY) return isValidDeclaration(block, prop, value);
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit;
+  const valid = isValidDeclaration(block, prop, value);
+  if (memo.size < SCRUB_MEMO_MAX_ENTRIES) memo.set(key, valid);
+  return valid;
+}
+
 /** `value !important` → [value, true]; a hand scan, not a regex over page text. */
 function splitImportant(value: string): [string, boolean] {
   const t = trimEndWs(value);
@@ -689,7 +710,7 @@ function scrubDeclarations(body: string, ctx: CssScrubContext, block: Declaratio
     if (clean === '') continue;
     // Masked: an unknown or invalid declaration renders nothing but would carry
     // its text verbatim (`patient: Alice Smith`), so only valid ones survive.
-    if (ctx.masked && !isValidDeclaration(block, prop, clean)) continue;
+    if (ctx.masked && !validDeclarationMemo(ctx, block, prop, clean)) continue;
     out.push(`${prop}:${clean}${important ? ' !important' : ''}`);
   }
   return out.join(';');

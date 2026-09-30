@@ -10,7 +10,7 @@
 import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { MASK_PLACEHOLDER } from '../replay/mask-mapping.js';
 import { pageRedactionConfig, redactPageString, redactUrlPath } from './page-redact.js';
-import { scrubCssText, scrubInlineStyle, type CssScrubContext } from './css-scrub.js';
+import { SCRUB_MEMO_MAX_ENTRIES, SCRUB_MEMO_MAX_KEY, scrubCssText, scrubInlineStyle, type CssScrubContext } from './css-scrub.js';
 import { fragmentId, isDataUrl, sanitizeHttpUrl, sanitizeSrcset } from './url-sanitize.js';
 import { isAllowedSvgAttr, isAriaStateValue } from './allowlists.js';
 import {
@@ -39,6 +39,34 @@ const LINK_TAGS = new Set(['a', 'area']);
 
 // ── attributes ─────────────────────────────────────────────────────────────
 
+// ── per-snapshot memo ──────────────────────────────────────────────────────
+//
+// One scrub runs under one context, so a raw string fully determines its
+// scrubbed result: TV pages repeat the same inline styles, class lists, labels
+// and asset URLs on every tile, and on a Chrome 53 TV the scrub was the
+// largest share of the synchronous snapshot block. Results are memoized per
+// snapshot (never across snapshots), bounded in key length and entry count.
+interface ScrubMemo {
+  style: Map<string, string>;
+  text: Map<string, string>;
+  url: Map<string, string | null>;
+}
+
+let memoEnabled = true;
+
+/** Test seam: run the scrub without memoization (the pre-memo baseline). */
+export function __setScrubMemoForTests(on: boolean): void {
+  memoEnabled = on;
+}
+
+function memoized<T>(map: Map<string, T> | null, key: string, compute: () => T): T {
+  if (map === null || key.length > SCRUB_MEMO_MAX_KEY) return compute();
+  if (map.has(key)) return map.get(key) as T;
+  const value = compute();
+  if (map.size < SCRUB_MEMO_MAX_ENTRIES) map.set(key, value);
+  return value;
+}
+
 function sanitizeDomUrl(value: string, ctx: SnapshotScrubContext, config: RedactionEngineConfig): string | null {
   const id = fragmentId(value);
   if (id !== null) return ctx.retainedIds.has(id) ? `#${id}` : null;
@@ -49,7 +77,7 @@ function sanitizeDomUrl(value: string, ctx: SnapshotScrubContext, config: Redact
   return clean === null ? null : redactUrlPath(clean, config);
 }
 
-function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: RedactionEngineConfig): void {
+function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: RedactionEngineConfig, memo: ScrubMemo | null): void {
   const tag = node.tagName.toLowerCase();
   const next: Record<string, SnAttributeValue> = {};
   for (const key of Object.keys(node.attributes)) {
@@ -66,7 +94,7 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
     }
     if (lower === 'style') {
       if (typeof value === 'string') {
-        const style = scrubInlineStyle(value, ctx);
+        const style = memoized(memo?.style ?? null, value, () => scrubInlineStyle(value, ctx));
         if (style !== '') next[key] = style;
       }
       continue;
@@ -83,7 +111,8 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
       continue;
     }
     if (URL_ATTRS.has(lower)) {
-      const url = sanitizeDomUrl(String(value), ctx, config);
+      const raw = String(value);
+      const url = memoized(memo?.url ?? null, raw, () => sanitizeDomUrl(raw, ctx, config));
       if (url !== null) next[key] = url;
       else if (lower === 'href' && LINK_TAGS.has(tag)) next[key] = '#'; // keeps :link styling, carries nothing
       continue;
@@ -97,7 +126,7 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
       continue;
     }
     if (BASE_ATTRS.has(lower)) {
-      next[key] = typeof value === 'string' ? redactPageString(value, config) : value;
+      next[key] = typeof value === 'string' ? memoized(memo?.text ?? null, value, () => redactPageString(value, config)) : value;
     }
     // Everything else — title, alt, placeholder, aria-label, out-of-set ARIA
     // values, data-*, on*, rr_media*, rr_src, rr_width… — is dropped.
@@ -176,7 +205,12 @@ function survivingIds(ids: ReadonlySet<string>, config: RedactionEngineConfig): 
 /** Scrub a serialized snapshot tree in place. Iterative: page-controlled depth never grows the stack. */
 export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void {
   const config = pageRedactionConfig(ctx.redaction);
-  const scrubCtx: SnapshotScrubContext = { ...ctx, retainedIds: survivingIds(ctx.retainedIds, config) };
+  const memo: ScrubMemo | null = memoEnabled ? { style: new Map(), text: new Map(), url: new Map() } : null;
+  const scrubCtx: SnapshotScrubContext = {
+    ...ctx,
+    retainedIds: survivingIds(ctx.retainedIds, config),
+    validity: memoEnabled ? new Map() : undefined,
+  };
   const stack: Array<{ node: SnNode; parentTag: string | null }> = [{ node: root, parentTag: null }];
   for (let item = stack.pop(); item !== undefined; item = stack.pop()) {
     const { node, parentTag } = item;
@@ -187,7 +221,7 @@ export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void
           ? ''
           : parentTag === 'style' || node.isStyle === true
             ? scrubCssText(node.textContent, scrubCtx)
-            : redactPageString(node.textContent, config);
+            : memoized(memo?.text ?? null, node.textContent, () => redactPageString(node.textContent, config));
       continue;
     }
     if (node.type === SN_DOCTYPE) {
@@ -199,7 +233,7 @@ export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void
       continue;
     }
     if (node.type === SN_ELEMENT) {
-      scrubElement(node, scrubCtx, config);
+      scrubElement(node, scrubCtx, config, memo);
       const tag = node.tagName.toLowerCase();
       for (const child of node.childNodes) stack.push({ node: child, parentTag: tag });
       continue;
