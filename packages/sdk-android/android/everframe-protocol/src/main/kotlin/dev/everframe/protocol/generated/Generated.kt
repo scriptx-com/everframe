@@ -475,6 +475,7 @@ enum class Name(val value: String) {
     @SerialName("everframe-ios") EverframeIos("everframe-ios"),
     @SerialName("everframe-react") EverframeReact("everframe-react"),
     @SerialName("everframe-react-native") EverframeReactNative("everframe-react-native"),
+    @SerialName("everframe-roku") EverframeRoku("everframe-roku"),
     @SerialName("everframe-web") EverframeWeb("everframe-web");
 }
 
@@ -486,6 +487,7 @@ enum class Platform(val value: String) {
     @SerialName("android") Android("android"),
     @SerialName("androidtv") Androidtv("androidtv"),
     @SerialName("ios") Ios("ios"),
+    @SerialName("roku") Roku("roku"),
     @SerialName("tizen") Tizen("tizen"),
     @SerialName("tvos") Tvos("tvos"),
     @SerialName("web") Web("web"),

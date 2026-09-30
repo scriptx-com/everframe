@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<component name="HomeScene" extends="Scene">
+  <interface>
+    <field id="title" type="string" onChange="OnTitle" />
+    <function name="refresh" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/HomeScene.brs" />
+</component>

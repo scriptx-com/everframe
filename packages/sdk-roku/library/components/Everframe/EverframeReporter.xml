@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<component name="EverframeReporter" extends="Task">
+  <interface>
+    <field id="config" type="assocarray" />
+    <field id="flush" type="boolean" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/Everframe/EverframeReporter.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_version.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_util.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_fingerprint.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_frames.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_record.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_queue.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_screen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_exitinfo.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_envelope.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_multipart.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_drain.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_memory.brs" />
+</component>

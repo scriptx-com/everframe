@@ -1,0 +1,10 @@
+[beacon.signal] |AppLaunchInitiate ---------> TimeBase(0 ms)
+[beacon.signal] |AppCompileComplete --------> Duration(412 ms)
+'Dot' Operator attempted with invalid BrightScript Component or interface reference. (runtime error &hec) in pkg:/components/HomeScene.brs(42)
+Backtrace:
+#1  Function onkeyevent(key As String, press As Boolean) As Boolean
+   file/line: pkg:/components/HomeScene.brs(42)
+#0  Function init() As Void
+   file/line: pkg:/components/HomeScene.brs(10)
+Local Variables:
+key              roString (2.1 was String) refcnt=1 val:"OK"

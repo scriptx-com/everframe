@@ -42,6 +42,7 @@ export const ReportEnvelope = z
           'everframe-react-native',
           'everframe-ios',
           'everframe-android',
+          'everframe-roku',
         ]),
         version: z.string(),
         platform: SDKPlatform,

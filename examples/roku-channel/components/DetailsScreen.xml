@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!-- Row 10. Its name matches the default screens pattern *Screen, so the
+     instrumented init() sets the current screen by itself. -->
+<component name="DetailsScreen" extends="Group">
+  <children>
+    <Rectangle width="900" height="640" translation="[120,220]" color="0x1E1E28FF" />
+    <Label id="label" translation="[160,260]" width="820" wrap="true" font="font:MediumSystemFont" text="Details screen — press ✱/options to crash, Back to return" />
+  </children>
+  <script type="text/brightscript" uri="pkg:/components/DetailsScreen.brs" />
+</component>
