@@ -4,8 +4,6 @@
 // Device-harness-only prelude for Chrome 53 (webOS 4) / Chrome 79 (webOS 6).
 // A consumer's bundler normally supplies these; the harness bundles its own.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { sha256 } from '@noble/hashes/sha2';
-
 const g: any = typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : window;
 if (typeof (g as any).globalThis === 'undefined') (g as any).globalThis = g;
 if (!Object.entries) (Object as any).entries = (o: any) => Object.keys(o).map((k) => [k, o[k]]);
@@ -19,19 +17,3 @@ if (!(Element.prototype as any).append) (Element.prototype as any).append = func
 if (!(Node.prototype as any).getRootNode) (Node.prototype as any).getRootNode = function (this: Node) { let n: Node = this; while (n.parentNode) n = n.parentNode; return n; };
 if (typeof (g as any).queueMicrotask !== 'function') (g as any).queueMicrotask = (f: () => void) => Promise.resolve().then(f);
 
-// NOT a bundler polyfill: the hosted-shell app loads this page from
-// http://<LAN IP>, an insecure context, where `crypto.subtle` is undefined and
-// the SDK's image hashing (capture/sha256.ts) throws — every shot, snapshot or
-// on-device, then ends `screenshot_unavailable`. A production TV app is
-// served from file:// or https, both secure. The harness reports
-// `isSecureContext` with every result so a shimmed run is never mistaken for
-// a plain one.
-if (typeof crypto !== 'undefined' && crypto.subtle === undefined) {
-  Object.defineProperty(crypto, 'subtle', { configurable: true, value: {
-    digest: (algorithm: string, data: ArrayBuffer | ArrayBufferView): Promise<ArrayBuffer> => {
-      if (algorithm !== 'SHA-256') return Promise.reject(new Error(`harness shim: ${algorithm} unsupported`));
-      const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-      return Promise.resolve(sha256(bytes).buffer as ArrayBuffer);
-    },
-  } });
-}

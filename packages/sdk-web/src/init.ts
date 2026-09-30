@@ -41,6 +41,7 @@ import { setupVitals, trackPlayer, trackVitals } from './vitals/index.js';
 import type { PlayerHandle, TrackPlayerOptions } from './vitals/index.js';
 import { createScreenRecorder, type ScreenRecorder } from './breadcrumbs/record-screen.js';
 import { INGEST_URL } from './constants.js';
+import { sha256HexOfBytes } from './capture/sha256.js';
 import { createHostElement } from './mount/host-element.js';
 import { createAmbientUI } from './mount/ambient.js';
 // TYPE-ONLY, and it must stay that way. `verbatimModuleSyntax` erases an
@@ -151,12 +152,9 @@ const TOAST_KILLED = 'Reporting is turned off — this report was not sent.';
  * must produce byte-identical envelopes.
  */
 async function sha256OfBytes(bytes: Uint8Array): Promise<string> {
-  // Copy into a fresh ArrayBuffer-backed view so the digest input is a plain
-  // BufferSource (avoids SharedArrayBuffer-typed slice unions under strict TS).
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  const digest = await crypto.subtle.digest('SHA-256', copy);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  // Web Crypto with a pure-JS fallback: `crypto.subtle` is absent on insecure
+  // (plain-http) pages, which smart-TV apps often are.
+  return sha256HexOfBytes(bytes);
 }
 
 /**

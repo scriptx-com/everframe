@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-export { sha256Hex } from './sha256.js';
+export { sha256Hex, sha256BytesHex } from './sha256.js';
 export { computeCrashFingerprint } from './fingerprint.js';
 export { extractCrashFacts } from './extract.js';
 export type { CrashFacts } from './extract.js';

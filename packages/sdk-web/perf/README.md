@@ -212,9 +212,9 @@ render round trip and the server's `X-Everframe-Render-Meta` (`render`),
 must always be `[]`.
 
 The hosted shell loads the page from `http://<LAN IP>`, an insecure context
-with no `crypto.subtle`; `polyfills.ts` shims `crypto.subtle.digest` there so
-the SDK's image hashing works, and every result reports `secureContext`. The
-posters are SVGs the harness server generates (`/posters/1.svg`…`4.svg`). The
+with no `crypto.subtle`, which is exactly how many hosted TV apps run; the SDK
+hashes shots with its pure-JS SHA-256 there, and every result reports
+`secureContext`. The posters are SVGs the harness server generates (`/posters/1.svg`…`4.svg`). The
 render service fetches page assets only from public addresses, so a server
 render of this LAN-hosted page lists the posters and the webfont in
 `missingAssetUrls` and falls back to its installed fonts; the TV's own capture
