@@ -57,8 +57,12 @@ export function captureFocusedNode(): FocusedNode | null {
   // Cursor — when the element has a getBoundingClientRect, take its top-left as the
   // cursor anchor for AI-readable spatial context.
   if (typeof el.getBoundingClientRect === 'function') {
+    // left/top, not x/y: Chrome < 61 (webOS 4 = Chrome 53) returns a ClientRect
+    // without x/y, and a NaN cursor fails ingest's schema (400, report lost).
     const r = el.getBoundingClientRect();
-    fn.cursor = { x: r.x, y: r.y };
+    const x = typeof r.left === 'number' ? r.left : r.x;
+    const y = typeof r.top === 'number' ? r.top : r.y;
+    if (Number.isFinite(x) && Number.isFinite(y)) fn.cursor = { x, y };
   }
   return fn;
 }
