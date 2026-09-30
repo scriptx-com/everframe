@@ -14,6 +14,17 @@ export { UINode, UITree } from './ui-tree.js';
 export { FocusedNode } from './focus.js';
 export { AttachmentRef, AttachmentKind, ReplayFormat } from './attachments.js';
 export { MAX_REPORT_SHOTS, MAX_INGEST_FILE_PARTS } from './limits.js';
+export {
+  DOM_SNAPSHOT_VERSION, DOM_SNAPSHOT_PART, DOM_SNAPSHOT_CONTENT_TYPE,
+  MAX_DOM_SNAPSHOT_COMPRESSED_BYTES, MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES,
+  MAX_DOM_SNAPSHOT_NODES, MAX_RENDER_VIEWPORT_EDGE,
+  RenderPlatform, RenderViewport, RenderFontStatus, DomSnapshotMedia, DomSnapshotFonts,
+  DomSnapshotContext, DomSnapshotMetaEvent, DomSnapshotFullSnapshotEvent, DomSnapshotV1,
+  CaptureControlRender,
+  parseDomSnapshot, countDomSnapshotNodes, domSnapshotPartName, parseDomSnapshotPartName,
+  readCaptureControlRender,
+} from './dom-snapshot.js';
+export type { ParseDomSnapshotResult } from './dom-snapshot.js';
 export { Breadcrumb, BreadcrumbKind, BreadcrumbLevel } from './breadcrumb.js';
 // PROTO-03 relay control-frame schema — namespaced to avoid collisions with
 // envelope-side names (e.g. ReportAssembled, ReportSubmit are relay-specific
