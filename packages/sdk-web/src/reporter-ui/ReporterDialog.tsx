@@ -34,13 +34,19 @@ import { AreaCaptureOverlay } from './AreaCaptureOverlay.js';
 import { cropBlob } from './crop-blob.js';
 import { Watermark } from './Watermark.js';
 import { sha256Hex } from '../capture/sha256.js';
-import { DEGRADED_REASONS } from '../internal/degraded-reasons.js';
+import {
+  captureShotVia,
+  isShotReason,
+  strongestShotReason,
+  type ShotCapture,
+} from '../capture/shot-capture.js';
+import { assembleDialogShots, reportScreenshotFrom, type ReportScreenshot } from './dialog-shots.js';
 import {
   __getBrandingServerConfig,
   __subscribeBrandingServerConfig,
 } from '../branding/server-config.js';
 import type { WebPlatformAdapter } from '../adapter.js';
-import type { CaptureBundle, BundleScreenshot } from '../transport/draft-to-envelope.js';
+import type { CaptureBundle } from '../transport/draft-to-envelope.js';
 
 /**
  * Ratio the capture ACTUALLY ran at, derived from the shot itself: captures
@@ -137,47 +143,18 @@ interface DialogCaptureState {
   degradedReason: string | undefined;
 }
 
-const SCREENSHOT_REASONS: ReadonlySet<string> = new Set([
-  DEGRADED_REASONS.screenshot_failed,
-  DEGRADED_REASONS.screenshot_blank,
-]);
-
-/** The adapter's degraded reason when it describes the screenshot just taken. */
-function screenshotReason(reason: string | undefined): string | undefined {
-  return reason !== undefined && SCREENSHOT_REASONS.has(reason) ? reason : undefined;
-}
-
 /**
  * The single captureControl.degradedReason a report ships, derived at SUBMIT
  * time from the shots still in the strip — so an added blank shot flags the
- * report, and deleting a flagged shot drops its flag. A failed shot outranks
- * a blank one; with neither, the open-time non-shot reason stands.
+ * report, and deleting a flagged shot drops its flag. Strongest retained shot
+ * reason wins (failed > unavailable > render_failed > blank); with none, the
+ * open-time non-shot reason stands.
  */
 export function submittedDegradedReason(
   shots: ReadonlyArray<{ degradedReason?: string | undefined }>,
   baseReason: string | undefined,
 ): string | undefined {
-  if (shots.some((s) => s.degradedReason === DEGRADED_REASONS.screenshot_failed)) {
-    return DEGRADED_REASONS.screenshot_failed;
-  }
-  if (shots.some((s) => s.degradedReason === DEGRADED_REASONS.screenshot_blank)) {
-    return DEGRADED_REASONS.screenshot_blank;
-  }
-  return baseReason;
-}
-
-/** Per-shot capture state Tasks 7/9 build on — one entry per screenshot in the strip. */
-interface ReportScreenshot {
-  id: string;
-  blob: Blob;
-  sha256: string;
-  width: number;
-  height: number;
-  pixelRatio: number;
-  annotations: Annotation[];
-  source: 'auto' | 'manual';
-  /** screenshot_blank / screenshot_failed reported for THIS shot when it was captured. */
-  degradedReason?: string | undefined;
+  return strongestShotReason(shots.map((s) => s.degradedReason)) ?? baseReason;
 }
 
 /**
@@ -279,7 +256,11 @@ export function ReporterDialog({
       }
     })();
     void (async () => {
-      const screenshot = await adapter.captureScreenshot().catch(() => null);
+      // The ONE capture allowed to take the adapter's smart-TV pre-capture
+      // (the snapshot taken before this dialog appeared).
+      const shot = await captureShotVia(adapter, { consumePreCapture: true }).catch(
+        (): ShotCapture | null => null,
+      );
       // The clone has sampled the DOM; the host page's focus no longer needs
       // protecting. Released before the (cancelled) bail-out below so an open
       // that is torn down mid-capture cannot strand the hold.
@@ -309,33 +290,26 @@ export function ReporterDialog({
       // Read off the RESULT, not adapter.__lastDegradedReason: that getter is
       // shared, and an overlapping capture resets it before this one's caller
       // gets to read it.
-      const openReason: string | undefined = screenshot?.degradedReason;
+      const openReason: string | undefined = shot?.degradedReason;
+      const hasShot = shot !== null && (shot.image !== undefined || shot.snapshot !== undefined);
       // A screenshot reason travels with the shot it describes; everything
-      // else (or a screenshot reason with no shot to carry it) stays here.
-      const shotReason = screenshot ? screenshotReason(openReason) : undefined;
+      // else (or a screenshot reason with no shot to carry it — the
+      // unavailable outcome) stays on the bundle.
+      const shotReason = hasShot && isShotReason(openReason) ? openReason : undefined;
       setBundle({
-        screenshot,
+        screenshot: shot?.image ?? null,
         logs,
         network,
         metadata,
         focused,
         degradedReason: shotReason !== undefined ? undefined : openReason,
       });
-      if (screenshot) {
+      if (hasShot) {
         const id = 'shot-1';
-        setScreenshots([
-          {
-            id,
-            blob: screenshot.blob,
-            sha256: screenshot.sha256,
-            width: screenshot.width,
-            height: screenshot.height,
-            pixelRatio: effectiveCaptureRatio(screenshot.width, metadata?.pixelRatio ?? 1),
-            annotations: [],
-            source: 'auto',
-            ...(shotReason !== undefined ? { degradedReason: shotReason } : {}),
-          },
-        ]);
+        const ratio = shot.image
+          ? effectiveCaptureRatio(shot.image.width, metadata?.pixelRatio ?? 1)
+          : 1;
+        setScreenshots([reportScreenshotFrom(id, shot, 'auto', false, ratio)]);
         setActiveShotId(id);
       }
     })();
@@ -398,57 +372,24 @@ export function ReporterDialog({
     // ships. Threaded through `ReporterCompletePayload.capturedUser`.
     const capturedUser = adapter.__captureUserAtSubmitBoundary();
     const capturedIdentityToken = await adapter.__captureIdentityAtSubmitBoundary();
-    // Per-shot pipeline: bake annotations into each shot's bytes, re-hash,
-    // and tag the structured annotations/redactions with the part name the
-    // shot will ship under (audit trail — receiver maps marks to images).
-    interface TaggedAnnotation extends Record<string, unknown> {
-      partName: string;
-    }
-    const bundleShots: BundleScreenshot[] = [];
-    const taggedAnnotations: TaggedAnnotation[] = [];
-    const taggedRedactions: TaggedAnnotation[] = [];
-    for (let i = 0; i < screenshots.length; i++) {
-      const shot = screenshots[i]!;
-      const annotated = shot.annotations.length > 0;
-      const kind = annotated ? 'annotated-screenshot' : 'screenshot';
-      const partName = i === 0 ? kind : `${kind}-${i + 1}`;
-      let blob = shot.blob;
-      let sha = shot.sha256;
-      if (annotated) {
-        try {
-          blob = await bakeAnnotations(shot.blob, shot.annotations);
-        } catch {
-          // DEFE-02 — never block submit on a bake failure; ship unmodified bytes.
-        }
-        try {
-          sha = await sha256Hex(blob);
-        } catch {
-          // DEFE-02 — fall back to the pre-bake sha; receiver flags integrity,
-          // report still ships.
-        }
-      }
-      bundleShots.push({ blob, sha256: sha, width: shot.width, height: shot.height, annotated });
-      for (const a of shot.annotations) {
-        taggedAnnotations.push({ ...a, partName });
-        if (a.kind === 'blur') {
-          taggedRedactions.push({
-            x: a.x,
-            y: a.y,
-            width: a.width,
-            height: a.height,
-            type: 'blur',
-            partName,
-          });
-        }
-      }
-    }
-    const primaryShot = bundleShots[0] ?? null;
+    // Per-shot pipeline (dialog-shots.ts): bake annotations into each shot's
+    // bytes, re-hash, number every image and snapshot from its final strip
+    // position, keep a snapshot only for an unredacted shot, and tag the
+    // structured annotations/redactions with the part name the shot will
+    // ship under (audit trail — receiver maps marks to images).
+    const { bundleShots, domSnapshots, taggedAnnotations, taggedRedactions, render } =
+      await assembleDialogShots(screenshots, bakeAnnotations);
+    // The legacy single-shot fields describe shot 1 only — never a later
+    // shot standing in for a snapshot-only shot 1.
+    const primaryShot = bundleShots.find((s) => s.shotNumber === 1) ?? null;
     const captureBundle: CaptureBundle = {
       screenshotBlob: primaryShot?.blob ?? null,
       screenshotSha256: primaryShot?.sha256 ?? null,
       screenshotWidth: primaryShot?.width ?? 0,
       screenshotHeight: primaryShot?.height ?? 0,
       ...(bundleShots.length > 0 ? { screenshots: bundleShots } : {}),
+      ...(domSnapshots.length > 0 ? { domSnapshots } : {}),
+      ...(render !== undefined ? { render } : {}),
       focused: bundle?.focused ?? null,
       logs: bundle?.logs ?? [],
       network: bundle?.network ?? [],
@@ -503,41 +444,39 @@ export function ReporterDialog({
       // window.devicePixelRatio: capture-profile.ts caps the render ratio on
       // TV/desktop, and scaling a selection by the uncapped DPR crops the
       // wrong region (codex round-2 finding 2).
-      const shot = await adapter.captureScreenshot();
+      //
+      // Always a FRESH capture — never the adapter's smart-TV pre-capture.
       // Per-result reason (see the open-time capture): never the shared getter.
-      const shotReason = screenshotReason(shot.degradedReason);
-      const dpr = effectiveCaptureRatio(shot.width);
-      let blob = shot.blob;
-      let width = shot.width;
-      let height = shot.height;
-      let sha256 = shot.sha256;
+      const shot = await captureShotVia(adapter);
+      const id = `shot-${screenshots.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
+      if (shot.image === undefined) {
+        // A snapshot cannot be cropped, and an area-selected shot must never
+        // carry one — only a full-view selection may add a snapshot-only shot.
+        if (rect !== null || shot.snapshot === undefined) throw new Error('no_image');
+        setScreenshots((prev) => [...prev, reportScreenshotFrom(id, shot, 'manual', false, 1)]);
+        setActiveShotId(id);
+        return;
+      }
+      const image = shot.image;
+      const dpr = effectiveCaptureRatio(image.width);
+      // areaSelected=true drops the capture's snapshot (it is the whole page).
+      let entry = reportScreenshotFrom(id, shot, 'manual', rect !== null, dpr);
       if (rect) {
-        const cropped = await cropBlob(blob, {
+        const cropped = await cropBlob(image.blob, {
           x: rect.x * dpr,
           y: rect.y * dpr,
           width: rect.width * dpr,
           height: rect.height * dpr,
         });
-        blob = cropped.blob;
-        width = cropped.width;
-        height = cropped.height;
-        sha256 = await sha256Hex(blob);
+        entry = {
+          ...entry,
+          blob: cropped.blob,
+          width: cropped.width,
+          height: cropped.height,
+          sha256: await sha256Hex(cropped.blob),
+        };
       }
-      const id = `shot-${screenshots.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
-      setScreenshots((prev) => [
-        ...prev,
-        {
-          id,
-          blob,
-          sha256,
-          width,
-          height,
-          pixelRatio: dpr,
-          annotations: [],
-          source: 'manual',
-          ...(shotReason !== undefined ? { degradedReason: shotReason } : {}),
-        },
-      ]);
+      setScreenshots((prev) => [...prev, entry]);
       setActiveShotId(id);
     } catch {
       // DEFE-02 — a failed add never blocks the report; nothing is added.
@@ -634,7 +573,7 @@ export function ReporterDialog({
             />
           </div>
           <div className="everframe-composer-media">
-            {activeShot ? (
+            {activeShot && activeShot.blob !== null ? (
               <AnnotateScreenshot
                 key={activeShot.id}
                 imageBlob={activeShot.blob}
@@ -642,6 +581,14 @@ export function ReporterDialog({
                 onChange={setActiveAnnotations}
                 pixelRatio={activeShot.pixelRatio}
               />
+            ) : activeShot ? (
+              <div data-testid="snapshot-only-shot" className="everframe-snapshot-only">
+                <strong>Rendered from page snapshot</strong>
+                <span>
+                  This screenshot can&apos;t be annotated. The page snapshot is attached to your
+                  report instead.
+                </span>
+              </div>
             ) : bundle ? (
               <NoticeStrip>
                 Couldn&apos;t capture a screenshot. The rest of your report will still be sent.

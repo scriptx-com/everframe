@@ -74,7 +74,7 @@ import {
 import { INGEST_URL } from './constants.js';
 import { captureScreenshot, applyMaskRectsToBlob, type ScreenshotRenderer } from './capture/screenshot.js';
 import { isTvUserAgent } from './capture/capture-profile.js';
-import { imageShot, type ShotCapture } from './capture/shot-capture.js';
+import { imageShot, type ShotCapture, type ShotCaptureOptions } from './capture/shot-capture.js';
 import type { DegradedReason } from './internal/degraded-reasons.js';
 import { installConsolePatcher } from './capture/logs.js';
 import {
@@ -223,8 +223,9 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * result — image, DOM snapshot, both, or neither (`screenshot_unavailable`).
    * Rejects after `kill()`. Optional: ReporterDialog is public and hand-wired
    * companion hosts implement this seam themselves (see captureShotVia).
+   * `consumePreCapture` is for the in-app dialog's open-time capture only.
    */
-  __captureShot?(): Promise<ShotCapture>;
+  __captureShot?(options?: ShotCaptureOptions): Promise<ShotCapture>;
   /** True when this client captures shots through the server render path. */
   __tvSnapshotPathActive?(): boolean;
   /**
@@ -1811,19 +1812,27 @@ export function createWebPlatformAdapter(
       }
       return;
     }
+    const ownership = reportingOwnership;
     const started = startTvShot();
     const shot = tvShot(started);
     // Observed here so a pre-capture nobody consumes (dialog cancelled,
     // kill()) never surfaces as an unhandled rejection; the consumer still
     // sees the original promise and its outcome.
     shot.catch(() => undefined);
-    tvPreCapture = { at: Date.now(), shot };
+    const pre = { at: Date.now(), shot };
+    tvPreCapture = pre;
     const snapshotted = started.then((s) => s.snapshotted, () => undefined);
     const ceiling = new Promise<void>((resolve) => setTimeout(resolve, TV_PRE_CAPTURE_OPEN_CEILING_MS));
     void Promise.race([snapshotted, ceiling]).then(() => {
       // kill() while the snapshot was being taken: the reporter stays shut,
-      // exactly as `__openReporter` refuses to open on a killed client.
-      if (reportingKilled) return;
+      // exactly as `__openReporter` refuses to open on a killed client. The
+      // generation, not just the flag: a kill() + revive in that window
+      // leaves `reportingKilled` false, but this open belonged to the
+      // previous owner.
+      if (reportingKilled || reportingOwnership !== ownership) {
+        if (tvPreCapture === pre) tvPreCapture = null;
+        return;
+      }
       try {
         showModal();
       } catch {
@@ -1866,7 +1875,7 @@ export function createWebPlatformAdapter(
       }
       return captureMasked();
     },
-    __captureShot: (): Promise<ShotCapture> => {
+    __captureShot: (options?: ShotCaptureOptions): Promise<ShotCapture> => {
       // Same kill gate (and the same rejection) as captureScreenshot — it
       // also refuses a pre-capture taken before kill().
       if (reportingKilled) {
@@ -1874,9 +1883,14 @@ export function createWebPlatformAdapter(
           new Error('Everframe: capture is disabled — kill() was called on this client.'),
         );
       }
-      const pre = tvPreCapture;
-      tvPreCapture = null;
-      if (pre !== null && Date.now() - pre.at < TV_PRE_CAPTURE_TTL_MS) return pre.shot;
+      // The pre-capture belongs to the dialog open that took it: only that
+      // dialog's open-time capture may consume it. An added shot or a
+      // companion capture is always fresh (and leaves the slot alone).
+      if (options?.consumePreCapture === true) {
+        const pre = tvPreCapture;
+        tvPreCapture = null;
+        if (pre !== null && Date.now() - pre.at < TV_PRE_CAPTURE_TTL_MS) return pre.shot;
+      }
       if (tvSnapshotPathActive()) return tvShot();
       return captureMasked().then(imageShot);
     },
@@ -1982,6 +1996,12 @@ export function createWebPlatformAdapter(
       drainCallback = cb;
     },
     __resolveReporterUI: (draft: ReportDraft | null): void => {
+      // The dialog is done (submitted or cancelled — both hosts call this on
+      // either outcome, synchronously with the dialog closing): an unconsumed
+      // smart-TV pre-capture must never be handed to a later open. Not in
+      // `__resolveOpen`, which a submit settles only after its network send
+      // and could otherwise clear the NEXT open's pre-capture.
+      tvPreCapture = null;
       const r = pendingResolve;
       pendingResolve = undefined;
       try {

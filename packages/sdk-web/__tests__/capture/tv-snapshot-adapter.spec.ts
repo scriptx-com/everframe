@@ -173,8 +173,72 @@ describe("smart-TV snapshot gate", () => {
     expect(showModal).not.toHaveBeenCalled();
     snapshotTaken();
     await vi.waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    await expect(adapter.__captureShot!()).resolves.toEqual({ image: IMAGE });
+    await expect(
+      adapter.__captureShot!({ consumePreCapture: true })
+    ).resolves.toEqual({ image: IMAGE });
     expect(captureTvShot).toHaveBeenCalledTimes(1);
+  });
+
+  it("never hands the pre-capture to a capture that did not ask for it (add-a-shot, companion)", async () => {
+    const pre = { image: IMAGE, degradedReason: "screenshot_blank" };
+    const fresh = { image: IMAGE };
+    vi.mocked(captureTvShot)
+      .mockReturnValueOnce({ snapshotted: Promise.resolve(), shot: Promise.resolve(pre) })
+      .mockReturnValue({ snapshotted: Promise.resolve(), shot: Promise.resolve(fresh) });
+    const { adapter } = await adapterFor({ ua: WEBOS_UA, screenshotRender: true });
+    const showModal = vi.fn();
+    adapter.__registerShowModal(showModal);
+    void adapter.__openReporter();
+    await vi.waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
+    await expect(adapter.__captureShot!()).resolves.toBe(fresh);
+    // ...and the dialog's own open-time capture still gets it.
+    await expect(
+      adapter.__captureShot!({ consumePreCapture: true })
+    ).resolves.toBe(pre);
+  });
+
+  it("clears the pre-capture when the dialog is cancelled, so a capture within 30 s is fresh", async () => {
+    const pre = { image: IMAGE, degradedReason: "screenshot_blank" };
+    const fresh = { image: IMAGE };
+    vi.mocked(captureTvShot)
+      .mockReturnValueOnce({ snapshotted: Promise.resolve(), shot: Promise.resolve(pre) })
+      .mockReturnValue({ snapshotted: Promise.resolve(), shot: Promise.resolve(fresh) });
+    const { adapter } = await adapterFor({ ua: WEBOS_UA, screenshotRender: true });
+    const showModal = vi.fn();
+    adapter.__registerShowModal(showModal);
+    const opened = adapter.__openReporter();
+    await vi.waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
+    // The dialog is cancelled before its open-time capture consumed the slot.
+    adapter.__resolveReporterUI(null);
+    adapter.__resolveOpen({ status: "cancelled" });
+    await opened;
+    await expect(
+      adapter.__captureShot!({ consumePreCapture: true })
+    ).resolves.toBe(fresh);
+    expect(captureTvShot).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not open the reporter when reporting ownership changed while the snapshot was being taken", async () => {
+    let snapshotTaken!: () => void;
+    const snapshotted = new Promise<void>((resolve) => {
+      snapshotTaken = resolve;
+    });
+    vi.mocked(captureTvShot).mockReturnValue({
+      snapshotted,
+      shot: Promise.resolve({ image: IMAGE }),
+    });
+    const { adapter, client } = await adapterFor({ ua: WEBOS_UA, screenshotRender: true });
+    const showModal = vi.fn();
+    adapter.__registerShowModal(showModal);
+    void adapter.__openReporter();
+    await new Promise((r) => setTimeout(r, 0));
+    // kill() then a revive: `reportingKilled` is false again, but this open
+    // belongs to the previous owner.
+    client.kill();
+    adapter.__rebindCrumbHooks();
+    snapshotTaken();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(showModal).not.toHaveBeenCalled();
   });
 
   it("opens anyway at the 3 s ceiling when the snapshot never reports back", async () => {
@@ -208,7 +272,9 @@ describe("smart-TV snapshot gate", () => {
     adapter.__registerShowModal(() => {});
     void adapter.__openReporter();
     client.kill();
-    await expect(adapter.__captureShot!()).rejects.toThrow(/kill\(\)/);
+    await expect(
+      adapter.__captureShot!({ consumePreCapture: true })
+    ).rejects.toThrow(/kill\(\)/);
   });
   it("does not open the reporter when kill() lands while the snapshot is being taken", async () => {
     let snapshotTaken!: () => void;
@@ -254,7 +320,9 @@ describe("smart-TV snapshot gate", () => {
     await vi.waitFor(() => expect(captureTvShot).toHaveBeenCalledTimes(1));
     client.kill();
     adapter.__rebindCrumbHooks();
-    await expect(adapter.__captureShot!()).resolves.toBe(fresh);
+    await expect(
+      adapter.__captureShot!({ consumePreCapture: true })
+    ).resolves.toBe(fresh);
     expect(captureTvShot).toHaveBeenCalledTimes(2);
   });
 });

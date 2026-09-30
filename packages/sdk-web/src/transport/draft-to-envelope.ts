@@ -276,12 +276,21 @@ export function draftToEnvelope(
         ]
       : []);
   if (includesScreenshot) {
+    // Duplicate guard: a shot number carries at most one image and one
+    // snapshot. Ingest rejects a repeated part name (losing the whole report),
+    // and `screenshot-2` + `annotated-screenshot-2` would be two images for
+    // one shot — so a repeat is dropped and the FIRST entry wins.
+    const imageShots = new Set<number>();
+    const snapshotShots = new Set<number>();
     shots.forEach((s, i) => {
       const kind: 'screenshot' | 'annotated-screenshot' = s.annotated
         ? 'annotated-screenshot'
         : 'screenshot';
       // Carried explicitly so an image-less shot (TV snapshot path) keeps numbering.
-      const name = shotPartName(kind, s.shotNumber ?? i + 1);
+      const shotNumber = s.shotNumber ?? i + 1;
+      if (imageShots.has(shotNumber)) return;
+      imageShots.add(shotNumber);
+      const name = shotPartName(kind, shotNumber);
       attachments.push({ name, blob: s.blob, sha256: s.sha256, kind });
       attachmentRefs.push({
         partName: name,
@@ -294,6 +303,8 @@ export function draftToEnvelope(
       });
     });
     for (const snap of bundle.domSnapshots ?? []) {
+      if (snapshotShots.has(snap.shotNumber)) continue;
+      snapshotShots.add(snap.shotNumber);
       const name = shotPartName('dom-snapshot', snap.shotNumber);
       attachments.push({
         name,

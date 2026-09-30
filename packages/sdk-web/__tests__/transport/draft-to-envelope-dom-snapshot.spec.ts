@@ -64,6 +64,20 @@ describe('draftToEnvelope — dom-snapshot parts', () => {
     expect(attachments.map((a) => a.name)).toEqual(['screenshot']);
   });
 
+  it('never ships two parts for one shot number (duplicate guard: first wins)', () => {
+    const { envelope, attachments } = draftToEnvelope(draft, bundle({
+      screenshots: [
+        { blob: png(), sha256: 'c'.repeat(64), width: 5, height: 5, annotated: false, shotNumber: 1 },
+        { blob: png(), sha256: 'd'.repeat(64), width: 5, height: 5, annotated: true, shotNumber: 1 },
+        { blob: png(), sha256: 'f'.repeat(64), width: 5, height: 5, annotated: false, shotNumber: 1 },
+      ],
+      domSnapshots: [{ shotNumber: 2, ...SNAP }, { shotNumber: 2, ...SNAP, sha256: '9'.repeat(64) }],
+    }), config, '0.0.0');
+    expect(attachments.map((a) => [a.name, a.sha256[0]])).toEqual([['screenshot', 'c'], ['dom-snapshot-2', 'b']]);
+    expect(envelope.attachments.map((a) => a.partName)).toEqual(['screenshot', 'dom-snapshot-2']);
+    expect(() => ReportEnvelope.parse(envelope)).not.toThrow();
+  });
+
   it('shotPartName is the one formula for every kind', () => {
     expect(shotPartName('screenshot', 1)).toBe('screenshot');
     expect(shotPartName('annotated-screenshot', 2)).toBe('annotated-screenshot-2');

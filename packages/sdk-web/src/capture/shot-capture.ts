@@ -35,9 +35,18 @@ export function imageShot(image: ScreenshotResult): ShotCapture {
   return image.degradedReason !== undefined ? { image, degradedReason: image.degradedReason } : { image };
 }
 
+export interface ShotCaptureOptions {
+  /**
+   * Hand out the smart-TV pre-capture taken as the reporter opened. ONLY the
+   * in-app dialog's open-time capture sets this; every other capture (an
+   * added shot, the companion) must be fresh, never a shot of an earlier open.
+   */
+  consumePreCapture?: boolean;
+}
+
 interface ShotCapableAdapter {
   captureScreenshot(): Promise<ScreenshotResult>;
-  __captureShot?: () => Promise<ShotCapture>;
+  __captureShot?: (options?: ShotCaptureOptions) => Promise<ShotCapture>;
 }
 
 /**
@@ -45,10 +54,12 @@ interface ShotCapableAdapter {
  * predate `__captureShot` — `ReporterDialog` is public and hand-wired hosts
  * implement the companion seam themselves.
  */
-export function captureShotVia(adapter: ShotCapableAdapter): Promise<ShotCapture> {
-  return typeof adapter.__captureShot === 'function'
-    ? adapter.__captureShot()
-    : adapter.captureScreenshot().then(imageShot);
+export function captureShotVia(
+  adapter: ShotCapableAdapter,
+  options?: ShotCaptureOptions,
+): Promise<ShotCapture> {
+  if (typeof adapter.__captureShot !== 'function') return adapter.captureScreenshot().then(imageShot);
+  return options === undefined ? adapter.__captureShot() : adapter.__captureShot(options);
 }
 
 /** Strongest first: failed > unavailable > render_failed > blank. */

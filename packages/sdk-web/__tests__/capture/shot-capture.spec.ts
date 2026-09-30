@@ -31,6 +31,8 @@ describe('shot-capture contract', () => {
     const shot = { snapshot: { bytes: new Uint8Array([1]), sha256: 'b'.repeat(64), byteLength: 1 } };
     const modern = { captureScreenshot: vi.fn(), __captureShot: vi.fn(async () => shot) };
     await expect(captureShotVia(modern)).resolves.toBe(shot);
+    await captureShotVia(modern, { consumePreCapture: true });
+    expect(modern.__captureShot.mock.calls).toEqual([[], [{ consumePreCapture: true }]]);
     expect(modern.captureScreenshot).not.toHaveBeenCalled();
     const legacy = { captureScreenshot: vi.fn(async () => image) };
     await expect(captureShotVia(legacy)).resolves.toEqual({ image });
