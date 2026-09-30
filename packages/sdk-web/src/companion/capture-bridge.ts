@@ -9,9 +9,13 @@
 //   report.request →
 //     1. text  : `report.assembled` { mime, size, toggles, counts }
 //     2. binary: screenshot bytes (WebP @ 0.85 when re-encoding succeeds, else PNG)
+//     — or, with no image (smart-TV snapshot path), ONE image-less
+//     `report.assembled` { outcome: snapshot|unavailable, size: 0 } and no
+//     binary; with that path off, ONE `report.failed`. Never silence.
 //   report.submit →
 //     1. text  : `report.submit` { title, description, annotations, includes }
-//     2. binary: baked (annotated) screenshot bytes
+//     2. binary: baked (annotated) screenshot bytes — absent when
+//        `primary_shot.has_image` is false
 //   TV then assembles an envelope, submits to ingest, and replies:
 //     text   : `report.completed` { event_id } | `report.failed` { reason }
 //
@@ -24,13 +28,7 @@
 import { readBlobArrayBuffer } from '../internal/blob.js';
 
 import type { z } from 'zod';
-import type { FocusedNode } from '@everframe/protocol';
-import type {
-  LogEntry,
-  NetworkEntry,
-  DeviceMetadata,
-  ReportDraft,
-} from '@everframe/sdk-core';
+import type { ReportDraft } from '@everframe/sdk-core';
 import { captureScreenshot } from '../capture/screenshot.js';
 import { getCaptureProfile } from '../capture/capture-profile.js';
 import { sha256Hex } from '../capture/sha256.js';
@@ -53,10 +51,18 @@ import {
   type ShotStash,
   type StashedShotCapture,
 } from './shot-stash.js';
+import {
+  decodeImageBlob,
+  reportCompleted,
+  reportFailed,
+  safe,
+  sniffImageMime,
+  type StashedCapture,
+} from './bridge-helpers.js';
+import { captureShotVia, type ShotCapture } from '../capture/shot-capture.js';
+import { DEGRADED_REASONS } from '../internal/degraded-reasons.js';
 
 type ReportAssembled = z.infer<typeof relay.ReportAssembled>;
-type ReportCompleted = z.infer<typeof relay.ReportCompleted>;
-type ReportFailed = z.infer<typeof relay.ReportFailed>;
 
 /** Structural shape of `captureScreenshot` / `adapter.captureScreenshot`. */
 interface ScreenshotResult {
@@ -78,17 +84,7 @@ export interface ReportCounts {
 
 // ─── companion submit state ──────────────────────────────────────────────
 //
-// Capture taken at report.request time, stashed by correlation_id so the
-// later report.submit can build a complete envelope (logs/network/metadata
-// are NOT re-sent by the phone — only the baked screenshot is).
-interface StashedCapture {
-  logs: LogEntry[];
-  network: NetworkEntry[];
-  metadata: DeviceMetadata | null;
-  focused: FocusedNode | null;
-  screenshotWidth: number;
-  screenshotHeight: number;
-}
+// The report.request capture, stashed by correlation_id (see StashedCapture).
 const requestStash = new Map<string, StashedCapture>();
 
 // Single in-flight submit (the relay state machine is one report at a time).
@@ -120,11 +116,21 @@ export function __resetCompanionSubmitFramingForTests(): void {
   resetSubmitFraming();
 }
 
-/** All frames of the submit present: text, primary binary, every shots[] part. */
+/** Does this submit announce a primary binary? Absent primary_shot = legacy phone = yes. */
+function expectsPrimaryBinary(msg: ReportSubmit): boolean {
+  return msg.primary_shot?.has_image !== false;
+}
+
+/** Extra shots whose baked image will follow (absent has_image = legacy = yes). */
+function announcedImageShots(msg: ReportSubmit): string[] {
+  return (msg.shots ?? []).filter((s) => s.has_image !== false).map((s) => s.shot_id);
+}
+
+/** Every DECLARED frame of the submit present — the device waits only for binaries that will come. */
 function submitComplete(): boolean {
-  if (pendingSubmitMsg === null || pendingBakedBytes === null) return false;
-  const shots = (pendingSubmitMsg as { shots?: Array<{ shot_id: string }> }).shots ?? [];
-  return shots.every((s) => pendingShotParts.has(s.shot_id));
+  if (pendingSubmitMsg === null) return false;
+  if (expectsPrimaryBinary(pendingSubmitMsg) && pendingBakedBytes === null) return false;
+  return announcedImageShots(pendingSubmitMsg).every((id) => pendingShotParts.has(id));
 }
 
 /**
@@ -185,15 +191,18 @@ export async function handleCompanionReportRequest(
     /* swallow */
   }
 
-  const screenshot = await adapter.captureScreenshot().catch(() => null);
+  // Always a FRESH shot: no `consumePreCapture`. The TV pre-capture belongs to
+  // the in-app dialog open that took it — handing it to the phone would ship
+  // a screen from an earlier (possibly cancelled) open.
+  const shot = await captureShotVia(adapter).catch((): ShotCapture | null => null);
   // Codex round-3 finding 4 (P1) — re-checked AFTER the capture await. The
   // entry gate above (and the seam gate that now precedes it) both ran before
   // a screenshot that takes seconds on TV silicon; a `kill()` landing inside
   // that window still stashed the bundle and shipped the pixels to the phone.
   //
   // ANSWERED, not dropped: going silent here would strand the phone in
-  // "capturing…" until its correlation timed out. `adapter.captureScreenshot`
-  // now rejects once killed, so in practice `screenshot` is already null on
+  // "capturing…" until its correlation timed out. The adapter's captures
+  // reject once killed, so in practice `shot` is already null on
   // this path — but the reply is what the phone needs, and the two other
   // captures below (logs/network) resolve to empty rather than throwing.
   //
@@ -221,20 +230,27 @@ export async function handleCompanionReportRequest(
     network,
     metadata,
     focused,
-    screenshotWidth: screenshot?.width ?? 0,
-    screenshotHeight: screenshot?.height ?? 0,
+    screenshotWidth: shot?.image?.width ?? 0,
+    screenshotHeight: shot?.image?.height ?? 0,
+    primary: shot,
   });
 
-  if (!screenshot) return; // nothing to ship; submit will degrade gracefully
-  await shipCapture(correlationId, ws, screenshot, ticket, {
+  const counts: ReportCounts = {
     logs: logs.length,
     network: network.length,
     // Tap-to-identify is gone: no tree is captured, so the count is always 0.
-    // The field itself stays REQUIRED in the relay schema so a legacy phone
-    // still parses the frame.
+    // The field stays REQUIRED in the relay schema so a legacy phone parses it.
     uiTreeNodes: 0,
     breadcrumbs: host.adapter.__getBreadcrumbBuffer?.()?.size ?? 0,
-  });
+  };
+  if (shot?.image !== undefined) {
+    await shipCapture(correlationId, ws, shot.image, ticket, counts, shot.degradedReason);
+    return;
+  }
+  // Every capture request gets EXACTLY ONE completion (spec §Capture
+  // contract). This used to `return` silently, stranding the phone in
+  // "capturing…" until its correlation timed out.
+  shipImageless(correlationId, ws, ticket, counts, shot, host.adapter.__tvSnapshotPathActive?.() === true);
 }
 
 /**
@@ -281,6 +297,8 @@ async function shipCapture(
   /** The seam identity its caller began under — see `handleCompanionReportRequest`. */
   ticket: CompanionSeamTicket | undefined,
   counts: ReportCounts,
+  /** The shot's degraded reason (e.g. screenshot_blank), echoed to the phone. */
+  degradedReason?: string,
 ): Promise<void> {
   // Codex round-3 finding 4 (P1) — THE pixel-emit choke point for both
   // `report.request` paths. Each of them awaits a capture before reaching
@@ -312,28 +330,65 @@ async function shipCapture(
     correlation_id: correlationId,
     mime: screenshotMime,
     size: screenshotBuf.byteLength,
-    toggles: {
-      logs: true,
-      network: true,
-      // No UI tree is captured on any producer any more — both natives send
-      // `false` here too. The field stays REQUIRED in the relay schema so a
-      // legacy phone still parses the frame, but it must report the truth:
-      // a `true` here would have the phone echo it back in `includes`, and
-      // an artifact that cannot exist has no business claiming it was on.
-      uiTree: false,
-      metadata: true,
-      screenshot: true,
-    },
-    counts: {
-      logs: counts.logs,
-      network: counts.network,
-      uiTreeNodes: counts.uiTreeNodes,
-      ...(counts.breadcrumbs !== undefined ? { breadcrumbs: counts.breadcrumbs } : {}),
-    },
+    toggles: IMAGE_TOGGLES,
+    counts: countsFrame(counts),
+    ...(degradedReason !== undefined ? { degraded_reason: degradedReason } : {}),
   };
 
   ws.send(assembled);
   ws.sendBinary(screenshotBuf);
+}
+
+// No UI tree is captured on any producer any more — both natives send `false`
+// here too. The field stays REQUIRED in the relay schema so a legacy phone
+// still parses the frame, but it must report the truth: a `true` here would
+// have the phone echo it back in `includes`, and an artifact that cannot exist
+// has no business claiming it was on.
+const IMAGE_TOGGLES = { logs: true, network: true, uiTree: false, metadata: true, screenshot: true } as const;
+
+function countsFrame(counts: ReportCounts): ReportAssembled['counts'] {
+  return {
+    logs: counts.logs,
+    network: counts.network,
+    uiTreeNodes: counts.uiTreeNodes,
+    ...(counts.breadcrumbs !== undefined ? { breadcrumbs: counts.breadcrumbs } : {}),
+  };
+}
+
+/**
+ * The image-less completions. Sent only when the server path is on: the relay
+ * validates every frame with the pinned protocol and 4006-closes on a shape it
+ * does not know, and `screenshotRender` is only switched on once the relay
+ * knows these shapes (rollout ruling). With it off, the phone gets the one
+ * completion every old relay and phone understand: report.failed.
+ */
+function shipImageless(
+  correlationId: string,
+  ws: RelayWSClient,
+  ticket: CompanionSeamTicket | undefined,
+  counts: ReportCounts,
+  shot: ShotCapture | null,
+  imagelessSupported: boolean,
+): void {
+  if (__isCompanionKilled(ticket)) return;
+  if (!imagelessSupported) {
+    ws.send(reportFailed(correlationId, DEGRADED_REASONS.screenshot_unavailable));
+    return;
+  }
+  const reason = shot?.degradedReason ?? DEGRADED_REASONS.screenshot_unavailable;
+  const snapshot = shot?.snapshot;
+  const assembled: ReportAssembled = {
+    type: 'report.assembled',
+    correlation_id: correlationId,
+    mime: 'image/webp', // required by the schema; meaningless without bytes
+    size: 0,
+    toggles: IMAGE_TOGGLES,
+    counts: countsFrame(counts),
+    ...(snapshot !== undefined
+      ? { outcome: 'snapshot' as const, degraded_reason: reason, snapshot: { byte_length: snapshot.byteLength, sha256: snapshot.sha256 } }
+      : { outcome: 'unavailable' as const, degraded_reason: DEGRADED_REASONS.screenshot_unavailable }),
+  };
+  ws.send(assembled);
 }
 
 /**
@@ -365,11 +420,11 @@ export function handleCompanionShotBinaryMarker(msg: {
   correlation_id: string;
   shot_id: string;
 }): void {
-  const pending = pendingSubmitMsg as
-    | { correlation_id: string; shots?: Array<{ shot_id: string }> }
-    | null;
+  const pending: ReportSubmit | null = pendingSubmitMsg;
   if (pending === null || pending.correlation_id !== msg.correlation_id) return;
-  if (!(pending.shots ?? []).some((s) => s.shot_id === msg.shot_id)) return;
+  // Only a shot whose baked image was announced: a has_image:false shot has
+  // no binary coming, so a marker for it must not claim the next frame.
+  if (!announcedImageShots(pending).includes(msg.shot_id)) return;
   pendingShotBinding = { correlationId: msg.correlation_id, shotId: msg.shot_id };
 }
 
@@ -401,7 +456,8 @@ function maybeRunSubmit(
 ): void {
   if (!submitComplete()) return;
   const msg = pendingSubmitMsg!;
-  const bytes = pendingBakedBytes!;
+  // An image-less primary (primary_shot.has_image === false) has no binary.
+  const bytes = expectsPrimaryBinary(msg) ? pendingBakedBytes : null;
   const shotParts = new Map(pendingShotParts);
   resetSubmitFraming();
   void runCompanionSubmit(msg, bytes, shotParts, ws, host, companion);
@@ -409,7 +465,7 @@ function maybeRunSubmit(
 
 async function runCompanionSubmit(
   msg: ReportSubmit,
-  bakedBytes: ArrayBuffer,
+  bakedBytes: ArrayBuffer | null,
   shotParts: Map<string, ArrayBuffer>,
   ws: RelayWSClient,
   host: CompanionHost | null,
@@ -471,9 +527,9 @@ async function runCompanionSubmit(
     const attributionToken = ws.getCompanionAttribution?.() ?? null;
 
     const stashed = requestStash.get(msg.correlation_id) ?? null;
-    const mime = sniffImageMime(bakedBytes);
-    const screenshotBlob = new Blob([bakedBytes], { type: mime });
-    const screenshotSha256 = await sha256Hex(screenshotBlob);
+    const screenshotBlob =
+      bakedBytes !== null ? new Blob([bakedBytes], { type: sniffImageMime(bakedBytes) }) : null;
+    const screenshotSha256 = screenshotBlob !== null ? await sha256Hex(screenshotBlob) : null;
 
     // includes → excludedArtifacts (inverse). `metadata` is always carried via
     // the envelope's `device` block, so it has no excludedArtifacts token;
@@ -509,9 +565,12 @@ async function runCompanionSubmit(
     // may have cropped the primary before submit, so request-time
     // full-screen dims can be wrong (review round 3, finding 4). Decode
     // with the stashed dims as the degraded fallback (DEFE-02).
-    const primaryDims = await decodeImageBlob(screenshotBlob, 300)
-      .then((img) => ({ w: img.naturalWidth, h: img.naturalHeight }))
-      .catch(() => ({ w: stashed?.screenshotWidth ?? 0, h: stashed?.screenshotHeight ?? 0 }));
+    const primaryDims =
+      screenshotBlob === null
+        ? { w: 0, h: 0 }
+        : await decodeImageBlob(screenshotBlob, 300)
+            .then((img) => ({ w: img.naturalWidth, h: img.naturalHeight }))
+            .catch(() => ({ w: stashed?.screenshotWidth ?? 0, h: stashed?.screenshotHeight ?? 0 }));
 
     const bundle: CaptureBundle = {
       screenshotBlob,
@@ -549,14 +608,20 @@ async function runCompanionSubmit(
           annotated: (s.annotations?.length ?? 0) > 0,
         });
       }
+      // Interim (Task 14 rebuilds this): an image-less primary contributes
+      // no screenshot entry.
       bundle.screenshots = [
-        {
-          blob: screenshotBlob,
-          sha256: screenshotSha256,
-          width: primaryDims.w,
-          height: primaryDims.h,
-          annotated: msg.annotations.length > 0,
-        },
+        ...(screenshotBlob !== null && screenshotSha256 !== null
+          ? [
+              {
+                blob: screenshotBlob,
+                sha256: screenshotSha256,
+                width: primaryDims.w,
+                height: primaryDims.h,
+                annotated: msg.annotations.length > 0,
+              },
+            ]
+          : []),
         ...extras,
       ];
     }
@@ -648,30 +713,35 @@ async function runCompanionSubmit(
     // DEFE-02 — never let a submit-path throw escape; always answer the phone.
     ws.send(reportFailed(msg.correlation_id, 'ingest_error'));
   } finally {
-    requestStash.delete(msg.correlation_id);
-    if (activeRequestCorrelation === msg.correlation_id) activeRequestCorrelation = null;
-    // The report is over either way — a lingering preview loop or a stash of
-    // full-res captures must not outlive it (round 1, finding 6). Scoped to
-    // THIS report's correlation: a slow ingest for c1 settling after the
-    // phone re-bonded and opened c2 must not tear down c2's session
-    // (round 2, finding 4).
-    if (activePreviewCorrelation === msg.correlation_id) {
-      activePreview?.stopSilently();
-      activePreview = null;
-      activePreviewCorrelation = null;
-    }
-    if (activeShotStash?.correlationId === msg.correlation_id) {
-      activeShotStash.stash.clear();
-      activeShotStash = null;
-    }
-    // Return the TV to Paired so its host UI clears the "report in progress"
-    // indicator (the TV sends report.completed/failed, so the inbound-frame
-    // path in ws-client never fires for its own report) — unless a NEWER
-    // report is already mid-flight (its request stash or submit framing is
-    // live), whose 'report_in_progress' this stale finally must not stomp.
-    if (requestStash.size === 0 && pendingSubmitMsg === null) {
-      companion.__setState('paired');
-    }
+    settleCompanionSubmit(msg.correlation_id, companion);
+  }
+}
+
+/** End-of-report teardown shared by every submit outcome (was runCompanionSubmit's finally). */
+export function settleCompanionSubmit(correlationId: string, companion: CompanionAPI): void {
+  requestStash.delete(correlationId);
+  if (activeRequestCorrelation === correlationId) activeRequestCorrelation = null;
+  // The report is over either way — a lingering preview loop or a stash of
+  // full-res captures must not outlive it (round 1, finding 6). Scoped to
+  // THIS report's correlation: a slow ingest for c1 settling after the
+  // phone re-bonded and opened c2 must not tear down c2's session
+  // (round 2, finding 4).
+  if (activePreviewCorrelation === correlationId) {
+    activePreview?.stopSilently();
+    activePreview = null;
+    activePreviewCorrelation = null;
+  }
+  if (activeShotStash?.correlationId === correlationId) {
+    activeShotStash.stash.clear();
+    activeShotStash = null;
+  }
+  // Return the TV to Paired so its host UI clears the "report in progress"
+  // indicator (the TV sends report.completed/failed, so the inbound-frame
+  // path in ws-client never fires for its own report) — unless a NEWER
+  // report is already mid-flight (its request stash or submit framing is
+  // live), whose 'report_in_progress' this stale finally must not stomp.
+  if (requestStash.size === 0 && pendingSubmitMsg === null) {
+    companion.__setState('paired');
   }
 }
 
@@ -890,14 +960,25 @@ async function capturePreviewFrame(host: CompanionHost): Promise<PreviewFrameCap
   return { bytes: await readBlobArrayBuffer(jpeg), width, height };
 }
 
-/** Adapter screenshot at full resolution, shipped as-is (masking included). */
+/**
+ * A full-res shot for the stash, shipped as-is (masking included). Always
+ * fresh — never the dialog's pre-capture. No image (TV path render failed /
+ * unavailable) → shot.failed with the degraded reason.
+ */
 async function captureShotFull(host: CompanionHost): Promise<StashedShotCapture> {
-  const shot = await host.adapter.captureScreenshot();
+  const shot = await captureShotVia(host.adapter);
+  if (shot.image === undefined) throw new Error(shot.degradedReason ?? DEGRADED_REASONS.screenshot_unavailable);
+  const image = shot.image;
   const mime: StashedShotCapture['mime'] =
-    shot.blob.type === 'image/webp' || shot.blob.type === 'image/jpeg'
-      ? shot.blob.type
-      : 'image/png';
-  return { bytes: await readBlobArrayBuffer(shot.blob), mime, width: shot.width, height: shot.height };
+    image.blob.type === 'image/webp' || image.blob.type === 'image/jpeg' ? image.blob.type : 'image/png';
+  return {
+    bytes: await readBlobArrayBuffer(image.blob),
+    mime,
+    width: image.width,
+    height: image.height,
+    ...(shot.snapshot !== undefined ? { snapshot: shot.snapshot } : {}),
+    ...(shot.degradedReason !== undefined ? { degradedReason: shot.degradedReason } : {}),
+  };
 }
 
 /** Canvas crop of a stashed full-res capture. WebP when available, else PNG. */
@@ -928,32 +1009,6 @@ async function cropShotCapture(
     width: w,
     height: h,
   };
-}
-
-/**
- * Decode a Blob into an HTMLImageElement, bounded (see reencodeToWebP's
- * rationale). Capture paths keep the default budget; BEST-EFFORT callers
- * (attachment dims, where the fallback is perfectly serviceable) pass a
- * short one so a degraded engine can't stall every submit by the full
- * timeout.
- */
-async function decodeImageBlob(blob: Blob, timeoutMs = 1_000): Promise<HTMLImageElement> {
-  const url = URL.createObjectURL(blob);
-  try {
-    return await Promise.race([
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const el = new Image();
-        el.onload = () => resolve(el);
-        el.onerror = () => reject(new Error('image-decode-failed'));
-        el.src = url;
-      }),
-      new Promise<HTMLImageElement>((_, reject) =>
-        setTimeout(() => reject(new Error('image-decode-timeout')), timeoutMs),
-      ),
-    ]);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }
 
 /**
@@ -1004,14 +1059,6 @@ export function handleReportSubmit(_msg: ReportSubmit): Promise<void> {
   return Promise.resolve();
 }
 
-function reportCompleted(correlationId: string, eventId: string): ReportCompleted {
-  return { type: 'report.completed', correlation_id: correlationId, event_id: eventId };
-}
-
-function reportFailed(correlationId: string, reason: string): ReportFailed {
-  return { type: 'report.failed', correlation_id: correlationId, reason };
-}
-
 /**
  * Wrap `fetch` so the ingest POST `submitReportFromDraft` performs carries
  * the `X-Everframe-Companion-Attribution` header (spec 2026-08-07). Returns the
@@ -1035,29 +1082,6 @@ function withCompanionAttribution(
     headers.set('X-Everframe-Companion-Attribution', token);
     return base(input, { ...init, headers });
   }) as typeof fetch;
-}
-
-/** Run a sync capture, swallowing throws (DEFE-02) and returning a fallback. */
-function safe<T>(fn: () => T, fallback: T): T {
-  try {
-    return fn();
-  } catch {
-    return fallback;
-  }
-}
-
-/** Sniff the image MIME from the baked bytes (the binary frame carries no type). */
-function sniffImageMime(bytes: ArrayBuffer): string {
-  const u = new Uint8Array(bytes.slice(0, 12));
-  if (u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47) return 'image/png';
-  if (
-    u[0] === 0x52 && u[1] === 0x49 && u[2] === 0x46 && u[3] === 0x46 && // RIFF
-    u[8] === 0x57 && u[9] === 0x45 && u[10] === 0x42 && u[11] === 0x50 // WEBP
-  ) {
-    return 'image/webp';
-  }
-  if (u[0] === 0xff && u[1] === 0xd8 && u[2] === 0xff) return 'image/jpeg';
-  return 'image/png';
 }
 
 async function reencodeToWebP(pngBlob: Blob): Promise<Blob | null> {
