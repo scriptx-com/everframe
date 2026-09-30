@@ -166,7 +166,7 @@ describe('no regex literal an old TV engine cannot parse', () => {
       target: 'es2022', logLevel: 'silent' as const, define: { __EVERFRAME_INGEST_URL__: '""' }, plugins: [tvPathOnly],
     };
     const text = async (supported?: BuildOptions['supported']) =>
-      (await build({ ...base, ...(supported !== undefined ? { supported } : {}) })).outputFiles.map((f) => f.text).join('\n');
+      (await build({ ...base, ...(supported !== undefined ? { supported } : {}) })).outputFiles!.map((f) => f.text).join('\n');
     expect(regexCtorCount(await text(OLD_REGEX)) - regexCtorCount(await text())).toBe(0);
   }, 60_000);
 
