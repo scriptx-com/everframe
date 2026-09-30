@@ -455,6 +455,13 @@ Screen names should be route identifiers, never user content.
 
 ## R8 / minification expectations
 
+The published `core`, `reporter-ui`, and `media3` AARs are still shrunk by R8.
+Each one now includes its exact R8 mapping as a Maven classifier, for example
+`core-0.10.2-mapping.txt` alongside `dev.everframe:core:0.10.2`. R8 full mode
+can show `SourceFile` in raw SDK frames; use the matching mapping file with
+Android's `retrace` tool to recover the original Kotlin filename, method, and
+line. Keep your app's own R8 mapping too if you minify the final APK.
+
 `:everframe-core` ships a `consumer-rules.pro` that auto-merges into your
 release R8 config when you depend on the AAR. It preserves:
 

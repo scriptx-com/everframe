@@ -56,6 +56,9 @@ function fixture() {
         'classes.jar': artifact === 'core' ? 'https://everframe.dev dev.everframe Everframe' : 'dev.everframe Everframe',
       });
     }
+    if (['core', 'reporter-ui', 'media3'].includes(artifact)) {
+      writeFileSync(`${prefix}-mapping.txt`, '# compiler: R8\n# {"id":"sourceFile","fileName":"Source.kt"}\n');
+    }
   }
   const markerDirectory = path.join(repository, 'dev/everframe/dev.everframe.gradle.plugin', version);
   mkdirSync(markerDirectory, { recursive: true });
@@ -92,6 +95,19 @@ test('rejects a plugin marker that still points at the old implementation artifa
     const result = verify(repository);
     assert.notEqual(result.status, 0);
     assert.match(`${result.stdout}\n${result.stderr}`, /does not point to the gradle-plugin artifact/);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
+});
+
+test('rejects a minified Android artifact without its retrace mapping', () => {
+  const repository = fixture();
+  try {
+    const mapping = path.join(repository, 'dev/everframe/core', version, `core-${version}-mapping.txt`);
+    rmSync(mapping);
+    const result = verify(repository);
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /missing .*core-.*-mapping\.txt/);
   } finally {
     rmSync(repository, { recursive: true, force: true });
   }

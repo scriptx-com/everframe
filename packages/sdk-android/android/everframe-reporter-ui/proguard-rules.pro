@@ -10,8 +10,8 @@
 # Everything else (ReporterRoot internals, annotation overlay helpers, baked-
 # PNG composer, etc.) renames to short ids in the published AAR.
 
-# Strip debug info — see :everframe-core/proguard-rules.pro for rationale.
--keepattributes !SourceFile, !SourceDir, !LineNumberTable, !LocalVariableTable, !LocalVariableTypeTable
+# Keep source filenames and line tables for retracing minified SDK frames.
+-keepattributes SourceFile,LineNumberTable
 
 # ---------------------------------------------------------------------------
 # Public reporter entry points — Everframe.shared.report.open() walks through

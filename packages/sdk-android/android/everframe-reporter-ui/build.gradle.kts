@@ -97,6 +97,11 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 from(components[rootProject.extra["everframePublishVariant"] as String])
+                artifact(layout.buildDirectory.file("outputs/mapping/release/mapping.txt")) {
+                    classifier = "mapping"
+                    extension = "txt"
+                    builtBy(tasks.named("minifyReleaseWithR8"))
+                }
                 groupId = "dev.everframe"
                 artifactId = "reporter-ui"
                 version = project.version.toString()

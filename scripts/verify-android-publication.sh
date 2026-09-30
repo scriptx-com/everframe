@@ -51,6 +51,13 @@ verify_artifact reporter-ui aar
 verify_artifact media3 aar
 verify_artifact gradle-plugin jar
 
+for mapped_artifact in core reporter-ui media3; do
+    mapping="${GROUP_DIRECTORY}/${mapped_artifact}/${VERSION}/${mapped_artifact}-${VERSION}-mapping.txt"
+    [[ -f "${mapping}" ]] || fail "missing ${mapping}"
+    grep -Fq '# compiler: R8' "${mapping}" || fail "${mapping} is not an R8 mapping"
+    grep -Fq '"id":"sourceFile"' "${mapping}" || fail "${mapping} lacks original source file names"
+done
+
 PLUGIN_MARKER="${GROUP_DIRECTORY}/dev.everframe.gradle.plugin/${VERSION}/dev.everframe.gradle.plugin-${VERSION}.pom"
 [[ -f "${PLUGIN_MARKER}" ]] || fail "missing ${PLUGIN_MARKER}"
 grep -Fq '<artifactId>gradle-plugin</artifactId>' "${PLUGIN_MARKER}" ||
