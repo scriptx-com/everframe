@@ -97,10 +97,6 @@ function findNode(n: SnEl, pred: (e: SnEl) => boolean): SnEl | undefined {
   }
   return undefined;
 }
-/** Concatenated text-node content (type 3) under a serialized node. */
-function textIn(n: SnEl): string {
-  return (n.type === 3 ? (n.textContent ?? '') : '') + (n.childNodes ?? []).map(textIn).join('');
-}
 const byId = (root: SnEl, id: string): SnEl | undefined => findNode(root, (e) => e.attributes?.id === id);
 const decode = (bytes: number[] | Buffer): { text: string; doc: Doc } => {
   const text = gunzipSync(Buffer.from(bytes)).toString('utf8');
@@ -211,9 +207,12 @@ test('scrolled block page: collapsed margins and a fixed-height section above th
   const root = doc.events[1].data.node;
   // Everything above the viewport really was pruned: its text is gone...
   expect(findLeaks(text, ['OFFSCREENTEXT', 'OFFSCREENICON'])).toEqual([]);
-  // ...including inside the fixed-height section, which stays as a box.
-  expect(byId(root, 'fixed-height')).toBeDefined();
-  expect(textIn(byId(root, 'fixed-height')!)).toBe('');
+  // ...and the fixed-height section (overflow included, wholly above the
+  // viewport) was replaced by a same-height placeholder, which keeps no id.
+  expect(byId(root, 'fixed-height')).toBeUndefined();
+  const fixedPlaceholder = findNode(root, (e) => e.tagName === 'section' && String(e.attributes?.style ?? '').includes('height:260px !important'));
+  expect(fixedPlaceholder, 'fixed-height placeholder').toBeDefined();
+  expect(fixedPlaceholder!.childNodes ?? []).toEqual([]);
 
   const rebuilt = await rebuild(page, doc, ids);
   expectSameBoxes(live, rebuilt.boxes, 1);
@@ -319,13 +318,13 @@ test('a live DOM too deep for rrweb-snapshot falls back without breaking the pag
   });
   expect(probe).toBe('RangeError');
   const classesBefore = await page.evaluate(() => {
-    // Records every class value the sensitive elements held (old values: the
+    // Records every class value the deep sensitive leaf held (old values: the
     // callback runs after the synchronous capture has already restored them),
-    // to prove the masking classes were applied and so really had to come off.
+    // to prove the leaf itself was blocked and so really had to be restored.
     const seen: string[] = [];
     (window as unknown as { __classesSeen: string[] }).__classesSeen = seen;
     new MutationObserver((records) => {
-      for (const r of records) seen.push(r.oldValue ?? '');
+      for (const r of records) if ((r.target as Element).id === 'deep-leaf') seen.push(r.oldValue ?? '');
     }).observe(document.body, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class'] });
     return [document.getElementById('vault')!.className, document.getElementById('deep-leaf')!.className];
   });
