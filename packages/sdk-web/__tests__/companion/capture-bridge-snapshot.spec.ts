@@ -94,11 +94,24 @@ describe('report.request — exactly one completion', () => {
     expect(t.send.mock.calls).toEqual([[{ type: 'report.failed', correlation_id: 'c1', reason: 'screenshot_unavailable' }]]);
   });
 
-  it('an image shot carries its degraded reason on the image frame', async () => {
+  it('an image shot carries outcome image and its degraded reason on the image frame', async () => {
     const t = ws();
     await handleCompanionReportRequest('c1', t.client, host(async () => ({ image: { ...IMAGE, degradedReason: 'screenshot_blank' }, degradedReason: 'screenshot_blank' })));
-    expect(t.send.mock.calls[0]![0]).toMatchObject({ mime: 'image/webp', degraded_reason: 'screenshot_blank' });
-    expect(t.send.mock.calls[0]![0]).not.toHaveProperty('outcome');
+    const frame = t.send.mock.calls[0]![0];
+    expect(frame).toMatchObject({ mime: 'image/webp', outcome: 'image', degraded_reason: 'screenshot_blank' });
+    expect(relay.ReportAssembled.safeParse(frame).success).toBe(true);
+    expect(t.sendBinary).toHaveBeenCalledTimes(1);
+  });
+
+  it('path active: a render-OK image + snapshot shot announces outcome image (the capability signal), no reason', async () => {
+    const t = ws();
+    await handleCompanionReportRequest('c1', t.client, host(async () => ({ image: IMAGE, snapshot: SNAP })));
+    const frame = t.send.mock.calls[0]![0];
+    expect(frame).toMatchObject({ type: 'report.assembled', correlation_id: 'c1', outcome: 'image', size: WEBP.byteLength });
+    expect(frame).not.toHaveProperty('degraded_reason');
+    expect(frame).not.toHaveProperty('snapshot');
+    expect(relay.ReportAssembled.safeParse(frame).success).toBe(true);
+    expect(t.send).toHaveBeenCalledTimes(1);
     expect(t.sendBinary).toHaveBeenCalledTimes(1);
   });
 
@@ -142,6 +155,33 @@ describe('report.submit framing', () => {
   });
 });
 
+describe('render-OK image + snapshot — request → submit round trip (final review finding 1)', () => {
+  it('outcome image → new submit shape with clean redaction → the dom-snapshot part rides', async () => {
+    submitMock.mockResolvedValue({ ok: true, retryable: false, reportId: 'r1', threadId: null });
+    const t = ws();
+    const h = host(async () => ({ image: IMAGE, snapshot: SNAP }));
+    await handleCompanionReportRequest('c1', t.client, h);
+    expect(t.send.mock.calls[0]![0]).toMatchObject({ outcome: 'image' });
+    handleCompanionSubmitText({ ...SUBMIT, primary_shot: { has_image: true, redaction: CLEAN } } as ReportSubmit, t.client, h, createCompanion());
+    handleCompanionSubmitBinary(WEBP.buffer, t.client, h, createCompanion());
+    await vi.waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1));
+    const bundle = submitMock.mock.calls[0]![0].bundle;
+    expect(bundle.screenshotBlob).toBeInstanceOf(Blob);
+    expect(bundle.domSnapshots).toEqual([{ shotNumber: 1, bytes: SNAP.bytes, sha256: SNAP.sha256 }]);
+  });
+
+  it('a legacy submit for the same capture fails closed: no dom-snapshot part', async () => {
+    submitMock.mockResolvedValue({ ok: true, retryable: false, reportId: 'r1', threadId: null });
+    const t = ws();
+    const h = host(async () => ({ image: IMAGE, snapshot: SNAP }));
+    await handleCompanionReportRequest('c1', t.client, h);
+    handleCompanionSubmitText(SUBMIT, t.client, h, createCompanion());
+    handleCompanionSubmitBinary(WEBP.buffer, t.client, h, createCompanion());
+    await vi.waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1));
+    expect(submitMock.mock.calls[0]![0].bundle.domSnapshots).toBeUndefined();
+  });
+});
+
 describe('shot.request on the snapshot path', () => {
   it('answers shot.failed with the degraded reason when the shot has no image', async () => {
     const t = ws();
@@ -164,12 +204,11 @@ describe('companion captures never consume the dialog pre-capture (ruling S23)',
 });
 
 describe('report.request — legacy compatibility', () => {
-  it('a plain image capture sends the pre-snapshot frame shape (no outcome, no degraded_reason) + binary', async () => {
+  it('path off: an image capture sends the pre-snapshot frame shape byte-for-byte (no outcome, no degraded_reason) + binary', async () => {
     const t = ws();
-    await handleCompanionReportRequest('c1', t.client, host(async () => ({ image: IMAGE })));
+    await handleCompanionReportRequest('c1', t.client, host(async () => ({ image: { ...IMAGE, degradedReason: 'screenshot_blank' }, degradedReason: 'screenshot_blank' }), { active: false }));
     const frame = t.send.mock.calls[0]![0];
-    expect(frame).not.toHaveProperty('outcome');
-    expect(frame).not.toHaveProperty('degraded_reason');
+    expect(Object.keys(frame).sort()).toEqual(['correlation_id', 'counts', 'mime', 'size', 'toggles', 'type']);
     expect(frame).toMatchObject({ type: 'report.assembled', mime: 'image/webp', size: WEBP.byteLength });
     expect(relay.ReportAssembled.safeParse(frame).success).toBe(true);
     expect(t.send).toHaveBeenCalledTimes(1);

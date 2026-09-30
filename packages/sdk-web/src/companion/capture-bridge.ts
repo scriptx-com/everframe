@@ -258,7 +258,7 @@ export async function handleCompanionReportRequest(
     // phones already parse (ruling S25c).
     const tvPathActive = safe(() => host.adapter.__tvSnapshotPathActive?.() === true, false);
     if (shot?.image !== undefined) {
-      await shipCapture(correlationId, reply, shot.image, ticket, counts, tvPathActive ? shot.degradedReason : undefined);
+      await shipCapture(correlationId, reply, shot.image, ticket, counts, tvPathActive ? { degradedReason: shot.degradedReason } : undefined);
       return;
     }
     // This used to `return` silently, stranding the phone in "capturing…"
@@ -313,8 +313,14 @@ async function shipCapture(
   /** The seam identity its caller began under — see `handleCompanionReportRequest`. */
   ticket: CompanionSeamTicket | undefined,
   counts: ReportCounts,
-  /** The shot's degraded reason (e.g. screenshot_blank), echoed to the phone. */
-  degradedReason?: string,
+  /**
+   * Set only while the TV snapshot path is active. The frame then carries
+   * `outcome: 'image'` — the phone's capability signal that this TV takes the
+   * new submit shape (and so can attach the stashed DOM snapshot) — plus the
+   * shot's degraded reason (e.g. screenshot_blank). Absent, the frame stays
+   * byte-identical to the legacy shape (ruling S25c).
+   */
+  snapshotPath?: { degradedReason?: string | undefined },
 ): Promise<void> {
   // Codex round-3 finding 4 (P1) — THE pixel-emit choke point for both
   // `report.request` paths. Each of them awaits a capture before reaching
@@ -358,7 +364,8 @@ async function shipCapture(
     size: screenshotBuf.byteLength,
     toggles: IMAGE_TOGGLES,
     counts: countsFrame(counts),
-    ...(degradedReason !== undefined ? { degraded_reason: degradedReason } : {}),
+    ...(snapshotPath !== undefined ? { outcome: 'image' as const } : {}),
+    ...(snapshotPath?.degradedReason !== undefined ? { degraded_reason: snapshotPath.degradedReason } : {}),
   };
 
   ws.send(assembled);
