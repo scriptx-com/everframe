@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SENSITIVE_ATTR } from '../../src/sensitive/registry.js';
 import { createCloneMaskPlugin, expandMaskTargets } from '../../src/capture/renderers/clone-mask.js';
 import { STAND_IN_ATTR } from '../../src/capture/video-frames.js';
@@ -348,5 +348,43 @@ describe('sensitiveRegistry.isSensitive', () => {
       sensitiveRegistry.removeRef(ref);
     }
     expect(sensitiveRegistry.isSensitive(ref)).toBe(false);
+  });
+});
+
+describe('clone masking on engines without Element.replaceChildren (webOS 6 / Chrome 79)', () => {
+  const saved = Object.getOwnPropertyDescriptor(Element.prototype, 'replaceChildren');
+  beforeEach(() => {
+    delete (Element.prototype as unknown as Record<string, unknown>).replaceChildren;
+  });
+  afterEach(() => {
+    if (saved) Object.defineProperty(Element.prototype, 'replaceChildren', saved);
+    document.body.innerHTML = '';
+  });
+
+  it('masks a sensitive capture root, before and after beforeRender', () => {
+    expect('replaceChildren' in Element.prototype).toBe(false);
+    document.body.innerHTML = '<main id="root"><p>secret</p></main>';
+    const main = document.querySelector('main')!;
+    const ctx = cloneWithMap(main);
+    const plugin = createCloneMaskPlugin(listed(main));
+    plugin.afterClone(ctx);
+    expect(ctx.clone.childNodes).toHaveLength(0);
+    ctx.clone.appendChild(document.createElement('span'));
+    plugin.beforeRender(ctx);
+    expect(ctx.clone.childNodes).toHaveLength(0);
+    expect((ctx.clone as HTMLElement).style.background).toContain('rgb(0, 0, 0)');
+  });
+
+  it('beforeRender still strips what a later pass added to a mask box', () => {
+    document.body.innerHTML = '<main><div id="secret">s</div></main>';
+    const ctx = cloneWithMap(document.querySelector('main')!);
+    const plugin = createCloneMaskPlugin(listed(document.getElementById('secret')!));
+    plugin.afterClone(ctx);
+    const box = ctx.clone.firstElementChild as HTMLElement;
+    box.appendChild(document.createElement('svg'));
+    box.appendChild(document.createTextNode('late'));
+    plugin.beforeRender(ctx);
+    expect(box.childNodes).toHaveLength(0);
+    expect(ctx.clone.textContent).not.toContain('s');
   });
 });

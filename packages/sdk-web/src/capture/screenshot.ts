@@ -409,6 +409,8 @@ async function captureExclusive(
   // running, or unusable for legacy masks (see below): snapDOM did not answer
   // usably within its budget. On TV this ships the placeholder.
   let primaryTimedOut = false;
+  // Set once this capture stops waiting for snapDOM (a deadline, an error).
+  let primaryAbandoned = false;
   const primaryBudgetMs = Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE);
 
   try {
@@ -461,16 +463,18 @@ async function captureExclusive(
         // A still-running earlier snapDOM capture is waited for within the
         // same budget; past it the renderer refuses (SnapdomBusyError).
         // Loaded lazily (with clone-mask.ts) so the snapDOM glue stays out
-        // of the always-loaded graph.
-        import('./renderers/snapdom-renderer.js').then(({ renderViewportWithSnapdom }) =>
-          renderViewportWithSnapdom(root, {
+        // of the always-loaded graph. A load that outlasts the budget must
+        // not start snapDOM for a capture that has already moved on.
+        import('./renderers/snapdom-renderer.js').then(({ renderViewportWithSnapdom }) => {
+          if (primaryAbandoned) throw new CaptureTimeoutError('snapdom load outlasted its budget');
+          return renderViewportWithSnapdom(root, {
             pixelRatio,
             filter: filterNode,
             busyWaitMs: primaryBudgetMs,
             maskTargets: resolveMaskTargets,
             ...(opts.isSensitive ? { isSensitive: opts.isSensitive } : {}),
-          }),
-        ),
+          });
+        }),
         primaryBudgetMs,
         'snapdom',
       );
@@ -494,6 +498,7 @@ async function captureExclusive(
       if (blank) firstBlank = attempt;
       else accepted = attempt;
     } catch (err) {
+      primaryAbandoned = true;
       // Fall through to the fallback renderer (subject to the TV policy below).
       // Busy counts as a timeout, so on TV it ships the placeholder rather
       // than starting a second renderer on a CPU still busy with snapDOM.

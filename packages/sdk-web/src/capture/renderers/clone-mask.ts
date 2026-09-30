@@ -163,6 +163,11 @@ function maskContentsChildren(
   }
 }
 
+/** Empty `el` (Element.replaceChildren() is Chrome 86+; webOS 6 runs Chrome 79). */
+function removeChildren(el: Node): void {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
 /** Replace a text clone by a masking span around it (kept in `owned`). */
 function wrapMasked(text: Text, css: string, owned: WeakSet<Node>): void {
   const span = (text.ownerDocument ?? document).createElement('span');
@@ -287,7 +292,7 @@ export function createCloneMaskPlugin(isTarget: (el: Element) => boolean) {
       const clone = cloneNode as HTMLElement;
       if (clone === root) {
         // The whole capture root is sensitive: nothing of it may render.
-        root.replaceChildren();
+        removeChildren(root);
         root.style.setProperty('background', '#000', 'important');
         maskedRoot = root;
         return;
@@ -340,13 +345,13 @@ export function createCloneMaskPlugin(isTarget: (el: Element) => boolean) {
       // snapDOM's later passes may have decorated a box, and the page may
       // have changed since afterClone: reset every box, then mask again.
       for (const [box, css, cls] of boxes) {
-        box.replaceChildren();
+        removeChildren(box);
         for (const attr of Array.from(box.attributes)) box.removeAttribute(attr.name);
         if (cls) box.setAttribute('class', cls);
         box.style.cssText = css;
       }
       if (maskedRoot) {
-        maskedRoot.replaceChildren();
+        removeChildren(maskedRoot);
         maskedRoot.style.setProperty('background', '#000', 'important');
         return;
       }
