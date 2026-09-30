@@ -1,0 +1,21 @@
+packages/sdk-react/__tests__/provider-fab-kill-switch.spec.tsx
+  s_73a1f6e001ee37::t_8d2927525c3fc9 40,366-408
+packages/sdk-react/src/provider.tsx
+  s_73a1f6e001ee37::t_68e2fdd1f9d06a 131,195-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "46258ac5b7f0c50122e8732229be7640f920651a",
+  "prompts": {},
+  "sessions": {
+    "s_73a1f6e001ee37": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bf2f729-196c-4f71-8d19-20bd40e585c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
