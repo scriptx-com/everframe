@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeCappedPixelRatio,
   getCaptureProfile,
+  isTvUserAgent,
 } from '../../src/capture/capture-profile.js';
 
 const WEBOS_UA =
@@ -169,5 +170,13 @@ describe('computeCappedPixelRatio', () => {
 
   it('is a passthrough for degenerate root sizes', () => {
     expect(computeCappedPixelRatio(2, 0, 0, 1920)).toBe(2);
+  });
+});
+
+describe('isTvUserAgent', () => {
+  it('matches webOS and Tizen webviews and nothing else', () => {
+    expect(isTvUserAgent('Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 Chrome/79.0.3945.79 Safari/537.36 WebAppManager')).toBe(true);
+    expect(isTvUserAgent('Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 Chrome/76.0 TV Safari/537.36')).toBe(true);
+    expect(isTvUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/140.0 Safari/537.36')).toBe(false);
   });
 });

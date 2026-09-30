@@ -19,7 +19,7 @@ import {
 export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
 
-export type ScreenshotRenderer = 'snapdom' | 'modern-screenshot' | 'none';
+export type ScreenshotRenderer = 'snapdom' | 'modern-screenshot' | 'server' | 'none';
 
 /**
  * Share of the profile deadline the primary renderer may use before the
