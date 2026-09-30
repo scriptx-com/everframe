@@ -73,14 +73,3 @@ export function parseRenderMeta(header: string | null | undefined): RenderMeta |
   const parsed = RenderMeta.safeParse(json);
   return parsed.success ? parsed.data : null;
 }
-
-/**
- * Blank detection shared by on-device captures and server renders: downscale to
- * sampleWidth x sampleHeight, composite over white, and call the image blank
- * when every pixel's luminance is within lumaRange of every other's.
- */
-export const RENDER_BLANK_CHECK = Object.freeze({
-  lumaRange: 8,
-  sampleWidth: 128,
-  sampleHeight: 72,
-} as const);

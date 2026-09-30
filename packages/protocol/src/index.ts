@@ -53,8 +53,10 @@ export {
 export type { ResourceSampleT } from './resources.js';
 export {
   RENDER_PATH, RENDER_META_HEADER, RENDER_REQUEST_CONTENT_TYPE, RENDER_REQUEST_CONTENT_ENCODING,
-  RENDER_RESPONSE_CONTENT_TYPE, SCREENSHOT_RENDER_SDK_FEATURE, RENDER_BLANK_CHECK,
+  RENDER_RESPONSE_CONTENT_TYPE, SCREENSHOT_RENDER_SDK_FEATURE,
   RENDER_FOCUS_ATTR, RENDER_FOCUS_WITHIN_ATTR,
   MAX_RENDER_MISSING_ASSET_URLS, MAX_RENDER_MISSING_ASSET_URL_LENGTH,
   RenderMeta, RenderErrorCode, RenderErrorBody, parseRenderMeta,
 } from './render.js';
+// Zod-free, so the SDK's eager bundle can import it without pulling in schemas.
+export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';

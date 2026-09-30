@@ -16,27 +16,14 @@
  * background by more than encoder noise. 128x72 keeps a single short line of
  * text on a white page above the threshold; smaller samples average it away.
  */
-export const BLANK_LUMA_RANGE = 8;
-export const BLANK_SAMPLE_WIDTH = 128;
-export const BLANK_SAMPLE_HEIGHT = 72;
+import { RENDER_BLANK_CHECK, isNearUniform } from '@everframe/protocol';
 
-/** True when every pixel's luminance lies within `range` of every other's. */
-export function isNearUniform(rgba: ArrayLike<number>, range: number = BLANK_LUMA_RANGE): boolean {
-  let min = 255;
-  let max = 0;
-  for (let i = 0; i + 3 < rgba.length; i += 4) {
-    const alpha = (rgba[i + 3] ?? 0) / 255;
-    // Composite over the white capture background so transparent == white.
-    const r = (rgba[i] ?? 0) * alpha + 255 * (1 - alpha);
-    const g = (rgba[i + 1] ?? 0) * alpha + 255 * (1 - alpha);
-    const b = (rgba[i + 2] ?? 0) * alpha + 255 * (1 - alpha);
-    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (luma < min) min = luma;
-    if (luma > max) max = luma;
-    if (max - min > range) return false;
-  }
-  return true;
-}
+// The algorithm and constants live in @everframe/protocol (zod-free module), so
+// the render service's server-side blank check is the same code, not a copy.
+export { isNearUniform };
+export const BLANK_LUMA_RANGE = RENDER_BLANK_CHECK.lumaRange;
+export const BLANK_SAMPLE_WIDTH = RENDER_BLANK_CHECK.sampleWidth;
+export const BLANK_SAMPLE_HEIGHT = RENDER_BLANK_CHECK.sampleHeight;
 
 /** Source region (canvas px) to sample instead of the whole canvas. */
 export interface BlankCheckRegion {
