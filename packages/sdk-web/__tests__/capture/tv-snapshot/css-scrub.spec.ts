@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+import { describe, expect, it } from 'vitest';
+import { scrubCssText, scrubInlineStyle, type CssScrubContext } from '../../../src/capture/tv-snapshot/css-scrub.js';
+import { findLeaks } from './leak-assert.js';
+
+const masked: CssScrubContext = { masked: true, retainedIds: new Set(['g', 'c']), baseHref: 'https://app.example.test/tv/' };
+const open: CssScrubContext = { ...masked, masked: false };
+const PHRASE = ['Alice Smith', 'SECRET'];
+
+describe('masked page — spec regression cases (byte-level absence)', () => {
+  it('drops an unquoted custom property carrying text', () => {
+    const out = scrubCssText(':root{--patient-name: Alice Smith;--x:"Alice Smith"}a{color:red}', masked);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toContain('a{color:red}');
+  });
+
+  it("drops a blocked element's stylesheet-embedded data:image/svg+xml background (percent and base64)", () => {
+    const pct = "#vault{background:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Ctext%3EAlice Smith%3C/text%3E%3C/svg%3E\");width:10px}";
+    const b64 = `#vault{background-image:url(data:image/svg+xml;base64,${Buffer.from('<svg><text>Alice Smith</text></svg>').toString('base64')});height:4px}`;
+    const out = scrubCssText(pct + b64, masked);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).not.toMatch(/data:/i);
+    expect(out).toContain('#vault{width:10px}');
+    expect(out).toContain('#vault{height:4px}');
+  });
+
+  it('drops ::before { content: "…" }', () => {
+    const out = scrubCssText('#v::before{content:"Alice Smith";color:red}', masked);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toBe('#v::before{color:red}');
+  });
+
+  it('drops content: var(--phrase) sources', () => {
+    const out = scrubCssText(':root{--phrase:"Alice Smith"}#v::before{content:var(--phrase)}', masked);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+  });
+
+  it('drops an inherited quotes pair used by content: open-quote', () => {
+    const out = scrubCssText('#q{quotes:"Alice Smith" "Alice Smith"}#q::before{content:open-quote}', masked);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toContain('#q::before{content:open-quote}');
+  });
+
+  it('drops @counter-style entirely, including negative and additive-symbols', () => {
+    const out = scrubCssText('@counter-style leak{system:cyclic;symbols:"A";negative:"Alice Smith";additive-symbols:1 "Alice Smith"}li{list-style:leak}', masked);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).not.toContain('@counter-style');
+    expect(out).toContain('li{list-style:leak}');
+  });
+
+  it('strips a token from quoted image-set and -webkit-image-set', () => {
+    const out = scrubCssText(
+      '.p{background-image:image-set("https://cdn.example.test/a.png?access_token=SECRET" 1x, url(https://cdn.example.test/b.png?t=SECRET) 2x)}' +
+        '.q{background-image:-webkit-image-set(url("https://cdn.example.test/c.png#SECRET") 1x)}',
+      masked,
+    );
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toContain('image-set(url("https://cdn.example.test/a.png") 1x, url("https://cdn.example.test/b.png") 2x)');
+    expect(out).toContain('-webkit-image-set(url("https://cdn.example.test/c.png") 1x)');
+  });
+
+  it('sanitizes @import and @font-face src, dropping format() hints and keeping local() names', () => {
+    const out = scrubCssText(
+      '@import url("https://cdn.example.test/x.css?token=SECRET") screen;' +
+        '@font-face{font-family:"Fixture Sans";src:url("https://f.example.test/f.woff2?sig=SECRET") format("woff2"),local("LG Smart UI")}',
+      masked,
+    );
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toContain('@import url("https://cdn.example.test/x.css") screen;');
+    expect(out).toContain('@font-face{font-family:"Fixture Sans";src:url("https://f.example.test/f.woff2"),local("LG Smart UI")}');
+  });
+
+  it('removes credentials from url()', () => {
+    expect(scrubCssText('a{background:url(https://alice:secret@cdn.example.test/i.png)}', masked))
+      .toBe('a{background:url("https://cdn.example.test/i.png")}');
+  });
+
+  it('keeps fragment refs to retained ids and drops the rest', () => {
+    const out = scrubCssText('.i{clip-path:url(#c);mask:url(#missing);fill:url(#g)}', masked);
+    expect(out).toBe('.i{clip-path:url("#c");fill:url("#g")}');
+  });
+
+  it('keeps enumerated ARIA attribute selectors and drops every other quoted selector', () => {
+    const out = scrubCssText(
+      '[aria-current="page"]{background:green}[aria-pressed="true"]{color:red}[data-name="Alice Smith"]{color:blue}[aria-current="Alice Smith"]{color:blue}',
+      masked,
+    );
+    expect(out).toBe('[aria-current="page"]{background:green}[aria-pressed="true"]{color:red}');
+  });
+
+  it('keeps identifier grid-template-areas, drops non-identifier forms', () => {
+    const out = scrubCssText('#g{grid-template-areas:"head head" "side main";grid-template:"a b" 10px / 1fr 1fr}#h{grid-template-areas:"Alice Smith!";color:red}', masked);
+    expect(out).toContain('grid-template-areas:"head head" "side main"');
+    expect(out).toContain('grid-template:"a b" 10px / 1fr 1fr');
+    expect(out).toContain('#h{color:red}');
+  });
+
+  it('keeps font-family names', () => {
+    expect(scrubCssText('body{font-family:"LG Smart UI",sans-serif}', masked)).toBe('body{font-family:"LG Smart UI",sans-serif}');
+  });
+
+  it('scrubs nested @media blocks and drops @supports preludes with strings', () => {
+    const out = scrubCssText('@media (min-width:1px){a::before{content:"Alice Smith"}b{color:red}}@supports (content:"Alice Smith"){i{color:red}}', masked);
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+    expect(out).toBe('@media (min-width:1px){b{color:red}}');
+  });
+
+  it('keeps !important and survives an unterminated string', () => {
+    expect(scrubCssText('a{color:red !important}', masked)).toBe('a{color:red !important}');
+    expect(() => scrubCssText('a{content:"Alice Smith', masked)).not.toThrow();
+    expect(findLeaks(scrubCssText('a{content:"Alice Smith', masked), PHRASE)).toEqual([]);
+  });
+
+  it('scrubs an inline style attribute', () => {
+    const out = scrubInlineStyle(`--n: Alice Smith; background: url("data:image/png;base64,${Buffer.from('Alice Smith').toString('base64')}"); color: red`, masked);
+    expect(out).toBe('color:red');
+    expect(findLeaks(out, PHRASE)).toEqual([]);
+  });
+});
+
+describe('unmasked page (Review Focus 2)', () => {
+  it('keeps content strings, custom properties and data: resources, but still sanitizes URLs', () => {
+    const out = scrubCssText(
+      '.icon::before{content:"\\e900"}:root{--Brand:"Ever"}.b{background:url("data:image/png;base64,AAAA")}.c{background:url(https://x.example.test/a.png?t=SECRET)}',
+      open,
+    );
+    expect(out).toContain('.icon::before{content:"\\e900"}');
+    expect(out).toContain(':root{--Brand:"Ever"}');
+    expect(out).toContain('url("data:image/png;base64,AAAA")');
+    expect(out).toContain('url("https://x.example.test/a.png")');
+    expect(out).not.toContain('SECRET');
+  });
+});
+
+describe('tokenizer agreement — text the browser would see that a naive scan misses', () => {
+  const b64 = Buffer.from('<svg><text>Alice Smith</text></svg>').toString('base64');
+
+  it('recognises escape-spelled url() and image-set() function names', () => {
+    for (const ctx of [masked, open]) {
+      const out = scrubCssText(`a{background:u\\72l(https://cdn.example.test/i.png?t=SECRET);width:1px}`, ctx);
+      expect(findLeaks(out, PHRASE)).toEqual([]);
+      expect(out).toContain('url("https://cdn.example.test/i.png")');
+      const set = scrubCssText('b{background:image-s\\65t(url(https://cdn.example.test/j.png?t=SECRET) 1x)}', ctx);
+      expect(findLeaks(set, PHRASE)).toEqual([]);
+    }
+    const data = scrubCssText(`a{background:\\75rl(data:image/svg+xml;base64,${b64});width:1px}`, masked);
+    expect(findLeaks(data, PHRASE)).toEqual([]);
+    expect(data).not.toMatch(/data:/i);
+    expect(data).toBe('a{width:1px}');
+  });
+
+  it('sanitizes url() in @supports preludes and drops @document rules', () => {
+    for (const ctx of [masked, open]) {
+      const out = scrubCssText(
+        '@supports (background:url(https://x.example.test/a.png?t=SECRET)){a{color:red}}' +
+          '@-moz-document url-prefix(https://x.example.test/?t=SECRET){b{color:red}}@document url(https://x.example.test/SECRET){c{color:red}}',
+        ctx,
+      );
+      expect(findLeaks(out, PHRASE)).toEqual([]);
+      expect(out).not.toContain('document');
+    }
+    expect(scrubCssText('@supports (display:grid){a{color:red}}', masked)).toBe('@supports (display:grid){a{color:red}}');
+  });
+
+  it('treats unquoted attribute-selector values like strings on a masked page', () => {
+    const out = scrubCssText(
+      '[data-name=Alice]{color:blue}[aria-pressed=true]{color:red}[disabled]{opacity:.5}[aria-current=page i]{color:green}.a:is([title=SECRET]){color:red}',
+      masked,
+    );
+    expect(findLeaks(out, PHRASE.concat('Alice'))).toEqual([]);
+    expect(out).toBe('[aria-pressed=true]{color:red}[disabled]{opacity:.5}[aria-current=page i]{color:green}');
+    expect(scrubCssText('[data-name=Alice]{color:blue}', open)).toBe('[data-name=Alice]{color:blue}');
+  });
+
+  it('keeps escaped class selectors (utility CSS) and escaped font names', () => {
+    expect(scrubCssText('.md\\:flex{display:flex}.w-1\\/2{width:50%}', masked)).toBe('.md\\:flex{display:flex}.w-1\\/2{width:50%}');
+    expect(scrubCssText('p{font-family:\\5FAE\\8F6F\\96C5\\9ED1,sans-serif}', masked)).toBe('p{font-family:\\5FAE\\8F6F\\96C5\\9ED1,sans-serif}');
+  });
+
+  it('drops attr() text sources on a masked page', () => {
+    expect(scrubCssText('a::after{content:attr(data-name);color:red}', masked)).toBe('a::after{color:red}');
+    expect(scrubCssText('a::after{content:attr(data-name)}', open)).toBe('a::after{content:attr(data-name)}');
+  });
+
+  it('drops unsafe schemes and keeps a relative URL absolute', () => {
+    expect(scrubCssText('a{background:url(javascript:alert(1))}b{background:url(img/x.png?t=SECRET)}', masked)).toBe(
+      'b{background:url("https://app.example.test/tv/img/x.png")}',
+    );
+  });
+
+  it("keeps rrweb's rr_split markers even when the rule after one is dropped", () => {
+    expect(scrubCssText('a{color:red}/* rr_split */#v::before{content:"Alice Smith"}/* other */b{color:blue}', masked)).toBe(
+      'a{color:red}/* rr_split */b{color:blue}',
+    );
+  });
+
+  it('survives pathological nesting without throwing', () => {
+    const deep = `${'@media all{'.repeat(5_000)}a{color:red}${'}'.repeat(5_000)}`;
+    expect(() => scrubCssText(deep, masked)).not.toThrow();
+  });
+});
+
+describe('linear on slow TV CPUs (~20k-char near-miss inputs, S18)', () => {
+  const N = 20_000;
+  const cases: Array<[string, () => unknown]> = [
+    ['unterminated string of escapes', () => scrubCssText(`a{content:"${'\\'.repeat(N)}`, masked)],
+    ['unclosed comments', () => scrubCssText('/*'.repeat(N / 2), masked)],
+    ['nested functions', () => scrubCssText(`a{width:${'calc('.repeat(N / 5)}1px}`, masked)],
+    ['unclosed url()', () => scrubCssText(`a{background:${'url('.repeat(N / 4)}}`, open)],
+    ['unclosed image-set candidates', () => scrubCssText(`a{background:image-set(${'url(x) type('.repeat(N / 12)})}`, open)],
+    ['near-miss resolution descriptor', () => scrubCssText(`a{background:image-set(url(x) ${'1'.repeat(N)}y)}`, open)],
+    ['near-miss ARIA selectors', () => scrubCssText(`${'[aria-current="page"'.repeat(N / 20)}{color:red}`, masked)],
+    ['open attribute brackets', () => scrubCssText(`${'[a'.repeat(N / 2)}{color:red}`, masked)],
+    ['near-miss grid areas', () => scrubCssText(`a{grid-template-areas:"${'a '.repeat(N / 2)}!"}`, masked)],
+    ['near-miss !important', () => scrubCssText(`a{color:red ${'!  '.repeat(N / 3)}importan}`, masked)],
+    ['trailing whitespace runs before format()', () => scrubCssText(`@font-face{src:url(x)${' a'.repeat(N / 2)} format(x)}`, masked)],
+    ['many declarations', () => scrubInlineStyle('color:red;'.repeat(N / 10), masked)],
+    ['long escape-spelled ident', () => scrubCssText(`a{b:${'\\41'.repeat(N / 3)}(}`, masked)],
+    ['deep nesting', () => scrubCssText(`${'@media all{'.repeat(N / 11)}`, masked)],
+  ];
+  it.each(cases)('%s', (_name, run) => {
+    const started = performance.now();
+    run();
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
