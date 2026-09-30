@@ -312,6 +312,34 @@ Either way, pixels under that element's rect are blanked at capture time
 before the screenshot bytes leave the browser. `<input type="password">`
 elements are auto-masked with no action required.
 
+### Smart-TV screenshots
+
+On smart-TV web apps (LG webOS, Samsung Tizen and similar webviews), when your
+Everframe project has server-side rendering enabled, screenshots are **rendered
+from a masked page snapshot** instead of being rasterized on the TV. At report
+time the SDK takes a one-off snapshot of the page structure, masks it, and an
+Everframe render service turns it into the screenshot you annotate. It uses the
+TV platform's fonts and your page's own styles, including dark mode, focus
+highlights and scroll positions.
+
+Masking happens in the snapshot itself, before anything leaves the device:
+
+- Sensitive elements (see above) and `<input type="password">` are replaced by
+  black boxes of the same size. Every input value is masked.
+- Card numbers, tokens, social security numbers and email addresses in text are
+  masked.
+- On a page with sensitive elements, text carried by stylesheets (for example
+  `content: "…"`, custom properties, embedded `data:` images) is removed.
+- Content outside the visible screen is dropped, keeping only its size.
+- URLs lose credentials, query strings and fragments, and card numbers, tokens
+  and email addresses in their paths are masked.
+
+The snapshot is attached to the report only for screenshots you did not blur,
+crop or area-select. If rendering fails, the report carries the snapshot alone
+and is flagged `screenshot_render_failed`. If nothing could be captured, it is
+flagged `screenshot_unavailable`. A blank image is never sent as a real
+screenshot.
+
 ## Component names in reports are React-only
 
 When `@everframe/react` captures a report, it resolves the focused element to
