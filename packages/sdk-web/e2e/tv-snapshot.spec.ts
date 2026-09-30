@@ -252,6 +252,27 @@ test('an off-screen icon sprite is pruned while visible <use>, url(#) fill, clip
   }
 });
 
+test('in-viewport content that is hidden, transparent or clipped out of a scrolled rail is pruned; visible layout is kept', async ({ page }) => {
+  const bodies = await stubApi(page);
+  await page.goto('/e2e/fixtures/tv-hidden.html');
+  // 220px = one tile + gap: t-0 now sits wholly left of the rail's padding
+  // box, t-4/t-5 wholly right of it, all of them inside the viewport.
+  await page.evaluate(() => { document.getElementById('rail')!.scrollLeft = 220; });
+  const ids = ['h-head', 't-1', 't-2', 'h-after', 'rail'];
+  const live = await liveBoxes(page, ids);
+  const shot = await shoot(page);
+  expect(shot).toMatchObject({ hasImage: true, hasSnapshot: true });
+  const { text, doc } = decode(bodies[0]!);
+  expect(findLeaks(text, ['HIDDENOVERLAY', '4921', 'FADEDPANEL', 'RAILSCROLLEDOUT', 'RAILCLIPPEDOUT'])).toEqual([]);
+  expect(text).toContain('VISIBLETILEONE');
+  expect(text).toContain('VISIBLETILETWO');
+
+  const rebuilt = await rebuild(page, doc, ids);
+  expectSameBoxes(live, rebuilt.boxes, 1);
+  // The pruned tiles kept their boxes, so the rail still scrolls to the same offset.
+  expect(rebuilt.railScrollLeft).toBeGreaterThanOrEqual(218);
+});
+
 test('keeps focus, dark media, ARIA state, grid areas and SVG refs on a masked page', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await stubApi(page);

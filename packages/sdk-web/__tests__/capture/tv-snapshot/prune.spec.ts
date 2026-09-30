@@ -385,7 +385,7 @@ describe('pruneSnapshot', () => {
     expect(reads).not.toContain(deps.nodeFor(path.id));
   });
 
-  it('reads each element rect at most once and computed style only for elements it must judge', () => {
+  it('reads each element rect and computed style at most once (S18)', () => {
     const { bind, deps } = harness();
     const visible = bind(el('p', {}, [text('v')]));
     const off = bind(el('p', {}, [text('o')]), { rect: ABOVE });
@@ -402,7 +402,8 @@ describe('pruneSnapshot', () => {
     };
     pruneSnapshot(doc(el('html', {}, [el('body', {}, [visible, off])])), deps);
     expect([...rects.values()].every((n) => n === 1)).toBe(true);
-    expect(styles.get(deps.nodeFor(visible.id) as Element)).toBeUndefined();
+    expect([...styles.values()].every((n) => n === 1)).toBe(true);
+    expect(styles.get(deps.nodeFor(visible.id) as Element)).toBe(1);
     expect(styles.get(deps.nodeFor(off.id) as Element)).toBe(1);
   });
 
@@ -447,5 +448,162 @@ describe('pruneSnapshot', () => {
     pruneSnapshot(root, deps);
     expect(performance.now() - started).toBeLessThan(1000);
     expect(wrap.childNodes[0]).toMatchObject({ textContent: `${'• '.repeat(10_000)}•` });
+  });
+});
+
+describe('pruneSnapshot — hidden, transparent and clipped content (final review finding 2)', () => {
+  const body = (children: SnNode[]): SnNode => doc(el('html', {}, [el('head'), el('body', {}, children)]));
+
+  it('prunes an in-viewport visibility:hidden overlay to a same-box placeholder', () => {
+    const { bind, deps } = harness();
+    const overlay = bind(el('div', { id: 'overlay' }, [text('HIDDENPIN 4921')]), { rect: rect(100, 100, 400, 200), style: { visibility: 'hidden' } });
+    const root = body([overlay]);
+    const result = pruneSnapshot(root, deps);
+    expect(overlay.childNodes).toEqual([]);
+    expect(String(overlay.attributes.style)).toContain(imp('width:400px;height:200px'));
+    expect(findLeaks(JSON.stringify(root), ['HIDDENPIN', '4921'])).toEqual([]);
+    expect(result.pruned).toBe(1);
+  });
+
+  it('treats visibility:collapse like hidden', () => {
+    const { bind, deps } = harness();
+    const row = bind(el('tr', {}, [text('COLLAPSEDROW')]), { style: { visibility: 'collapse' } });
+    const root = body([row]);
+    pruneSnapshot(root, deps);
+    expect(findLeaks(JSON.stringify(root), ['COLLAPSEDROW'])).toEqual([]);
+  });
+
+  it('propagates opacity:0 to descendants (opacity does not inherit)', () => {
+    const { bind, deps } = harness();
+    const inner = bind(el('p', {}, [text('FADEDTEXT')]), { style: { opacity: '1' } });
+    const faded = bind(el('div', {}, [inner]), { rect: rect(0, 0, 600, 300), style: { opacity: '0' } });
+    const root = body([faded]);
+    pruneSnapshot(root, deps);
+    expect(faded.childNodes).toEqual([]);
+    expect(findLeaks(JSON.stringify(root), ['FADEDTEXT'])).toEqual([]);
+  });
+
+  it('keeps a visibility:visible child of a hidden parent but masks the parent\'s own bare text', () => {
+    const { bind, deps } = harness();
+    const child = bind(el('span', {}, [text('SHOWN')]), { style: { visibility: 'visible' } });
+    const parent = bind(el('div', {}, [text('PARENTSECRET'), child]), { style: { visibility: 'hidden' } });
+    const root = body([parent]);
+    pruneSnapshot(root, deps);
+    expect(parent.childNodes).toHaveLength(2);
+    expect(JSON.stringify(root)).toContain('SHOWN');
+    expect(findLeaks(JSON.stringify(root), ['PARENTSECRET'])).toEqual([]);
+  });
+
+  it('opacity other than 0 and visibility:visible stay seen', () => {
+    const { bind, deps } = harness();
+    const dim = bind(el('p', {}, [text('DIM')]), { style: { opacity: '0.4', visibility: 'visible' } });
+    const root = body([dim]);
+    expect(pruneSnapshot(root, deps).pruned).toBe(0);
+    expect(JSON.stringify(root)).toContain('DIM');
+  });
+
+  it('prunes a rail item scrolled out of an overflow:hidden rail even though it is inside the viewport', () => {
+    const { bind, deps } = harness();
+    const inRail = bind(el('div', {}, [text('TILEONE')]), { rect: rect(100, 100, 200, 100) });
+    const clipped = bind(el('div', {}, [text('TILECLIPPED')]), { rect: rect(620, 100, 200, 100) });
+    const rail = bind(el('div', { class: 'rail' }, [inRail, clipped]), {
+      rect: rect(100, 100, 500, 100),
+      style: { overflowX: 'hidden', overflowY: 'hidden', display: 'flex' },
+    });
+    const root = body([rail]);
+    pruneSnapshot(root, deps);
+    expect(JSON.stringify(root)).toContain('TILEONE');
+    expect(findLeaks(JSON.stringify(root), ['TILECLIPPED'])).toEqual([]);
+    expect(String(clipped.attributes.style)).toContain(imp('width:200px;height:100px'));
+  });
+
+  it('clips against a scroll container\'s padding box (borders excluded) and per axis', () => {
+    const { bind, deps } = harness();
+    // Rail border box 100..600 with 10px borders: padding box 110..590.
+    const underBorder = bind(el('div', {}, [text('UNDERBORDER')]), { rect: rect(592, 100, 5, 50) });
+    const below = bind(el('div', {}, [text('BELOWRAIL')]), { rect: rect(200, 400, 100, 50) });
+    const rail = bind(el('div', {}, [underBorder, below]), {
+      rect: rect(100, 100, 500, 100),
+      style: { overflowX: 'scroll', overflowY: 'visible', borderLeftWidth: '10px', borderRightWidth: '10px' },
+    });
+    const root = body([rail]);
+    pruneSnapshot(root, deps);
+    expect(findLeaks(JSON.stringify(root), ['UNDERBORDER'])).toEqual([]);
+    // overflow-y visible: content below the rail is not clipped vertically.
+    expect(JSON.stringify(root)).toContain('BELOWRAIL');
+  });
+
+  it('nested clips intersect: a child inside the inner clip but outside the outer one is pruned', () => {
+    const { bind, deps } = harness();
+    const leaf = bind(el('p', {}, [text('OUTSIDEOUTER')]), { rect: rect(350, 50, 40, 20) });
+    const inner = bind(el('div', {}, [leaf]), { rect: rect(0, 0, 400, 100), style: { overflowX: 'hidden', overflowY: 'hidden' } });
+    const outer = bind(el('div', {}, [inner]), { rect: rect(0, 0, 300, 100), style: { overflowX: 'auto', overflowY: 'auto' } });
+    const root = body([outer]);
+    pruneSnapshot(root, deps);
+    expect(findLeaks(JSON.stringify(root), ['OUTSIDEOUTER'])).toEqual([]);
+  });
+
+  it('an absolutely positioned child escapes the clip of a non-positioned ancestor below its containing block', () => {
+    const { bind, deps } = harness();
+    const popup = bind(el('div', {}, [text('POPUP')]), { rect: rect(500, 300, 100, 50), style: { position: 'absolute' } });
+    const clipper = bind(el('div', {}, [popup]), { rect: rect(0, 0, 200, 100), style: { overflowX: 'hidden', overflowY: 'hidden' } });
+    const root = body([clipper]);
+    pruneSnapshot(root, deps);
+    expect(JSON.stringify(root)).toContain('POPUP');
+  });
+
+  it('an absolutely positioned child IS clipped by a positioned overflow:hidden ancestor', () => {
+    const { bind, deps } = harness();
+    const popup = bind(el('div', {}, [text('ABSCLIPPED')]), { rect: rect(500, 300, 100, 50), style: { position: 'absolute' } });
+    const clipper = bind(el('div', {}, [popup]), {
+      rect: rect(0, 0, 200, 100),
+      style: { position: 'relative', overflowX: 'hidden', overflowY: 'hidden' },
+    });
+    const root = body([clipper]);
+    pruneSnapshot(root, deps);
+    expect(findLeaks(JSON.stringify(root), ['ABSCLIPPED'])).toEqual([]);
+  });
+
+  it('a fixed child escapes every ancestor clip', () => {
+    const { bind, deps } = harness();
+    const toast = bind(el('div', {}, [text('TOAST')]), { rect: rect(900, 600, 200, 60), style: { position: 'fixed' } });
+    const clipper = bind(el('div', {}, [toast]), {
+      rect: rect(0, 0, 200, 100),
+      style: { position: 'relative', overflowX: 'hidden', overflowY: 'hidden' },
+    });
+    const root = body([clipper]);
+    pruneSnapshot(root, deps);
+    expect(JSON.stringify(root)).toContain('TOAST');
+  });
+
+  it('an inline element does not clip (overflow does not apply to inline boxes)', () => {
+    const { bind, deps } = harness();
+    const leaf = bind(el('b', {}, [text('INLINEKEPT')]), { rect: rect(400, 0, 50, 20) });
+    const span = bind(el('span', {}, [leaf]), { rect: rect(0, 0, 100, 20), style: { display: 'inline', overflowX: 'hidden', overflowY: 'hidden' } });
+    const root = body([span]);
+    pruneSnapshot(root, deps);
+    expect(JSON.stringify(root)).toContain('INLINEKEPT');
+  });
+
+  it('judges 5,000 nested clipping containers iteratively with one style read each', () => {
+    const { bind, deps } = harness();
+    let reads = 0;
+    const styleOf = deps.styleOf;
+    deps.styleOf = (e) => {
+      reads++;
+      return styleOf(e);
+    };
+    const leaf = bind(el('div', {}, [text('DEEPCLIPPED')]), { rect: rect(900, 0, 10, 10) });
+    let node = leaf;
+    for (let i = 0; i < 5_000; i++) {
+      node = bind(el('div', {}, [node]), { rect: rect(0, 0, 800, 720), style: { overflowX: 'hidden', overflowY: 'hidden' } });
+    }
+    const root = body([node]);
+    const t0 = performance.now();
+    pruneSnapshot(root, deps);
+    expect(performance.now() - t0).toBeLessThan(1000);
+    expect(leaf.childNodes).toEqual([]); // (the tree is too deep for JSON.stringify)
+    // body + 5,001 judged elements, plus the bounded collapse probe of the one pruned leaf.
+    expect(reads).toBeLessThanOrEqual(5_002 + 16);
   });
 });

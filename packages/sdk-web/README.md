@@ -330,7 +330,10 @@ Masking happens in the snapshot itself, before anything leaves the device:
   masked.
 - On a page with sensitive elements, text carried by stylesheets (for example
   `content: "…"`, custom properties, embedded `data:` images) is removed.
-- Content outside the visible screen is dropped, keeping only its size.
+- Content outside the visible screen, hidden (`visibility: hidden`,
+  `opacity: 0`) or clipped by a scrolling or `overflow: hidden` container is
+  dropped, keeping only its size. Content covered by other layers (for example
+  a screen stacked under the current one) may remain.
 - URLs lose credentials, query strings and fragments, and card numbers, tokens
   and email addresses in their paths are masked.
 

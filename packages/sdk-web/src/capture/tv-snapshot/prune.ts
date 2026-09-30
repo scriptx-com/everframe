@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Viewport pruning (spec §Privacy and masking): a TV report must not carry
-// content the user never saw — RN-web keeps previous screens mounted — yet the
+// content the user never saw — RN-web keeps previous screens mounted, rails
+// clip their off-screen items, overlays sit hidden — yet the
 // recorded scroll offset must land on the same content, so LAYOUT GEOMETRY is
 // preserved. Pruned nodes stay in their parent's child list (so :nth-child
 // does not shift) as childless placeholders: in-flow → same box, margins
@@ -19,9 +20,21 @@
 //
 // Runs on slow TV silicon over page-sized trees: one iterative post-order walk
 // (no recursion — deep pages must not overflow the stack), at most one rect
-// read per judged element, computed style read only when a verdict needs it
-// (plus a bounded margin-collapse probe per block placeholder), and no layout
+// and one computed-style read per judged element (plus a bounded
+// margin-collapse probe per block placeholder), and no layout
 // reads at all inside head or SVG content. LAZY (tv-snapshot chunk).
+//
+// "Seen" means: the element's own box intersects the viewport INTERSECTED with
+// every clip of an ancestor whose overflow is not visible (hidden, clip, auto,
+// scroll — for a scroll container its padding box, so a rail item scrolled out
+// of the rail is unseen), AND the element is not `visibility:hidden|collapse`
+// nor `opacity:0` (itself or any ancestor — opacity does not inherit, so it is
+// propagated). Clips follow the containing-block chain: an absolutely
+// positioned box escapes the clips of non-positioned ancestors below its
+// containing block, a fixed box escapes all of them. Bare text directly inside
+// an invisible element is masked even when a `visibility:visible` descendant
+// keeps the element itself. Occlusion by other layers is NOT modelled.
+// The one computed-style read per judged element feeds all of this.
 import { SN_DOCUMENT, SN_ELEMENT, SN_TEXT, type SnAttributeValue, type SnElement, type SnNode, type SnParent } from './sn-types.js';
 
 export interface PruneRect {
@@ -49,7 +62,7 @@ export interface PruneResult {
 }
 
 /**
- * - `visible`: intersects the viewport (itself or a descendant) — ancestors stay.
+ * - `visible`: seen (itself or a descendant; see header) — ancestors stay.
  * - `hidden`: claims no visibility; an ancestor may still be pruned.
  * - `keep`: an off-screen SVG reduced to its id definitions — retained, but
  *   claims no visibility (one icon must not keep a whole previous screen).
@@ -66,7 +79,7 @@ type Verdict = 'remove' | 'visible' | 'hidden' | 'keep';
  * - `svg`: an SVG root — judged by its own rect; content is not judged.
  * - `svgContent`: inside an SVG — no layout reads, no pruning.
  * - `judge`: an element with a live box — pruned when neither it nor any
- *   descendant intersects the viewport.
+ *   descendant is seen.
  */
 type Mode = 'root' | 'transparent' | 'always' | 'head' | 'svg' | 'svgContent' | 'judge';
 
@@ -79,6 +92,16 @@ interface Frame {
   style: CSSStyleDeclaration | null | undefined;
   /** Mask bare text in this subtree (inside a sensitive display:contents wrapper). */
   maskText: boolean;
+  /** Mask this element's OWN bare text children (it is visibility:hidden / opacity:0). Not inherited. */
+  hideText: boolean;
+  /** This element or an ancestor has opacity:0 — every descendant is invisible. */
+  faded: boolean;
+  /** The element's own box is seen (see header). Judged/svg frames only. */
+  seen: boolean;
+  /** The visible region for in-flow/relative/sticky/float descendants. */
+  clip: PruneRect;
+  /** The visible region for absolutely positioned descendants (containing-block chain). */
+  absClip: PruneRect;
   index: number;
   kept: SnNode[];
   anyVisible: boolean;
@@ -323,6 +346,52 @@ function collapsesThrough(s: CSSStyleDeclaration, side: 'top' | 'bottom'): boole
     : num(s.borderBottomWidth) === 0 && num(s.paddingBottom) === 0;
 }
 
+/** Whether overflow on one axis clips its content (hidden, clip, auto, scroll). */
+function clipsAxis(value: string | undefined): boolean {
+  return value === 'hidden' || value === 'clip' || value === 'auto' || value === 'scroll' || value === 'overlay';
+}
+
+function isPositioned(s: CSSStyleDeclaration | null): boolean {
+  return s !== null && s.position !== undefined && s.position !== '' && s.position !== 'static';
+}
+
+/** Invisible by its own computed style (visibility inherits, so this already covers hidden ancestors). */
+function isInvisible(s: CSSStyleDeclaration | null): boolean {
+  return s !== null && (s.visibility === 'hidden' || s.visibility === 'collapse');
+}
+
+function isZeroOpacity(s: CSSStyleDeclaration | null): boolean {
+  if (s === null || s.opacity === undefined || s.opacity === '') return false;
+  const n = parseFloat(s.opacity);
+  return Number.isFinite(n) && n <= 0;
+}
+
+function toRect(left: number, top: number, right: number, bottom: number): PruneRect {
+  return { left, top, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+}
+
+/**
+ * The clip `el` imposes on its descendants: `outer` narrowed, per clipping
+ * axis, to its padding box (border box minus borders). Inline and
+ * display:contents boxes do not clip.
+ */
+function clipFor(outer: PruneRect, r: PruneRect, s: CSSStyleDeclaration | null): PruneRect {
+  if (s === null || s.display === 'inline' || s.display === 'contents' || s.display === 'none') return outer;
+  const x = clipsAxis(s.overflowX);
+  const y = clipsAxis(s.overflowY);
+  if (!x && !y) return outer;
+  let { left, top, right, bottom } = outer;
+  if (x) {
+    left = Math.max(left, r.left + num(s.borderLeftWidth));
+    right = Math.min(right, r.right - num(s.borderRightWidth));
+  }
+  if (y) {
+    top = Math.max(top, r.top + num(s.borderTopWidth));
+    bottom = Math.min(bottom, r.bottom - num(s.borderBottomWidth));
+  }
+  return toRect(left, top, right, bottom);
+}
+
 function isBlankText(text: string): boolean {
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i);
@@ -334,8 +403,12 @@ function isBlankText(text: string): boolean {
 export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   const result: PruneResult = { masked: false, hiddenIds: new Set(), pruned: 0 };
   const { width: vw, height: vh } = deps.viewport;
-  const intersects = (r: PruneRect): boolean =>
-    r.width + r.height > 0 && r.right > 0 && r.bottom > 0 && r.left < vw && r.top < vh;
+  const VIEWPORT = toRect(0, 0, vw, vh);
+  /** A box with any extent that overlaps `clip` (an empty clip overlaps nothing). */
+  const overlaps = (r: PruneRect, clip: PruneRect): boolean =>
+    r.width + r.height > 0 &&
+    clip.right > clip.left && clip.bottom > clip.top &&
+    r.right > clip.left && r.bottom > clip.top && r.left < clip.right && r.top < clip.bottom;
   /** Pruned placeholders' effective margins, for their pruned ancestors' collapse probe. */
   const prunedFlow = new WeakMap<SnElement, PrunedFlow>();
   const zeroed = new WeakSet<SnElement>();
@@ -345,9 +418,34 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     return live !== null && live.nodeType === 1 ? (live as Element) : null;
   };
 
-  const frame = (node: SnParent, mode: Mode, live: Element | null, rect: PruneRect | null, maskText: boolean): Frame => ({
-    node, mode, live, rect, style: undefined, maskText, index: 0, kept: [], anyVisible: false, carry: null,
+  /** A frame inheriting its parent's clips and fading (pass-through: no box judged). */
+  const frame = (node: SnParent, mode: Mode, live: Element | null, rect: PruneRect | null, parent: Frame | null): Frame => ({
+    node, mode, live, rect, style: undefined,
+    maskText: parent?.maskText ?? false,
+    hideText: false,
+    faded: parent?.faded ?? false,
+    seen: false,
+    clip: parent?.clip ?? VIEWPORT,
+    absClip: parent?.absClip ?? VIEWPORT,
+    index: 0, kept: [], anyVisible: false, carry: null,
   });
+
+  /**
+   * Judges a boxed frame's own visibility and the clips it hands its
+   * descendants, from its ONE computed-style read.
+   */
+  const judgeBox = (f: Frame, parent: Frame): void => {
+    const s = styleOnce(f);
+    const rect = f.rect as PruneRect;
+    const position = s?.position;
+    const incoming = position === 'fixed' ? VIEWPORT : position === 'absolute' ? parent.absClip : parent.clip;
+    f.faded = parent.faded || isZeroOpacity(s);
+    const invisible = f.faded || isInvisible(s);
+    f.hideText = invisible;
+    f.seen = !invisible && overlaps(rect, incoming);
+    f.clip = clipFor(incoming, rect, s);
+    f.absClip = isPositioned(s) ? f.clip : parent.absClip;
+  };
 
   const styleOnce = (f: Frame): CSSStyleDeclaration | null => {
     if (f.style === undefined) f.style = f.live === null ? null : deps.styleOf(f.live);
@@ -409,7 +507,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   };
 
   /** A blocked sensitive element (rrweb `rr_width`/`rr_height`) → black same-box placeholder, no class. */
-  const maskBlocked = (node: SnElement, live: Element | null): Verdict => {
+  const maskBlocked = (node: SnElement, live: Element | null, parent: Frame): Verdict => {
     result.masked = true;
     collectIds(node, result.hiddenIds);
     node.childNodes = [];
@@ -427,7 +525,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         ? placeholderStyle(style, size, true, { top: num(style.marginTop), bottom: num(style.marginBottom) })
         : fallback(px(size.width), px(size.height)),
     };
-    return intersects(rect) ? 'visible' : 'hidden';
+    return overlaps(rect, parent.clip) && !parent.faded ? 'visible' : 'hidden';
   };
 
   /**
@@ -440,16 +538,34 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     if (hasOwn(node.attributes, SKIP_ATTR) && node.attributes[SKIP_ATTR] === 'true') return 'remove';
     const live = liveElement(node);
     if (live !== null && live.getAttribute(SKIP_ATTR) === 'true') return 'remove';
-    if (hasOwn(node.attributes, 'rr_width')) return maskBlocked(node, live);
+    if (hasOwn(node.attributes, 'rr_width')) return maskBlocked(node, live, parent);
     const inherit = parent.maskText;
-    if (parent.mode === 'head' || tag === 'head') return frame(node, 'head', live, null, inherit);
-    if (parent.mode === 'svg' || parent.mode === 'svgContent') return frame(node, 'svgContent', live, null, inherit);
-    if (ALWAYS_VISIBLE.has(tag)) return frame(node, 'always', live, null, inherit);
+    if (parent.mode === 'head' || tag === 'head') return frame(node, 'head', live, null, parent);
+    if (parent.mode === 'svg' || parent.mode === 'svgContent') return frame(node, 'svgContent', live, null, parent);
+    if (ALWAYS_VISIBLE.has(tag)) {
+      // html/body are never pruned; their opacity/visibility still hides content.
+      const always = frame(node, 'always', live, null, parent);
+      const s = styleOnce(always);
+      always.faded = parent.faded || isZeroOpacity(s);
+      always.hideText = always.faded || isInvisible(s);
+      return always;
+    }
     if (NEVER_PRUNE.has(tag)) return 'hidden';
-    if (live === null) return frame(node, 'transparent', null, null, inherit);
+    if (live === null) {
+      // No box to judge: pass everything through, and treat its bare text as
+      // its parent's (a hidden parent's live-less child is conservatively hidden).
+      const passThrough = frame(node, 'transparent', null, null, parent);
+      passThrough.hideText = parent.hideText;
+      return passThrough;
+    }
     const rect = deps.rectOf(live);
-    if (tag === 'svg') return frame(node, 'svg', live, rect, inherit);
-    const judged = frame(node, 'judge', live, rect, inherit);
+    if (tag === 'svg') {
+      const svg = frame(node, 'svg', live, rect, parent);
+      judgeBox(svg, parent);
+      return svg;
+    }
+    const judged = frame(node, 'judge', live, rect, parent);
+    judgeBox(judged, parent);
     if (!inherit && deps.isSensitive(live)) {
       // A sensitive display:contents wrapper cannot be blocked (it has no box);
       // the registry blocks its element children. Its BARE text would still
@@ -524,7 +640,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         break;
     }
     const node = f.node as SnElement;
-    if (intersects(f.rect as PruneRect)) return 'visible';
+    if (f.seen) return 'visible';
     if (f.mode === 'svg') {
       const defs = svgDefinitions(node);
       if (defs.length > 0) {
@@ -564,7 +680,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     else for (const svg of carry) parent.carry.push(svg);
   };
 
-  const stack: Frame[] = [frame(root, 'root', null, null, false)];
+  const stack: Frame[] = [frame(root, 'root', null, null, null)];
   while (stack.length > 0) {
     const top = stack[stack.length - 1] as Frame;
     if (top.index < top.node.childNodes.length) {
@@ -574,9 +690,9 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         if (typeof entered === 'string') settle(top, child, entered, null);
         else stack.push(entered);
       } else if (child.type === SN_DOCUMENT) {
-        stack.push(frame(child, 'transparent', null, null, top.maskText));
+        stack.push(frame(child, 'transparent', null, null, top));
       } else {
-        if (top.maskText && child.type === SN_TEXT) child.textContent = child.textContent.replace(/\S/g, '•');
+        if ((top.maskText || top.hideText) && child.type === SN_TEXT) child.textContent = child.textContent.replace(/\S/g, '•');
         top.kept.push(child);
       }
       continue;
