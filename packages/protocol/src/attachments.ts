@@ -12,6 +12,10 @@ export const AttachmentKind = z
     'video',
     'audio',
     'session-replay',
+    // Smart-TV page snapshot (gzip JSON `DomSnapshotV1`, see dom-snapshot.ts).
+    // Additive: servers built before this value reject it, so SDKs send it only
+    // once the render path is live.
+    'dom-snapshot',
     'other',
   ])
   .meta({ $id: 'AttachmentKind' });
