@@ -87,12 +87,58 @@ export function redactPageString(value: string, config: RedactionEngineConfig): 
   return redactStringContent(maskLongTokenRuns(truncateAtTokenBoundary(value, MAX_PATTERN_TEXT_LENGTH)), config);
 }
 
-function decodeSegment(segment: string): string {
+function isHex(c: number): boolean {
+  return (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x46) || (c >= 0x61 && c <= 0x66);
+}
+
+function tryDecode(run: string): string | null {
   try {
-    return decodeURIComponent(segment);
+    return decodeURIComponent(run);
   } catch {
-    return segment;
+    return null;
   }
+}
+
+/** One run of `%XX` escapes: decoded whole, else escape by escape (each kept raw when it cannot decode alone). */
+function decodeRun(run: string): string {
+  const whole = tryDecode(run);
+  if (whole !== null) return whole;
+  let out = '';
+  for (let k = 0; k < run.length; k += 3) {
+    const one = run.slice(k, k + 3);
+    out += tryDecode(one) ?? one;
+  }
+  return out;
+}
+
+/**
+ * Percent-decodes a path segment run by run (one linear scan), so a malformed
+ * escape (`%ZZ`, a lone `%`, an invalid UTF-8 byte like `%FF`) stays raw
+ * WITHOUT disabling decoding of an encoded email or card elsewhere in the
+ * same segment.
+ */
+function decodeSegment(segment: string): string {
+  if (segment.indexOf('%') < 0) return segment;
+  let out = '';
+  let i = 0;
+  while (i < segment.length) {
+    const runStart = i;
+    while (
+      i + 2 < segment.length &&
+      segment.charCodeAt(i) === 0x25 &&
+      isHex(segment.charCodeAt(i + 1)) &&
+      isHex(segment.charCodeAt(i + 2))
+    ) {
+      i += 3;
+    }
+    if (i > runStart) {
+      out += decodeRun(segment.slice(runStart, i));
+      continue;
+    }
+    out += segment[i];
+    i++;
+  }
+  return out;
 }
 
 /**
