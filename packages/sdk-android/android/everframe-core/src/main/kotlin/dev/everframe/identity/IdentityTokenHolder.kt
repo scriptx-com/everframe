@@ -47,7 +47,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /** The header ingest reads the token from. */
-const val IDENTITY_TOKEN_HEADER = "X-TX-Identity-Token"
+const val IDENTITY_TOKEN_HEADER = "X-Everframe-Identity-Token"
 
 /**
  * How far ahead of `exp` a cached token is considered too stale to present.

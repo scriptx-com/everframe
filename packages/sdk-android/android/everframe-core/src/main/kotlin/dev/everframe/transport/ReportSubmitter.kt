@@ -118,7 +118,7 @@ class ReportSubmitter(
         reportId: UUID = UUID.randomUUID(),
         /**
          * Companion attribution token (spec 2026-08-07) — rides the ingest
-         * POST as `X-TX-Companion-Attribution`. Null (the default) for every
+         * POST as `X-Everframe-Companion-Attribution`. Null (the default) for every
          * in-process reporter submit; non-null only for a report the dashboard
          * asked this device to file. Deliberately NOT persisted into the
          * outbox: the token is short-lived, so a retried-hours-later drain
@@ -137,7 +137,7 @@ class ReportSubmitter(
          */
         identitySubject: String? = null,
         /**
-         * The value to present as `X-TX-Identity-Token`, already resolved by
+         * The value to present as `X-Everframe-Identity-Token`, already resolved by
          * the caller via `resolveIdentityHeader(capturedSubject:holder:
          * config:nowMs:)`. `null` sends the report anonymously. Kept
          * separate from [identitySubject] because the two answer different
@@ -221,7 +221,7 @@ class ReportSubmitter(
      * each report still reaches its own server.
      *
      * @param identityHolder/currentReplayConfig how this pass resolves each
-     *   entry's `X-TX-Identity-Token`, via `resolveIdentityHeader(capturedSubject =
+     *   entry's `X-Everframe-Identity-Token`, via `resolveIdentityHeader(capturedSubject =
      *   entry.identitySubject, holder =, config =, nowMs =)` — mirroring how
      *   `sdkKey`/`endpoint` above come from each entry rather than the live
      *   config, EXCEPT that the subject is the only piece that is captured:
@@ -545,7 +545,7 @@ private fun OutboxEntry.hasVideo(): Boolean = attachmentRefs.any { it.contentTyp
  * change) would otherwise turn into a dropped report instead of degrading
  * to the anonymous direction.
  *
- * Deliberately does NOT touch `X-TX-Companion-Attribution` — established to
+ * Deliberately does NOT touch `X-Everframe-Companion-Attribution` — established to
  * have the identical exposure (verified on iOS; not independently
  * re-verified against OkHttp's specific behaviour here, but there is no
  * reason to expect OkHttp treats it any differently from

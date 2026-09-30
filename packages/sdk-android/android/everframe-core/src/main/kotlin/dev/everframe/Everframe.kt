@@ -2198,7 +2198,7 @@ object Everframe {
         _replaySession?.currentConfig ?: ReplayConfig.OFF
 
     /**
-     * Resolve this submit boundary's `X-TX-Identity-Token` value (or `null` to
+     * Resolve this submit boundary's `X-Everframe-Identity-Token` value (or `null` to
      * send anonymously) against the live singleton holder and the live
      * per-app identity config. Public — unlike [_identityHolder] itself —
      * because `:everframe-reporter-ui`'s `ReporterDialog` composes its submit

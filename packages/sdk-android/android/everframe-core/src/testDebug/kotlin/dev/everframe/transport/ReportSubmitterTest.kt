@@ -256,7 +256,7 @@ class ReportSubmitterTest {
             val request = server.takeUpload()
             assertEquals("/api/ingest", request.path)
             assertEquals("captured-id", request.getHeader("X-Everframe-Idempotency-Key"))
-            assertNull(request.getHeader("X-TX-Identity-Token"))
+            assertNull(request.getHeader("X-Everframe-Identity-Token"))
             assertEquals(listOf(original), outbox.hydrate())
         } finally { dev.everframe.config.EndpointOverride.current = oldOverride }
     }
@@ -284,7 +284,7 @@ class ReportSubmitterTest {
             val request = server.takeUpload()
             assertEquals("/api/ingest", request.path)
             assertEquals("captured-id", request.getHeader("X-Everframe-Idempotency-Key"))
-            assertNull(request.getHeader("X-TX-Identity-Token"))
+            assertNull(request.getHeader("X-Everframe-Identity-Token"))
             assertEquals(listOf(original), outbox.hydrate())
         } finally { dev.everframe.config.EndpointOverride.current = oldOverride }
     }
@@ -619,7 +619,7 @@ class ReportSubmitterTest {
     )
 
     @Test
-    fun `submit attaches X-TX-Identity-Token when the caller resolved one`() = runBlocking {
+    fun `submit attaches X-Everframe-Identity-Token when the caller resolved one`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         val now = System.currentTimeMillis()
         val holder = IdentityTokenHolder()
@@ -646,12 +646,12 @@ class ReportSubmitterTest {
         assertEquals(
             "the real HTTP request must carry the resolved identity token",
             token,
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 
     @Test
-    fun `submit sends no X-TX-Identity-Token when identityToken is null`() = runBlocking {
+    fun `submit sends no X-Everframe-Identity-Token when identityToken is null`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         makeSubmitter().submit(
             envelopeBytes = "{}".toByteArray(),
@@ -661,7 +661,7 @@ class ReportSubmitterTest {
         val recorded = server.takeUpload()
         assertNull(
             "an anonymous submit must not carry the identity header at all",
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 
@@ -692,7 +692,7 @@ class ReportSubmitterTest {
         assertEquals(
             "an entry captured under alice, drained while alice's token is live, must carry it",
             token,
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
         assertEquals(0, outbox.count())
     }
@@ -723,7 +723,7 @@ class ReportSubmitterTest {
         val recorded = server.takeUpload()
         assertNull(
             "alice's queued report must never be drained carrying bob's credential",
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 
@@ -773,7 +773,7 @@ class ReportSubmitterTest {
         val recorded = server.takeUpload()
         assertNull(
             "a live token must never drain onto a queued entry captured under a DIFFERENT project, even when the subject matches",
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
         assertEquals(0, outbox.count())
     }
@@ -809,7 +809,7 @@ class ReportSubmitterTest {
         assertEquals(
             "the header must still attach for the ordinary same-project case",
             token,
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 
@@ -875,7 +875,7 @@ class ReportSubmitterTest {
             assertNull(
                 "a live token must never drain onto a queued entry whose endpoint no longer matches " +
                     "the live one, even when sdkKey and subject both match",
-                recorded.getHeader("X-TX-Identity-Token"),
+                recorded.getHeader("X-Everframe-Identity-Token"),
             )
         } finally {
             staleServer.shutdown()
@@ -942,7 +942,7 @@ class ReportSubmitterTest {
         val recorded = server.takeUpload()
         assertNull(
             "an epoch change during resolution must withhold the header even though the pre-check passed and the subject matches",
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 
@@ -975,7 +975,7 @@ class ReportSubmitterTest {
         assertEquals(
             "the header must still attach when nothing raced the resolution",
             token,
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 
@@ -1057,7 +1057,7 @@ class ReportSubmitterTest {
         )
         assertNull(
             "the provider failed, so this must ship anonymously — no header, but the report must still ship",
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 
@@ -1121,7 +1121,7 @@ class ReportSubmitterTest {
         )
         assertNull(
             "the token was malformed, so this must ship anonymously — no header, but the report must still ship",
-            recorded.getHeader("X-TX-Identity-Token"),
+            recorded.getHeader("X-Everframe-Identity-Token"),
         )
     }
 

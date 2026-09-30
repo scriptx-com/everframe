@@ -33,7 +33,7 @@ class NativeVideoCapabilityTest {
         try {
             session.refreshConfigNow()
             val request = server.takeRequest(3, java.util.concurrent.TimeUnit.SECONDS)!!
-            val features = request.getHeader("X-TX-SDK-Features")!!.split(',').map { it.trim() }
+            val features = request.getHeader("X-Everframe-SDK-Features")!!.split(',').map { it.trim() }
             assertFalse(features.contains("vtree"))
             assertEquals(supported, features.contains("nativevideo"))
             assertFalse(request.requestUrl!!.queryParameterNames.contains("vtree"))

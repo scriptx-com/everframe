@@ -80,7 +80,7 @@ internal object ReporterDialog {
      * it null. Mirrors `CompanionSubmissionComposer.__submitterFactoryForTesting`
      * one module up — it exists so a test can point the real submit at a
      * local server and assert on the request it receives (in particular,
-     * that `X-TX-Identity-Token` is withheld when the captured session's
+     * that `X-Everframe-Identity-Token` is withheld when the captured session's
      * epoch no longer matches the live one). Nothing is short-circuited: the
      * dialog still builds the whole envelope and still calls `submit(...)`
      * on whatever submitter it is handed.
@@ -443,7 +443,6 @@ internal object ReporterDialog {
 
             // 2. Device metadata snapshot.
             val device = DeviceMetadata.collect(activity)
-            val isTablet = activity.resources.configuration.smallestScreenWidthDp >= 600
 
             // Select only the reporter-open owner's video; transport revalidates its live generation.
             val authorization = if (hostReplayVTree != null)
@@ -510,7 +509,7 @@ internal object ReporterDialog {
                 sdkName = sdkName,
                 title = title,
                 description = description,
-                formFactor = if (isTablet) "tablet" else "phone",
+                formFactor = DeviceMetadata.formFactor(device),
                 logs = capturedLogs,
                 networkRows = capturedNetwork,
                 networkBodies = capturedNetworkBodies,
@@ -561,7 +560,7 @@ internal object ReporterDialog {
             )
 
             // Native identity Task 8b — the live submit boundary. Resolve the
-            // `X-TX-Identity-Token` value HERE, against the subject captured
+            // `X-Everframe-Identity-Token` value HERE, against the subject captured
             // at the Send tap (`capturedSession.user.identitySubject`), never
             // a live re-read — same capture-time-not-submit-time rule
             // `capturedSession.user.resolve()` enforces for the self-declared

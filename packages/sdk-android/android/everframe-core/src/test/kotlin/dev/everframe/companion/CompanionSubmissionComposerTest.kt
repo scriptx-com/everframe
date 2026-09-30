@@ -545,7 +545,7 @@ class CompanionSubmissionComposerTest {
                 assertNotNull("MockWebServer never received the drain request", recorded)
                 assertNull(
                     "the entry's null subject must withhold the header even though a live token's sub matches",
-                    recorded!!.getHeader("X-TX-Identity-Token"),
+                    recorded!!.getHeader("X-Everframe-Identity-Token"),
                 )
             } finally {
                 drainOutboxFile.delete()
@@ -672,7 +672,7 @@ class CompanionSubmissionComposerTest {
             assertEquals(
                 "the real HTTP request must carry alice's identity token",
                 token,
-                request!!.getHeader("X-TX-Identity-Token"),
+                request!!.getHeader("X-Everframe-Identity-Token"),
             )
         } finally {
             Everframe.__resetStartTailDelayHookForTesting()
@@ -812,7 +812,7 @@ class CompanionSubmissionComposerTest {
             assertNotNull("MockWebServer never received the submit request", request)
             assertNull(
                 "project B's live token must never drain onto a report captured under project A's session, even though the subject matches",
-                request!!.getHeader("X-TX-Identity-Token"),
+                request!!.getHeader("X-Everframe-Identity-Token"),
             )
         } finally {
             Everframe.__resetStartTailDelayHookForTesting()

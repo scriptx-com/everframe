@@ -169,7 +169,7 @@ class EverframeCompanionOwnershipTest {
             assertFalse(body.contains("video/mp4"))
             assertFalse(body.contains("everframe-video-v1"))
             org.junit.Assert.assertEquals("Bearer txx_live_test1234567890", request.getHeader("Authorization"))
-            org.junit.Assert.assertEquals("original-attribution", request.getHeader("X-TX-Companion-Attribution"))
+            org.junit.Assert.assertEquals("original-attribution", request.getHeader("X-Everframe-Companion-Attribution"))
         } finally {
             dev.everframe.companion.CompanionSubmissionComposer.__submitterFactoryForTesting = null
             capture.cancel(); Everframe.kill(); server.shutdown()
