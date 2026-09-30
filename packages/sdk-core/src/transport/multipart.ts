@@ -42,6 +42,10 @@ function classifyKind(name: string): AttachmentRef['kind'] {
   // this case it falls through to 'other' and the admin Replay tab (which gates on
   // kind === 'session-replay') never renders.
   if (name === 'session-replay') return 'session-replay';
+  // Smart-TV page snapshots mirror the screenshot naming: shot 1 is the bare
+  // `dom-snapshot`, shots 2..N are `dom-snapshot-N`. Without this they would
+  // ship as kind 'other' and admin could never pair them with their shot.
+  if (name === 'dom-snapshot' || /^dom-snapshot-\d+$/.test(name)) return 'dom-snapshot';
   return 'other';
 }
 

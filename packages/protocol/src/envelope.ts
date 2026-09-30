@@ -44,6 +44,7 @@ export const ReportEnvelope = z
           'everframe-kmp',
           'everframe-ios',
           'everframe-android',
+          'everframe-roku',
         ]),
         version: z.string(),
         platform: SDKPlatform,

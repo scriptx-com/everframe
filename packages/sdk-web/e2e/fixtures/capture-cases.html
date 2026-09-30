@@ -1,0 +1,129 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe capture cases e2e fixture</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f1117; color: #e6e8ee; }
+  main { padding: 32px; display: grid; gap: 16px; max-width: 720px; }
+  .card { background: #171a23; border: 1px solid #2a2e3a; border-radius: 10px; padding: 20px; }
+  /* Restyled by script in the stale-style-cache e2e test. Lives in <head>:
+     a <style> inside the captured subtree is cloned with its ORIGINAL text,
+     so a CSSOM edit to it could never show up in any capture. */
+  .cx { width: 200px; height: 60px; background: rgb(0,0,255); }
+  /* Scrollers sized ONLY by stylesheet rules (no inline width/height). */
+  .css-scroller { height: 300px; overflow: auto; background: #fff; }
+  .css-scroller > div { height: 60px; }
+  .carousel { display: flex; width: 600px; height: 120px; overflow-x: auto; overflow-y: hidden; background: #fff; }
+  .carousel > div { flex: 0 0 200px; height: 100px; }
+  .grid-scroller { display: grid; grid-template-columns: repeat(2, 150px); grid-auto-rows: 80px; width: 300px; height: 200px; overflow: auto; background: #fff; }
+  .swatch { height: 56px; border-radius: 8px; background: linear-gradient(90deg,#ff5f6d,#ffc371); }
+</style>
+</head>
+<body>
+  <main style="font:16px/1.5 system-ui,sans-serif">
+  <section id="sparse" style="height:900px;background:#fff;color:#111;padding:24px">Only one short line.</section>
+  <section id="dark" style="height:900px;background:#0d1117;color:#e8e6e3;padding:24px">
+    <div id="secret" data-everframe-sensitive style="width:240px;height:40px;background:#fff;color:#000">4111 1111 1111 1111</div>
+    <video id="vid" width="320" height="180" poster="data:image/gif;base64,R0lGODlhAQABAIAAAP8AAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:block"></video>
+    <div id="after-video" style="width:120px;height:30px;background:rgb(0,200,0)"></div>
+  </section>
+  <section id="nested" style="height:300px;overflow:auto;background:#fff">
+    <div style="height:1200px;position:relative">
+      <div id="nested-marker" style="position:absolute;top:900px;width:200px;height:60px;background:rgb(255,0,255)"></div>
+    </div>
+  </section>
+  <style>.shifted { transform: translateX(40px); }</style>
+  <!-- The class transform sits on the scroller's DIRECT child: that is the
+       element scroll restoration touches, so this is where a lost or doubled
+       transform would show. -->
+  <section id="classy" style="height:300px;overflow:auto;background:#fff">
+    <div class="shifted" style="height:1200px;position:relative">
+      <div id="classy-marker" style="position:absolute;top:900px;left:0;width:100px;height:60px;background:rgb(0,0,255)"></div>
+    </div>
+  </section>
+  <!-- Direct child with the INDIVIDUAL `scale` property (computed transform stays 'none'). -->
+  <section id="scaled" style="height:300px;overflow:auto;background:#fff">
+    <div style="scale:2;transform-origin:0 0;height:1200px;position:relative">
+      <div id="scaled-marker" style="position:absolute;top:450px;left:0;width:100px;height:30px;background:rgb(0,200,200)"></div>
+    </div>
+  </section>
+  <!-- Positioned scroller; STATIC direct child (margin-top 50px); an absolute
+       grandchild anchored to the SCROLLER. A transform on the child must not
+       re-anchor the grandchild to it. -->
+  <section id="cb-rebase" style="position:relative;height:300px;overflow:auto;background:#fff">
+    <div style="margin-top:50px;height:1200px">
+      <div id="cb-rebase-marker" style="position:absolute;top:150px;left:0;width:100px;height:40px;background:rgb(200,0,100)"></div>
+    </div>
+  </section>
+  <!-- Plain in-flow rows (no positioning): 20 x 60px, pairwise-distinct colours. -->
+  <section id="rows" style="height:300px;overflow:auto;background:#fff"></section>
+  <section id="css-rows" class="css-scroller"></section>
+  <div id="below-css-rows" style="height:60px;background:rgb(255,128,0)"></div>
+  <!-- Stylesheet-sized scroller whose children include a position:fixed FAB
+       (snapDOM lifts it out of the scroller's clone). -->
+  <section id="css-rows-fixed" class="css-scroller"></section>
+  <div id="below-css-rows-fixed" style="height:60px;background:rgb(0,128,255)"></div>
+  <section id="carousel" class="carousel"></section>
+  <section id="grid" class="grid-scroller"></section>
+  <!-- A checked checkbox styled with appearance:none, marked sensitive:
+       snapDOM synthesizes a checkmark from `checked`; it must ship as a
+       plain black box. -->
+  <section id="consent" style="background:#fff;padding:8px">
+    <input id="consent-box" type="checkbox" checked data-everframe-sensitive
+      style="appearance:none;-webkit-appearance:none;display:block;width:40px;height:40px;margin:0;background:#fff;border:2px solid #333;border-radius:4px">
+  </section>
+  <!-- Grid with fixed tracks spread by justify-content: the second column
+       sits at the far edge of the 400px scroller. -->
+  <section id="grid-sb" style="display:grid;width:400px;height:200px;overflow:auto;grid-template-columns:100px 100px;grid-auto-rows:80px;justify-content:space-between;background:#fff"></section>
+  <section id="restyle" style="background:#fff;padding:8px"><div id="cx" class="cx"></div></section>
+  <section id="bulk"></section>
+  </main>
+  <script>
+    // Optional heavy mode: ?bulk=15000 adds nodes below the fold.
+    const n = +(new URLSearchParams(location.search).get('bulk') || 0);
+    const bulk = document.getElementById('bulk');
+    for (let i = 0; i < n; i++) bulk.appendChild(document.createElement('span')).textContent = i + ' ';
+    // Pairwise-distinct colours (every pair differs by >= 60 in some channel).
+    const colour = (i) => `rgb(${(i % 4) * 80},${Math.floor(i / 4) * 60},${i % 2 ? 255 : 0})`;
+    const fill = (id, count, style) => {
+      const host = document.getElementById(id);
+      for (let i = 0; i < count; i++) {
+        const el = host.appendChild(document.createElement('div'));
+        el.id = `${id}-${i}`;
+        el.style.cssText = style + `background:${colour(i)}`;
+      }
+    };
+    fill('rows', 20, 'height:60px;');
+    fill('css-rows', 20, '');
+    fill('css-rows-fixed', 20, '');
+    const fab = document.getElementById('css-rows-fixed').appendChild(document.createElement('div'));
+    fab.id = 'fab';
+    fab.style.cssText = 'position:fixed;right:12px;bottom:12px;width:40px;height:40px;background:rgb(20,20,20)';
+    fill('carousel', 10, '');
+    fill('grid', 10, '');
+    fill('grid-sb', 10, '');
+  </script>
+  <!-- The eager entry reaches its two runtime dependencies by a BARE dynamic
+       specifier (`modern-screenshot` for capture, `rrweb` for replay). A real
+       consumer's bundler resolves those; a browser loading raw ESM cannot, and
+       the SDK fails closed — capture silently degrades to a 1x1 transparent
+       placeholder. The import map is this fixture standing in for the
+       bundler; e2e/static-server.mjs serves both under /vendor/. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

@@ -53,7 +53,8 @@
       "@noble/hashes@1.8.0": "patches/@noble__hashes@1.8.0.patch",
       "modern-screenshot@4.7.0": "patches/modern-screenshot@4.7.0.patch",
       "rrweb@2.0.1": "patches/rrweb@2.0.1.patch",
-      "zod@4.3.6": "patches/zod@4.3.6.patch"
+      "zod@4.3.6": "patches/zod@4.3.6.patch",
+      "@zumer/snapdom@3.2.0": "patches/@zumer__snapdom@3.2.0.patch"
     }
   }
 }

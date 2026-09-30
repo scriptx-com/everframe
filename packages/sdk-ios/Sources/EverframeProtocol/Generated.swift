@@ -229,6 +229,7 @@ public enum EverframeFormat: String, Codable {
 public enum EverframeAttachmentKind: String, Codable {
     case annotatedScreenshot = "annotated-screenshot"
     case audio = "audio"
+    case domSnapshot = "dom-snapshot"
     case other = "other"
     case screenshot = "screenshot"
     case sessionReplay = "session-replay"
@@ -1846,6 +1847,7 @@ public enum EverframeName: String, Codable {
     case everframeKmp = "everframe-kmp"
     case everframeReact = "everframe-react"
     case everframeReactNative = "everframe-react-native"
+    case everframeRoku = "everframe-roku"
     case everframeWeb = "everframe-web"
 }
 
@@ -1854,6 +1856,7 @@ public enum EverframePlatform: String, Codable {
     case android = "android"
     case androidtv = "androidtv"
     case ios = "ios"
+    case roku = "roku"
     case tizen = "tizen"
     case tvos = "tvos"
     case web = "web"

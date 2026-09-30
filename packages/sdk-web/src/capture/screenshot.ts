@@ -5,12 +5,35 @@ import type { ScreenshotResult, Rect } from '@everframe/sdk-core';
 import { sha256Hex } from './sha256.js';
 import { applyDomMask } from '../sensitive/registry.js';
 import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reasons.js';
-import { installVideoStandIns } from './video-frames.js';
+import { installVideoStandIns, POSTER_LOAD_TIMEOUT_MS } from './video-frames.js';
+import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
+import { paintMaskRectsOnCanvas } from './mask-paint.js';
 import {
-  FAST_CLONE_STYLE_PROPERTIES,
-  computeCappedPixelRatio,
-  getCaptureProfile,
-} from './capture-profile.js';
+  collectSensitiveRects,
+  expandMaskTargets,
+  paintViewportRects,
+  rectsMoved,
+  VIEWPORT_ALIGNED,
+  type CanvasOffset,
+} from './pixel-mask.js';
+export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
+import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
+
+export type ScreenshotRenderer = 'snapdom' | 'modern-screenshot' | 'none';
+
+/**
+ * Share of the profile deadline the primary renderer may use before the
+ * fallback starts. snapDOM cannot be cancelled either — a stalled attempt
+ * keeps running in the background — but the fallback no longer waits on it.
+ */
+const PRIMARY_BUDGET_SHARE = 0.6;
+
+/**
+ * Minimum time the single encode gets even when rendering used the whole
+ * budget: a real canvas is never thrown away for want of an encode slot.
+ * Worst case total = profile.deadlineMs + ENCODE_FLOOR_MS.
+ */
+const ENCODE_FLOOR_MS = 2_000;
 
 export interface CaptureScreenshotOptions {
   /** Root element to capture; defaults to document.body */
@@ -18,22 +41,37 @@ export interface CaptureScreenshotOptions {
   /** CSP nonce — threaded into dynamically-injected styles to satisfy strict-CSP environments (Pitfall 11). */
   cspNonce?: string;
   /**
-   * Legacy auto-mask plan (rect-based). Painted post-capture via
-   * `applyMaskRectsToBlob` — kept for backwards-compat with callers that have
+   * Legacy auto-mask plan (rect-based). Painted onto the rendered canvas
+   * (mask-paint.ts) before the single encode — kept for backwards-compat with callers that have
    * rects but not the underlying DOM elements. New callers should prefer
    * `maskTargets` (live-DOM masking), which sidesteps the viewport→PNG
    * coordinate transform entirely.
    */
   maskPlan?: Rect[];
   /**
-   * Live-DOM masking targets — sensitive elements that should be rendered as
-   * solid-black boxes in the captured PNG. Each element gets an inline-style
-   * mask applied just before the capture library clones the DOM, restored in a
-   * `finally` immediately after. Layout is preserved (boxes keep their size);
-   * content is invisible. Strongly preferred over `maskPlan` because the
-   * capture library handles the coordinate transform natively.
+   * Masking targets — sensitive elements that should be rendered as
+   * solid-black boxes in the captured PNG. On the snapDOM path each target's
+   * CLONE is replaced by a black box of the same geometry (clone-mask.ts) -
+   * the live page is never touched. The modern-screenshot fallback, which
+   * clones the live page itself, applies an inline-style mask to the live
+   * element right before it renders and restores it right after. Layout is
+   * preserved either way. Strongly preferred over `maskPlan` because no
+   * coordinate transform is involved.
+   *
+   * Pass a FUNCTION to have the targets resolved at the moment masking is
+   * applied - after the capture's turn in the queue comes up. A plain array
+   * is a snapshot taken when captureScreenshot was called: if the app
+   * replaces a sensitive element while the capture waits behind another one,
+   * the array still names the detached original and the replacement ships
+   * unmasked. A throwing resolver fails the capture (never unmasked).
    */
-  maskTargets?: Element[];
+  maskTargets?: Element[] | (() => Element[]);
+  /**
+   * Live sensitivity predicate for the snapDOM path: judged at mask time on
+   * each cloned node's source and its ancestors (see clone-mask.ts), in
+   * addition to `maskTargets`. The adapter passes the sensitive registry's.
+   */
+  isSensitive?: (el: Element) => boolean;
   /** Optional pixel ratio override (default = window.devicePixelRatio). */
   pixelRatio?: number;
   /**
@@ -41,11 +79,14 @@ export interface CaptureScreenshotOptions {
    * to populate envelope.captureControl.degradedReason (plan 07).
    */
   __setDegradedReason?: (reason: DegradedReason) => void;
+  /** Surface (out-param) — which renderer produced the shipped image ('none' = placeholder). */
+  __setRenderer?: (renderer: ScreenshotRenderer) => void;
 }
 
 /**
- * 1x1 transparent PNG bytes — used as the degraded-result blob when
- * modern-screenshot fails. DEFE-02: never block submission on a screenshot failure.
+ * 1x1 transparent PNG bytes — used as the degraded-result blob when no
+ * renderer produced a usable canvas. DEFE-02: never block submission on a
+ * screenshot failure.
  */
 const TRANSPARENT_PIXEL_PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -55,45 +96,37 @@ const TRANSPARENT_PIXEL_PNG_BYTES = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
-/**
- * Ceiling on modern-screenshot's PRE-CLONE pass, which awaits the load of every
- * `<img>`/`<video>` in the subtree before the `filter` is consulted (so a
- * filtered-out `<video>` is still waited on). Its default is 30_000 — measured
- * as a flat 30s stall on a page with one stalled video source, filter or no
- * filter. Resources the user is currently looking at are already loaded, so this
- * pass is normally instant; the budget only bites on genuinely broken or
- * still-loading ones, where a slightly incomplete shot beats a frozen reporter.
- */
-const RESOURCE_WAIT_BUDGET_MS = 3_000;
+/** WebP quality for the TV profile's single-pass encode (matches the relay hop's 0.85). */
+const WEBP_QUALITY = 0.85;
 
-/**
+/*
  * Wall-clock ceiling for the whole capture — per device tier, see
- * capture-profile.ts (10s desktop, 20s Smart-TV webviews where a legitimate
- * capture measures 8-12s).
+ * capture-profile.ts (10s desktop, 45s Smart-TV webviews), split between the
+ * renderers by PRIMARY_BUDGET_SHARE plus the ENCODE_FLOOR_MS encode slot.
  *
  * DEFENCE IN DEPTH, and the load-bearing part of it. `<video>` is handled
  * explicitly (see video-frames.ts), but that is a fix for the ONE unbounded
  * await we found by decompiling modern-screenshot — we cannot prove there isn't
- * another in the library's clone walk, and the failure mode is a permanently
- * stuck reporter rather than an error anyone can see. This makes a hang
- * structurally impossible: whatever stalls, the deadline rejects and capture
- * degrades to a transparent placeholder.
+ * another in either renderer's clone walk, and the failure mode is a
+ * permanently stuck reporter rather than an error anyone can see. This makes a
+ * hang structurally impossible: whatever stalls, the deadline rejects and
+ * capture degrades to a transparent placeholder.
  */
-
-/** WebP quality for the TV profile's single-pass encode (matches the relay hop's 0.85). */
-const WEBP_QUALITY = 0.85;
 
 /**
  * Raised when screenshot capture blows its deadline.
  */
 class CaptureTimeoutError extends Error {}
 
+/** The snapDOM canvas cannot carry legacy `maskPlan` rects: the root moved during the render. */
+class SnapdomGeometryError extends Error {}
+
 /**
  * Reject if `work` has not settled within `ms`.
  *
- * Note this does not (and cannot) CANCEL the underlying work — modern-screenshot
- * does not take an AbortSignal. The stalled promise stays pending and becomes garbage
- * once unreferenced; what matters is that our caller stops waiting on it.
+ * Note this does not (and cannot) CANCEL the underlying work — neither
+ * renderer takes an AbortSignal. The stalled promise stays pending and becomes
+ * garbage once unreferenced; what matters is that our caller stops waiting on it.
  */
 function withDeadline<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -116,9 +149,9 @@ function withDeadline<T>(work: Promise<T>, ms: number, label: string): Promise<T
 
 /**
  * Hook into the document so any <style> tag inserted while the capture is running gets
- * the customer's CSP nonce. modern-screenshot injects <style> nodes for embedded font
- * CSS / inlined image data — without the nonce the strict-CSP page
- * blocks them (Pitfall 11) and the screenshot is empty.
+ * the customer's CSP nonce. The capture libraries may inject <style> nodes (embedded
+ * font CSS, inlined image data, measurement sandboxes) — without the nonce the
+ * strict-CSP page blocks them (Pitfall 11) and the screenshot is empty.
  */
 function applyNonceToFreshStyles(nonce: string): () => void {
   const observer = new MutationObserver((muts) => {
@@ -216,37 +249,6 @@ export async function applyMaskRectsToBlob(
   });
 }
 
-/**
- * Paint legacy `maskPlan` rects (root-relative DEVICE px) straight onto the
- * full-document capture canvas — same coordinate space, same 2px safety
- * inflation as `applyMaskRectsToBlob`, minus that path's decode/encode round.
- * Best-effort: a missing 2d context skips masking rather than failing the
- * capture (the caller's primary masking is live-DOM `maskTargets`).
- */
-function paintMaskRectsOnCanvas(
-  canvas: HTMLCanvasElement,
-  rects: Rect[],
-  /** effective (capped) ratio ÷ requested ratio — 1 whenever no cap applied. */
-  scale = 1,
-): void {
-  const inflate = 2;
-  let ctx: CanvasRenderingContext2D | null = null;
-  try {
-    ctx = canvas.getContext('2d');
-  } catch {
-    return;
-  }
-  if (!ctx) return;
-  ctx.fillStyle = '#000000';
-  for (const r of rects) {
-    ctx.fillRect(
-      r.x * scale - inflate,
-      r.y * scale - inflate,
-      r.width * scale + inflate * 2,
-      r.height * scale + inflate * 2,
-    );
-  }
-}
 
 /**
  * Skip the SDK's own DOM (bubble, modal, toast) from the captured page so the screenshot
@@ -270,193 +272,87 @@ const filterNode = (node: Node): boolean => {
   return el.getAttribute('data-everframe-skip-capture') !== 'true';
 };
 
+/**
+ * What the renderers leave out that the pixel mask must leave alone too: the
+ * SDK's own chrome. <video> is filtered only because a stand-in renders it.
+ */
+const excludedFromCapture = (el: Element): boolean => el.tagName !== 'VIDEO' && !filterNode(el);
+
 /** Test seam — the real clone filter, callable directly without mocking modern-screenshot. */
 export function __filterNodeForTests(node: Node): boolean {
   return filterNode(node);
 }
 
-/**
- * Margin (CSS px) around the viewport kept in a viewport-only clone. Absorbs
- * near-fold cases so a partially visible row is never dropped.
- */
-const VIEWPORT_CLONE_MARGIN_PX = 100;
 
 /**
- * Elements the TV profile may drop from the clone: OUT-OF-FLOW subtrees with
- * nothing visible inside them — i.e. the offscreen PARTS of the page (the
- * tiles scrolled past a rail's edge, the rows below the fold), never the
- * containers that hold visible content.
+ * Captures never overlap. Each one mutates the LIVE page for its duration -
+ * video stand-ins, the fallback's live-DOM masks (applyDomMask saves and
+ * restores inline styles) - and interleaved captures corrupt each other's
+ * save/restore: B saving A's masked styles as "original" leaves an element
+ * masked for good, and A restoring while B clones leaks sensitive pixels
+ * into B. So each capture takes a slot in this
+ * queue before it touches the page and gives it up as soon as the page is
+ * restored (the `finally` below), before its placeholder/hash tail.
  *
- * Two hard-won constraints, both measured on an LG 43UP77003LB (webOS 6.5):
- *
- *  - Only `position: absolute|fixed` subtrees may go. Removing an in-flow node
- *    reflows its siblings inside the clone, which shifts the rest of the page
- *    out of the cropped viewport — that is what emptied the rails out of
- *    otherwise-successful screenshots (reports "rep111"/"rep1111").
- *  - Visibility must be judged over the WHOLE subtree, never the element's own
- *    rect. Virtualized lists park a container far offscreen and transform its
- *    children back into view: the real one measured at y=-4252 held 1091
- *    visible descendants, so pruning on the container's own rect deleted the
- *    entire content area.
- *
- * Result on that device: 1252 nodes -> 978 dropped, clone 1.89MB -> 1.01MB,
- * capture 20.1s -> 12.6s, output byte-identical to the full-document capture.
- * The pre-pass costs ~115ms there.
+ * That page-mutating section always ends: every await in it is bounded
+ * (poster loads by POSTER_LOAD_TIMEOUT_MS, renderers and encode by the
+ * deadlines). Belt and braces anyway: a capture that waits longer than any
+ * previous one could take ships the degraded placeholder WITHOUT touching
+ * the page, rather than overlap it.
  */
-function computePrunableNodes(root: HTMLElement): Set<Element> {
-  const prunable = new Set<Element>();
-  if (typeof window === 'undefined') return prunable;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  if (!vw || !vh) return prunable;
-  const m = VIEWPORT_CLONE_MARGIN_PX;
-
-  const intersectsViewport = (el: Element): boolean => {
-    try {
-      const b = el.getBoundingClientRect();
-      // Zero-area boxes paint nothing themselves; their children decide.
-      if (b.width === 0 && b.height === 0) return false;
-      return !(b.bottom < -m || b.top > vh + m || b.right < -m || b.left > vw + m);
-    } catch {
-      return true;
-    }
-  };
-
-  const isOutOfFlow = (el: Element): boolean => {
-    try {
-      const position = window.getComputedStyle(el).position;
-      return position === 'absolute' || position === 'fixed';
-    } catch {
-      return false;
-    }
-  };
-
-  const mark = (el: Element): boolean => {
-    let anyVisible = intersectsViewport(el);
-    for (const child of Array.from(el.children)) {
-      if (mark(child)) anyVisible = true;
-    }
-    if (!anyVisible && isOutOfFlow(el)) prunable.add(el);
-    return anyVisible;
-  };
-
-  try {
-    mark(root);
-  } catch {
-    // A pruning pre-pass must never cost the screenshot: fall back to cloning
-    // everything (slower, but complete).
-    return new Set();
-  }
-  return prunable;
-}
-
-/**
- * Transparent 1x1 GIF handed back for an image the crop will discard. Matches
- * modern-screenshot's own `fetch.placeholderImage` default, so a skipped image
- * renders exactly like one whose fetch failed — an empty box, off-screen.
- */
-const SKIPPED_IMAGE_DATA_URL =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-/** `url(...)` targets in an inline `background-image`, quotes stripped. */
-function extractCssUrls(value: string): string[] {
-  const out: string[] = [];
-  for (const match of value.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
-    const url = match[2];
-    if (url) out.push(url);
-  }
-  return out;
-}
-
-/**
- * Image URLs referenced ONLY by elements outside the viewport.
- *
- * WHY — modern-screenshot inlines every image in the clone as a data URI,
- * which means RE-REQUESTING it: the SVG it rasterises has no network access,
- * so embedding is the only way to get pixels in. On an image-heavy page that
- * dominates the capture. Measured on a TV app's home screen in a desktop
- * browser: 433 refetches against an image host that sends no `Cache-Control`
- * (so modern-screenshot's `cache: 'force-cache'` default has nothing to serve)
- * cost ~5s of an 8.4s capture — six-at-a-time connection queueing, for images
- * the viewport crop discarded microseconds later.
- *
- * `fetchFn` receives ONLY the URL, never the element, so visibility has to be
- * resolved here and handed over as a lookup set.
- *
- * FAIL-OPEN BY CONSTRUCTION, in two ways that matter:
- *  - A URL is skipped only when EVERY element referencing it is off-screen.
- *    The same poster in an off-screen rail and an on-screen hero is fetched.
- *  - Only URLs actually observed on an element can enter the set. Anything
- *    unseen — webfonts, stylesheet backgrounds, resources modern-screenshot
- *    finds by its own walk — is absent from the set and falls through to the
- *    normal fetch, so it can never be dropped by a gap in this scan.
- *
- * Residual risk, accepted: a URL used by an off-screen `<img>` AND an on-screen
- * background set from a stylesheet (not inline) would be skipped, blanking that
- * background. Detecting it needs `getComputedStyle` per node, whose forced
- * layout costs more than the fetches this saves.
- */
-function computeSkippableImageUrls(root: HTMLElement): Set<string> {
-  const skippable = new Set<string>();
-  if (typeof window === 'undefined') return skippable;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  if (!vw || !vh) return skippable;
-  const m = VIEWPORT_CLONE_MARGIN_PX;
-
-  const visible = new Set<string>();
-  const offscreen = new Set<string>();
-
-  // Leaf rects, unlike the container rects computePrunableNodes has to reason
-  // about, already account for transforms — a virtualized row transformed into
-  // view reports its on-screen position here.
-  const intersectsViewport = (el: Element): boolean => {
-    try {
-      const b = el.getBoundingClientRect();
-      // Zero-area images paint nothing, so a placeholder is pixel-identical.
-      if (b.width === 0 && b.height === 0) return false;
-      return !(b.bottom < -m || b.top > vh + m || b.right < -m || b.left > vw + m);
-    } catch {
-      return true;
-    }
-  };
-
-  const record = (el: Element, urls: Array<string | null | undefined>): void => {
-    const bucket = intersectsViewport(el) ? visible : offscreen;
-    for (const url of urls) {
-      // `data:` costs no round trip; skipping it would only add work.
-      if (url && !url.startsWith('data:')) bucket.add(url);
-    }
-  };
-
-  try {
-    for (const img of Array.from(root.querySelectorAll('img'))) {
-      // All three spellings: modern-screenshot may read the resolved property
-      // or the raw attribute, and `currentSrc` is what a srcset actually chose.
-      record(img, [img.currentSrc, img.src, img.getAttribute('src')]);
-    }
-    for (const image of Array.from(root.querySelectorAll('image'))) {
-      record(image, [image.getAttribute('href'), image.getAttribute('xlink:href')]);
-    }
-    for (const el of Array.from(
-      root.querySelectorAll<HTMLElement>('[style*="background-image"]'),
-    )) {
-      record(el, extractCssUrls(el.style.backgroundImage));
-    }
-  } catch {
-    // A pre-pass must never cost the screenshot: fetch everything as before.
-    return new Set();
-  }
-
-  for (const url of offscreen) {
-    if (!visible.has(url)) skippable.add(url);
-  }
-  return skippable;
-}
+let captureTail: Promise<void> = Promise.resolve();
+const QUEUE_SLACK_MS = 5_000;
 
 export async function captureScreenshot(
   opts: CaptureScreenshotOptions = {},
 ): Promise<ScreenshotResult> {
+  const previous = captureTail;
+  let release!: () => void;
+  const slot = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  captureTail = previous.then(() => slot);
+  const profile = getCaptureProfile();
+  const maxWaitMs = profile.deadlineMs + ENCODE_FLOOR_MS + POSTER_LOAD_TIMEOUT_MS + QUEUE_SLACK_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const ready = await Promise.race([
+    previous.then(() => true),
+    new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), maxWaitMs);
+    }),
+  ]);
+  clearTimeout(timer);
+  try {
+    if (!ready) {
+      opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_failed);
+      opts.__setRenderer?.('none');
+      const blob = new Blob([TRANSPARENT_PIXEL_PNG_BYTES as BlobPart], { type: 'image/png' });
+      return {
+        blob,
+        width: 1,
+        height: 1,
+        sha256: await sha256Hex(blob),
+        degradedReason: DEGRADED_REASONS.screenshot_failed,
+      };
+    }
+    return await captureExclusive(opts, release);
+  } finally {
+    release();
+  }
+}
+
+async function captureExclusive(
+  opts: CaptureScreenshotOptions,
+  releasePage: () => void,
+): Promise<ScreenshotResult> {
+  // Mask targets are resolved at the moment each use needs them: here, for
+  // the video stand-ins (which videos must not show a frame); by the snapDOM
+  // renderer after its admission wait, right before cloning; and right
+  // before the fallback applies its live-DOM masks. A throwing resolver
+  // fails the capture rather than shipping it unmasked.
+  const resolveMaskTargets = (): Element[] =>
+    typeof opts.maskTargets === 'function' ? opts.maskTargets() : (opts.maskTargets ?? []);
+  const maskTargets = resolveMaskTargets();
   const root = opts.root ?? document.body;
   const restoreObserver = opts.cspNonce ? applyNonceToFreshStyles(opts.cspNonce) : () => undefined;
   const profile = getCaptureProfile();
@@ -482,167 +378,229 @@ export async function captureScreenshot(
   let blob: Blob | null = null;
   let width = 0;
   let height = 0;
-  // In-flow clone drift of the PRIMARY capture path (see the long note on the
-  // domToBlob call) — compensated at viewport-crop time.
-  let cloneDrift = bodyCloneDriftCssPx(root);
+  // This capture's own verdict, returned on the result (the out-param below
+  // only feeds the adapter's diagnostic getter, which a later capture resets).
+  let degradedReason: DegradedReason | undefined;
+  const flag = (reason: DegradedReason): void => {
+    degradedReason = reason;
+    opts.__setDegradedReason?.(reason);
+  };
 
-  // Apply live-DOM masking to sensitive elements BEFORE modern-screenshot clones
-  // the page. The capture library snapshots whatever the DOM looks like at
-  // clone time, so the masked elements end up as solid-black boxes in the
-  // PNG automatically — no post-capture coordinate transform required. The
-  // restore() runs in `finally` so a throwing capture still un-masks.
-  const restoreDomMask =
-    opts.maskTargets && opts.maskTargets.length > 0
-      ? applyDomMask(opts.maskTargets)
-      : (): void => undefined;
-
-  // Swap each <video> for a same-sized stand-in carrying its current frame,
-  // because filterNode below drops every <video> from the clone and a filtered
-  // node contributes NO LAYOUT BOX — measured, an in-flow 320x180 video made
-  // everything beneath it render 180px too high. The stand-in holds the box
-  // open and shows the frame; see video-frames.ts for the full reasoning.
-  //
-  // Ordering matters twice over: AFTER applyDomMask, so a masked video is
-  // observed in its masked state; and BEFORE the capture, so the frame matches
-  // the moment the rest of the page was sampled rather than lagging it.
   let restoreVideoStandIns: () => void = () => undefined;
-  try {
-    restoreVideoStandIns = await installVideoStandIns(root, {
-      pixelRatio,
-      maskTargets: opts.maskTargets ?? [],
-    });
-  } catch {
-    // An enhancement; never let it cost us the screenshot.
-    restoreVideoStandIns = () => undefined;
-  }
 
-  // Try modern-screenshot (primary, since it supports `restoreScrollPosition`
-  // — applies `transform: translate(-scrollLeft, -scrollTop)` per element in
-  // the CLONE tree, never mutating the live DOM. This avoids the prior
-  // approach's two failure modes: (a) firing scroll events on live elements,
-  // which `react-virtualized`/`react-window`/`@tanstack/virtual` listen to
-  // and re-render mid-capture against, breaking the capture; and (b) any
-  // observable side-effects from temporary live mutations).
-  //
-  // domToCanvas, not domToBlob: the viewport crop happens in CANVAS space and
-  // the result is encoded exactly ONCE. The previous blob-based pipeline
-  // encoded a full PNG, decoded it again for the viewport crop, and re-encoded
-  // — measured at ~7s of pure re-encode on webOS hardware.
+  // snapDOM first (faster, and no blank rasters where modern-screenshot
+  // produced them), with modern-screenshot as the fallback when snapDOM
+  // throws, stalls past its budget share, or hands back a blank canvas
+  // (on TV only when it throws — see the policy below).
+  // Both renderers return a VIEWPORT-sized canvas, which is encoded exactly
+  // ONCE below. Every stage is deadline-guarded: a degraded engine's
+  // canvas.toBlob can simply never invoke its callback, and an unguarded
+  // await would hang capture forever (DEFE-02).
+  type Attempt = {
+    canvas: HTMLCanvasElement;
+    renderer: Exclude<ScreenshotRenderer, 'none'>;
+    offsets: readonly CanvasOffset[];
+  };
+  let started = Date.now();
+  const elapsed = (): number => Date.now() - started;
+  let accepted: Attempt | null = null;
+  let firstBlank: Attempt | null = null;
+  // Timed out, never started because an earlier snapDOM capture was still
+  // running, or unusable for legacy masks (see below): snapDOM did not answer
+  // usably within its budget. On TV this ships the placeholder.
+  let primaryTimedOut = false;
+  // Set once this capture stops waiting for snapDOM (a deadline, an error).
+  let primaryAbandoned = false;
+  const primaryBudgetMs = Math.round(profile.deadlineMs * PRIMARY_BUDGET_SHARE);
+
   try {
-    // TV profile: drop out-of-flow, fully-invisible subtrees.
-    const prunable = profile.viewportOnlyClone ? computePrunableNodes(root) : null;
-    // Off-screen images the viewport crop will discard — resolved to a lookup
-    // set here because `fetchFn` below only ever sees a URL.
-    const skippableImageUrls = computeSkippableImageUrls(root);
-    const cloneFilter =
-      prunable && prunable.size > 0
-        ? (node: Node): boolean => filterNode(node) && !prunable.has(node as Element)
-        : filterNode;
-    const modernScreenshot = await import('modern-screenshot');
-    // The deadline covers the WHOLE chain — clone+raster, crop AND encode.
-    // Codex round-1 finding 1: a degraded engine's canvas.toBlob can simply
-    // never invoke its callback; an encode outside the deadline would hang
-    // capture forever (DEFE-02), which is exactly what the deadline exists
-    // to make structurally impossible.
-    const captured = await withDeadline(
-      (async () => {
-        const canvas = await modernScreenshot.domToCanvas(root, {
-        scale: pixelRatio,
-        backgroundColor: '#ffffff',
-        filter: cloneFilter,
-        // Bounds the pre-clone resource wait. Required IN ADDITION to dropping
-        // <video> in filterNode, not instead of it: measured, the filter alone
-        // still costs the full 30s default on a stalled source (that wait runs
-        // BEFORE the filter is consulted), and this option alone does not stop
-        // the hang at all (it never reaches the clone step). Only both together
-        // are fast.
-        timeout: RESOURCE_WAIT_BUDGET_MS,
-        // NOTE — clone-margin drift (do NOT "fix" this with style overrides):
-        // modern-screenshot deletes the root's margin properties from the
-        // cloned node's inline style; when the root is document.body the clone
-        // picks the UA default body margin (8px) back up inside the SVG
-        // foreignObject render (the page's own `body { margin: 0 }` stylesheet
-        // does not exist in the clone), so ALL in-flow content renders shifted
-        // down/right by 8px. Measured live on chromium, firefox and webkit.
-        // Every attempted clone-side correction (style:{margin:'0'}, the same
-        // via !important, a <style> sheet in the SVG, position:relative
-        // offsets, capturing documentElement instead) makes Chromium's SVG
-        // rasterizer DROP absolutely/fixed-positioned elements anchored to the
-        // initial containing block (toasts, FABs, portaled modals) — measured:
-        // they render in the baseline configuration only. The drift is instead
-        // compensated at crop time (see bodyCloneDriftCssPx +
-        // cropCanvasToViewport below), which never touches the clone.
-        // Opt-in feature — defaults off in modern-screenshot for backcompat.
-        // Walks the cloned tree; per node, reads ORIGINAL's scrollTop/scrollLeft
-        // and composes a translate into the clone's transform matrix. Composes
-        // correctly across nested scrollables.
-          features: { restoreScrollPosition: true },
-          // Resolve off-screen images to a transparent pixel instead of a
-          // network round trip (see computeSkippableImageUrls). Returning
-          // `false` hands the URL back to modern-screenshot's normal fetch, so
-          // everything on screen — and everything this scan never saw — is
-          // embedded exactly as before. Omitted entirely when nothing is
-          // skippable, leaving the default fetch path untouched.
-          ...(skippableImageUrls.size > 0
-            ? {
-                fetchFn: (url: string): Promise<string | false> =>
-                  Promise.resolve(skippableImageUrls.has(url) ? SKIPPED_IMAGE_DATA_URL : false),
-              }
-            : {}),
-          // TV profile only: skip webfont embedding and copy the curated style
-          // whitelist instead of all ~300 computed properties — the clone walk
-          // is the dominant capture cost on TV CPUs (capture-profile.ts).
-          ...(profile.fastClone
-            ? { font: false as const, includeStyleProperties: FAST_CLONE_STYLE_PROPERTIES }
-            : {}),
-        });
-        // Legacy rect-based masking (codex round-3 finding 1): rects are
-        // ROOT-relative device px, so they must land on the un-cropped
-        // canvas — the old pipeline masked the full-document blob before
-        // cropping, and masking after the crop paints at the wrong offset
-        // on scrolled pages, shipping the content the mask exists to hide.
-        if (opts.maskPlan && opts.maskPlan.length > 0) {
-          // Rects arrive in requested-DPR device px; the canvas renders at
-          // the (possibly capped) effective ratio — scale or the mask shifts
-          // and exposes excluded pixels (codex round-4 finding).
-          paintMaskRectsOnCanvas(canvas, opts.maskPlan, pixelRatio / (requestedRatio || 1));
+    // Swap each <video> for a same-sized stand-in carrying its current frame,
+    // because filterNode below drops every <video> from the clone and a filtered
+    // node contributes NO LAYOUT BOX — measured, an in-flow 320x180 video made
+    // everything beneath it render 180px too high. The stand-in holds the box
+    // open and shows the frame; see video-frames.ts for the full reasoning.
+    //
+    // BEFORE the capture, so the frame matches the moment the rest of the page
+    // was sampled rather than lagging it. A sensitive video's stand-in carries
+    // no frame, and both renderers mask the stand-in with its video.
+    // Inside the try: whatever throws from here on, the finally below puts
+    // the videos back.
+    try {
+      restoreVideoStandIns = await installVideoStandIns(root, {
+        pixelRatio,
+        maskTargets,
+      });
+    } catch {
+      // An enhancement; never let it cost us the screenshot.
+      restoreVideoStandIns = () => undefined;
+    }
+
+    // Layer 2 of masking (pixel-mask.ts): the live viewport rects of
+    // everything sensitive, read now and again after rendering, are painted
+    // black on whichever canvas ships - so nothing inside a sensitive element's
+    // on-screen area survives whatever a renderer did with its clone. If
+    // anything moved while rendering, both reads are painted (fail closed)
+    // rather than one guessed.
+    const sensitivityNow = (): ((el: Element) => boolean) => {
+      const listed = new Set<Element>(expandMaskTargets(resolveMaskTargets()));
+      const live = opts.isSensitive;
+      return (el) => listed.has(el) || (live?.(el) ?? false);
+    };
+    const sensitiveBefore = collectSensitiveRects(root, sensitivityNow(), excludedFromCapture);
+
+    started = Date.now();
+    try {
+      // `blank` is measured by the renderer on the RAW raster — before its
+      // scrollbar padding and before mask boxes add edges to a flat canvas.
+      // `rootLeft/rootTop` is the capture root's viewport rect, read
+      // synchronously right before snapDOM started. maskPlan rects are
+      // ROOT-relative; snapDOM's viewport clip draws the root at that rect,
+      // so the rect (not the window scroll - which only matches for a
+      // margin-0 <body> root) maps them onto the canvas. Reading it after the
+      // render settles would use wherever the page has scrolled since
+      // (snapDOM `fast: false` yields), shipping the pixels the mask hides.
+      const { canvas, blank, rootLeft, rootTop } = await withDeadline(
+        // A still-running earlier snapDOM capture is waited for within the
+        // same budget; past it the renderer refuses (SnapdomBusyError).
+        // Loaded lazily (with clone-mask.ts) so the snapDOM glue stays out
+        // of the always-loaded graph. A load that outlasts the budget must
+        // not start snapDOM for a capture that has already moved on.
+        import('./renderers/snapdom-renderer.js').then(({ renderViewportWithSnapdom }) => {
+          if (primaryAbandoned) throw new CaptureTimeoutError('snapdom load outlasted its budget');
+          return renderViewportWithSnapdom(root, {
+            pixelRatio,
+            filter: filterNode,
+            busyWaitMs: primaryBudgetMs,
+            maskTargets: resolveMaskTargets,
+            ...(opts.isSensitive ? { isSensitive: opts.isSensitive } : {}),
+          });
+        }),
+        primaryBudgetMs,
+        'snapdom',
+      );
+      if (opts.maskPlan && opts.maskPlan.length > 0) {
+        // Fail closed: if the root moved while snapDOM worked (a scroll, or
+        // a DOM change that made snapDOM re-clone at the new position), the
+        // canvas no longer matches the origin the rects are mapped with.
+        const after = root.getBoundingClientRect();
+        if (Math.abs(after.left - rootLeft) > 0.5 || Math.abs(after.top - rootTop) > 0.5) {
+          throw new SnapdomGeometryError('capture root moved during the snapDOM render');
         }
-        const cropped = cropCanvasToViewport(canvas, pixelRatio, cloneDrift);
-        const encoded = await encodeCanvas(cropped, profile.preferWebP);
-        // Dims travel WITH the result (codex round-3 finding 6): mutating
-        // outer state from abandoned deadline work let a late raster relabel
-        // the degraded 1x1 placeholder with full-screen dimensions.
-        return { encoded, width: cropped.width, height: cropped.height };
-      })(),
-      profile.deadlineMs,
-      'modern-screenshot',
-    );
-    if (!captured.encoded) throw new Error('canvas encode returned null blob');
-    blob = captured.encoded;
-    width = captured.width;
-    height = captured.height;
+        paintMaskRectsOnCanvas(
+          canvas,
+          opts.maskPlan,
+          pixelRatio / (requestedRatio || 1),
+          -rootLeft * pixelRatio,
+          -rootTop * pixelRatio,
+        );
+      }
+      const attempt: Attempt = { canvas, renderer: 'snapdom', offsets: VIEWPORT_ALIGNED };
+      if (blank) firstBlank = attempt;
+      else accepted = attempt;
+    } catch (err) {
+      primaryAbandoned = true;
+      // Fall through to the fallback renderer (subject to the TV policy below).
+      // Busy counts as a timeout, so on TV it ships the placeholder rather
+      // than starting a second renderer on a CPU still busy with snapDOM.
+      primaryTimedOut =
+        err instanceof CaptureTimeoutError ||
+        (err instanceof Error && err.name === 'SnapdomBusyError') ||
+        err instanceof SnapdomGeometryError;
+    }
+
+    // TV profile: the fallback runs only when snapDOM threw a real error — a
+    // blank snapDOM canvas ships flagged, and a snapDOM timeout degrades to
+    // the placeholder. See CaptureProfile.fallbackOnlyOnPrimaryError.
+    const runFallback =
+      !accepted &&
+      (!profile.fallbackOnlyOnPrimaryError || (firstBlank === null && !primaryTimedOut));
+
+    if (runFallback) {
+      try {
+        // modern-screenshot clones the live page, so it gets LIVE-DOM masks:
+        // resolved fresh, applied right before it renders and restored right
+        // after (the snapDOM path never touches the page).
+        const fallbackTargets = expandMaskTargets(resolveMaskTargets());
+        const restoreDomMask = fallbackTargets.length > 0 ? applyDomMask(fallbackTargets) : (): void => undefined;
+        let rendered: Awaited<ReturnType<typeof renderViewportWithModernScreenshot>>;
+        try {
+          // The renderer measures `blank` itself, before it paints maskPlan.
+          rendered = await withDeadline(
+            renderViewportWithModernScreenshot(root, {
+              pixelRatio,
+              requestedRatio,
+              filter: filterNode,
+              profile,
+              ...(opts.maskPlan ? { maskPlan: opts.maskPlan } : {}),
+            }),
+            Math.max(0, profile.deadlineMs - elapsed()),
+            'modern-screenshot',
+          );
+        } finally {
+          restoreDomMask();
+        }
+        const { canvas, blank, offsets } = rendered;
+        const attempt: Attempt = { canvas, renderer: 'modern-screenshot', offsets };
+        if (!blank) accepted = attempt;
+        else firstBlank ??= attempt;
+      } catch {
+        // Both renderers failed — handled below.
+      }
+    }
+
+    const chosen: Attempt | null = accepted ?? firstBlank;
+    if (chosen) {
+      // After the blank verdicts (taken on the raw renders), before encode.
+      // snapDOM's canvas is viewport-aligned at `pixelRatio`; the fallback
+      // reports where viewport content can land on its cropped canvas.
+      const sensitiveAfter = collectSensitiveRects(root, sensitivityNow(), excludedFromCapture);
+      const rects = rectsMoved(sensitiveBefore, sensitiveAfter)
+        ? [...sensitiveBefore, ...sensitiveAfter]
+        : sensitiveAfter;
+      if (!paintViewportRects(chosen.canvas, rects, pixelRatio, chosen.offsets)) {
+        throw new Error('sensitive content present but the canvas cannot be masked');
+      }
+      const encoded = await withDeadline(
+        encodeCanvas(chosen.canvas, profile.preferWebP),
+        Math.max(ENCODE_FLOOR_MS, profile.deadlineMs - elapsed()),
+        'encode',
+      );
+      if (!encoded) throw new Error('canvas encode returned null blob');
+      blob = encoded;
+      // Dimensions come ONLY from the chosen canvas, here inside the deadline-guarded path — abandoned (timed-out) render work must never relabel the 1x1 placeholder (the "late raster relabel" bug).
+      width = chosen.canvas.width;
+      height = chosen.canvas.height;
+      opts.__setRenderer?.(chosen.renderer);
+      if (!accepted) flag(DEGRADED_REASONS.screenshot_blank);
+    }
   } catch {
-    opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_failed);
-    blob = new Blob([TRANSPARENT_PIXEL_PNG_BYTES as BlobPart], { type: 'image/png' });
+    blob = null;
   } finally {
     restoreObserver();
-    restoreDomMask();
     // Puts the customer's videos back on screen. Must run whatever happened
     // above — leaving a page with display:none videos and orphaned stand-in
     // divs would be a far worse bug than a failed screenshot.
     restoreVideoStandIns();
+    // The page is back to its resting state: the next capture may start.
+    releasePage();
   }
 
-  // Treat a null result as a failed capture so the report still sends with an
-  // honest degraded reason attached.
+  // No usable canvas (or the encode failed) — ship the placeholder with an
+  // honest degraded reason so the report still sends.
   if (!blob) {
-    opts.__setDegradedReason?.(DEGRADED_REASONS.screenshot_failed);
+    flag(DEGRADED_REASONS.screenshot_failed);
+    opts.__setRenderer?.('none');
     blob = new Blob([TRANSPARENT_PIXEL_PNG_BYTES as BlobPart], { type: 'image/png' });
+    width = 0;
+    height = 0;
   }
 
   // NOTE — the legacy `maskPlan` pass now runs on the CANVAS inside the
-  // deadline above (root-relative space, before the viewport crop). The
-  // primary masking path is live-DOM masking via `maskTargets`.
+  // deadline above: on the snapDOM path directly on the viewport-sized canvas
+  // (offset by the root's viewport position), on the modern-screenshot path in
+  // root-relative space before that renderer's viewport crop. The primary
+  // masking path is `maskTargets` (clone-side on snapDOM, live-DOM on the
+  // fallback).
 
   // NOTE — video frames are NOT composited on here. They ride in the DOM as
   // stand-ins (see installVideoStandIns above), so they are rendered by the
@@ -651,7 +609,7 @@ export async function captureScreenshot(
   // redaction applied a few lines up, as well as any element stacked over a
   // video. Do not reintroduce a post-redaction paint step.
 
-  // The success path already knows its dimensions from the cropped canvas —
+  // The success path already knows its dimensions from the chosen canvas —
   // only the degraded path (transparent-pixel placeholder) still resolves them
   // by decoding, falling back to the root element rect under jsdom.
   if (width === 0 || height === 0) {
@@ -666,7 +624,7 @@ export async function captureScreenshot(
   }
 
   const sha256 = await sha256Hex(blob);
-  return { blob, width, height, sha256 };
+  return { blob, width, height, sha256, ...(degradedReason !== undefined ? { degradedReason } : {}) };
 }
 
 /** Root size in CSS px for the output-edge cap; tolerates detached/jsdom roots. */
@@ -698,133 +656,4 @@ async function encodeCanvas(canvas: HTMLCanvasElement, preferWebP: boolean): Pro
     if (webp) return webp;
   }
   return encode('image/png');
-}
-
-/**
- * UA default margin the CLONE's body picks up inside the SVG foreignObject
- * render (all major engines ship `body { margin: 8px }`). modern-screenshot
- * strips the root's inline margins, and the page's own stylesheet does not
- * exist in the clone, so the UA value resurfaces there.
- */
-const UA_BODY_MARGIN_CSS_PX = 8;
-
-/**
- * In-flow drift (CSS px) of a modern-screenshot clone relative to the live
- * page, per axis: the clone renders in-flow content at the UA default body
- * margin while the live page renders it at its computed margin. Only applies
- * when the captured root IS a <body> (custom roots are cloned as their own
- * tag, which carries no UA margin). Live margin 0 (typical app reset) →
- * drift 8; live margin 8 (no reset) → drift 0 — matching measurement:
- * un-reset pages crop pixel-exact today, reset pages show the +8.
- *
- * KNOWN TRADEOFF: absolutely/fixed-positioned elements anchored to the
- * initial containing block do NOT drift in the clone (they resolve against
- * the embedding viewport), so compensating the crop shifts THEM by -drift px
- * in the output. That bounded skew on toasts/FABs is accepted over the
- * alternative (clone-side margin fixes), which makes Chromium's rasterizer
- * drop those elements entirely.
- */
-function bodyCloneDriftCssPx(root: Element): { x: number; y: number } {
-  if (typeof window === 'undefined') return { x: 0, y: 0 };
-  if (root.tagName !== 'BODY') return { x: 0, y: 0 };
-  try {
-    const cs = window.getComputedStyle(root);
-    const mLeft = Number.parseFloat(cs.marginLeft) || 0;
-    const mTop = Number.parseFloat(cs.marginTop) || 0;
-    return {
-      x: Math.max(0, UA_BODY_MARGIN_CSS_PX - mLeft),
-      y: Math.max(0, UA_BODY_MARGIN_CSS_PX - mTop),
-    };
-  } catch {
-    return { x: 0, y: 0 };
-  }
-}
-
-export interface ViewportCropRect {
-  /** Source-crop origin/extent within the bitmap (device px). */
-  sx: number;
-  sy: number;
-  sw: number;
-  sh: number;
-  /** Output canvas size (device px) — the full viewport. */
-  outW: number;
-  outH: number;
-  /** True when the bitmap already IS the desired output (skip re-encode). */
-  noop: boolean;
-}
-
-/**
- * Pure crop geometry for cropBlobToViewport — exported for unit tests.
- * Maps the viewport rect (scroll + drift compensated) onto the bitmap and
- * clamps the source to what actually exists; the output stays viewport-sized
- * (callers white-pad the uncovered remainder), so area-selection math
- * downstream always operates on a full-viewport image.
- */
-export function computeViewportCropRect(args: {
-  bmWidth: number;
-  bmHeight: number;
-  scrollX: number;
-  scrollY: number;
-  innerWidth: number;
-  innerHeight: number;
-  pixelRatio: number;
-  driftX?: number;
-  driftY?: number;
-}): ViewportCropRect | null {
-  const { bmWidth, bmHeight, scrollX, scrollY, innerWidth, innerHeight, pixelRatio } = args;
-  const driftX = args.driftX ?? 0;
-  const driftY = args.driftY ?? 0;
-  const outW = Math.round(innerWidth * pixelRatio);
-  const outH = Math.round(innerHeight * pixelRatio);
-  if (outW <= 0 || outH <= 0) return null;
-  const sx = Math.max(0, Math.round((scrollX + driftX) * pixelRatio));
-  const sy = Math.max(0, Math.round((scrollY + driftY) * pixelRatio));
-  const sw = Math.min(outW, bmWidth - sx);
-  const sh = Math.min(outH, bmHeight - sy);
-  if (sw <= 0 || sh <= 0) return null;
-  const noop = sx === 0 && sy === 0 && sw === bmWidth && sh === bmHeight && sw === outW && sh === outH;
-  return { sx, sy, sw, sh, outW, outH, noop };
-}
-
-/**
- * Crop the full-document render down to the current viewport at device-pixel
- * resolution, compensating the capture library's in-flow clone drift (see
- * bodyCloneDriftCssPx). Operates on the CANVAS the capture produced — before
- * any encode — so the crop costs one drawImage instead of the old pipeline's
- * PNG decode + re-encode. Where the drifted crop reaches past the bitmap's
- * right/bottom edge (the clone's last `drift` px of in-flow content were
- * pushed outside the fixed-size render), the output is padded with the
- * capture background white instead of shrinking — downstream area-selection
- * math relies on the shot being exactly viewport-sized. Returns the input
- * canvas untouched in environments without `window` (SSR / jsdom), when the
- * crop is a no-op, or when a 2d context is unavailable.
- */
-function cropCanvasToViewport(
-  canvas: HTMLCanvasElement,
-  pixelRatio: number,
-  drift: { x: number; y: number } = { x: 0, y: 0 },
-): HTMLCanvasElement {
-  if (typeof window === 'undefined') return canvas;
-  const rect = computeViewportCropRect({
-    bmWidth: canvas.width,
-    bmHeight: canvas.height,
-    scrollX: window.scrollX || 0,
-    scrollY: window.scrollY || 0,
-    innerWidth: window.innerWidth || 0,
-    innerHeight: window.innerHeight || 0,
-    pixelRatio,
-    driftX: drift.x,
-    driftY: drift.y,
-  });
-  if (!rect || rect.noop) return canvas;
-  const { sx, sy, sw, sh, outW, outH } = rect;
-  const out = document.createElement('canvas');
-  out.width = outW;
-  out.height = outH;
-  const ctx = out.getContext('2d');
-  if (!ctx) return canvas;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, outW, outH);
-  ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-  return out;
 }

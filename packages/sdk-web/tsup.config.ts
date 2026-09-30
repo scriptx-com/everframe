@@ -130,6 +130,7 @@ const vanillaEntry = {
     'konva',
     'rrweb',
     'modern-screenshot',
+    '@zumer/snapdom',
   ],
   // splitting ON, and it is now load-bearing rather than merely tidy: React
   // reaches this graph through exactly one dynamic `import()` (init.ts ->

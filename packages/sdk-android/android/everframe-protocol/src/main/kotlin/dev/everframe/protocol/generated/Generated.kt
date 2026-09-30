@@ -93,6 +93,7 @@ object EverframeFormatSerializer : KSerializer<Format> {
 enum class AttachmentKind(val value: String) {
     @SerialName("annotated-screenshot") AnnotatedScreenshot("annotated-screenshot"),
     @SerialName("audio") Audio("audio"),
+    @SerialName("dom-snapshot") DOMSnapshot("dom-snapshot"),
     @SerialName("other") Other("other"),
     @SerialName("screenshot") Screenshot("screenshot"),
     @SerialName("session-replay") SessionReplay("session-replay"),
@@ -477,6 +478,7 @@ enum class Name(val value: String) {
     @SerialName("everframe-kmp") EverframeKmp("everframe-kmp"),
     @SerialName("everframe-react") EverframeReact("everframe-react"),
     @SerialName("everframe-react-native") EverframeReactNative("everframe-react-native"),
+    @SerialName("everframe-roku") EverframeRoku("everframe-roku"),
     @SerialName("everframe-web") EverframeWeb("everframe-web");
 }
 
@@ -488,6 +490,7 @@ enum class Platform(val value: String) {
     @SerialName("android") Android("android"),
     @SerialName("androidtv") Androidtv("androidtv"),
     @SerialName("ios") Ios("ios"),
+    @SerialName("roku") Roku("roku"),
     @SerialName("tizen") Tizen("tizen"),
     @SerialName("tvos") Tvos("tvos"),
     @SerialName("web") Web("web"),

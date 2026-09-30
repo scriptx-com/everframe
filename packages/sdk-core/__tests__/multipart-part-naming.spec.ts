@@ -19,6 +19,8 @@ describe('buildMultipart — screenshot-N part naming', () => {
         { name: 'screenshot-2', bytes, contentType: 'image/png' },
         { name: 'annotated-screenshot-3', bytes, contentType: 'image/webp' },
         { name: 'session-replay', bytes, contentType: 'application/octet-stream' },
+        { name: 'dom-snapshot', bytes, contentType: 'application/gzip' },
+        { name: 'dom-snapshot-4', bytes, contentType: 'application/gzip' },
         { name: 'mystery-part', bytes, contentType: 'application/octet-stream' },
       ],
     });
@@ -32,6 +34,8 @@ describe('buildMultipart — screenshot-N part naming', () => {
     expect(kinds['screenshot-2']).toBe('screenshot');
     expect(kinds['annotated-screenshot-3']).toBe('annotated-screenshot');
     expect(kinds['session-replay']).toBe('session-replay');
+    expect(kinds['dom-snapshot']).toBe('dom-snapshot');
+    expect(kinds['dom-snapshot-4']).toBe('dom-snapshot');
     expect(kinds['mystery-part']).toBe('other');
   });
 
@@ -39,6 +43,17 @@ describe('buildMultipart — screenshot-N part naming', () => {
     const { envelopeBytes } = await buildMultipart({
       envelope: envelopeStub,
       attachments: [{ name: 'screenshot-extra-notes', bytes, contentType: 'text/plain' }],
+    });
+    const finalEnvelope = JSON.parse(new TextDecoder().decode(envelopeBytes)) as {
+      attachments: Array<{ partName: string; kind: string }>;
+    };
+    expect(finalEnvelope.attachments[0]!.kind).toBe('other');
+  });
+
+  it('does NOT classify a non-numeric dom-snapshot suffix', async () => {
+    const { envelopeBytes } = await buildMultipart({
+      envelope: envelopeStub,
+      attachments: [{ name: 'dom-snapshot-latest', bytes, contentType: 'application/gzip' }],
     });
     const finalEnvelope = JSON.parse(new TextDecoder().decode(envelopeBytes)) as {
       attachments: Array<{ partName: string; kind: string }>;

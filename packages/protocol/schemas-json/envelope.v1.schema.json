@@ -41,7 +41,8 @@
             "everframe-flutter",
             "everframe-kmp",
             "everframe-ios",
-            "everframe-android"
+            "everframe-android",
+            "everframe-roku"
           ]
         },
         "version": {
@@ -56,7 +57,8 @@
             "tvos",
             "tizen",
             "webos",
-            "androidtv"
+            "androidtv",
+            "roku"
           ],
           "$id": "SDKPlatform",
           "description": "All TV form factors enumerated from v1 (PLAT-04)"
@@ -1150,6 +1152,7 @@
               "video",
               "audio",
               "session-replay",
+              "dom-snapshot",
               "other"
             ],
             "$id": "AttachmentKind"

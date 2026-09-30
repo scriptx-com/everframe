@@ -1,0 +1,10 @@
+{
+  "name": "everframe-roku-test-tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Test-only BrightScript interpreter for @everframe/roku, installed outside the pnpm workspace so its native dependencies do not leak into the shared node_modules.",
+  "license": "MIT",
+  "devDependencies": {
+    "brs-node": "2.6.0"
+  }
+}

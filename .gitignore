@@ -11,6 +11,11 @@ dist/
 *.log
 .DS_Store
 
+# Playwright run output (traces, error contexts, reports)
+test-results/
+playwright-report/
+blob-report/
+
 # Generated example configuration and projects
 examples/android-compose/local.properties
 examples/android-views/local.properties
