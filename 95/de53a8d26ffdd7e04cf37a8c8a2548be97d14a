@@ -1,0 +1,42 @@
+packages/sdk-web/__tests__/reporter-ui/dialog-shots.spec.ts
+  s_f1f3a292ebd900::t_2caa31c3855055 1-15,17-86
+  s_f1f3a292ebd900::t_b09c20b018d104 16
+packages/sdk-web/__tests__/reporter-ui/ReporterDialog-snapshot.spec.tsx
+  s_f1f3a292ebd900::t_9bc7bacee38b19 1-103
+packages/sdk-web/src/reporter-ui/dialog-shots.ts
+  s_f1f3a292ebd900::t_a23cc885cd6b24 1-136
+packages/sdk-web/__tests__/capture/shot-capture.spec.ts
+  s_f1f3a292ebd900::t_efff606315d353 34-35
+packages/sdk-web/__tests__/capture/tv-snapshot-adapter.spec.ts
+  s_f1f3a292ebd900::t_2df1af266b09e9 176-178,182-243,275-277,323-325
+packages/sdk-web/__tests__/transport/draft-to-envelope-dom-snapshot.spec.ts
+  s_f1f3a292ebd900::t_d205ab38c8e078 67-80
+packages/sdk-web/src/adapter.ts
+  s_f1f3a292ebd900::t_ae5f3f9163f5d1 77,226,228,1815,1822-1823,1828-1835,1878,1886-1893,1999-2004
+packages/sdk-web/src/capture/shot-capture.ts
+  s_f1f3a292ebd900::t_9d11cc0991a373 38-46,49,57-62
+packages/sdk-web/src/reporter-ui/ReporterDialog.tsx
+  s_f1f3a292ebd900::t_f59aab582bba56 37-43,49,149-151,157,259-263,293-294,296-298,300,307,309-312,375-384,391-392,447-448,450-463,465,471-477,479,576,584-591
+packages/sdk-web/src/reporter-ui/ScreenshotStrip.tsx
+  s_f1f3a292ebd900::t_d0f47be40fe01f 5,7-9,13-14,50,85,90-96
+packages/sdk-web/src/reporter-ui/reporter.css.ts
+  s_f1f3a292ebd900::t_fcf118e7333831 374-386
+packages/sdk-web/src/transport/draft-to-envelope.ts
+  s_f1f3a292ebd900::t_3bbfee3bbcd50f 279-284,290-293,306-307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "95de53a8d26ffdd7e04cf37a8c8a2548be97d14a",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
