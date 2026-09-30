@@ -228,7 +228,7 @@ describe('pruneSnapshot', () => {
     pruneSnapshot(root, deps);
     expect(section.childNodes).toEqual([icon]);
     expect(String(section.attributes.style)).toContain(imp('width:1280px;height:1200px'));
-    expect(icon.attributes).toEqual({ width: '0', height: '0', style: imp('position:absolute;width:0;height:0;overflow:hidden') });
+    expect(icon.attributes).toEqual({ width: '0', height: '0', style: imp('position:absolute;width:0;height:0;overflow:hidden;visibility:visible') });
     expect(icon.childNodes).toEqual([defs]);
     expect(defs.childNodes).toEqual([clip]);
     expect(findLeaks(JSON.stringify(root), ['SECRETTEXT', 'SECRETLINK', 'secret.test', 'ICONTITLE', 'ICONLABEL', 'M0 0L24'])).toEqual([]);

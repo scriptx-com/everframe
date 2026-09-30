@@ -9,7 +9,7 @@ SPDX-FileCopyrightText = "2026 ScriptX"
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
-path = ["examples/react-native/assets/field-photo.png", "examples/react-web/public/media/field-loop.mp4", "examples/react-web/public/media/field-loop.webm", "examples/smarttv-tester/platforms/tizen/icon.png", "examples/smarttv-tester/platforms/webos/icon-80.png", "examples/smarttv-tester/platforms/webos/icon-130.png"]
+path = ["examples/react-native/assets/field-photo.png", "examples/react-web/public/media/field-loop.mp4", "examples/react-web/public/media/field-loop.webm", "examples/smarttv-tester/platforms/tizen/icon.png", "examples/smarttv-tester/platforms/webos/icon-80.png", "examples/smarttv-tester/platforms/webos/icon-130.png", "packages/sdk-web/e2e/fixtures/tv-snapshot.sample.json.gz"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 ScriptX"
 SPDX-License-Identifier = "MIT"

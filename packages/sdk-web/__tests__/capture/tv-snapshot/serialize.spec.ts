@@ -257,7 +257,7 @@ describe('placeholder styles survive the scrubber end to end (ruling S21)', () =
     );
     const svg = findEl(root, (e) => e.tagName.toLowerCase() === 'svg')!;
     expect(svg.attributes).toMatchObject({ width: '0', height: '0' });
-    expect(decls(svg.attributes.style)).toEqual(imp('position:absolute;width:0;height:0;overflow:hidden'));
+    expect(decls(svg.attributes.style)).toEqual(imp('position:absolute;width:0;height:0;overflow:hidden;visibility:visible'));
     expect(findEl(svg, (e) => e.tagName.toLowerCase() === 'clippath')!.attributes.id).toBe('clip');
     expect(decls(findEl(root, (e) => e.attributes.id === 'uses')!.attributes.style)).toEqual({ 'clip-path': 'url("#clip")' });
     // rrweb-snapshot absolutizes CSS url()s against the page; same-document

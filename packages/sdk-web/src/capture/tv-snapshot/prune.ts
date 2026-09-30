@@ -212,7 +212,13 @@ function placeholderStyle(
 const OUT_OF_FLOW_CARRIER = important([
   'display:block', 'position:absolute', 'width:0', 'height:0', 'overflow:hidden', 'visibility:hidden',
 ]);
-const ZERO_SVG = important(['position:absolute', 'width:0', 'height:0', 'overflow:hidden']);
+/**
+ * A re-homed definitions SVG. `visibility:visible` because it sits inside a
+ * `visibility:hidden` placeholder, and a clipPath/mask/pattern child that
+ * inherits `hidden` contributes nothing: the visible icon clipped by it would
+ * vanish. Safe — the SVG is zero-size and holds only non-rendering definitions.
+ */
+const ZERO_SVG = important(['position:absolute', 'width:0', 'height:0', 'overflow:hidden', 'visibility:visible']);
 
 /** Adds the ids of `node` and its whole (current) subtree. Iterative; a node already recorded had its whole subtree recorded. */
 function collectIds(node: SnNode, into: Set<number>): void {
