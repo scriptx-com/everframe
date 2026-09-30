@@ -92,10 +92,13 @@ describe('sanitizeSrcset (HTML parsing algorithm)', () => {
   });
 });
 
-describe('sanitizeMetaHref (opaque schemes)', () => {
-  it('never carries an opaque path, which is the content itself', () => {
+describe('sanitizeMetaHref (scheme allowlist)', () => {
+  it('returns an empty string for any scheme outside http(s)/file', () => {
     expect(sanitizeMetaHref('data:text/html,<p>Alice Smith</p>')).toBe('');
     expect(sanitizeMetaHref('about:blank')).toBe('');
     expect(sanitizeMetaHref('blob:https://app.example.test/5f0c')).toBe('');
+    expect(sanitizeMetaHref('data:/Alice Smith')).toBe('');
+    expect(sanitizeMetaHref('javascript:/Alice')).toBe('');
+    expect(sanitizeMetaHref('app://pkg/Alice/index.html')).toBe('');
   });
 });

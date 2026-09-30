@@ -39,7 +39,7 @@ const COLOR_KEYWORDS = new Set(['none', 'currentcolor', 'transparent', 'inherit'
 
 const COLOR_FN_RE = /^(?:rgba?|hsla?)\(([^()]*)\)$/i;
 /** One colour-function argument: a number with an optional %/angle unit, or `none`. */
-const COLOR_ARG_RE = /^(?:[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?(?:%|deg|grad|rad|turn)?|none)$/i;
+const COLOR_ARG_RE = /^(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?(?:%|deg|grad|rad|turn)?|none)$/i;
 
 /** rgb()/hsl() with 3–4 numeric arguments only — the argument list can never spell words. */
 function isColorFunction(t: string): boolean {
@@ -49,7 +49,11 @@ function isColorFunction(t: string): boolean {
   return args.length >= 3 && args.length <= 4 && args.every((a) => COLOR_ARG_RE.test(a));
 }
 
+/** No real colour value is longer; the cap keeps every regex below on short input. */
+const MAX_COLOR_LENGTH = 64;
+
 export function isCssColor(v: string): boolean {
+  if (v.length > MAX_COLOR_LENGTH) return false;
   const t = v.trim();
   const lower = t.toLowerCase();
   return (
@@ -60,15 +64,18 @@ export function isCssColor(v: string): boolean {
   );
 }
 
-const UNIT_NUMBER_RE = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?(?:%|px|em|rem|pt)?$/;
+const UNIT_NUMBER_RE = /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?(?:%|px|em|rem|pt)?$/;
+
+/** Longer than any real coordinate; keeps each regex test on short input. */
+const MAX_NUMBER_TOKEN_LENGTH = 64;
 
 function isNumberList(v: string): boolean {
   const t = v.trim();
   if (t === '' || t.length > 20_000) return false;
-  return t.split(/[\s,]+/).every((token) => UNIT_NUMBER_RE.test(token));
+  return t.split(/[\s,]+/).every((token) => token.length <= MAX_NUMBER_TOKEN_LENGTH && UNIT_NUMBER_RE.test(token));
 }
 
-const PATH_TOKEN_RE = /[MmZzLlHhVvCcSsQqTtAa]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g;
+const PATH_TOKEN_RE = /[MmZzLlHhVvCcSsQqTtAa]|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?/g;
 const COMMAND_RE = /^[A-Za-z]$/;
 
 /** Real path data only: starts with a moveto, commands are followed by numbers (except closepath). */
@@ -127,12 +134,15 @@ const SVG_ENUM: Readonly<Record<string, RegExp>> = {
   markerUnits: /^(?:strokeWidth|userSpaceOnUse)$/,
   spreadMethod: /^(?:pad|reflect|repeat)$/,
   preserveAspectRatio: /^(?:none|x(?:Min|Mid|Max)Y(?:Min|Mid|Max))(?:\s+(?:meet|slice))?$/,
-  orient: /^(?:auto|auto-start-reverse|[-+]?\d*\.?\d+(?:deg|rad|grad|turn)?)$/,
+  orient: /^(?:auto|auto-start-reverse|[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:deg|rad|grad|turn)?)$/,
   visibility: /^(?:visible|hidden|collapse|inherit)$/,
   display: /^(?:none|inline|block|inherit)$/,
   'vector-effect': /^(?:none|non-scaling-stroke)$/,
   'shape-rendering': /^(?:auto|optimizeSpeed|crispEdges|geometricPrecision)$/,
 };
+
+/** Every SVG_ENUM keyword/angle fits well within this. */
+const MAX_ENUM_LENGTH = 64;
 
 const LOCAL_REF_RE = /^url\(\s*['"]?#([^'")\s]+)['"]?\s*\)\s*(.*)$/i;
 
@@ -158,5 +168,5 @@ export function isAllowedSvgAttr(name: string, value: string, retainedIds: Reado
     return ref.ok && ref.rest === '';
   }
   const pattern = SVG_ENUM[name];
-  return pattern !== undefined && pattern.test(value.trim());
+  return pattern !== undefined && value.length <= MAX_ENUM_LENGTH && pattern.test(value.trim());
 }

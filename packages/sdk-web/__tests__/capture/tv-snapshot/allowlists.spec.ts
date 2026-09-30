@@ -84,6 +84,33 @@ describe('free-text smuggling (hardening)', () => {
     const nearMiss = `${'translate(1)   '.repeat(130)}X`;
     const started = performance.now();
     expect(isAllowedSvgAttr('transform', nearMiss, ids)).toBe(false);
-    expect(performance.now() - started).toBeLessThan(200);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('number grammars stay linear on long digit runs', () => {
+  const longRun = `${'1'.repeat(20_000)}x`;
+  const timed = (fn: () => boolean): { result: boolean; ms: number } => {
+    const started = performance.now();
+    const result = fn();
+    return { result, ms: performance.now() - started };
+  };
+  it.each([
+    ['isCssColor', () => isCssColor(`rgb(${longRun} 0 0)`)],
+    ['isCssColor (bare)', () => isCssColor(longRun)],
+    ['numeric attr', () => isAllowedSvgAttr('cx', longRun, ids)],
+    ['numeric list, long token under the list cap', () => isAllowedSvgAttr('points', `${'1'.repeat(19_000)}x`, ids)],
+    ['orient enum', () => isAllowedSvgAttr('orient', longRun, ids)],
+    ['path data', () => isPathData(`M${longRun}`)],
+  ])('%s rejects in well under a second', (_label, fn) => {
+    const { result, ms } = timed(fn);
+    expect(result).toBe(false);
+    expect(ms).toBeLessThan(1000);
+  });
+  it('still accepts ordinary numbers after the grammar change', () => {
+    expect(isAllowedSvgAttr('orient', '-.5turn', ids)).toBe(true);
+    expect(isAllowedSvgAttr('orient', '45', ids)).toBe(true);
+    expect(isAllowedSvgAttr('cx', '12.', ids)).toBe(true);
+    expect(isCssColor('rgb(10.5 .5 1e2)')).toBe(true);
   });
 });

@@ -102,10 +102,15 @@ export function sanitizeSrcset(value: string, base: string): string | null {
 }
 
 /**
- * Meta `href`: scheme + host + path of any hierarchical scheme (a packaged
- * webOS app runs from file://), never userinfo, query or fragment. An opaque
- * path (`data:…`, `about:…`, `blob:…`) IS the content, so it yields '' — as
- * does an unparseable href.
+ * Schemes a TV app's document legitimately runs from: hosted apps are http(s);
+ * packaged webOS and Tizen apps are loaded from file://. Any other scheme
+ * (`data:`, `javascript:`, `blob:`, `about:`) can carry content in its path.
+ */
+const META_HREF_SCHEMES = new Set(['http:', 'https:', 'file:']);
+
+/**
+ * Meta `href`: scheme + host + path of an allowlisted scheme, never userinfo,
+ * query or fragment. '' for any other scheme or an unparseable href.
  */
 export function sanitizeMetaHref(href: string): string {
   let url: URL;
@@ -114,6 +119,6 @@ export function sanitizeMetaHref(href: string): string {
   } catch {
     return '';
   }
-  if (!url.pathname.startsWith('/')) return '';
+  if (!META_HREF_SCHEMES.has(url.protocol)) return '';
   return `${url.protocol}//${url.host}${url.pathname}`;
 }
