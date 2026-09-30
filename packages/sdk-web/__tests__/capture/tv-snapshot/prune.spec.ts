@@ -452,7 +452,7 @@ describe('pruneSnapshot', () => {
 });
 
 describe('pruneSnapshot — hidden, transparent and clipped content (final review finding 2)', () => {
-  const body = (children: SnNode[]): SnNode => doc(el('html', {}, [el('head'), el('body', {}, children)]));
+  const body = (children: SnNode[]) => doc(el('html', {}, [el('head'), el('body', {}, children)]));
 
   it('prunes an in-viewport visibility:hidden overlay to a same-box placeholder', () => {
     const { bind, deps } = harness();
@@ -609,7 +609,7 @@ describe('pruneSnapshot — hidden, transparent and clipped content (final revie
 });
 
 describe('pruneSnapshot — closed <select> shows only its selected option (final review finding 7)', () => {
-  const body = (children: SnNode[]): SnNode => doc(el('html', {}, [el('head'), el('body', {}, children)]));
+  const body = (children: SnNode[]) => doc(el('html', {}, [el('head'), el('body', {}, children)]));
   const ZERO = rect(0, 0, 0, 0);
 
   it('shows the selected option as a masked value, blanks the others, and pins the select size', () => {
