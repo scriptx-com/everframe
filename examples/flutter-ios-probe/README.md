@@ -3,7 +3,7 @@
 
 # Flutter iOS dry run
 
-This unreleased sample compiles the Flutter method-channel bridge against the local Everframe Swift package and checks masked Flutter A/B frames on an iOS simulator. It submitted reports with masked screenshots and replay to both a loopback fake ingest and a local API/dashboard. These runs cover only the sample scene and simulator.
+This source probe compiles the Flutter method-channel bridge against the local Everframe Swift package and checks masked Flutter A/B frames on an iOS simulator. It submitted reports with masked screenshots and replay to both a loopback fake ingest and a local API/dashboard. These runs cover only the sample scene and simulator. Customer apps install the [published Flutter plugin](https://pub.dev/packages/everframe_flutter); this probe uses local source paths to test development builds.
 
 From the public repository root, set `EVERFRAME_SDK_IOS_ROOT` to the **absolute** path of `packages/sdk-ios`. Flutter places the plugin in a generated Swift Package Manager directory, so a relative SDK path resolves incorrectly. Then:
 

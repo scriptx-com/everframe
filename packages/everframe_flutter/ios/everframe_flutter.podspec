@@ -3,7 +3,7 @@
 # CocoaPods integration for Flutter hosts that do not use SwiftPM.
 Pod::Spec.new do |s|
   s.name = 'everframe_flutter'
-  s.version = '0.1.0'
+  s.version = '0.1.1'
   s.summary = 'Everframe Flutter native bridge'
   s.description = 'Flutter bridge for the Everframe Android and iOS SDKs.'
   s.homepage = 'https://everframe.dev'

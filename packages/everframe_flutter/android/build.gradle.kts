@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 group = "dev.everframe.flutter"
-version = "0.1.0"
+version = "0.1.1"
 
 buildscript {
     repositories { google(); mavenCentral() }
