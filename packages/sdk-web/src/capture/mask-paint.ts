@@ -12,6 +12,23 @@ import type { Rect } from '@everframe/sdk-core';
  * Best-effort: a missing 2d context skips masking rather than failing the
  * capture (the caller's primary masking is live-DOM `maskTargets`).
  */
+/**
+ * Whether a mask rect can be painted where it belongs. Positions come from
+ * `left`/`top` (Chrome < 61's ClientRect has no x/y); a rect that is still
+ * not finite must stop the capture (fail closed), never paint nothing.
+ */
+export function isFiniteRect(r: { x: number; y: number; width: number; height: number }): boolean {
+  return Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.width) && Number.isFinite(r.height);
+}
+
+/** Thrown when a sensitive area has no finite position: the shot must not ship. */
+export class UnmaskableRectError extends Error {
+  constructor() {
+    super('a sensitive area has no finite position; refusing to ship it unmasked');
+    this.name = 'UnmaskableRectError';
+  }
+}
+
 export function paintMaskRectsOnCanvas(
   canvas: HTMLCanvasElement,
   rects: Rect[],
@@ -22,6 +39,11 @@ export function paintMaskRectsOnCanvas(
   offsetY = 0,
 ): void {
   const inflate = 2;
+  // Before the context check: an unpaintable rect fails the capture even
+  // where the best-effort path would otherwise skip masking.
+  if (!rects.every(isFiniteRect) || !Number.isFinite(scale) || !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) {
+    throw new UnmaskableRectError();
+  }
   let ctx: CanvasRenderingContext2D | null = null;
   try {
     ctx = canvas.getContext('2d');

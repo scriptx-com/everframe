@@ -698,7 +698,8 @@ export async function installVideoStandIns(
     // Off-screen videos get a stand-in (they still hold layout open for what IS
     // visible) but no frame: the capture is cropped to the viewport, so their
     // pixels could never appear in the report.
-    if (!intersectsViewport(painted, viewportW, viewportH)) {
+    // left/top: Chrome < 61's ClientRect has no x/y.
+    if (!intersectsViewport({ x: painted.left, y: painted.top, width: painted.width, height: painted.height }, viewportW, viewportH)) {
       candidates.push({ video, excluded: true, frame: null, posterUrl: null });
       continue;
     }

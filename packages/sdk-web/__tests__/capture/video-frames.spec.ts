@@ -48,9 +48,14 @@ afterEach(() => {
 function withBox(el: Element, box: Partial<DOMRect> = {}): void {
   const width = box.width ?? 320;
   const height = box.height ?? 180;
+  const x = box.x ?? box.left ?? 0;
+  const y = box.y ?? box.top ?? 0;
+  // A real DOMRect carries both x/y and left/top (the SDK reads left/top).
   vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({
-    x: 0,
-    y: 0,
+    x,
+    y,
+    left: x,
+    top: y,
     width,
     height,
     ...box,
@@ -515,6 +520,21 @@ describe('intersectsViewport', () => {
 });
 
 describe('installVideoStandIns — cost ceilings', () => {
+  it('judges an off-screen video from left/top when the rect has no x/y (Chrome < 61 ClientRect)', async () => {
+    document.body.innerHTML = '<video></video>';
+    const video = document.querySelector('video')!;
+    vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 99_999, width: 320, height: 180 } as DOMRect);
+    (video as HTMLElement).style.width = '320px';
+    (video as HTMLElement).style.height = '180px';
+    const createElement = vi.spyOn(document, 'createElement');
+    const restore = await installVideoStandIns(document.body, { pixelRatio: 1 });
+    const standIn = document.querySelector(`[${STAND_IN_ATTR}]`) as HTMLElement;
+    expect(standIn).not.toBeNull();
+    expect(standIn.style.backgroundImage).toBe('');
+    expect(createElement).not.toHaveBeenCalledWith('canvas');
+    restore();
+  });
+
   it('holds an off-screen video\'s box open without reading its frame', async () => {
     // The capture is cropped to the viewport, so an off-screen video cannot
     // contribute a pixel — but one above the fold still holds layout open for
