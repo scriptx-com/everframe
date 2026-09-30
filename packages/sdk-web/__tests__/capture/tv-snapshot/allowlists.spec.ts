@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ARIA_STATE_VALUES,
   isAllowedSvgAttr,
+  isAriaStateValue,
   isCssColor,
   isPathData,
 } from '../../../src/capture/tv-snapshot/allowlists.js';
@@ -17,6 +18,25 @@ describe('ARIA state values', () => {
     );
     expect(ARIA_STATE_VALUES['aria-current']!.has('page')).toBe(true);
     expect(ARIA_STATE_VALUES['aria-current']!.has('Alice')).toBe(false);
+  });
+
+  it('checks a name/value pair against own entries only', () => {
+    expect(isAriaStateValue('aria-current', 'page')).toBe(true);
+    expect(isAriaStateValue('aria-current', 'Alice')).toBe(false);
+    expect(isAriaStateValue('aria-label', 'true')).toBe(false);
+  });
+});
+
+// Attribute names are page-controlled: a lookup must never reach Object.prototype (S19).
+const PROTOTYPE_KEYS = ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', '__defineGetter__'];
+
+describe('prototype-named keys', () => {
+  it.each(PROTOTYPE_KEYS)('isAllowedSvgAttr(%s) is false and does not throw', (name) => {
+    expect(isAllowedSvgAttr(name, 'x', ids)).toBe(false);
+    expect(isAllowedSvgAttr(name, 'function Object() { [native code] }', ids)).toBe(false);
+  });
+  it.each(PROTOTYPE_KEYS)('isAriaStateValue(%s) is false and does not throw', (name) => {
+    expect(isAriaStateValue(name, 'true')).toBe(false);
   });
 });
 

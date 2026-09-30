@@ -21,7 +21,7 @@
 // single-pass scanner (no regex over unbounded input), identifiers are read
 // with their escapes decoded the way the browser reads them (`u\72l(` IS
 // `url(`), and rule nesting is capped. LAZY (tv-snapshot chunk).
-import { ARIA_STATE_VALUES } from './allowlists.js';
+import { isAriaStateValue } from './allowlists.js';
 import { fragmentId, isDataUrl, sanitizeHttpUrl } from './url-sanitize.js';
 
 export interface CssScrubContext {
@@ -327,8 +327,7 @@ function allowedAttributeSelector(inner: string): boolean {
   }
   if (i < inner.length) return false;
   // Own keys only: `[constructor=x]` must not reach Object.prototype.
-  if (!Object.prototype.hasOwnProperty.call(ARIA_STATE_VALUES, name)) return false;
-  return ARIA_STATE_VALUES[name]!.has(value);
+  return isAriaStateValue(name, value);
 }
 
 /** A selector (or a prelude's selector-bearing text); null → drop the rule. */

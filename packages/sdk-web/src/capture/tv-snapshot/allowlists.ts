@@ -6,6 +6,15 @@
 // can smuggle free text: ARIA states are enumerated, SVG geometry is numeric,
 // paint is a colour or a reference to a retained id. LAZY (tv-snapshot chunk).
 
+/**
+ * Own-property lookup. Keys here are page-controlled attribute/selector names,
+ * so a plain `table[name]` would reach Object.prototype for `constructor`,
+ * `__proto__`, `toString`… (Object.hasOwn is missing on old TV Chromium.)
+ */
+function ownEntry<T>(table: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined;
+}
+
 export const ARIA_STATE_VALUES: Readonly<Record<string, ReadonlySet<string>>> = {
   'aria-current': new Set(['page', 'step', 'location', 'date', 'time', 'true', 'false']),
   'aria-pressed': new Set(['true', 'false', 'mixed']),
@@ -14,6 +23,12 @@ export const ARIA_STATE_VALUES: Readonly<Record<string, ReadonlySet<string>>> = 
   'aria-expanded': new Set(['true', 'false']),
   'aria-disabled': new Set(['true', 'false']),
 };
+
+/** Is `value` one of the enumerated values of the ARIA state `name`? Own entries only. */
+export function isAriaStateValue(name: string, value: string): boolean {
+  const allowed = ownEntry(ARIA_STATE_VALUES, name);
+  return allowed !== undefined && allowed.has(value);
+}
 
 const NAMED_COLORS = new Set(
   (
@@ -167,6 +182,6 @@ export function isAllowedSvgAttr(name: string, value: string, retainedIds: Reado
     const ref = refToRetained(value, retainedIds);
     return ref.ok && ref.rest === '';
   }
-  const pattern = SVG_ENUM[name];
+  const pattern = ownEntry(SVG_ENUM, name);
   return pattern !== undefined && value.length <= MAX_ENUM_LENGTH && pattern.test(value.trim());
 }
