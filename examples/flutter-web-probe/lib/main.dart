@@ -6,11 +6,11 @@ import 'dart:async';
 import 'package:everframe_flutter/everframe_flutter.dart'
     show
         EverframeSensitive,
+        EverframeWebCapture,
+        EverframeWebBridge,
         SafeReplayBuffer,
-        SafeReplayRecorder,
         SensitiveRegionRegistry,
-        captureRegisteredFrame,
-        exportSafeReplayVTree;
+        captureRegisteredFrameAfterFrame;
 import 'package:flutter/material.dart';
 
 import 'platform_view.dart';
@@ -46,44 +46,32 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
       widget.replayBuffer ?? SafeReplayBuffer();
   late final SensitiveRegionRegistry _sensitiveRegions =
       widget.sensitiveRegions ?? SensitiveRegionRegistry();
-  late final SafeReplayRecorder _recorder = SafeReplayRecorder(
-    capture: _captureFrame,
-    buffer: _replay,
-    interval: const Duration(milliseconds: 500),
-    onFrame: () {
-      final frames = _replay.frames;
-      if (frames.isNotEmpty) widget.onSafeFrame?.call(frames.last.png);
-    },
+  late final EverframeWebCapture _webCapture = EverframeWebCapture(
+    boundaryKey: _boundaryKey,
+    sensitiveRegions: _sensitiveRegions,
+    replayBuffer: _replay,
+    onSafeFrame: widget.onSafeFrame,
   );
+  final EverframeWebBridge _webBridge = const EverframeWebBridge();
   bool _secondScreen = false;
-
-  Future<Uint8List?> _captureFrame() async {
-    await WidgetsBinding.instance.endOfFrame;
-    return captureRegisteredFrame(_boundaryKey, _sensitiveRegions);
-  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      installWebBridge(
-        capture: _captureFrame,
-        startReplay: () => unawaited(_recorder.start()),
-        freezeReplay: _recorder.freeze,
-        takeReplay: () => exportSafeReplayVTree(_replay, scale: 1),
-        resetReplay: () {
-          _recorder.discard();
-          unawaited(_recorder.start());
-        },
-        stopReplay: _recorder.discard,
-      );
+      _webCapture.install();
+      unawaited(_webBridge.start(
+        sdkKey: 'pk_flutter_probe',
+        appVersion: '0.0.0-probe',
+      ));
     });
   }
 
   @override
   void dispose() {
-    _recorder.discard();
+    _webCapture.dispose();
+    _webBridge.kill();
     super.dispose();
   }
 
@@ -149,13 +137,22 @@ class _FlutterProbeAppState extends State<FlutterProbeApp> {
                   top: 170,
                   child: ElevatedButton(
                     onPressed: () async {
-                      final bytes = await _captureFrame();
+                      final bytes = await captureRegisteredFrameAfterFrame(
+                          _boundaryKey, _sensitiveRegions);
                       final accepted = await _replay.append(bytes);
                       if (accepted && bytes != null) {
                         widget.onSafeFrame?.call(bytes);
                       }
                     },
                     child: const Text('Capture safe frame'),
+                  ),
+                ),
+                Positioned(
+                  left: 300,
+                  top: 230,
+                  child: ElevatedButton(
+                    onPressed: () => unawaited(_webBridge.openReporter()),
+                    child: const Text('Open Dart reporter'),
                   ),
                 ),
               ]),

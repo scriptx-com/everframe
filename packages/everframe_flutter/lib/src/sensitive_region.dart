@@ -13,6 +13,8 @@ import 'masked_capture.dart';
 class SensitiveRegionRegistry {
   final Set<GlobalKey> _keys = {};
 
+  bool get hasRegisteredRegions => _keys.isNotEmpty;
+
   void _register(GlobalKey key) => _keys.add(key);
   void _unregister(GlobalKey key) => _keys.remove(key);
 

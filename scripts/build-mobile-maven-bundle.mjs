@@ -63,7 +63,7 @@ for (const sourceRepository of [androidRepository, kmpRepository]) {
 const artifacts = [
   'protocol', 'core', 'reporter-ui', 'media3', 'gradle-plugin',
   'dev.everframe.gradle.plugin',
-  'kmp', 'kmp-android', 'kmp-iosarm64', 'kmp-iossimulatorarm64', 'kmp-jvm',
+  'kmp', 'kmp-android', 'kmp-iosarm64', 'kmp-iossimulatorarm64', 'kmp-jvm', 'kmp-js',
 ];
 assert.deepEqual(readdirSync(group).sort(), artifacts.slice().sort(), 'Mobile bundle has unexpected Maven artifacts');
 
@@ -80,7 +80,7 @@ const marker = readFileSync(path.join(group, 'dev.everframe.gradle.plugin', vers
 assert.ok(marker.includes('<artifactId>gradle-plugin</artifactId>'), 'Gradle plugin marker has the wrong implementation');
 
 const kmpMetadata = readFileSync(path.join(group, 'kmp', version, `kmp-${version}.module`), 'utf8');
-for (const target of ['android', 'iosarm64', 'iossimulatorarm64', 'jvm']) {
+for (const target of ['android', 'iosarm64', 'iossimulatorarm64', 'jvm', 'js']) {
   assert.ok(kmpMetadata.includes(`"module": "kmp-${target}"`), `KMP metadata omits ${target}`);
 }
 const kmpAndroidPom = readFileSync(path.join(group, 'kmp-android', version,

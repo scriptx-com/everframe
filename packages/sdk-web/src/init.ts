@@ -169,9 +169,10 @@ let current: InternalHandle | null = null;
 export function init(config: WebEverframeConfig): Everframe {
   assertBrowser();
   if (config.sdkName !== undefined &&
-      (config.sdkName !== 'everframe-flutter' || typeof config.visualCapture?.captureScreenshot !== 'function' ||
+      (!['everframe-flutter', 'everframe-kmp'].includes(config.sdkName) ||
+       typeof config.visualCapture?.captureScreenshot !== 'function' ||
        typeof config.sdkVersion !== 'string' || config.sdkVersion.length === 0)) {
-    throw new Error('Everframe: Flutter web identity requires a renderer capture provider and SDK version.');
+    throw new Error('Everframe: renderer web identity requires a renderer capture provider and SDK version.');
   }
   const sdkName = config.sdkName ?? VANILLA_SDK_NAME;
   const sdkVersion = config.sdkName ? config.sdkVersion! : PKG_VERSION;

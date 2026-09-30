@@ -4,7 +4,7 @@
 # Everframe Flutter
 
 [`everframe_flutter`](https://pub.dev/packages/everframe_flutter) is the published
-Everframe plugin for Flutter apps on Android and iOS. Create a **Flutter**
+Everframe plugin for Flutter apps on Android, iOS, and web. Create a **Flutter**
 integration in the Everframe dashboard to get its app ID and SDK key.
 
 ## Install
@@ -78,9 +78,60 @@ identify their host platform.
 
 The Android and iOS simulator samples submitted masked screenshots and replay
 to a local dashboard. Physical-device behavior, production delivery, and
-offline retry after process restart remain unverified. Flutter web and macOS
-capture probes in this repository are feasibility tests, not released plugin
-targets.
+offline retry after process restart remain unverified. The Flutter web source
+now includes a browser target; its masked screenshot, image replay, reporter,
+and retry paths passed Chromium probes. The published 0.1.1 package predates
+this addition, so release the next pub.dev version before using web in a
+customer app. macOS remains an unreleased probe.
+
+## Flutter web
+
+Add `EverframeWebCapture` after the first frame with the same
+`RepaintBoundary` and `SensitiveRegionRegistry` used for native capture.
+It refuses capture when no sensitive widgets are registered unless you opt in
+to an explicitly known-safe screen with `allowUnmarked: true`. Call
+`EverframeWebBridge.start` with the Flutter integration key, then use its
+`openReporter`, `setUser`, `recordScreen`, `addBreadcrumb`, and
+`captureException` methods from Dart. The bridge uses `@everframe/web` in the
+browser and preserves `everframe-flutter` attribution.
+
+```dart
+import 'dart:async';
+import 'package:flutter/widgets.dart';
+import 'package:everframe_flutter/everframe_flutter.dart';
+
+final capture = EverframeWebCapture(
+  boundaryKey: boundaryKey,
+  sensitiveRegions: sensitiveRegions,
+);
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  capture.install();
+  unawaited(const EverframeWebBridge().start(
+    sdkKey: flutterIntegrationKey,
+    appVersion: '1.0.0',
+  ));
+});
+```
+
+The browser host loads `@everframe/web` as a module and exposes its initializer
+before or after Flutter boots; the Dart bridge waits for the ready event:
+
+```js
+import { init } from '/sdk/index.js';
+import { flutterVisualCapture } from './assets/packages/everframe_flutter/assets/visual_capture.js';
+window.everframeFlutterInit = (config) => init({
+  ...config,
+  visualCapture: flutterVisualCapture(),
+});
+window.dispatchEvent(new Event('everframe-flutter-web-sdk-ready'));
+```
+
+Bundle `@everframe/web` from npm or use its published browser ESM artifact
+at `/sdk/index.js`; this path in the snippet is the host's own served asset.
+Use the matching dashboard Flutter key. The browser reporter owns network
+delivery and retry; Flutter owns masked renderer pixels. No screen-recording
+permission or DOM screenshot fallback is involved. The complete runnable
+source is in [the Flutter web probe](../../examples/flutter-web-probe).
 
 Contributors can build against local native source with
 `-PeverframeNativeVersion=0.10.0-DEV` on Android or

@@ -5,9 +5,9 @@ import type { ReporterTheme } from '../branding/theme.js';
 import type { HostVisualCapture } from '../capture/host-visual.js';
 
 export interface WebEverframeConfig extends EverframeConfig {
-  /** Flutter web adapter attribution; absent keeps ordinary web identity. */
-  sdkName?: 'everframe-flutter';
-  /** Flutter package version when sdkName is everframe-flutter. */
+  /** Renderer host attribution; absent keeps ordinary web identity. */
+  sdkName?: 'everframe-flutter' | 'everframe-kmp';
+  /** Host package version when sdkName names a renderer host. */
   sdkVersion?: string;
   /** Renderer-owned masked PNG and optional image replay. No DOM fallback on capture failure. */
   visualCapture?: HostVisualCapture;

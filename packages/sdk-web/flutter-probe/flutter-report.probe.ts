@@ -36,7 +36,12 @@ test('submits masked Flutter screenshot and image replay through the web reporte
   });
   await page.getByTestId('report-title').fill('Flutter web image replay');
   await page.getByTestId('submit-report').click();
-  await expect.poll(async () => (await request.get('/probe/last-report')).status()).toBe(200);
+  await expect.poll(async () => {
+    const response = await request.get('/probe/last-report');
+    if (!response.ok()) return '';
+    const envelope = part(await response.body(), response.headers()['content-type'] ?? '', 'envelope');
+    return envelope ? JSON.parse(envelope.toString()).reporter?.title ?? '' : '';
+  }).toBe('Flutter web image replay');
 
   const response = await request.get('/probe/last-report');
   const body = await response.body();
@@ -50,7 +55,7 @@ test('submits masked Flutter screenshot and image replay through the web reporte
   const envelope = ReportEnvelope.parse(JSON.parse(envelopeBytes!.toString()));
   const replay = vtree.VTreeTimeline.parse(JSON.parse(replayBytes!.toString()));
   expect(envelope.sdk.name).toBe('everframe-flutter');
-  expect(envelope.sdk.version).toBe('0.0.0+1');
+  expect(envelope.sdk.version).toBe('0.1.1');
   expect(envelope.attachments.find((entry) => entry.kind === 'session-replay')?.format).toBe('everframe-vtree-v1');
   expect(replay.version).toBe('everframe-vtree-v1');
   expect(replay.frames.length).toBeGreaterThanOrEqual(2);

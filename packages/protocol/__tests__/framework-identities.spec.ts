@@ -22,8 +22,10 @@ describe('Flutter and Kotlin Multiplatform host identity', () => {
   it.each([
     ['everframe-flutter', 'android'],
     ['everframe-flutter', 'ios'],
+    ['everframe-flutter', 'web'],
     ['everframe-kmp', 'android'],
     ['everframe-kmp', 'ios'],
+    ['everframe-kmp', 'web'],
   ] as const)('preserves %s on %s through an envelope round trip', (name, platform) => {
     const envelope = baseEnvelope();
     envelope.sdk = { name, platform, formFactor: 'phone', version: '0.0.0' };

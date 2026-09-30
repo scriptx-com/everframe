@@ -49,4 +49,21 @@ describe('host visual screenshot', () => {
     expect(() => init({ apiKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-flutter' }))
       .toThrow('requires a renderer capture provider and SDK version');
   });
+
+  it('refuses KMP attribution without a renderer provider', () => {
+    expect(() => init({ apiKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-kmp' }))
+      .toThrow('requires a renderer capture provider and SDK version');
+  });
+
+  it('accepts KMP attribution with a renderer provider and version', () => {
+    const sdk = init({
+      apiKey: 'pk_probe',
+      appVersion: '0.0.0',
+      disabled: true,
+      sdkName: 'everframe-kmp',
+      sdkVersion: '0.10.2',
+      visualCapture: { captureScreenshot: async () => png(64, 64) },
+    });
+    sdk.destroy();
+  });
 });

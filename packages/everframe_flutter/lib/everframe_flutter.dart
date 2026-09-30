@@ -13,3 +13,9 @@ export 'src/sensitive_region.dart'
         SensitiveRegionRegistry,
         captureRegisteredFrame,
         captureRegisteredFrameAfterFrame;
+export 'src/web_capture_stub.dart'
+    if (dart.library.js_interop) 'src/web_capture_web.dart'
+    show EverframeWebCapture;
+export 'src/web_sdk_stub.dart'
+    if (dart.library.js_interop) 'src/web_sdk_web.dart'
+    show EverframeWebBridge;

@@ -5,6 +5,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './flutter-probe',
   testMatch: /.*\.probe\.ts$/,
+  // The loopback probe server holds one last submitted report at a time.
+  workers: 1,
   timeout: 60_000,
   use: {
     baseURL: 'http://127.0.0.1:8938',

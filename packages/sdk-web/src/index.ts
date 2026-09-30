@@ -92,6 +92,8 @@ export { sensitiveRegistry, SENSITIVE_ATTR } from './sensitive/registry.js';
 // ── Capture ─────────────────────────────────────────────────────────────
 export { sha256Hex } from './capture/sha256.js';
 export type { HostVisualCapture } from './capture/host-visual.js';
+export { createCanvasVisualCapture } from './capture/canvas-visual.js';
+export type { CanvasVisualOptions, CanvasSensitiveRect } from './capture/canvas-visual.js';
 
 // ── Outbox ──────────────────────────────────────────────────────────────
 export { createOutbox } from './outbox/index.js';

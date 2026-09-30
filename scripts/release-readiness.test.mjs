@@ -20,6 +20,7 @@ test('Everframe npm SDKs remain on their fixed 0.9.0 release', () => {
 
 test('mobile release versions and Maven artifact names remain aligned', () => {
   assert.match(read('packages/everframe_flutter/pubspec.yaml'), /^version: 0\.1\.1$/m);
+  assert.match(read('packages/everframe_flutter/lib/src/web_sdk_web.dart'), /sdkVersion: '0\.1\.1'\.toJS/);
   assert.match(read('packages/everframe_flutter/android/build.gradle.kts'), /^version = "0\.1\.1"$/m);
   assert.match(read('packages/everframe_flutter/ios/everframe_flutter.podspec'), /s\.version = '0\.1\.1'/);
   assert.match(read('packages/sdk-android/android/gradle.properties'), /^everframeVersion=0\.10\.2$/m);

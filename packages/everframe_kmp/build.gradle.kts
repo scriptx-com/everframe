@@ -34,6 +34,10 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
     jvm()
+    js {
+        browser()
+        nodejs()
+    }
 
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
         binaries.framework { baseName = "EverframeKmp" }
@@ -78,7 +82,7 @@ publishing {
         artifact(dokkaJavadocJar)
         pom {
             name.set("Everframe Kotlin Multiplatform bridge")
-            description.set("Kotlin Multiplatform bridge for Everframe reporting on Android and iOS.")
+            description.set("Kotlin Multiplatform bridge for Everframe reporting on Android, iOS, and web.")
             url.set("https://everframe.dev")
             licenses {
                 license {
