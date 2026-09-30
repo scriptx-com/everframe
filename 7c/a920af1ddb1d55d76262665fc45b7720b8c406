@@ -1,0 +1,31 @@
+packages/sdk-web/__tests__/capture/clone-mask.spec.ts
+  s_f1f3a292ebd900::t_cda4469dc4a6e4 183-206
+packages/sdk-web/__tests__/capture/pixel-mask.spec.ts
+  s_f1f3a292ebd900::t_d286136ca10bfb 134-163
+packages/sdk-web/e2e/fixtures/pixel-mask.html
+  s_f1f3a292ebd900::t_5891dfc341b1cb 36-39,49-54
+packages/sdk-web/e2e/pixel-mask.spec.ts
+  s_f1f3a292ebd900::t_e280d0a4b6814f 20,47-48,50-51,54-59,61,65,91-97,108-109,111-115,167,179-214
+packages/sdk-web/src/capture/pixel-mask.ts
+  s_f1f3a292ebd900::t_4a88d33997f659 57-67,70-74,101-124,140,142-144,148,151,157,168,175,180,190-196,200-202,208
+packages/sdk-web/src/capture/renderers/clone-mask.ts
+  s_f1f3a292ebd900::t_25aaba08a47734 149-180,182,215-242,331
+packages/sdk-web/src/capture/screenshot.ts
+  s_f1f3a292ebd900::t_ca8db3912e1480 275-280,447,551
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7ca920af1ddb1d55d76262665fc45b7720b8c406",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
