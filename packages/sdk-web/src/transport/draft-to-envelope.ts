@@ -16,7 +16,9 @@ import type {
   AttachmentRef,
   Breadcrumb,
   NetworkBodyEntry,
+  CaptureControlRender,
 } from '@everframe/protocol';
+import { DOM_SNAPSHOT_CONTENT_TYPE, domSnapshotPartName } from '@everframe/protocol';
 import type { WebEverframeConfig } from '../internal/types.js';
 import { REACT_SDK_NAME, type HostSdkName } from '../internal/sdk-identity.js';
 import { stampActiveVitals } from '../vitals/stamp-active-vitals.js';
@@ -30,6 +32,30 @@ export interface BundleScreenshot {
   height: number;
   /** True when this shot's bytes were baked (annotations present). */
   annotated: boolean;
+  /** 1-based shot position; part names derive from it. Defaults to array index + 1. */
+  shotNumber?: number;
+}
+
+/** A shot's gzip DomSnapshotV1, shipped as `dom-snapshot` / `dom-snapshot-N`. */
+export interface BundleDomSnapshot {
+  shotNumber: number;
+  bytes: Uint8Array;
+  sha256: string;
+}
+
+export type ShotPartKind = 'screenshot' | 'annotated-screenshot' | 'dom-snapshot';
+
+/**
+ * The single part-name formula for a shot's parts: shot 1 keeps the bare kind
+ * (backward compat with pre-overhaul dashboards), shot N is `<kind>-N`. Shared
+ * with the reporter dialog so image and snapshot parts never drift apart.
+ */
+export function shotPartName(kind: ShotPartKind, shotNumber: number): string {
+  if (kind === 'dom-snapshot') return domSnapshotPartName(shotNumber);
+  if (!Number.isInteger(shotNumber) || shotNumber < 1) {
+    throw new RangeError(`shot numbers start at 1, got ${shotNumber}`);
+  }
+  return shotNumber === 1 ? kind : `${kind}-${shotNumber}`;
 }
 
 /**
@@ -46,6 +72,10 @@ export interface CaptureBundle {
    *  over the legacy screenshotBlob/… single-shot fields. Ordered: index 0
    *  is the primary shot (bare part names). */
   screenshots?: BundleScreenshot[];
+  /** DOM snapshots of shots whose redaction state is known and clean (TV path). */
+  domSnapshots?: BundleDomSnapshot[];
+  /** captureControl.render: how the snapshot-path shots were rendered. */
+  render?: CaptureControlRender;
   focused: FocusedNode | null;
   logs: LogEntry[];
   network: NetworkEntry[];
@@ -134,7 +164,7 @@ export interface DraftToEnvelopeOutput {
     name: string;
     blob: Blob;
     sha256: string;
-    kind: 'screenshot' | 'annotated-screenshot' | 'session-replay';
+    kind: ShotPartKind | 'session-replay';
   }>;
 }
 
@@ -250,9 +280,8 @@ export function draftToEnvelope(
       const kind: 'screenshot' | 'annotated-screenshot' = s.annotated
         ? 'annotated-screenshot'
         : 'screenshot';
-      // Shot 1 keeps the bare name (backward compat with pre-overhaul
-      // dashboards); shots 2..N are suffixed with their 1-based index.
-      const name = i === 0 ? kind : `${kind}-${i + 1}`;
+      // Carried explicitly so an image-less shot (TV snapshot path) keeps numbering.
+      const name = shotPartName(kind, s.shotNumber ?? i + 1);
       attachments.push({ name, blob: s.blob, sha256: s.sha256, kind });
       attachmentRefs.push({
         partName: name,
@@ -264,6 +293,22 @@ export function draftToEnvelope(
         height: s.height,
       });
     });
+    for (const snap of bundle.domSnapshots ?? []) {
+      const name = shotPartName('dom-snapshot', snap.shotNumber);
+      attachments.push({
+        name,
+        blob: new Blob([snap.bytes as BlobPart], { type: DOM_SNAPSHOT_CONTENT_TYPE }),
+        sha256: snap.sha256,
+        kind: 'dom-snapshot',
+      });
+      attachmentRefs.push({
+        partName: name,
+        kind: 'dom-snapshot',
+        contentType: DOM_SNAPSHOT_CONTENT_TYPE,
+        byteLength: snap.bytes.byteLength,
+        sha256: snap.sha256,
+      });
+    }
   }
 
   // REPLAY-03 / RWEB-02 — session-replay attachment with sever-and-flag.
@@ -351,6 +396,11 @@ export function draftToEnvelope(
   // is the single source of truth.
   if (bundle.degradedReason !== undefined) {
     (envelope.captureControl as { degradedReason?: string }).degradedReason = bundle.degradedReason;
+  }
+
+  // Smart-TV snapshot path — additive-optional render context (rides passthrough).
+  if (bundle.render !== undefined) {
+    (envelope.captureControl as { render?: CaptureControlRender }).render = bundle.render;
   }
 
   // RWEB-02 — surface the sever-and-flag marker on captureControl (PAY-05 surface)
