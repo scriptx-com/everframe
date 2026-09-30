@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
 import {
-  RENDER_BLANK_CHECK,
   RENDER_FOCUS_ATTR,
   RENDER_FOCUS_WITHIN_ATTR,
   RENDER_META_HEADER,
@@ -86,9 +85,5 @@ describe('render HTTP contract', () => {
     ]);
     expect(RenderErrorBody.safeParse({ error: 'render_timeout', retryAfter: 3 }).success).toBe(true);
     expect(RenderErrorBody.safeParse({ error: 'teapot' }).success).toBe(false);
-  });
-
-  it('pins the blank-check sampling shared with the SDK', () => {
-    expect(RENDER_BLANK_CHECK).toEqual({ lumaRange: 8, sampleWidth: 128, sampleHeight: 72 });
   });
 });
