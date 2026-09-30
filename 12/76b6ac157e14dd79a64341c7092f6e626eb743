@@ -1,0 +1,42 @@
+packages/sdk-web/perf/tv-device/.gitignore
+  s_f1f3a292ebd900::t_b03824412a9826 1-3
+packages/sdk-web/perf/tv-device/entry.ts
+  s_f1f3a292ebd900::t_cc80ffbc4f8511 1-101
+packages/sdk-web/perf/tv-device-harness.mjs
+  s_f1f3a292ebd900::t_40bb5a92afa5ea 44-52
+  s_f1f3a292ebd900::t_22c2a264df284d 1-43,53-127
+  s_f1f3a292ebd900::t_df1442a3202ffd 128-133
+packages/sdk-web/perf/tv-device/harness.html
+  s_f1f3a292ebd900::t_ecaaea6439cb0a 1-37
+packages/sdk-web/perf/tv-device/polyfills.ts
+  s_f1f3a292ebd900::t_c9dcdb4a434a55 1-20
+  s_f1f3a292ebd900::t_ba7aafcd1a6960 21-37
+packages/sdk-web/perf/tv-device/webos-app/appinfo.json
+  s_f1f3a292ebd900::t_503f6d3b974c4d 1-9
+LICENSES/OFL-1.1.txt
+  s_f1f3a292ebd900::t_e8b7cf84910f87 1-43
+REUSE.toml
+  s_f1f3a292ebd900::t_9e4d84f3508ef5 17-22
+packages/sdk-web/package.json
+  s_f1f3a292ebd900::t_0de6d04ee2e06a 67-68,111
+packages/sdk-web/perf/README.md
+  s_f1f3a292ebd900::t_d106084d2262da 168-226
+pnpm-lock.yaml
+  s_f1f3a292ebd900::t_699b1f74c4ad09 579-581
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1276b6ac157e14dd79a64341c7092f6e626eb743",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
