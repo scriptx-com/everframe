@@ -1,0 +1,38 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8" /><title>Everframe TV snapshot rebuild fixture</title>
+<style>body { margin: 0; } #host { width: 1280px; height: 720px; }</style></head>
+<body>
+  <div id="host"></div>
+  <script type="importmap">{ "imports": { "rrweb-snapshot": "/vendor/rrweb-snapshot.js" } }</script>
+  <script type="module">
+    import { rebuildIntoSandboxedIframe, createCache, createMirror } from 'rrweb-snapshot';
+    // Rebuilds a DomSnapshotV1 the way a renderer would: sandboxed iframe at
+    // the recorded viewport, then the recorded root scroll (rr_scroll* offsets
+    // on nested scrollers are applied by rebuild itself). Returns the
+    // viewport-relative position of each requested element id (null when the
+    // id is missing from the rebuilt document) and the rail's scroll offset.
+    // The iframe stays on `window.__frame` for further inspection.
+    window.__rebuild = (doc, ids) => {
+      const [meta, full] = doc.events;
+      const { iframe } = rebuildIntoSandboxedIframe(full.data.node, {
+        root: document.getElementById('host'),
+        iframeAttributes: { style: `border:0;display:block;width:${meta.data.width}px;height:${meta.data.height}px` },
+        cache: createCache(),
+        mirror: createMirror(),
+      });
+      window.__frame = iframe;
+      iframe.contentWindow.scrollTo(full.data.initialOffset.left, full.data.initialOffset.top);
+      const d = iframe.contentDocument;
+      const boxes = {};
+      for (const id of ids) {
+        const b = d.getElementById(id)?.getBoundingClientRect();
+        boxes[id] = b ? { x: b.left, y: b.top } : null;
+      }
+      return { boxes, railScrollLeft: d.getElementById('rail')?.scrollLeft ?? null };
+    };
+  </script>
+</body>
+</html>

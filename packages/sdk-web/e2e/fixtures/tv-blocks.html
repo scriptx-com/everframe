@@ -1,0 +1,65 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe TV snapshot block-flow e2e fixture</title>
+<!-- A plain block page scrolled past everything above #now: sections whose
+     h2/p margins collapse THROUGH the section (no padding, no border), one
+     fixed-height section, and an icon-sprite section that defines the ids a
+     visible icon references (<use href="#…">, fill="url(#…)", clip-path and a
+     stylesheet url(#…)). All of it is off screen, so the pruner replaces it —
+     the visible content below must not move, and the refs must still resolve. -->
+<style>
+  body { margin: 0; font: 20px/1.4 sans-serif; background: #fff; color: #111; }
+  section { margin: 0; padding: 0; }
+  h2 { margin: 48px 0 24px; font-size: 32px; }
+  p { margin: 16px 0 32px; }
+  #fixed-height { height: 260px; overflow: hidden; background: #dde; }
+  #sprite svg { width: 24px; height: 24px; }
+  .badge { fill: url(#grad-brand); }
+  #v-box { width: 120px; height: 60px; background: #0a0; margin: 20px 40px; }
+</style>
+</head>
+<body>
+  <section class="blk"><h2>Earlier heading one OFFSCREENTEXT</h2><p>Earlier paragraph one OFFSCREENTEXT</p></section>
+  <section class="blk"><h2>Earlier heading two OFFSCREENTEXT</h2><p>Earlier paragraph two OFFSCREENTEXT</p><p>More text OFFSCREENTEXT</p></section>
+  <section id="fixed-height"><h2>Fixed-height section OFFSCREENTEXT</h2><p>Clipped content OFFSCREENTEXT</p><div style="height:600px"></div></section>
+  <section id="sprite">
+    <h2>Icon sprite OFFSCREENICON</h2>
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <defs>
+        <linearGradient id="grad-brand"><stop offset="0" stop-color="#d22"/><stop offset="1" stop-color="#d22"/></linearGradient>
+        <clipPath id="clip-round"><circle cx="24" cy="24" r="20"/></clipPath>
+        <symbol id="icon-tile" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></symbol>
+      </defs>
+      <use href="#icon-tile" width="48" height="48"/>
+    </svg>
+  </section>
+  <section class="blk"><h2>Earlier heading three OFFSCREENTEXT</h2><p>Earlier paragraph three OFFSCREENTEXT</p></section>
+  <section id="now">
+    <h2 id="v-head">Now showing</h2>
+    <p id="v-para">A visible paragraph after the pruned sections.</p>
+    <svg id="v-icon" width="48" height="48" viewBox="0 0 48 48">
+      <use id="v-use" href="#icon-tile" width="48" height="48" fill="url(#grad-brand)" clip-path="url(#clip-round)"/>
+    </svg>
+    <svg id="v-badge" width="40" height="20"><rect class="badge" width="40" height="20"/></svg>
+    <div id="v-box"></div>
+  </section>
+  <div style="height:2000px"></div>
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

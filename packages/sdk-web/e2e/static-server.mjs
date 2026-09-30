@@ -41,6 +41,9 @@ const VENDOR = {
   '/vendor/modern-screenshot.js': fileURLToPath(import.meta.resolve('modern-screenshot')),
   '/vendor/snapdom.js': fileURLToPath(import.meta.resolve('@zumer/snapdom')),
   '/vendor/rrweb.js': fileURLToPath(import.meta.resolve('rrweb')),
+  // The rebuild fixture reconstructs a captured TV snapshot in the browser
+  // (tv-rebuild.html) with the same rrweb-snapshot the SDK serializes with.
+  '/vendor/rrweb-snapshot.js': fileURLToPath(import.meta.resolve('rrweb-snapshot')),
 };
 
 const TYPES = {
