@@ -29,10 +29,10 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@babel/core": "^7.24.0"
+    "@babel/core": "^8.0.6"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0",
+    "@babel/core": "^8.0.6",
     "@babel/parser": "^7.24.0",
     "@babel/preset-react": "^7.28.5",
     "@babel/preset-typescript": "^7.28.5",
