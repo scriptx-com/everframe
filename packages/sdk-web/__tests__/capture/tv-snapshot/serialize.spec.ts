@@ -692,6 +692,36 @@ describe('display:contents sensitive wrappers (React <Sensitive>) keep their str
   });
 });
 
+describe('open dialogs and disclosures stay open (codex r10 F1)', () => {
+  it('keeps open on <dialog>/<details> and rr_open_mode on <dialog> through a rebuild', async () => {
+    document.body.innerHTML =
+      '<section id="s"></section><dialog id="dlg" open>Dialog body</dialog><details id="det" open><summary>More</summary>Details body</details>' +
+      '<details id="shut"><summary>Closed</summary>x</details><div id="d" open>not a disclosure</div>';
+    const taken = take({ sensitiveElements: () => [] });
+    const root = rootOf(taken);
+    expect(findEl(root, (e) => e.attributes.id === 'dlg')!.attributes).toMatchObject({ open: '' });
+    expect(findEl(root, (e) => e.attributes.id === 'det')!.attributes).toMatchObject({ open: '' });
+    expect(findEl(root, (e) => e.attributes.id === 'shut')!.attributes.open).toBeUndefined();
+    expect(findEl(root, (e) => e.attributes.id === 'd')!.attributes.open).toBeUndefined();
+    const mode = findEl(root, (e) => e.attributes.id === 'dlg')!.attributes.rr_open_mode;
+    expect(mode === undefined || mode === 'non-modal' || mode === 'modal').toBe(true);
+    const { rebuild, createMirror, createCache } = await import('rrweb-snapshot');
+    const target = document.implementation.createHTMLDocument('rebuilt');
+    rebuild(root as never, { doc: target, mirror: createMirror(), cache: createCache() });
+    expect((target.getElementById('dlg') as HTMLElement & { open?: boolean }).hasAttribute('open')).toBe(true);
+    expect((target.getElementById('det') as HTMLDetailsElement).open).toBe(true);
+  });
+
+  it('keeps only rrweb\'s known rr_open_mode values', async () => {
+    const { scrubSnapshotTree } = await import('../../../src/capture/tv-snapshot/snapshot-scrub.js');
+    const dlg = { type: 2, id: 2, tagName: 'dialog', attributes: { open: 'Alice', rr_open_mode: 'Alice Smith' }, childNodes: [] } as SnElement;
+    const modal = { type: 2, id: 3, tagName: 'dialog', attributes: { open: true, rr_open_mode: 'modal' }, childNodes: [] } as unknown as SnElement;
+    scrubSnapshotTree({ type: 0, id: 1, childNodes: [dlg, modal] } as never, { masked: true, retainedIds: new Set(), baseHref: 'https://tv.example.test/' });
+    expect(dlg.attributes).toEqual({ open: '' });
+    expect(modal.attributes).toEqual({ open: '', rr_open_mode: 'modal' });
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

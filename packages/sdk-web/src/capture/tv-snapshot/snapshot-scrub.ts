@@ -120,6 +120,17 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
       if (value === MASK_PLACEHOLDER) next[key] = value;
       continue;
     }
+    // Open state of a shown dialog / expanded disclosure (codex r10 F1): a
+    // boolean, normalised to "" whatever value it carried, and rrweb's
+    // `rr_open_mode` only with one of the two values rrweb-snapshot writes.
+    if (lower === 'open') {
+      if (tag === 'dialog' || tag === 'details') next[key] = '';
+      continue;
+    }
+    if (lower === 'rr_open_mode') {
+      if (tag === 'dialog' && (value === 'modal' || value === 'non-modal')) next[key] = value;
+      continue;
+    }
     if (lower === 'slot' || (lower === 'name' && tag === 'slot')) {
       if (isSlotName(value)) next[key] = value;
       continue;
