@@ -37,7 +37,7 @@
   "devDependencies": {
     "@everframe/babel-plugin-displayname": "workspace:*",
     "@types/react": "^19.1.1",
-    "react-dom": "19.2.5",
+    "react-dom": "19.3.0",
     "typescript": "~5.9.0"
   },
   "expo": {
