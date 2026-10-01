@@ -555,6 +555,27 @@ describe('non-rendered SVG content (allowlist)', () => {
   });
 });
 
+describe('named slot assignments survive a serialize → rebuild round trip (codex r7 F3)', () => {
+  it('keeps a validated slot attribute matching the slot name', async () => {
+    document.body.innerHTML = '<section id="s"></section><x-card id="card"><h2 id="head" slot="header">Visible heading</h2></x-card>';
+    document.getElementById('card')!.attachShadow({ mode: 'open' }).innerHTML = '<div><slot name="header"></slot></div>';
+    const taken = take({ sensitiveElements: () => [] });
+    const head = findEl(rootOf(taken), (e) => e.attributes.id === 'head')!;
+    expect(head.attributes.slot).toBe('header');
+    const { rebuild, createMirror } = await import('rrweb-snapshot');
+    const target = document.implementation.createHTMLDocument('rebuilt');
+    rebuild(rootOf(taken) as never, { doc: target, mirror: createMirror() });
+    const rebuilt = target.getElementById('head')!;
+    expect(rebuilt.assignedSlot?.getAttribute('name')).toBe('header');
+  });
+
+  it('drops a slot attribute that is not a short name', () => {
+    document.body.innerHTML = '<section id="s"></section><x-card><p id="p" slot="alice@example.test">x</p></x-card>';
+    const p = findEl(rootOf(take({ sensitiveElements: () => [] })), (e) => e.attributes.id === 'p')!;
+    expect(p.attributes.slot).toBeUndefined();
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

@@ -35,6 +35,23 @@ const BASE_ATTRS = new Set([
   'checked', 'selected', 'disabled', 'readonly', 'hidden', 'dir', 'lang', 'sizes', 'media',
 ]);
 const URL_ATTRS = new Set(['href', 'src', 'poster', 'xlink:href']);
+
+/**
+ * A slot assignment (`slot="header"`) and the `<slot name="header">` it
+ * targets must survive identically or projected content vanishes on rebuild,
+ * so both get the same validation and are kept verbatim: a short name of
+ * ASCII letters, digits, `-` and `_` (never free text, never pattern-rewritten).
+ */
+const MAX_SLOT_NAME_LENGTH = 64;
+function isSlotName(value: SnAttributeValue): boolean {
+  if (typeof value !== 'string' || value === '' || value.length > MAX_SLOT_NAME_LENGTH) return false;
+  for (let i = 0; i < value.length; i++) {
+    const c = value.charCodeAt(i);
+    const ok = (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 45 || c === 95;
+    if (!ok) return false;
+  }
+  return true;
+}
 const LINK_TAGS = new Set(['a', 'area']);
 
 // ── attributes ─────────────────────────────────────────────────────────────
@@ -101,6 +118,10 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
     }
     if (lower === 'value') {
       if (value === MASK_PLACEHOLDER) next[key] = value;
+      continue;
+    }
+    if (lower === 'slot' || (lower === 'name' && tag === 'slot')) {
+      if (isSlotName(value)) next[key] = value;
       continue;
     }
     if (lower === 'srcset') {
