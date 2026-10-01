@@ -11,7 +11,7 @@ import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { MASK_PLACEHOLDER } from '../replay/mask-mapping.js';
 import { pageRedactionConfig, redactPageString, redactUrlPath } from './page-redact.js';
 import { SCRUB_MEMO_MAX_ENTRIES, SCRUB_MEMO_MAX_KEY, scrubCssText, scrubInlineStyle, type CssScrubContext } from './css-scrub.js';
-import { fragmentId, isDataUrl, sanitizeHttpUrl, sanitizeSrcset } from './url-sanitize.js';
+import { fragmentId, isDataUrl, sameDocumentFragmentId, sanitizeHttpUrl, sanitizeSrcset } from './url-sanitize.js';
 import { isAllowedSvgAttr, isAriaStateValue } from './allowlists.js';
 import {
   SN_CDATA,
@@ -27,6 +27,11 @@ import {
 
 export interface SnapshotScrubContext extends CssScrubContext {
   redaction?: RedactionEngineConfig | undefined;
+  /**
+   * documentUrlKey(location.href): what rrweb resolved same-document DOM
+   * references against. Compared only, never emitted (it carries the query).
+   */
+  documentKey?: string | undefined;
 }
 
 /** Layout/identity attributes that cannot carry user content (same spirit as scrub.ts). */
@@ -85,7 +90,9 @@ function memoized<T>(map: Map<string, T> | null, key: string, compute: () => T):
 }
 
 function sanitizeDomUrl(value: string, ctx: SnapshotScrubContext, config: RedactionEngineConfig): string | null {
-  const id = fragmentId(value);
+  // A bare `#id`, or one rrweb absolutized against this document (codex r10
+  // F2): back to `#id` only when its target survives in the snapshot.
+  const id = fragmentId(value) ?? sameDocumentFragmentId(value, ctx.documentKey ?? '');
   if (id !== null) return ctx.retainedIds.has(id) ? `#${id}` : null;
   const t = value.trim();
   if (t.startsWith('#')) return null;

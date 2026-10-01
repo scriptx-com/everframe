@@ -722,6 +722,31 @@ describe('open dialogs and disclosures stay open (codex r10 F1)', () => {
   });
 });
 
+describe('same-document SVG references rrweb absolutized (codex r10 F2)', () => {
+  it('restores #id for a retained target: gradient href inheritance and textPath', () => {
+    document.body.innerHTML =
+      '<section id="s"></section><svg width="100" height="20"><defs>' +
+      '<linearGradient id="base"><stop offset="0"></stop></linearGradient><linearGradient id="g" href="#base"></linearGradient>' +
+      '<path id="curve" d="M0 10L100 10"></path></defs>' +
+      '<rect fill="url(#g)" width="5" height="5"></rect><text><textPath id="tp" href="#curve">along</textPath></text>' +
+      '<a id="other" href="/tv/other?x=1#base"><rect width="1" height="1"></rect></a></svg>';
+    const taken = take({ sensitiveElements: () => [] });
+    const root = rootOf(taken);
+    expect(findLeaks(JSON.stringify(taken.doc), ['SECRETTOKEN', 'SECRETCODE'])).toEqual([]); // the compared query never ships
+    expect(findEl(root, (e) => e.attributes.id === 'g')!.attributes.href).toBe('#base');
+    expect(findEl(root, (e) => e.attributes.id === 'tp')!.attributes.href).toBe('#curve');
+    // A different path is another document: its fragment is still stripped.
+    expect(findEl(root, (e) => e.attributes.id === 'other')!.attributes.href).toBe(`${location.origin}/tv/other`);
+  });
+
+  it('drops a same-document reference whose target did not survive, and a different query', () => {
+    document.body.innerHTML =
+      '<section id="s"></section><svg width="100" height="20"><linearGradient id="g2" href="#missing"></linearGradient><rect fill="url(#g2)" width="5" height="5"></rect></svg>';
+    const root = rootOf(take({ sensitiveElements: () => [] }));
+    expect(findEl(root, (e) => e.attributes.id === 'g2')!.attributes.href).toBeUndefined();
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

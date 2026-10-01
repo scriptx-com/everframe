@@ -18,7 +18,7 @@ import type { RenderContext } from '../shot-capture.js';
 import { defaultFragmentsOf, defaultSizeOf, defaultTextRectsOf, pruneSnapshot, type PruneDeps } from './prune.js';
 import { collectRetainedIds, scrubSnapshotTree } from './snapshot-scrub.js';
 import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
-import { sanitizeMetaHref } from './url-sanitize.js';
+import { documentUrlKey, sanitizeMetaHref } from './url-sanitize.js';
 import { ensureGlobalThis } from '../../internal/global-scope.js';
 import { buildSnapshotContext, focusedSnapshotId, viewportEdge, type DomSnapshotDoc } from './context.js';
 import type { SnDocument } from './sn-types.js';
@@ -146,6 +146,7 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
     masked: true,
     retainedIds: collectRetainedIds(root),
     baseHref,
+    documentKey: documentUrlKey(win.location.href),
     redaction: deps.redaction,
   });
 

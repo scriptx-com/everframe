@@ -61,6 +61,37 @@ export function documentFragmentId(raw: string, baseHref: string): string | null
   return target === baseHref || target === dir ? id : null;
 }
 
+/**
+ * The document's own URL as rrweb-snapshot resolves same-document references
+ * against it — scheme + host + path + query, no fragment. Only ever COMPARED
+ * (never emitted): it holds the page's query string. '' when unparseable.
+ */
+export function documentUrlKey(href: string): string {
+  try {
+    const url = new URL(href);
+    return `${url.protocol}//${url.host}${url.pathname}${url.search}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * rrweb-snapshot absolutizes DOM `href`/`xlink:href` values, so `href="#base"`
+ * arrives as `https://host/path?query#base`. A URL whose scheme + host + path
+ * + query equal the document's (`documentKey`, from documentUrlKey) is a
+ * same-document reference again → the (decoded) id. A different path or
+ * query is another document → null.
+ */
+export function sameDocumentFragmentId(raw: string, documentKey: string): string | null {
+  if (documentKey === '') return null;
+  const value = normalizeUrl(raw);
+  const hash = value.indexOf('#');
+  if (hash <= 0) return null;
+  const id = fragmentId(value.slice(hash));
+  if (id === null) return null;
+  return documentUrlKey(value.slice(0, hash)) === documentKey ? id : null;
+}
+
 export function isDataUrl(raw: string): boolean {
   return /^data:/i.test(normalizeUrl(raw));
 }
