@@ -282,7 +282,7 @@ test('in-viewport content that is hidden, transparent or clipped out of a scroll
   expect(shown).toBe('***');
 });
 
-test('unseen inline text inside visible blocks is dropped, its line fragments kept; shadow-root sensitive content is boxed', async ({ page }) => {
+test('unseen inline, SVG and display:contents text inside visible blocks is dropped, line fragments kept; shadow-root sensitive content is boxed', async ({ page }) => {
   const bodies = await stubApi(page);
   await page.goto('/e2e/fixtures/tv-inline.html');
   // Scroll the wrapped span's last line just above the viewport: every one of
@@ -293,7 +293,7 @@ test('unseen inline text inside visible blocks is dropped, its line fragments ke
   });
   await page.evaluate((y) => window.scrollTo(0, y), spanBottom);
   expect(await page.evaluate(() => window.scrollY)).toBe(spanBottom);
-  const ids = ['after', 'near', 'host', 'below'];
+  const ids = ['after', 'near', 'host', 'badge', 'rail-seen', 'below'];
   const live = await liveBoxes(page, ids);
   expect(live.after!.y).toBeGreaterThanOrEqual(0); // #after really is on a later, visible line
   const lines = await page.evaluate(() => document.getElementById('wrapped')!.getClientRects().length);
@@ -301,8 +301,10 @@ test('unseen inline text inside visible blocks is dropped, its line fragments ke
   const shot = await shoot(page);
   expect(shot).toMatchObject({ hasImage: true, hasSnapshot: true });
   const { text, doc } = decode(bodies[0]!);
-  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET'])).toEqual([]);
+  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET', 'SVGCLIPPED', 'SVGHIDDEN', 'SVGFADED', 'CONTENTSOFFSCREEN'])).toEqual([]);
   expect(text).toContain('AFTERMARK');
+  expect(text).toContain('SVGSHOWN');
+  expect(text).toContain('RAILSEEN');
   expect(text).toContain('Shadow public');
   const root = doc.events[1].data.node;
   expect(byId(root, 'wrapped')!.childNodes!.filter((c) => c.tagName === 'span')).toHaveLength(lines);

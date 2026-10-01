@@ -10,7 +10,9 @@
      below it), and a span past the clip of a nowrap row. Both lose their text
      but keep their line fragments, so the visible text after them does not
      move. Plus a sensitive element inside an open shadow root, which the
-     document-level registry scan cannot see. -->
+     document-level registry scan cannot see. Hidden, faded and clipped SVG
+     text, and the off-rail bare text of a display:contents wrapper whose
+     other child is visible, are dropped too. -->
 <style>
   body { margin: 0; font: 20px/30px sans-serif; background: #fff; color: #111; }
   #spacer { height: 600px; }
@@ -26,6 +28,8 @@
   <p id="long">Lead in. <span id="wrapped">WRAPPEDSECRET alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon</span> tail words here and some more tail words so that the marker <b id="after">AFTERMARK</b> lands on a later line than the span, then the rest.</p>
   <div id="row"><span id="near">Visible start of a clipped row that runs</span> on and on <span id="far">FARSECRET beyond the clip</span></div>
   <div id="host"></div>
+  <svg id="badge" width="120" height="30"><text x="4" y="20">SVGSHOWN</text><text x="400" y="20">SVGCLIPPED</text><g style="display:none"><text x="4" y="20">SVGHIDDEN</text></g><text x="4" y="20" style="opacity:0">SVGFADED</text></svg>
+  <div id="rail2" style="white-space:nowrap;overflow:hidden;width:300px;margin:0 40px"><span style="display:contents"><b id="rail-seen">RAILSEEN</b><i style="display:inline-block;width:400px"></i>CONTENTSOFFSCREEN</span></div>
   <p id="below">Below marker</p>
   <div style="height:1200px"></div>
   <script>
