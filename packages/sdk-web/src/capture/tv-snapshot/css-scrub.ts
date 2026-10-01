@@ -23,7 +23,7 @@
 // with their escapes decoded the way the browser reads them (`u\72l(` IS
 // `url(`), and rule nesting is capped. LAZY (tv-snapshot chunk).
 import type { RedactionEngineConfig } from '@everframe/sdk-core';
-import { isAriaStateValue } from './allowlists.js';
+import { isAriaStateValue, isColorWord } from './allowlists.js';
 import { documentFragmentId, fragmentId, isDataUrl, sanitizeHttpUrl } from './url-sanitize.js';
 import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
 import { globalScope } from '../../internal/global-scope.js';
@@ -686,6 +686,149 @@ function splitImportant(value: string): [string, boolean] {
 
 const PROPERTY_RE = /^-?[a-z_][-a-z0-9_]*$/;
 
+// ── custom property values (masked pages) ─────────────────────────────────
+//
+// A custom property can carry any token stream (`--patient: Alice Smith`), so
+// a masked page keeps one only when its VALUE is built solely from tokens that
+// cannot spell text: hex colours, rgb()/hsl() with numeric arguments, named
+// colours / transparent / currentcolor, numbers, dimensions with a known unit,
+// percentages, var(--name[, allowlisted fallback]), calc() of those, and the
+// separators whitespace, `,` and `/` (plus `+ - *` and parentheses in calc).
+// Anything else — a string, url(), escape, any other identifier — drops the
+// declaration. One linear pass over a capped value, nesting capped.
+
+const MAX_CUSTOM_VALUE_LENGTH = 256;
+const MAX_CUSTOM_VALUE_DEPTH = 8;
+const CSS_UNITS = new Set([
+  'px', 'em', 'rem', 'ex', 'ch', 'vw', 'vh', 'vmin', 'vmax', 'cm', 'mm', 'q', 'in', 'pt', 'pc',
+  'deg', 'grad', 'rad', 'turn', 's', 'ms', 'hz', 'khz', 'dpi', 'dpcm', 'dppx', 'x', 'fr',
+]);
+const COLOR_FUNCTIONS = new Set(['rgb', 'rgba', 'hsl', 'hsla']);
+
+type CustomValueMode = 'value' | 'color' | 'calc';
+
+function isAsciiLetter(c: string | undefined): boolean {
+  return c !== undefined && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+}
+function isDigit(c: string | undefined): boolean {
+  return c !== undefined && c >= '0' && c <= '9';
+}
+
+/** A number (+ optional unit or %) at s[i] → its end, or -1. */
+function consumeSafeNumber(s: string, i: number): number {
+  let j = i;
+  if (s[j] === '+' || s[j] === '-') j++;
+  const digitsStart = j;
+  while (isDigit(s[j])) j++;
+  if (s[j] === '.' && isDigit(s[j + 1])) {
+    j++;
+    while (isDigit(s[j])) j++;
+  }
+  if (j === digitsStart) return -1;
+  if ((s[j] === 'e' || s[j] === 'E') && (isDigit(s[j + 1]) || ((s[j + 1] === '+' || s[j + 1] === '-') && isDigit(s[j + 2])))) {
+    j += 2;
+    while (isDigit(s[j])) j++;
+  }
+  if (s[j] === '%') return j + 1;
+  const unitStart = j;
+  while (isAsciiLetter(s[j])) j++;
+  if (j > unitStart && !CSS_UNITS.has(s.slice(unitStart, j).toLowerCase())) return -1;
+  return j;
+}
+
+/**
+ * Parses an allowlisted token sequence from s[i] up to the end of `s` or
+ * (when `inFn`) the `)` closing it → the index of that stop, or -1.
+ */
+function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: number, inFn: boolean): number {
+  if (depth > MAX_CUSTOM_VALUE_DEPTH) return -1;
+  let j = i;
+  while (j < s.length) {
+    const c = s[j]!;
+    if (c === ')') return inFn ? j : -1;
+    if (isSpace(c) || c === ',' || c === '/') {
+      j++;
+      continue;
+    }
+    if (mode === 'calc' && (c === '*' || ((c === '+' || c === '-') && isSpace(s[j + 1])))) {
+      j++;
+      continue;
+    }
+    if (mode === 'calc' && c === '(') {
+      const end = parseSafeSequence(s, j + 1, 'calc', depth + 1, true);
+      if (end === -1) return -1;
+      j = end + 1;
+      continue;
+    }
+    if (c === '#' && mode === 'value') {
+      let k = j + 1;
+      while (k < s.length && isHexCode(s.charCodeAt(k))) k++;
+      const n = k - j - 1;
+      if (n !== 3 && n !== 4 && n !== 6 && n !== 8) return -1;
+      j = k;
+    } else if (isDigit(c) || c === '.' || c === '+' || c === '-') {
+      if (c === '-' && s[j + 1] === '-') return -1; // a bare `--name` is an identifier
+      const end = consumeSafeNumber(s, j);
+      if (end === -1) return -1;
+      j = end;
+    } else if (isAsciiLetter(c)) {
+      let k = j;
+      while (isAsciiLetter(s[k])) k++;
+      const word = s.slice(j, k).toLowerCase();
+      if (s[k] === '(') {
+        let end: number;
+        if (word === 'var') end = parseSafeVar(s, k + 1, mode, depth + 1);
+        else if (word === 'calc') end = parseSafeSequence(s, k + 1, 'calc', depth + 1, true);
+        else if (COLOR_FUNCTIONS.has(word) && mode === 'value') end = parseSafeSequence(s, k + 1, 'color', depth + 1, true);
+        else return -1;
+        if (end === -1) return -1;
+        j = end + 1;
+      } else {
+        if (mode === 'color' ? word !== 'none' : mode === 'calc' || !isColorWord(word)) return -1;
+        j = k;
+      }
+    } else {
+      return -1;
+    }
+    // A token must end at a separator, an operator, `)` or the end — `1pxAlice` never splits into two.
+    const next = s[j];
+    if (next !== undefined && !isSpace(next) && next !== ',' && next !== '/' && next !== ')' && !(mode === 'calc' && next === '*')) return -1;
+  }
+  return inFn ? -1 : j;
+}
+
+/** `var(` already consumed at s[i]: ` --name [, fallback] )` → index of the `)`, or -1. */
+function parseSafeVar(s: string, i: number, mode: CustomValueMode, depth: number): number {
+  let j = i;
+  while (isSpace(s[j])) j++;
+  if (s[j] !== '-' || s[j + 1] !== '-') return -1;
+  j += 2;
+  const nameStart = j;
+  while (j < s.length && (isAsciiLetter(s[j]) || isDigit(s[j]) || s[j] === '-' || s[j] === '_')) j++;
+  if (j === nameStart) return -1;
+  while (isSpace(s[j])) j++;
+  if (s[j] === ')') return j;
+  if (s[j] !== ',') return -1;
+  return parseSafeSequence(s, j + 1, mode === 'color' ? 'color' : mode, depth, true);
+}
+
+/** Whether a custom property's value is built only from allowlisted tokens (masked pages). */
+export function isSafeCustomPropertyValue(value: string): boolean {
+  if (value.length > MAX_CUSTOM_VALUE_LENGTH) return false;
+  const t = value.trim();
+  return t !== '' && parseSafeSequence(t, 0, 'value', 0, false) === t.length;
+}
+
+/** `--name` of ASCII letters, digits, `-` and `_` — a name that cannot carry escapes or text beyond itself. */
+function isCustomPropertyName(prop: string): boolean {
+  if (prop.length < 3) return false;
+  for (let k = 2; k < prop.length; k++) {
+    const c = prop[k];
+    if (!(isAsciiLetter(c) || isDigit(c) || c === '-' || c === '_')) return false;
+  }
+  return true;
+}
+
 function scrubDeclarations(body: string, ctx: CssScrubContext, block: DeclarationBlock): string {
   const out: string[] = [];
   let i = 0;
@@ -702,15 +845,18 @@ function scrubDeclarations(body: string, ctx: CssScrubContext, block: Declaratio
     const rawProp = declaration.slice(0, colon).trim();
     if (rawProp.length > MAX_PROPERTY_LENGTH) continue;
     const custom = rawProp.startsWith('--');
-    if (custom && ctx.masked) continue;
     const prop = custom ? rawProp : rawProp.toLowerCase();
-    if (!custom && !PROPERTY_RE.test(prop)) continue;
+    if (custom ? ctx.masked && !isCustomPropertyName(prop) : !PROPERTY_RE.test(prop)) continue;
     const [value, important] = splitImportant(declaration.slice(colon + 1).trim());
+    // Masked: a custom property survives only with an allowlisted VALUE
+    // (colours, lengths, var(), calc() — never text). It is then valid by
+    // construction, so the engine check below is skipped for it.
+    if (custom && ctx.masked && !isSafeCustomPropertyValue(value)) continue;
     const clean = scrubValue(prop, value, ctx, block)?.trim() ?? '';
     if (clean === '') continue;
     // Masked: an unknown or invalid declaration renders nothing but would carry
     // its text verbatim (`patient: Alice Smith`), so only valid ones survive.
-    if (ctx.masked && !validDeclarationMemo(ctx, block, prop, clean)) continue;
+    if (ctx.masked && !custom && !validDeclarationMemo(ctx, block, prop, clean)) continue;
     out.push(`${prop}:${clean}${important ? ' !important' : ''}`);
   }
   return out.join(';');

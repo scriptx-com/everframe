@@ -408,3 +408,39 @@ describe('image() on any page (final review finding 9)', () => {
     expect(out).toBe('a{background:url("https://cdn.example.test/p.png")}');
   });
 });
+
+describe('masked page — custom property VALUE allowlist (codex r4 F4)', () => {
+  const kept = (value: string): boolean => scrubCssText(`:root{--v:${value}}`, masked).includes('--v:');
+  it.each([
+    '#101018', '#fc0', ' #ffcc00 ', 'rgb(255, 204, 0)', 'rgba(0 0 0 / 50%)', 'hsl(210deg 50% 40%)', 'hsla(.5turn,10%,20%,.3)',
+    'red', 'Transparent', 'currentColor', '0', '-1.5', '6px', '1.25rem', '50%', '1e3ms', '.5s',
+  ])('keeps %s', (value) => {
+    expect(kept(value)).toBe(true);
+  });
+  it.each([
+    'var(--surface)', 'var( --a , #000 )', 'var(--a, var(--b, 4px))', 'calc(100% - 2 * var(--gap))', 'calc((1px + 2px) / 3)',
+    '0 0 4px #000', '1px, 2px / 3px', 'rgb(0 0 0) 2px',
+  ])('keeps the structured value %s', (value) => {
+    expect(kept(value)).toBe(true);
+  });
+  it.each([
+    'Alice Smith', 'Alice', '"Alice Smith"', "'x'", 'url(https://cdn.example.test/a.png)', 'url(#g)', '\\41 lice', 'solid',
+    '6px solid', 'var(--a, Alice)', 'calc(1px + Alice)', 'rgb(Alice, 0, 0)', 'attr(title)', '1Alice', '#xyz', '#12345',
+    'var(Alice)', 'var(--a) Alice', 'inherit', 'u+0041', '-\\41', `${'1px '.repeat(80)}`,
+  ])('drops %s', (value) => {
+    expect(kept(value)).toBe(false);
+  });
+  it('also allowlists custom properties in inline styles, and keeps dropping content strings', () => {
+    expect(scrubInlineStyle('--focus:#ffcc00;--name:Alice Smith;outline:6px solid var(--focus)', masked)).toBe(
+      '--focus:#ffcc00;outline:6px solid var(--focus)',
+    );
+    expect(findLeaks(scrubCssText('a::before{content:"Alice Smith"}:root{--c:#000}', masked), PHRASE)).toEqual([]);
+  });
+  it('stays linear on long near-miss values (S18)', () => {
+    const started = performance.now();
+    kept('calc('.repeat(20_000));
+    kept(`var(--a, ${'var(--b, '.repeat(5_000)}`);
+    kept('1'.repeat(60_000) + 'x');
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});

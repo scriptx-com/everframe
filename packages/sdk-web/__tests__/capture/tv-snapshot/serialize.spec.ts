@@ -440,6 +440,23 @@ describe('pruned or hidden content does not survive in CSS', () => {
     expect(taken.masked).toBe(true);
   });
 
+  it('a masked page keeps its colour/length theme variables, never a text one (codex r4 F4)', () => {
+    document.head.innerHTML =
+      '<style>:root{--surface:#101018;--focus:#ffcc00;--patient-name:Alice Smith}body{background:var(--surface);color:#fff}.selected{outline:6px solid var(--focus)}</style>';
+    document.body.innerHTML = '<section id="old">previous</section><h1>Movies</h1><button class="selected">Play</button>';
+    const above: PruneRect = { left: 0, top: -900, right: 1024, bottom: -100, width: 1024, height: 800 };
+    const taken = take({
+      sensitiveElements: () => [],
+      measure: { rectOf: (el) => (el.id === 'old' ? above : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) },
+    });
+    const json = JSON.stringify(taken.doc);
+    expect(taken.masked).toBe(true);
+    expect(findLeaks(json, ['Alice Smith', 'patient-name'])).toEqual([]);
+    for (const kept of ['--surface:#101018', '--focus:#ffcc00', 'background:var(--surface)', 'outline:6px solid var(--focus)']) {
+      expect(json).toContain(kept);
+    }
+  });
+
   it('a page where nothing was withheld keeps its CSS strings (unmasked policy)', () => {
     document.head.innerHTML = '<style>.now::before{content:"PUBLIC_ICON_LABEL"}</style>';
     document.body.innerHTML = '<main class="now">current</main>';

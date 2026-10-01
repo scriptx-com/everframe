@@ -52,6 +52,12 @@ const NAMED_COLORS = new Set(
 );
 const COLOR_KEYWORDS = new Set(['none', 'currentcolor', 'transparent', 'inherit', 'context-fill', 'context-stroke']);
 
+/** A CSS named colour, `transparent` or `currentcolor` (case-insensitive) — never free text. */
+export function isColorWord(word: string): boolean {
+  const lower = word.toLowerCase();
+  return NAMED_COLORS.has(lower) || lower === 'transparent' || lower === 'currentcolor';
+}
+
 const COLOR_FN_RE = /^(?:rgba?|hsla?)\(([^()]*)\)$/i;
 /** One colour-function argument: a number with an optional %/angle unit, or `none`. */
 const COLOR_ARG_RE = /^(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?(?:%|deg|grad|rad|turn)?|none)$/i;

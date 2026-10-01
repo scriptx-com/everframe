@@ -313,6 +313,26 @@ test('unseen inline, SVG and display:contents text inside visible blocks is drop
   expectSameBoxes(live, rebuilt.boxes, 1);
 });
 
+test('a pruned page keeps its var() theme: dark surface and focus ring render the same, a text variable does not ship', async ({ page }) => {
+  const bodies = await stubApi(page);
+  await page.goto('/e2e/fixtures/tv-theme.html');
+  const live = await liveBoxes(page, ['heading', 'play']);
+  const { text, doc } = decode((await shoot(page)).snapshotBytes!);
+  expect(findLeaks(text, ['Alice Smith', 'PREVIOUSSCREEN'])).toEqual([]);
+  expect(bodies).toHaveLength(1);
+  const rebuilt = await rebuild(page, doc, ['heading', 'play']);
+  expectSameBoxes(live, rebuilt.boxes, 1);
+  const play = live.play!;
+  const probes: Array<[string, number, number, number[]]> = [
+    ['dark surface (background: var(--surface))', 1200, 650, [16, 16, 24, 255]],
+    ['focus ring (outline: var(--ring) solid var(--focus))', play.x - 3, play.y + 40, [255, 204, 0, 255]],
+  ];
+  for (const [label, x, y, rgba] of probes) {
+    expect(await pixel(page, x, y), `live ${label}`).toEqual(rgba);
+    expect(await pixel(rebuilt.page, x, y), `rebuilt ${label}`).toEqual(rgba);
+  }
+});
+
 test('keeps focus, dark media, ARIA state, grid areas and SVG refs on a masked page', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await stubApi(page);
