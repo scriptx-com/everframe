@@ -286,6 +286,29 @@ your own button, menu item, or keyboard shortcut.
 
 ## Marking sensitive content
 
+Canvas hosts such as Kotlin/JS Compose should use `createCanvasVisualCapture`
+and pass the result as `visualCapture` to `init`. Supply sensitive rectangles in
+canvas pixel coordinates for every frame; empty or invalid markers refuse
+capture unless `allowUnmarked` explicitly marks a known-safe screen. This
+provider copies the canvas, blacks the sensitive pixels, and supplies bounded
+image replay. The reporter never falls back to DOM capture for a renderer host.
+
+```ts
+const capture = createCanvasVisualCapture({
+  canvas: document.querySelector('canvas')!,
+  sensitiveRects: () => [{ x: 20, y: 30, width: 140, height: 50 }],
+});
+init({
+  apiKey: 'your-kmp-integration-key',
+  sdkName: 'everframe-kmp',
+  sdkVersion: 'your-kmp-version',
+  visualCapture: capture,
+});
+```
+
+The canvas must contain the host-rendered UI. HTML overlays and platform views
+outside that canvas need separate masking or must be excluded from capture.
+
 These two surfaces are the **only** things that mask content — there is no
 third, programmatic "mark this" call on the handle. There's also no
 `<Sensitive>` component outside React: that's a JSX wrapper, and this package

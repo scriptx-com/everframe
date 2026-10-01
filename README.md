@@ -18,6 +18,8 @@ and captured errors.
 | Web and framework-agnostic JavaScript | [`@everframe/web`](https://www.npmjs.com/package/@everframe/web) | [Web SDK](packages/sdk-web/README.md) | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester) |
 | React | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react) | [React SDK](packages/sdk-react/README.md) | [React web](examples/react-web) |
 | React Native, Apple TV, and Android TV | [`@everframe/react-native`](https://www.npmjs.com/package/@everframe/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample) |
+| Flutter on Android, iOS, and web (web release pending) | [`everframe_flutter`](https://pub.dev/packages/everframe_flutter) | [Flutter SDK](packages/everframe_flutter/README.md) | [Android probe](examples/flutter-android-probe), [iOS probe](examples/flutter-ios-probe), [web probe](examples/flutter-web-probe) |
+| Kotlin Multiplatform on Android, iOS, and Kotlin/JS (JS release pending) | [`dev.everframe:kmp`](https://central.sonatype.com/artifact/dev.everframe/kmp) | [KMP SDK](packages/everframe_kmp/README.md) | [Android probe](examples/kmp-android-compose-probe), [iOS probes](examples/kmp-ios-probes), [browser canvas probe](examples/flutter-web-probe) |
 | Android and Android TV | `dev.everframe` Maven modules | [Android SDK](packages/sdk-android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
 | iOS, iPadOS, and tvOS | `Everframe` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
 | Server-side identity | [`@everframe/identity`](https://www.npmjs.com/package/@everframe/identity) | [Identity helper](packages/identity/README.md) | Runtime-specific recipes are included in the package documentation |
@@ -51,6 +53,8 @@ pnpm add @everframe/web
 pnpm add @everframe/react
 # or
 pnpm add @everframe/react-native
+# Flutter apps use pub.dev:
+flutter pub add everframe_flutter
 ```
 
 The Android SDK is distributed as `dev.everframe` Maven modules through Maven
@@ -69,6 +73,8 @@ platforms and integration styles:
 | [`vue-web`](examples/vue-web) | Framework-agnostic SDK integration from Vue |
 | [`smarttv-tester`](examples/smarttv-tester) | Browser-based Smart TV behavior |
 | [`react-native`](examples/react-native) | React Native bridge integration |
+| [`flutter-android-probe`](examples/flutter-android-probe) | Flutter Android source and privacy probe |
+| [`flutter-ios-probe`](examples/flutter-ios-probe) | Flutter iOS source and privacy probe |
 | [`react-tv-sample`](examples/react-tv-sample) | React Native TV host integration |
 | [`android-compose`](examples/android-compose) | Native Android with Jetpack Compose |
 | [`android-views`](examples/android-views) | Native Android with the Views system |
@@ -128,9 +134,16 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and licensing rules.
 
 ## Releases
 
-JavaScript packages are published to npm, Android artifacts are published as
-Maven packages, and tagged Apple releases provide binary XCFrameworks for
-Swift Package Manager consumers.
+JavaScript packages are published to npm, the Flutter plugin is published to
+[pub.dev](https://pub.dev/packages/everframe_flutter), Android artifacts are
+published as Maven packages, and tagged Apple releases provide binary
+XCFrameworks for Swift Package Manager consumers.
+
+The Android and KMP Maven artifacts share one version and one Central Portal
+upload. Run `pnpm build:mobile-maven-bundle` with `SIGNING_KEY` and
+`SIGNING_PASSWORD` set to build and verify the signed bundle. Use
+`pnpm build:mobile-maven-bundle --prepare` to inspect an unsigned bundle
+before signing; that ZIP cannot be uploaded to Maven Central.
 
 The root [`Package.swift`](Package.swift) is the binary manifest used by Apple
 SDK consumers. Source development and tests use

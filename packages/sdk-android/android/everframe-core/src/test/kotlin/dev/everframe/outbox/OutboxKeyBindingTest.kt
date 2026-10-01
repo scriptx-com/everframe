@@ -164,7 +164,7 @@ class OutboxKeyBindingTest {
             assertEquals("/api/ingest", request.path)
             assertEquals("Bearer key-A", request.getHeader("Authorization"))
             assertEquals("original-idem", request.getHeader("X-Everframe-Idempotency-Key"))
-            org.junit.Assert.assertNull(request.getHeader("X-TX-Identity-Token"))
+            org.junit.Assert.assertNull(request.getHeader("X-Everframe-Identity-Token"))
             val body = request.body.readByteArray()
             val text = body.toString(Charsets.ISO_8859_1)
             assertEquals(expectVideo, text.contains("video/mp4"))

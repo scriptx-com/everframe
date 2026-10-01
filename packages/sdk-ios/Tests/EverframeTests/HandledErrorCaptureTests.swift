@@ -79,6 +79,17 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertNil(disk.range(of: Data("handled probe".utf8)))
     }
 
+    func testHostHandledErrorKeepsFlutterIdentity() throws {
+        Everframe.shared.captureException(
+            NSError(domain: "FlutterFailure", code: 7),
+            options: nil,
+            sdkName: "everframe-flutter"
+        )
+        let entry = try XCTUnwrap(try JSONLOutbox().hydrate().first)
+        XCTAssertEqual((try envelope(entry)["sdk"] as? [String: Any])?["name"] as? String, "everframe-flutter")
+        XCTAssertEqual(try crash(entry)["handled"] as? Bool, true)
+    }
+
     func testPublicCaptureOwnsSuppliedDetailsAndKeepsFingerprintInputsUnchanged() throws {
         let metadata: [String: Any] = [
             "attempt": 3,

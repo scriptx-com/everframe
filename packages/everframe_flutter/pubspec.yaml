@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+name: everframe_flutter
+description: Flutter bridge for Everframe reporting on Android, iOS, and web.
+version: 0.1.1
+homepage: https://everframe.dev
+repository: https://github.com/scriptx-com/everframe
+issue_tracker: https://github.com/scriptx-com/everframe/issues
+
+environment:
+  sdk: '>=3.13.0 <4.0.0'
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  crypto: ^3.0.7
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  assets:
+    - assets/visual_capture.js
+  plugin:
+    platforms:
+      android:
+        package: dev.everframe.flutter
+        pluginClass: EverframeFlutterPlugin
+      ios:
+        pluginClass: EverframeFlutterPlugin
+      web:
+        pluginClass: EverframeFlutterWebPlugin
+        fileName: everframe_flutter_web.dart

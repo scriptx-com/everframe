@@ -104,7 +104,8 @@ Maestro testIDs: `sign-in-collector-8891`, `sign-in-collector-2277`,
 The floating **Report a bug** button (`src/components/ReportFab.tsx`) is
 pinned to the bottom-right corner of every tab. It carries the Maestro
 testIDs `open-reporter-button` + `submitted`, and owns the TV remote trigger
-(Apple TV long-press Play/Pause; Android TV Menu).
+(Apple TV long-press Play/Pause; Android TV Menu). On Apple TV it opens the
+Companion tab for phone-assisted reporting; Android TV opens the native reporter.
 
 > **Cross-tool coexistence is intentionally NOT proved here.** Earlier
 > revisions bundled `@sentry/react-native` + `@bugsnag/react-native` to
@@ -198,8 +199,8 @@ The app opens to a screen with:
 
 ## Trigger recipes (host-app snippets)
 
-The SDK exposes `useEverframe().open()` and nothing else. Wire your
-own trigger from the host:
+For an on-device reporter, wire `useEverframe().open()` to your own host trigger.
+On Apple TV, use the companion flow shown in this sample.
 
 ### Button (this sample's choice)
 

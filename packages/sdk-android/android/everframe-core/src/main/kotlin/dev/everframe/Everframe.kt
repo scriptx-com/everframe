@@ -1514,9 +1514,16 @@ object Everframe {
     /** Report a caught Throwable with owned structured error details. */
     @JvmStatic
     fun captureException(throwable: Throwable, options: CaptureExceptionOptions?) {
+        captureException(throwable, options, "everframe-android")
+    }
+
+    /** Report a caught framework-host Throwable with its SDK identity. */
+    @JvmStatic
+    fun captureException(throwable: Throwable, options: CaptureExceptionOptions?, sdkName: String) {
+        if (sdkName !in setOf("everframe-android", "everframe-flutter", "everframe-kmp")) return
         txGuardVoid("captureException") {
             if (!captureGate) return@txGuardVoid
-            if (dev.everframe.crash.CrashReporter.captureHandledThrowable(throwable, options)) requestOutboxDrain()
+            if (dev.everframe.crash.CrashReporter.captureHandledThrowable(throwable, options, sdkName)) requestOutboxDrain()
         }
     }
 
@@ -2191,7 +2198,7 @@ object Everframe {
         _replaySession?.currentConfig ?: ReplayConfig.OFF
 
     /**
-     * Resolve this submit boundary's `X-TX-Identity-Token` value (or `null` to
+     * Resolve this submit boundary's `X-Everframe-Identity-Token` value (or `null` to
      * send anonymously) against the live singleton holder and the live
      * per-app identity config. Public — unlike [_identityHolder] itself —
      * because `:everframe-reporter-ui`'s `ReporterDialog` composes its submit

@@ -86,7 +86,7 @@ class PublicDrainCaptureBoundaryTest {
                 assertEquals("/api/ingest", report.path)
                 assertEquals("Bearer original-key", report.getHeader("Authorization"))
                 assertEquals(originalEntry.idempotencyKey, report.getHeader("X-Everframe-Idempotency-Key"))
-                assertNull(report.getHeader("X-TX-Identity-Token"))
+                assertNull(report.getHeader("X-Everframe-Identity-Token"))
                 assertTrue(originalStore.hydrate().isEmpty())
             }
         } finally {

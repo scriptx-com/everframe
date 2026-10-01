@@ -23,10 +23,9 @@
 # readable in the AAR. The two lists are intentionally identical for v1 so a
 # downloaded AAR and a consumer APK present the same surface.
 
-# Strip debug info. R8's default-minified config does this when minification
-# is on, but we restate it explicitly so the strip survives any future
-# `-keepattributes` additions that might unintentionally re-add SourceFile.
--keepattributes !SourceFile, !SourceDir, !LineNumberTable, !LocalVariableTable, !LocalVariableTypeTable
+# Keep source filenames and line tables in the published AAR. Internal symbols
+# can still be shortened by R8; the release mapping reconstructs their names.
+-keepattributes SourceFile,LineNumberTable
 
 # ---------------------------------------------------------------------------
 # Public API surface — kept here so :everframe-reporter-ui's R8 pass can

@@ -170,6 +170,19 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
     expect(a.started).toBe(2); // initial start + resume
   });
 
+  it('preserves an image timeline replay format from a host renderer', async () => {
+    const capture: ReplayCapture = {
+      format: 'everframe-vtree-v1',
+      bytes: new Uint8Array([123, 125]),
+      durationMs: 1000,
+      contentType: 'application/octet-stream',
+    };
+    const lc = createReplayLifecycle({ adapter: makeAdapter(capture), getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    lc.tryStart();
+    lc.freeze();
+    expect(await lc.complete()).toEqual(capture);
+  });
+
   it('cancel(): FROZEN→DISCARDED→resume BUFFERING (zeroize) via discardAndResume', () => {
     const a = makeAdapter();
     const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });

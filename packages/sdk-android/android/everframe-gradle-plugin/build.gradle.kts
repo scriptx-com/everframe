@@ -70,13 +70,15 @@ gradlePlugin {
     }
 }
 
-// Plan 05-08 — publish coordinates: dev.everframe:everframe-gradle-plugin:<version>
+// The plugin implementation uses dev.everframe:gradle-plugin:<version>.
+// Gradle generates a separate marker at dev.everframe:dev.everframe.gradle.plugin.
 // `java-gradle-plugin` auto-creates `pluginMaven` (the library jar) and a marker
 // publication for the plugin id. We add Central-required metadata without
 // re-creating the publications.
 afterEvaluate {
     publishing {
         publications.named<MavenPublication>("pluginMaven") {
+            artifactId = "gradle-plugin"
             artifact(dokkaJavadocJar)
         }
         publications.withType<MavenPublication>().configureEach {

@@ -103,7 +103,7 @@ enum ImageHarness {
     /// Decode a `VAsset`'s base64 through ImageIO back to pixels. Assertions run
     /// against THIS, not an intermediate, so a test cannot pass while the encode
     /// step is wrong.
-    static func pixels(of asset: VAsset) throws -> Pixels {
+    static func pixels(of asset: EverframeVAsset) throws -> Pixels {
         let data = try XCTUnwrap(Data(base64Encoded: asset.b64), "asset b64 did not decode")
         let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil),
                                    "asset bytes are not a decodable image")
@@ -124,9 +124,9 @@ enum ImageHarness {
     }
 
     /// Every `imageRef` in a VNode tree.
-    static func refs(in node: VNode) -> Set<String> {
+    static func refs(in node: EverframeVNode) -> Set<String> {
         var out = Set<String>()
-        func walk(_ n: VNode) {
+        func walk(_ n: EverframeVNode) {
             if let r = n.imageRef { out.insert(r) }
             for c in n.children { walk(c) }
         }

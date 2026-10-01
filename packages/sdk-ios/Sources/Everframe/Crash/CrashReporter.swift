@@ -155,6 +155,7 @@ public enum CrashReporter {
     internal static func captureHandledError(
         _ error: any Error,
         options: CaptureExceptionOptions? = nil,
+        sdkName: String = "everframe-ios",
         outbox: JSONLOutbox = JSONLOutbox()
     ) -> Bool {
         // This latch is independent from the JSON automatic/fatal latch. A
@@ -208,7 +209,7 @@ public enum CrashReporter {
         )
         accepted = capture(
             facts: facts,
-            sdkName: "everframe-ios",
+            sdkName: sdkName,
             outbox: outbox,
             config: config,
             classification: .handled,

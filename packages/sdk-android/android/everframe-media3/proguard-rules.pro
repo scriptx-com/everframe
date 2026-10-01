@@ -4,6 +4,7 @@
 # :everframe-media3 LIBRARY-level R8/proguard rules — this module's own R8 pass
 # at publish time. `consumer-rules.pro` carries the same keeps for the HOST
 # app's pass; see its header for why both exist.
+-keepattributes SourceFile,LineNumberTable
 -keep class dev.everframe.media3.TrackPlayerKt { public *; }
 -keep class dev.everframe.media3.Media3Integration { public *; }
 

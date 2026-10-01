@@ -3,7 +3,7 @@
 //
 // The gate that keeps a project with no signing secret from ever presenting an
 // identity header. Note the capability negotiation: the server only SENDS the
-// identity block when the caller declares `identity` in X-TX-SDK-Features
+// identity block when the caller declares `identity` in X-Everframe-SDK-Features
 // (the server configuration contract:131). Miss that and `enabled` is always
 // false and the whole feature silently never activates — which is why the
 // header token is pinned by a test here rather than left to review.
@@ -108,7 +108,7 @@ class IdentityConfigGateTest {
             },
         )
         p.refresh()
-        val header = seen?.header("X-TX-SDK-Features")
+        val header = seen?.header("X-Everframe-SDK-Features")
         assertTrue(header?.contains("identity") == true)
         assertTrue(
             "the pre-existing capability must not be dropped",

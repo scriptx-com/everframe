@@ -80,7 +80,7 @@ object CompanionSubmissionComposer {
      *
      * It exists so a test can point the real submit at a local server and
      * assert on the request it receives — in particular that the
-     * `X-TX-Companion-Attribution` header carries the token snapshotted for
+     * `X-Everframe-Companion-Attribution` header carries the token snapshotted for
      * that report. Nothing is short-circuited: the composer still builds the
      * whole envelope and still calls `submit(…, companionAttribution =
      * inputs.companionAttribution)` on whatever submitter it is handed.
@@ -226,8 +226,6 @@ object CompanionSubmissionComposer {
             // 2. Device metadata + form-factor classification (mirrors
             //    ReporterDialog.kt:259-261).
             val device = DeviceMetadata.collect(inputs.activity)
-            val isTablet =
-                inputs.activity.resources.configuration.smallestScreenWidthDp >= 600
 
             // 3. Declare the screenshot attachment so parser.ts can pair the
             //    multipart 'screenshot' part with envelope.attachments[]
@@ -319,7 +317,7 @@ object CompanionSubmissionComposer {
                 sdkVersion = Everframe.SDK_VERSION,
                 title = titleClamped,
                 description = descriptionClamped,
-                formFactor = if (isTablet) "tablet" else "phone",
+                formFactor = DeviceMetadata.formFactor(device),
                 logs = capturedLogs,
                 networkRows = capturedNetwork,
                 networkBodies = capturedNetworkBodies,
@@ -414,7 +412,7 @@ object CompanionSubmissionComposer {
                 )
             }
             // Native identity Task 8b — the live submit boundary. Resolve the
-            // `X-TX-Identity-Token` value HERE, against the subject captured
+            // `X-Everframe-Identity-Token` value HERE, against the subject captured
             // at `report.request` time
             // (`inputs.capturedSession.user.identitySubject`), NEVER a live
             // `Everframe._identityHolder.cachedSubject(...)` read — same
@@ -461,7 +459,7 @@ object CompanionSubmissionComposer {
                 // for THIS report's `report.request`, snapshotted there and
                 // carried through the bridge into `Inputs`. Null on an
                 // ordinary QR bond. Rides the ingest POST as
-                // `X-TX-Companion-Attribution`.
+                // `X-Everframe-Companion-Attribution`.
                 //
                 // MUST NOT be re-read from the live relay session here
                 // (PR-fix 1): this line runs seconds-to-minutes after the

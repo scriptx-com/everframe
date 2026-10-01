@@ -9,4 +9,4 @@
 // parser does not truncate the value to `http:`. The escape resolves back to
 // the original URL at Info.plist build time.
 INGEST_URL = http:/$()/localhost:8787
-INGEST_SDK_KEY = txx_live_replace_me_with_real_key_from_admin_ui
+INGEST_SDK_KEY = evf_live_replace_me_with_real_key_from_admin_ui

@@ -97,7 +97,7 @@ class ReplayConfigProviderTest {
     fun `shake-to-report is negotiated and decoded leniently`() = runTest {
         var body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"shakeToReport":{"enabled":true,"future":"ignored"}}"""
         val p = provider(fetcher = { request ->
-            assertTrue(request.header("X-TX-SDK-Features")!!.split(',').map(String::trim).contains("shaketoreport"))
+            assertTrue(request.header("X-Everframe-SDK-Features")!!.split(',').map(String::trim).contains("shaketoreport"))
             response(200, body)
         })
 
@@ -466,7 +466,7 @@ class ReplayConfigProviderTest {
         // that declare it, so this header is the whole reason any of these
         // blocks arrive. Adding a capability here is a real contract change and
         // should have to be made on purpose.
-        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, nativevideo", seen?.header("X-TX-SDK-Features"))
+        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, nativevideo", seen?.header("X-Everframe-SDK-Features"))
     }
 
     @Test
@@ -959,7 +959,7 @@ class ReplayConfigProviderTest {
     // ==================== companion badge dashboard config (2026-08-25) ====================
     //
     // Server-driven companion name-badge override, sent ONLY when this SDK
-    // declares `companionbadge` in X-TX-SDK-Features. `position` is decoded
+    // declares `companionbadge` in X-Everframe-SDK-Features. `position` is decoded
     // verbatim as a STRING here (the wire shape); resolution to a
     // CompanionBadgePosition, including the fallback for an unrecognised
     // value, happens at the badge (parseCompanionBadgePositionOrNull) — this
@@ -1143,7 +1143,7 @@ class ReplayConfigProviderTest {
     // ==================== Report Resource Window (spec 2026-09-05) — gap class 1 ====================
     //
     // Server-driven `resources: { enabled, windowSec }` block, sent ONLY when
-    // this SDK declares `resources` in X-TX-SDK-Features. Without declaring
+    // this SDK declares `resources` in X-Everframe-SDK-Features. Without declaring
     // the token the server never emits the block at all, permanently and
     // silently disabling the feature — this is the negotiation gap Task 12/13
     // built the ring/sampler/envelope stamping without closing.

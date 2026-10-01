@@ -26,6 +26,26 @@ Then install pods (iOS) / sync Gradle (Android) as usual:
 cd ios && pod install
 ```
 
+## React Native Web
+
+`@everframe/react-native` has a browser entry and an explicit
+`@everframe/react-native/web` entry. Both re-export the existing
+`@everframe/react` package, which is installed as a dependency. Your app
+imports from `@everframe/react-native` on every platform:
+
+```sh
+pnpm add @everframe/react-native
+```
+
+React Native Web hosts also need React DOM, as usual. The browser entry uses
+the React web reporter, DOM screenshot, and rrweb replay. It does not load the
+native TurboModule. `EverframeSensitive` is an alias of
+the React SDK's `Sensitive` component on web, so shared app code can keep the
+same import. `useEverframeSensitiveRef` also registers a browser element with
+the web mask registry. Native iOS and Android use their native capture. A web
+bundler that honors the `browser` export condition can keep the regular package
+import; use the `/web` subpath if its resolver does not select that condition.
+
 ## Usage
 
 Wrap your app with `<EverframeProvider>` at the highest practical level
