@@ -1,5 +1,5 @@
 diff --git a/dist/rrweb-snapshot.cjs b/dist/rrweb-snapshot.cjs
-index e6d655d58fdf1428f6349a019abc70afd391b098..b59c9331582e839a30cf0e406e952bc79b13d00e 100644
+index e6d655d58fdf1428f6349a019abc70afd391b098..2f33097a5efe351f119ac62dc19fadc88e769f15 100644
 --- a/dist/rrweb-snapshot.cjs
 +++ b/dist/rrweb-snapshot.cjs
 @@ -474,41 +474,104 @@ const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
@@ -155,8 +155,26 @@ index e6d655d58fdf1428f6349a019abc70afd391b098..b59c9331582e839a30cf0e406e952bc7
  }
  let _id = 1;
  const tagNameRegex = new RegExp("[^a-z0-9-_:]");
+@@ -1047,7 +1115,16 @@ function serializeElementNode(n, options) {
+     }
+   }
+   if (tagName === "dialog" && n.open) {
+-    attributes.rr_open_mode = n.matches("dialog:modal") ? "modal" : "non-modal";
++    // PATCHED (everframe): `:modal` is Chrome 105+; on an older engine (TV
++    // Chrome 53) matches() throws a SyntaxError that aborted the whole
++    // snapshot. Unsupported → not modal; `open` itself is kept.
++    let modal = false;
++    try {
++      modal = n.matches("dialog:modal");
++    } catch (e) {
++      modal = false;
++    }
++    attributes.rr_open_mode = modal ? "modal" : "non-modal";
+   }
+   if (tagName === "canvas" && recordCanvas) {
+     if (n.__context === "2d") {
 diff --git a/dist/rrweb-snapshot.js b/dist/rrweb-snapshot.js
-index 426bd245a24bbbc3fb0b5532652a4d4f0b29cce9..5a981c063d5a3238e54ae8a25fb8b0a51b3deb52 100644
+index 426bd245a24bbbc3fb0b5532652a4d4f0b29cce9..40dee91dfac28d109058f4012b9a28bf52b14a91 100644
 --- a/dist/rrweb-snapshot.js
 +++ b/dist/rrweb-snapshot.js
 @@ -472,41 +472,104 @@ const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
@@ -312,8 +330,26 @@ index 426bd245a24bbbc3fb0b5532652a4d4f0b29cce9..5a981c063d5a3238e54ae8a25fb8b0a5
  }
  let _id = 1;
  const tagNameRegex = new RegExp("[^a-z0-9-_:]");
+@@ -1045,7 +1113,16 @@ function serializeElementNode(n, options) {
+     }
+   }
+   if (tagName === "dialog" && n.open) {
+-    attributes.rr_open_mode = n.matches("dialog:modal") ? "modal" : "non-modal";
++    // PATCHED (everframe): `:modal` is Chrome 105+; on an older engine (TV
++    // Chrome 53) matches() throws a SyntaxError that aborted the whole
++    // snapshot. Unsupported → not modal; `open` itself is kept.
++    let modal = false;
++    try {
++      modal = n.matches("dialog:modal");
++    } catch (e) {
++      modal = false;
++    }
++    attributes.rr_open_mode = modal ? "modal" : "non-modal";
+   }
+   if (tagName === "canvas" && recordCanvas) {
+     if (n.__context === "2d") {
 diff --git a/dist/rrweb-snapshot.umd.cjs b/dist/rrweb-snapshot.umd.cjs
-index eb4482d9a9ef383cc6b995e3a8e895a9c941e001..dfedb725dc7dfa37f74594ddfcaa3d7d99ee6ddc 100644
+index eb4482d9a9ef383cc6b995e3a8e895a9c941e001..06bf0fd82f7b4385cb1b9f77190c9155a190047d 100644
 --- a/dist/rrweb-snapshot.umd.cjs
 +++ b/dist/rrweb-snapshot.umd.cjs
 @@ -520,41 +520,104 @@ const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
@@ -469,3 +505,21 @@ index eb4482d9a9ef383cc6b995e3a8e895a9c941e001..dfedb725dc7dfa37f74594ddfcaa3d7d
  }
  let _id = 1;
  const tagNameRegex = new RegExp("[^a-z0-9-_:]");
+@@ -1093,7 +1161,16 @@ function serializeElementNode(n, options) {
+     }
+   }
+   if (tagName === "dialog" && n.open) {
+-    attributes.rr_open_mode = n.matches("dialog:modal") ? "modal" : "non-modal";
++    // PATCHED (everframe): `:modal` is Chrome 105+; on an older engine (TV
++    // Chrome 53) matches() throws a SyntaxError that aborted the whole
++    // snapshot. Unsupported → not modal; `open` itself is kept.
++    let modal = false;
++    try {
++      modal = n.matches("dialog:modal");
++    } catch (e) {
++      modal = false;
++    }
++    attributes.rr_open_mode = modal ? "modal" : "non-modal";
+   }
+   if (tagName === "canvas" && recordCanvas) {
+     if (n.__context === "2d") {
