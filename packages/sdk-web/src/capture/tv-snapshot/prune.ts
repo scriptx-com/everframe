@@ -43,7 +43,9 @@
 // node of an unseen box (display:contents included) that is kept for a
 // visible descendant. Text inside a SEEN box is assumed seen.
 //
-// "Seen" means: the element's own box intersects the viewport INTERSECTED with
+// "Seen" means: the element's own box — narrowed by its CSS clip / clip-path
+// region (sr-only / visually-hidden patterns clip to nothing) — intersects the
+// viewport INTERSECTED with
 // every clip of an ancestor whose overflow is not visible (hidden, clip, auto,
 // scroll — for a scroll container its padding box, so a rail item scrolled out
 // of the rail is unseen), AND the element is not `visibility:hidden|collapse`
@@ -524,15 +526,106 @@ function toRect(left: number, top: number, right: number, bottom: number): Prune
   return { left, top, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 
+function intersectRects(x: PruneRect, y: PruneRect): PruneRect {
+  return toRect(Math.max(x.left, y.left), Math.max(x.top, y.top), Math.min(x.right, y.right), Math.min(x.bottom, y.bottom));
+}
+
+/** Longer than any real computed `clip` / `clip-path` value worth parsing. */
+const MAX_CLIP_VALUE_LENGTH = 128;
+
+/** A computed length in px (`12px`, `0`) → number, or null for anything else. */
+function pxLength(token: string): number | null {
+  if (token === '0') return 0;
+  if (token.length < 3 || token.slice(-2) !== 'px') return null;
+  const n = Number(token.slice(0, -2));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** The inside of `name( … )` split on whitespace/commas, or null. Short, capped input only. */
+function functionArgs(value: string, name: string): string[] | null {
+  if (value.length > MAX_CLIP_VALUE_LENGTH || value.slice(0, name.length + 1).toLowerCase() !== `${name}(`) return null;
+  const close = value.indexOf(')');
+  if (close === -1) return null;
+  const inner = value.slice(name.length + 1, close).trim();
+  return inner === '' ? [] : inner.split(/[\s,]+/);
+}
+
+/** `clip: rect(t, r, b, l)` (offsets from the border box's top-left; `auto` = that edge) → the region, or null. */
+function clipRectRegion(value: string, r: PruneRect): PruneRect | null {
+  const args = functionArgs(value.trim(), 'rect');
+  if (args === null || args.length !== 4) return null;
+  const at = (k: number, auto: number): number | null => (args[k] === 'auto' ? auto : pxLength(args[k]!));
+  const t = at(0, 0);
+  const rt = at(1, r.width);
+  const b = at(2, r.height);
+  const l = at(3, 0);
+  if (t === null || rt === null || b === null || l === null) return null;
+  return toRect(r.left + l, r.top + t, r.left + rt, r.top + b);
+}
+
+/** `clip-path: inset(t r b l [round …])` (px or %, CSS shorthand expansion) → the region, or null. */
+function insetRegion(value: string, r: PruneRect): PruneRect | null {
+  const t = value.trim();
+  const round = t.toLowerCase().indexOf(' round ');
+  const args = functionArgs(round === -1 ? t : `${t.slice(0, round)})`, 'inset');
+  if (args === null || args.length < 1 || args.length > 4) return null;
+  const parts = args.length === 1 ? [args[0], args[0], args[0], args[0]]
+    : args.length === 2 ? [args[0], args[1], args[0], args[1]]
+      : args.length === 3 ? [args[0], args[1], args[2], args[1]]
+        : args;
+  const len = (token: string | undefined, basis: number): number | null => {
+    if (token === undefined) return null;
+    if (token.slice(-1) === '%') {
+      const n = Number(token.slice(0, -1));
+      return Number.isFinite(n) ? (n / 100) * basis : null;
+    }
+    return pxLength(token);
+  };
+  const top = len(parts[0], r.height);
+  const right = len(parts[1], r.width);
+  const bottom = len(parts[2], r.height);
+  const left = len(parts[3], r.width);
+  if (top === null || right === null || bottom === null || left === null) return null;
+  return toRect(r.left + left, r.top + top, r.right - right, r.bottom - bottom);
+}
+
 /**
- * The clip `el` imposes on its descendants: `outer` narrowed, per clipping
- * axis (overflow, or paint containment on both), to its padding box (border
- * box minus borders). Inline and
- * display:contents boxes do not clip — except an atomic one (an <svg> root,
- * which clips its content to its viewport even when display:inline).
+ * The region CSS clipping leaves visible of an element and everything it
+ * paints (codex r8 F1), or null when it is not clipped: `clip: rect()` on an
+ * absolutely/fixed positioned box, and `clip-path` (`-webkit-` too, Chrome
+ * 53). `inset()` is evaluated; any other shape, or a value that does not
+ * parse, clips to the border box (fail closed outside it). A zero-area region
+ * clips everything — the sr-only / visually-hidden patterns.
+ */
+function cssClipRegion(s: CSSStyleDeclaration, r: PruneRect): PruneRect | null {
+  const x = s as unknown as Record<string, string | undefined>;
+  const border = toRect(r.left, r.top, r.right, r.bottom);
+  let region: PruneRect | null = null;
+  if (s.position === 'absolute' || s.position === 'fixed') {
+    const clip = x.clip;
+    if (clip !== undefined && clip !== null && clip !== '' && clip !== 'auto') region = clipRectRegion(clip, r) ?? border;
+  }
+  const path = isSet(x.clipPath) ? x.clipPath : isSet(x.webkitClipPath) ? x.webkitClipPath : undefined;
+  if (path !== undefined) {
+    const shape = insetRegion(path, r) ?? border;
+    region = region === null ? shape : intersectRects(region, shape);
+  }
+  return region;
+}
+
+/**
+ * The clip `el` imposes on its descendants: `outer` narrowed by its CSS
+ * clip / clip-path region, then, per clipping axis (overflow, or paint
+ * containment on both), to its padding box (border box minus borders).
+ * Inline boxes do not clip by overflow — except an atomic one (an <svg>
+ * root, which clips its content to its viewport even when display:inline);
+ * display:contents and display:none boxes do not clip at all.
  */
 function clipFor(outer: PruneRect, r: PruneRect, s: CSSStyleDeclaration | null, atomic = false): PruneRect {
-  if (s === null || s.display === 'contents' || s.display === 'none' || (s.display === 'inline' && !atomic)) return outer;
+  if (s === null || s.display === 'contents' || s.display === 'none') return outer;
+  const region = cssClipRegion(s, r);
+  if (region !== null) outer = intersectRects(outer, region);
+  if (s.display === 'inline' && !atomic) return outer;
   // Paint containment clips to the overflow clip edge (the padding box) on
   // both axes whatever `overflow` says (CSS Containment §3.3).
   const paint = hasKeyword((s as unknown as Record<string, string | undefined>).contain, ['paint', 'strict', 'content']);
@@ -671,14 +764,18 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     f.faded = parent.faded || isZeroOpacity(s);
     const invisible = f.faded || isInvisible(s);
     f.hideText = invisible;
-    f.seen = !invisible && overlaps(rect, incoming);
+    // CSS clip / clip-path hides the element's OWN box too, not only its
+    // descendants: an sr-only wrapper is unseen even though its box is on screen.
+    const region = s !== null && s.display !== 'contents' && s.display !== 'none' ? cssClipRegion(s, rect) : null;
+    f.seen = !invisible && overlaps(rect, region === null ? incoming : intersectRects(incoming, region));
     f.clip = clipFor(incoming, rect, s, atomic);
     // A transform/filter/containment box is the containing block of absolute
     // AND fixed descendants, so its clip reaches them; position alone only
     // captures absolute ones.
     const block = establishesContainingBlock(s);
-    f.absClip = isPositioned(s) || block ? f.clip : parent.absClip;
-    f.fixedClip = block ? f.clip : parent.fixedClip;
+    // The clip region paints over positioned descendants too.
+    f.absClip = isPositioned(s) || block ? f.clip : region === null ? parent.absClip : intersectRects(parent.absClip, region);
+    f.fixedClip = block ? f.clip : region === null ? parent.fixedClip : intersectRects(parent.fixedClip, region);
   };
 
   const styleOnce = (f: Frame): CSSStyleDeclaration | null => {
@@ -806,8 +903,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     slotVerdicts.set(slot, verdict);
     return verdict;
   };
-  const intersect = (x: PruneRect, y: PruneRect): PruneRect =>
-    toRect(Math.max(x.left, y.left), Math.max(x.top, y.top), Math.min(x.right, y.right), Math.min(x.bottom, y.bottom));
+  const intersect = intersectRects;
   /** The parent context a slotted child is judged in: its slot's verdict folded in. */
   const throughSlot = (parent: Frame, v: SlotVerdict): Frame => ({
     ...parent,

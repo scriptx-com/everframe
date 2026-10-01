@@ -359,6 +359,42 @@ describe('pruneSnapshot', () => {
     });
   });
 
+  describe('CSS clip / clip-path (codex r8 F1)', () => {
+    const run = (wrapperStyle: Partial<CSSStyleDeclaration>, childRect = rect(10, 10, 50, 20)) => {
+      const { bind, deps } = harness();
+      const img = bind(el('img', { src: 'https://cdn.example.test/PRIVATE_AVATAR.png' }), { rect: childRect, style: { display: 'inline' } });
+      const child = bind(el('p', {}, [text('PRIVATE_HISTORY'), img]), { rect: childRect });
+      const wrapper = bind(el('div', {}, [text('OWN_TEXT'), child]), { rect: rect(0, 0, 100, 50), style: wrapperStyle });
+      const root = doc(el('html', {}, [el('body', {}, [wrapper, bind(el('main', {}, [text('visible')]))])]));
+      const result = pruneSnapshot(root, deps);
+      return { json: JSON.stringify(root), result };
+    };
+    const SECRETS = ['PRIVATE_HISTORY', 'PRIVATE_AVATAR', 'OWN_TEXT'];
+    it.each([
+      ['clip: rect(0,0,0,0) (Bootstrap .visually-hidden)', { position: 'absolute', clip: 'rect(0px, 0px, 0px, 0px)', width: '1px', height: '1px' }],
+      ['legacy .sr-only clip: rect(1px,1px,1px,1px)', { position: 'absolute', clip: 'rect(1px, 1px, 1px, 1px)' }],
+      ['fixed + clip: rect(0 0 0 0)', { position: 'fixed', clip: 'rect(0px 0px 0px 0px)' }],
+      ['clip-path: inset(100%)', { clipPath: 'inset(100%)' }],
+      ['clip-path: inset(50%)', { clipPath: 'inset(50%)' }],
+      ['-webkit-clip-path: inset(50%)', { webkitClipPath: 'inset(50%)' } as Partial<CSSStyleDeclaration>],
+    ])('%s withholds everything inside', (_label, style) => {
+      const { json, result } = run(style as Partial<CSSStyleDeclaration>);
+      expect(findLeaks(json, SECRETS)).toEqual([]);
+      expect(result.changed).toBe(true);
+    });
+    it('clip on a static element is ignored (CSS clip applies to absolute/fixed only)', () => {
+      expect(run({ clip: 'rect(0px, 0px, 0px, 0px)' }).json).toContain('PRIVATE_HISTORY');
+    });
+    it('a partial inset keeps content inside it and drops content outside it', () => {
+      expect(run({ clipPath: 'inset(5px 10px)' }).json).toContain('PRIVATE_HISTORY');
+      expect(run({ clipPath: 'inset(0px 0px 0px 70px)' }, rect(10, 10, 50, 20)).json).not.toContain('PRIVATE_HISTORY');
+    });
+    it('a shape it cannot evaluate clips to the border box', () => {
+      expect(run({ clipPath: 'circle(40%)' }).json).toContain('PRIVATE_HISTORY');
+      expect(findLeaks(run({ clipPath: 'polygon(0 0, 1px 0, 0 1px)' }, rect(200, 10, 50, 20)).json, ['PRIVATE_HISTORY'])).toEqual([]);
+    });
+  });
+
   it('drops a carried definition nothing visible references', () => {
     const { bind, deps } = harness();
     const sprite = bind(el('svg', {}, [el('symbol', { id: 'play' }, [el('text', {}, [text('SYMBOLTEXT')], { isSVG: true })], { isSVG: true })], { isSVG: true }), { rect: ABOVE });
