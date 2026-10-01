@@ -138,6 +138,17 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
       if (tag === 'dialog' && (value === 'modal' || value === 'non-modal')) next[key] = value;
       continue;
     }
+    // A listbox's shape (codex r11 F2): `multiple` as a boolean, `size` as an
+    // integer 0–1000 — without them a visible listbox rebuilds as a dropdown.
+    if (tag === 'select' && lower === 'multiple') {
+      next[key] = '';
+      continue;
+    }
+    if (tag === 'select' && lower === 'size') {
+      const raw = String(value).trim();
+      if (raw !== '' && raw.length <= 4 && /^[0-9]+$/.test(raw) && Number(raw) <= 1000) next[key] = String(Number(raw));
+      continue;
+    }
     if (lower === 'slot' || (lower === 'name' && tag === 'slot')) {
       if (isSlotName(value)) next[key] = value;
       continue;

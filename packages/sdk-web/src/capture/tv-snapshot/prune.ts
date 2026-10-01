@@ -1063,6 +1063,10 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       judgeBox(svg, parent, true);
       return svg;
     }
+    // An option of a visible listbox (closed selects are handled above): rrweb
+    // drops `selected` for masked inputs, so restore the live selection, as
+    // the closed-select branch does for its shown option (codex r11 F2).
+    if (tag === 'option' && (live as HTMLOptionElement).selected === true) node.attributes.selected = true;
     const judged = frame(node, 'judge', live, rect, parent);
     if (sensitiveStyle !== null) judged.style = sensitiveStyle;
     judgeBox(judged, parent);

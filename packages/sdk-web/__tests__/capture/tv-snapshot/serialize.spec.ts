@@ -747,6 +747,25 @@ describe('same-document SVG references rrweb absolutized (codex r10 F2)', () => 
   });
 });
 
+describe('visible listboxes keep their shape and selection (codex r11 F2)', () => {
+  it('round-trips multiple, size and the selected option', async () => {
+    document.body.innerHTML =
+      '<section id="s"></section><select id="lb" multiple size="4"><option>One</option><option>Two</option><option>Three</option><option>Four</option></select>' +
+      '<select id="bad" size="Alice"><option>x</option></select><select id="huge" size="99999"><option>y</option></select>';
+    (document.getElementById('lb') as HTMLSelectElement).options[1]!.selected = true;
+    const taken = take({ sensitiveElements: () => [] });
+    const root = rootOf(taken);
+    expect(findEl(root, (e) => e.attributes.id === 'lb')!.attributes).toMatchObject({ multiple: '', size: '4' });
+    expect(findEl(root, (e) => e.attributes.id === 'bad')!.attributes.size).toBeUndefined();
+    expect(findEl(root, (e) => e.attributes.id === 'huge')!.attributes.size).toBeUndefined();
+    const { rebuild, createMirror, createCache } = await import('rrweb-snapshot');
+    const target = document.implementation.createHTMLDocument('rebuilt');
+    rebuild(root as never, { doc: target, mirror: createMirror(), cache: createCache() });
+    const lb = target.getElementById('lb') as HTMLSelectElement;
+    expect({ multiple: lb.multiple, size: lb.size, selectedIndex: lb.selectedIndex }).toEqual({ multiple: true, size: 4, selectedIndex: 1 });
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {
