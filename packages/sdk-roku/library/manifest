@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 ScriptX
 title=Everframe
-major_version=0
-minor_version=1
+major_version=1
+minor_version=0
 build_version=0
 sg_component_libs_provided=Everframe

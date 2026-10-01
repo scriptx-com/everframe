@@ -83,7 +83,7 @@ class EverframeWebBridge {
       apiKey: sdkKey.toJS,
       appVersion: appVersion.toJS,
       sdkName: 'everframe-flutter'.toJS,
-      sdkVersion: '0.1.1'.toJS,
+      sdkVersion: '1.0.0'.toJS,
     );
     _handle = init.callAsFunction(null, config) as _WebHandle;
   }

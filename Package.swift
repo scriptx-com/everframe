@@ -13,7 +13,7 @@
 // Consumers reference the binary tag, e.g.
 //
 //     dependencies: [
-//         .package(url: "https://github.com/scriptx-com/everframe", from: "0.9.0"),
+//         .package(url: "https://github.com/scriptx-com/everframe", from: "1.0.0"),
 //     ]
 //
 // **Update these per release — both are now automated; do not hand-edit:**
@@ -45,7 +45,7 @@
 //   * EverframeReporterUI   — optional reporter modal (opt-in via product).
 import PackageDescription
 
-let binaryVersion = "0.9.0"
+let binaryVersion = "1.0.0"
 let baseURL = "https://github.com/scriptx-com/everframe/releases/download/v\(binaryVersion)/"
 
 let package = Package(
@@ -67,17 +67,17 @@ let package = Package(
         .binaryTarget(
             name: "EverframeKit",
             url: baseURL + "EverframeKit.xcframework.zip",
-            checksum: "6ac054f6166ed120f938fc3e6d07e3a64d83ecd192b50a13111087c8188781eb"
+            checksum: "95106f4862695a6fcccacd19d90375ff5b3c9768bc4326a1d7a24c52d25c0bef"
         ),
         .binaryTarget(
             name: "EverframeProtocol",
             url: baseURL + "EverframeProtocol.xcframework.zip",
-            checksum: "eeba3a25413bba2096bec3a366117ccccfb60586f1d15198b92f2d3229410e5d"
+            checksum: "79927a23892c86e3b30762c0e0ea3287a54e69a8bd8a6f53a1469ebb3b7cd26a"
         ),
         .binaryTarget(
             name: "EverframeReporterUI",
             url: baseURL + "EverframeReporterUI.xcframework.zip",
-            checksum: "dfe9f250635a5de5025e03ea2ce1053f7ef63f9767bd159d4b669c3b173c1b70"
+            checksum: "7f6f06e6c639377eff0d32ebb8d112ab4b2bbbbdab903601d4773db65a73fc65"
         ),
     ]
 )

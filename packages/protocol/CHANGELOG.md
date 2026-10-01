@@ -1,5 +1,28 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 0.6.0
+
+### Minor Changes
+
+- 5777c38: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Adds `MAX_DOM_SNAPSHOT_DEPTH` (1024) and `domSnapshotDepth`, so a page snapshot deeper than a server render accepts can be rejected on the device instead of failing after upload.
+
+- d72fddf: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Adds the `dom-snapshot` attachment kind and a versioned page-snapshot format (`DomSnapshotV1`, validated by `parseDomSnapshot`) for smart-TV screenshots that are rendered on the server, together with the render endpoint's request and response types and the shared report limits (`MAX_REPORT_SHOTS`, `MAX_INGEST_FILE_PARTS`). Report upload now labels `dom-snapshot` and `dom-snapshot-N` parts with their own kind. Existing reports and SDK behaviour are unchanged.
+
+- 5ad9926: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Accept `roku` as an SDK platform and `everframe-roku` as an SDK name.
+
+- 89edce8: <!-- SPDX-License-Identifier: MIT -->
+    <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+  Companion relay frames can now describe a capture that produced no image: `report.assembled` gains an optional `outcome` (`image`, `snapshot` or `unavailable`), `degraded_reason` and a snapshot reference, and `report.submit` gains per-shot `has_image` and redaction state so a device only waits for the images that will actually arrive. Existing frames are unchanged and still valid.
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # @traceitx/protocol
 
@@ -102,6 +125,7 @@
   **Deploy the API before releasing this SDK version. This is a hard
   precondition, not a nice-to-have**, and getting the order wrong is worse than
   "vitals are lossy" the way earlier phases could be:
+
   - An old API rejects a phase-4 `VitalsEntry` (the new `playerId`, `custom`
     entries, and player event types, plus `vitals_sessions.player_count` from
     migration `0082`) with a non-retryable 400. On the **vitals chunk/summary

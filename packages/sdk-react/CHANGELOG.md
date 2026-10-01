@@ -1,5 +1,36 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.0.0
+
+### Minor Changes
+
+- 9332f80: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Smart-TV web apps can now have their screenshots rendered from a masked page snapshot instead of on the TV, when server-side rendering is enabled for the project: faster, faithful to the TV's fonts, dark mode and focus highlight, and never a blank image. Sensitive elements and input values are masked inside the snapshot, and the snapshot is attached to a report only for screenshots that were not blurred, cropped or area-selected. Companion (phone) reports now always get an answer for a capture request, and can be sent when the TV produced no screenshot. New degraded reasons: `screenshot_render_failed` and `screenshot_unavailable`.
+
+### Patch Changes
+
+- e16f94b: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Fixed the screenshot annotation tool failing to load. It depended on a newer release of the canvas library that requires React 19.3 or later, so it never opened when the bundled or installed React was 19.2. The canvas library is now pinned to the release that matches React 19.2.
+
+- afb0687: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Fix regressions from the Everframe rename. The Android SDK (and React Native on Android) now sends the `X-Everframe-*` header names the API reads, so native video session replay, verified identity and companion report attribution work again. In development under React StrictMode, `EverframeProvider` no longer keeps running with a killed client after the double mount, so two-way replies reach the reporter again.
+
+- ccc4581: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Add a React Native browser entry that re-exports the React SDK through the same package import. Align sensitive wrapper and ref names across native and web, and include the React SDK as a dependency so web hosts install one Everframe package.
+
+- 9a40051: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Screenshots, page snapshots and session-replay attachments now work on pages served over plain `http://` (common for hosted smart-TV apps). Their SHA-256 digests fall back to a built-in implementation when the browser's Web Crypto `crypto.subtle` is unavailable, instead of failing the capture.
+
 ## 0.9.0
 
 ### Minor Changes

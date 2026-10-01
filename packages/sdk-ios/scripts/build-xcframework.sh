@@ -181,7 +181,9 @@ archive() {
     local archive_path="$4"
 
     echo "==> archive ${scheme} (${sdk})"
-    xcodebuild archive \
+    local archive_log="${archive_path}.log"
+    if ! xcodebuild archive \
+        -jobs "${EVERFRAME_XCODEBUILD_JOBS:-2}" \
         -project "${PROJECT}" \
         -scheme "${scheme}" \
         -destination "${destination}" \
@@ -195,7 +197,12 @@ archive() {
         MARKETING_VERSION="${SDK_VERSION}" \
         CURRENT_PROJECT_VERSION=1 \
         OTHER_SWIFT_FLAGS="\$(inherited) -package-name ${SWIFT_PACKAGE_NAME}" \
-        | grep -E "^\*\*|error:" || true
+        > "${archive_log}" 2>&1; then
+        tail -n 60 "${archive_log}" >&2
+        echo "error: archive ${scheme} (${sdk}) failed" >&2
+        exit 1
+    fi
+    grep -E "^\*\*|error:" "${archive_log}" || true
 
     patch_swiftinterface_into_framework "${scheme}" "${archive_path}" "${sdk}"
 }
