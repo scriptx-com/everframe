@@ -329,6 +329,20 @@ describe('pruneSnapshot', () => {
     expect(link.attributes).toEqual({ class: 'k', style: imp('padding:0;border:0') });
   });
 
+  it('clips SVG text to an inline SVG root\'s viewport (an atomic box clips even when inline)', () => {
+    const { bind, deps } = harness();
+    const inside = bind(el('text', {}, [text('INSIDE')], { isSVG: true }), { rect: rect(10, 0, 50, 20) });
+    const outside = bind(el('text', {}, [text('OUTSIDE_SVG_VIEWPORT')], { isSVG: true }), { rect: rect(500, 0, 50, 20) });
+    const svg = bind(el('svg', {}, [inside, outside], { isSVG: true }), {
+      rect: rect(0, 0, 120, 30),
+      style: { display: 'inline', overflowX: 'hidden', overflowY: 'hidden' },
+    });
+    const root = doc(el('html', {}, [el('body', {}, [svg])]));
+    pruneSnapshot(root, deps);
+    expect(findLeaks(JSON.stringify(root), ['OUTSIDE_SVG_VIEWPORT'])).toEqual([]);
+    expect(JSON.stringify(root)).toContain('INSIDE');
+  });
+
   it('reads no layout for SVG leaves, definitions, or content of an unseen SVG root', () => {
     const { bind, deps } = harness();
     const reads: Element[] = [];

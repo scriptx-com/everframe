@@ -413,10 +413,11 @@ function toRect(left: number, top: number, right: number, bottom: number): Prune
 /**
  * The clip `el` imposes on its descendants: `outer` narrowed, per clipping
  * axis, to its padding box (border box minus borders). Inline and
- * display:contents boxes do not clip.
+ * display:contents boxes do not clip — except an atomic one (an <svg> root,
+ * which clips its content to its viewport even when display:inline).
  */
-function clipFor(outer: PruneRect, r: PruneRect, s: CSSStyleDeclaration | null): PruneRect {
-  if (s === null || s.display === 'inline' || s.display === 'contents' || s.display === 'none') return outer;
+function clipFor(outer: PruneRect, r: PruneRect, s: CSSStyleDeclaration | null, atomic = false): PruneRect {
+  if (s === null || s.display === 'contents' || s.display === 'none' || (s.display === 'inline' && !atomic)) return outer;
   const x = clipsAxis(s.overflowX);
   const y = clipsAxis(s.overflowY);
   if (!x && !y) return outer;
@@ -542,7 +543,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
    * Judges a boxed frame's own visibility and the clips it hands its
    * descendants, from its ONE computed-style read.
    */
-  const judgeBox = (f: Frame, parent: Frame): void => {
+  const judgeBox = (f: Frame, parent: Frame, atomic = false): void => {
     const s = styleOnce(f);
     const rect = f.rect as PruneRect;
     const position = s?.position;
@@ -551,7 +552,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const invisible = f.faded || isInvisible(s);
     f.hideText = invisible;
     f.seen = !invisible && overlaps(rect, incoming);
-    f.clip = clipFor(incoming, rect, s);
+    f.clip = clipFor(incoming, rect, s, atomic);
     f.absClip = isPositioned(s) ? f.clip : parent.absClip;
   };
 
@@ -738,7 +739,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const rect = deps.rectOf(live);
     if (tag === 'svg') {
       const svg = frame(node, 'svg', live, rect, parent);
-      judgeBox(svg, parent);
+      judgeBox(svg, parent, true);
       return svg;
     }
     const judged = frame(node, 'judge', live, rect, parent);
