@@ -37,7 +37,7 @@
 // all, so there is no gap for either of them to glitch through.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act, fireEvent, within, waitFor } from '@testing-library/react';
-import { useContext, useEffect } from 'react';
+import { StrictMode, useContext, useEffect } from 'react';
 import { EverframeProvider, EverframeContext } from '../src/provider.js';
 import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
 import type { ThreadClient } from '@everframe/sdk-core';
@@ -362,5 +362,48 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
     // Still mounted afterward — the retained, now-closed thread is still
     // present and count > 0 never stopped being true throughout.
     expect(queryByTestId('reporter-fab')).not.toBeNull();
+  });
+  it('(f) React StrictMode: the dev double-mount does not kill the thread client, so replies still poll and the FAB renders', async () => {
+    // StrictMode (the Next.js / Vite dev default) runs every effect's cleanup
+    // once right after mount, then mounts again with the SAME memoized
+    // context. The unmount cleanup used to call client.kill() synchronously,
+    // which shuts the thread client down irreversibly, so the remount's
+    // startPolling() was a no-op: no /api/reporter/threads request, no FAB,
+    // and replies silently never reached the reporter in development.
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    const { calls } = stubFetch({ enabled: true, threads: oneOpenThread });
+
+    const { getByTestId } = render(
+      <StrictMode>
+        <EverframeProvider config={baseConfig}><div /></EverframeProvider>
+      </StrictMode>,
+    );
+    await flush(30);
+
+    await expectFabPresent(getByTestId);
+    expect(calls.some((u) => u.includes('/api/reporter/threads'))).toBe(true);
+  });
+
+  it('(g) a real unmount still kills the client and shuts the thread client down', async () => {
+    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    stubFetch({ enabled: true, threads: oneOpenThread });
+    let threads: ThreadClient | undefined;
+
+    const { unmount } = render(
+      <EverframeProvider config={baseConfig}>
+        <ClientProbe onAdapter={(t) => { threads = t; }} />
+      </EverframeProvider>,
+    );
+    await flush(30);
+    expect(threads).toBeDefined();
+
+    unmount();
+    await flush(10);
+    // Shut down for good: startPolling() after shutdown arms nothing, so a
+    // later tick can never reach the network.
+    const before = (globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    threads!.startPolling();
+    await flush(30);
+    expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(before);
   });
 });

@@ -128,7 +128,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     count: 0,
   });
 
-  const ctxValue = useMemo<InternalContext>(() => {
+  const createCtx = (): InternalContext => {
     // The adapter's own crash path stamps `envelope.sdk.name` + `.version`.
     // It lives in @everframe/web now — a package with a different name on the
     // wire and an independently versioned PKG_VERSION — so tell it which SDK
@@ -192,7 +192,22 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     adapter.__registerShowModal(openModal);
     return { client, adapter, config, openModal };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // single-init by design — config swap requires Provider remount
+  };
+  // Single-init by design — config swap requires Provider remount.
+  const [ctxValue, setCtxValue] = useState<InternalContext>(createCtx);
+  // React StrictMode (the Next.js / Vite dev default) runs every effect's
+  // cleanup once right after the first mount, then mounts again with the SAME
+  // state. The unmount cleanup below kills the client — synchronously and
+  // irreversibly, which the unmount contract requires — so the remount found a
+  // dead client: the thread client was shut down (startPolling() a no-op, so
+  // replies never reached the reporter), network-body capture was killed, and
+  // so on. A mount that finds its client already killed can only be that
+  // remount; rebuild a fresh context instead of running on the dead one. A
+  // real unmount never remounts, so it still ends killed.
+  useEffect(() => {
+    if (__internalClientState.get(ctxValue.client)?.killed) setCtxValue(createCtx());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- createCtx is recreated each render; only the killed client matters
+  }, [ctxValue]);
 
   // One screen recorder per provider instance: it holds the `previous`-screen
   // state that derives each `from → to` transition in a closure, so a fresh
