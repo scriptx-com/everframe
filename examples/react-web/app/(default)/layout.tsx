@@ -14,7 +14,7 @@ import {
 import "../globals.css";
 
 // Mint a real key from /admin/ → app detail → "Create SDK key" and put it in
-// examples/react-web/.env.local as NEXT_PUBLIC_EVERFRAME_KEY=txx_live_…
+// examples/react-web/.env.local as NEXT_PUBLIC_EVERFRAME_KEY=evf_live_…
 // `txx_live_test` is the placeholder accepted only by the e2e stub server.
 const EVERFRAME_KEY = process.env.NEXT_PUBLIC_EVERFRAME_KEY ?? "txx_live_test";
 

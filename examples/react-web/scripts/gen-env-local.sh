@@ -27,10 +27,10 @@ if [[ -f "${ENV_FILE}" ]]; then
         sed -E 's/[[:space:]]+#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//'; } || true)"
 fi
 
-if [[ -n "${INGEST_KEY}" && ! "${INGEST_KEY}" =~ ^txx_live_.{32}$ ]]; then
-    echo "error: ${SRC_VAR} in ${ENV_FILE} is missing or malformed (need 'txx_live_' + 32-char body = 41 chars)." 1>&2
+if [[ -n "${INGEST_KEY}" && ! "${INGEST_KEY}" =~ ^(evf_live_|txx_live_).{32}$ ]]; then
+    echo "error: ${SRC_VAR} in ${ENV_FILE} is missing or malformed (need 'evf_live_' + 32-char body = 41 chars; legacy 'txx_live_' also accepted)." 1>&2
     echo "       Create a 'Web' app in the dashboard (http://localhost:8787/admin/), generate its SDK key," 1>&2
-    echo "       and paste it as ${SRC_VAR}=txx_live_… in the repo-root .env." 1>&2
+    echo "       and paste it as ${SRC_VAR}=evf_live_… in the repo-root .env." 1>&2
     exit 1
 fi
 
