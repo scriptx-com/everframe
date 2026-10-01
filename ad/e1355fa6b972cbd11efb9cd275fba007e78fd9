@@ -1,0 +1,21 @@
+packages/sdk-web/__tests__/capture/tv-snapshot/serialize.spec.ts
+  s_f1f3a292ebd900::t_59ae87a09cf621 480-491
+packages/sdk-web/src/capture/tv-snapshot/prune.ts
+  s_f1f3a292ebd900::t_4c340319ea3348 237-242,750-753,757-761
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ade1355fa6b972cbd11efb9cd275fba007e78fd9",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
