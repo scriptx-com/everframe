@@ -1,0 +1,619 @@
+.changeset/react-native-browser.md
+  s_f1f3a292ebd900::t_250c4523eb88b1 1-10
+.gitignore
+  s_f1f3a292ebd900::t_15dfc7d0bb4dc7 32,38-40
+README.md
+  s_f1f3a292ebd900::t_32c6cdbf9a835a 21-22,56-57,76-77,137-146
+examples/compose-desktop-probe/.gitignore
+  s_f1f3a292ebd900::t_56d25098a415cb 1-7
+examples/compose-desktop-probe/README.md
+  s_f1f3a292ebd900::t_bdb99dc864b585 1-10
+examples/compose-desktop-probe/build.gradle.kts
+  s_f1f3a292ebd900::t_c71f8e1d8dfbec 1-23
+examples/compose-desktop-probe/gradle.properties
+  s_f1f3a292ebd900::t_17519a04388d8c 1-4
+examples/compose-desktop-probe/gradle/wrapper/gradle-wrapper.properties
+  s_f1f3a292ebd900::t_9d9c329e35718b 1-10
+examples/compose-desktop-probe/gradlew
+  s_f1f3a292ebd900::t_ac4ac41b50246f 1-252
+examples/compose-desktop-probe/settings.gradle.kts
+  s_f1f3a292ebd900::t_ad86cd146ceddb 1-19
+examples/compose-desktop-probe/src/main/kotlin/dev/everframe/probe/ProbeApp.kt
+  s_f1f3a292ebd900::t_c499326e7d660a 1-152
+examples/compose-desktop-probe/src/main/kotlin/dev/everframe/probe/ProbeSceneState.kt
+  s_f1f3a292ebd900::t_1caf8c3cc497ff 1-24
+examples/compose-desktop-probe/src/main/kotlin/dev/everframe/probe/RendererCapture.kt
+  s_f1f3a292ebd900::t_f4adf71dc640fd 1-82
+examples/compose-desktop-probe/src/main/kotlin/dev/everframe/probe/RendererEvidence.kt
+  s_f1f3a292ebd900::t_3a1c9720436e12 1-23
+examples/compose-desktop-probe/src/main/kotlin/dev/everframe/probe/SensitiveBoundsRegistry.kt
+  s_f1f3a292ebd900::t_5821091eb7d1a7 1-35
+examples/compose-desktop-probe/src/test/kotlin/dev/everframe/probe/ProbeSceneStateTest.kt
+  s_f1f3a292ebd900::t_fdceee76e2ad28 1-19
+examples/compose-desktop-probe/src/test/kotlin/dev/everframe/probe/RendererCaptureTest.kt
+  s_f1f3a292ebd900::t_41244ddc4acdbf 1-32
+examples/compose-desktop-probe/src/test/kotlin/dev/everframe/probe/RendererEvidenceTest.kt
+  s_f1f3a292ebd900::t_00401c3a800072 1-45
+examples/compose-desktop-probe/src/test/kotlin/dev/everframe/probe/SensitiveBoundsRegistryTest.kt
+  s_f1f3a292ebd900::t_01f58d6c449aeb 1-32
+examples/flutter-android-probe/.gitignore
+  s_f1f3a292ebd900::t_15f27f0a965946 1-50
+examples/flutter-android-probe/README.md
+  s_f1f3a292ebd900::t_1c163062eba808 1-22
+examples/flutter-android-probe/analysis_options.yaml
+  s_f1f3a292ebd900::t_9d30771827f993 1-35
+examples/flutter-android-probe/android/.gitignore
+  s_f1f3a292ebd900::t_867e99f4f4e9aa 1-14
+examples/flutter-android-probe/android/app/build.gradle.kts
+  s_f1f3a292ebd900::t_7b867c6a1ed751 1-51
+examples/flutter-android-probe/android/app/src/debug/AndroidManifest.xml
+  s_f1f3a292ebd900::t_3c5b59f43a8977 1-10
+examples/flutter-android-probe/android/app/src/main/AndroidManifest.xml
+  s_f1f3a292ebd900::t_44ad089ef4284e 1-48
+examples/flutter-android-probe/android/app/src/main/kotlin/dev/everframe/everframe_flutter_android_probe/MainActivity.kt
+  s_f1f3a292ebd900::t_2e9357fb23389c 1-7
+examples/flutter-android-probe/android/app/src/main/res/drawable-v21/launch_background.xml
+  s_f1f3a292ebd900::t_a961d34714677b 1-14
+examples/flutter-android-probe/android/app/src/main/res/drawable/launch_background.xml
+  s_f1f3a292ebd900::t_7d379e9409f021 1-14
+examples/flutter-android-probe/android/app/src/main/res/values-night/styles.xml
+  s_f1f3a292ebd900::t_2fec3fe3fe89b7 1-20
+examples/flutter-android-probe/android/app/src/main/res/values/styles.xml
+  s_f1f3a292ebd900::t_f8097a624a856d 1-20
+examples/flutter-android-probe/android/app/src/profile/AndroidManifest.xml
+  s_f1f3a292ebd900::t_af5870d66b24be 1-9
+examples/flutter-android-probe/android/build.gradle.kts
+  s_f1f3a292ebd900::t_3048b838c02258 1-26
+examples/flutter-android-probe/android/gradle.properties
+  s_f1f3a292ebd900::t_4e58d9a2252df0 1-9
+examples/flutter-android-probe/android/gradle/wrapper/gradle-wrapper.properties
+  s_f1f3a292ebd900::t_61c3311129619f 1-7
+examples/flutter-android-probe/android/settings.gradle.kts
+  s_f1f3a292ebd900::t_dba61bc41fad50 1-42
+examples/flutter-android-probe/integration_test/android_probe_test.dart
+  s_f1f3a292ebd900::t_a6097ba4fac034 1-91
+examples/flutter-android-probe/lib/main.dart
+  s_f1f3a292ebd900::t_d05adca55a3e59 1-176
+examples/flutter-android-probe/pubspec.yaml
+  s_f1f3a292ebd900::t_d366c919c41751 1-95
+examples/flutter-android-probe/test/widget_test.dart
+  s_f1f3a292ebd900::t_6d3824f722b393 1-30
+examples/flutter-desktop-probe/.gitignore
+  s_f1f3a292ebd900::t_50f0ea06c46a10 1-11
+examples/flutter-desktop-probe/README.md
+  s_f1f3a292ebd900::t_ad8fac1d145354 1-10
+examples/flutter-desktop-probe/analysis_options.yaml
+  s_f1f3a292ebd900::t_2840fe669526b8 1-35
+examples/flutter-desktop-probe/integration_test/desktop_probe_test.dart
+  s_f1f3a292ebd900::t_e82a4acda6f1db 1-113
+examples/flutter-desktop-probe/lib/main.dart
+  s_f1f3a292ebd900::t_6e7f71a7dcf682 1-118
+examples/flutter-desktop-probe/lib/masked_capture.dart
+  s_f1f3a292ebd900::t_f64b196c5af886 1-3
+examples/flutter-desktop-probe/lib/platform_view.dart
+  s_f1f3a292ebd900::t_ab65a6420c2b85 1-8
+examples/flutter-desktop-probe/lib/safe_export.dart
+  s_f1f3a292ebd900::t_70b5f11bf736f9 1-16
+examples/flutter-desktop-probe/lib/safe_replay_buffer.dart
+  s_f1f3a292ebd900::t_ca4690c6fe2621 1-4
+examples/flutter-desktop-probe/macos/.gitignore
+  s_f1f3a292ebd900::t_fb9329d440de37 1-7
+examples/flutter-desktop-probe/macos/Flutter/Flutter-Debug.xcconfig
+  s_f1f3a292ebd900::t_75637b2c4daf02 1-3
+examples/flutter-desktop-probe/macos/Flutter/Flutter-Release.xcconfig
+  s_f1f3a292ebd900::t_a90983c8449bf6 1-3
+examples/flutter-desktop-probe/macos/Runner.xcodeproj/project.pbxproj
+  s_f1f3a292ebd900::t_4ca0404557a424 1-731
+examples/flutter-desktop-probe/macos/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+  s_f1f3a292ebd900::t_f79022387c0834 1-10
+examples/flutter-desktop-probe/macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme
+  s_f1f3a292ebd900::t_64bdcdff92f793 1-119
+examples/flutter-desktop-probe/macos/Runner.xcworkspace/contents.xcworkspacedata
+  s_f1f3a292ebd900::t_24498706d2aba9 1-9
+examples/flutter-desktop-probe/macos/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+  s_f1f3a292ebd900::t_ef5e5527fc27fa 1-10
+examples/flutter-desktop-probe/macos/Runner/AppDelegate.swift
+  s_f1f3a292ebd900::t_0ca5fefde6bcb7 1-15
+examples/flutter-desktop-probe/macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+  s_f1f3a292ebd900::t_2c06c5dd455955 1-68
+examples/flutter-desktop-probe/macos/Runner/Base.lproj/MainMenu.xib
+  s_f1f3a292ebd900::t_4da0fa4e884fd0 1-343
+examples/flutter-desktop-probe/macos/Runner/Configs/AppInfo.xcconfig
+  s_f1f3a292ebd900::t_438cff91966ad3 1-16
+examples/flutter-desktop-probe/macos/Runner/Configs/Debug.xcconfig
+  s_f1f3a292ebd900::t_8d0eb3b386fe9d 1-4
+examples/flutter-desktop-probe/macos/Runner/Configs/Release.xcconfig
+  s_f1f3a292ebd900::t_ef041b830dbbd5 1-4
+examples/flutter-desktop-probe/macos/Runner/Configs/Warnings.xcconfig
+  s_f1f3a292ebd900::t_1452fae2fb6e60 1-15
+examples/flutter-desktop-probe/macos/Runner/DebugProfile.entitlements
+  s_f1f3a292ebd900::t_5a0ebccebc4b70 1-12
+examples/flutter-desktop-probe/macos/Runner/Info.plist
+  s_f1f3a292ebd900::t_d57a188affc630 1-34
+examples/flutter-desktop-probe/macos/Runner/MainFlutterWindow.swift
+  s_f1f3a292ebd900::t_04713e65e99b53 1-28
+examples/flutter-desktop-probe/macos/Runner/Release.entitlements
+  s_f1f3a292ebd900::t_c92bfb7baa9e66 1-8
+examples/flutter-desktop-probe/macos/RunnerTests/RunnerTests.swift
+  s_f1f3a292ebd900::t_76c457f2dc108b 1-14
+examples/flutter-desktop-probe/pubspec.yaml
+  s_f1f3a292ebd900::t_11862997a17151 1-25
+examples/flutter-desktop-probe/test/masked_capture_test.dart
+  s_f1f3a292ebd900::t_fc23f427b3767f 1-84
+examples/flutter-desktop-probe/test/safe_export_test.dart
+  s_f1f3a292ebd900::t_8a3f17861d71a0 1-45
+examples/flutter-desktop-probe/test/safe_replay_buffer_test.dart
+  s_f1f3a292ebd900::t_5611fe8efb849a 1-66
+examples/flutter-desktop-probe/test/widget_test.dart
+  s_f1f3a292ebd900::t_b92b4148e9d543 1-30
+examples/flutter-ios-probe/.gitignore
+  s_f1f3a292ebd900::t_dd62e809de192d 1-50
+examples/flutter-ios-probe/README.md
+  s_f1f3a292ebd900::t_0a4b6f87ed29c3 1-21
+examples/flutter-ios-probe/analysis_options.yaml
+  s_f1f3a292ebd900::t_89e740e9970d58 1-35
+examples/flutter-ios-probe/integration_test/ios_probe_test.dart
+  s_f1f3a292ebd900::t_844660416b91ca 1-88
+examples/flutter-ios-probe/ios/.gitignore
+  s_f1f3a292ebd900::t_c362e79f59f97d 1-34
+examples/flutter-ios-probe/ios/Flutter/AppFrameworkInfo.plist
+  s_f1f3a292ebd900::t_06467aea22d178 1-26
+examples/flutter-ios-probe/ios/Flutter/Debug.xcconfig
+  s_f1f3a292ebd900::t_3c7f14689f47b9 1-3
+examples/flutter-ios-probe/ios/Flutter/Release.xcconfig
+  s_f1f3a292ebd900::t_ee59bc64c59867 1-3
+examples/flutter-ios-probe/ios/Runner.xcodeproj/project.pbxproj
+  s_f1f3a292ebd900::t_857c713a0d5d12 1-652
+examples/flutter-ios-probe/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+  s_f1f3a292ebd900::t_289409c4f7600c 1-9
+examples/flutter-ios-probe/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+  s_f1f3a292ebd900::t_cb046fe8b6bf23 1-10
+examples/flutter-ios-probe/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+  s_f1f3a292ebd900::t_f3fc3c428081d1 1-8
+examples/flutter-ios-probe/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme
+  s_f1f3a292ebd900::t_76375b9e6d894e 1-121
+examples/flutter-ios-probe/ios/Runner.xcworkspace/contents.xcworkspacedata
+  s_f1f3a292ebd900::t_752a7570b21265 1-9
+examples/flutter-ios-probe/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+  s_f1f3a292ebd900::t_f9fe7a24faf7bc 1-10
+examples/flutter-ios-probe/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+  s_f1f3a292ebd900::t_e5be1b77e15c4c 1-8
+examples/flutter-ios-probe/ios/Runner/AppDelegate.swift
+  s_f1f3a292ebd900::t_b70d3b8c1e9dee 1-18
+examples/flutter-ios-probe/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+  s_f1f3a292ebd900::t_b41aab14a72531 1-122
+examples/flutter-ios-probe/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json
+  s_f1f3a292ebd900::t_b578927e6984cb 1-23
+examples/flutter-ios-probe/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md
+  s_f1f3a292ebd900::t_13da5402437c6c 1-7
+examples/flutter-ios-probe/ios/Runner/Base.lproj/LaunchScreen.storyboard
+  s_f1f3a292ebd900::t_5f21dfe1362d6b 1-39
+examples/flutter-ios-probe/ios/Runner/Base.lproj/Main.storyboard
+  s_f1f3a292ebd900::t_ab1a7c3ab6f84b 1-28
+examples/flutter-ios-probe/ios/Runner/Info.plist
+  s_f1f3a292ebd900::t_dd536716fb2fec 1-74
+examples/flutter-ios-probe/ios/Runner/Runner-Bridging-Header.h
+  s_f1f3a292ebd900::t_7366051fa7433c 1-3
+examples/flutter-ios-probe/ios/Runner/SceneDelegate.swift
+  s_f1f3a292ebd900::t_c7bfaa01be98dd 1-8
+examples/flutter-ios-probe/ios/RunnerTests/RunnerTests.swift
+  s_f1f3a292ebd900::t_ba8643b4a030f5 1-14
+examples/flutter-ios-probe/lib/main.dart
+  s_f1f3a292ebd900::t_ceefb1f6d5bc29 1-169
+examples/flutter-ios-probe/pubspec.yaml
+  s_f1f3a292ebd900::t_e4719d30837884 1-95
+examples/flutter-ios-probe/test/widget_test.dart
+  s_f1f3a292ebd900::t_e00147ea03855b 1-30
+examples/flutter-web-probe/.gitignore
+  s_f1f3a292ebd900::t_9730d2a92924aa 1-6
+examples/flutter-web-probe/README.md
+  s_f1f3a292ebd900::t_aa4d6ccc673d5b 1-14
+examples/flutter-web-probe/lib/main.dart
+  s_f1f3a292ebd900::t_517d3fc843878f 1-168
+examples/flutter-web-probe/lib/masked_capture.dart
+  s_f1f3a292ebd900::t_f3f5104ee64c4d 1-3
+examples/flutter-web-probe/lib/platform_view.dart
+  s_f1f3a292ebd900::t_669cf8d660881d 1-4
+examples/flutter-web-probe/lib/platform_view_stub.dart
+  s_f1f3a292ebd900::t_c0e79e15c664a3 1-8
+examples/flutter-web-probe/lib/platform_view_web.dart
+  s_f1f3a292ebd900::t_810ddbfbfe21a6 1-24
+examples/flutter-web-probe/lib/probe_export.dart
+  s_f1f3a292ebd900::t_57cad6a2663ab4 1-4
+examples/flutter-web-probe/lib/probe_export_stub.dart
+  s_f1f3a292ebd900::t_31641020ea5d9a 1-5
+examples/flutter-web-probe/lib/probe_export_web.dart
+  s_f1f3a292ebd900::t_82c126945d09e7 1-13
+examples/flutter-web-probe/pubspec.yaml
+  s_f1f3a292ebd900::t_3525aac53f8853 1-23
+examples/flutter-web-probe/scripts/serve.mjs
+  s_f1f3a292ebd900::t_2236ed6b7ed139 1-68
+examples/flutter-web-probe/test/masked_capture_test.dart
+  s_f1f3a292ebd900::t_4d17ba8da3bd5a 1-88
+examples/flutter-web-probe/test/probe_app_test.dart
+  s_f1f3a292ebd900::t_76829c89482a53 1-68
+examples/flutter-web-probe/web/index.html
+  s_f1f3a292ebd900::t_7df2972e4ee10a 1-28
+examples/flutter-web-probe/web/kmp-canvas.html
+  s_f1f3a292ebd900::t_0e7e71c8d914ec 1-33
+examples/ios-native/Config/Local.xcconfig.example
+  s_f1f3a292ebd900::t_67df7531bc4a5e 12
+examples/ios-native/README.md
+  s_f1f3a292ebd900::t_53dd13778999cf 92-93,132
+examples/ios-native/SampleApp.xcodeproj/project.pbxproj
+  s_f1f3a292ebd900::t_83a17e12dbddcb 275,294
+examples/ios-native/SampleApp/SampleApp.swift
+  s_f1f3a292ebd900::t_b71b205f43729e 43
+examples/ios-native/SampleAppTV/SampleAppTV.swift
+  s_f1f3a292ebd900::t_0274157fcb0b51 33
+examples/ios-native/scripts/gen-local-xcconfig.sh
+  s_f1f3a292ebd900::t_f8af0b2c1ce2df 59-60,62
+examples/kmp-android-compose-probe/build.gradle.kts
+  s_f1f3a292ebd900::t_789e5a882371c0 1-38
+examples/kmp-android-compose-probe/gradle.properties
+  s_f1f3a292ebd900::t_1fb094d72e92d1 1-7
+examples/kmp-android-compose-probe/settings.gradle.kts
+  s_f1f3a292ebd900::t_024086c006a526 1-17
+examples/kmp-android-compose-probe/src/main/AndroidManifest.xml
+  s_f1f3a292ebd900::t_358751bb6e03e4 1-13
+examples/kmp-android-compose-probe/src/main/kotlin/dev/everframe/kmpprobe/MainActivity.kt
+  s_f1f3a292ebd900::t_a0dd9e830f57a5 1-99
+examples/kmp-compose-mobile-probe/build.gradle.kts
+  s_f1f3a292ebd900::t_23b727a3d647e9 1-39
+examples/kmp-compose-mobile-probe/gradle.properties
+  s_f1f3a292ebd900::t_5d1846ffdeb8fb 1-6
+examples/kmp-compose-mobile-probe/ios/KmpComposeProbeApp.swift
+  s_f1f3a292ebd900::t_389cceade9209d 1-105
+examples/kmp-compose-mobile-probe/settings.gradle.kts
+  s_f1f3a292ebd900::t_d39a1e893fa607 1-17
+examples/kmp-compose-mobile-probe/src/commonMain/kotlin/dev/everframe/composeprobe/ProbeScene.kt
+  s_f1f3a292ebd900::t_51fe6f4a5c5bb2 1-54
+examples/kmp-compose-mobile-probe/src/iosMain/kotlin/dev/everframe/composeprobe/ProbeController.kt
+  s_f1f3a292ebd900::t_840ffbc08dd22a 1-13
+examples/kmp-ios-native-probe/KmpNativeProbeApp.swift
+  s_f1f3a292ebd900::t_7267371a334143 1-63
+examples/kmp-ios-probes/KmpComposeHost-Info.plist
+  s_f1f3a292ebd900::t_c73bfcf332d127 1-33
+examples/kmp-ios-probes/KmpIosProbes.xcodeproj/project.pbxproj
+  s_f1f3a292ebd900::t_834017fa2b1fa2 1-720
+examples/kmp-ios-probes/KmpIosProbes.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+  s_f1f3a292ebd900::t_b13a3538621f01 1-7
+examples/kmp-ios-probes/KmpIosProbes.xcodeproj/xcshareddata/xcschemes/KmpComposeProbe.xcscheme
+  s_f1f3a292ebd900::t_8b45ce4342e05a 1-104
+examples/kmp-ios-probes/KmpIosProbes.xcodeproj/xcshareddata/xcschemes/KmpNativeProbe.xcscheme
+  s_f1f3a292ebd900::t_12deabc95ab4ba 1-104
+examples/kmp-ios-probes/KmpNativeProbe-Info.plist
+  s_f1f3a292ebd900::t_5e5ed2ec95b5e1 1-31
+examples/kmp-ios-probes/Tests/ComposeProbeUITests.swift
+  s_f1f3a292ebd900::t_a9ecf8d98c7513 1-93
+examples/kmp-ios-probes/Tests/NativeProbeUITests.swift
+  s_f1f3a292ebd900::t_09c73ef6ba071b 1-42
+examples/kmp-ios-probes/project.yml
+  s_f1f3a292ebd900::t_9e377f8686ec98 1-98
+examples/macos-window-capture-probe/Package.swift
+  s_f1f3a292ebd900::t_b6f2319c0807cd 1-14
+examples/macos-window-capture-probe/Sources/WindowProbe/Geometry.swift
+  s_f1f3a292ebd900::t_6917c85d08926c 1-41
+examples/macos-window-capture-probe/Sources/WindowProbe/Runner.swift
+  s_f1f3a292ebd900::t_e126eebd6b4337 1-60
+examples/macos-window-capture-probe/Sources/WindowProbe/SafeFrame.swift
+  s_f1f3a292ebd900::t_92a11adce20536 1-99
+examples/macos-window-capture-probe/Tests/WindowProbeTests/GeometryTests.swift
+  s_f1f3a292ebd900::t_b399caaf13a882 1-30
+examples/macos-window-capture-probe/Tests/WindowProbeTests/SafeFrameTests.swift
+  s_f1f3a292ebd900::t_81b8f5d18c497b 1-42
+examples/react-native/README.md
+  s_f1f3a292ebd900::t_9be89e26c47435 107-108,202-203
+examples/react-native/src/App.tsx
+  s_f1f3a292ebd900::t_92743b39553018 156
+examples/react-native/src/components/ReportFab.tsx
+  s_f1f3a292ebd900::t_2e33d28189a9ac 9-10,33,41-44,61,101,118-120
+examples/tvos-replay/Tests/RNE2EProbeTests.swift
+  s_f1f3a292ebd900::t_4c7203f8f47037 1-17
+package.json
+  s_f1f3a292ebd900::t_4976b7f7b8aa71 26
+packages/everframe_flutter/CHANGELOG.md
+  s_f1f3a292ebd900::t_e9baed1215f664 1-10
+packages/everframe_flutter/LICENSE
+  s_f1f3a292ebd900::t_c443ae5b6dea5d 1-21
+packages/everframe_flutter/README.md
+  s_f1f3a292ebd900::t_c434e67c1b8b34 1-137
+packages/everframe_flutter/android/build.gradle.kts
+  s_f1f3a292ebd900::t_7cacdd47728b4c 1-56
+packages/everframe_flutter/android/src/main/AndroidManifest.xml
+  s_f1f3a292ebd900::t_d388e9a877af05 1-3
+packages/everframe_flutter/android/src/main/kotlin/dev/everframe/flutter/EverframeFlutterPlugin.kt
+  s_f1f3a292ebd900::t_09a520428fc99e 1-222
+packages/everframe_flutter/assets/visual_capture.js
+  s_f1f3a292ebd900::t_eba05bbf8dc0a8 1-41
+packages/everframe_flutter/ios/everframe_flutter.podspec
+  s_f1f3a292ebd900::t_0defe51bd9dce8 1-20
+packages/everframe_flutter/ios/everframe_flutter/Package.swift
+  s_f1f3a292ebd900::t_bf7ee1777f597f 1-39
+packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift
+  s_f1f3a292ebd900::t_c4337155fd2a14 1-179
+packages/everframe_flutter/lib/everframe_flutter.dart
+  s_f1f3a292ebd900::t_c453edcc0d8b93 1-21
+packages/everframe_flutter/lib/everframe_flutter_web.dart
+  s_f1f3a292ebd900::t_a9f6dd883a3c41 1-9
+packages/everframe_flutter/lib/src/masked_capture.dart
+  s_f1f3a292ebd900::t_5e941f6938b342 1-57
+packages/everframe_flutter/lib/src/native_bridge.dart
+  s_f1f3a292ebd900::t_7cd1585eea706a 1-208
+packages/everframe_flutter/lib/src/safe_frame.dart
+  s_f1f3a292ebd900::t_b0bdf4241b9d99 1-35
+packages/everframe_flutter/lib/src/safe_replay_buffer.dart
+  s_f1f3a292ebd900::t_a154db840bf69e 1-102
+packages/everframe_flutter/lib/src/safe_replay_export.dart
+  s_f1f3a292ebd900::t_b553541bf24e0c 1-117
+packages/everframe_flutter/lib/src/safe_replay_recorder.dart
+  s_f1f3a292ebd900::t_c913085a2880fa 1-97
+packages/everframe_flutter/lib/src/sensitive_region.dart
+  s_f1f3a292ebd900::t_a9440dd8fe619f 1-166
+packages/everframe_flutter/lib/src/web_capture_stub.dart
+  s_f1f3a292ebd900::t_eca8138681f0b9 1-22
+packages/everframe_flutter/lib/src/web_capture_web.dart
+  s_f1f3a292ebd900::t_673b73782d41d8 1-103
+packages/everframe_flutter/lib/src/web_sdk_stub.dart
+  s_f1f3a292ebd900::t_edd78804c8aca7 1-22
+packages/everframe_flutter/lib/src/web_sdk_web.dart
+  s_f1f3a292ebd900::t_9a946f960cfcfb 1-137
+packages/everframe_flutter/pubspec.yaml
+  s_f1f3a292ebd900::t_6e1bae9e86c687 1-38
+packages/everframe_flutter/test/native_bridge_test.dart
+  s_f1f3a292ebd900::t_eaab8eb52d261c 1-160
+packages/everframe_flutter/test/safe_replay_export_test.dart
+  s_f1f3a292ebd900::t_89e6f156a12246 1-96
+packages/everframe_flutter/test/safe_replay_recorder_test.dart
+  s_f1f3a292ebd900::t_757b41809113b7 1-87
+packages/everframe_flutter/test/sensitive_region_test.dart
+  s_f1f3a292ebd900::t_d73ba7f17e5057 1-241
+packages/everframe_flutter/test/web_visual_capture.test.mjs
+  s_f1f3a292ebd900::t_1bd544451564e6 1-25
+packages/everframe_kmp/LICENSE
+  s_f1f3a292ebd900::t_1191381909cef1 1-21
+packages/everframe_kmp/README.md
+  s_f1f3a292ebd900::t_f29d21ba83a2c0 1-38
+packages/everframe_kmp/build.gradle.kts
+  s_f1f3a292ebd900::t_a86eabf8232c0b 1-135
+packages/everframe_kmp/gradle.properties
+  s_f1f3a292ebd900::t_4ca1bf0514ea8d 1-4
+packages/everframe_kmp/gradle/wrapper/gradle-wrapper.properties
+  s_f1f3a292ebd900::t_9be1a0b21a9d0f 1-10
+packages/everframe_kmp/gradlew
+  s_f1f3a292ebd900::t_1d95e2e30e9577 1-248
+packages/everframe_kmp/gradlew.bat
+  s_f1f3a292ebd900::t_f8c950befbfd36 1-93
+packages/everframe_kmp/ios/EverframeSwiftDriver.swift
+  s_f1f3a292ebd900::t_faf947201d554b 1-79
+packages/everframe_kmp/kotlin-js-store/package-lock.json
+  s_f1f3a292ebd900::t_080e0e0e88d64f 1-4249
+packages/everframe_kmp/settings.gradle.kts
+  s_f1f3a292ebd900::t_6a84d560ef87f4 1-21
+packages/everframe_kmp/src/androidMain/kotlin/dev/everframe/kmp/AndroidEverframeDriver.kt
+  s_f1f3a292ebd900::t_e3b6f8845d0e97 1-180
+packages/everframe_kmp/src/androidMain/kotlin/dev/everframe/kmp/AndroidImageReplayBuffer.kt
+  s_f1f3a292ebd900::t_7901655eed3585 1-87
+packages/everframe_kmp/src/commonMain/kotlin/dev/everframe/kmp/EverframeKmp.kt
+  s_f1f3a292ebd900::t_32529469d7e204 1-98
+packages/everframe_kmp/src/commonTest/kotlin/dev/everframe/kmp/EverframeKmpTest.kt
+  s_f1f3a292ebd900::t_c1197fa18193d9 1-89
+packages/everframe_kmp/src/jsMain/kotlin/dev/everframe/kmp/EverframeBrowserDriver.kt
+  s_f1f3a292ebd900::t_724dda74189f06 1-92
+packages/everframe_kmp/src/jsTest/kotlin/dev/everframe/kmp/EverframeBrowserDriverTest.kt
+  s_f1f3a292ebd900::t_fd4b182c01e52b 1-60
+packages/protocol/__tests__/framework-identities.spec.ts
+  s_f1f3a292ebd900::t_b4d52794e29fad 1-49
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_f1f3a292ebd900::t_784c42bc4745b2 41-42
+packages/protocol/src/envelope.ts
+  s_f1f3a292ebd900::t_a6f970c885f7e4 43-44
+packages/sdk-android/README.md
+  s_f1f3a292ebd900::t_77ab1d6d322e61 27
+packages/sdk-android/android/README.md
+  s_f1f3a292ebd900::t_edf3f12a58ac59 4,10-11,22-23,25-27,33,45,50-51,55,382,458-464,499,504,511-516
+packages/sdk-android/android/everframe-core/build.gradle.kts
+  s_f1f3a292ebd900::t_490b9b5e9f1b26 74-75,304-308
+packages/sdk-android/android/everframe-core/proguard-rules.pro
+  s_f1f3a292ebd900::t_c97056c598410a 26-28
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f1f3a292ebd900::t_de0825fecdaffc 1517-1523,1526,2201
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/DeviceMetadata.kt
+  s_f1f3a292ebd900::t_0d45786d066dc9 33-39
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_f1f3a292ebd900::t_505be1b97590ca 83,320,415,462
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/RelayWSClient.kt
+  s_f1f3a292ebd900::t_af5137c53f9173 324
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReplayConfigProvider.kt
+  s_f1f3a292ebd900::t_f54d724ab44d2f 252,291,326,398,729,822
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_f1f3a292ebd900::t_bb1ce84e763f6f 133-138,166,251-259,268-277,279,294,343,393
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/identity/IdentityTokenHolder.kt
+  s_f1f3a292ebd900::t_8806b581c1972f 50
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/MultipartUploader.kt
+  s_f1f3a292ebd900::t_120a48c2924d28 113,161
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportAuthorizationFactory.kt
+  s_f1f3a292ebd900::t_c4969af264e9bc 7,25-31,37,44-45
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_f1f3a292ebd900::t_3f629d504ef837 121,140,224,319-322,548
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EnvelopeUserTest.kt
+  s_f1f3a292ebd900::t_e0a821df89024a 716
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/PublicDrainCaptureBoundaryTest.kt
+  s_f1f3a292ebd900::t_f20f04fa7bcd14 89
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/DeviceMetadataTest.kt
+  s_f1f3a292ebd900::t_d019928ef917e4 78-84
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionAttributionFlowTest.kt
+  s_f1f3a292ebd900::t_f6922ad150322a 10,141,156,172,216,258,289
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionSubmissionComposerTest.kt
+  s_f1f3a292ebd900::t_3d82ba774c93a5 548,675,815
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/IdentityConfigGateTest.kt
+  s_f1f3a292ebd900::t_436735c40e96c8 6,111
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/NativeVideoCapabilityTest.kt
+  s_f1f3a292ebd900::t_e6cafa4018bac7 36
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReplayConfigProviderTest.kt
+  s_f1f3a292ebd900::t_d53e72b9c081df 100,469,962,1146
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/HandledThrowableCaptureTest.kt
+  s_f1f3a292ebd900::t_af8d233307b43d 96-101
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/outbox/OutboxKeyBindingTest.kt
+  s_f1f3a292ebd900::t_7bd5429239f3a7 167
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/CompanionAttributionHeaderTest.kt
+  s_f1f3a292ebd900::t_e2d19f2acaef3d 6,79,96
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/IdentityHeaderRedirectTest.kt
+  s_f1f3a292ebd900::t_30737ad140403f 5,11
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/CrashDeliveryTest.kt
+  s_f1f3a292ebd900::t_be99d759fdaef6 165,227,264,341
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/transport/ReportSubmitterTest.kt
+  s_f1f3a292ebd900::t_a4b4b395dcddaa 259,287,622,649,654,664,695,726,776,812,878,945,978,1060,1124
+packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts
+  s_f1f3a292ebd900::t_b669d551ec6bb6 73-74,81
+packages/sdk-android/android/everframe-media3/build.gradle.kts
+  s_f1f3a292ebd900::t_11c3389b719db2 66-70
+packages/sdk-android/android/everframe-media3/proguard-rules.pro
+  s_f1f3a292ebd900::t_4949828cfd2599 7
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_f1f3a292ebd900::t_449de1c999aeb9 476,478
+packages/sdk-android/android/everframe-reporter-ui/build.gradle.kts
+  s_f1f3a292ebd900::t_13d9b48917fc56 23,100-104
+packages/sdk-android/android/everframe-reporter-ui/consumer-rules.pro
+  s_f1f3a292ebd900::t_d62cc93dec805c 1-5
+packages/sdk-android/android/everframe-reporter-ui/proguard-rules.pro
+  s_f1f3a292ebd900::t_e1f10a79e505cd 13-14,25-26
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/EFReporterFromImage.kt
+  s_f1f3a292ebd900::t_4b949cfc93aaa9 1-51
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/HostImageVTreeAttachment.kt
+  s_f1f3a292ebd900::t_4d9a5cdd82fb4d 1-106
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_f1f3a292ebd900::t_753271b063c4ec 83,107-109,139,191-192,217,274,365-366,448-453,456-457,509,512,563,630
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterRoot.kt
+  s_f1f3a292ebd900::t_12284e4c810b8a 203,624,703
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ScreenshotStrip.kt
+  s_f1f3a292ebd900::t_5453743ef4c38d 90,110
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/HostImageVTreeAttachmentTest.kt
+  s_f1f3a292ebd900::t_39c147b07ad4d4 1-60
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogSubmitBoundaryTest.kt
+  s_f1f3a292ebd900::t_e4376dacab8618 135,444,552
+packages/sdk-android/android/gradle.properties
+  s_f1f3a292ebd900::t_24bd1062d2f0c5 20-22
+packages/sdk-core/__tests__/replay/lifecycle.spec.ts
+  s_f1f3a292ebd900::t_7ae0e21cd76111 173-185
+packages/sdk-core/src/types/platform.ts
+  s_f1f3a292ebd900::t_a24e3a29e139d8 191-192,195
+packages/sdk-ios/Everframe.podspec
+  s_f1f3a292ebd900::t_a9421337f5a1ea 5
+packages/sdk-ios/Package.binary.swift
+  s_f1f3a292ebd900::t_f54b7d3ecb045e 48,70,75,80
+packages/sdk-ios/README.md
+  s_f1f3a292ebd900::t_9c8b48f8555d50 48
+packages/sdk-ios/Sources/Everframe/Capture/ScreenshotCapture.swift
+  s_f1f3a292ebd900::t_427b31b1ec5cee 38-46
+packages/sdk-ios/Sources/Everframe/Config/ConfigValidator.swift
+  s_f1f3a292ebd900::t_168df27796b66f 18-19,21-22
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_f1f3a292ebd900::t_5aaaf18bed0d7f 158,212
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1f3a292ebd900::t_001f00d2875f9e 240-244,246,248,1793-1798
+packages/sdk-ios/Sources/Everframe/Generated/SDKVersion.swift
+  s_f1f3a292ebd900::t_80681ca0b0c2df 17
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_f1f3a292ebd900::t_6e4335956d4fb3 118-120,184-185,204-205,481-492,500-503,541,698-700,709-712,749-833
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_f1f3a292ebd900::t_d882c624cafe0f 257,264,273-291,356-370,382-389,400-423
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_f1f3a292ebd900::t_f31331df7e47a3 1845,1847
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_f1f3a292ebd900::t_c5cfa6a5021654 61-84,88-93,143,196-198
+packages/sdk-ios/Sources/EverframeReporterUI/ReporterViewController.swift
+  s_f1f3a292ebd900::t_d66a7386c84c7b 71-73,145-147,154-156,767,820,1106-1107
+packages/sdk-ios/Tests/EverframeTests/ConfigValidatorTests.swift
+  s_f1f3a292ebd900::t_454e1943e6f984 13,16-21
+packages/sdk-ios/Tests/EverframeTests/FlutterReplayAttachmentTests.swift
+  s_f1f3a292ebd900::t_02de405719baf8 1-70
+packages/sdk-ios/Tests/EverframeTests/HandledErrorCaptureTests.swift
+  s_f1f3a292ebd900::t_14d5855c5bc9bc 82-92
+packages/sdk-ios/Tests/EverframeTests/Helpers/ImageCaptureHarness.swift
+  s_f1f3a292ebd900::t_147308586dd409 106,127,129
+packages/sdk-ios/Tests/EverframeTests/OutboxKeyBindingTests.swift
+  s_f1f3a292ebd900::t_87b5d627e4f2a6 38-74
+packages/sdk-react-native/README.md
+  s_f1f3a292ebd900::t_03596534af61c5 29-48
+packages/sdk-react-native/__tests__/web-entry.spec.ts
+  s_f1f3a292ebd900::t_a55a7d1ef53843 1-39
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeCompanionOwnershipTest.kt
+  s_f1f3a292ebd900::t_f7452965ea7665 172
+packages/sdk-react-native/package.json
+  s_f1f3a292ebd900::t_8ed8d3db1bd1b3 45,50-53,57-60,106
+packages/sdk-react-native/src/index.ts
+  s_f1f3a292ebd900::t_84a2e381875876 25
+packages/sdk-react-native/src/index.web.ts
+  s_f1f3a292ebd900::t_896b3de2928f7b 1-4
+packages/sdk-react-native/tsup.config.ts
+  s_f1f3a292ebd900::t_361b5bb723ec0a 15,59
+packages/sdk-react/__tests__/sensitive/registry.spec.tsx
+  s_f1f3a292ebd900::t_25656187dd053d 5,8,126-150
+packages/sdk-react/src/index.ts
+  s_f1f3a292ebd900::t_21cff163e01a9f 17
+packages/sdk-react/src/sensitive/Sensitive.tsx
+  s_f1f3a292ebd900::t_5c733c9f723706 4,6,44-56
+packages/sdk-web/README.md
+  s_f1f3a292ebd900::t_22faa57d91e592 289-311
+packages/sdk-web/__tests__/capture/canvas-visual.spec.ts
+  s_f1f3a292ebd900::t_b5139a0602876e 1-33
+packages/sdk-web/__tests__/capture/host-visual.spec.ts
+  s_f1f3a292ebd900::t_d10f76289a23eb 1-69
+packages/sdk-web/flutter-probe/evidence-classifier.probe.ts
+  s_f1f3a292ebd900::t_9f18b9c985b1f8 1-49
+packages/sdk-web/flutter-probe/evidence-classifier.ts
+  s_f1f3a292ebd900::t_76fd2ec0fa6e41 1-40
+packages/sdk-web/flutter-probe/flutter-dart-api.probe.ts
+  s_f1f3a292ebd900::t_8c5998152b8d31 1-10
+packages/sdk-web/flutter-probe/flutter-report.probe.ts
+  s_f1f3a292ebd900::t_e4b045aa961f6a 1-150
+packages/sdk-web/flutter-probe/kmp-canvas.probe.ts
+  s_f1f3a292ebd900::t_49fa51f57a1d5b 1-57
+packages/sdk-web/flutter-probe/loopback-guard.probe.ts
+  s_f1f3a292ebd900::t_b02633afb35869 1-27
+packages/sdk-web/flutter-probe/renderer-frame.probe.ts
+  s_f1f3a292ebd900::t_1779c1e8816984 1-100
+packages/sdk-web/playwright.flutter-probe.config.ts
+  s_f1f3a292ebd900::t_6a6f5b7887bf30 1-27
+packages/sdk-web/src/adapter.ts
+  s_f1f3a292ebd900::t_5b62a21aad8d5b 79,1004-1013,1016,1023,1756-1759,1784-1785,2139,2219
+packages/sdk-web/src/capture/canvas-visual.ts
+  s_f1f3a292ebd900::t_f136801bb6de9e 1-134
+packages/sdk-web/src/capture/host-visual.ts
+  s_f1f3a292ebd900::t_921d3d8eae5b00 1-37
+packages/sdk-web/src/index.ts
+  s_f1f3a292ebd900::t_0aa41a9ed233da 94-96
+packages/sdk-web/src/init.ts
+  s_f1f3a292ebd900::t_6cdbf549809302 169-176,219-220,270,351,648-649
+packages/sdk-web/src/internal/types.ts
+  s_f1f3a292ebd900::t_d3cc43e483f51c 5,8-13
+pnpm-lock.yaml
+  s_f1f3a292ebd900::t_19cedb51b4bf8d 465-467
+public-boundary.json
+  s_f1f3a292ebd900::t_3560bd866c69f6 58-62,64,73,95-128,175,225-226
+scripts/build-mobile-maven-bundle.mjs
+  s_f1f3a292ebd900::t_656b859a8a4d74 1-110
+scripts/release-readiness.test.mjs
+  s_f1f3a292ebd900::t_0db2eb8f6d52a9 11,16,18,21-34
+scripts/verify-android-publication.sh
+  s_f1f3a292ebd900::t_c78e4607d73ba8 35,52-64,68-69,82-86
+scripts/verify-android-publication.test.mjs
+  s_f1f3a292ebd900::t_dac77f8988c4c4 13,43,45-52,59-61,63-66,88-115,142-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0fd35549b7882677a26a24fb1ed7536d3ca04bc5",
+  "prompts": {},
+  "sessions": {
+    "s_f1f3a292ebd900": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bd359c2-ad4f-47f7-a42d-6f233659e7ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
