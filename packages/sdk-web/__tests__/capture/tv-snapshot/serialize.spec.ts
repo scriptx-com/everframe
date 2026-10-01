@@ -664,6 +664,34 @@ describe('zero-area boxes establish no visibility (codex r9 F1)', () => {
   });
 });
 
+describe('display:contents sensitive wrappers (React <Sensitive>) keep their structure (codex r9 F2)', () => {
+  it('blocks the boxed child as a same-size black box and masks the wrapper text, with the real registry', async () => {
+    const { sensitiveRegistry } = await import('../../../src/sensitive/registry.js');
+    document.body.innerHTML =
+      '<section id="s"></section><div id="row" style="display:flex">' +
+      '<span id="wrap" data-everframe-sensitive style="display:contents">WRAPPER_BARE_PRIVATE<div id="child" style="width:200px;height:100px">CHILD_PRIVATE</div></span>' +
+      '<p id="after">after</p></div>';
+    const box: PruneRect = { left: 0, top: 0, right: 200, bottom: 100, width: 200, height: 100 };
+    const taken = take({
+      sensitiveElements: () => sensitiveRegistry.snapshotElements(),
+      isSensitive: (el) => sensitiveRegistry.isSensitive(el),
+      measure: {
+        rectOf: (el) => (el.id === 'child' ? box : onScreen()),
+        sizeOf: (el) => (el.id === 'child' ? { width: 200, height: 100 } : { width: 100, height: 20 }),
+      },
+    });
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['WRAPPER_BARE_PRIVATE', 'CHILD_PRIVATE'])).toEqual([]);
+    expect(taken.masked).toBe(true);
+    const root = rootOf(taken);
+    const wrap = findEl(root, (e) => e.tagName === 'span' && e.childNodes.length === 2)!;
+    expect(wrap).toBeDefined(); // the wrapper survives with its children, not as a 0×0 block
+    const child = wrap.childNodes.find((c) => c.type === 2) as SnElement;
+    expect(decls(child.attributes.style)).toMatchObject({ width: '200px!important', height: '100px!important', background: '#000!important' });
+    expect(findEl(root, (e) => e.attributes.id === 'after')).toBeDefined();
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

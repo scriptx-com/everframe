@@ -301,7 +301,7 @@ test('unseen inline, SVG and display:contents text inside visible blocks is drop
   const shot = await shoot(page);
   expect(shot).toMatchObject({ hasImage: true, hasSnapshot: true });
   const { text, doc } = decode(bodies[0]!);
-  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET', 'SVGCLIPPED', 'SVGHIDDEN', 'SVGFADED', 'SVGDESC', 'SVGDEFSTEXT', 'SVGHIDDENIMG', 'CONTENTSOFFSCREEN', 'SLOTTEDHIDDEN', 'VISUALLYHIDDENSECRET', 'SRONLYSECRET', 'CLIPPATHSECRET', 'CLIPPEDAVATAR'])).toEqual([]);
+  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET', 'SVGCLIPPED', 'SVGHIDDEN', 'SVGFADED', 'SVGDESC', 'SVGDEFSTEXT', 'SVGHIDDENIMG', 'CONTENTSOFFSCREEN', 'SLOTTEDHIDDEN', 'VISUALLYHIDDENSECRET', 'SRONLYSECRET', 'CLIPPATHSECRET', 'CLIPPEDAVATAR', 'CONTENTSWRAPSECRET', 'SENSCHILDSECRET'])).toEqual([]);
   expect(text).toContain('AFTERMARK');
   expect(text).toContain('SVGSHOWN');
   expect(text).toContain('RAILSEEN');
@@ -312,6 +312,10 @@ test('unseen inline, SVG and display:contents text inside visible blocks is drop
 
   const rebuilt = await rebuild(page, doc, ids);
   expectSameBoxes(live, rebuilt.boxes, 1);
+  // React <Sensitive>'s display:contents wrapper: its 200×100 child is a
+  // same-size black box in place (codex r9 F2) — #below above did not move.
+  const sens = (await liveBoxes(page, ['sens-child']))['sens-child']!;
+  expect(await pixel(rebuilt.page, sens.x + 100, sens.y + 50)).toEqual([0, 0, 0, 255]);
 });
 
 test('a pruned page keeps its var() theme: dark surface and focus ring render the same, a text variable does not ship', async ({ page }) => {

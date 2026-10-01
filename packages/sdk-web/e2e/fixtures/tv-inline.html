@@ -40,6 +40,8 @@
   <p><span class="visually-hidden">VISUALLYHIDDENSECRET</span><span class="sr-only">SRONLYSECRET</span></p>
   <div class="inset-hidden">CLIPPATHSECRET <img src="https://cdn.example.test/CLIPPEDAVATAR.png" width="10" height="10"></div>
   <div style="height:0;margin:12px 0;clear:both"></div><p style="margin:0">line one<br><br>after two breaks</p>
+  <!-- React <Sensitive>'s default shape: a display:contents wrapper around a boxed child. -->
+  <span data-everframe-sensitive style="display:contents">CONTENTSWRAPSECRET<div id="sens-child" style="width:200px;height:100px;margin:0 40px">SENSCHILDSECRET</div></span>
   <p id="below">Below marker</p>
   <div style="height:1200px"></div>
   <script>

@@ -67,7 +67,13 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
   const mirror = createMirror();
   let inputMasked = false;
   let textMasked = false;
-  const restore = applyReplayMaskClasses(deps.sensitiveElements());
+  // A display:contents sensitive wrapper (React's <Sensitive> default) has no
+  // box: rrweb-blocked it would be replaced by an empty 0×0 block, dropping
+  // its boxed children's geometry (codex r9 F2). It is left out of the
+  // serialize-time block; the registry also returns its boxed descendants,
+  // which ARE blocked, and the pruner masks the wrapper's bare text and
+  // black-boxes any boxed descendant the registry missed (fail closed).
+  const restore = applyReplayMaskClasses(deps.sensitiveElements().filter((el) => !isContentsBox(win, el)));
   let root: SnDocument;
   try {
     const node = snapshot(doc, {
@@ -170,6 +176,15 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
       fontStatus: context.fonts.status,
     },
   };
+}
+
+/** Whether `el` computes to display:contents. A failed read counts as not (it is then blocked: fail closed). */
+function isContentsBox(win: Window, el: Element): boolean {
+  try {
+    return win.getComputedStyle(el).display === 'contents';
+  } catch {
+    return false;
+  }
 }
 
 /** scrollX/scrollY, or the legacy pageXOffset/pageYOffset on old engines; 0 when neither is a number. */
