@@ -79,6 +79,19 @@ export function sanitizeHttpUrl(raw: string, base: string): string | null {
   return `${url.protocol}//${url.host}${url.pathname}`;
 }
 
+/**
+ * A longer srcset is refused outright (S18): it is page-controlled and every
+ * candidate goes through the URL parser and path redaction on a TV CPU.
+ */
+export const MAX_SRCSET_LENGTH = 16_384;
+
+/** Where `value`'s trailing commas start — a reverse index scan, never `/,+$/` (S18). */
+function trailingCommaStart(value: string): number {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 0x2c) end--;
+  return end;
+}
+
 const isSrcsetSpace = (c: string | undefined): boolean =>
   c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f';
 
@@ -94,7 +107,7 @@ function parseSrcset(value: string): Array<{ url: string; descriptor: string }> 
     let url = value.slice(start, i);
     let descriptor = '';
     if (url.endsWith(',')) {
-      url = url.replace(/,+$/, '');
+      url = url.slice(0, trailingCommaStart(url));
     } else {
       const from = i;
       let depth = 0;
@@ -125,6 +138,7 @@ export function sanitizeSrcset(
   base: string,
   mapUrl: (url: string) => string = (url) => url,
 ): string | null {
+  if (value.length > MAX_SRCSET_LENGTH) return null;
   const out: string[] = [];
   for (const { url, descriptor } of parseSrcset(value)) {
     if (descriptor !== '' && !SRCSET_DESCRIPTOR_RE.test(descriptor)) continue;
@@ -132,7 +146,8 @@ export function sanitizeSrcset(
     if (sanitized === null) continue;
     const clean = mapUrl(sanitized);
     // A URL ending in ',' would re-parse as "URL with no descriptor".
-    const encoded = clean.replace(/,+$/, (commas) => '%2C'.repeat(commas.length));
+    const end = trailingCommaStart(clean);
+    const encoded = clean.slice(0, end) + '%2C'.repeat(clean.length - end);
     out.push(descriptor === '' ? encoded : `${encoded} ${descriptor}`);
   }
   return out.length > 0 ? out.join(', ') : null;

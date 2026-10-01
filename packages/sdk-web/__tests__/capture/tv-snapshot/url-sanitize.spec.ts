@@ -5,6 +5,7 @@ import {
   documentFragmentId,
   fragmentId,
   isDataUrl,
+  MAX_SRCSET_LENGTH,
   sanitizeHttpUrl,
   sanitizeMetaHref,
   sanitizeSrcset,
@@ -129,5 +130,27 @@ describe('URL normalization stays linear (S18)', () => {
     expect(fragmentId(nearMiss)).toBeNull();
     expect(documentFragmentId(`${nearMiss}#x`, BASE)).toBeNull();
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('srcset scrubbing stays linear (S18)', () => {
+  it('handles 60k interior commas in a candidate URL in well under a second', () => {
+    const nearMiss = `https://cdn.example/${','.repeat(60_000)}x.png 1x`;
+    const started = performance.now();
+    sanitizeSrcset(nearMiss, BASE);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+  it('stays linear just under the length cap too', () => {
+    const nearMiss = `https://cdn.example/${','.repeat(MAX_SRCSET_LENGTH - 40)}x.png 1x`;
+    const started = performance.now();
+    expect(sanitizeSrcset(nearMiss, BASE)).toMatch(/x\.png 1x$/);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+  it('still percent-encodes trailing commas of a URL', () => {
+    expect(sanitizeSrcset('https://cdn.example.test/a,,?q=S 1x', BASE)).toBe('https://cdn.example.test/a%2C%2C 1x');
+    expect(sanitizeSrcset('https://cdn.example.test/a,,', BASE)).toBe('https://cdn.example.test/a');
+  });
+  it('refuses a srcset longer than the cap', () => {
+    expect(sanitizeSrcset(`https://cdn.example.test/a.png${' '.repeat(MAX_SRCSET_LENGTH)} 1x`, BASE)).toBeNull();
   });
 });
