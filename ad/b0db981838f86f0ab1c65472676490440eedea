@@ -1,0 +1,25 @@
+examples/android-compose/scripts/gen-local-properties.sh
+  s_0acc9748243d11::t_18c60e773f453a 34-35,37
+examples/react-native/scripts/sync-env.mjs
+  s_0acc9748243d11::t_e250beedad5f2b 60,63,66
+examples/react-web/app/(default)/layout.tsx
+  s_0acc9748243d11::t_5938f4eb4e45c7 17
+examples/react-web/scripts/gen-env-local.sh
+  s_0acc9748243d11::t_a32aab01c671d0 30-31,33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "adb0db981838f86f0ab1c65472676490440eedea",
+  "prompts": {},
+  "sessions": {
+    "s_0acc9748243d11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08f7d6e8-3c9f-4f9c-9431-bd14adead453",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
