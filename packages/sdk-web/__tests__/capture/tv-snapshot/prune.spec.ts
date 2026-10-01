@@ -329,6 +329,26 @@ describe('pruneSnapshot', () => {
     expect(link.attributes).toEqual({ class: 'k', style: imp('padding:0;border:0') });
   });
 
+  it('reads no layout for SVG leaves, definitions, or content of an unseen SVG root', () => {
+    const { bind, deps } = harness();
+    const reads: Element[] = [];
+    const styleOf = deps.styleOf;
+    deps.styleOf = (e) => {
+      reads.push(e);
+      return styleOf(e);
+    };
+    const leaf = bind(el('path', { d: 'M0 0' }, [], { isSVG: true }));
+    const defText = bind(el('text', {}, [text('DEF')], { isSVG: true }));
+    const defs = bind(el('defs', {}, [bind(el('symbol', { id: 'p' }, [defText], { isSVG: true }))], { isSVG: true }));
+    const visible = bind(el('svg', {}, [leaf, defs], { isSVG: true }));
+    const offText = bind(el('text', {}, [text('OFF')], { isSVG: true }));
+    // Inline, as SVG roots are: a block placeholder's margin-collapse probe would read its first child.
+    const unseen = bind(el('svg', {}, [offText], { isSVG: true }), { rect: ABOVE, style: { display: 'inline' } });
+    pruneSnapshot(doc(el('html', {}, [el('body', {}, [visible, unseen])])), deps);
+    const live = (sn: SnElement) => deps.nodeFor(sn.id);
+    for (const [name, sn] of Object.entries({ leaf, defs, defText, offText })) expect(reads.includes(live(sn) as Element), name).toBe(false);
+  });
+
   it('records every pruned or masked node id, descendants included, as hidden', () => {
     const { bind, deps } = harness();
     const inner = el('button', { id: 'b' });

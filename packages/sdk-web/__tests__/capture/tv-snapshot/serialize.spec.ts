@@ -318,6 +318,39 @@ describe('off-screen inline content (viewport pruning)', () => {
   });
 });
 
+describe('hidden or clipped text inside a visible SVG', () => {
+  const svgPage = (inner: string) => {
+    document.body.innerHTML = `<section id="s"></section><svg id="icon" width="100" height="20">${inner}</svg>`;
+  };
+  const far: PruneRect = { left: 2000, top: 0, right: 2100, bottom: 20, width: 100, height: 20 };
+
+  it('drops text under display:none, keeping definitions it holds', () => {
+    svgPage(
+      '<g style="display:none"><text>HIDDEN_SVG_PRIVATE_NAME</text><linearGradient id="gk"><stop offset="0"></stop></linearGradient></g>' +
+      '<text style="display:none">HIDDEN_TEXT_ITSELF</text><text id="shown">SHOWN_SVG_TEXT</text><rect fill="url(#gk)" width="5" height="5"></rect>',
+    );
+    const taken = take();
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['HIDDEN_SVG_PRIVATE_NAME', 'HIDDEN_TEXT_ITSELF'])).toEqual([]);
+    expect(json).toContain('SHOWN_SVG_TEXT');
+    expect(findEl(rootOf(taken), (e) => e.attributes.id === 'gk')).toBeDefined();
+  });
+
+  it('masks text under visibility:hidden or opacity:0', () => {
+    svgPage('<g style="opacity:0"><text>FADED_SVG_TEXT</text></g><text style="visibility:hidden">INVISIBLE_SVG_TEXT</text>');
+    expect(findLeaks(JSON.stringify(take().doc), ['FADED_SVG_TEXT', 'INVISIBLE_SVG_TEXT'])).toEqual([]);
+  });
+
+  it('drops text outside the SVG clip', () => {
+    svgPage('<text id="clipped">CLIPPED_SVG_TEXT</text><text id="inside">INSIDE_SVG_TEXT</text>');
+    const json = JSON.stringify(
+      take({ measure: { rectOf: (el) => (el.id === 'clipped' ? far : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) } }).doc,
+    );
+    expect(findLeaks(json, ['CLIPPED_SVG_TEXT'])).toEqual([]);
+    expect(json).toContain('INSIDE_SVG_TEXT');
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

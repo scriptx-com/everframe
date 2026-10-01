@@ -24,7 +24,8 @@
 // margin-collapse probe per block placeholder, and one line-fragment read per
 // unseen inline element and per bare text node of an element whose own box
 // is unseen), and no layout
-// reads at all inside head or SVG content. LAZY (tv-snapshot chunk).
+// reads at all inside head or SVG definitions and leaves (one style read per
+// other SVG content element, plus one rect per SVG <text>). LAZY (tv-snapshot chunk).
 //
 // Unseen inline content keeps its layout but not its content: an inline
 // element that no line box of is seen keeps one empty inline-block per
@@ -120,6 +121,13 @@ interface Frame {
   blankText: boolean;
   /** A closed (dropdown) <select>: its children become `selectContent`. */
   closedSelect: boolean;
+  /**
+   * SVG content not judged: inside a definition (defs, symbol, clipPath…,
+   * rendered only by reference) or inside an unseen SVG root (pruned whole).
+   */
+  svgSkip: boolean;
+  /** SVG content that is not rendered (display:none, or a <text> outside the clip): keeps only its definitions. */
+  svgHidden: boolean;
   /** This element or an ancestor has opacity:0 — every descendant is invisible. */
   faded: boolean;
   /** The element's own box is seen (see header). Judged/svg frames only. */
@@ -521,6 +529,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     hideText: false,
     blankText: false,
     closedSelect: false,
+    svgSkip: parent?.svgSkip ?? false,
+    svgHidden: false,
     faded: parent?.faded ?? false,
     seen: false,
     clip: parent?.clip ?? VIEWPORT,
@@ -636,6 +646,31 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   };
 
   /**
+   * SVG content. Definitions (and everything in them) are rendered only by
+   * reference: never judged. A leaf (a path, a shape) carries no text and is
+   * not judged either, so icon-heavy pages pay no extra reads. Any other
+   * element — a group, a <text>, an <a> — gets the same visibility rules as
+   * HTML from one computed-style read: display:none hides the subtree (its
+   * definitions survive), visibility/opacity mask its text; a <text> whose
+   * box misses the clip (the SVG viewport, the screen) is hidden too.
+   */
+  const enterSvgContent = (node: SnElement, tag: string, live: Element | null, parent: Frame): Frame => {
+    const f = frame(node, 'svgContent', live, null, parent);
+    f.hideText = parent.hideText;
+    if (SVG_DEFS.has(tag) || (parent.mode === 'svg' && !parent.seen)) f.svgSkip = true;
+    if (f.svgSkip || live === null || node.childNodes.length === 0) return f;
+    const s = styleOnce(f);
+    f.faded = parent.faded || isZeroOpacity(s);
+    f.hideText = f.faded || isInvisible(s);
+    if (s !== null && s.display === 'none') {
+      f.svgHidden = true;
+    } else if (tag === 'text') {
+      f.svgHidden = !overlaps(deps.rectOf(live), parent.clip);
+    }
+    return f;
+  };
+
+  /**
    * Pre-order step for one element child: either an immediate verdict (no
    * children to walk, or handled whole) or a frame to walk its children.
    */
@@ -663,7 +698,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         !ALWAYS_VISIBLE.has(tag) && !NEVER_PRUNE.has(tag) && tag !== 'svg';
       if (sensitiveStyle === null || sensitiveStyle.display !== 'contents' || !judgedHere) return maskBlocked(node, live, parent);
     }
-    if (parent.mode === 'svg' || parent.mode === 'svgContent') return frame(node, 'svgContent', live, null, parent);
+    if (parent.mode === 'svg' || parent.mode === 'svgContent') return enterSvgContent(node, tag, live, parent);
     if (parent.closedSelect || parent.mode === 'selectContent') {
       const inSelect = frame(node, 'selectContent', live, null, parent);
       inSelect.hideText = parent.hideText;
@@ -838,8 +873,16 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         return f.anyVisible ? 'visible' : 'hidden';
       case 'always':
         return 'visible';
-      case 'head':
       case 'svgContent':
+        if (f.svgHidden) {
+          // Its definitions may still be referenced from visible content.
+          const node = f.node as SnElement;
+          collectIds(node, result.hiddenIds);
+          node.childNodes = svgDefinitions(node);
+          result.pruned++;
+        }
+        return 'hidden';
+      case 'head':
       case 'selectContent':
         return 'hidden';
       default:
