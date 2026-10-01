@@ -68,6 +68,7 @@ import {
 } from './debug/seam.js';
 import { INGEST_URL } from './constants.js';
 import { captureScreenshot, applyMaskRectsToBlob, type ScreenshotRenderer } from './capture/screenshot.js';
+import { captureHostScreenshot } from './capture/host-visual.js';
 import type { DegradedReason } from './internal/degraded-reasons.js';
 import { installConsolePatcher } from './capture/logs.js';
 import {
@@ -979,17 +980,26 @@ export function createWebPlatformAdapter(
       ],
     });
     const provider = configProvider;
-    const recorder = createReplayRecorder({
+    const hostReplay = _config.visualCapture?.replay;
+    // A renderer-owned screenshot must never be paired with rrweb's DOM replay:
+    // rrweb cannot prove Flutter canvas or HTML platform-view redaction.
+    const recorder = hostReplay ?? (_config.visualCapture ? {
+      start: () => undefined,
+      freeze: () => undefined,
+      discardAndResume: () => undefined,
+      takeFrozen: async () => null,
+      stop: () => undefined,
+    } : createReplayRecorder({
       sensitiveElements: () => sensitiveRegistry.snapshotElements(),
       ...(_config.redaction ? { redaction: _config.redaction } : {}),
-    });
+    }));
     const lifecycle = createReplayLifecycle({
       adapter: { replay: recorder },
       getConfig: (): ReplayConfig => provider.get(),
       locallyDisabled: _config.sessionReplay?.disabled === true,
     });
     replayLifecycle = lifecycle;
-    replayRecorder = recorder;
+    replayRecorder = _config.visualCapture ? undefined : recorder as ReplayRecorder;
 
     applyLiveConfig = (): void => {
       // Codex round-1 fix B, finding 2 (partial by ruling — no owner/
@@ -1729,6 +1739,9 @@ export function createWebPlatformAdapter(
       // report in the session. The out-params below set them afresh.
       lastDegradedReason = undefined;
       lastScreenshotRenderer = undefined;
+      if (_config.visualCapture) {
+        return captureHostScreenshot(() => _config.visualCapture!.captureScreenshot());
+      }
       return captureScreenshot({
         root: typeof document !== 'undefined' ? document.body : (undefined as unknown as HTMLElement),
         ...(_config.cspNonce !== undefined ? { cspNonce: _config.cspNonce } : {}),
@@ -1931,6 +1944,7 @@ export function createWebPlatformAdapter(
       // and only completing or cancelling it ever armed the window again.
       try {
         replayRecorder?.revive();
+        _config.visualCapture?.replay?.revive?.();
       } catch {
         /* swallow — DEFE-02 */
       }
@@ -2005,6 +2019,7 @@ export function createWebPlatformAdapter(
       // by any of those; the terminal latch cannot be.
       try {
         replayRecorder?.kill();
+        _config.visualCapture?.replay?.kill?.();
       } catch {
         /* swallow — DEFE-02 */
       }

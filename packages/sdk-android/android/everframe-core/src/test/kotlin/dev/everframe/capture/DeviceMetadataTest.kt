@@ -75,4 +75,11 @@ class DeviceMetadataTest {
         assertTrue(m["isTv"] is Boolean)
         assertTrue(m["isTablet"] is Boolean)
     }
+
+    @Test
+    fun `form factor prefers TV over tablet geometry`() {
+        assertEquals("tv", DeviceMetadata.formFactor(mapOf("isTv" to true, "isTablet" to true)))
+        assertEquals("tablet", DeviceMetadata.formFactor(mapOf("isTv" to false, "isTablet" to true)))
+        assertEquals("phone", DeviceMetadata.formFactor(mapOf("isTv" to false, "isTablet" to false)))
+    }
 }

@@ -2,9 +2,10 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, renderHook } from '@testing-library/react';
 import { sensitiveRegistry, SENSITIVE_ATTR } from '@everframe/web';
 import { Sensitive } from '../../src/sensitive/Sensitive.js';
+import { EverframeSensitive, useEverframeSensitiveRef } from '../../src/index.js';
 
 describe('sensitiveRegistry', () => {
   beforeEach(() => {
@@ -119,6 +120,31 @@ describe('sensitiveRegistry', () => {
     });
     sensitiveRegistry.addRef(el);
     expect(sensitiveRegistry.snapshot().length).toBe(0);
+  });
+});
+
+describe('shared sensitive API', () => {
+  beforeEach(() => sensitiveRegistry.__clearForTesting());
+  afterEach(() => sensitiveRegistry.__clearForTesting());
+
+  it('exports the same sensitive wrapper name used by React Native', () => {
+    expect(EverframeSensitive).toBe(Sensitive);
+  });
+
+  it('registers and removes an existing element through the shared ref hook', () => {
+    const element = document.createElement('div');
+    const ref = { current: element };
+    const rect = { x: 1, y: 2, width: 3, height: 4 };
+    const { rerender, unmount } = renderHook(({ bounds }) => useEverframeSensitiveRef(ref, bounds), {
+      initialProps: { bounds: rect as typeof rect | null },
+    });
+    expect(sensitiveRegistry.snapshotElements()).toContain(element);
+    rerender({ bounds: null });
+    expect(sensitiveRegistry.snapshotElements()).not.toContain(element);
+    rerender({ bounds: rect });
+    expect(sensitiveRegistry.snapshotElements()).toContain(element);
+    unmount();
+    expect(sensitiveRegistry.snapshotElements()).not.toContain(element);
   });
 });
 

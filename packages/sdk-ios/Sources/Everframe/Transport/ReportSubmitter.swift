@@ -254,14 +254,14 @@ public final class ReportSubmitter: Sendable {
         identityHolder: IdentityTokenHolder,
         currentReplayConfig: @Sendable () async -> ReplayConfig,
         epochAtInitiation: Int,
-        currentEpoch: @Sendable () -> Int
+        currentEpoch: @escaping @Sendable () -> Int
     ) async {
         let entries = (try? outbox.hydrate()) ?? []
         for e in entries {
             // Keep the durable copy until acceptance. A crash, cancellation or
             // failed re-enqueue during the request must not lose the report.
 
-            let attachments: [Attachment] = e.attachmentRefs.map {
+            var attachments: [Attachment] = e.attachmentRefs.map {
                 Attachment(
                     name: $0.name,
                     filename: $0.filename,
@@ -269,6 +269,25 @@ public final class ReportSubmitter: Sendable {
                     data: Data(base64Encoded: $0.dataBase64) ?? Data(),
                     sha256Hex: $0.sha256Hex
                 )
+            }
+            var envelopeBytes = e.envelopeBytes
+            if attachments.contains(where: { $0.name == "replay" }) {
+                // A queued report may outlive consent or its capture project.
+                // Preserve the report, but never retry replay without a live
+                // enablement decision for the same project and endpoint.
+                let replayEnabledNow = (await currentReplayConfig()).replayEnabled
+                let replayAllowed = e.sdkKey == config.appId
+                    && e.endpoint == IngestEndpoint.url.absoluteString
+                    && currentEpoch() == epochAtInitiation
+                    && replayEnabledNow
+                if !replayAllowed {
+                    guard let stripped = Self.removingReplay(from: e) else {
+                        continue // Keep the durable entry; do not upload inconsistent metadata.
+                    }
+                    do { try outbox.enqueue(stripped) } catch { continue }
+                    envelopeBytes = stripped.envelopeBytes
+                    attachments.removeAll { $0.name == "replay" }
+                }
             }
             // Final whole-branch review, Important 2 — the identity header
             // had no project binding, unlike everything around it. This
@@ -334,8 +353,21 @@ public final class ReportSubmitter: Sendable {
                 identityToken = nil
             }
             do {
-                let result = try await submit(
-                    envelopeBytes: e.envelopeBytes,
+                #if canImport(UIKit)
+                let sender = attachments.contains(where: { $0.name == "replay" })
+                    ? authorizing { [self] in
+                        (authorizeUpload?() ?? true)
+                            && e.sdkKey == Everframe.shared.currentConfig?.appId
+                            && e.endpoint == IngestEndpoint.url.absoluteString
+                            && currentEpoch() == epochAtInitiation
+                            && Everframe.shared.__hostReplayEnabledNow()
+                    }
+                    : self
+                #else
+                let sender = self
+                #endif
+                let result = try await sender.submit(
+                    envelopeBytes: envelopeBytes,
                     idempotencyKey: e.idempotencyKey,
                     attachments: attachments,
                     reportId: e.reportId,
@@ -347,6 +379,14 @@ public final class ReportSubmitter: Sendable {
                 if case .submitted = result {
                     try outbox.drain(where: { $0.reportId == e.reportId })
                 }
+            } catch UploadAuthorizationError.revoked {
+                // Consent or project changed after the async config read.
+                // Make revocation durable so a later re-enable cannot revive
+                // these queued replay bytes.
+                if attachments.contains(where: { $0.name == "replay" }),
+                   let stripped = Self.removingReplay(from: e) {
+                    try? outbox.enqueue(stripped)
+                }
             } catch EverframeTransportError.serverError {
                 // submit throws serverError only for terminal HTTP statuses.
                 try? outbox.drain(where: { $0.reportId == e.reportId })
@@ -355,6 +395,30 @@ public final class ReportSubmitter: Sendable {
                 // request is safe because its idempotency key stays unchanged.
             }
         }
+    }
+
+    private static func removingReplay(from entry: OutboxEntry) -> OutboxEntry? {
+        guard let envelope = removingReplayReference(from: entry.envelopeBytes) else { return nil }
+        return OutboxEntry(
+            reportId: entry.reportId,
+            createdAt: entry.createdAt,
+            envelopeBytes: envelope,
+            idempotencyKey: entry.idempotencyKey,
+            attachmentRefs: entry.attachmentRefs.filter { $0.name != "replay" },
+            sdkKey: entry.sdkKey,
+            endpoint: entry.endpoint,
+            identitySubject: entry.identitySubject
+        )
+    }
+
+    internal static func removingReplayReference(from bytes: Data) -> Data? {
+        guard var envelope = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
+              let refs = envelope["attachments"] as? [[String: Any]] else { return nil }
+        envelope["attachments"] = refs.filter { ($0["partName"] as? String) != "replay" }
+        var control = envelope["captureControl"] as? [String: Any] ?? [:]
+        control["degradedReason"] = "replay_revoked"
+        envelope["captureControl"] = control
+        return try? JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys])
     }
 
     // MARK: - Private

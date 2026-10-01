@@ -10,8 +10,14 @@ import XCTest
 @testable import EverframeKit
 
 final class ConfigValidatorTests: XCTestCase {
-    // 41 chars: "txx_live_" (9) + 32-char body — matches admin SdkKeysPanel emission.
+    // Legacy keys remain valid while dashboard-issued keys use evf_live_.
     private let goodKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+
+    func test_validate_succeeds_for_dashboard_issued_evf_live_key() throws {
+        let key = "evf_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+        XCTAssertEqual(key.count, 41)
+        XCTAssertNoThrow(try ConfigValidator.validate(EverframeConfig(appId: key)))
+    }
 
     func test_validate_succeeds_for_well_formed_txx_live_key() throws {
         XCTAssertEqual(goodKey.count, 41)

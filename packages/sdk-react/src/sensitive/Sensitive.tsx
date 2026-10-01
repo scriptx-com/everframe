@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import { useEffect, useRef, type ReactNode, type CSSProperties, type JSX } from 'react';
+import { useEffect, useRef, type ReactNode, type CSSProperties, type JSX, type RefObject } from 'react';
 import { sensitiveRegistry } from '@everframe/web';
+import type { Rect } from '@everframe/sdk-core';
 
 export interface SensitiveProps {
   children: ReactNode;
@@ -39,4 +40,17 @@ export function Sensitive({ children, className, style }: SensitiveProps): JSX.E
       {children}
     </div>
   );
+}
+
+/** Register an existing DOM element as sensitive while its host has a rect. */
+export function useEverframeSensitiveRef<T extends Element>(
+  ref: RefObject<T | null>,
+  rect: Rect | null,
+): void {
+  useEffect(() => {
+    const element = ref.current;
+    if (element === null || rect === null) return;
+    sensitiveRegistry.addRef(element);
+    return () => sensitiveRegistry.removeRef(element);
+  }, [ref, rect]);
 }

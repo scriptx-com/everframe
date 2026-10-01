@@ -657,4 +657,3 @@ async function encodeCanvas(canvas: HTMLCanvasElement, preferWebP: boolean): Pro
   }
   return encode('image/png');
 }
-

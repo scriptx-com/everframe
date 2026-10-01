@@ -24,7 +24,7 @@ platform limitations.
 | `everframe-core` | `dev.everframe:core` | Capture, envelope, transport, outbox, and SDK lifecycle |
 | `everframe-reporter-ui` | `dev.everframe:reporter-ui` | Compose reporter and annotation UI |
 | `everframe-media3` | `dev.everframe:media3` | Media3 and ExoPlayer session-vitals integration |
-| `everframe-gradle-plugin` | Everframe Gradle plugin | Build integration and optimized-build metadata |
+| `everframe-gradle-plugin` | `dev.everframe:gradle-plugin` | Build integration and optimized-build metadata |
 
 ## Development
 

@@ -110,7 +110,7 @@ class MultipartUploader(private val client: OkHttpClient) {
         /**
          * Companion attribution token (spec 2026-08-07) for a report filed
          * from the dashboard rather than by scanning the QR. When non-null it
-         * rides this POST as `X-TX-Companion-Attribution` so ingest can credit
+         * rides this POST as `X-Everframe-Companion-Attribution` so ingest can credit
          * the report to the dashboard user who requested it. Null — the
          * default, and every non-companion submit — sends no header at all.
          * SECURITY: never log this value.
@@ -158,7 +158,7 @@ class MultipartUploader(private val client: OkHttpClient) {
                     // SECURITY: never log companionAttribution — it is only ever
                     // written into this header.
                     if (companionAttribution != null) {
-                        header("X-TX-Companion-Attribution", companionAttribution)
+                        header("X-Everframe-Companion-Attribution", companionAttribution)
                     }
                     // SECURITY: never log identityToken — same posture as
                     // companionAttribution above.

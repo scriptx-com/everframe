@@ -237,9 +237,15 @@ public final class Everframe: @unchecked Sendable {
 
     /// Record a caught Swift Error or NSError with owned structured details.
     public func captureException(_ error: any Error, options: CaptureExceptionOptions?) {
+        captureException(error, options: options, sdkName: "everframe-ios")
+    }
+
+    /// Record a handled error on behalf of a supported framework host.
+    public func captureException(_ error: any Error, options: CaptureExceptionOptions?, sdkName: String) {
         guard Self.captureGate else { return }
+        guard ["everframe-ios", "everframe-flutter", "everframe-kmp"].contains(sdkName) else { return }
         dispatch("captureException") {
-            _ = CrashReporter.captureHandledError(error, options: options)
+            _ = CrashReporter.captureHandledError(error, options: options, sdkName: sdkName)
         }
     }
 
@@ -1782,6 +1788,12 @@ public final class Everframe: @unchecked Sendable {
     internal func __replayCompleteVideo() async -> NativeVideoClaim? {
         let session = _replaySession
         return await session?.completeVideoForSubmit()
+    }
+
+    /// Synchronous live gate for host-supplied Flutter replay upload checks.
+    @MainActor
+    internal func __hostReplayEnabledNow() -> Bool {
+        (__replayConfigOverrideForTesting ?? _replaySession?.currentConfig ?? .off).replayEnabled
     }
 
     /// Called after the reporter window is removed, including successful Send.

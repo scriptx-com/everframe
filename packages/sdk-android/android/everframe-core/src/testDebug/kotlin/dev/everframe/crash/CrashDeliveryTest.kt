@@ -162,7 +162,7 @@ class CrashDeliveryTest {
      * `captured.user.identitySubject` into the entry; this proves it actually
      * reaches the wire end-to-end: crash while a matching identity token is
      * installed, relaunch, drain with the SAME token live, and see the real
-     * MockWebServer request carry `X-TX-Identity-Token`.
+     * MockWebServer request carry `X-Everframe-Identity-Token`.
      */
     @Test
     fun `a crash captured while alice is signed in is attributed to alice on relaunch drain`() = runBlocking {
@@ -224,7 +224,7 @@ class CrashDeliveryTest {
             assertEquals(
                 "the crash report must carry alice's identity token on the wire",
                 token,
-                request.getHeader("X-TX-Identity-Token"),
+                request.getHeader("X-Everframe-Identity-Token"),
             )
             assertEquals(0, outbox.count())
         } finally {
@@ -261,7 +261,7 @@ class CrashDeliveryTest {
      * captures a non-fatal crash, and calls the REAL
      * `Everframe.requestOutboxDrain()` — reading the REAL
      * `Everframe._identityHolder` / `Everframe.currentReplayConfig()`, not a
-     * hand-built fixture — then asserts the actual `X-TX-Identity-Token`
+     * hand-built fixture — then asserts the actual `X-Everframe-Identity-Token`
      * header on the actual MockWebServer request.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -338,7 +338,7 @@ class CrashDeliveryTest {
             assertEquals(
                 "the real requestOutboxDrain() path must attach alice's token once identity and config are live",
                 token,
-                request.getHeader("X-TX-Identity-Token"),
+                request.getHeader("X-Everframe-Identity-Token"),
             )
         } finally {
             Everframe.__resetStartTailDelayHookForTesting()

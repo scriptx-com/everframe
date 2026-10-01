@@ -321,7 +321,7 @@ class RelayWSClient(
      * Companion attribution (spec 2026-08-07) — captured off `pair.bonded`
      * when the relay populated it (dashboard-initiated attach only), then
      * overwritten by any fresher token riding a `report.request`. Rides the
-     * ingest POST as `X-TX-Companion-Attribution` and goes nowhere else.
+     * ingest POST as `X-Everframe-Companion-Attribution` and goes nowhere else.
      * SECURITY: never log.
      */
     @Volatile

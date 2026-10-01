@@ -200,6 +200,7 @@ internal fun ReporterRoot(
     // attachments (iOS parity: TXReporterPresenter.swift:72). Submission
     // re-uses the same snapshot — there is no second consume.
     hostExtra: String? = null,
+    allowAdditionalScreenshots: Boolean = true,
 ) {
     var title by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
@@ -620,6 +621,7 @@ internal fun ReporterRoot(
                                 ScreenshotStrip(
                                     shots = shots,
                                     activeIndex = activeShotIndex,
+                                    allowAdditionalScreenshots = allowAdditionalScreenshots,
                                     onSelect = { activeShotIndex = it },
                                     onDelete = requestDeleteShot,
                                     onAdd = {
@@ -698,6 +700,7 @@ internal fun ReporterRoot(
                             ScreenshotStrip(
                                 shots = shots,
                                 activeIndex = activeShotIndex,
+                                allowAdditionalScreenshots = allowAdditionalScreenshots,
                                 onSelect = { activeShotIndex = it },
                                 onDelete = requestDeleteShot,
                                 onAdd = {

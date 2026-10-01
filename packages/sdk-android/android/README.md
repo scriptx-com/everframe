@@ -1,15 +1,14 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# Everframe for Android (v1.2)
+# Everframe for Android
 
 Native Android SDK for Everframe — in-app bug reporting with annotated screenshots,
 session replay, log/network ring buffers, and a built-in Compose reporter UI.
 Covers phone, tablet, and Android TV.
 
-> **Status:** Phase 5 (Plans 01–08) complete. Maven artifacts published to
-> [GitHub Packages](https://github.com/scriptx-com/everframe/packages). Public Maven
-> Central is deferred to v1.3.
+Maven Central serves version `0.10.2`, including the shorter Gradle plugin
+artifact name.
 
 ---
 
@@ -20,40 +19,18 @@ Covers phone, tablet, and Android TV.
 | `dev.everframe:core` | SDK kernel: capture, envelope, transport, outbox, OkHttp interceptor         | yes       |
 | `dev.everframe:protocol` | quicktype-generated kotlinx-serialization data classes for `ReportEnvelope` | transitively via `-core` |
 | `dev.everframe:reporter-ui` | Compose Material 3 reporter UI for phone + tablet (bubble, modal, annotation) | yes for in-app reporting |
-| `dev.everframe:everframe-tv`   | Compose-for-TV reporter Activity for Android TV                              | only if you ship to Android TV |
-| `dev.everframe:everframe-gradle-plugin` | OPTIONAL — extra R8 keep rules + Compose displayName preservation       | optional |
+| `dev.everframe:media3` | Media3 and ExoPlayer diagnostics | optional |
+| `dev.everframe:gradle-plugin` | Optional R8 keep rules and Compose display name preservation | optional; available with 0.10.2 |
 
-All modules ship under the same version (currently `1.2.0`). Bump in lockstep.
+Android modules ship under one version. The older `0.10.0` plugin uses the
+older `dev.everframe:everframe-gradle-plugin` artifact; Gradle plugin users keep
+the same `id("dev.everframe")` when moving to `0.10.2`.
 
 ---
 
 ## Quick start
 
-### 1. Authenticate to GitHub Packages
-
-GitHub Packages requires a fine-grained Personal Access Token (PAT) with
-`read:packages` scope. Create one at
-<https://github.com/settings/tokens> and store it locally:
-
-```properties
-# ~/.gradle/gradle.properties
-gpr.user=<your-github-username>
-gpr.token=<your-pat-with-read:packages>
-```
-
-For CI, the standard recipe is to consume `GITHUB_ACTOR` and `GITHUB_TOKEN`
-environment variables (already set inside GitHub Actions runners; for other
-CI systems, set them manually):
-
-```yaml
-- name: Build with Everframe
-  env:
-    GITHUB_ACTOR: ${{ github.actor }}
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  run: ./gradlew assembleRelease
-```
-
-### 2. Add the repository
+### 1. Add Maven Central
 
 ```kotlin
 // settings.gradle.kts
@@ -61,31 +38,21 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url = uri("https://maven.pkg.github.com/scriptx-com/everframe")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: providers.gradleProperty("gpr.user").orNull
-                password = System.getenv("GITHUB_TOKEN") ?: providers.gradleProperty("gpr.token").orNull
-            }
-        }
     }
 }
 ```
 
-### 3. Add dependencies
+### 2. Add dependencies
 
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("dev.everframe:core:1.2.0")
-    implementation("dev.everframe:reporter-ui:1.2.0")
-
-    // Only if your app ships to Android TV
-    "tvImplementation"("dev.everframe:everframe-tv:1.2.0")
+    implementation("dev.everframe:core:0.10.0")
+    implementation("dev.everframe:reporter-ui:0.10.0")
 }
 ```
 
-### 4. Initialize at startup
+### 3. Initialize at startup
 
 ```kotlin
 class MyApp : Application() {
@@ -412,7 +379,7 @@ below for the full Android TV recipe and the reserved-key list (`KEYCODE_BACK
 ```kotlin
 // settings.gradle.kts (or root build.gradle.kts)
 plugins {
-    id("dev.everframe") version "1.2.0"
+    id("dev.everframe") version "0.10.0"
 }
 ```
 
@@ -488,6 +455,13 @@ Screen names should be route identifiers, never user content.
 
 ## R8 / minification expectations
 
+The published `core`, `reporter-ui`, and `media3` AARs are still shrunk by R8.
+Each one now includes its exact R8 mapping as a Maven classifier, for example
+`core-0.10.2-mapping.txt` alongside `dev.everframe:core:0.10.2`. R8 full mode
+can show `SourceFile` in raw SDK frames; use the matching mapping file with
+Android's `retrace` tool to recover the original Kotlin filename, method, and
+line. Keep your app's own R8 mapping too if you minify the final APK.
+
 `:everframe-core` ships a `consumer-rules.pro` that auto-merges into your
 release R8 config when you depend on the AAR. It preserves:
 
@@ -522,24 +496,24 @@ the Compose sample app on every PR.
 | Shake gesture never fires | The dashboard or local SDK option is disabled, the app is backgrounded, or the device has no accelerometer. | Enable Shake to report in the app dashboard and keep `shakeToReportEnabled = true`. Android TV is intentionally unsupported. |
 | Reporter never opens on Android TV | The SDK no longer installs a TV key-combo handler (Phase 05.1). | Override `Activity.dispatchKeyEvent` and run a host-owned debouncer; see the [Triggers are host-app concern](#triggers-are-host-app-concern) section and `examples/android-compose/app/src/tv/kotlin/com/example/composesample/tv/SampleTVDebouncer.kt`. |
 | Reserved-key configuration error at `start()` | n/a after Phase 05.1 — the SDK no longer validates trigger keys. | Per-host responsibility: never bind `KEYCODE_BACK / HOME / MENU / single-press KEYCODE_MEDIA_PLAY_PAUSE` as triggers (Play Store reject defense). |
-| `IllegalStateException: Reporter UI module not on classpath` | `:everframe-reporter-ui` not in the dependency graph | Add `implementation("dev.everframe:reporter-ui:1.2.0")` — it auto-registers a startup `Initializer` that wires the resolver. |
+| `IllegalStateException: Reporter UI module not on classpath` | `:everframe-reporter-ui` not in the dependency graph | Add `implementation("dev.everframe:reporter-ui:0.10.0")` — it auto-registers a startup `Initializer` that wires the resolver. |
 | Customer's R8 fails with `Missing class timber.log.**` or `com.google.errorprone.annotations.**` | Customer build excludes consumer-rules from a transitive AAR | The `-dontwarn` rules ship in `:everframe-core/consumer-rules.pro`. Re-merge or copy them into your own `proguard-rules.pro`. |
 
 ---
 
-## Limitations (v0.9)
+## Limitations
 
 - **Network capture is OkHttp-only.** Apps using HttpURLConnection / Retrofit-on-other-clients
   must build an OkHttpClient with `addEverframeInterceptor()`.
 - **Foreground-only retry.** The outbox drains when the SDK's process is foreground; we do
   not register a `WorkManager` worker. Background retry is a v1.3 deliverable.
 - **No Wear OS support.** Wear-style minimal trigger surface is on the v1.3 roadmap.
-- **Central Portal publishing is intentionally explicit.** Maintainers create a
-  signed Maven-layout bundle with `./gradlew centralPortalBundle
-  -PeverframeVersion=0.9.0`, validate it with
-  `scripts/verify-central-bundle.sh`, then upload that bundle through Sonatype's
-  direct Publisher API in `USER_MANAGED` mode. This build does not use or retain
-  the retired OSSRH staging API.
+- **Central Portal publishing is intentionally explicit.** From the repository
+  root, maintainers run `pnpm build:mobile-maven-bundle` with `SIGNING_KEY` and
+  `SIGNING_PASSWORD` set. That command builds and verifies one signed ZIP with
+  all Android and KMP artifacts at the version in `gradle.properties`.
+  Upload that ZIP through Sonatype's direct Publisher API in `USER_MANAGED`
+  mode. The release build does not use the retired OSSRH staging API.
 
 ---
 
