@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+/** @vitest-environment jsdom */
 import { describe, expect, it, vi } from 'vitest';
 import {
+  boundedTvFallbackShot,
   captureShotVia,
+  countElementsUpTo,
   domSnapshotPartName,
   imageShot,
   isShotReason,
@@ -53,5 +56,42 @@ describe('shot-capture contract', () => {
     expect(snapshotAllowed({ cropped: true, blurred: false, areaSelected: false })).toBe(false);
     expect(snapshotAllowed({ cropped: false, blurred: true, areaSelected: false })).toBe(false);
     expect(snapshotAllowed({ cropped: false, blurred: false, areaSelected: true })).toBe(false);
+  });
+});
+
+describe('bounded element count, shadow roots included (codex r6 F3)', () => {
+  const CAPABLE = 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36';
+
+  it('counts light DOM and open shadow descendants, stopping just past the limit', () => {
+    document.body.innerHTML = '<div id="host"><b></b></div><p></p>';
+    const inner = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    inner.innerHTML = '<i></i><span id="nested"></span>';
+    inner.getElementById('nested')!.attachShadow({ mode: 'open' }).innerHTML = '<u></u><u></u>';
+    // html head body div b p + i span + u u
+    expect(countElementsUpTo(document, 100)).toBe(10);
+    expect(countElementsUpTo(document, 4)).toBe(5);
+  });
+
+  it('visits at most limit + 1 elements on a huge page', () => {
+    document.body.innerHTML = '<i></i>'.repeat(20_000);
+    let reads = 0;
+    const spy = vi.spyOn(Element.prototype, 'nextElementSibling', 'get');
+    spy.mockImplementation(function (this: Element) {
+      reads++;
+      let n = this.nextSibling;
+      while (n !== null && n.nodeType !== 1) n = n.nextSibling;
+      return n as Element | null;
+    });
+    expect(countElementsUpTo(document, 3000)).toBe(3001);
+    spy.mockRestore();
+    expect(reads).toBeLessThan(3100);
+  });
+
+  it('3,000 shadow elements skip the on-device fallback', async () => {
+    document.body.innerHTML = '<div id="host"></div>';
+    document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = '<i></i>'.repeat(3000);
+    const capture = vi.fn(async () => image);
+    await expect(boundedTvFallbackShot(capture, document, CAPABLE)).resolves.toEqual({ degradedReason: 'screenshot_unavailable' });
+    expect(capture).not.toHaveBeenCalled();
   });
 });

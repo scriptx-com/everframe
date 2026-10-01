@@ -40,6 +40,31 @@ export const SNAPDOM_FALLBACK_MAX_ELEMENTS = 3000;
 /** Chromium majors below this are weak TV profiles: no on-device fallback. */
 export const MIN_FALLBACK_CHROME_MAJOR = 60;
 
+/**
+ * Elements rrweb would serialize — the light DOM plus every open shadow root,
+ * nested — counted until one past `limit` (then that is returned). Every
+ * capture-cost guard uses this: `getElementsByTagName('*')` never sees shadow
+ * descendants. Iterative and bounded: at most `limit + 1` elements visited,
+ * at most two resume points held per visited element (Chrome 53: no
+ * generators, no TreeWalker over shadow roots).
+ */
+export function countElementsUpTo(doc: Document, limit: number): number {
+  let count = 0;
+  const resume: Element[] = [];
+  let el: Element | null = doc.documentElement;
+  while (el !== null) {
+    if (++count > limit) return count;
+    const shadow: ShadowRoot | null | undefined = (el as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
+    const shadowFirst: Element | null = shadow !== null && shadow !== undefined ? shadow.firstElementChild : null;
+    const lightFirst: Element | null = el.firstElementChild;
+    const next: Element | null = el.nextElementSibling;
+    if (next !== null) resume.push(next);
+    if (shadowFirst !== null && lightFirst !== null) resume.push(lightFirst);
+    el = shadowFirst !== null ? shadowFirst : lightFirst !== null ? lightFirst : resume.length > 0 ? (resume.pop() as Element) : null;
+  }
+  return count;
+}
+
 export function isWeakTvProfile(ua: string): boolean {
   const m = /Chrome\/(\d+)/.exec(ua);
   return m === null || Number(m[1]) < MIN_FALLBACK_CHROME_MAJOR;
@@ -58,7 +83,7 @@ export async function boundedTvFallbackShot(
 ): Promise<ShotCapture> {
   const unavailable: ShotCapture = { degradedReason: DEGRADED_REASONS.screenshot_unavailable };
   if (isWeakTvProfile(userAgent)) return unavailable;
-  if (doc.getElementsByTagName('*').length > SNAPDOM_FALLBACK_MAX_ELEMENTS) return unavailable;
+  if (countElementsUpTo(doc, SNAPDOM_FALLBACK_MAX_ELEMENTS) > SNAPDOM_FALLBACK_MAX_ELEMENTS) return unavailable;
   try {
     const image = await capture();
     return image.degradedReason === DEGRADED_REASONS.screenshot_failed ? unavailable : imageShot(image);

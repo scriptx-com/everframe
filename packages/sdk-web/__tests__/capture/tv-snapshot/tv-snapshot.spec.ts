@@ -194,6 +194,15 @@ describe('captureTvShot', () => {
       expect(takeDomSnapshot).toHaveBeenCalledTimes(1);
     });
 
+    it('counts shadow-root elements too: 3,000 of them keep a weak profile from snapshotting (codex r6 F3)', async () => {
+      document.body.innerHTML = '<div id="host"></div>';
+      document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = '<i></i>'.repeat(3000);
+      const d = deps({ userAgent: WEBOS4 });
+      const shot = await captureTvShot(d).shot;
+      expect(takeDomSnapshot).not.toHaveBeenCalled();
+      expect(shot).toEqual({ degradedReason: 'screenshot_unavailable' });
+    });
+
     it('a capable profile above the cap still snapshots', async () => {
       page(WEAK_TV_SNAPSHOT_MAX_ELEMENTS + 500);
       vi.mocked(renderSnapshot).mockResolvedValue({ ok: false, reason: 'render_failed' });

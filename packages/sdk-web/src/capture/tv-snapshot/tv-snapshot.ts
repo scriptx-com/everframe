@@ -31,6 +31,7 @@ import { DEGRADED_REASONS } from '../../internal/degraded-reasons.js';
 import { sha256Hex } from '../sha256.js';
 import {
   boundedTvFallbackShot,
+  countElementsUpTo,
   isWeakTvProfile,
   MIN_FALLBACK_CHROME_MAJOR,
   SNAPDOM_FALLBACK_MAX_ELEMENTS,
@@ -45,11 +46,11 @@ export { SNAPDOM_FALLBACK_MAX_ELEMENTS, MIN_FALLBACK_CHROME_MAJOR, isWeakTvProfi
 /** Above this many elements a weak TV profile skips the (synchronous) snapshot. */
 export const WEAK_TV_SNAPSHOT_MAX_ELEMENTS = 1000;
 
-/** Weak profile and a page big enough to freeze it for seconds. One cheap live count. */
+/** Weak profile and a page big enough to freeze it for seconds. One bounded live count (shadow roots included). */
 function snapshotTooCostly(deps: TvShotDeps): boolean {
   return (
     isWeakTvProfile(deps.userAgent) &&
-    deps.snapshot.doc.getElementsByTagName('*').length > WEAK_TV_SNAPSHOT_MAX_ELEMENTS
+    countElementsUpTo(deps.snapshot.doc, WEAK_TV_SNAPSHOT_MAX_ELEMENTS) > WEAK_TV_SNAPSHOT_MAX_ELEMENTS
   );
 }
 
