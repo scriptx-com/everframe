@@ -19,7 +19,7 @@ import type { BundleDomSnapshot, BundleScreenshot, CaptureBundle } from '../tran
 import type { RelayWSClient, ReportSubmit } from './ws-client.js';
 import type { CompanionAPI } from './state.js';
 import type { CompanionHost } from './host-seam.js';
-import { __companionSeamTicket, __isCompanionKilled } from './host-seam.js';
+import { __companionSeamTicket, __isCompanionKilled, type CompanionSeamTicket } from './host-seam.js';
 import type { ShotStashInfo } from './shot-stash.js';
 import {
   decodeImageBlob,
@@ -45,6 +45,12 @@ export interface CompanionSubmitInput {
   extraShot: (shotId: string) => ShotStashInfo | undefined;
   /** End-of-report teardown — runs exactly once, whatever the outcome. */
   onSettled: (correlationId: string, companion: CompanionAPI) => void;
+  /**
+   * The seam ticket taken when the final submit frame arrived, BEFORE this
+   * chunk was imported (codex r7 F2). Every ownership check uses it; absent
+   * (a direct caller), one is taken on entry.
+   */
+  ticket?: CompanionSeamTicket;
 }
 
 type WireRedaction = { cropped: boolean; blurred: boolean; area_selected: boolean } | undefined;
@@ -84,7 +90,7 @@ export async function runCompanionSubmit(input: CompanionSubmitInput): Promise<v
     // page. `destroy()` + an `init()` for the next tenant used to clear the
     // page-global teardown flag, and this report — prepared under a host that
     // no longer exists — reached ingest anyway.
-    const ticket = __companionSeamTicket(host);
+    const ticket = input.ticket ?? __companionSeamTicket(host);
     if (__isCompanionKilled(ticket)) {
       ws.send(reportFailed(msg.correlation_id, 'submit_unavailable'));
       return;

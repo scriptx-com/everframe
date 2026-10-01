@@ -500,6 +500,11 @@ function maybeRunSubmit(
   resetSubmitFraming();
   const stashed = requestStash.get(msg.correlation_id) ?? null;
   const stash = activeShotStash?.correlationId === msg.correlation_id ? activeShotStash.stash : null;
+  // Codex round-7 finding 2 — the ownership ticket is taken HERE, before the
+  // lazy import starts: a host unmounted while the chunk loads is no longer
+  // the published one, and a ticket taken after the import would mistake it
+  // for a hand-wired host (React's host has no isKilled) and submit anyway.
+  const ticket = __companionSeamTicket(host);
   // Lazy chunk (companion-submit-*.js): the submit body is not always-loaded
   // weight. The two-argument `then` keeps the load-failure answer apart from
   // the submit itself, which answers the phone on every path of its own — a
@@ -516,6 +521,7 @@ function maybeRunSubmit(
         stashed,
         extraShot: (shotId) => stash?.info(shotId),
         onSettled: settleCompanionSubmit,
+        ticket,
       }),
     () => {
       // The chunk itself failed to load — still answer the phone exactly once.
