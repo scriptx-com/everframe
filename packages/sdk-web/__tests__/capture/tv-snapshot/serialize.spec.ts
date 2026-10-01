@@ -399,6 +399,40 @@ describe('rrweb-snapshot CSS passes stay linear on page-controlled CSS (S18)', (
   });
 });
 
+describe('pruned or hidden content does not survive in CSS', () => {
+  const css = '.old::before{content:"OFFSCREEN_PRIVATE_PHRASE"} .old{--patient-name: Alice Smith} .now{color:#111}';
+
+  it('a pruned previous screen switches the page to the allowlist CSS scrub', () => {
+    document.head.innerHTML = `<style>${css}</style>`;
+    document.body.innerHTML = '<section class="old" id="old">previous</section><main class="now" id="now">current</main>';
+    const above: PruneRect = { left: 0, top: -900, right: 1024, bottom: -100, width: 1024, height: 800 };
+    const taken = take({
+      sensitiveElements: () => [],
+      measure: { rectOf: (el) => (el.id === 'old' ? above : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) },
+    });
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['OFFSCREEN_PRIVATE_PHRASE', 'Alice Smith', 'previous'])).toEqual([]);
+    expect(json).toContain('current');
+    expect(taken.masked).toBe(true);
+  });
+
+  it('text masked for visibility:hidden also switches it', () => {
+    document.head.innerHTML = `<style>${css}</style>`;
+    document.body.innerHTML = '<p class="old" style="visibility:hidden">HIDDENTEXT</p><main class="now">current</main>';
+    const taken = take({ sensitiveElements: () => [] });
+    expect(findLeaks(JSON.stringify(taken.doc), ['OFFSCREEN_PRIVATE_PHRASE', 'Alice Smith', 'HIDDENTEXT'])).toEqual([]);
+    expect(taken.masked).toBe(true);
+  });
+
+  it('a page where nothing was withheld keeps its CSS strings (unmasked policy)', () => {
+    document.head.innerHTML = '<style>.now::before{content:"PUBLIC_ICON_LABEL"}</style>';
+    document.body.innerHTML = '<main class="now">current</main>';
+    const taken = take({ sensitiveElements: () => [] });
+    expect(taken.masked).toBe(false);
+    expect(JSON.stringify(taken.doc)).toContain('PUBLIC_ICON_LABEL');
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

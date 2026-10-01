@@ -78,6 +78,12 @@ export interface PruneDeps {
 
 export interface PruneResult {
   masked: boolean;
+  /**
+   * Any page content was withheld: pruned, blanked, masked or stripped. The
+   * caller must then scrub CSS as for a masked page — a pruned screen's text
+   * can live on in its stylesheet (`content:`, custom properties).
+   */
+  changed: boolean;
   hiddenIds: Set<number>;
   pruned: number;
 }
@@ -338,14 +344,20 @@ function svgDefinitions(svg: SnElement): SnElement[] {
   return defs;
 }
 
-function stripContentAttrs(node: SnElement): void {
+/** Drops text- and URL-bearing attributes; true when it dropped any. */
+function stripContentAttrs(node: SnElement): boolean {
   const next: Record<string, SnAttributeValue> = {};
+  let stripped = false;
   for (const key of Object.keys(node.attributes)) {
     const lower = key.toLowerCase();
-    if (CONTENT_ATTRS.has(lower) || lower.startsWith('aria-') || lower.startsWith('data-')) continue;
+    if (CONTENT_ATTRS.has(lower) || lower.startsWith('aria-') || lower.startsWith('data-')) {
+      stripped = true;
+      continue;
+    }
     next[key] = node.attributes[key] as SnAttributeValue;
   }
   node.attributes = next;
+  return stripped;
 }
 
 function isOutOfFlow(s: CSSStyleDeclaration): boolean {
@@ -474,7 +486,7 @@ function isBlankText(text: string): boolean {
 }
 
 export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
-  const result: PruneResult = { masked: false, hiddenIds: new Set(), pruned: 0 };
+  const result: PruneResult = { masked: false, changed: false, hiddenIds: new Set(), pruned: 0 };
   const { width: vw, height: vh } = deps.viewport;
   const VIEWPORT = toRect(0, 0, vw, vh);
   /** A box with any extent that overlaps `clip` (an empty clip overlaps nothing). */
@@ -704,7 +716,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       const inSelect = frame(node, 'selectContent', live, null, parent);
       inSelect.hideText = parent.hideText;
       inSelect.blankText = true;
-      stripContentAttrs(node); // an option/optgroup `label` is displayed text
+      if (stripContentAttrs(node)) result.changed = true; // an option/optgroup `label` is displayed text
       if (hasOwn(node.attributes, 'label')) delete node.attributes.label;
       if (tag === 'option' && live !== null && (live as HTMLOptionElement).selected === true) {
         // Shown in the closed box: keep it selected (rrweb drops `selected`
@@ -714,6 +726,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         for (const child of node.childNodes) if (child.type === SN_TEXT) { first = child; break; }
         if (first !== undefined && first.type === SN_TEXT) {
           first.textContent = MASK_PLACEHOLDER;
+          result.changed = true;
           node.childNodes = [first];
         }
         inSelect.blankText = false;
@@ -913,7 +926,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     // replaced elements (img, video, …) are atomic boxes even when inline, so
     // they are pruned to an inline-block of the same size (rulings 8, S20).
     if (style !== null && (style.display === 'contents' || (style.display === 'inline' && !isReplaced(node)))) {
-      stripContentAttrs(node);
+      if (stripContentAttrs(node)) result.changed = true;
       if (style.display === 'inline') blankInline(f);
       else blankUnseenText(f);
       return 'hidden';
@@ -947,8 +960,10 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       } else if (child.type === SN_DOCUMENT) {
         stack.push(frame(child, 'transparent', null, null, top));
       } else {
-        if (top.blankText && child.type === SN_TEXT) child.textContent = '';
-        else if ((top.maskText || top.hideText) && child.type === SN_TEXT) child.textContent = child.textContent.replace(/\S/g, '•');
+        if (child.type === SN_TEXT && (top.blankText || top.maskText || top.hideText) && !isBlankText(child.textContent)) {
+          result.changed = true;
+          child.textContent = top.blankText ? '' : child.textContent.replace(/\S/g, '•');
+        }
         top.kept.push(child);
       }
       continue;
@@ -959,6 +974,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const verdict = finish(top, parent);
     if (parent !== undefined) settle(parent, top.node, verdict, top);
   }
+  if (result.masked || result.pruned > 0) result.changed = true;
   return result;
 }
 

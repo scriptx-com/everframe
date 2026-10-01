@@ -128,7 +128,10 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
     { getId: (n) => ((n as Element).closest?.(SNAPSHOT_BLOCK_SELECTOR) ? -1 : mirror.getId(n)) },
     pruned.hiddenIds,
   );
-  const masked = pruned.masked || inputMasked || textMasked;
+  // Fail closed: once ANY content was withheld (pruned, blanked, masked), CSS
+  // takes the allowlist scrub — the withheld text can live on in the page's
+  // stylesheets (`content:` strings, custom properties).
+  const masked = pruned.changed || inputMasked || textMasked;
   const baseHref = sanitizeMetaHref(win.location.href);
   scrubSnapshotTree(root, {
     masked,
