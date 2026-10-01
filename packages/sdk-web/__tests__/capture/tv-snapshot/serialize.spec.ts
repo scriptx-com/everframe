@@ -621,6 +621,49 @@ describe('slotted light-DOM content follows its slot\'s ancestors (codex r7 F1)'
   });
 });
 
+describe('zero-area boxes establish no visibility (codex r9 F1)', () => {
+  const zeroW: PruneRect = { left: 100, top: 100, right: 100, bottom: 300, width: 0, height: 200 };
+  const zeroH: PruneRect = { left: 100, top: 100, right: 400, bottom: 100, width: 300, height: 0 };
+  const panel = (r: PruneRect) => {
+    document.body.innerHTML =
+      '<section id="s"></section><aside id="panel">PANEL_PRIVATE_TEXT<p id="inner">CHILD_PRIVATE_TEXT</p></aside><main>current</main>';
+    return take({
+      sensitiveElements: () => [],
+      measure: {
+        rectOf: (el) => (el.closest('#panel') ? r : onScreen()),
+        sizeOf: (el) => (el.closest('#panel') ? { width: r.width, height: r.height } : { width: 100, height: 20 }),
+        textRectsOf: (t) => ((t.parentElement?.closest('#panel') ?? null) !== null ? [r] : [onScreen()]),
+      },
+    });
+  };
+
+  it('a transform:scaleX(0) panel (zero width) keeps none of its text', () => {
+    const json = JSON.stringify(panel(zeroW).doc);
+    expect(findLeaks(json, ['PANEL_PRIVATE_TEXT', 'CHILD_PRIVATE_TEXT'])).toEqual([]);
+    expect(json).toContain('current');
+  });
+
+  it('a transform:scaleY(0) panel (zero height) keeps none of its text', () => {
+    expect(findLeaks(JSON.stringify(panel(zeroH).doc), ['PANEL_PRIVATE_TEXT', 'CHILD_PRIVATE_TEXT'])).toEqual([]);
+  });
+
+  it('a 0-height container keeps its visibly overflowing children', () => {
+    document.body.innerHTML = '<section id="s"></section><div id="zero" style="height:0">ZERO_OWN_TEXT<p id="over">OVERFLOWING_VISIBLE</p></div>';
+    const json = JSON.stringify(
+      take({
+        sensitiveElements: () => [],
+        measure: {
+          rectOf: (el) => (el.id === 'zero' ? zeroH : onScreen()),
+          sizeOf: () => ({ width: 100, height: 20 }),
+          textRectsOf: (t) => (t.textContent!.includes('ZERO_OWN') ? [zeroH] : [onScreen()]),
+        },
+      }).doc,
+    );
+    expect(json).toContain('OVERFLOWING_VISIBLE');
+    expect(findLeaks(json, ['ZERO_OWN_TEXT'])).toEqual([]);
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

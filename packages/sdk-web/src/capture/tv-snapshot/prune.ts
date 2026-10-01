@@ -689,9 +689,14 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   const withhold = makeWithhold(result);
   const { width: vw, height: vh } = deps.viewport;
   const VIEWPORT = toRect(0, 0, vw, vh);
-  /** A box with any extent that overlaps `clip` (an empty clip overlaps nothing). */
+  /**
+   * A box with positive width AND height that overlaps `clip` with positive
+   * area (an empty clip overlaps nothing). A zero-width or zero-height box —
+   * a `scaleX(0)` / `scaleY(0)` panel, a 0-height wrapper — shows nothing
+   * itself (codex r9 F1); its descendants are still judged on their own.
+   */
   const overlaps = (r: PruneRect, clip: PruneRect): boolean =>
-    r.width + r.height > 0 &&
+    r.width > 0 && r.height > 0 &&
     clip.right > clip.left && clip.bottom > clip.top &&
     r.right > clip.left && r.bottom > clip.top && r.left < clip.right && r.top < clip.bottom;
   /** Pruned placeholders' effective margins, for their pruned ancestors' collapse probe. */
@@ -1137,6 +1142,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const rect = f.rect as PruneRect;
     result.pruned++;
     for (const child of node.childNodes) collectIds(child, result.hiddenIds);
+    // Layout, not visibility: a zero-width line box still holds its line height.
     const fallback = rect.width + rect.height > 0 ? [rect] : [];
     const measured = rectsSafe(() => (deps.fragmentsOf ?? defaultFragmentsOf)(live), fallback);
     const fragments = measured.length > 0 ? measured : fallback;
