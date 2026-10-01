@@ -1,5 +1,32 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 0.5.0
+
+### Minor Changes
+
+- c725ada: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  The remote configuration now carries an optional `screenshotRender` flag, which enables server-rendered screenshots on smart-TV web apps.
+
+### Patch Changes
+
+- d72fddf: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Adds the `dom-snapshot` attachment kind and a versioned page-snapshot format (`DomSnapshotV1`, validated by `parseDomSnapshot`) for smart-TV screenshots that are rendered on the server, together with the render endpoint's request and response types and the shared report limits (`MAX_REPORT_SHOTS`, `MAX_INGEST_FILE_PARTS`). Report upload now labels `dom-snapshot` and `dom-snapshot-N` parts with their own kind. Existing reports and SDK behaviour are unchanged.
+
+- 4b902cc: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  `gzipBytes` no longer reads `globalThis`, so it runs on Chrome 53 smart-TV engines.
+
+- Updated dependencies [5777c38]
+- Updated dependencies [d72fddf]
+- Updated dependencies [5ad9926]
+- Updated dependencies [89edce8]
+  - @everframe/protocol@0.6.0
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # @traceitx/sdk-core
 
@@ -13,6 +40,7 @@
   `config.hotkey` override and public `registerHotkey` helper have been removed so
   the dashboard remains authoritative.
 - 061f83a: Give `@traceitx/react` the host-facing API `@traceitx/react-native` already had, and fix `setExtra` corruption.
+
   - `recordScreen`, `useTXScreen` and `<TXScreen>` are now available on web, deriving the same `from → to` breadcrumb the native SDKs emit. Hosts previously hand-rolled this from a recipe in our own docstring, and different hosts got different subsets of the five rules right.
   - Top-level `setUser` on web; calling it with no argument clears, matching React Native.
   - `companion.start()` no longer requires `sdkKey` / `deviceLabel` when a `<TraceItXProvider>` is mounted — it defaults them from the provider config. Explicit arguments still win, and standalone `@traceitx/web` is unchanged.
@@ -148,6 +176,7 @@
   **Deploy the API before releasing this SDK version. This is a hard
   precondition, not a nice-to-have**, and getting the order wrong is worse than
   "vitals are lossy" the way earlier phases could be:
+
   - An old API rejects a phase-4 `VitalsEntry` (the new `playerId`, `custom`
     entries, and player event types, plus `vitals_sessions.player_count` from
     migration `0082`) with a non-retryable 400. On the **vitals chunk/summary

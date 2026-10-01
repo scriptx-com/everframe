@@ -1,5 +1,28 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.0.0
+
+### Minor Changes
+
+- ccc4581: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Add a React Native browser entry that re-exports the React SDK through the same package import. Align sensitive wrapper and ref names across native and web, and include the React SDK as a dependency so web hosts install one Everframe package.
+
+### Patch Changes
+
+- afb0687: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Fix regressions from the Everframe rename. The Android SDK (and React Native on Android) now sends the `X-Everframe-*` header names the API reads, so native video session replay, verified identity and companion report attribution work again. In development under React StrictMode, `EverframeProvider` no longer keeps running with a killed client after the double mount, so two-way replies reach the reporter again.
+
+- Updated dependencies [e16f94b]
+- Updated dependencies [afb0687]
+- Updated dependencies [ccc4581]
+- Updated dependencies [9a40051]
+- Updated dependencies [9332f80]
+  - @everframe/react@1.0.0
+
 ## 0.9.0
 
 ### Minor Changes

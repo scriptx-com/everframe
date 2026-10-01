@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## 1.0.0
+
+- Stable Android, iOS, and web reporting with privacy masking and native SDK 1.0.0 integration.
+
 ## 0.1.1
 
 - Document published installation, Flutter capture setup, privacy boundaries, and support limits.

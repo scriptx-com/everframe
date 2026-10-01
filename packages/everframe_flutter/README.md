@@ -16,7 +16,7 @@ flutter pub add everframe_flutter
 The plugin requires Flutter 3.47+ and Dart 3.13+, with Android API 24+ or
 iOS 15+ on the respective host platform.
 Its Android bridge resolves the native Everframe 0.10.x modules; the iOS bridge
-requires native Everframe 0.10.1 or newer. Android hosts must use
+requires native Everframe 1.0.0 or newer. Android hosts must use
 `FlutterFragmentActivity` for the Compose reporter and declare the `INTERNET`
 permission for release builds. The native SDK owns the ingest endpoint;
 published binaries use the production endpoint.
