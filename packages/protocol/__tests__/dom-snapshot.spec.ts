@@ -7,14 +7,17 @@ import {
   DOM_SNAPSHOT_VERSION,
   MAX_DOM_SNAPSHOT_COMPRESSED_BYTES,
   MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES,
+  MAX_DOM_SNAPSHOT_DEPTH,
   MAX_DOM_SNAPSHOT_NODES,
   ReportEnvelope,
   countDomSnapshotNodes,
+  domSnapshotDepth,
   domSnapshotPartName,
   parseDomSnapshot,
   parseDomSnapshotPartName,
   readCaptureControlRender,
 } from '../src/index.js';
+import type { DomSnapshotV1 } from '../src/index.js';
 import { baseEnvelope } from './helpers/base-envelope.js';
 
 function validSnapshot(): Record<string, any> {
@@ -132,11 +135,49 @@ describe('countDomSnapshotNodes', () => {
   });
 });
 
+/** A document whose `<html>` wraps `levels - 1` nested divs, each holding one text node. */
+function nestedSnapshot(levels: number): DomSnapshotV1 {
+  const snap = validSnapshot();
+  let leaf = { type: 2, id: 2, tagName: 'html', attributes: {}, childNodes: [] as unknown[] };
+  snap.events[1].data.node.childNodes = [leaf];
+  for (let i = 1; i < levels; i++) {
+    const child = { type: 2, id: 10 + i, tagName: 'div', attributes: {}, childNodes: [] as unknown[] };
+    leaf.childNodes.push({ type: 3, id: -i, textContent: 'x' }, child);
+    leaf = child;
+  }
+  return snap as DomSnapshotV1;
+}
+
+describe('domSnapshotDepth', () => {
+  it('counts element nesting with <html> at depth 1; text and the document add no level', () => {
+    const result = parseDomSnapshot(validSnapshot());
+    if (!result.ok) throw new Error('fixture invalid');
+    expect(domSnapshotDepth(result.snapshot, 100)).toBe(1);
+    expect(domSnapshotDepth(nestedSnapshot(5), 100)).toBe(5);
+  });
+
+  it('accepts exactly the limit and reports limit + 1 past it', () => {
+    expect(domSnapshotDepth(nestedSnapshot(MAX_DOM_SNAPSHOT_DEPTH), MAX_DOM_SNAPSHOT_DEPTH)).toBe(MAX_DOM_SNAPSHOT_DEPTH);
+    expect(domSnapshotDepth(nestedSnapshot(MAX_DOM_SNAPSHOT_DEPTH + 1), MAX_DOM_SNAPSHOT_DEPTH)).toBe(
+      MAX_DOM_SNAPSHOT_DEPTH + 1,
+    );
+  });
+
+  it('walks a very deep tree iteratively, without overflowing the stack', () => {
+    const deep = nestedSnapshot(200_000);
+    const started = performance.now();
+    expect(domSnapshotDepth(deep, MAX_DOM_SNAPSHOT_DEPTH)).toBe(MAX_DOM_SNAPSHOT_DEPTH + 1);
+    expect(domSnapshotDepth(deep, Number.MAX_SAFE_INTEGER)).toBe(200_000);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
 describe('dom-snapshot constants and part names', () => {
   it('pins the size caps and content type', () => {
     expect(MAX_DOM_SNAPSHOT_COMPRESSED_BYTES).toBe(2 * 1024 * 1024);
     expect(MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES).toBe(10 * 1024 * 1024);
     expect(MAX_DOM_SNAPSHOT_NODES).toBe(50_000);
+    expect(MAX_DOM_SNAPSHOT_DEPTH).toBe(1024);
     expect(DOM_SNAPSHOT_CONTENT_TYPE).toBe('application/gzip');
   });
 

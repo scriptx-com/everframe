@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { STAND_IN_ATTR } from './video-frames.js';
+import { isFiniteRect } from './mask-paint.js';
 
 /**
  * Second masking layer: paint the live viewport rects of everything
@@ -68,6 +69,12 @@ function pushRects(out: ViewportRect[], list: ArrayLike<DOMRect>, clip: Clip, gr
   for (let i = 0; i < list.length; i++) {
     const r = list[i]!;
     if (!(r.width > 0 && r.height > 0)) continue;
+    if (!Number.isFinite(r.left) || !Number.isFinite(r.top)) {
+      // A box with no finite position: keep a marker paintViewportRects
+      // refuses, so the shot fails closed instead of skipping this mask.
+      out.push({ x: NaN, y: NaN, width: r.width, height: r.height });
+      continue;
+    }
     const l = Math.max(r.left - grow.l, clip.l);
     const t = Math.max(r.top - grow.t, clip.t);
     const w = Math.min(r.left + r.width + grow.r, clip.r) - l;
@@ -203,7 +210,7 @@ export function collectSensitiveRects(
     if (judge(el)) {
       if (el === root) {
         const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) out.push({ x: r.left, y: r.top, width: r.width, height: r.height });
+        if (r.width > 0 && r.height > 0) out.push({ x: r.left, y: r.top, width: r.width, height: r.height }); // NaN left/top → refused when painted
       }
       coverSubtree(el, out, UNCLIPPED, (e) => e !== root && excluded(e));
       return;
@@ -252,6 +259,11 @@ export function paintViewportRects(
   offsets: readonly CanvasOffset[] = VIEWPORT_ALIGNED,
 ): boolean {
   if (rects.length === 0) return true;
+  // Fail closed: a rect (or offset) with no finite position would paint
+  // nothing and ship the sensitive pixels under it.
+  if (!rects.every(isFiniteRect) || !offsets.every((o) => Number.isFinite(o.dx) && Number.isFinite(o.dy)) || !Number.isFinite(pixelRatio)) {
+    return false;
+  }
   let ctx: CanvasRenderingContext2D | null = null;
   try {
     ctx = canvas.getContext('2d');

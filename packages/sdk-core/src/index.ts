@@ -45,6 +45,7 @@ export { sampleAndWarn } from './displayname-heuristic.js';
 export { projectUserMetadata } from './user-projection.js';
 export {
   sha256Hex,
+  sha256BytesHex,
   computeCrashFingerprint,
   extractCrashFacts,
   extractCrashCauseChain,

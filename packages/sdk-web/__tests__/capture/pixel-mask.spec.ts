@@ -234,3 +234,44 @@ describe('paintViewportRects', () => {
     expect(paintViewportRects(none, [{ x: 0, y: 0, width: 1, height: 1 }], 1)).toBe(false);
   });
 });
+
+// Chrome < 61 (webOS 4) returns ClientRect objects: left/top/right/bottom/
+// width/height, and NO x/y. Masks must land from left/top, and a box with no
+// finite position must fail the shot closed, never be skipped.
+describe('old-engine ClientRect geometry', () => {
+  const clientRect = (left: number, top: number, width: number, height: number): DOMRect =>
+    ({ left, top, width, height, right: left + width, bottom: top + height }) as DOMRect;
+
+  it('collects a sensitive box from a ClientRect without x/y, and paints it where it is', () => {
+    document.body.innerHTML = '<div id="s" data-everframe-sensitive>PIN</div>';
+    const el = document.getElementById('s')!;
+    boxes(el, clientRect(40, 30, 120, 30));
+    const rects = collectSensitiveRects(document.body, bySensAttr);
+    expect(rects).toContainEqual({ x: 40, y: 30, width: 120, height: 30 });
+    const fills: number[][] = [];
+    const ctx = { save: vi.fn(), restore: vi.fn(), setTransform: vi.fn(), fillRect: (...a: number[]) => fills.push(a) };
+    expect(paintViewportRects({ getContext: () => ctx } as unknown as HTMLCanvasElement, rects, 1)).toBe(true);
+    expect(fills).toContainEqual([38, 28, 124, 34]);
+  });
+
+  it('a sensitive box with no finite position yields a rect paintViewportRects refuses (fail closed)', () => {
+    document.body.innerHTML = '<div id="s" data-everframe-sensitive>PIN</div>';
+    const el = document.getElementById('s')!;
+    boxes(el, { width: 120, height: 30 } as DOMRect);
+    const rects = collectSensitiveRects(document.body, bySensAttr);
+    expect(rects.length).toBeGreaterThan(0);
+    const fills: number[][] = [];
+    const ctx = { save: vi.fn(), restore: vi.fn(), setTransform: vi.fn(), fillRect: (...a: number[]) => fills.push(a) };
+    expect(paintViewportRects({ getContext: () => ctx } as unknown as HTMLCanvasElement, rects, 1)).toBe(false);
+    expect(fills).toEqual([]);
+  });
+
+  it('refuses a non-finite rect or offset outright', () => {
+    const ctx = { save: vi.fn(), restore: vi.fn(), setTransform: vi.fn(), fillRect: vi.fn() };
+    const canvas = { getContext: () => ctx } as unknown as HTMLCanvasElement;
+    expect(paintViewportRects(canvas, [{ x: Number.NaN, y: 0, width: 1, height: 1 }], 1)).toBe(false);
+    expect(paintViewportRects(canvas, [{ x: 0, y: 0, width: 1, height: 1 }], 1, [{ dx: Number.NaN, dy: 0 }])).toBe(false);
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+});
+

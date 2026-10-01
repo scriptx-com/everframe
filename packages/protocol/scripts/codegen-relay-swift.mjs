@@ -79,6 +79,17 @@ const camel = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 // Render a Swift type for a JSON-Schema field. For inline nested objects /
 // arrays of objects we emit a fresh nominal type into `extraTypes`.
 function swiftType(prop, ownerName, fieldName, extraTypes) {
+  // A sub-schema reused at several sites is hoisted into `$defs` by
+  // scripts/generate-json-schema.mjs and referenced by its bare `$id`. Emit
+  // it once under that stable name instead of once per owning field.
+  if (typeof prop.$ref === 'string') {
+    const def = schema.$defs && schema.$defs[prop.$ref];
+    if (!def) throw new Error(`unresolved $ref "${prop.$ref}" at ${ownerName}.${fieldName}`);
+    if (def.type !== 'object') return swiftType(def, ownerName, fieldName, extraTypes);
+    const typeName = prefixed(prop.$ref);
+    emitStruct(typeName, def, extraTypes);
+    return typeName;
+  }
   if (prop.const !== undefined && prop.type === 'string') {
     return 'String';
   }

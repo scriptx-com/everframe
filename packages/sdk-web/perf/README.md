@@ -165,3 +165,64 @@ through the real adapter at 1x and 4x CPU throttle (`RUNS` per case, default
 capture time, median longest main-thread block, and the renderer that produced
 the image (`snapdom` or the fallback) with any degraded reason such as
 `screenshot_blank`. Local fixtures only; a manual run, not CI.
+
+## Smart-TV device harness
+
+`pnpm perf:tv-device` runs the smart-TV capture path on a real TV and prints
+one JSON line per shot. It bundles `perf/tv-device/entry.ts` (the SDK
+**source**, plus `@everframe/protocol` and `@everframe/sdk-core` source) with
+esbuild for an old TV Chromium, serves `perf/tv-device/harness.html` on
+`0.0.0.0`, collects each shot on `POST /results`, and writes the images and
+decompressed snapshots to `perf/tv-device/out/` (git-ignored). The server binds
+`0.0.0.0` and serves everything under `perf/tv-device/` to the LAN, so run it
+only on a trusted network. A manual run,
+not CI. It needs a reachable API whose `GET /api/config` answers
+`screenshotRender: true` and whose `POST /api/render` reaches a render
+service, plus an SDK key for that API.
+
+```sh
+node perf/tv-device-harness.mjs --target chrome79 --host <this machine's LAN IP> \
+  --api http://<LAN IP>:8787 --key <sdk key> --package
+ares-install -d <device> perf/tv-device/out/com.everframe.tvsnapshot_0.0.1_all.ipk
+ares-launch -d <device> com.everframe.tvsnapshot
+```
+
+Flags:
+
+- `--target` — esbuild target: `chrome79` (webOS 6) or `chrome53` (webOS 4).
+- `--host` — the address the TV uses to reach this machine; baked into the app.
+- `--api` — the API base URL the SDK talks to (default `http://<host>:8787`).
+- `--key` — SDK key for that API; baked into the app's redirect URL.
+- `--mode` — `snapshot` (default: the server render path, `__captureShot`) or
+  `snapdom` (the TV's own on-device capture, `captureScreenshot`) for the
+  fidelity comparison.
+- `--runs` — shots per launch (default `3`; `0` loads the page and takes none,
+  e.g. to file a report by hand with the page's **Report** button).
+- `--port` — harness server port (default `8940`).
+- `--package` — write the hosted-shell webOS app (a redirect to this machine)
+  and package it with `ares-package`.
+- `--reference <snapshot.json>` — instead of serving, take a desktop Chromium
+  screenshot (`out/reference.png`) of the same page at the viewport, dpr and
+  color scheme recorded in a TV snapshot's context, then exit.
+
+Each result line carries `outcome` (`image`, `snapshot` or `unavailable`) and
+`reason`, `totalMs` (trigger to settled shot), `longestBlockMs` (longest gap a
+`setTimeout(0)` ticker saw during the shot), `snapshotKB` (gzip bytes), the
+render round trip and the server's `X-Everframe-Render-Meta` (`render`),
+`secureContext`, and `leaks` — which of the vault's marker strings
+(`HARNESSSECRET`, `4111`) appear anywhere in the decompressed snapshot. It
+must always be `[]`.
+
+The hosted shell loads the page from `http://<LAN IP>`, an insecure context
+with no `crypto.subtle`, which is exactly how many hosted TV apps run; the SDK
+hashes shots with its pure-JS SHA-256 there, and every result reports
+`secureContext`. The posters are SVGs the harness server generates (`/posters/1.svg`…`4.svg`). The
+render service fetches page assets only from public addresses, so a server
+render of this LAN-hosted page lists the posters and the webfont in
+`missingAssetUrls` and falls back to its installed fonts; the TV's own capture
+and the reference still show them.
+
+`perf/tv-device/fonts/harness.woff2` is Instrument Serif (Latin subset,
+regular), © 2022 The Instrument Serif Project Authors, licensed under the SIL
+Open Font License 1.1 (`LICENSES/OFL-1.1.txt`). A distinctive serif, so a
+substituted font is obvious in a render.

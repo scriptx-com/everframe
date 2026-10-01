@@ -371,6 +371,19 @@ export const REPORTER_CSS = `.everframe-root, :host {
   background-size: 14px 14px;
   color: var(--everframe-text-muted); font-size: var(--everframe-text-label);
 }
+.everframe-snapshot-only {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  height: 240px; margin: 0 0 var(--everframe-space-md); padding: 0 var(--everframe-space-md);
+  border: 1px dashed rgba(241, 245, 252, 0.18); border-radius: 12px;
+  background-color: var(--everframe-bg); color: var(--everframe-text-muted);
+  font-size: var(--everframe-text-label); text-align: center;
+}
+.everframe-snapshot-only strong { color: var(--everframe-text); font-weight: 600; }
+.everframe-shot-thumb-snapshot {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+  font-size: 10px; line-height: 1.2; text-align: center;
+  color: var(--everframe-text-muted); background-color: var(--everframe-bg);
+}
 .everframe-annotate-thumb-overlay {
   position: absolute; inset: 0; display: inline-flex; align-items: center; justify-content: center;
   gap: var(--everframe-space-sm);

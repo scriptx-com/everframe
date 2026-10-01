@@ -238,8 +238,11 @@ public struct EverframePreviewStop: Codable, Equatable {
 public struct EverframeReportAssembled: Codable, Equatable {
     public let correlationId: String
     public let counts: EverframeReportAssembledCounts
+    public let degradedReason: String?
     public let mime: String
+    public let outcome: String?
     public let size: Int
+    public let snapshot: EverframeReportAssembledSnapshot?
     public let toggles: EverframeReportAssembledToggles
     public let tree: EverframeReportAssembledTree?
     public let type: String
@@ -247,18 +250,24 @@ public struct EverframeReportAssembled: Codable, Equatable {
     public enum CodingKeys: String, CodingKey {
         case correlationId = "correlation_id"
         case counts
+        case degradedReason = "degraded_reason"
         case mime
+        case outcome
         case size
+        case snapshot
         case toggles
         case tree
         case type
     }
 
-    public init(correlationId: String, counts: EverframeReportAssembledCounts, mime: String, size: Int, toggles: EverframeReportAssembledToggles, tree: EverframeReportAssembledTree? = nil, type: String) {
+    public init(correlationId: String, counts: EverframeReportAssembledCounts, degradedReason: String? = nil, mime: String, outcome: String? = nil, size: Int, snapshot: EverframeReportAssembledSnapshot? = nil, toggles: EverframeReportAssembledToggles, tree: EverframeReportAssembledTree? = nil, type: String) {
         self.correlationId = correlationId
         self.counts = counts
+        self.degradedReason = degradedReason
         self.mime = mime
+        self.outcome = outcome
         self.size = size
+        self.snapshot = snapshot
         self.toggles = toggles
         self.tree = tree
         self.type = type
@@ -283,6 +292,21 @@ public struct EverframeReportAssembledCounts: Codable, Equatable {
         self.logs = logs
         self.network = network
         self.uiTreeNodes = uiTreeNodes
+    }
+}
+
+public struct EverframeReportAssembledSnapshot: Codable, Equatable {
+    public let byteLength: Int
+    public let sha256: String
+
+    public enum CodingKeys: String, CodingKey {
+        case byteLength = "byte_length"
+        case sha256
+    }
+
+    public init(byteLength: Int, sha256: String) {
+        self.byteLength = byteLength
+        self.sha256 = sha256
     }
 }
 
@@ -471,6 +495,7 @@ public struct EverframeReportSubmit: Codable, Equatable {
     public let correlationId: String
     public let description: EverframeReportSubmitDescription
     public let includes: EverframeReportSubmitIncludes
+    public let primaryShot: EverframeReportSubmitPrimaryShot?
     public let shots: [EverframeReportSubmitShot]?
     public let title: String
     public let type: String
@@ -480,16 +505,18 @@ public struct EverframeReportSubmit: Codable, Equatable {
         case correlationId = "correlation_id"
         case description
         case includes
+        case primaryShot = "primary_shot"
         case shots
         case title
         case type
     }
 
-    public init(annotations: [EverframeReportSubmitAnnotationItem], correlationId: String, description: EverframeReportSubmitDescription, includes: EverframeReportSubmitIncludes, shots: [EverframeReportSubmitShot]? = nil, title: String, type: String) {
+    public init(annotations: [EverframeReportSubmitAnnotationItem], correlationId: String, description: EverframeReportSubmitDescription, includes: EverframeReportSubmitIncludes, primaryShot: EverframeReportSubmitPrimaryShot? = nil, shots: [EverframeReportSubmitShot]? = nil, title: String, type: String) {
         self.annotations = annotations
         self.correlationId = correlationId
         self.description = description
         self.includes = includes
+        self.primaryShot = primaryShot
         self.shots = shots
         self.title = title
         self.type = type
@@ -662,17 +689,38 @@ public struct EverframeReportSubmitIncludes: Codable, Equatable {
     }
 }
 
+public struct EverframeReportSubmitPrimaryShot: Codable, Equatable {
+    public let hasImage: Bool
+    public let redaction: EverframeShotRedaction?
+
+    public enum CodingKeys: String, CodingKey {
+        case hasImage = "has_image"
+        case redaction
+    }
+
+    public init(hasImage: Bool, redaction: EverframeShotRedaction? = nil) {
+        self.hasImage = hasImage
+        self.redaction = redaction
+    }
+}
+
 public struct EverframeReportSubmitShot: Codable, Equatable {
     public let annotations: [EverframeReportSubmitShotAnnotationItem]
+    public let hasImage: Bool?
+    public let redaction: EverframeShotRedaction?
     public let shotId: String
 
     public enum CodingKeys: String, CodingKey {
         case annotations
+        case hasImage = "has_image"
+        case redaction
         case shotId = "shot_id"
     }
 
-    public init(annotations: [EverframeReportSubmitShotAnnotationItem], shotId: String) {
+    public init(annotations: [EverframeReportSubmitShotAnnotationItem], hasImage: Bool? = nil, redaction: EverframeShotRedaction? = nil, shotId: String) {
         self.annotations = annotations
+        self.hasImage = hasImage
+        self.redaction = redaction
         self.shotId = shotId
     }
 }
@@ -855,6 +903,24 @@ public struct EverframeShotFailed: Codable, Equatable {
         self.reason = reason
         self.shotId = shotId
         self.type = type
+    }
+}
+
+public struct EverframeShotRedaction: Codable, Equatable {
+    public let areaSelected: Bool
+    public let blurred: Bool
+    public let cropped: Bool
+
+    public enum CodingKeys: String, CodingKey {
+        case areaSelected = "area_selected"
+        case blurred
+        case cropped
+    }
+
+    public init(areaSelected: Bool, blurred: Bool, cropped: Bool) {
+        self.areaSelected = areaSelected
+        self.blurred = blurred
+        self.cropped = cropped
     }
 }
 

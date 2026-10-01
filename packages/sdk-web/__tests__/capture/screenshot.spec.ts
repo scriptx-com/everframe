@@ -192,6 +192,85 @@ describe('captureScreenshot', () => {
     vi.doUnmock('modern-screenshot');
   });
 
+  describe('fails closed when a mask has no finite position (Chrome < 61 ClientRect)', () => {
+    function fillCanvas(fills: number[][]): HTMLCanvasElement {
+      const ctx = { fillStyle: '#000000', fillRect: (...a: number[]) => fills.push(a), drawImage: () => undefined, save: () => undefined, restore: () => undefined, setTransform: () => undefined };
+      return {
+        width: 800, height: 600,
+        getContext: () => ctx,
+        toBlob: (cb: (b: Blob | null) => void, type?: string) => cb(new Blob([PNG_BYTES], { type: type ?? 'image/png' })),
+      } as unknown as HTMLCanvasElement;
+    }
+
+    it('a non-finite maskPlan rect degrades to the placeholder (screenshot_failed), never paints nothing and ships', async () => {
+      const fills: number[][] = [];
+      vi.doMock('modern-screenshot', () => ({ domToCanvas: vi.fn(async () => fillCanvas(fills)) }));
+      const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+      let degraded: string | undefined;
+      const r = await cap({
+        root: document.body,
+        maskPlan: [{ x: Number.NaN, y: Number.NaN, width: 50, height: 20 }],
+        __setDegradedReason: (d) => { degraded = d; },
+      });
+      expect(degraded).toBe(DEGRADED_REASONS.screenshot_failed);
+      expect(new Uint8Array(await r.blob.arrayBuffer())).toEqual(PNG_BYTES);
+      expect(fills.some((f) => f.some((n) => !Number.isFinite(n)))).toBe(false);
+      vi.doUnmock('modern-screenshot');
+    });
+
+    it('a sensitive element whose client rect has no finite position fails the shot (screenshot_failed)', async () => {
+      const fills: number[][] = [];
+      vi.doMock('modern-screenshot', () => ({ domToCanvas: vi.fn(async () => fillCanvas(fills)) }));
+      const secret = document.createElement('div');
+      secret.setAttribute('data-everframe-sensitive', '');
+      secret.textContent = 'SECRET';
+      document.body.appendChild(secret);
+      const broken = { width: 120, height: 30 } as DOMRect; // no left/top/x/y at all
+      secret.getClientRects = () => [broken] as unknown as DOMRectList;
+      secret.getBoundingClientRect = () => broken;
+      try {
+        const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+        let degraded: string | undefined;
+        const r = await cap({
+          root: document.body,
+          isSensitive: (el) => el.hasAttribute('data-everframe-sensitive'),
+          __setDegradedReason: (d) => { degraded = d; },
+        });
+        expect(degraded).toBe(DEGRADED_REASONS.screenshot_failed);
+        expect(new Uint8Array(await r.blob.arrayBuffer())).toEqual(PNG_BYTES);
+      } finally {
+        secret.remove();
+        vi.doUnmock('modern-screenshot');
+      }
+    });
+
+    it('a Chrome 53 ClientRect (left/top, no x/y) on a sensitive element is masked where it is', async () => {
+      const fills: number[][] = [];
+      vi.doMock('modern-screenshot', () => ({ domToCanvas: vi.fn(async () => fillCanvas(fills)) }));
+      const secret = document.createElement('div');
+      secret.setAttribute('data-everframe-sensitive', '');
+      document.body.appendChild(secret);
+      const clientRect = { left: 40, top: 30, right: 160, bottom: 60, width: 120, height: 30 } as DOMRect;
+      secret.getClientRects = () => [clientRect] as unknown as DOMRectList;
+      secret.getBoundingClientRect = () => clientRect;
+      try {
+        const { captureScreenshot: cap } = await import('../../src/capture/screenshot.js');
+        let degraded: string | undefined;
+        await cap({
+          root: document.body,
+          pixelRatio: 1,
+          isSensitive: (el) => el.hasAttribute('data-everframe-sensitive'),
+          __setDegradedReason: (d) => { degraded = d; },
+        });
+        expect(degraded).toBeUndefined();
+        expect(fills).toContainEqual([38, 28, 124, 34]);
+      } finally {
+        secret.remove();
+        vi.doUnmock('modern-screenshot');
+      }
+    });
+  });
+
   it('paints maskPlan rects on the FULL canvas before the viewport crop (root-relative space)', async () => {
     // Codex round-3 finding 1: the old pipeline masked the full-document blob
     // (root-relative device px) and cropped afterwards. Masking after the

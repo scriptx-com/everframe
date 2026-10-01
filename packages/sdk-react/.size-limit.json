@@ -4,6 +4,6 @@
     "path": "dist/index.js",
     "limit": "240 KB",
     "gzip": true,
-    "ignore": ["react", "react-dom", "react/jsx-runtime", "./rrweb-*.js", "react-konva", "./dist-*.js"]
+    "ignore": ["react", "react-dom", "react/jsx-runtime", "./rrweb-*.js", "react-konva", "./dist-*.js", "./tv-snapshot-*.js", "./companion-submit-*.js"]
   }
 ]

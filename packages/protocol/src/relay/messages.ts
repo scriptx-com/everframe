@@ -122,6 +122,30 @@ export const ReportRequest = Base.extend({
   attribution_token: z.string().max(512).optional(),
 }).meta({ $id: 'ReportRequest' });
 
+/**
+ * Smart-TV snapshot path (spec 2026-09-29 §Capture contract). A capture
+ * request is answered with exactly one completion; `snapshot` and
+ * `unavailable` carry no image bytes, so the phone never waits on a binary
+ * that will not come. Absent = `image` (every pre-snapshot producer).
+ */
+export const CaptureOutcome = z
+  .enum(['image', 'snapshot', 'unavailable'])
+  .meta({ $id: 'CaptureOutcome' });
+
+/**
+ * The redaction the phone applied to ONE shot before submit. The device
+ * attaches that shot's DOM snapshot only when this is present and all
+ * false — a snapshot would otherwise expose exactly what the user blurred,
+ * cropped away or excluded by area selection.
+ */
+export const ShotRedaction = z
+  .object({
+    cropped: z.boolean(),
+    blurred: z.boolean(),
+    area_selected: z.boolean(),
+  })
+  .meta({ $id: 'ShotRedaction' });
+
 export const ReportAssembled = Base.extend({
   type: z.literal('report.assembled'),
   correlation_id: z.string(),
@@ -131,7 +155,9 @@ export const ReportAssembled = Base.extend({
   // `z.enum(...)` (not `z.union([literal, ...])`) so the JSON Schema emit is
   // `enum: ["image/png", ...]` — what the Swift / Kotlin codegens consume.
   mime: z.enum(['image/png', 'image/webp', 'image/jpeg']),
-  size: z.number().int().positive(),
+  // `0` only for the image-less outcomes below; an image outcome always
+  // announces its binary's byte count (enforced by the refinement).
+  size: z.number().int().nonnegative(),
   toggles: z.object({
     logs: z.boolean(),
     network: z.boolean(),
@@ -167,7 +193,33 @@ export const ReportAssembled = Base.extend({
       nodeCount: z.number().int().nonnegative(),
     })
     .optional(),
-}).meta({ $id: 'ReportAssembled' });
+  outcome: CaptureOutcome.optional(),
+  /** captureControl.degradedReason vocabulary (e.g. screenshot_blank, screenshot_render_failed, screenshot_unavailable). */
+  degraded_reason: z.string().min(1).max(64).optional(),
+  /** Present exactly when `outcome` is `snapshot`: the device-held DOM snapshot's identity. */
+  snapshot: z
+    .object({
+      byte_length: z.number().int().positive(),
+      sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    })
+    .optional(),
+})
+  .superRefine((m, ctx) => {
+    const outcome = m.outcome ?? 'image';
+    if (outcome === 'image' && m.size === 0) {
+      ctx.addIssue({ code: 'custom', path: ['size'], message: 'an image outcome announces its image bytes' });
+    }
+    if (outcome !== 'image' && m.size !== 0) {
+      ctx.addIssue({ code: 'custom', path: ['size'], message: 'an image-less outcome announces no bytes' });
+    }
+    if ((outcome === 'snapshot') !== (m.snapshot !== undefined)) {
+      ctx.addIssue({ code: 'custom', path: ['snapshot'], message: 'a snapshot reference is present exactly for the snapshot outcome' });
+    }
+    if (outcome === 'unavailable' && m.degraded_reason === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['degraded_reason'], message: 'the unavailable outcome names its reason' });
+    }
+  })
+  .meta({ $id: 'ReportAssembled' });
 
 export const ReportDraftUpdate = Base.extend({
   type: z.literal('report.draft.update'),
@@ -229,8 +281,21 @@ export const ReportSubmit = Base.extend({
      *  `true` still parses. */
     uiTree: z.boolean(),
     metadata: z.boolean(),
-    screenshot: z.literal(true),
+    /** False = the user excluded the screenshot artifact. An image-less
+     *  primary is NOT expressed here — see `primary_shot.has_image`. */
+    screenshot: z.boolean(),
   }),
+  /**
+   * The primary shot's framing (spec 2026-09-29). Absent on phones that
+   * predate the snapshot path: the device then expects the primary binary
+   * and treats its redaction state as unknown (snapshot omitted).
+   */
+  primary_shot: z
+    .object({
+      has_image: z.boolean(),
+      redaction: ShotRedaction.optional(),
+    })
+    .optional(),
   /**
    * Additional shots beyond the first (spec 2026-07-17 §3). ABSENT on a
    * single-shot submit, so an old TV's frame and a new phone's single-shot
@@ -245,16 +310,19 @@ export const ReportSubmit = Base.extend({
       z.object({
         shot_id: z.string().min(1).max(64),
         annotations: AnnotationList,
+        /** Absent = true (pre-snapshot phones). False = no binary follows for this shot. */
+        has_image: z.boolean().optional(),
+        redaction: ShotRedaction.optional(),
       }),
     )
-    // Capped at THREE, not by taste but by what ingest accepts: the route
-    // registers @fastify/multipart with `files: 6` (envelope + 5 attachment
-    // slots). A submit already spends the envelope, the primary screenshot and
-    // — when the report carries one — the session replay, so three extras is
-    // the largest number that always fits. This used to advertise 8, which the
-    // server rejected outright: every submission inside the advertised limit
-    // failed. Raising the ingest limit instead is a server-side decision about
-    // request memory, so the client stays inside what the server promises.
+    // Capped at THREE for the companion path: primary + 3 extras = 4 shots.
+    // Ingest bounds a whole report by MAX_INGEST_FILE_PARTS (envelope, an
+    // image AND a dom-snapshot per shot, one replay), which fits the in-app
+    // reporter's MAX_REPORT_SHOTS = 5. The companion is deliberately
+    // narrower than that (4 vs 5): a TV holds each extra shot's baked image
+    // and snapshot in memory until submit, and the relay frame cap predates
+    // the raised ingest limit. Raising it is a separate, compatible change;
+    // until then the client stays inside what the phone and TV both accept.
     .max(3)
     .optional(),
 }).meta({ $id: 'ReportSubmit' });

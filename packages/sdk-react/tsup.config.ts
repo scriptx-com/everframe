@@ -24,6 +24,11 @@ import { fileURLToPath } from 'node:url';
 // two sdk-web entries share.
 const SDK_WEB_SRC = fileURLToPath(new URL('../sdk-web/src/index.ts', import.meta.url));
 const SDK_WEB_UI_SRC = fileURLToPath(new URL('../sdk-web/src/ui.ts', import.meta.url));
+// `@everframe/protocol` from source too, as sdk-web's own build does (see its
+// tsup.config.ts): from the package's pre-bundled single file every schema
+// stays in the eager entry; from source, a schema module nothing imports is
+// dropped by `sideEffects: false`.
+const PROTOCOL_SRC = fileURLToPath(new URL('../protocol/src/index.ts', import.meta.url));
 
 export default defineConfig({
   // `preview` is the INTERNAL admin-dashboard entry (`@everframe/react/preview`
@@ -120,6 +125,7 @@ export default defineConfig({
       ...options.alias,
       '@everframe/web': SDK_WEB_SRC,
       '@everframe/web/ui': SDK_WEB_UI_SRC,
+      '@everframe/protocol': PROTOCOL_SRC,
     };
     // `keepNames` is OFF — we accept the React DevTools cost (customer sees
     // mangled single-letter names instead of `<EverframeProvider>` /

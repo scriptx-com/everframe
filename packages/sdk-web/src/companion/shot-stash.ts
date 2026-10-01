@@ -9,12 +9,23 @@
 // since moved on, so re-capturing would crop a different picture than the one
 // they were looking at.
 'use client';
+import type { CapturedSnapshot } from '../capture/shot-capture.js';
 
 export interface StashedShotCapture {
   bytes: ArrayBuffer;
   mime: 'image/png' | 'image/webp' | 'image/jpeg';
   width: number;
   height: number;
+  /** TV snapshot path: the shot's DOM snapshot, attached at submit only if unredacted and never re-cropped. */
+  snapshot?: CapturedSnapshot;
+  degradedReason?: string;
+}
+
+export interface ShotStashInfo {
+  snapshot?: CapturedSnapshot;
+  degradedReason?: string;
+  /** A crop rect was applied device-side at least once: area selection → no snapshot. */
+  recropped: boolean;
 }
 
 export interface NormalizedRect {
@@ -38,6 +49,7 @@ export interface ShotStashOptions {
 
 export interface ShotStash {
   handle(req: { shotId: string; rect?: NormalizedRect }): Promise<void>;
+  info(shotId: string): ShotStashInfo | undefined;
   clear(): void;
 }
 
@@ -65,6 +77,9 @@ export function createShotStash(opts: ShotStashOptions): ShotStash {
   // must neither retain pixels nor send frames into the (possibly re-bonded)
   // socket.
   let cleared = false;
+  // Shot ids ever cropped device-side. Outlives an eviction on purpose: the
+  // phone's picture of that shot is still an area selection.
+  const recropped = new Set<string>();
 
   return {
     async handle(req) {
@@ -96,6 +111,7 @@ export function createShotStash(opts: ShotStashOptions): ShotStash {
             stash.set(req.shotId, source);
           }
         }
+        if (req.rect !== undefined) recropped.add(req.shotId);
         // Clamp to the source frame: the schema bounds each FIELD to 0–1 but
         // not the far edge (x+w may exceed 1). Native SDKs clamp; sampling
         // past the bitmap here would return transparent/black padding.
@@ -132,9 +148,19 @@ export function createShotStash(opts: ShotStashOptions): ShotStash {
         });
       }
     },
+    info(shotId) {
+      const s = stash.get(shotId);
+      if (s === undefined) return undefined;
+      return {
+        ...(s.snapshot !== undefined ? { snapshot: s.snapshot } : {}),
+        ...(s.degradedReason !== undefined ? { degradedReason: s.degradedReason } : {}),
+        recropped: recropped.has(shotId),
+      };
+    },
     clear() {
       cleared = true;
       stash.clear();
+      recropped.clear();
     },
   };
 }

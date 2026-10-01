@@ -108,8 +108,11 @@ data class PreviewStop(
 data class ReportAssembled(
     @SerialName("correlation_id") val correlationId: String,
     val counts: ReportAssembledCounts,
+    @SerialName("degraded_reason") val degradedReason: String? = null,
     val mime: String,
+    val outcome: String? = null,
     val size: Long,
+    val snapshot: ReportAssembledSnapshot? = null,
     val toggles: ReportAssembledToggles,
     val tree: ReportAssembledTree? = null
 ) : RelayMessage()
@@ -120,6 +123,12 @@ data class ReportAssembledCounts(
     val logs: Long,
     val network: Long,
     val uiTreeNodes: Long
+)
+
+@Serializable
+data class ReportAssembledSnapshot(
+    @SerialName("byte_length") val byteLength: Long,
+    val sha256: String
 )
 
 @Serializable
@@ -199,6 +208,7 @@ data class ReportSubmit(
     @SerialName("correlation_id") val correlationId: String,
     val description: ReportSubmitDescription,
     val includes: ReportSubmitIncludes,
+    @SerialName("primary_shot") val primaryShot: ReportSubmitPrimaryShot? = null,
     val shots: List<ReportSubmitShot>? = null,
     val title: String
 ) : RelayMessage()
@@ -263,8 +273,16 @@ data class ReportSubmitIncludes(
 )
 
 @Serializable
+data class ReportSubmitPrimaryShot(
+    @SerialName("has_image") val hasImage: Boolean,
+    val redaction: ShotRedaction? = null
+)
+
+@Serializable
 data class ReportSubmitShot(
     val annotations: List<ReportSubmitShotAnnotation>,
+    @SerialName("has_image") val hasImage: Boolean? = null,
+    val redaction: ShotRedaction? = null,
     @SerialName("shot_id") val shotId: String
 )
 
@@ -331,6 +349,13 @@ data class ShotFailed(
     val reason: String,
     @SerialName("shot_id") val shotId: String
 ) : RelayMessage()
+
+@Serializable
+data class ShotRedaction(
+    @SerialName("area_selected") val areaSelected: Boolean,
+    val blurred: Boolean,
+    val cropped: Boolean
+)
 
 @Serializable
 @SerialName("shot.request")

@@ -60,7 +60,7 @@ const EMBEDDED_URL_RE = /https?:\/\/[^\s"'<>)]+/gi;
 // URL-shaped substrings, and a same-origin licence/manifest endpoint is
 // exactly the ordinary case, not a corner one. This matches a "/" that could
 // plausibly START a path — preceded by whitespace, a quote/bracket, or the
-// beginning of the string, per the negative lookbehind — and is NOT part of
+// beginning of the string (the "not after a word character" test) — and is NOT part of
 // an ordinary word: "and/or", "1/2", "pass/fail", a filesystem path typed
 // mid-sentence ("path/to/file") all have a WORD character immediately before
 // the "/" and are excluded. `\/\/?` matches either one slash (root-relative)
@@ -81,7 +81,88 @@ const EMBEDDED_URL_RE = /https?:\/\/[^\s"'<>)]+/gi;
 // instead of narrowing what counts as URL-shaped — a genuine root-relative
 // URL (preceded by whitespace/quote/start-of-string either way) is scrubbed
 // exactly as before.
-const EMBEDDED_RELATIVE_URL_RE = /(?<![\p{L}\p{N}_])\/\/?[^\s"'<>)]+/gu;
+//
+// Written WITHOUT a lookbehind or a `\p{…}` literal: either one is a
+// SyntaxError on Chrome < 62/64, and in a regex literal that kills the whole
+// SDK module at load on older smart-TV engines (webOS 4 = Chrome 53). A
+// linear scan applies the "not preceded by a word character" test by hand,
+// with the same Unicode-aware class compiled at runtime where the engine has
+// it (see isWordCharBefore).
+const RELATIVE_URL_AT = /\/\/?[^\s"'<>)]+/y;
+
+let unicodeWordChar: RegExp | null | undefined;
+
+/** `[\p{L}\p{N}_]`, compiled only where the engine supports it (Chrome 64+). */
+function unicodeWordCharRe(): RegExp | null {
+  if (unicodeWordChar === undefined) {
+    try {
+      unicodeWordChar = new RegExp('^[\\p{L}\\p{N}_]$', 'u');
+    } catch {
+      unicodeWordChar = null;
+    }
+  }
+  return unicodeWordChar;
+}
+
+/**
+ * Engines without Unicode property escapes: ASCII word characters, plus any
+ * non-ASCII character outside the common punctuation, symbol and space
+ * blocks (so "功/" and "é/" still read as mid-word, as with `\p{L}`).
+ */
+function isWordCharFallback(ch: string): boolean {
+  const c = ch.charCodeAt(0);
+  if (c < 0x80) return (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a) || c === 0x5f;
+  if (/\s/.test(ch)) return false;
+  if (c <= 0xbf) return c === 0xaa || c === 0xb2 || c === 0xb3 || c === 0xb5 || c === 0xb9 || c === 0xba || (c >= 0xbc && c <= 0xbe);
+  if (c === 0xd7 || c === 0xf7) return false;
+  if (c >= 0x2000 && c <= 0x206f) return false; // general punctuation
+  if (c >= 0x2190 && c <= 0x2bff) return false; // arrows, math, technical, shapes
+  if (c >= 0x3000 && c <= 0x303f) return c >= 0x3005 && c <= 0x3007; // CJK punctuation (々〆〇 are word)
+  if ((c >= 0xff01 && c <= 0xff0f) || (c >= 0xff1a && c <= 0xff20) || (c >= 0xff3b && c <= 0xff40) || (c >= 0xff5b && c <= 0xff65)) return false;
+  return true;
+}
+
+/** Whether the character (code point) just before `i` is a word character. */
+function isWordCharBefore(text: string, i: number): boolean {
+  if (i === 0) return false;
+  let start = i - 1;
+  const low = text.charCodeAt(start);
+  if (low >= 0xdc00 && low <= 0xdfff && start > 0) {
+    const high = text.charCodeAt(start - 1);
+    if (high >= 0xd800 && high <= 0xdbff) start--;
+  }
+  const ch = text.slice(start, i);
+  const re = unicodeWordCharRe();
+  return re !== null ? re.test(ch) : isWordCharFallback(ch);
+}
+
+/** The relative-URL pass: every `/` or `//` run not preceded by a word character. */
+function scrubRelativeUrls(text: string): string {
+  let out = '';
+  let copied = 0;
+  let i = text.indexOf('/');
+  while (i !== -1) {
+    if (isWordCharBefore(text, i)) {
+      i = text.indexOf('/', i + 1);
+      continue;
+    }
+    RELATIVE_URL_AT.lastIndex = i;
+    const m = RELATIVE_URL_AT.exec(text);
+    if (m === null) {
+      i = text.indexOf('/', i + 1);
+      continue;
+    }
+    const match = m[0];
+    const end = i + match.length;
+    const cut = match.search(/[?#]/);
+    if (cut !== -1 && cut !== match.length - 1) {
+      out += text.slice(copied, i) + match.slice(0, cut);
+      copied = end;
+    }
+    i = text.indexOf('/', end);
+  }
+  return copied === 0 ? text : out + text.slice(copied);
+}
 
 /**
  * Scrubs URL-shaped substrings out of free-form integration error text
@@ -117,9 +198,10 @@ export function scrubUrlsInText(text: string): string {
       return match;
     }
   });
-  return absoluteScrubbed.replace(EMBEDDED_RELATIVE_URL_RE, (match) => {
-    const cut = match.search(/[?#]/);
-    if (cut === -1 || cut === match.length - 1) return match;
-    return match.slice(0, cut);
-  });
+  return scrubRelativeUrls(absoluteScrubbed);
+}
+
+/** Test seam: force the no-`\p{…}` fallback (engines below Chrome 64). */
+export function __useWordCharFallbackForTests(on: boolean): void {
+  unicodeWordChar = on ? null : undefined;
 }

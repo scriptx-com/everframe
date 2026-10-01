@@ -7,7 +7,7 @@ import { applyDomMask } from '../sensitive/registry.js';
 import { DEGRADED_REASONS, type DegradedReason } from '../internal/degraded-reasons.js';
 import { installVideoStandIns, POSTER_LOAD_TIMEOUT_MS } from './video-frames.js';
 import { renderViewportWithModernScreenshot } from './renderers/modern-screenshot-renderer.js';
-import { paintMaskRectsOnCanvas } from './mask-paint.js';
+import { isFiniteRect, paintMaskRectsOnCanvas, UnmaskableRectError } from './mask-paint.js';
 import {
   collectSensitiveRects,
   expandMaskTargets,
@@ -19,7 +19,7 @@ import {
 export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
 
-export type ScreenshotRenderer = 'snapdom' | 'modern-screenshot' | 'none';
+export type ScreenshotRenderer = 'snapdom' | 'modern-screenshot' | 'server' | 'none';
 
 /**
  * Share of the profile deadline the primary renderer may use before the
@@ -201,6 +201,7 @@ export async function applyMaskRectsToBlob(
   opts: ApplyMaskRectsOptions = {},
 ): Promise<Blob> {
   if (rects.length === 0) return blob;
+  if (!rects.every(isFiniteRect)) throw new UnmaskableRectError();
   const ratio = opts.pixelRatio ?? 1;
   const ox = opts.rootOriginX ?? 0;
   const oy = opts.rootOriginY ?? 0;

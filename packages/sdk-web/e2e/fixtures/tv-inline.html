@@ -1,0 +1,67 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe TV snapshot unseen-inline e2e fixture</title>
+<!-- Inline content the user never saw, inside VISIBLE blocks: a wrapped span
+     whose every line is scrolled above the viewport (the paragraph goes on
+     below it), and a span past the clip of a nowrap row. Both lose their text
+     but keep their line fragments, so the visible text after them does not
+     move. Plus a sensitive element inside an open shadow root, which the
+     document-level registry scan cannot see. Hidden, faded and clipped SVG
+     text, and the off-rail bare text of a display:contents wrapper whose
+     other child is visible, are dropped too. -->
+<style>
+  body { margin: 0; font: 20px/30px sans-serif; background: #fff; color: #111; }
+  #spacer { height: 600px; }
+  #long { width: 500px; margin: 0 40px; }
+  #wrapped { background: #eef; padding: 0 6px; border: 1px solid #99a; }
+  #row { white-space: nowrap; overflow: hidden; width: 400px; margin: 20px 40px; }
+  #far { font-size: 32px; }
+  #host, #below { margin: 20px 40px; }
+  /* Bootstrap 5 .visually-hidden and 3 .sr-only, verbatim apart from the class names. */
+  .visually-hidden { width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; position: absolute !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  .inset-hidden { clip-path: inset(50%); }
+</style>
+</head>
+<body>
+  <div id="spacer"></div>
+  <p id="long">Lead in. <span id="wrapped">WRAPPEDSECRET alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon</span> tail words here and some more tail words so that the marker <b id="after">AFTERMARK</b> lands on a later line than the span, then the rest.</p>
+  <div id="row"><span id="near">Visible start of a clipped row that runs</span> on and on <span id="far">FARSECRET beyond the clip</span></div>
+  <div id="host"></div>
+  <svg id="badge" width="120" height="30"><text x="4" y="20">SVGSHOWN</text><text x="400" y="20">SVGCLIPPED</text><g style="display:none"><text x="4" y="20">SVGHIDDEN</text></g><text x="4" y="20" style="opacity:0">SVGFADED</text><desc>SVGDESC</desc><defs><text>SVGDEFSTEXT</text></defs><image style="display:none" href="https://cdn.example.test/SVGHIDDENIMG.png" width="5" height="5"></image></svg>
+  <div id="rail2" style="white-space:nowrap;overflow:hidden;width:300px;margin:0 40px"><span style="display:contents"><b id="rail-seen">RAILSEEN</b><i style="display:inline-block;width:400px"></i>CONTENTSOFFSCREEN</span></div>
+  <!-- margin:0 — the margin-collapse probe does not follow slot assignments (a known geometry limitation). -->
+  <x-faded id="faded-host"><p style="margin:0">SLOTTEDHIDDEN</p></x-faded>
+  <x-card id="card"><h2 id="card-head" slot="header" style="margin:0 40px">Card heading</h2></x-card>
+  <p><span class="visually-hidden">VISUALLYHIDDENSECRET</span><span class="sr-only">SRONLYSECRET</span></p>
+  <div class="inset-hidden">CLIPPATHSECRET <img src="https://cdn.example.test/CLIPPEDAVATAR.png" width="10" height="10"></div>
+  <div style="height:0;margin:12px 0;clear:both"></div><p style="margin:0">line one<br><br>after two breaks</p>
+  <!-- React <Sensitive>'s default shape: a display:contents wrapper around a boxed child. -->
+  <span data-everframe-sensitive style="display:contents">CONTENTSWRAPSECRET<div id="sens-child" style="width:200px;height:100px;margin:0 40px">SENSCHILDSECRET</div></span>
+  <p id="below">Below marker</p>
+  <div style="height:1200px"></div>
+  <script>
+    document.getElementById('host').attachShadow({ mode: 'open' }).innerHTML =
+      '<p id="s-public">Shadow public</p><section data-everframe-sensitive style="height:40px">SHADOWSECRET</section>';
+    document.getElementById('faded-host').attachShadow({ mode: 'open' }).innerHTML = '<div style="opacity:0"><slot></slot></div>';
+    document.getElementById('card').attachShadow({ mode: 'open' }).innerHTML = '<div><slot name="header"></slot></div>';
+  </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

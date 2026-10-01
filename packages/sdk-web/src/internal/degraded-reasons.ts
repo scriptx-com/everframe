@@ -7,6 +7,10 @@ export const DEGRADED_REASONS = {
   react_version_unsupported_fiber: 'react_version_unsupported_fiber',
   screenshot_failed: 'screenshot_failed',
   screenshot_blank: 'screenshot_blank',
+  /** Smart-TV path: the DOM snapshot was taken but the server render failed; the snapshot ships alone. */
+  screenshot_render_failed: 'screenshot_render_failed',
+  /** Smart-TV path: neither an image nor a snapshot could be produced. */
+  screenshot_unavailable: 'screenshot_unavailable',
   csp_blocked: 'csp_blocked',
 } as const;
 

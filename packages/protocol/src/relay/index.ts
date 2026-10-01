@@ -13,6 +13,8 @@ export {
   AttachChallenge,
   AttachChallengeCleared,
   ReportRequest,
+  CaptureOutcome,
+  ShotRedaction,
   ReportAssembled,
   ReportDraftUpdate,
   ReportSubmit,

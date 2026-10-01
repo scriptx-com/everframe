@@ -13,3 +13,13 @@ import { bytesToHex } from '@noble/hashes/utils';
 export function sha256Hex(input: string): string {
   return bytesToHex(sha256(new TextEncoder().encode(input)));
 }
+
+/**
+ * SHA-256 hex of raw bytes, synchronous and pure JS. The web SDK's fallback
+ * where `crypto.subtle` is missing (an insecure `http://` page, or an old
+ * engine) — same audited implementation, BigInt-free via this repo's
+ * @noble/hashes patch, so it runs on Chrome 53 TV engines.
+ */
+export function sha256BytesHex(bytes: Uint8Array): string {
+  return bytesToHex(sha256(bytes));
+}

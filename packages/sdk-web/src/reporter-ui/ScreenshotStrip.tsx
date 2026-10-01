@@ -2,14 +2,16 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
 import { useEffect, useState, type JSX } from 'react';
+import { MAX_REPORT_SHOTS } from '@everframe/protocol';
 
-/** Hard cap on screenshots per report — keeps the multipart payload well
- *  inside the 25 MB PIPE-03 envelope cap. */
-export const MAX_SCREENSHOTS = 5;
+/** Hard cap on screenshots per report — the protocol's, so the UI can never
+ *  offer more shots than ingest accepts (image + snapshot per shot). */
+export const MAX_SCREENSHOTS = MAX_REPORT_SHOTS;
 
 export interface StripShot {
   id: string;
-  blob: Blob;
+  /** null = snapshot-only shot (placeholder thumb, not annotatable). */
+  blob: Blob | null;
   annotationCount: number;
   source: 'auto' | 'manual';
 }
@@ -45,7 +47,7 @@ export function ScreenshotStrip({
   const shotIdsKey = shots.map((s) => s.id).join('|');
   useEffect(() => {
     const next = new Map<string, string>();
-    for (const s of shots) next.set(s.id, URL.createObjectURL(s.blob));
+    for (const s of shots) if (s.blob !== null) next.set(s.id, URL.createObjectURL(s.blob));
     setUrls(next);
     return () => {
       for (const u of next.values()) {
@@ -80,11 +82,18 @@ export function ScreenshotStrip({
             onClick={() => onSelect(s.id)}
             aria-label={`Screenshot ${i + 1} of ${shots.length}${
               s.annotationCount > 0 ? `, ${s.annotationCount} annotations` : ''
-            }`}
+            }${s.blob === null ? ', rendered from page snapshot' : ''}`}
             data-testid={`screenshot-thumb-${i}`}
           >
             {urls.get(s.id) ? (
               <img src={urls.get(s.id)} alt="" className="everframe-shot-thumb-img" />
+            ) : s.blob === null ? (
+              <span
+                className="everframe-shot-thumb-snapshot"
+                data-testid={`screenshot-thumb-snapshot-${i}`}
+              >
+                Page snapshot
+              </span>
             ) : null}
           </button>
           <button

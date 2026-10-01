@@ -392,67 +392,75 @@ describe('submit framing with shot.binary markers', () => {
   const fakeCompanion = { __setState: () => {} } as never;
   // Null host: runCompanionSubmit answers report.failed(submit_unavailable)
   // the moment it RUNS — which makes it a precise probe for WHEN the framing
-  // considers the submit complete.
+  // considers the submit complete. It lives in a lazily imported chunk, so
+  // the answer lands a few ticks after launch: `ranBy` waits for pending
+  // dynamic imports and flushes the (fake-timer) queue before counting.
   const submitMsg = (shots: Array<{ shot_id: string }>) =>
     ({ correlation_id: 'c1', annotations: [], shots }) as never;
   const ran = (h: ReturnType<typeof harness>) =>
     h.sent.filter((m) => (m as { type?: string }).type === 'report.failed').length;
 
+  const ranBy = async (h: ReturnType<typeof harness>): Promise<number> => {
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(0);
+    return ran(h);
+  };
+
   beforeEach(() => {
     __resetCompanionSubmitFramingForTests();
   });
 
-  it('waits for every shots[] binary before launching the submit', () => {
+  it('waits for every shots[] binary before launching the submit', async () => {
     const h = harness();
     handleCompanionSubmitText(submitMsg([{ shot_id: 's1' }]), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(0);
+    expect(await ranBy(h)).toBe(0);
     handleCompanionSubmitBinary(bytes('primary'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(0); // primary alone is not enough — s1 still missing
+    expect(await ranBy(h)).toBe(0); // primary alone is not enough — s1 still missing
     handleCompanionShotBinaryMarker({ correlation_id: 'c1', shot_id: 's1' });
     handleCompanionSubmitBinary(bytes('shot1'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(1);
+    expect(await ranBy(h)).toBe(1);
   });
 
-  it('routes a marker-bound binary to the shot, never to the primary slot', () => {
+  it('routes a marker-bound binary to the shot, never to the primary slot', async () => {
     const h = harness();
     handleCompanionSubmitText(submitMsg([{ shot_id: 's1' }]), fakeWs(h), null, fakeCompanion);
     // Marker FIRST — if this binary were mistaken for the primary, the
     // submit would launch here with only one of its two images.
     handleCompanionShotBinaryMarker({ correlation_id: 'c1', shot_id: 's1' });
     handleCompanionSubmitBinary(bytes('shot1'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(0);
+    expect(await ranBy(h)).toBe(0);
     handleCompanionSubmitBinary(bytes('primary'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(1);
+    expect(await ranBy(h)).toBe(1);
   });
 
-  it('single-shot submits keep the legacy text+binary behavior', () => {
+  it('single-shot submits keep the legacy text+binary behavior', async () => {
     const h = harness();
     handleCompanionSubmitText(submitMsg([]), fakeWs(h), null, fakeCompanion);
     handleCompanionSubmitBinary(bytes('primary'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(1);
+    expect(await ranBy(h)).toBe(1);
   });
 
-  it('ignores a marker for a shot_id the pending submit never announced', () => {
+  it('ignores a marker for a shot_id the pending submit never announced', async () => {
     const h = harness();
     handleCompanionSubmitText(submitMsg([{ shot_id: 's1' }]), fakeWs(h), null, fakeCompanion);
     // Unannounced id — must NOT arm the binding...
     handleCompanionShotBinaryMarker({ correlation_id: 'c1', shot_id: 'sEvil' });
     handleCompanionSubmitBinary(bytes('primary'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(0); // ...so this binary was the primary; s1 still missing
+    expect(await ranBy(h)).toBe(0); // ...so this binary was the primary; s1 still missing
     handleCompanionShotBinaryMarker({ correlation_id: 'c1', shot_id: 's1' });
     handleCompanionSubmitBinary(bytes('shot1'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(1);
+    expect(await ranBy(h)).toBe(1);
   });
 
-  it('ignores a marker whose correlation does not match the pending submit', () => {
+  it('ignores a marker whose correlation does not match the pending submit', async () => {
     const h = harness();
     handleCompanionSubmitText(submitMsg([]), fakeWs(h), null, fakeCompanion);
     handleCompanionShotBinaryMarker({ correlation_id: 'cStale', shot_id: 's1' });
     handleCompanionSubmitBinary(bytes('primary'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(1); // binary reached the primary slot, submit ran
+    expect(await ranBy(h)).toBe(1); // binary reached the primary slot, submit ran
   });
 
-  it('peer loss disarms a dangling shot.binary binding', () => {
+  it('peer loss disarms a dangling shot.binary binding', async () => {
     const h = harness();
     // Phone dropped between the marker and its payload...
     handleCompanionShotBinaryMarker({ correlation_id: 'cOld', shot_id: 'sOld' });
@@ -461,7 +469,7 @@ describe('submit framing with shot.binary markers', () => {
     // dead shot (iOS resetSubmitFraming's exact scenario).
     handleCompanionSubmitText(submitMsg([]), fakeWs(h), null, fakeCompanion);
     handleCompanionSubmitBinary(bytes('primary'), fakeWs(h), null, fakeCompanion);
-    expect(ran(h)).toBe(1);
+    expect(await ranBy(h)).toBe(1);
   });
 });
 

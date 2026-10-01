@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe TV snapshot hidden/clipped e2e fixture</title>
+<!-- Everything here is INSIDE the viewport, yet only some of it is visible:
+     a visibility:hidden overlay, an opacity:0 panel (whose child resets
+     opacity, which does not un-hide it), and a rail scrolled so its first tile
+     sits left of the rail's padding box and its last tile right of it. The
+     pruner must drop the invisible text and keep the visible layout. -->
+<style>
+  body { margin: 0; font: 20px/1.4 sans-serif; background: #fff; color: #111; }
+  #h-head { margin: 20px 40px; }
+  #overlay { position: absolute; left: 600px; top: 20px; width: 400px; height: 120px; visibility: hidden; background: #333; color: #fff; }
+  #faded { margin: 0 40px; width: 400px; height: 80px; opacity: 0; }
+  #faded p { opacity: 1; margin: 0; }
+  #rail { display: flex; overflow-x: auto; margin: 20px 40px; width: 640px; border: 4px solid #000; gap: 20px; }
+  .tile { flex: 0 0 200px; height: 100px; background: #cde; }
+  #h-after { margin: 20px 40px; }
+</style>
+</head>
+<body>
+  <h1 id="h-head">Visible heading</h1>
+  <div id="overlay">Hidden overlay HIDDENOVERLAY 4921</div>
+  <div id="faded"><p>Transparent panel FADEDPANEL</p></div>
+  <div id="rail">
+    <div class="tile" id="t-0">Scrolled out RAILSCROLLEDOUT</div>
+    <div class="tile" id="t-1">Tile one VISIBLETILEONE</div>
+    <div class="tile" id="t-2">Tile two VISIBLETILETWO</div>
+    <div class="tile" id="t-3">Tile three</div>
+    <div class="tile" id="t-4">Beyond the rail RAILCLIPPEDOUT</div>
+    <div class="tile" id="t-5">Beyond the rail RAILCLIPPEDOUT</div>
+  </div>
+  <p id="h-after">A visible paragraph after the rail. <select id="plan"><option>A much longer UNSELECTEDOPTION label</option><option selected>Basic</option></select> <span id="after-select">after</span></p>
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

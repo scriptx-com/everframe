@@ -49,4 +49,23 @@ describe('captureFocusedNode', () => {
     const result = FocusedNodeSchema.safeParse(fn);
     expect(result.success).toBe(true);
   });
+
+  it('takes the cursor from left/top when the rect has no x/y (Chrome < 61 ClientRect), and it passes the schema', () => {
+    const input = document.getElementById('email')! as HTMLInputElement;
+    // Chrome 53's ClientRect: left/top/right/bottom/width/height, no x/y.
+    input.getBoundingClientRect = () => ({ left: 120, top: 48, right: 320, bottom: 88, width: 200, height: 40 }) as DOMRect;
+    input.focus();
+    const fn = captureFocusedNode()!;
+    expect(fn.cursor).toEqual({ x: 120, y: 48 });
+    expect(FocusedNodeSchema.safeParse(JSON.parse(JSON.stringify(fn))).success).toBe(true);
+  });
+
+  it('omits the cursor rather than sending NaN when the rect has no usable position', () => {
+    const input = document.getElementById('email')! as HTMLInputElement;
+    input.getBoundingClientRect = () => ({}) as DOMRect;
+    input.focus();
+    const fn = captureFocusedNode()!;
+    expect(fn).not.toHaveProperty('cursor');
+    expect(FocusedNodeSchema.safeParse(JSON.parse(JSON.stringify(fn))).success).toBe(true);
+  });
 });

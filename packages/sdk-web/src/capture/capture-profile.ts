@@ -152,11 +152,15 @@ const TV_PROFILE: CaptureProfile = {
  */
 const TV_WEBVIEW_RE = /Web0S|WebAppManager|Tizen|VIDAA|TitanOS|SmartTV|SMART-TV/i;
 
+/** True for a smart-TV webview UA — the single TV test every caller shares. */
+export function isTvUserAgent(userAgent?: string): boolean {
+  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  return TV_WEBVIEW_RE.test(ua);
+}
+
 /** Resolve the capture profile for a user agent (defaults to the live one). */
 export function getCaptureProfile(userAgent?: string): CaptureProfile {
-  const ua =
-    userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
-  return TV_WEBVIEW_RE.test(ua) ? TV_PROFILE : DEFAULT_PROFILE;
+  return isTvUserAgent(userAgent) ? TV_PROFILE : DEFAULT_PROFILE;
 }
 
 /**

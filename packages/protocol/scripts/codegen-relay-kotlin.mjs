@@ -62,6 +62,16 @@ const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // Render a Kotlin type for a JSON-Schema field. For inline nested objects /
 // arrays of objects we emit a fresh nominal data class into `extraTypes`.
 function kotlinType(prop, ownerName, fieldName, extraTypes) {
+  // A sub-schema reused at several sites is hoisted into `$defs` by
+  // scripts/generate-json-schema.mjs and referenced by its bare `$id`. Emit
+  // it once under that stable name instead of once per owning field.
+  if (typeof prop.$ref === 'string') {
+    const def = schema.$defs && schema.$defs[prop.$ref];
+    if (!def) throw new Error(`unresolved $ref "${prop.$ref}" at ${ownerName}.${fieldName}`);
+    if (def.type !== 'object') return kotlinType(def, ownerName, fieldName, extraTypes);
+    emitDataClass(prop.$ref, def, extraTypes);
+    return prop.$ref;
+  }
   if (prop.type === 'string') return 'String';
   if (prop.type === 'boolean') return 'Boolean';
   if (prop.type === 'integer') return 'Long';

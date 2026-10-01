@@ -5,7 +5,8 @@
 // on older Hermes (Pitfall 3 in RESEARCH.md — older Hermes does not implement
 // CompressionStream).
 export async function gzipBytes(input: Uint8Array): Promise<Uint8Array> {
-  if (typeof (globalThis as { CompressionStream?: unknown }).CompressionStream !== 'undefined') {
+  // A bare `typeof` — never `globalThis.…`, a ReferenceError on Chrome < 71 TVs.
+  if (typeof CompressionStream !== 'undefined') {
     const cs = new CompressionStream('gzip');
     const stream = new Blob([input as BlobPart]).stream().pipeThrough(cs);
     const arrayBuffer = await new Response(stream).arrayBuffer();

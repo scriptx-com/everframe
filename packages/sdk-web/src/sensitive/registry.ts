@@ -127,7 +127,8 @@ function rectFromEl(el: Element): Rect | null {
   if (!isContentsBox(el)) {
     const own = el.getBoundingClientRect();
     if (own.width > 0 || own.height > 0) {
-      return { x: own.x, y: own.y, width: own.width, height: own.height };
+      // left/top: Chrome < 61's ClientRect has no x/y (a NaN mask paints nothing).
+      return { x: own.left, y: own.top, width: own.width, height: own.height };
     }
   }
   // display:contents (or zero-size wrapper) — fallback chain:
@@ -146,7 +147,7 @@ function rectFromEl(el: Element): Rect | null {
       const r = range.getBoundingClientRect();
       range.detach?.();
       if (r.width > 0 || r.height > 0) {
-        return { x: r.x, y: r.y, width: r.width, height: r.height };
+        return { x: r.left, y: r.top, width: r.width, height: r.height };
       }
     } catch {
       /* fall through — un-mounted / cross-doc nodes */

@@ -1,0 +1,71 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe TV snapshot e2e fixture</title>
+<style>
+  :root { --patient-name: Alice Smith; --phrase: "Alice Smith"; }
+  body { margin: 0; font: 20px/1.4 sans-serif; background: #fff; color: #111; }
+  @media (prefers-color-scheme: dark) { body { background: rgb(16, 20, 24); color: #eee; } }
+  #previous { height: 1200px; background: #ccc; }
+  #rail { display: flex; overflow-x: auto; width: 1000px; gap: 16px; }
+  .tile { flex: 0 0 300px; height: 160px; background: #345; }
+  .tile:focus { outline: 6px solid #fc0; }
+  nav a[aria-current="page"] { background: rgb(0, 160, 0); }
+  #vault { width: 300px; height: 80px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Ctext y='20'%3EAlice Smith%3C/text%3E%3C/svg%3E"); }
+  #vault::before { content: "Alice Smith"; }
+  #quote { quotes: "Alice Smith" "Alice Smith"; }
+  #quote::before { content: open-quote; }
+  #var::before { content: var(--phrase); }
+  @counter-style leak { system: cyclic; symbols: "A"; negative: "Alice Smith"; additive-symbols: 1 "Alice Smith"; }
+  #grid { display: grid; grid-template-areas: "head head" "side main"; grid-template-columns: 100px 200px; }
+  #grid .h { grid-area: head; } #grid .s { grid-area: side; } #grid .m { grid-area: main; }
+  .poster { width: 200px; height: 100px; background-image: -webkit-image-set(url("https://cdn.example.test/p.png?access_token=SECRETTOKEN") 1x); }
+  @font-face { font-family: "Fixture Sans"; src: url("https://fonts.example.test/f.woff2?sig=SECRETTOKEN") format("woff2"); }
+</style>
+</head>
+<body>
+  <section id="previous">Previous screen PREVIOUSSCREEN</section>
+  <main id="current">
+    <nav><a id="nav-home" href="https://alice:secret@app.example.test/home?session=SECRETTOKEN#frag" aria-current="page">Home</a></nav>
+    <div id="rail">
+      <div class="tile" id="tile-1" tabindex="0"></div><div class="tile" id="tile-2" tabindex="0"></div>
+      <div class="tile" id="tile-3" tabindex="0"></div><div class="tile" id="tile-4" tabindex="0"></div>
+      <div class="tile" id="tile-5" tabindex="0"></div><div class="tile" id="tile-6" tabindex="0"></div>
+    </div>
+    <section id="vault" data-everframe-sensitive>Account ALICESECRET 1234</section>
+    <p id="quote">q</p><p id="var">v</p>
+    <img id="poster-img" width="100" height="50"
+      src="https://alice:secret@cdn.example.test/poster.png?token=SECRETTOKEN"
+      srcset="https://cdn.example.test/p1.png?t=SECRETTOKEN 1x, https://cdn.example.test/p2.png?t=SECRETTOKEN 2x">
+    <svg width="40" height="40" viewBox="0 0 40 40">
+      <defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/></linearGradient>
+      <symbol id="play" viewBox="0 0 10 10"><path d="M0 0L10 5L0 10z"/></symbol></defs>
+      <use href="#play" fill="url(#g)"/>
+    </svg>
+    <div id="grid"><div class="h">h</div><div class="s">s</div><div class="m">m</div></div>
+    <div class="poster"></div>
+    <input id="search" value="typed query ALICETYPED">
+    <div id="marker" style="width:50px;height:50px;background:#f0f">M</div>
+    <div style="height:1400px"></div>
+  </main>
+  <!-- rrweb-snapshot is bundled into the SDK's tv-snapshot chunk; the map
+       entry only lets the deep-DOM spec probe the library directly. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js",
+      "rrweb-snapshot": "/vendor/rrweb-snapshot.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

@@ -254,7 +254,7 @@
         },
         "size": {
           "type": "integer",
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "maximum": 9007199254740991
         },
         "toggles": {
@@ -340,6 +340,39 @@
             "gzippedSize",
             "rawSize",
             "nodeCount"
+          ],
+          "additionalProperties": false
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "image",
+            "snapshot",
+            "unavailable"
+          ],
+          "$id": "CaptureOutcome"
+        },
+        "degraded_reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "snapshot": {
+          "type": "object",
+          "properties": {
+            "byte_length": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "byte_length",
+            "sha256"
           ],
           "additionalProperties": false
         }
@@ -603,8 +636,7 @@
               "type": "boolean"
             },
             "screenshot": {
-              "type": "boolean",
-              "const": true
+              "type": "boolean"
             }
           },
           "required": [
@@ -613,6 +645,21 @@
             "uiTree",
             "metadata",
             "screenshot"
+          ],
+          "additionalProperties": false
+        },
+        "primary_shot": {
+          "type": "object",
+          "properties": {
+            "has_image": {
+              "type": "boolean"
+            },
+            "redaction": {
+              "$ref": "ShotRedaction"
+            }
+          },
+          "required": [
+            "has_image"
           ],
           "additionalProperties": false
         },
@@ -752,6 +799,12 @@
                     }
                   ]
                 }
+              },
+              "has_image": {
+                "type": "boolean"
+              },
+              "redaction": {
+                "$ref": "ShotRedaction"
               }
             },
             "required": [
@@ -1120,5 +1173,28 @@
       "$id": "ShotBinary"
     }
   ],
-  "$id": "RelayMessage"
+  "$id": "RelayMessage",
+  "$defs": {
+    "ShotRedaction": {
+      "type": "object",
+      "properties": {
+        "cropped": {
+          "type": "boolean"
+        },
+        "blurred": {
+          "type": "boolean"
+        },
+        "area_selected": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cropped",
+        "blurred",
+        "area_selected"
+      ],
+      "additionalProperties": false,
+      "$id": "ShotRedaction"
+    }
+  }
 }
