@@ -14,6 +14,12 @@
 // content may reference by id survive as zero-size carriers under the topmost
 // pruned ancestor; every other part of that SVG is dropped.
 //
+// SVG is allowlisted: desc/title/metadata text is dropped, a resource leaf
+// (<image>, <use>) the user cannot see loses its URL, and a definition
+// (symbol, clipPath, gradient… or any child of <defs>) survives only when
+// something kept references it by id — then without bare text that never
+// renders.
+//
 // Also here, because this is the one pass that sees the LIVE element behind
 // each serialized node: SDK chrome removal, blocked-sensitive black boxes, and
 // bare text of sensitive display:contents wrappers.
@@ -167,6 +173,13 @@ const REPLACED = new Set(['img', 'video', 'canvas', 'picture', 'iframe', 'object
 const SVG_DEFS = new Set([
   'defs', 'symbol', 'clippath', 'mask', 'lineargradient', 'radialgradient', 'pattern', 'filter', 'marker',
 ]);
+/** SVG elements whose text is never rendered (tooltips, descriptions, metadata). */
+const SVG_NON_RENDERED = new Set(['desc', 'title', 'metadata']);
+/** Childless SVG elements that load a resource by URL. Lower-case. */
+const SVG_RESOURCE_LEAVES = new Set(['image', 'use', 'feimage']);
+const SVG_URL_ATTRS = ['href', 'xlink:href', 'src'];
+/** SVG elements whose bare text renders. Anywhere else in a definition bare text is dropped. */
+const SVG_TEXT_HOSTS = new Set(['text', 'tspan', 'textpath', 'style']);
 /** Attributes of a kept off-screen inline element that carry text or URLs and have no layout effect. */
 const CONTENT_ATTRS = new Set(['href', 'title', 'alt', 'placeholder']);
 const BLOCK_LEVEL = new Set(['block', 'list-item', 'table', 'flex', 'grid', 'flow-root', '-webkit-box']);
@@ -671,7 +684,30 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const f = frame(node, 'svgContent', live, null, parent);
     f.hideText = parent.hideText;
     if (SVG_DEFS.has(tag) || (parent.mode === 'svg' && !parent.seen)) f.svgSkip = true;
-    if (f.svgSkip || live === null || node.childNodes.length === 0) return f;
+    if (SVG_NON_RENDERED.has(tag)) {
+      if (node.childNodes.length > 0) result.changed = true;
+      node.childNodes = [];
+      return f;
+    }
+    if (f.svgSkip || live === null) return f;
+    if (node.childNodes.length === 0) {
+      // A resource leaf (<image>, <use>…) the user cannot see loads nothing.
+      if (SVG_RESOURCE_LEAVES.has(tag)) {
+        const s = styleOnce(f);
+        const unseen =
+          parent.faded || isZeroOpacity(s) || isInvisible(s) || (s !== null && s.display === 'none') ||
+          !overlaps(deps.rectOf(live), parent.clip);
+        if (unseen) {
+          for (const name of SVG_URL_ATTRS) {
+            if (hasOwn(node.attributes, name)) {
+              delete node.attributes[name];
+              result.changed = true;
+            }
+          }
+        }
+      }
+      return f;
+    }
     const s = styleOnce(f);
     f.faded = parent.faded || isZeroOpacity(s);
     f.hideText = f.faded || isInvisible(s);
@@ -974,7 +1010,170 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const verdict = finish(top, parent);
     if (parent !== undefined) settle(parent, top.node, verdict, top);
   }
+  if (dropUnreferencedDefinitions(root)) result.changed = true;
   if (result.masked || result.pruned > 0) result.changed = true;
   return result;
+}
+
+// ── SVG definitions: kept only when referenced ──────────────────────────────
+
+/** Adds every `#id` that `url(…)` occurrences in `text` point at (raw and decoded). Linear. */
+function addUrlRefs(text: string, into: Set<string>): void {
+  let pos = 0;
+  for (;;) {
+    const u = text.indexOf('url(', pos);
+    if (u === -1) return;
+    const close = text.indexOf(')', u + 4);
+    if (close === -1) return;
+    const inner = text.slice(u + 4, close);
+    const hash = inner.lastIndexOf('#');
+    if (hash !== -1) addRef(inner.slice(hash + 1), into);
+    pos = close + 1;
+  }
+}
+
+function addRef(raw: string, into: Set<string>): void {
+  let end = raw.length;
+  while (end > 0 && /[\s'"]/.test(raw.charAt(end - 1))) end--;
+  const id = raw.slice(0, end);
+  if (id === '') return;
+  into.add(id);
+  try {
+    into.add(decodeURIComponent(id));
+  } catch {
+    /* not percent-encoded */
+  }
+}
+
+function addNodeRefs(node: SnElement, into: Set<string>): void {
+  for (const key of Object.keys(node.attributes)) {
+    const value = node.attributes[key];
+    if (typeof value !== 'string') continue;
+    const lower = key.toLowerCase();
+    if (lower === 'href' || lower === 'xlink:href') {
+      const t = value.trim();
+      const hash = t.indexOf('#');
+      if (hash !== -1) addRef(t.slice(hash + 1), into); // `#id`, or rrweb's absolutized same-document form
+    }
+    if (value.indexOf('url(') !== -1) addUrlRefs(value, into);
+  }
+}
+
+interface DefUnit {
+  node: SnElement;
+  parent: SnParent;
+  ids: string[];
+  refs: Set<string>;
+}
+
+/**
+ * An SVG definition (a child of <defs>, or a symbol / clipPath / mask /
+ * gradient / pattern / filter / marker anywhere) renders only where visible
+ * content references it, so one nothing references is dropped whole; a
+ * referenced one loses bare text that never renders (outside text/tspan/
+ * textPath/style). References come from every attribute and stylesheet
+ * outside definitions, then from kept definitions in turn. Iterative.
+ * Returns whether anything was dropped.
+ */
+function dropUnreferencedDefinitions(root: SnParent): boolean {
+  const units: DefUnit[] = [];
+  const outsideRefs = new Set<string>();
+  let changed = false;
+  type Item = { node: SnNode; parent: SnParent | null; unit: DefUnit | null; inDefs: boolean };
+  const stack: Item[] = [{ node: root, parent: null, unit: null, inDefs: false }];
+  while (stack.length > 0) {
+    const { node, parent, unit, inDefs } = stack.pop() as Item;
+    if (node.type === SN_TEXT) {
+      if (node.isStyle === true || (parent !== null && parent.type === SN_ELEMENT && parent.tagName.toLowerCase() === 'style')) {
+        addUrlRefs(node.textContent, unit?.refs ?? outsideRefs);
+      }
+      continue;
+    }
+    if (node.type !== SN_ELEMENT && node.type !== SN_DOCUMENT) continue;
+    let own = unit;
+    let childInDefs = false;
+    if (node.type === SN_ELEMENT) {
+      const tag = node.tagName.toLowerCase();
+      if (own === null && node.isSVG === true && parent !== null && tag !== 'style' && (inDefs || (SVG_DEFS.has(tag) && tag !== 'defs'))) {
+        own = { node, parent, ids: [], refs: new Set() };
+        units.push(own);
+      }
+      if (own === null && node.isSVG === true && tag === 'defs') {
+        childInDefs = true;
+        // Bare text directly in <defs> never renders.
+        const kept = node.childNodes.filter((c) => c.type !== SN_TEXT || isBlankText(c.textContent));
+        if (kept.length !== node.childNodes.length) changed = true;
+        node.childNodes = kept;
+      }
+      if (own !== null) {
+        const id = hasOwn(node.attributes, 'id') ? node.attributes.id : undefined;
+        if (typeof id === 'string' && id !== '') own.ids.push(id);
+      }
+      addNodeRefs(node, own?.refs ?? outsideRefs);
+    }
+    for (let i = node.childNodes.length - 1; i >= 0; i--) {
+      stack.push({ node: node.childNodes[i] as SnNode, parent: node, unit: own, inDefs: childInDefs });
+    }
+  }
+  if (units.length === 0) return changed;
+
+  // Closure: a kept definition's own references keep more definitions.
+  const byId = new Map<string, DefUnit[]>();
+  for (const u of units) for (const id of u.ids) {
+    const list = byId.get(id);
+    if (list === undefined) byId.set(id, [u]);
+    else list.push(u);
+  }
+  const kept = new Set<DefUnit>();
+  const pending: string[] = [];
+  outsideRefs.forEach((id) => pending.push(id));
+  const seenIds = new Set<string>();
+  while (pending.length > 0) {
+    const id = pending.pop() as string;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+    for (const u of byId.get(id) ?? []) {
+      if (kept.has(u)) continue;
+      kept.add(u);
+      u.refs.forEach((r) => pending.push(r));
+    }
+  }
+
+  const dropFrom = new Map<SnParent, Set<SnNode>>();
+  for (const u of units) {
+    if (kept.has(u)) {
+      if (dropStrayText(u.node)) changed = true;
+      continue;
+    }
+    changed = true;
+    const set = dropFrom.get(u.parent);
+    if (set === undefined) dropFrom.set(u.parent, new Set([u.node]));
+    else set.add(u.node);
+  }
+  dropFrom.forEach((drop, parent) => {
+    parent.childNodes = parent.childNodes.filter((c) => !drop.has(c));
+  });
+  return changed;
+}
+
+/** Removes bare text outside text-rendering SVG elements from a kept definition. Iterative. */
+function dropStrayText(def: SnElement): boolean {
+  let changed = false;
+  const stack: SnElement[] = [def];
+  while (stack.length > 0) {
+    const el = stack.pop() as SnElement;
+    const hostsText = SVG_TEXT_HOSTS.has(el.tagName.toLowerCase());
+    const next: SnNode[] = [];
+    for (const child of el.childNodes) {
+      if (child.type === SN_TEXT && !hostsText && !isBlankText(child.textContent)) {
+        changed = true;
+        continue;
+      }
+      next.push(child);
+      if (child.type === SN_ELEMENT) stack.push(child);
+    }
+    el.childNodes = next;
+  }
+  return changed;
 }
 

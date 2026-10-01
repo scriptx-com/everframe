@@ -301,7 +301,7 @@ test('unseen inline, SVG and display:contents text inside visible blocks is drop
   const shot = await shoot(page);
   expect(shot).toMatchObject({ hasImage: true, hasSnapshot: true });
   const { text, doc } = decode(bodies[0]!);
-  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET', 'SVGCLIPPED', 'SVGHIDDEN', 'SVGFADED', 'CONTENTSOFFSCREEN'])).toEqual([]);
+  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET', 'SVGCLIPPED', 'SVGHIDDEN', 'SVGFADED', 'SVGDESC', 'SVGDEFSTEXT', 'SVGHIDDENIMG', 'CONTENTSOFFSCREEN'])).toEqual([]);
   expect(text).toContain('AFTERMARK');
   expect(text).toContain('SVGSHOWN');
   expect(text).toContain('RAILSEEN');

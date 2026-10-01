@@ -433,6 +433,50 @@ describe('pruned or hidden content does not survive in CSS', () => {
   });
 });
 
+describe('non-rendered SVG content (allowlist)', () => {
+  const page = (svg: string, css = '') => {
+    document.head.innerHTML = css === '' ? '' : `<style>${css}</style>`;
+    document.body.innerHTML = `<section id="s"></section><svg id="icon" width="100" height="20">${svg}</svg>`;
+  };
+
+  it('drops desc, title and metadata text', () => {
+    page('<desc>PRIVATE_DESCRIPTION</desc><title>PRIVATE_TITLE</title><metadata><x>PRIVATE_META</x></metadata><rect width="5" height="5"></rect>');
+    expect(findLeaks(JSON.stringify(take().doc), ['PRIVATE_DESCRIPTION', 'PRIVATE_TITLE', 'PRIVATE_META'])).toEqual([]);
+  });
+
+  it('drops unreferenced definitions and their text, keeping referenced ones', () => {
+    page(
+      '<defs><text>PRIVATE_NAME</text><symbol id="unused"><text>UNUSED_SYMBOL_TEXT</text></symbol>' +
+        '<linearGradient id="base"><stop offset="0"></stop></linearGradient><linearGradient id="g" href="#base"></linearGradient>' +
+        '<symbol id="used"><text>USED_SYMBOL_TEXT</text>STRAY_BARE_TEXT</symbol><clipPath id="css-clip"><rect width="1" height="1"></rect></clipPath></defs>' +
+        '<rect fill="url(#g)" width="5" height="5"></rect><use href="#used"></use>',
+      '#icon rect{clip-path:url(#css-clip)}',
+    );
+    const taken = take();
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['PRIVATE_NAME', 'UNUSED_SYMBOL_TEXT', 'STRAY_BARE_TEXT'])).toEqual([]);
+    expect(json).toContain('USED_SYMBOL_TEXT');
+    const root = rootOf(taken);
+    for (const id of ['g', 'base', 'used', 'css-clip']) expect(findEl(root, (e) => e.attributes.id === id), id).toBeDefined();
+    expect(findEl(root, (e) => e.attributes.id === 'unused')).toBeUndefined();
+  });
+
+  it('drops the URL of a hidden or clipped resource leaf', () => {
+    page(
+      '<image id="hid" style="display:none" href="https://cdn.example.test/PRIVATE_IMAGE.png" width="5" height="5"></image>' +
+        '<image id="far" href="https://cdn.example.test/CLIPPED_IMAGE.png" width="5" height="5"></image>' +
+        '<g style="opacity:0"><use id="faded" href="https://cdn.example.test/FADED_SPRITE.svg#x"></use></g>' +
+        '<image id="shown" href="https://cdn.example.test/SHOWN_IMAGE.png" width="5" height="5"></image>',
+    );
+    const far: PruneRect = { left: 2000, top: 0, right: 2005, bottom: 5, width: 5, height: 5 };
+    const json = JSON.stringify(
+      take({ measure: { rectOf: (el) => (el.id === 'far' ? far : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) } }).doc,
+    );
+    expect(findLeaks(json, ['PRIVATE_IMAGE', 'CLIPPED_IMAGE', 'FADED_SPRITE'])).toEqual([]);
+    expect(json).toContain('SHOWN_IMAGE');
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

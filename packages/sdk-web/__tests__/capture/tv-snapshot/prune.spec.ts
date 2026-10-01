@@ -155,7 +155,8 @@ describe('pruneSnapshot', () => {
     const { bind, deps } = harness();
     const sprite = bind(el('svg', {}, [el('symbol', { id: 'play' }, [], { isSVG: true })], { isSVG: true }), { rect: ABOVE });
     const icon = bind(el('svg', {}, [el('text', {}, [text('ICONTEXT')], { isSVG: true })], { isSVG: true }), { rect: ABOVE });
-    pruneSnapshot(doc(el('html', {}, [el('body', {}, [sprite, icon])])), deps);
+    const visibleUse = bind(el('svg', {}, [el('use', { href: '#play' }, [], { isSVG: true })], { isSVG: true }));
+    pruneSnapshot(doc(el('html', {}, [el('body', {}, [sprite, icon, visibleUse])])), deps);
     expect(sprite.childNodes).toHaveLength(1);
     expect(icon.childNodes).toEqual([]);
   });
@@ -226,7 +227,8 @@ describe('pruneSnapshot', () => {
     );
     const link = bind(el('a', { href: 'https://secret.test/account' }, [text('SECRETLINK')]), { rect: ABOVE });
     const section = bind(el('section', {}, [text('SECRETTEXT'), link, icon]), { rect: ABOVE, size: { width: 1280, height: 1200 } });
-    const current = bind(el('main', {}, [text('visible')]));
+    // A visible element still clips with it, so the definition must survive.
+    const current = bind(el('main', { style: 'clip-path:url(#clip0)' }, [text('visible')]));
     const root = doc(el('html', {}, [el('body', {}, [section, current])]));
     pruneSnapshot(root, deps);
     expect(section.childNodes).toEqual([icon]);
@@ -242,7 +244,8 @@ describe('pruneSnapshot', () => {
     const sprite = bind(el('svg', {}, [el('symbol', { id: 'play' }, [el('path', { d: 'M1 1' }, [], { isSVG: true })], { isSVG: true })], { isSVG: true }), { rect: ABOVE });
     const inner = bind(el('div', {}, [sprite]), { rect: ABOVE });
     const overlay = bind(el('div', {}, [inner, text('OVERLAYTEXT')]), { rect: ABOVE, style: { position: 'absolute' } });
-    const root = doc(el('html', {}, [el('body', {}, [overlay])]));
+    const visibleUse = bind(el('svg', {}, [el('use', { 'xlink:href': '#play' }, [], { isSVG: true })], { isSVG: true }));
+    const root = doc(el('html', {}, [el('body', {}, [overlay, visibleUse])]));
     pruneSnapshot(root, deps);
     expect(overlay.childNodes).toEqual([sprite]);
     expect(overlay.attributes).toEqual({
@@ -250,6 +253,16 @@ describe('pruneSnapshot', () => {
     });
     expect(sprite.childNodes).toHaveLength(1);
     expect(findLeaks(JSON.stringify(root), ['OVERLAYTEXT'])).toEqual([]);
+  });
+
+  it('drops a carried definition nothing visible references', () => {
+    const { bind, deps } = harness();
+    const sprite = bind(el('svg', {}, [el('symbol', { id: 'play' }, [el('text', {}, [text('SYMBOLTEXT')], { isSVG: true })], { isSVG: true })], { isSVG: true }), { rect: ABOVE });
+    const section = bind(el('section', {}, [sprite]), { rect: ABOVE });
+    const root = doc(el('html', {}, [el('body', {}, [section, bind(el('main', {}, [text('visible')]))])]));
+    const result = pruneSnapshot(root, deps);
+    expect(findLeaks(JSON.stringify(root), ['SYMBOLTEXT'])).toEqual([]);
+    expect(result.changed).toBe(true);
   });
 
   it('prunes an off-screen svg whose only ids are on non-definition elements', () => {
