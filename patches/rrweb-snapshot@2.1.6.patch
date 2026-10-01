@@ -1,0 +1,471 @@
+diff --git a/dist/rrweb-snapshot.cjs b/dist/rrweb-snapshot.cjs
+index e6d655d58fdf1428f6349a019abc70afd391b098..b59c9331582e839a30cf0e406e952bc79b13d00e 100644
+--- a/dist/rrweb-snapshot.cjs
++++ b/dist/rrweb-snapshot.cjs
+@@ -474,41 +474,104 @@ const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
+ const URL_PROTOCOL_MATCH = /^(?:[a-z+]+:)?\/\//i;
+ const URL_WWW_MATCH = /^www\..*/i;
+ const DATA_URI = /^(data:)([^,]*),(.*)/i;
++// PATCHED (everframe): URL_IN_CSS_REF, run by String#replace, restarts its
++// failing scan at every unclosed `url(`, which is quadratic on page-controlled
++// CSS (32k `url(` in one style attribute blocks a TV for seconds). This is the
++// same match, found by a linear scan: each "next occurrence" lookup is cached
++// and only advances, so the whole pass reads the text a bounded number of times.
++function nextFinder(find) {
++  let at = -2;
++  return (from) => {
++    if (at !== -1 && at < from) at = find(from);
++    return at;
++  };
++}
+ function absolutifyURLs(cssText, href) {
+-  return (cssText || "").replace(
+-    URL_IN_CSS_REF,
+-    (origin, quote1, path1, quote2, path2, path3) => {
+-      const filePath = path1 || path2 || path3;
+-      const maybeQuote = quote1 || quote2 || "";
+-      if (!filePath) {
+-        return origin;
+-      }
+-      if (URL_PROTOCOL_MATCH.test(filePath) || URL_WWW_MATCH.test(filePath)) {
+-        return `url(${maybeQuote}${filePath}${maybeQuote})`;
+-      }
+-      if (DATA_URI.test(filePath)) {
+-        return `url(${maybeQuote}${filePath}${maybeQuote})`;
+-      }
+-      if (filePath[0] === "/") {
+-        return `url(${maybeQuote}${extractOrigin(href) + filePath}${maybeQuote})`;
+-      }
+-      const filePathNoHash = filePath.split("#")[0];
+-      const maybeHash = filePath.substring(filePathNoHash.length);
+-      const stack = href.split("#")[0].split("/");
+-      const parts = filePathNoHash.split("/");
+-      stack.pop();
+-      for (const part of parts) {
+-        if (part === ".") {
+-          continue;
+-        } else if (part === "..") {
+-          stack.pop();
+-        } else {
+-          stack.push(part);
+-        }
++  cssText = cssText || "";
++  if (cssText.indexOf("url(") === -1) return cssText;
++  const nextParen = nextFinder((from) => cssText.indexOf(")", from));
++  const nextSingle = nextFinder((from) => cssText.indexOf("'", from));
++  const nextDoubleParen = nextFinder((from) => cssText.indexOf('")', from));
++  // `.` (in the regex's lazy double-quoted branch) stops at line terminators.
++  const terminators = ["\n", "\r", "\u2028", "\u2029"].map(
++    (t) => nextFinder((from) => cssText.indexOf(t, from))
++  );
++  const nextTerminator = (from) => {
++    let min = -1;
++    for (const next of terminators) {
++      const at = next(from);
++      if (at !== -1 && (min === -1 || at < min)) min = at;
++    }
++    return min;
++  };
++  let out = "";
++  let last = 0;
++  let pos = 0;
++  for (;;) {
++    const u = cssText.indexOf("url(", pos);
++    if (u === -1) break;
++    const start = u + 4;
++    const c = cssText.charAt(start);
++    let end = -1;
++    let quote1, path1, quote2, path2, path3;
++    if (c === "'") {
++      const q = nextSingle(start + 1);
++      if (q !== -1 && cssText.charAt(q + 1) === ")") {
++        quote1 = "'";
++        path1 = cssText.slice(start + 1, q);
++        end = q + 2;
++      }
++    } else if (c === '"') {
++      const d = nextDoubleParen(start + 1);
++      const t = nextTerminator(start + 1);
++      if (d !== -1 && (t === -1 || d < t)) {
++        quote2 = '"';
++        path2 = cssText.slice(start + 1, d);
++        end = d + 2;
++      }
++    }
++    if (end === -1) {
++      const p = nextParen(start);
++      if (p === -1) break; // no `)` left: no later `url(` can match either
++      path3 = cssText.slice(start, p);
++      end = p + 1;
++    }
++    out += cssText.slice(last, u) + absolutifyURL(cssText.slice(u, end), quote1, path1, quote2, path2, path3);
++    last = end;
++    pos = end;
++  }
++  return out + cssText.slice(last);
++  function absolutifyURL(origin, quote1, path1, quote2, path2, path3) {
++    const filePath = path1 || path2 || path3;
++    const maybeQuote = quote1 || quote2 || "";
++    if (!filePath) {
++      return origin;
++    }
++    if (URL_PROTOCOL_MATCH.test(filePath) || URL_WWW_MATCH.test(filePath)) {
++      return `url(${maybeQuote}${filePath}${maybeQuote})`;
++    }
++    if (DATA_URI.test(filePath)) {
++      return `url(${maybeQuote}${filePath}${maybeQuote})`;
++    }
++    if (filePath[0] === "/") {
++      return `url(${maybeQuote}${extractOrigin(href) + filePath}${maybeQuote})`;
++    }
++    const filePathNoHash = filePath.split("#")[0];
++    const maybeHash = filePath.substring(filePathNoHash.length);
++    const stack = href.split("#")[0].split("/");
++    const parts = filePathNoHash.split("/");
++    stack.pop();
++    for (const part of parts) {
++      if (part === ".") {
++        continue;
++      } else if (part === "..") {
++        stack.pop();
++      } else {
++        stack.push(part);
+       }
+-      return `url(${maybeQuote}${stack.join("/")}${maybeHash}${maybeQuote})`;
+     }
+-  );
++    return `url(${maybeQuote}${stack.join("/")}${maybeHash}${maybeQuote})`;
++  }
+ }
+ function normalizeCssString(cssText, _testNoPxNorm = false) {
+   if (_testNoPxNorm) {
+@@ -612,8 +675,13 @@ function splitCssText(cssText, style, _testNoPxNorm = false) {
+   splits.push(cssText);
+   return splits;
+ }
+-function markCssSplits(cssText, style) {
+-  return splitCssText(cssText, style).join("/* rr_split */");
++// PATCHED (everframe): splitCssText's prefix search is quadratic on
++// page-controlled text (a style element whose later text node starts with a
++// long run of one punctuation character). The one-off TV snapshot does not
++// need the per-text-node split markers: rebuild puts the whole sheet in the
++// first text node.
++function markCssSplits(cssText, _style) {
++  return cssText;
+ }
+ let _id = 1;
+ const tagNameRegex = new RegExp("[^a-z0-9-_:]");
+diff --git a/dist/rrweb-snapshot.js b/dist/rrweb-snapshot.js
+index 426bd245a24bbbc3fb0b5532652a4d4f0b29cce9..5a981c063d5a3238e54ae8a25fb8b0a51b3deb52 100644
+--- a/dist/rrweb-snapshot.js
++++ b/dist/rrweb-snapshot.js
+@@ -472,41 +472,104 @@ const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
+ const URL_PROTOCOL_MATCH = /^(?:[a-z+]+:)?\/\//i;
+ const URL_WWW_MATCH = /^www\..*/i;
+ const DATA_URI = /^(data:)([^,]*),(.*)/i;
++// PATCHED (everframe): URL_IN_CSS_REF, run by String#replace, restarts its
++// failing scan at every unclosed `url(`, which is quadratic on page-controlled
++// CSS (32k `url(` in one style attribute blocks a TV for seconds). This is the
++// same match, found by a linear scan: each "next occurrence" lookup is cached
++// and only advances, so the whole pass reads the text a bounded number of times.
++function nextFinder(find) {
++  let at = -2;
++  return (from) => {
++    if (at !== -1 && at < from) at = find(from);
++    return at;
++  };
++}
+ function absolutifyURLs(cssText, href) {
+-  return (cssText || "").replace(
+-    URL_IN_CSS_REF,
+-    (origin, quote1, path1, quote2, path2, path3) => {
+-      const filePath = path1 || path2 || path3;
+-      const maybeQuote = quote1 || quote2 || "";
+-      if (!filePath) {
+-        return origin;
+-      }
+-      if (URL_PROTOCOL_MATCH.test(filePath) || URL_WWW_MATCH.test(filePath)) {
+-        return `url(${maybeQuote}${filePath}${maybeQuote})`;
+-      }
+-      if (DATA_URI.test(filePath)) {
+-        return `url(${maybeQuote}${filePath}${maybeQuote})`;
+-      }
+-      if (filePath[0] === "/") {
+-        return `url(${maybeQuote}${extractOrigin(href) + filePath}${maybeQuote})`;
+-      }
+-      const filePathNoHash = filePath.split("#")[0];
+-      const maybeHash = filePath.substring(filePathNoHash.length);
+-      const stack = href.split("#")[0].split("/");
+-      const parts = filePathNoHash.split("/");
+-      stack.pop();
+-      for (const part of parts) {
+-        if (part === ".") {
+-          continue;
+-        } else if (part === "..") {
+-          stack.pop();
+-        } else {
+-          stack.push(part);
+-        }
++  cssText = cssText || "";
++  if (cssText.indexOf("url(") === -1) return cssText;
++  const nextParen = nextFinder((from) => cssText.indexOf(")", from));
++  const nextSingle = nextFinder((from) => cssText.indexOf("'", from));
++  const nextDoubleParen = nextFinder((from) => cssText.indexOf('")', from));
++  // `.` (in the regex's lazy double-quoted branch) stops at line terminators.
++  const terminators = ["\n", "\r", "\u2028", "\u2029"].map(
++    (t) => nextFinder((from) => cssText.indexOf(t, from))
++  );
++  const nextTerminator = (from) => {
++    let min = -1;
++    for (const next of terminators) {
++      const at = next(from);
++      if (at !== -1 && (min === -1 || at < min)) min = at;
++    }
++    return min;
++  };
++  let out = "";
++  let last = 0;
++  let pos = 0;
++  for (;;) {
++    const u = cssText.indexOf("url(", pos);
++    if (u === -1) break;
++    const start = u + 4;
++    const c = cssText.charAt(start);
++    let end = -1;
++    let quote1, path1, quote2, path2, path3;
++    if (c === "'") {
++      const q = nextSingle(start + 1);
++      if (q !== -1 && cssText.charAt(q + 1) === ")") {
++        quote1 = "'";
++        path1 = cssText.slice(start + 1, q);
++        end = q + 2;
++      }
++    } else if (c === '"') {
++      const d = nextDoubleParen(start + 1);
++      const t = nextTerminator(start + 1);
++      if (d !== -1 && (t === -1 || d < t)) {
++        quote2 = '"';
++        path2 = cssText.slice(start + 1, d);
++        end = d + 2;
++      }
++    }
++    if (end === -1) {
++      const p = nextParen(start);
++      if (p === -1) break; // no `)` left: no later `url(` can match either
++      path3 = cssText.slice(start, p);
++      end = p + 1;
++    }
++    out += cssText.slice(last, u) + absolutifyURL(cssText.slice(u, end), quote1, path1, quote2, path2, path3);
++    last = end;
++    pos = end;
++  }
++  return out + cssText.slice(last);
++  function absolutifyURL(origin, quote1, path1, quote2, path2, path3) {
++    const filePath = path1 || path2 || path3;
++    const maybeQuote = quote1 || quote2 || "";
++    if (!filePath) {
++      return origin;
++    }
++    if (URL_PROTOCOL_MATCH.test(filePath) || URL_WWW_MATCH.test(filePath)) {
++      return `url(${maybeQuote}${filePath}${maybeQuote})`;
++    }
++    if (DATA_URI.test(filePath)) {
++      return `url(${maybeQuote}${filePath}${maybeQuote})`;
++    }
++    if (filePath[0] === "/") {
++      return `url(${maybeQuote}${extractOrigin(href) + filePath}${maybeQuote})`;
++    }
++    const filePathNoHash = filePath.split("#")[0];
++    const maybeHash = filePath.substring(filePathNoHash.length);
++    const stack = href.split("#")[0].split("/");
++    const parts = filePathNoHash.split("/");
++    stack.pop();
++    for (const part of parts) {
++      if (part === ".") {
++        continue;
++      } else if (part === "..") {
++        stack.pop();
++      } else {
++        stack.push(part);
+       }
+-      return `url(${maybeQuote}${stack.join("/")}${maybeHash}${maybeQuote})`;
+     }
+-  );
++    return `url(${maybeQuote}${stack.join("/")}${maybeHash}${maybeQuote})`;
++  }
+ }
+ function normalizeCssString(cssText, _testNoPxNorm = false) {
+   if (_testNoPxNorm) {
+@@ -610,8 +673,13 @@ function splitCssText(cssText, style, _testNoPxNorm = false) {
+   splits.push(cssText);
+   return splits;
+ }
+-function markCssSplits(cssText, style) {
+-  return splitCssText(cssText, style).join("/* rr_split */");
++// PATCHED (everframe): splitCssText's prefix search is quadratic on
++// page-controlled text (a style element whose later text node starts with a
++// long run of one punctuation character). The one-off TV snapshot does not
++// need the per-text-node split markers: rebuild puts the whole sheet in the
++// first text node.
++function markCssSplits(cssText, _style) {
++  return cssText;
+ }
+ let _id = 1;
+ const tagNameRegex = new RegExp("[^a-z0-9-_:]");
+diff --git a/dist/rrweb-snapshot.umd.cjs b/dist/rrweb-snapshot.umd.cjs
+index eb4482d9a9ef383cc6b995e3a8e895a9c941e001..dfedb725dc7dfa37f74594ddfcaa3d7d99ee6ddc 100644
+--- a/dist/rrweb-snapshot.umd.cjs
++++ b/dist/rrweb-snapshot.umd.cjs
+@@ -520,41 +520,104 @@ const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
+ const URL_PROTOCOL_MATCH = /^(?:[a-z+]+:)?\/\//i;
+ const URL_WWW_MATCH = /^www\..*/i;
+ const DATA_URI = /^(data:)([^,]*),(.*)/i;
++// PATCHED (everframe): URL_IN_CSS_REF, run by String#replace, restarts its
++// failing scan at every unclosed `url(`, which is quadratic on page-controlled
++// CSS (32k `url(` in one style attribute blocks a TV for seconds). This is the
++// same match, found by a linear scan: each "next occurrence" lookup is cached
++// and only advances, so the whole pass reads the text a bounded number of times.
++function nextFinder(find) {
++  let at = -2;
++  return (from) => {
++    if (at !== -1 && at < from) at = find(from);
++    return at;
++  };
++}
+ function absolutifyURLs(cssText, href) {
+-  return (cssText || "").replace(
+-    URL_IN_CSS_REF,
+-    (origin, quote1, path1, quote2, path2, path3) => {
+-      const filePath = path1 || path2 || path3;
+-      const maybeQuote = quote1 || quote2 || "";
+-      if (!filePath) {
+-        return origin;
+-      }
+-      if (URL_PROTOCOL_MATCH.test(filePath) || URL_WWW_MATCH.test(filePath)) {
+-        return `url(${maybeQuote}${filePath}${maybeQuote})`;
+-      }
+-      if (DATA_URI.test(filePath)) {
+-        return `url(${maybeQuote}${filePath}${maybeQuote})`;
+-      }
+-      if (filePath[0] === "/") {
+-        return `url(${maybeQuote}${extractOrigin(href) + filePath}${maybeQuote})`;
+-      }
+-      const filePathNoHash = filePath.split("#")[0];
+-      const maybeHash = filePath.substring(filePathNoHash.length);
+-      const stack = href.split("#")[0].split("/");
+-      const parts = filePathNoHash.split("/");
+-      stack.pop();
+-      for (const part of parts) {
+-        if (part === ".") {
+-          continue;
+-        } else if (part === "..") {
+-          stack.pop();
+-        } else {
+-          stack.push(part);
+-        }
++  cssText = cssText || "";
++  if (cssText.indexOf("url(") === -1) return cssText;
++  const nextParen = nextFinder((from) => cssText.indexOf(")", from));
++  const nextSingle = nextFinder((from) => cssText.indexOf("'", from));
++  const nextDoubleParen = nextFinder((from) => cssText.indexOf('")', from));
++  // `.` (in the regex's lazy double-quoted branch) stops at line terminators.
++  const terminators = ["\n", "\r", "\u2028", "\u2029"].map(
++    (t) => nextFinder((from) => cssText.indexOf(t, from))
++  );
++  const nextTerminator = (from) => {
++    let min = -1;
++    for (const next of terminators) {
++      const at = next(from);
++      if (at !== -1 && (min === -1 || at < min)) min = at;
++    }
++    return min;
++  };
++  let out = "";
++  let last = 0;
++  let pos = 0;
++  for (;;) {
++    const u = cssText.indexOf("url(", pos);
++    if (u === -1) break;
++    const start = u + 4;
++    const c = cssText.charAt(start);
++    let end = -1;
++    let quote1, path1, quote2, path2, path3;
++    if (c === "'") {
++      const q = nextSingle(start + 1);
++      if (q !== -1 && cssText.charAt(q + 1) === ")") {
++        quote1 = "'";
++        path1 = cssText.slice(start + 1, q);
++        end = q + 2;
++      }
++    } else if (c === '"') {
++      const d = nextDoubleParen(start + 1);
++      const t = nextTerminator(start + 1);
++      if (d !== -1 && (t === -1 || d < t)) {
++        quote2 = '"';
++        path2 = cssText.slice(start + 1, d);
++        end = d + 2;
++      }
++    }
++    if (end === -1) {
++      const p = nextParen(start);
++      if (p === -1) break; // no `)` left: no later `url(` can match either
++      path3 = cssText.slice(start, p);
++      end = p + 1;
++    }
++    out += cssText.slice(last, u) + absolutifyURL(cssText.slice(u, end), quote1, path1, quote2, path2, path3);
++    last = end;
++    pos = end;
++  }
++  return out + cssText.slice(last);
++  function absolutifyURL(origin, quote1, path1, quote2, path2, path3) {
++    const filePath = path1 || path2 || path3;
++    const maybeQuote = quote1 || quote2 || "";
++    if (!filePath) {
++      return origin;
++    }
++    if (URL_PROTOCOL_MATCH.test(filePath) || URL_WWW_MATCH.test(filePath)) {
++      return `url(${maybeQuote}${filePath}${maybeQuote})`;
++    }
++    if (DATA_URI.test(filePath)) {
++      return `url(${maybeQuote}${filePath}${maybeQuote})`;
++    }
++    if (filePath[0] === "/") {
++      return `url(${maybeQuote}${extractOrigin(href) + filePath}${maybeQuote})`;
++    }
++    const filePathNoHash = filePath.split("#")[0];
++    const maybeHash = filePath.substring(filePathNoHash.length);
++    const stack = href.split("#")[0].split("/");
++    const parts = filePathNoHash.split("/");
++    stack.pop();
++    for (const part of parts) {
++      if (part === ".") {
++        continue;
++      } else if (part === "..") {
++        stack.pop();
++      } else {
++        stack.push(part);
+       }
+-      return `url(${maybeQuote}${stack.join("/")}${maybeHash}${maybeQuote})`;
+     }
+-  );
++    return `url(${maybeQuote}${stack.join("/")}${maybeHash}${maybeQuote})`;
++  }
+ }
+ function normalizeCssString(cssText, _testNoPxNorm = false) {
+   if (_testNoPxNorm) {
+@@ -658,8 +721,13 @@ function splitCssText(cssText, style, _testNoPxNorm = false) {
+   splits.push(cssText);
+   return splits;
+ }
+-function markCssSplits(cssText, style) {
+-  return splitCssText(cssText, style).join("/* rr_split */");
++// PATCHED (everframe): splitCssText's prefix search is quadratic on
++// page-controlled text (a style element whose later text node starts with a
++// long run of one punctuation character). The one-off TV snapshot does not
++// need the per-text-node split markers: rebuild puts the whole sheet in the
++// first text node.
++function markCssSplits(cssText, _style) {
++  return cssText;
+ }
+ let _id = 1;
+ const tagNameRegex = new RegExp("[^a-z0-9-_:]");

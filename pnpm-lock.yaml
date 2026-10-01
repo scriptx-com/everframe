@@ -26,6 +26,9 @@ patchedDependencies:
   modern-screenshot@4.7.0:
     hash: x7suimpm3mxsktg4kgxugmql7u
     path: patches/modern-screenshot@4.7.0.patch
+  rrweb-snapshot@2.1.6:
+    hash: bnku6ngyds6jyuh4gg4gm47xdi
+    path: patches/rrweb-snapshot@2.1.6.patch
   rrweb@2.0.1:
     hash: 7pawydqqnnzmyeinkifbsglgum
     path: patches/rrweb@2.0.1.patch
@@ -544,7 +547,7 @@ importers:
         version: 2.0.1(patch_hash=7pawydqqnnzmyeinkifbsglgum)
       rrweb-snapshot:
         specifier: 2.1.6
-        version: 2.1.6
+        version: 2.1.6(patch_hash=bnku6ngyds6jyuh4gg4gm47xdi)
       zod:
         specifier: 4.3.6
         version: 4.3.6(patch_hash=szurow4zhzyfyo22tumm2pdqcq)
@@ -10989,9 +10992,9 @@ snapshots:
 
   rrdom@2.1.6:
     dependencies:
-      rrweb-snapshot: 2.1.6
+      rrweb-snapshot: 2.1.6(patch_hash=bnku6ngyds6jyuh4gg4gm47xdi)
 
-  rrweb-snapshot@2.1.6:
+  rrweb-snapshot@2.1.6(patch_hash=bnku6ngyds6jyuh4gg4gm47xdi):
     dependencies:
       postcss: 8.5.28
 
@@ -11004,7 +11007,7 @@ snapshots:
       base64-arraybuffer: 1.0.2
       mitt: 3.0.1
       rrdom: 2.1.6
-      rrweb-snapshot: 2.1.6
+      rrweb-snapshot: 2.1.6(patch_hash=bnku6ngyds6jyuh4gg4gm47xdi)
 
   run-parallel@1.2.0:
     dependencies:

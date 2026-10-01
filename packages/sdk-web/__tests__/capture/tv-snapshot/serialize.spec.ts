@@ -351,6 +351,44 @@ describe('hidden or clipped text inside a visible SVG', () => {
   });
 });
 
+describe('rrweb-snapshot CSS passes stay linear on page-controlled CSS (S18)', () => {
+  const timed = (setup: () => void): number => {
+    document.body.innerHTML = '<section id="s"></section><div id="victim">x</div>';
+    setup();
+    const started = performance.now();
+    take();
+    return performance.now() - started;
+  };
+
+  it('a style attribute of 32k unclosed url( runs', () => {
+    expect(timed(() => document.getElementById('victim')!.setAttribute('style', 'background:' + 'url('.repeat(32_000)))).toBeLessThan(1000);
+  });
+
+  it('quoted url( runs that never close', () => {
+    expect(timed(() => document.getElementById('victim')!.setAttribute('style', 'background:' + 'url("'.repeat(20_000) + 'x' + '\n'))).toBeLessThan(1000);
+    expect(timed(() => document.getElementById('victim')!.setAttribute('style', 'background:' + "url('".repeat(20_000)))).toBeLessThan(1000);
+  });
+
+  it('a stylesheet whose string values hold url( runs, split across text nodes', () => {
+    expect(
+      timed(() => {
+        const style = document.createElement('style');
+        style.appendChild(document.createTextNode(`#victim::after{content:"${'url('.repeat(20_000)}"}`));
+        style.appendChild(document.createTextNode(`${'{'.repeat(20_000)}`));
+        document.head.appendChild(style);
+      }),
+    ).toBeLessThan(1000);
+  });
+
+  it('still absolutizes ordinary relative CSS urls the way rrweb does', () => {
+    document.body.innerHTML = '<section id="s"></section><div id="bg" style="background:url(img/a.png) , url(\'/b.png\'), url(&quot;c.png&quot;)">x</div>';
+    const style = findEl(rootOf(take()), (e) => e.attributes.id === 'bg')!.attributes.style;
+    expect(String(style)).toContain(`${location.origin}/tv/img/a.png`);
+    expect(String(style)).toContain(`${location.origin}/b.png`);
+    expect(String(style)).toContain(`${location.origin}/tv/c.png`);
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {
