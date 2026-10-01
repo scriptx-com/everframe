@@ -234,6 +234,12 @@ const COLLAPSE_MAX_DEPTH = 8;
 const COLLAPSE_MAX_READS = 16;
 const COLLAPSE_MAX_STEPS = 64;
 
+/** Case-insensitive own attribute presence (`xlink:href` / `XLINK:HREF`). */
+function hasOwnAttr(node: SnElement, lowerName: string): boolean {
+  for (const key of Object.keys(node.attributes)) if (key.toLowerCase() === lowerName) return true;
+  return false;
+}
+
 function hasOwn(obj: object, key: string): boolean {
   // Object.hasOwn is missing on old TV Chromium.
   return Object.prototype.hasOwnProperty.call(obj, key);
@@ -741,21 +747,18 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       return f;
     }
     if (f.svgSkip || live === null) return f;
-    if (node.childNodes.length === 0) {
-      // A resource leaf (<image>, <use>…) the user cannot see loads nothing.
-      if (SVG_RESOURCE_LEAVES.has(tag)) {
-        const s = styleOnce(f);
-        const unseen =
-          parent.faded || isZeroOpacity(s) || isInvisible(s) || (s !== null && s.display === 'none') ||
-          !overlaps(deps.rectOf(live), parent.clip);
-        if (unseen) stripUrlAttrs(node);
-      }
-      return f;
-    }
+    // Resource-bearing elements (<image>, <use>, <feImage>, anything with an
+    // href/src) are judged whatever their children; other leaves cost nothing.
+    const resource = SVG_RESOURCE_LEAVES.has(tag) || SVG_URL_ATTRS.some((name) => hasOwnAttr(node, name));
+    if (node.childNodes.length === 0 && !resource) return f;
     const s = styleOnce(f);
     f.faded = parent.faded || isZeroOpacity(s);
     f.hideText = f.faded || isInvisible(s);
-    if (s !== null && s.display === 'none') {
+    const none = s !== null && s.display === 'none';
+    // An unseen resource loads nothing — withheld before definition retention
+    // is computed, so a hidden <use> keeps no symbol alive.
+    if (resource && (none || f.hideText || !overlaps(deps.rectOf(live), parent.clip))) stripUrlAttrs(node);
+    if (none) {
       f.svgHidden = true;
     } else if (tag === 'text') {
       f.svgHidden = !overlaps(deps.rectOf(live), parent.clip);

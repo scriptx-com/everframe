@@ -477,6 +477,18 @@ describe('non-rendered SVG content (allowlist)', () => {
     expect(findEl(root, (e) => e.attributes.id === 'unused')).toBeUndefined();
   });
 
+  it('judges resource elements that have children too (codex r4 F1)', () => {
+    page(
+      '<defs><symbol id="secret"><text>PRIVATE_SYMBOL_TEXT</text></symbol></defs>' +
+        '<image style="display:none" href="https://cdn.example.test/private-cover.png" width="5" height="5"><title>cover</title></image>' +
+        '<use style="visibility:hidden" href="#secret"><title>icon</title></use>' +
+        '<a href="https://cdn.example.test/PRIVATE_LINK" style="display:none"><rect width="1" height="1"></rect></a>',
+    );
+    const taken = take();
+    expect(findLeaks(JSON.stringify(taken.doc), ['private-cover', 'PRIVATE_SYMBOL_TEXT', 'PRIVATE_LINK'])).toEqual([]);
+    expect(taken.masked).toBe(true);
+  });
+
   it('drops the URL of a hidden or clipped resource leaf', () => {
     page(
       '<image id="hid" style="display:none" href="https://cdn.example.test/PRIVATE_IMAGE.png" width="5" height="5"></image>' +
