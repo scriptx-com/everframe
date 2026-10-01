@@ -17,6 +17,7 @@ import dev.everframe.config.CaptureConfig;
 import dev.everframe.config.Environment;
 import dev.everframe.config.ReportResult;
 import dev.everframe.config.EverframeConfig;
+import dev.everframe.config.VitalsConfig;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -25,21 +26,25 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         // Everframe.start — the @JvmStatic surface lets Java callers omit the .Companion shim.
-        // Plan 05.1-02 collapsed BubbleConfig + TriggerConfig away — the constructor now
-        // takes the smaller arg list below.
+        // Java supplies the Kotlin configuration defaults explicitly.
         Everframe.start(
             this,
             new EverframeConfig(
                 "views-sample",                                  // appId
-                "http://10.0.2.2:8787/api/ingest",               // endpoint
                 BuildConfig.EVERFRAME_SDK_KEY,                    // sdkKey
                 Environment.development,                          // environment
                 /* release */ null,
                 CaptureConfig.defaults,
                 /* bubble (host-installed hint) */ true,
                 /* useDynamicColor */ false,
-                /* uiTreeMaxDepth */ 50,
-                /* uiTreeMaxNodes */ 2000
+                /* companionDeviceId */ null,
+                /* companionBadgeEnabled */ true,
+                /* shakeToReportEnabled */ true,
+                /* companionBadgePosition */ null,
+                /* theme */ null,
+                /* installIdentifierEnabled */ true,
+                new VitalsConfig(),
+                /* r8MappingId */ null
             )
         );
 

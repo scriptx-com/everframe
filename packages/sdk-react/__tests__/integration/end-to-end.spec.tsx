@@ -676,6 +676,12 @@ describe('Provider end-to-end (jsdom)', () => {
       let swapped = false;
       let liveSetIdentityToken: ((token: string) => void) | undefined;
       const originalArrayBuffer = Blob.prototype.arrayBuffer;
+      // jsdom cannot rasterize the DOM. Supply a renderer-owned PNG so this
+      // test always reads a screenshot during multipart preparation, rather
+      // than depending on a background DOM-capture attempt's timing.
+      const screenshot = new Blob([Uint8Array.from(atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jE9sAAAAASUVORK5CYII=',
+      ), (c) => c.charCodeAt(0))], { type: 'image/png' });
       const arrayBufferSpy = vi
         .spyOn(Blob.prototype, 'arrayBuffer')
         .mockImplementation(async function (this: Blob): Promise<ArrayBuffer> {
@@ -689,7 +695,10 @@ describe('Provider end-to-end (jsdom)', () => {
       try {
         const { findByTestId } = render(
           <EverframeProvider
-            config={{ apiKey: 'txx_live_identity_boundary', appName: 'test', appVersion: '1.0.0' }}
+            config={{
+              apiKey: 'txx_live_identity_boundary', appName: 'test', appVersion: '1.0.0',
+              visualCapture: { captureScreenshot: async () => screenshot },
+            }}
           >
             <div>app</div>
             <IdentityController
