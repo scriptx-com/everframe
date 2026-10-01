@@ -235,6 +235,11 @@ export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void
     if (node.type === SN_ELEMENT) {
       scrubElement(node, scrubCtx, config, memo);
       const tag = node.tagName.toLowerCase();
+      // A textarea's text child is its DEFAULT value (the markup), not what it
+      // shows: rrweb serializes it whenever the live value is empty, so a
+      // cleared draft would ship verbatim. The shown value travels only as the
+      // masked `value` attribute.
+      if (tag === 'textarea') node.childNodes = [];
       for (const child of node.childNodes) stack.push({ node: child, parentTag: tag });
       continue;
     }

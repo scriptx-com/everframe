@@ -184,6 +184,25 @@ describe('takeDomSnapshot', () => {
   }, 30_000);
 });
 
+describe('form controls whose live state differs from their markup', () => {
+  it('never ships the original text of a cleared textarea, nor a cleared input value attribute', () => {
+    document.body.innerHTML =
+      '<section id="s"></section><textarea id="cleared">DELETED_PRIVATE_DRAFT</textarea><input id="ci" value="DELETED_INPUT_VALUE">';
+    (document.getElementById('cleared') as HTMLTextAreaElement).value = '';
+    (document.getElementById('ci') as HTMLInputElement).value = '';
+    const taken = take();
+    expect(findLeaks(JSON.stringify(taken.doc), ['DELETED_PRIVATE_DRAFT', 'DELETED_INPUT_VALUE'])).toEqual([]);
+    expect(findEl(rootOf(taken), (e) => e.attributes.id === 'cleared')!.childNodes).toEqual([]);
+  });
+
+  it('never ships the markup text of an edited textarea either', () => {
+    document.body.innerHTML = '<section id="s"></section><textarea id="edited">ORIGINAL_PRIVATE_DRAFT</textarea>';
+    (document.getElementById('edited') as HTMLTextAreaElement).value = 'NEW_PRIVATE_DRAFT';
+    const json = JSON.stringify(take().doc);
+    expect(findLeaks(json, ['ORIGINAL_PRIVATE_DRAFT', 'NEW_PRIVATE_DRAFT'])).toEqual([]);
+  });
+});
+
 describe('sensitive content inside open shadow roots', () => {
   it('black-boxes a sensitive element the document-level registry scan cannot reach', () => {
     document.body.innerHTML = '<section id="s"></section><div id="host"></div>';
