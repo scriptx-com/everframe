@@ -410,4 +410,43 @@ describe("smart-TV snapshot gate", () => {
     ).resolves.toBe(fresh);
     expect(captureTvShot).toHaveBeenCalledTimes(2);
   });
+
+  it("never snapshots or renders when kill() lands before the lazy module resolves (codex r1 finding 1)", async () => {
+    vi.mocked(captureTvShot).mockReturnValue({
+      snapshotted: Promise.resolve(),
+      shot: Promise.resolve({ image: IMAGE }),
+    });
+    const { adapter, client } = await adapterFor({
+      ua: WEBOS_UA,
+      screenshotRender: true,
+    });
+    const pending = adapter.__captureShot!();
+    client.kill();
+    document.body.insertAdjacentHTML("beforeend", "<p>AFTER_KILL_TEXT</p>");
+    await expect(pending).resolves.toEqual({
+      degradedReason: "screenshot_unavailable",
+    });
+    expect(captureTvShot).not.toHaveBeenCalled();
+  });
+
+  it("hands the TV module an ownership check and an abort signal that kill() trips", async () => {
+    vi.mocked(captureTvShot).mockReturnValue({
+      snapshotted: Promise.resolve(),
+      shot: new Promise(() => {}),
+    });
+    const { adapter, client } = await adapterFor({
+      ua: WEBOS_UA,
+      screenshotRender: true,
+    });
+    void adapter.__captureShot!();
+    await vi.waitFor(() => expect(captureTvShot).toHaveBeenCalledTimes(1));
+    const deps = vi.mocked(captureTvShot).mock.calls[0]![0];
+    expect(deps.isCurrent!()).toBe(true);
+    expect(deps.render.signal?.aborted).toBe(false);
+    client.kill();
+    expect(deps.isCurrent!()).toBe(false);
+    expect(deps.render.signal?.aborted).toBe(true);
+    adapter.__rebindCrumbHooks();
+    expect(deps.isCurrent!()).toBe(false); // a revive is a new owner
+  });
 });

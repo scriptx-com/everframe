@@ -59,7 +59,18 @@ export interface TvShotDeps {
   fallbackCapture: () => Promise<ScreenshotResult>;
   userAgent: string;
   gzip?: (bytes: Uint8Array) => Promise<Uint8Array>;
+  /**
+   * Whether the reporting owner that started this shot still owns the client
+   * (false after kill(), and after a revive — a new owner). Checked before
+   * serialization, before the render POST, after it and before any fallback:
+   * a stale shot captures and uploads nothing.
+   */
+  isCurrent?: () => boolean;
 }
+
+const unavailable = (): ShotCapture => ({ degradedReason: DEGRADED_REASONS.screenshot_unavailable });
+
+const stale = (deps: TvShotDeps): boolean => deps.isCurrent !== undefined && !deps.isCurrent();
 
 /**
  * Serialize + gzip + hash the FINAL (pruned + scrubbed) tree, enforcing every
@@ -81,6 +92,7 @@ export async function packSnapshot(
 }
 
 function fallbackShot(deps: TvShotDeps): Promise<ShotCapture> {
+  if (stale(deps)) return Promise.resolve(unavailable());
   return boundedTvFallbackShot(deps.fallbackCapture, deps.snapshot.doc, deps.userAgent);
 }
 
@@ -92,6 +104,7 @@ async function finishTvShot(taken: TakenSnapshot | null, deps: TvShotDeps): Prom
     } catch {
       packed = null;
     }
+    if (stale(deps)) return unavailable();
     if (packed !== null) {
       const { viewport } = taken.render;
       const dpr = Math.min(taken.render.dpr || 1, 2);
@@ -99,6 +112,7 @@ async function finishTvShot(taken: TakenSnapshot | null, deps: TvShotDeps): Prom
         ...deps.render,
         fallbackSize: { width: Math.round(viewport.width * dpr), height: Math.round(viewport.height * dpr) },
       });
+      if (stale(deps)) return unavailable();
       if (rendered.ok) {
         const blank = rendered.meta.blank ? DEGRADED_REASONS.screenshot_blank : undefined;
         const image: ScreenshotResult = {
@@ -117,6 +131,7 @@ async function finishTvShot(taken: TakenSnapshot | null, deps: TvShotDeps): Prom
 }
 
 export function captureTvShot(deps: TvShotDeps): { snapshotted: Promise<void>; shot: Promise<ShotCapture> } {
+  if (stale(deps)) return { snapshotted: Promise.resolve(), shot: Promise.resolve(unavailable()) };
   let taken: TakenSnapshot | null = null;
   try {
     // Synchronous, so the page cannot change between the reporter's trigger
@@ -129,6 +144,6 @@ export function captureTvShot(deps: TvShotDeps): { snapshotted: Promise<void>; s
   }
   return {
     snapshotted: Promise.resolve(),
-    shot: finishTvShot(taken, deps).catch((): ShotCapture => ({ degradedReason: DEGRADED_REASONS.screenshot_unavailable })),
+    shot: finishTvShot(taken, deps).catch(unavailable),
   };
 }

@@ -252,3 +252,41 @@ describe('packSnapshot', () => {
     expect(packed.byteLength).toBe(MAX_DOM_SNAPSHOT_COMPRESSED_BYTES);
   });
 });
+
+describe('captureTvShot reporting ownership (kill)', () => {
+  it('takes no snapshot and posts nothing when ownership already changed', async () => {
+    const d = deps({ isCurrent: () => false });
+    await expect(captureTvShot(d).shot).resolves.toEqual({ degradedReason: 'screenshot_unavailable' });
+    expect(takeDomSnapshot).not.toHaveBeenCalled();
+    expect(renderSnapshot).not.toHaveBeenCalled();
+    expect(d.fallbackCapture).not.toHaveBeenCalled();
+  });
+
+  it('does not post the snapshot when ownership changes before the render request', async () => {
+    let current = true;
+    const d = deps({ isCurrent: () => current, gzip: async (b) => { current = false; return b; } });
+    await expect(captureTvShot(d).shot).resolves.toEqual({ degradedReason: 'screenshot_unavailable' });
+    expect(renderSnapshot).not.toHaveBeenCalled();
+    expect(d.fallbackCapture).not.toHaveBeenCalled();
+  });
+
+  it('drops a render that completes after ownership changed', async () => {
+    let current = true;
+    vi.mocked(renderSnapshot).mockImplementation(async () => {
+      current = false;
+      return { ok: true, blob: image.blob, width: 1, height: 1, meta: { blank: false, missingAssets: 0, missingAssetUrls: [], fontsSubstituted: false, renderMs: 1 } };
+    });
+    await expect(captureTvShot(deps({ isCurrent: () => current })).shot).resolves.toEqual({ degradedReason: 'screenshot_unavailable' });
+  });
+
+  it('runs no on-device fallback after ownership changed', async () => {
+    let current = true;
+    vi.mocked(takeDomSnapshot).mockImplementation(() => {
+      current = false;
+      throw new Error('boom');
+    });
+    const d = deps({ isCurrent: () => current });
+    await expect(captureTvShot(d).shot).resolves.toEqual({ degradedReason: 'screenshot_unavailable' });
+    expect(d.fallbackCapture).not.toHaveBeenCalled();
+  });
+});

@@ -84,3 +84,27 @@ describe('renderSnapshot', () => {
     expect(r).toMatchObject({ ok: true, width: 2560, height: 1440, meta: { blank: false, missingAssets: 0, missingAssetUrls: [], fontsSubstituted: false, renderMs: 0 } });
   });
 });
+
+describe('renderSnapshot cancellation (kill)', () => {
+  it('never posts when the caller signal is already aborted', async () => {
+    const fetchImpl = vi.fn(async () => webp(vp8(1, 1)));
+    const cancel = new AbortController();
+    cancel.abort();
+    await expect(renderSnapshot(GZ, { ...base, fetchImpl, signal: cancel.signal })).resolves.toEqual({ ok: false, reason: 'render_cancelled' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('aborts an in-flight request when the caller signal aborts', async () => {
+    let signal: AbortSignal | undefined;
+    const hang = vi.fn((_u: string, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    });
+    const cancel = new AbortController();
+    const pending = renderSnapshot(GZ, { ...base, fetchImpl: hang as unknown as typeof fetch, signal: cancel.signal });
+    await Promise.resolve();
+    cancel.abort();
+    await expect(pending).resolves.toEqual({ ok: false, reason: 'render_cancelled' });
+    expect(signal?.aborted).toBe(true);
+  });
+});

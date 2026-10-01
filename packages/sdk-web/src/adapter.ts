@@ -75,7 +75,7 @@ import { INGEST_URL } from './constants.js';
 import { captureScreenshot, applyMaskRectsToBlob, type ScreenshotRenderer } from './capture/screenshot.js';
 import { isTvUserAgent } from './capture/capture-profile.js';
 import { boundedTvFallbackShot, imageShot, type ShotCapture, type ShotCaptureOptions } from './capture/shot-capture.js';
-import type { DegradedReason } from './internal/degraded-reasons.js';
+import { DEGRADED_REASONS, type DegradedReason } from './internal/degraded-reasons.js';
 import { installConsolePatcher } from './capture/logs.js';
 import {
   installFetchPatcher,
@@ -1726,6 +1726,15 @@ export function createWebPlatformAdapter(
   const TV_PRE_CAPTURE_OPEN_CEILING_MS = 3_000;
   const TV_PRE_CAPTURE_TTL_MS = 30_000;
   let tvPreCapture: { at: number; shot: Promise<ShotCapture> } | null = null;
+  // Aborted (and dropped) by onKill: cancels every render request in flight.
+  // Absent on engines without AbortController (Chrome < 66); the ownership
+  // check below is what stops a stale shot there.
+  let tvRenderAbort: AbortController | null = null;
+  const tvRenderSignal = (): AbortSignal | undefined => {
+    if (typeof AbortController === 'undefined') return undefined;
+    if (tvRenderAbort === null) tvRenderAbort = new AbortController();
+    return tvRenderAbort.signal;
+  };
 
   /** The on-device (snapDOM / modern-screenshot) capture with live-DOM masking. */
   const captureMasked = (): Promise<ScreenshotResult> => {
@@ -1766,9 +1775,22 @@ export function createWebPlatformAdapter(
     }
   }
 
-  const startTvShot = () =>
-    import('./capture/tv-snapshot/tv-snapshot.js').then((m) =>
-      m.captureTvShot({
+  /**
+   * Bound to the reporting owner at call time: kill() (or a revive — a new
+   * owner) before the lazy module resolves, before the render POST or before
+   * a fallback makes the shot `screenshot_unavailable` with nothing captured
+   * or uploaded after it.
+   */
+  const startTvShot = () => {
+    const ownership = reportingOwnership;
+    const isCurrent = (): boolean => !reportingKilled && reportingOwnership === ownership;
+    const signal = tvRenderSignal();
+    return import('./capture/tv-snapshot/tv-snapshot.js').then((m) => {
+      if (!isCurrent()) {
+        return { snapshotted: Promise.resolve(), shot: Promise.resolve(staleTvShot()) };
+      }
+      return m.captureTvShot({
+        isCurrent,
         snapshot: {
           win: window,
           doc: document,
@@ -1780,11 +1802,15 @@ export function createWebPlatformAdapter(
           url: `${INGEST_URL.replace(/\/$/, '')}${RENDER_PATH}`,
           sdkKey: _config.apiKey,
           fetchImpl: fetch.bind(globalScope()),
+          signal,
         },
         fallbackCapture: captureMasked,
         userAgent: navigator.userAgent,
-      }),
-    );
+      });
+    });
+  };
+
+  const staleTvShot = (): ShotCapture => ({ degradedReason: DEGRADED_REASONS.screenshot_unavailable });
 
   const noteShot = (shot: ShotCapture): ShotCapture => {
     lastDegradedReason = shot.degradedReason as DegradedReason | undefined;
@@ -1796,13 +1822,18 @@ export function createWebPlatformAdapter(
   // on-device capture under the SAME bounds as the snapshot path's own
   // fallback: a weak profile or a page above 3000 elements is unavailable
   // rather than a multi-second snapDOM run on TV silicon.
-  const tvShot = (started: ReturnType<typeof startTvShot> = startTvShot()): Promise<ShotCapture> =>
-    started
+  const tvShot = (started: ReturnType<typeof startTvShot> = startTvShot()): Promise<ShotCapture> => {
+    const ownership = reportingOwnership;
+    return started
       .then(
         (s) => s.shot,
-        () => boundedTvFallbackShot(captureMasked, document, navigator.userAgent),
+        () =>
+          reportingKilled || reportingOwnership !== ownership
+            ? staleTvShot()
+            : boundedTvFallbackShot(captureMasked, document, navigator.userAgent),
       )
       .then(noteShot);
+  };
 
   /**
    * Opens the reporter. On the TV path the synchronous snapshot runs FIRST
@@ -2140,6 +2171,8 @@ export function createWebPlatformAdapter(
       // A smart-TV pre-capture taken before kill() must never be handed out
       // after a revive (`__rebindCrumbHooks`) either.
       tvPreCapture = null;
+      tvRenderAbort?.abort();
+      tvRenderAbort = null;
       stopPeriodicRefresh();
       // Codex round-3 finding 1 (P1) — stop the page-global console/fetch/XHR
       // patchers writing into the raw buffers. They stay INSTALLED (they are

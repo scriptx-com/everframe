@@ -31,6 +31,8 @@ export interface RenderDeps {
   sdkKey: string;
   fetchImpl: typeof fetch;
   timeoutMs?: number;
+  /** The caller's cancellation (reporting killed): never posts once aborted, aborts a request in flight. */
+  signal?: AbortSignal | undefined;
   fallbackSize: { width: number; height: number };
 }
 
@@ -64,13 +66,24 @@ async function errorReason(res: Response): Promise<string> {
 }
 
 export async function renderSnapshot(gz: Uint8Array, deps: RenderDeps): Promise<RenderOutcome> {
+  const cancelled: RenderOutcome = { ok: false, reason: 'render_cancelled' };
+  const external = deps.signal;
+  if (external?.aborted === true) return cancelled;
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let onCancel: (() => void) | undefined;
   const timeout = new Promise<RenderOutcome>((resolve) => {
     timer = setTimeout(() => {
       controller?.abort();
       resolve({ ok: false, reason: 'render_timeout' });
     }, deps.timeoutMs ?? RENDER_TIMEOUT_MS);
+    if (external !== undefined) {
+      onCancel = () => {
+        controller?.abort();
+        resolve(cancelled);
+      };
+      external.addEventListener('abort', onCancel);
+    }
   });
   const attempt = (async (): Promise<RenderOutcome> => {
     const res = await deps.fetchImpl(deps.url, {
@@ -102,5 +115,6 @@ export async function renderSnapshot(gz: Uint8Array, deps: RenderDeps): Promise<
     return await Promise.race([attempt, timeout]);
   } finally {
     clearTimeout(timer);
+    if (onCancel !== undefined) external?.removeEventListener('abort', onCancel);
   }
 }
