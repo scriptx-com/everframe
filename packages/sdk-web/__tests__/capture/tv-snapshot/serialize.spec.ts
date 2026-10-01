@@ -562,9 +562,9 @@ describe('named slot assignments survive a serialize → rebuild round trip (cod
     const taken = take({ sensitiveElements: () => [] });
     const head = findEl(rootOf(taken), (e) => e.attributes.id === 'head')!;
     expect(head.attributes.slot).toBe('header');
-    const { rebuild, createMirror } = await import('rrweb-snapshot');
+    const { rebuild, createMirror, createCache } = await import('rrweb-snapshot');
     const target = document.implementation.createHTMLDocument('rebuilt');
-    rebuild(rootOf(taken) as never, { doc: target, mirror: createMirror() });
+    rebuild(rootOf(taken) as never, { doc: target, mirror: createMirror(), cache: createCache() });
     const rebuilt = target.getElementById('head')!;
     expect(rebuilt.assignedSlot?.getAttribute('name')).toBe('header');
   });
