@@ -48,7 +48,7 @@ import {
   type ShotStash,
   type StashedShotCapture,
 } from './shot-stash.js';
-import { decodeImageBlob, reportFailed, safe, type StashedCapture } from './bridge-helpers.js';
+import { captureSubmitIdentity, decodeImageBlob, reportFailed, safe, type StashedCapture } from './bridge-helpers.js';
 import { captureShotVia, type ShotCapture } from '../capture/shot-capture.js';
 import { DEGRADED_REASONS } from '../internal/degraded-reasons.js';
 
@@ -505,6 +505,10 @@ function maybeRunSubmit(
   // the published one, and a ticket taken after the import would mistake it
   // for a hand-wired host (React's host has no isKilled) and submit anyway.
   const ticket = __companionSeamTicket(host);
+  // Codex round-8 finding 2 — and WHO the report is from, at the same
+  // moment: user and extra read now, the identity-token capture started now.
+  // An account switch while the chunk loads cannot re-attribute it.
+  const identity = host !== null && !__isCompanionKilled(ticket) ? captureSubmitIdentity(host) : null;
   // Lazy chunk (companion-submit-*.js): the submit body is not always-loaded
   // weight. The two-argument `then` keeps the load-failure answer apart from
   // the submit itself, which answers the phone on every path of its own — a
@@ -522,6 +526,7 @@ function maybeRunSubmit(
         extraShot: (shotId) => stash?.info(shotId),
         onSettled: settleCompanionSubmit,
         ticket,
+        ...(identity !== null ? { identity } : {}),
       }),
     () => {
       // The chunk itself failed to load — still answer the phone exactly once.

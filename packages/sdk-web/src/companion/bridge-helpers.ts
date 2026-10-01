@@ -8,6 +8,9 @@ import type { z } from 'zod';
 import type { relay, FocusedNode } from '@everframe/protocol';
 import type { DeviceMetadata, LogEntry, NetworkEntry } from '@everframe/sdk-core';
 import type { ShotCapture } from '../capture/shot-capture.js';
+import type { UserMetadata } from '@everframe/sdk-core';
+import { captureUserSnapshot } from '../internal/user-snapshot.js';
+import type { CompanionHost } from './host-seam.js';
 
 type ReportCompleted = z.infer<typeof relay.ReportCompleted>;
 type ReportFailed = z.infer<typeof relay.ReportFailed>;
@@ -83,4 +86,34 @@ export async function decodeImageBlob(blob: Blob, timeoutMs = 1_000): Promise<HT
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/**
+ * Who a companion report is FROM, captured at its submit boundary: the
+ * moment the final submit frame arrives (codex r8 F2), before the lazy
+ * companion-submit chunk is imported. An account switch while the chunk
+ * loads must not re-attribute the report, so the user and extra are read
+ * synchronously here and the identity-token capture is STARTED here; the
+ * submit only awaits the promise. Same never-throw posture as the in-process
+ * path (`captureUserSnapshot`, a getter failure degrades to nothing).
+ */
+export interface SubmitIdentity {
+  user: UserMetadata | null;
+  extra: string | undefined;
+  identityToken: Promise<string | null>;
+}
+
+export function captureSubmitIdentity(host: CompanionHost): SubmitIdentity {
+  const user = captureUserSnapshot(() => host.getUser());
+  const extra = safe(() => host.getExtra?.() || undefined, undefined);
+  let identityToken: Promise<string | null>;
+  try {
+    identityToken = host.adapter.__captureIdentityAtSubmitBoundary();
+  } catch (err) {
+    identityToken = Promise.reject(err);
+  }
+  // Observed: a submit that ends before awaiting it (killed host) must not
+  // surface an unhandled rejection. The submit awaits the original promise.
+  identityToken.catch(() => undefined);
+  return { user, extra, identityToken };
 }

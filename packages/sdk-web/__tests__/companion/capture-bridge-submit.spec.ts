@@ -586,3 +586,30 @@ describe('host teardown while the lazy submit chunk loads (codex r7 F2)', () => 
     expect(frames[0]).toMatchObject({ type: 'report.failed', reason: 'submit_unavailable' });
   });
 });
+
+describe('account switch while the lazy submit chunk loads (codex r8 F2)', () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("submits as the account that sent the final frame, not the one signed in when the chunk resolves", async () => {
+    submitMock.mockResolvedValue({ ok: true, retryable: false, reportId: 'rid-ab', threadId: null });
+    __resetCompanionSubmitFramingForTests();
+    let account: 'A' | 'B' = 'A';
+    const host = makeHost(null, () => ({ id: `user_${account}` }));
+    (host.adapter as unknown as { __captureIdentityAtSubmitBoundary: () => Promise<string | null> }).__captureIdentityAtSubmitBoundary = vi.fn(
+      async () => `token_${account}`,
+    );
+    const { send, client } = makeWs();
+    const companion = createCompanion();
+    companion.__setState('report_in_progress');
+
+    handleCompanionSubmitText({ ...SUBMIT_MSG, correlation_id: 'c-switch' } as ReportSubmit, client, host, companion);
+    handleCompanionSubmitBinary(BAKED, client, host, companion);
+    account = 'B'; // the same mounted host signs in as B before companion-submit resolves
+
+    await vi.waitFor(() => expect(send).toHaveBeenCalled());
+    expect(submitMock).toHaveBeenCalledTimes(1);
+    const arg = submitMock.mock.calls[0]![0];
+    expect(arg.user).toEqual({ id: 'user_A' });
+    expect(arg.capturedIdentityToken).toBe('token_A');
+  });
+});

@@ -14,7 +14,6 @@ import { MAX_REPORT_SHOTS } from '@everframe/protocol';
 import { sha256Hex } from '../capture/sha256.js';
 import { snapshotAllowed, strongestShotReason, type ShotRedactionState } from '../capture/shot-capture.js';
 import { submitReportFromDraft } from '../transport/submit.js';
-import { captureUserSnapshot } from '../internal/user-snapshot.js';
 import type { BundleDomSnapshot, BundleScreenshot, CaptureBundle } from '../transport/draft-to-envelope.js';
 import type { RelayWSClient, ReportSubmit } from './ws-client.js';
 import type { CompanionAPI } from './state.js';
@@ -22,12 +21,13 @@ import type { CompanionHost } from './host-seam.js';
 import { __companionSeamTicket, __isCompanionKilled, type CompanionSeamTicket } from './host-seam.js';
 import type { ShotStashInfo } from './shot-stash.js';
 import {
+  captureSubmitIdentity,
   decodeImageBlob,
   reportCompleted,
   reportFailed,
-  safe,
   sniffImageMime,
   type StashedCapture,
+  type SubmitIdentity,
 } from './bridge-helpers.js';
 import { globalScope } from '../internal/global-scope.js';
 
@@ -51,6 +51,12 @@ export interface CompanionSubmitInput {
    * (a direct caller), one is taken on entry.
    */
   ticket?: CompanionSeamTicket;
+  /**
+   * User, extra and the started identity-token capture, taken with the ticket
+   * when the final submit frame arrived (codex r8 F2). Never re-read here;
+   * absent (a direct caller), captured on entry.
+   */
+  identity?: SubmitIdentity;
 }
 
 type WireRedaction = { cropped: boolean; blurred: boolean; area_selected: boolean } | undefined;
@@ -112,12 +118,17 @@ export async function runCompanionSubmit(input: CompanionSubmitInput): Promise<v
     // the Provider ever having bound the adapter's user getter) rather than
     // the adapter method the in-process path uses; `captureUserSnapshot`
     // supplies the identical never-throw + clone semantics either way.
-    const capturedUser = captureUserSnapshot(() => host.getUser());
+    //
+    // Codex round-8 finding 2 — the boundary is now the arrival of the final
+    // submit frame (capture-bridge, before this chunk loads): `input.identity`
+    // carries what was captured there, and nothing here re-reads it.
+    const boundary = input.identity ?? captureSubmitIdentity(host);
+    const capturedUser = boundary.user;
     // Host-supplied free-form metadata (setExtra) — captured at the same
     // boundary, same never-throw posture: an extra getter failure must never
     // cost the report (it degrades to no extra, exactly like no user).
-    const capturedExtra = safe(() => host.getExtra?.() || undefined, undefined);
-    const capturedIdentityToken = await host.adapter.__captureIdentityAtSubmitBoundary();
+    const capturedExtra = boundary.extra;
+    const capturedIdentityToken = await boundary.identityToken;
     // Companion attach (spec 2026-08-07): a token captured off the bonding
     // `pair.bonded` frame — absent on an ordinary QR pairing. SECURITY:
     // never log; it is read once here and handed straight to the header
