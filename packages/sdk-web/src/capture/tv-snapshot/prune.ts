@@ -22,12 +22,15 @@
 // (no recursion — deep pages must not overflow the stack), at most one rect
 // and one computed-style read per judged element (plus a bounded
 // margin-collapse probe per block placeholder, and one line-fragment read per
-// unseen inline element or unseen display:contents text), and no layout
+// unseen inline element and per bare text node of an element whose own box
+// is unseen), and no layout
 // reads at all inside head or SVG content. LAZY (tv-snapshot chunk).
 //
 // Unseen inline content keeps its layout but not its content: an inline
-// element (or display:contents text) that no line box of is seen keeps one
-// empty inline-block per measured line fragment in place of its children.
+// element that no line box of is seen keeps one empty inline-block per
+// measured line fragment in place of its children, and so does each bare text
+// node of an unseen box (display:contents included) that is kept for a
+// visible descendant. Text inside a SEEN box is assumed seen.
 //
 // "Seen" means: the element's own box intersects the viewport INTERSECTED with
 // every clip of an ancestor whose overflow is not visible (hidden, clip, auto,
@@ -793,12 +796,14 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   };
 
   /**
-   * An unseen display:contents element has no box of its own; its bare text
-   * lays out in the parent's lines. Each text child none of whose line boxes
-   * meets the clip is replaced by fragment placeholders. Text already masked
+   * Bare text of an element whose own box is not seen (a display:contents
+   * element has none; its text lays out in the parent's lines) is judged per
+   * text node, whatever its siblings are: a visible child keeps the element,
+   * never its other text. Each text child none of whose line boxes meets the
+   * clip is replaced by fragment placeholders. Text already masked
    * (invisible, sensitive) is left as is.
    */
-  const blankContentsText = (f: Frame): void => {
+  const blankUnseenText = (f: Frame): void => {
     if (f.hideText || f.maskText) return;
     const node = f.node as SnElement;
     let changed = false;
@@ -854,7 +859,10 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       }
       return prune(f, parent);
     }
-    if (f.anyVisible) return 'visible';
+    if (f.anyVisible) {
+      blankUnseenText(f);
+      return 'visible';
+    }
     const style = styleOnce(f);
     // Inline boxes span line fragments and display:contents has no box, so
     // neither can be replaced by a same-box placeholder. <svg> roots and
@@ -863,7 +871,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     if (style !== null && (style.display === 'contents' || (style.display === 'inline' && !isReplaced(node)))) {
       stripContentAttrs(node);
       if (style.display === 'inline') blankInline(f);
-      else blankContentsText(f);
+      else blankUnseenText(f);
       return 'hidden';
     }
     return prune(f, parent);

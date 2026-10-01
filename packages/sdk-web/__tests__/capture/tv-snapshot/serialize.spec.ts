@@ -282,6 +282,35 @@ describe('off-screen inline content (viewport pruning)', () => {
     expect(JSON.stringify(taken.doc)).toContain('Visible');
   });
 
+  it('drops unseen bare text of a display:contents element that also has a visible child', () => {
+    document.body.innerHTML =
+      '<section id="s"></section><div id="rail" style="white-space:nowrap;overflow:hidden">' +
+      '<span id="offwrap" style="display:contents"><b id="seen">SEEN_CHILD</b> OFFSCREEN_PRIVATE_NAME</span></div>';
+    const textRectsOf = vi.fn((t: Node) => (t.textContent!.includes('OFFSCREEN') ? [offRect] : [onScreen()]));
+    const taken = take({
+      measure: { rectOf: (el) => (el.id === 'offwrap' ? offRect : onScreen()), sizeOf: () => ({ width: 100, height: 20 }), textRectsOf },
+    });
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['OFFSCREEN_PRIVATE_NAME'])).toEqual([]);
+    expect(json).toContain('SEEN_CHILD');
+    expect(textRectsOf).toHaveBeenCalled();
+  });
+
+  it('drops unseen bare text of an off-screen block kept only for a visible fixed child', () => {
+    document.body.innerHTML =
+      '<section id="s"></section><div id="offblock">OFFBLOCK_PRIVATE_TEXT<button id="fab" style="position:fixed">FAB</button></div>';
+    const taken = take({
+      measure: {
+        rectOf: (el) => (el.id === 'offblock' ? offRect : onScreen()),
+        sizeOf: () => ({ width: 100, height: 20 }),
+        textRectsOf: () => [offRect],
+      },
+    });
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['OFFBLOCK_PRIVATE_TEXT'])).toEqual([]);
+    expect(json).toContain('FAB');
+  });
+
   it('keeps on-screen bare text of a display:contents element', () => {
     document.body.innerHTML = '<section id="s"></section><p>Visible <span style="display:contents">SEEN_CONTENTS_TEXT</span></p>';
     const taken = take({ measure: { rectOf: onScreen, sizeOf: () => ({ width: 100, height: 20 }), textRectsOf: () => [onScreen()] } });
