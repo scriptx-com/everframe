@@ -293,7 +293,7 @@ test('unseen inline, SVG and display:contents text inside visible blocks is drop
   });
   await page.evaluate((y) => window.scrollTo(0, y), spanBottom);
   expect(await page.evaluate(() => window.scrollY)).toBe(spanBottom);
-  const ids = ['after', 'near', 'host', 'badge', 'rail-seen', 'below'];
+  const ids = ['after', 'near', 'host', 'badge', 'rail-seen', 'card-head', 'below'];
   const live = await liveBoxes(page, ids);
   expect(live.after!.y).toBeGreaterThanOrEqual(0); // #after really is on a later, visible line
   const lines = await page.evaluate(() => document.getElementById('wrapped')!.getClientRects().length);
@@ -301,10 +301,11 @@ test('unseen inline, SVG and display:contents text inside visible blocks is drop
   const shot = await shoot(page);
   expect(shot).toMatchObject({ hasImage: true, hasSnapshot: true });
   const { text, doc } = decode(bodies[0]!);
-  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET', 'SVGCLIPPED', 'SVGHIDDEN', 'SVGFADED', 'SVGDESC', 'SVGDEFSTEXT', 'SVGHIDDENIMG', 'CONTENTSOFFSCREEN'])).toEqual([]);
+  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET', 'SVGCLIPPED', 'SVGHIDDEN', 'SVGFADED', 'SVGDESC', 'SVGDEFSTEXT', 'SVGHIDDENIMG', 'CONTENTSOFFSCREEN', 'SLOTTEDHIDDEN'])).toEqual([]);
   expect(text).toContain('AFTERMARK');
   expect(text).toContain('SVGSHOWN');
   expect(text).toContain('RAILSEEN');
+  expect(text).toContain('Card heading'); // named-slot content survives and rebuilds in place (codex r7 F3)
   expect(text).toContain('Shadow public');
   const root = doc.events[1].data.node;
   expect(byId(root, 'wrapped')!.childNodes!.filter((c) => c.tagName === 'span')).toHaveLength(lines);

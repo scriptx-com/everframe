@@ -20,6 +20,10 @@
 // something kept references it by id — then without bare text that never
 // renders.
 //
+// Slotted light-DOM content is judged in its composed-tree context: its
+// assigned slot's ancestors (re-projection and hosts followed) can mask, hide
+// or clip it, though rrweb serializes it under the host.
+//
 // Also here, because this is the one pass that sees the LIVE element behind
 // each serialized node: SDK chrome removal, blocked-sensitive black boxes, and
 // bare text of sensitive display:contents wrappers.
@@ -238,6 +242,8 @@ const FLEX_OR_GRID = new Set(['flex', 'inline-flex', 'grid', 'inline-grid', '-we
 const COLLAPSE_MAX_DEPTH = 8;
 const COLLAPSE_MAX_READS = 16;
 const COLLAPSE_MAX_STEPS = 64;
+/** Composed-tree ancestors examined for one slot (re-projection included). */
+const MAX_SLOT_DEPTH = 64;
 
 /** Case-insensitive own attribute presence (`xlink:href` / `XLINK:HREF`). */
 function hasOwnAttr(node: SnElement, lowerName: string): boolean {
@@ -743,6 +749,75 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     withhold(node, { attributes: next });
   };
 
+  /**
+   * Slotted light-DOM content (codex r7 F1). rrweb serializes a host's light
+   * children under the host, but they RENDER inside the shadow tree, at their
+   * assigned <slot>: their real (composed-tree) ancestors are the slot and its
+   * ancestors up to the host. Those are walked here — following re-projection
+   * (a slot itself slotted) and shadow-root hosts — and folded into one
+   * verdict per slot: any sensitive ancestor masks the content, any
+   * display:none / visibility:hidden / opacity:0 ancestor hides it, and every
+   * ancestor's clip narrows where it can be seen. Cached per slot; depth
+   * capped (deeper fails closed: hidden). Absent `assignedSlot` (pre-v1
+   * engines): not slotted.
+   */
+  interface SlotVerdict {
+    sensitive: boolean;
+    hidden: boolean;
+    clip: PruneRect;
+  }
+  const slotVerdicts = new Map<Element, SlotVerdict>();
+  const assignedSlotOf = (n: Node | null): Element | null => {
+    if (n === null) return null;
+    try {
+      const slot = (n as Node & { assignedSlot?: Element | null }).assignedSlot;
+      return slot === undefined || slot === null ? null : slot;
+    } catch {
+      return null;
+    }
+  };
+  const composedParent = (el: Element): Element | null => {
+    const slot = assignedSlotOf(el);
+    if (slot !== null) return slot;
+    if (el.parentElement !== null) return el.parentElement;
+    const root = el.parentNode as (Node & { host?: Element }) | null;
+    return root !== null && root.nodeType === 11 && root.host !== undefined ? root.host : null;
+  };
+  const slotVerdict = (n: Node | null): SlotVerdict | null => {
+    const slot = assignedSlotOf(n);
+    if (slot === null || n === null) return null;
+    const cached = slotVerdicts.get(slot);
+    if (cached !== undefined) return cached;
+    const stop = n.parentElement; // the host: its own context is the serialized parent's
+    const verdict: SlotVerdict = { sensitive: false, hidden: false, clip: VIEWPORT };
+    let a: Element | null = slot;
+    let depth = 0;
+    while (a !== null && a !== stop) {
+      if (++depth > MAX_SLOT_DEPTH) {
+        verdict.hidden = true;
+        break;
+      }
+      if (sensitiveSafe(a)) verdict.sensitive = true;
+      const st = deps.styleOf(a);
+      if (st !== null && (st.display === 'none' || isZeroOpacity(st) || isInvisible(st))) verdict.hidden = true;
+      verdict.clip = clipFor(verdict.clip, deps.rectOf(a), st);
+      a = composedParent(a);
+    }
+    slotVerdicts.set(slot, verdict);
+    return verdict;
+  };
+  const intersect = (x: PruneRect, y: PruneRect): PruneRect =>
+    toRect(Math.max(x.left, y.left), Math.max(x.top, y.top), Math.min(x.right, y.right), Math.min(x.bottom, y.bottom));
+  /** The parent context a slotted child is judged in: its slot's verdict folded in. */
+  const throughSlot = (parent: Frame, v: SlotVerdict): Frame => ({
+    ...parent,
+    clip: intersect(parent.clip, v.clip),
+    absClip: intersect(parent.absClip, v.clip),
+    fixedClip: intersect(parent.fixedClip, v.clip),
+    faded: parent.faded || v.hidden,
+    hideText: parent.hideText || v.hidden,
+  });
+
   /** `deps.isSensitive`, failing closed: a check that throws never unmasks. */
   const sensitiveSafe = (el: Element): boolean => {
     try {
@@ -817,12 +892,16 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
    * Pre-order step for one element child: either an immediate verdict (no
    * children to walk, or handled whole) or a frame to walk its children.
    */
-  const enter = (node: SnElement, parent: Frame): Verdict | Frame => {
+  const enter = (node: SnElement, outer: Frame): Verdict | Frame => {
     const tag = node.tagName.toLowerCase();
     if (REMOVE.has(tag)) return 'remove';
     if (hasOwn(node.attributes, SKIP_ATTR) && node.attributes[SKIP_ATTR] === 'true') return 'remove';
     const live = liveElement(node);
     if (live !== null && live.getAttribute(SKIP_ATTR) === 'true') return 'remove';
+    // Slotted content is judged in its composed-tree context (codex r7 F1).
+    const slot = slotVerdict(live);
+    const parent = slot === null ? outer : throughSlot(outer, slot);
+    if (slot !== null && slot.sensitive) return maskBlocked(node, live, parent);
     if (hasOwn(node.attributes, 'rr_width')) return maskBlocked(node, live, parent);
     const inherit = parent.maskText;
     if (parent.mode === 'head' || tag === 'head') return frame(node, 'head', live, null, parent);
@@ -1092,6 +1171,21 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       } else {
         if (child.type === SN_TEXT && (top.blankText || top.maskText || top.hideText) && !isBlankText(child.textContent)) {
           withhold(child, { textContent: top.blankText ? '' : child.textContent.replace(/\S/g, '•') });
+        } else if (child.type === SN_TEXT && !isBlankText(child.textContent)) {
+          // Bare text slotted into a shadow tree: masked when its slot is
+          // sensitive, hidden or clips it away (codex r7 F1).
+          const liveText = deps.nodeFor(child.id);
+          const v = slotVerdict(liveText);
+          if (v !== null) {
+            const clip = intersect(top.clip, v.clip);
+            const unseen =
+              v.sensitive || v.hidden || top.faded ||
+              !rectsSafe(() => (deps.textRectsOf ?? defaultTextRectsOf)(liveText as Node), []).some((r) => overlaps(r, clip));
+            if (unseen) {
+              if (v.sensitive) result.masked = true;
+              withhold(child, { textContent: child.textContent.replace(/\S/g, '•') });
+            }
+          }
         }
         top.kept.push(child);
       }

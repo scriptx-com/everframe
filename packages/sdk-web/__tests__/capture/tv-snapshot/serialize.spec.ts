@@ -576,6 +576,51 @@ describe('named slot assignments survive a serialize → rebuild round trip (cod
   });
 });
 
+describe('slotted light-DOM content follows its slot\'s ancestors (codex r7 F1)', () => {
+  const component = (shadowHtml: string) => {
+    document.body.innerHTML =
+      '<section id="s"></section><x-panel id="host"><p id="light">PRIVATE_PREVIOUS_SCREEN</p>BARE_SLOTTED_TEXT</x-panel><main>current</main>';
+    document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = shadowHtml;
+  };
+
+  it('a sensitive shadow wrapper masks the content projected into it', () => {
+    component('<div data-everframe-sensitive><slot></slot></div>');
+    const taken = take({ sensitiveElements: () => [] });
+    expect(findLeaks(JSON.stringify(taken.doc), ['PRIVATE_PREVIOUS_SCREEN', 'BARE_SLOTTED_TEXT'])).toEqual([]);
+    expect(taken.masked).toBe(true);
+  });
+
+  it('an opacity:0 or display:none shadow wrapper hides it', () => {
+    for (const wrapper of ['<div style="opacity:0"><slot></slot></div>', '<div style="display:none"><slot></slot></div>']) {
+      component(wrapper);
+      expect(findLeaks(JSON.stringify(take({ sensitiveElements: () => [] }).doc), ['PRIVATE_PREVIOUS_SCREEN', 'BARE_SLOTTED_TEXT']), wrapper).toEqual([]);
+    }
+  });
+
+  it('a clipping shadow wrapper clips it', () => {
+    component('<div id="clipper" style="overflow-x:hidden;overflow-y:hidden"><slot></slot></div>');
+    const clipBox: PruneRect = { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 };
+    const outside: PruneRect = { left: 150, top: 0, right: 250, bottom: 20, width: 100, height: 20 };
+    const json = JSON.stringify(
+      take({
+        sensitiveElements: () => [],
+        measure: {
+          rectOf: (el) => (el.id === 'light' ? outside : el.id === 'clipper' ? clipBox : onScreen()),
+          sizeOf: () => ({ width: 100, height: 20 }),
+          textRectsOf: () => [outside],
+        },
+      }).doc,
+    );
+    expect(findLeaks(json, ['PRIVATE_PREVIOUS_SCREEN', 'BARE_SLOTTED_TEXT'])).toEqual([]);
+    expect(json).toContain('current');
+  });
+
+  it('a plain slot keeps projected content', () => {
+    component('<div><slot></slot></div>');
+    expect(JSON.stringify(take({ sensitiveElements: () => [] }).doc)).toContain('PRIVATE_PREVIOUS_SCREEN');
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {
