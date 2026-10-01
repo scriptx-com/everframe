@@ -457,12 +457,37 @@ describe('pruned or hidden content does not survive in CSS', () => {
     }
   });
 
-  it('a page where nothing was withheld keeps its CSS strings (unmasked policy)', () => {
-    document.head.innerHTML = '<style>.now::before{content:"PUBLIC_ICON_LABEL"}</style>';
+  it('the CSS allowlist applies on every TV page, withheld content or not (S26)', () => {
+    document.head.innerHTML =
+      '<style>.now::before{content:"PUBLIC_ICON_LABEL"}.icon::before{content:"\\e900"}li::before{content:"•"}' +
+      ':root{--card:4111 1111 1111 1111;--person:Tan Brown;--surface:#101018;--gap:6px;--shade:rgba(0,0,0,.5);' +
+      '--shadow:0 2px 4px rgba(0,0,0,.5);--lh:1.5}</style>';
     document.body.innerHTML = '<main class="now">current</main>';
     const taken = take({ sensitiveElements: () => [] });
-    expect(taken.masked).toBe(false);
-    expect(JSON.stringify(taken.doc)).toContain('PUBLIC_ICON_LABEL');
+    expect(taken.masked).toBe(false); // nothing was withheld from the DOM…
+    const json = JSON.stringify(taken.doc);
+    // …yet the stylesheet is allowlisted all the same.
+    expect(findLeaks(json, ['PUBLIC_ICON_LABEL', '4111', 'Tan Brown', '--card', '--person'])).toEqual([]);
+    const css = String(findEl(rootOf(taken), (e) => e.tagName === 'style')!.attributes._cssText);
+    // (jsdom's CSSOM re-serializes the `\e900` escape as the code point itself.)
+    for (const kept of ['--surface:#101018', '--gap:6px', '--shade:rgba(0,0,0,.5)', '--shadow:0 2px 4px rgba(0,0,0,.5)', '--lh:1.5', 'content:"\ue900"', 'content:"•"']) {
+      expect(css, kept).toContain(kept);
+    }
+  });
+
+  it('a cleared textarea or blanked title never survives in a content rule (codex r5 F2)', () => {
+    document.head.innerHTML = '<title>PRIVATE_TITLE</title><style>.x::before{content:"DELETED_PRIVATE_DRAFT"}.y::after{content:"PRIVATE_TITLE"}</style>';
+    document.body.innerHTML = '<textarea id="t">DELETED_PRIVATE_DRAFT</textarea>';
+    (document.getElementById('t') as HTMLTextAreaElement).value = '';
+    const json = JSON.stringify(take({ sensitiveElements: () => [] }).doc);
+    expect(findLeaks(json, ['DELETED_PRIVATE_DRAFT', 'PRIVATE_TITLE'])).toEqual([]);
+  });
+
+  it('generated content of an invisible childless inline element is dropped (codex r5 F3)', () => {
+    document.head.innerHTML = '<style>.previous::before{content:"HIDDEN_PRIVATE_PHRASE"}</style>';
+    document.body.innerHTML = '<p>Visible <span class="previous" style="display:inline;opacity:0"></span></p>';
+    const json = JSON.stringify(take({ sensitiveElements: () => [] }).doc);
+    expect(findLeaks(json, ['HIDDEN_PRIVATE_PHRASE'])).toEqual([]);
   });
 });
 

@@ -128,13 +128,16 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
     { getId: (n) => ((n as Element).closest?.(SNAPSHOT_BLOCK_SELECTOR) ? -1 : mirror.getId(n)) },
     pruned.hiddenIds,
   );
-  // Fail closed: once ANY content was withheld (pruned, blanked, masked), CSS
-  // takes the allowlist scrub — the withheld text can live on in the page's
-  // stylesheets (`content:` strings, custom properties).
+  // Whether any content was withheld from the DOM (reported; the CSS policy
+  // no longer depends on it — see S26 below).
   const masked = pruned.changed || inputMasked || textMasked;
   const baseHref = sanitizeMetaHref(win.location.href);
   scrubSnapshotTree(root, {
-    masked,
+    // S26: the allowlist (masked) scrub on EVERY TV snapshot. Withheld content
+    // can live on in the stylesheet by many paths (content:, custom
+    // properties, title/textarea copies…); switching on detection kept
+    // missing one, so the switch is gone.
+    masked: true,
     retainedIds: collectRetainedIds(root),
     baseHref,
     redaction: deps.redaction,

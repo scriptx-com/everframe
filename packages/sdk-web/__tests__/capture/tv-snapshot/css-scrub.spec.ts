@@ -39,7 +39,7 @@ describe('masked page — spec regression cases (byte-level absence)', () => {
   it('drops an inherited quotes pair used by content: open-quote', () => {
     const out = scrubCssText('#q{quotes:"Alice Smith" "Alice Smith"}#q::before{content:open-quote}', masked);
     expect(findLeaks(out, PHRASE)).toEqual([]);
-    expect(out).toContain('#q::before{content:open-quote}');
+    expect(out).not.toContain('open-quote'); // S26(a): only icon/symbol strings, counters, none/normal
   });
 
   it('drops @counter-style entirely, including negative and additive-symbols', () => {
@@ -413,13 +413,13 @@ describe('masked page — custom property VALUE allowlist (codex r4 F4)', () => 
   const kept = (value: string): boolean => scrubCssText(`:root{--v:${value}}`, masked).includes('--v:');
   it.each([
     '#101018', '#fc0', ' #ffcc00 ', 'rgb(255, 204, 0)', 'rgba(0 0 0 / 50%)', 'hsl(210deg 50% 40%)', 'hsla(.5turn,10%,20%,.3)',
-    'red', 'Transparent', 'currentColor', '0', '-1.5', '6px', '1.25rem', '50%', '1e3ms', '.5s',
+    'red', 'Transparent', 'currentColor', '0', '-1.5', '6px', '1.25rem', '50%', '1000ms', '.5s', '9999px',
   ])('keeps %s', (value) => {
     expect(kept(value)).toBe(true);
   });
   it.each([
     'var(--surface)', 'var( --a , #000 )', 'var(--a, var(--b, 4px))', 'calc(100% - 2 * var(--gap))', 'calc((1px + 2px) / 3)',
-    '0 0 4px #000', '1px, 2px / 3px', 'rgb(0 0 0) 2px',
+    '0 2px 4px #000', '1px, 2px / 3px', 'rgb(0 0 0) 2px', '0 2px 4px rgba(0,0,0,.5)', '1.5',
   ])('keeps the structured value %s', (value) => {
     expect(kept(value)).toBe(true);
   });
@@ -427,6 +427,9 @@ describe('masked page — custom property VALUE allowlist (codex r4 F4)', () => 
     'Alice Smith', 'Alice', '"Alice Smith"', "'x'", 'url(https://cdn.example.test/a.png)', 'url(#g)', '\\41 lice', 'solid',
     '6px solid', 'var(--a, Alice)', 'calc(1px + Alice)', 'rgb(Alice, 0, 0)', 'attr(title)', '1Alice', '#xyz', '#12345',
     'var(Alice)', 'var(--a) Alice', 'inherit', 'u+0041', '-\\41', `${'1px '.repeat(80)}`,
+    // S26(b): nothing that can spell digits or words
+    '4111 1111 1111 1111', 'Tan Brown', 'red blue', '0 0 4px #000', '12345px', '1.23456', '1e3', '1e3ms',
+    `${'1px '.repeat(13)}`, 'var(--a, tan) red', 'calc(10000px + 1px)',
   ])('drops %s', (value) => {
     expect(kept(value)).toBe(false);
   });
@@ -443,4 +446,16 @@ describe('masked page — custom property VALUE allowlist (codex r4 F4)', () => 
     kept('1'.repeat(60_000) + 'x');
     expect(performance.now() - started).toBeLessThan(1000);
   });
+});
+
+describe('content: allowlist on TV snapshots (S26a)', () => {
+  const kept = (value: string): boolean => scrubCssText(`a::before{content:${value}}`, masked).includes('content:');
+  it.each(['""', 'none', 'normal', '"\\e900"', '"\\f101\\f102"', '"•"', '"→"', '"·"', '"\\a"', '"/"', 'counter(item)', 'counters(item, ".")', 'counter(item) "."'])(
+    'keeps %s',
+    (value) => expect(kept(value)).toBe(true),
+  );
+  it.each(['"Alice"', '"A"', '"7"', '"é"', '"ab"', '"••"', 'attr(title)', 'open-quote', 'url(https://cdn.example.test/a.png)', '"\\e900" "x"', 'counters(item, "Alice")', 'counter(item) attr(x)'])(
+    'drops %s',
+    (value) => expect(kept(value)).toBe(false),
+  );
 });

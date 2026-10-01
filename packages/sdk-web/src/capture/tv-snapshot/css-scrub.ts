@@ -8,15 +8,17 @@
 // only when they name a retained id. A declaration using image() (a URL as a
 // bare string, never rendered by Chromium) is dropped whole.
 //
-// ON A MASKED PAGE ONLY: every string token is removed except (1) font-family
-// names (`font-family`, `font`, `local()`), (2) URL targets (which are
-// sanitized, and `data:` ones dropped), (3) identifier-only
-// grid-template-areas strings, (4) enumerated ARIA attribute-selector values.
-// A declaration holding any other string is dropped whole, as is a rule whose
-// selector (or an at-rule whose prelude) holds one; every custom property,
-// every attr() text source and every @counter-style is dropped. A blocklist
-// cannot be made safe here — content, quotes, counters, custom properties and
-// more can all carry text.
+// ON A MASKED PAGE (every TV snapshot since ruling S26): every string token
+// is removed except (1) font-family names (`font-family`, `font`, `local()`),
+// (2) URL targets (which are sanitized, and `data:` ones dropped), (3)
+// identifier-only grid-template-areas strings, (4) enumerated ARIA
+// attribute-selector values, (5) icon-font / single-symbol `content` strings
+// (S26a). A declaration holding any other string is dropped whole, as is a
+// rule whose selector (or an at-rule whose prelude) holds one; a custom
+// property survives only with a visual value that cannot spell digits or
+// words (S26b); every attr() text source and every @counter-style is
+// dropped. A blocklist cannot be made safe here — content, quotes, counters,
+// custom properties and more can all carry text.
 //
 // This runs on slow TV CPUs over page-controlled text: everything below is a
 // single-pass scanner (no regex over unbounded input), identifiers are read
@@ -436,7 +438,12 @@ function scrubValue(prop: string, value: string, ctx: CssScrubContext, block: De
       // re-tokenize) whatever the scrubber writes after it — drop it in every mode.
       const [end, closed] = scanString(value, i);
       if (!closed) return null;
-      if (ctx.masked && !fontNames && !(gridAreas && validGridAreaString(value.slice(i, end)))) return null;
+      if (
+        ctx.masked && !fontNames && !(gridAreas && validGridAreaString(value.slice(i, end))) &&
+        !(prop === 'content' && isAllowedContentString(cssStringValue(value.slice(i, end))))
+      ) {
+        return null;
+      }
       i = end;
       continue;
     }
@@ -686,19 +693,24 @@ function splitImportant(value: string): [string, boolean] {
 
 const PROPERTY_RE = /^-?[a-z_][-a-z0-9_]*$/;
 
-// ── custom property values (masked pages) ─────────────────────────────────
+// ── custom property values (S26b) ──────────────────────────────────────────
 //
-// A custom property can carry any token stream (`--patient: Alice Smith`), so
-// a masked page keeps one only when its VALUE is built solely from tokens that
-// cannot spell text: hex colours, rgb()/hsl() with numeric arguments, named
-// colours / transparent / currentcolor, numbers, dimensions with a known unit,
-// percentages, var(--name[, allowlisted fallback]), calc() of those, and the
-// separators whitespace, `,` and `/` (plus `+ - *` and parentheses in calc).
-// Anything else — a string, url(), escape, any other identifier — drops the
-// declaration. One linear pass over a capped value, nesting capped.
+// A custom property can carry any token stream (`--patient: Alice Smith`,
+// `--card: 4111 1111 1111 1111`) and CSS values get no pattern redaction, so
+// one is kept only when its VALUE is visual and cannot spell digits or words:
+// hex colours, rgb()/hsl() with numeric arguments, at most ONE named colour /
+// transparent / currentcolor, numbers and dimensions (known unit, %) with at
+// most 4 integer and 4 fraction digits and no exponent, at most ONE bare
+// unitless number outside rgb()/hsl()/calc(), var(--name[, fallback under the
+// same rules]), calc() of those, and the separators whitespace, `,` and `/`
+// (plus `+ - *` and parentheses in calc) — at most 12 tokens in all. Anything
+// else drops the declaration. One linear pass over a capped value, nesting
+// capped.
 
 const MAX_CUSTOM_VALUE_LENGTH = 256;
 const MAX_CUSTOM_VALUE_DEPTH = 8;
+const MAX_CUSTOM_VALUE_TOKENS = 12;
+const MAX_CUSTOM_NUMBER_DIGITS = 4;
 const CSS_UNITS = new Set([
   'px', 'em', 'rem', 'ex', 'ch', 'vw', 'vh', 'vmin', 'vmax', 'cm', 'mm', 'q', 'in', 'pt', 'pc',
   'deg', 'grad', 'rad', 'turn', 's', 'ms', 'hz', 'khz', 'dpi', 'dpcm', 'dppx', 'x', 'fr',
@@ -707,6 +719,13 @@ const COLOR_FUNCTIONS = new Set(['rgb', 'rgba', 'hsl', 'hsla']);
 
 type CustomValueMode = 'value' | 'color' | 'calc';
 
+/** What one custom-property value has used of its S26(b) allowances. */
+interface CustomValueBudget {
+  tokens: number;
+  colorWords: number;
+  bareNumbers: number;
+}
+
 function isAsciiLetter(c: string | undefined): boolean {
   return c !== undefined && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
 }
@@ -714,33 +733,34 @@ function isDigit(c: string | undefined): boolean {
   return c !== undefined && c >= '0' && c <= '9';
 }
 
-/** A number (+ optional unit or %) at s[i] → its end, or -1. */
-function consumeSafeNumber(s: string, i: number): number {
+/** A number (+ optional unit or %) at s[i] → [its end, whether it is unitless], or [-1, false]. */
+function consumeSafeNumber(s: string, i: number): [number, boolean] {
   let j = i;
   if (s[j] === '+' || s[j] === '-') j++;
-  const digitsStart = j;
+  const intStart = j;
   while (isDigit(s[j])) j++;
+  let digits = j - intStart;
+  if (digits > MAX_CUSTOM_NUMBER_DIGITS) return [-1, false];
   if (s[j] === '.' && isDigit(s[j + 1])) {
     j++;
+    const fracStart = j;
     while (isDigit(s[j])) j++;
+    if (j - fracStart > MAX_CUSTOM_NUMBER_DIGITS) return [-1, false];
+    digits += j - fracStart;
   }
-  if (j === digitsStart) return -1;
-  if ((s[j] === 'e' || s[j] === 'E') && (isDigit(s[j + 1]) || ((s[j + 1] === '+' || s[j + 1] === '-') && isDigit(s[j + 2])))) {
-    j += 2;
-    while (isDigit(s[j])) j++;
-  }
-  if (s[j] === '%') return j + 1;
+  if (digits === 0) return [-1, false];
+  if (s[j] === '%') return [j + 1, false];
   const unitStart = j;
   while (isAsciiLetter(s[j])) j++;
-  if (j > unitStart && !CSS_UNITS.has(s.slice(unitStart, j).toLowerCase())) return -1;
-  return j;
+  if (j > unitStart && !CSS_UNITS.has(s.slice(unitStart, j).toLowerCase())) return [-1, false]; // `e3` included: no exponents
+  return [j, j === unitStart];
 }
 
 /**
  * Parses an allowlisted token sequence from s[i] up to the end of `s` or
  * (when `inFn`) the `)` closing it → the index of that stop, or -1.
  */
-function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: number, inFn: boolean): number {
+function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: number, inFn: boolean, budget: CustomValueBudget): number {
   if (depth > MAX_CUSTOM_VALUE_DEPTH) return -1;
   let j = i;
   while (j < s.length) {
@@ -754,8 +774,9 @@ function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: n
       j++;
       continue;
     }
+    if (++budget.tokens > MAX_CUSTOM_VALUE_TOKENS) return -1;
     if (mode === 'calc' && c === '(') {
-      const end = parseSafeSequence(s, j + 1, 'calc', depth + 1, true);
+      const end = parseSafeSequence(s, j + 1, 'calc', depth + 1, true, budget);
       if (end === -1) return -1;
       j = end + 1;
       continue;
@@ -768,8 +789,9 @@ function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: n
       j = k;
     } else if (isDigit(c) || c === '.' || c === '+' || c === '-') {
       if (c === '-' && s[j + 1] === '-') return -1; // a bare `--name` is an identifier
-      const end = consumeSafeNumber(s, j);
+      const [end, unitless] = consumeSafeNumber(s, j);
       if (end === -1) return -1;
+      if (unitless && mode === 'value' && ++budget.bareNumbers > 1) return -1;
       j = end;
     } else if (isAsciiLetter(c)) {
       let k = j;
@@ -777,14 +799,18 @@ function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: n
       const word = s.slice(j, k).toLowerCase();
       if (s[k] === '(') {
         let end: number;
-        if (word === 'var') end = parseSafeVar(s, k + 1, mode, depth + 1);
-        else if (word === 'calc') end = parseSafeSequence(s, k + 1, 'calc', depth + 1, true);
-        else if (COLOR_FUNCTIONS.has(word) && mode === 'value') end = parseSafeSequence(s, k + 1, 'color', depth + 1, true);
+        if (word === 'var') end = parseSafeVar(s, k + 1, mode, depth + 1, budget);
+        else if (word === 'calc') end = parseSafeSequence(s, k + 1, 'calc', depth + 1, true, budget);
+        else if (COLOR_FUNCTIONS.has(word) && mode === 'value') end = parseSafeSequence(s, k + 1, 'color', depth + 1, true, budget);
         else return -1;
         if (end === -1) return -1;
         j = end + 1;
       } else {
-        if (mode === 'color' ? word !== 'none' : mode === 'calc' || !isColorWord(word)) return -1;
+        if (mode === 'color') {
+          if (word !== 'none') return -1;
+        } else if (mode === 'calc' || !isColorWord(word) || ++budget.colorWords > 1) {
+          return -1;
+        }
         j = k;
       }
     } else {
@@ -798,7 +824,7 @@ function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: n
 }
 
 /** `var(` already consumed at s[i]: ` --name [, fallback] )` → index of the `)`, or -1. */
-function parseSafeVar(s: string, i: number, mode: CustomValueMode, depth: number): number {
+function parseSafeVar(s: string, i: number, mode: CustomValueMode, depth: number, budget: CustomValueBudget): number {
   let j = i;
   while (isSpace(s[j])) j++;
   if (s[j] !== '-' || s[j + 1] !== '-') return -1;
@@ -809,14 +835,101 @@ function parseSafeVar(s: string, i: number, mode: CustomValueMode, depth: number
   while (isSpace(s[j])) j++;
   if (s[j] === ')') return j;
   if (s[j] !== ',') return -1;
-  return parseSafeSequence(s, j + 1, mode === 'color' ? 'color' : mode, depth, true);
+  return parseSafeSequence(s, j + 1, mode, depth, true, budget);
 }
 
-/** Whether a custom property's value is built only from allowlisted tokens (masked pages). */
+/** Whether a custom property's value is visual and cannot spell digits or words (S26b). */
 export function isSafeCustomPropertyValue(value: string): boolean {
   if (value.length > MAX_CUSTOM_VALUE_LENGTH) return false;
   const t = value.trim();
-  return t !== '' && parseSafeSequence(t, 0, 'value', 0, false) === t.length;
+  return t !== '' && parseSafeSequence(t, 0, 'value', 0, false, { tokens: 0, colorWords: 0, bareNumbers: 0 }) === t.length;
+}
+
+// ── content: (S26a) ────────────────────────────────────────────────────────
+//
+// Generated content can carry any text, so `content` keeps only: `none`,
+// `normal`, `""`, strings made only of Private Use Area code points (icon
+// fonts), strings of exactly one non-alphanumeric character (bullets,
+// arrows, separators, a line break), and counter()/counters() whose
+// separator string obeys the same rule. Everything else drops the
+// declaration (attr(), open-quote, url(), any other string).
+
+const MAX_CONTENT_VALUE_LENGTH = 256;
+
+function isPrivateUse(cp: number): boolean {
+  return (cp >= 0xe000 && cp <= 0xf8ff) || (cp >= 0xf0000 && cp <= 0xffffd) || (cp >= 0x100000 && cp <= 0x10fffd);
+}
+
+/** One symbol-like character: ASCII punctuation/space, Latin-1 punctuation, ×, ÷, and the punctuation/arrow/shape/symbol blocks. */
+function isSymbolChar(cp: number): boolean {
+  if (cp < 0x80) {
+    const letterOrDigit = (cp >= 0x30 && cp <= 0x39) || (cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a);
+    return !letterOrDigit && (cp >= 0x20 || cp === 0x0a || cp === 0x09) && cp !== 0x7f;
+  }
+  return (
+    (cp >= 0xa0 && cp <= 0xbf) || cp === 0xd7 || cp === 0xf7 ||
+    (cp >= 0x2000 && cp <= 0x2bff) || (cp >= 0x3000 && cp <= 0x303f)
+  );
+}
+
+/** A `content` string (decoded) S26(a) allows. */
+export function isAllowedContentString(value: string): boolean {
+  if (value === '') return true;
+  const points: number[] = [];
+  for (let k = 0; k < value.length; k++) {
+    const cp = value.codePointAt(k) as number;
+    if (cp > 0xffff) k++;
+    points.push(cp);
+    if (points.length > 64) return false;
+  }
+  if (points.every(isPrivateUse)) return true;
+  return points.length === 1 && isSymbolChar(points[0]!);
+}
+
+/** Whether a (scrubbed) `content` value is made only of S26(a) tokens. Linear. */
+function isAllowedContentValue(value: string): boolean {
+  if (value.length > MAX_CONTENT_VALUE_LENGTH) return false;
+  let i = 0;
+  while (i < value.length) {
+    const c = value[i];
+    if (isSpace(c)) {
+      i++;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      const [end, closed] = scanString(value, i);
+      if (!closed || !isAllowedContentString(cssStringValue(value.slice(i, end)))) return false;
+      i = end;
+      continue;
+    }
+    if (!startsIdent(value, i)) return false;
+    const [j, name] = consumeIdent(value, i);
+    const lower = name.toLowerCase();
+    if (value[j] !== '(') {
+      if (lower !== 'none' && lower !== 'normal') return false;
+      i = j;
+      continue;
+    }
+    if (lower !== 'counter' && lower !== 'counters') return false;
+    const close = findTopLevel(value, j + 1, ')');
+    if (close >= value.length) return false;
+    const args = value.slice(j + 1, close);
+    let a = 0;
+    while (a < args.length) {
+      const end = findTopLevel(args, a, ',');
+      const arg = args.slice(a, end).trim();
+      a = end + 1;
+      if (arg === '') return false;
+      if (arg[0] === '"' || arg[0] === "'") {
+        const [stop, closed] = scanString(arg, 0);
+        if (!closed || stop !== arg.length || !isAllowedContentString(cssStringValue(arg))) return false;
+      } else if (!startsIdent(arg, 0) || consumeIdent(arg, 0)[0] !== arg.length) {
+        return false;
+      }
+    }
+    i = close + 1;
+  }
+  return true;
 }
 
 /** `--name` of ASCII letters, digits, `-` and `_` — a name that cannot carry escapes or text beyond itself. */
@@ -857,6 +970,7 @@ function scrubDeclarations(body: string, ctx: CssScrubContext, block: Declaratio
     // Masked: an unknown or invalid declaration renders nothing but would carry
     // its text verbatim (`patient: Alice Smith`), so only valid ones survive.
     if (ctx.masked && !custom && !validDeclarationMemo(ctx, block, prop, clean)) continue;
+    if (ctx.masked && prop === 'content' && !isAllowedContentValue(clean)) continue;
     out.push(`${prop}:${clean}${important ? ' !important' : ''}`);
   }
   return out.join(';');
