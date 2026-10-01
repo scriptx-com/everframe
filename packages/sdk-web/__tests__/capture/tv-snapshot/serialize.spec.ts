@@ -475,6 +475,14 @@ describe('pruned or hidden content does not survive in CSS', () => {
     }
   });
 
+  it('var() fallbacks and function wrappers carry no private values (codex r6 F1/F2)', () => {
+    document.head.innerHTML =
+      '<style>.x{background:var(--surface, PRIVATE_FALLBACK_NAME)}:root{--card:calc(4111 1111 1111 1111);--card2:rgba(4111 1111 1111 1111)}</style>';
+    document.body.innerHTML = '<section data-everframe-sensitive>PRIVATE_FALLBACK_NAME</section><main>current</main>';
+    const json = JSON.stringify(take({ sensitiveElements: () => [] }).doc);
+    expect(findLeaks(json, ['PRIVATE_FALLBACK_NAME', '4111'])).toEqual([]);
+  });
+
   it('a cleared textarea or blanked title never survives in a content rule (codex r5 F2)', () => {
     document.head.innerHTML = '<title>PRIVATE_TITLE</title><style>.x::before{content:"DELETED_PRIVATE_DRAFT"}.y::after{content:"PRIVATE_TITLE"}</style>';
     document.body.innerHTML = '<textarea id="t">DELETED_PRIVATE_DRAFT</textarea>';

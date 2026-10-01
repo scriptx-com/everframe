@@ -693,37 +693,50 @@ function splitImportant(value: string): [string, boolean] {
 
 const PROPERTY_RE = /^-?[a-z_][-a-z0-9_]*$/;
 
-// ── custom property values (S26b) ──────────────────────────────────────────
+// ── CSS values: one closed grammar (S26b, codex r6) ────────────────────────
 //
-// A custom property can carry any token stream (`--patient: Alice Smith`,
-// `--card: 4111 1111 1111 1111`) and CSS values get no pattern redaction, so
-// one is kept only when its VALUE is visual and cannot spell digits or words:
-// hex colours, rgb()/hsl() with numeric arguments, at most ONE named colour /
-// transparent / currentcolor, numbers and dimensions (known unit, %) with at
-// most 4 integer and 4 fraction digits and no exponent, at most ONE bare
-// unitless number outside rgb()/hsl()/calc(), var(--name[, fallback under the
-// same rules]), calc() of those, and the separators whitespace, `,` and `/`
-// (plus `+ - *` and parentheses in calc) — at most 12 tokens in all. Anything
-// else drops the declaration. One linear pass over a capped value, nesting
-// capped.
+// CSS values get no pattern redaction, so wherever a value is page-authored
+// free form — a custom property's value, and the fallback of EVERY var(), in
+// any property — it must parse under one closed, visual grammar that cannot
+// spell words or long digit runs (never CSS.supports(): browser acceptance
+// says nothing about privacy):
+//   component  := hex colour | number[unit|%] | ONE named colour (per value)
+//               | rgb()/rgba()/hsl()/hsla() | var(--name[, value]) | calc()
+//   separators := whitespace , /
+//   rgb()   3 channels 0–255 or 0–100%, optional alpha 0–1 or 0–100%
+//   hsl()   hue 0–360 (deg optional), two 0–100%, optional alpha
+//   calc()  operand ((+|-) operand | (*|/) operand)*, `+`/`-` space-separated;
+//           operand := number[unit|%] | var() | calc() | ( sum )
+// Budgets per value (fallbacks included): ≤ 12 tokens, ≤ 256 chars, nesting
+// ≤ 8, at most ONE bare non-zero unitless number outside functions, numbers
+// with ≤ 4 integer and ≤ 4 fraction digits and no exponent, and ≤ 12 digits
+// in all (numbers, hex colours and var() names; zero-valued numbers free), of
+// which ≤ 8 outside rgb()/hsl() channels. Colour-function arguments are not
+// charged as tokens (at most 4 each, range-checked).
+// Recursive descent with bounded depth over a capped string: linear.
 
-const MAX_CUSTOM_VALUE_LENGTH = 256;
-const MAX_CUSTOM_VALUE_DEPTH = 8;
-const MAX_CUSTOM_VALUE_TOKENS = 12;
-const MAX_CUSTOM_NUMBER_DIGITS = 4;
+const MAX_CSS_VALUE_LENGTH = 256;
+const MAX_CSS_VALUE_DEPTH = 8;
+const MAX_CSS_VALUE_TOKENS = 12;
+const MAX_CSS_VALUE_DIGITS = 12;
+/** Of those, digits outside colour channels — a 10-digit phone number in lengths never fits. */
+const MAX_CSS_VALUE_FREE_DIGITS = 8;
+const MAX_NUMBER_PART_DIGITS = 4;
 const CSS_UNITS = new Set([
   'px', 'em', 'rem', 'ex', 'ch', 'vw', 'vh', 'vmin', 'vmax', 'cm', 'mm', 'q', 'in', 'pt', 'pc',
   'deg', 'grad', 'rad', 'turn', 's', 'ms', 'hz', 'khz', 'dpi', 'dpcm', 'dppx', 'x', 'fr',
 ]);
-const COLOR_FUNCTIONS = new Set(['rgb', 'rgba', 'hsl', 'hsla']);
 
-type CustomValueMode = 'value' | 'color' | 'calc';
-
-/** What one custom-property value has used of its S26(b) allowances. */
-interface CustomValueBudget {
+/** What one value (fallbacks included) has used of its allowances. */
+interface ValueBudget {
   tokens: number;
   colorWords: number;
   bareNumbers: number;
+  digits: number;
+  /** Digits outside rgb()/hsl() channels (whose ranges already bound them). */
+  freeDigits: number;
+  /** Inside an rgb()/hsl() argument list. */
+  inColor: boolean;
 }
 
 function isAsciiLetter(c: string | undefined): boolean {
@@ -732,117 +745,266 @@ function isAsciiLetter(c: string | undefined): boolean {
 function isDigit(c: string | undefined): boolean {
   return c !== undefined && c >= '0' && c <= '9';
 }
+function isValueSeparator(c: string | undefined): boolean {
+  return isSpace(c) || c === ',' || c === '/';
+}
+function skipSpaces(s: string, i: number): number {
+  while (isSpace(s[i])) i++;
+  return i;
+}
 
-/** A number (+ optional unit or %) at s[i] → [its end, whether it is unitless], or [-1, false]. */
-function consumeSafeNumber(s: string, i: number): [number, boolean] {
+interface ParsedNumber {
+  end: number;
+  unit: string; // '', '%' or a known unit, lower-case
+  value: number;
+}
+
+/** A number (+ unit or %) at s[i], charged to the budget (zero is free) → parsed, or null. */
+function parseNumber(s: string, i: number, b: ValueBudget): ParsedNumber | null {
   let j = i;
   if (s[j] === '+' || s[j] === '-') j++;
   const intStart = j;
   while (isDigit(s[j])) j++;
+  if (j - intStart > MAX_NUMBER_PART_DIGITS) return null;
   let digits = j - intStart;
-  if (digits > MAX_CUSTOM_NUMBER_DIGITS) return [-1, false];
   if (s[j] === '.' && isDigit(s[j + 1])) {
     j++;
     const fracStart = j;
     while (isDigit(s[j])) j++;
-    if (j - fracStart > MAX_CUSTOM_NUMBER_DIGITS) return [-1, false];
+    if (j - fracStart > MAX_NUMBER_PART_DIGITS) return null;
     digits += j - fracStart;
   }
-  if (digits === 0) return [-1, false];
-  if (s[j] === '%') return [j + 1, false];
-  const unitStart = j;
-  while (isAsciiLetter(s[j])) j++;
-  if (j > unitStart && !CSS_UNITS.has(s.slice(unitStart, j).toLowerCase())) return [-1, false]; // `e3` included: no exponents
-  return [j, j === unitStart];
+  if (digits === 0) return null;
+  const value = parseFloat(s.slice(i, j));
+  let unit = '';
+  if (s[j] === '%') {
+    unit = '%';
+    j++;
+  } else {
+    const unitStart = j;
+    while (isAsciiLetter(s[j])) j++;
+    unit = s.slice(unitStart, j).toLowerCase();
+    if (unit !== '' && !CSS_UNITS.has(unit)) return null; // `e3` included: no exponents
+  }
+  if (value !== 0) {
+    b.digits += digits;
+    if (!b.inColor) b.freeDigits += digits;
+  }
+  if (b.digits > MAX_CSS_VALUE_DIGITS || b.freeDigits > MAX_CSS_VALUE_FREE_DIGITS) return null;
+  return { end: j, unit, value };
+}
+
+function newBudget(): ValueBudget {
+  return { tokens: 0, colorWords: 0, bareNumbers: 0, digits: 0, freeDigits: 0, inColor: false };
+}
+
+function chargeToken(b: ValueBudget): boolean {
+  return ++b.tokens <= MAX_CSS_VALUE_TOKENS;
 }
 
 /**
- * Parses an allowlisted token sequence from s[i] up to the end of `s` or
- * (when `inFn`) the `)` closing it → the index of that stop, or -1.
+ * A value list from s[i] to the end of `s` or, when `inFn`, to the `)` that
+ * closes it → the index of that stop, or -1.
  */
-function parseSafeSequence(s: string, i: number, mode: CustomValueMode, depth: number, inFn: boolean, budget: CustomValueBudget): number {
-  if (depth > MAX_CUSTOM_VALUE_DEPTH) return -1;
+function parseValueList(s: string, i: number, b: ValueBudget, depth: number, inFn: boolean): number {
+  if (depth > MAX_CSS_VALUE_DEPTH) return -1;
   let j = i;
-  while (j < s.length) {
-    const c = s[j]!;
-    if (c === ')') return inFn ? j : -1;
-    if (isSpace(c) || c === ',' || c === '/') {
-      j++;
-      continue;
-    }
-    if (mode === 'calc' && (c === '*' || ((c === '+' || c === '-') && isSpace(s[j + 1])))) {
-      j++;
-      continue;
-    }
-    if (++budget.tokens > MAX_CUSTOM_VALUE_TOKENS) return -1;
-    if (mode === 'calc' && c === '(') {
-      const end = parseSafeSequence(s, j + 1, 'calc', depth + 1, true, budget);
-      if (end === -1) return -1;
-      j = end + 1;
-      continue;
-    }
-    if (c === '#' && mode === 'value') {
-      let k = j + 1;
-      while (k < s.length && isHexCode(s.charCodeAt(k))) k++;
-      const n = k - j - 1;
-      if (n !== 3 && n !== 4 && n !== 6 && n !== 8) return -1;
-      j = k;
-    } else if (isDigit(c) || c === '.' || c === '+' || c === '-') {
-      if (c === '-' && s[j + 1] === '-') return -1; // a bare `--name` is an identifier
-      const [end, unitless] = consumeSafeNumber(s, j);
-      if (end === -1) return -1;
-      if (unitless && mode === 'value' && ++budget.bareNumbers > 1) return -1;
-      j = end;
-    } else if (isAsciiLetter(c)) {
-      let k = j;
-      while (isAsciiLetter(s[k])) k++;
-      const word = s.slice(j, k).toLowerCase();
-      if (s[k] === '(') {
-        let end: number;
-        if (word === 'var') end = parseSafeVar(s, k + 1, mode, depth + 1, budget);
-        else if (word === 'calc') end = parseSafeSequence(s, k + 1, 'calc', depth + 1, true, budget);
-        else if (COLOR_FUNCTIONS.has(word) && mode === 'value') end = parseSafeSequence(s, k + 1, 'color', depth + 1, true, budget);
-        else return -1;
-        if (end === -1) return -1;
-        j = end + 1;
-      } else {
-        if (mode === 'color') {
-          if (word !== 'none') return -1;
-        } else if (mode === 'calc' || !isColorWord(word) || ++budget.colorWords > 1) {
-          return -1;
-        }
-        j = k;
-      }
-    } else {
-      return -1;
-    }
-    // A token must end at a separator, an operator, `)` or the end — `1pxAlice` never splits into two.
-    const next = s[j];
-    if (next !== undefined && !isSpace(next) && next !== ',' && next !== '/' && next !== ')' && !(mode === 'calc' && next === '*')) return -1;
+  for (;;) {
+    while (isValueSeparator(s[j])) j++;
+    if (j >= s.length) return inFn ? -1 : j;
+    if (s[j] === ')') return inFn ? j : -1;
+    j = parseComponent(s, j, b, depth);
+    if (j === -1) return -1;
+    // A component ends at a separator, `)` or the end — `1pxAlice` never splits.
+    if (j < s.length && !isValueSeparator(s[j]) && s[j] !== ')') return -1;
   }
-  return inFn ? -1 : j;
 }
 
-/** `var(` already consumed at s[i]: ` --name [, fallback] )` → index of the `)`, or -1. */
-function parseSafeVar(s: string, i: number, mode: CustomValueMode, depth: number, budget: CustomValueBudget): number {
-  let j = i;
-  while (isSpace(s[j])) j++;
+function parseComponent(s: string, i: number, b: ValueBudget, depth: number): number {
+  if (!chargeToken(b)) return -1;
+  const c = s[i];
+  if (c === '#') {
+    let k = i + 1;
+    let digits = 0;
+    while (k < s.length && isHexCode(s.charCodeAt(k))) {
+      if (isDigit(s[k])) digits++;
+      k++;
+    }
+    const n = k - i - 1;
+    if (n !== 3 && n !== 4 && n !== 6 && n !== 8) return -1;
+    b.digits += digits;
+    b.freeDigits += digits;
+    return b.digits > MAX_CSS_VALUE_DIGITS || b.freeDigits > MAX_CSS_VALUE_FREE_DIGITS ? -1 : k;
+  }
+  if (isDigit(c) || c === '.' || c === '+' || (c === '-' && s[i + 1] !== '-')) {
+    const n = parseNumber(s, i, b);
+    if (n === null) return -1;
+    if (n.unit === '' && n.value !== 0 && ++b.bareNumbers > 1) return -1;
+    return n.end;
+  }
+  if (!isAsciiLetter(c)) return -1;
+  let k = i;
+  while (isAsciiLetter(s[k])) k++;
+  const word = s.slice(i, k).toLowerCase();
+  if (s[k] !== '(') return isColorWord(word) && ++b.colorWords <= 1 ? k : -1;
+  if (word === 'var') return parseVar(s, k + 1, b, depth + 1);
+  if (word === 'calc') return parseCalc(s, k + 1, b, depth + 1);
+  if (word === 'rgb' || word === 'rgba') return parseColorFunction(s, k + 1, b, depth + 1, 'rgb');
+  if (word === 'hsl' || word === 'hsla') return parseColorFunction(s, k + 1, b, depth + 1, 'hsl');
+  return -1;
+}
+
+/** After `var(`: ` --name [, value] )` → the index past `)`, or -1. Name digits are charged. */
+function parseVar(s: string, i: number, b: ValueBudget, depth: number): number {
+  if (depth > MAX_CSS_VALUE_DEPTH) return -1;
+  let j = skipSpaces(s, i);
   if (s[j] !== '-' || s[j + 1] !== '-') return -1;
   j += 2;
   const nameStart = j;
-  while (j < s.length && (isAsciiLetter(s[j]) || isDigit(s[j]) || s[j] === '-' || s[j] === '_')) j++;
-  if (j === nameStart) return -1;
-  while (isSpace(s[j])) j++;
-  if (s[j] === ')') return j;
+  while (j < s.length && (isAsciiLetter(s[j]) || isDigit(s[j]) || s[j] === '-' || s[j] === '_')) {
+    if (isDigit(s[j])) {
+      b.digits++;
+      b.freeDigits++;
+    }
+    j++;
+  }
+  if (j === nameStart || b.digits > MAX_CSS_VALUE_DIGITS || b.freeDigits > MAX_CSS_VALUE_FREE_DIGITS) return -1;
+  j = skipSpaces(s, j);
+  if (s[j] === ')') return j + 1;
   if (s[j] !== ',') return -1;
-  return parseSafeSequence(s, j + 1, mode, depth, true, budget);
+  const inColor = b.inColor;
+  b.inColor = false; // a fallback is a value of its own
+  const end = parseValueList(s, j + 1, b, depth + 1, true);
+  b.inColor = inColor;
+  return end === -1 ? -1 : end + 1;
 }
 
-/** Whether a custom property's value is visual and cannot spell digits or words (S26b). */
-export function isSafeCustomPropertyValue(value: string): boolean {
-  if (value.length > MAX_CUSTOM_VALUE_LENGTH) return false;
+/** After `calc(`: a calc sum then `)` → the index past `)`, or -1. */
+function parseCalc(s: string, i: number, b: ValueBudget, depth: number): number {
+  const end = parseCalcSum(s, i, b, depth);
+  return end === -1 || s[end] !== ')' ? -1 : end + 1;
+}
+
+/** operand (op operand)* → the index of the closing `)`, or -1. `+`/`-` need whitespace on both sides. */
+function parseCalcSum(s: string, i: number, b: ValueBudget, depth: number): number {
+  if (depth > MAX_CSS_VALUE_DEPTH) return -1;
+  let j = parseCalcOperand(s, skipSpaces(s, i), b, depth);
+  for (;;) {
+    if (j === -1) return -1;
+    const before = j;
+    j = skipSpaces(s, j);
+    if (s[j] === ')') return j;
+    const op = s[j];
+    if (op === '+' || op === '-') {
+      if (j === before || !isSpace(s[j + 1])) return -1;
+    } else if (op !== '*' && op !== '/') {
+      return -1;
+    }
+    j = parseCalcOperand(s, skipSpaces(s, j + 1), b, depth);
+  }
+}
+
+function parseCalcOperand(s: string, i: number, b: ValueBudget, depth: number): number {
+  if (!chargeToken(b)) return -1;
+  const c = s[i];
+  if (c === '(') {
+    const end = parseCalcSum(s, i + 1, b, depth + 1);
+    return end === -1 ? -1 : end + 1;
+  }
+  if (isDigit(c) || c === '.' || c === '+' || c === '-') {
+    const n = parseNumber(s, i, b);
+    return n === null ? -1 : n.end;
+  }
+  let k = i;
+  while (isAsciiLetter(s[k])) k++;
+  if (s[k] !== '(') return -1;
+  const word = s.slice(i, k).toLowerCase();
+  if (word === 'var') return parseVar(s, k + 1, b, depth + 1);
+  if (word === 'calc') return parseCalc(s, k + 1, b, depth + 1);
+  return -1;
+}
+
+/**
+ * After `rgb(`/`hsl(` (and the -a forms): 3 channels plus an optional alpha,
+ * comma or space/slash separated, each range-checked; a var() argument stands
+ * for any number of channels (then only the count ≤ 4 is checked).
+ */
+function parseColorFunction(s: string, i: number, b: ValueBudget, depth: number, kind: 'rgb' | 'hsl'): number {
+  if (depth > MAX_CSS_VALUE_DEPTH) return -1;
+  const args: Array<ParsedNumber | null> = [];
+  let j = i;
+  for (;;) {
+    j = skipSpaces(s, j);
+    if (s[j] === ',' || s[j] === '/') {
+      j++;
+      continue;
+    }
+    if (s[j] === ')') break;
+    // Arguments are not charged as tokens (at most 4, range-checked below).
+    if (j >= s.length || args.length >= 4) return -1;
+    if (s.slice(j, j + 4).toLowerCase() === 'var(') {
+      j = parseVar(s, j + 4, b, depth + 1);
+      if (j === -1) return -1;
+      args.push(null);
+      continue;
+    }
+    b.inColor = true;
+    const n = parseNumber(s, j, b);
+    b.inColor = false;
+    if (n === null) return -1;
+    args.push(n);
+    j = n.end;
+    if (j < s.length && !isValueSeparator(s[j]) && s[j] !== ')') return -1;
+  }
+  const hasVar = args.some((a) => a === null);
+  if (!hasVar && args.length !== 3 && args.length !== 4) return -1;
+  for (let k = 0; k < args.length; k++) {
+    const a = args[k];
+    if (a === null || a === undefined) continue;
+    const pct = a.unit === '%' && a.value >= 0 && a.value <= 100;
+    let ok: boolean;
+    if (k === 3 || (hasVar && k === args.length - 1 && args.length === 4)) {
+      ok = pct || (a.unit === '' && a.value >= 0 && a.value <= 1);
+    } else if (kind === 'rgb') {
+      ok = pct || (a.unit === '' && a.value >= 0 && a.value <= 255);
+    } else if (k === 0 && !hasVar) {
+      ok = (a.unit === '' || a.unit === 'deg') && a.value >= 0 && a.value <= 360;
+    } else {
+      ok = hasVar ? pct || (a.unit === '' && a.value >= 0 && a.value <= 360) : pct;
+    }
+    if (!ok) return -1;
+  }
+  return j + 1;
+}
+
+/** Whether a page-authored CSS value is in the closed visual grammar above. */
+export function isSafeCssValue(value: string): boolean {
+  if (value.length > MAX_CSS_VALUE_LENGTH) return false;
   const t = value.trim();
-  return t !== '' && parseSafeSequence(t, 0, 'value', 0, false, { tokens: 0, colorWords: 0, bareNumbers: 0 }) === t.length;
+  return t !== '' && parseValueList(t, 0, newBudget(), 0, false) === t.length;
+}
+
+/** A custom property's value (S26b) — the shared grammar. */
+export function isSafeCustomPropertyValue(value: string): boolean {
+  return isSafeCssValue(value);
+}
+
+/**
+ * Every var() in an ordinary property's value: a safe name, and a fallback
+ * (if any) in the shared grammar. Linear: each var( is checked once, its
+ * fallback by the bounded parser.
+ */
+function varFallbacksSafe(value: string): boolean {
+  const lower = value.toLowerCase();
+  let pos = 0;
+  for (;;) {
+    const at = lower.indexOf('var(', pos);
+    if (at === -1) return true;
+    // (`xvar(` is checked as a var too: fail closed.)
+    const end = parseVar(value, at + 4, newBudget(), 1);
+    if (end === -1) return false;
+    pos = end;
+  }
 }
 
 // ── content: (S26a) ────────────────────────────────────────────────────────
@@ -965,6 +1127,8 @@ function scrubDeclarations(body: string, ctx: CssScrubContext, block: Declaratio
     // (colours, lengths, var(), calc() — never text). It is then valid by
     // construction, so the engine check below is skipped for it.
     if (custom && ctx.masked && !isSafeCustomPropertyValue(value)) continue;
+    // A var() fallback is page-authored free form in ANY property (codex r6).
+    if (ctx.masked && !custom && !varFallbacksSafe(value)) continue;
     const clean = scrubValue(prop, value, ctx, block)?.trim() ?? '';
     if (clean === '') continue;
     // Masked: an unknown or invalid declaration renders nothing but would carry

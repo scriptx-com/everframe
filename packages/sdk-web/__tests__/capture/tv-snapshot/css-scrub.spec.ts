@@ -412,7 +412,7 @@ describe('image() on any page (final review finding 9)', () => {
 describe('masked page — custom property VALUE allowlist (codex r4 F4)', () => {
   const kept = (value: string): boolean => scrubCssText(`:root{--v:${value}}`, masked).includes('--v:');
   it.each([
-    '#101018', '#fc0', ' #ffcc00 ', 'rgb(255, 204, 0)', 'rgba(0 0 0 / 50%)', 'hsl(210deg 50% 40%)', 'hsla(.5turn,10%,20%,.3)',
+    '#101018', '#fc0', ' #ffcc00 ', 'rgb(255, 204, 0)', 'rgba(0 0 0 / 50%)', 'hsl(210deg 50% 40%)', 'hsla(180,10%,20%,.3)',
     'red', 'Transparent', 'currentColor', '0', '-1.5', '6px', '1.25rem', '50%', '1000ms', '.5s', '9999px',
   ])('keeps %s', (value) => {
     expect(kept(value)).toBe(true);
@@ -428,8 +428,8 @@ describe('masked page — custom property VALUE allowlist (codex r4 F4)', () => 
     '6px solid', 'var(--a, Alice)', 'calc(1px + Alice)', 'rgb(Alice, 0, 0)', 'attr(title)', '1Alice', '#xyz', '#12345',
     'var(Alice)', 'var(--a) Alice', 'inherit', 'u+0041', '-\\41', `${'1px '.repeat(80)}`,
     // S26(b): nothing that can spell digits or words
-    '4111 1111 1111 1111', 'Tan Brown', 'red blue', '0 0 4px #000', '12345px', '1.23456', '1e3', '1e3ms',
-    `${'1px '.repeat(13)}`, 'var(--a, tan) red', 'calc(10000px + 1px)',
+    '4111 1111 1111 1111', 'Tan Brown', 'red blue', '12345px', '1.23456', '1e3', '1e3ms',
+    `${'1px '.repeat(13)}`, 'var(--a, tan) red', 'calc(10000px + 1px)', 'hsla(.5turn,10%,20%,.3)',
   ])('drops %s', (value) => {
     expect(kept(value)).toBe(false);
   });
@@ -458,4 +458,61 @@ describe('content: allowlist on TV snapshots (S26a)', () => {
     'drops %s',
     (value) => expect(kept(value)).toBe(false),
   );
+});
+
+describe('one closed value grammar for custom properties and every var() fallback (codex r6)', () => {
+  const customKept = (value: string): boolean => scrubCssText(`:root{--v:${value}}`, masked).includes('--v:');
+  const fallbackKept = (prop: string, value: string): boolean =>
+    scrubCssText(`a{${prop}:var(--x, ${value})}`, masked).includes(`${prop}:`);
+
+  it.each([
+    // Codex's reproductions
+    'calc(4111 1111 1111 1111)', 'rgba(4111 1111 1111 1111)',
+    // card / phone numbers in every wrapper
+    'rgb(41, 111, 111) rgb(111, 111, 1)', 'rgb(411 111 111)', 'rgba(41, 11, 11, 4111)', 'hsl(4111 11% 11%)', 'hsl(41, 111%, 11%)',
+    'hsla(41 11% 11% / 1111)', 'calc(4111px + 1111px + 1111px + 1111px)', 'calc(555px+123px)', 'calc(5px 5px)',
+    'var(--a, 4111px 1111px 1111px 1111px)', 'var(--a, var(--b, 5551px 2345px 6789px))', '#411111 #111111 #111111',
+    '555px 123px 4567px 12px', 'calc(1px * 4111 * 1111 * 1111)', 'rgb(var(--a), 4111, 1111, 1111)',
+    // names
+    'var(--a, Alice)', 'var(--a, var(--b, Smith))', 'calc(1px + Alice)', 'rgb(Alice 0 0)', 'hsl(red 0% 0%)', 'rgba(0,0,0,.5) Alice',
+    'rgb(1 2)', 'rgb(1 2 3 4 5)', 'rgb(256 0 0)', 'rgb(0 0 0 / 2)', 'hsl(361 0% 0%)', 'hsl(0 101% 0%)', 'hsl(0 0 0)',
+  ])('a custom property drops %s', (value) => {
+    expect(customKept(value)).toBe(false);
+  });
+
+  it.each([
+    '#101018', '6px', 'rgba(0,0,0,.5)', 'rgba(0, 0, 0, 0.5)', 'rgb(255 204 0 / 50%)', 'hsl(210deg 50% 40%)', 'hsla(0, 0%, 100%, .08)',
+    '0 2px 4px rgba(0,0,0,.5)', '0 0 4px #000', '0 1px 2px rgba(0,0,0,.3), 0 4px 8px rgba(0,0,0,.2)', '1.5', 'calc(100% - 2 * var(--gap))',
+    'calc((1px + 2px) / 3)', 'var(--surface)', 'var(--a, #000)', 'var(--a, var(--b, 4px))', 'rgba(var(--rgb), .5)', '0 0 0 2px var(--focus)',
+  ])('a custom property keeps %s', (value) => {
+    expect(customKept(value)).toBe(true);
+  });
+
+  it.each([
+    ['background', 'PRIVATE_FALLBACK_NAME'], ['color', 'Alice Smith'], ['width', '4111px 1111px 1111px 1111px'],
+    ['background', 'url(https://cdn.example.test/a.png)'], ['color', 'var(--y, Alice)'], ['width', 'calc(4111 1111 1111 1111)'],
+  ])('an ordinary %s drops a var() fallback %s', (prop, value) => {
+    expect(fallbackKept(prop, value)).toBe(false);
+  });
+
+  it.each([['background', '#101018'], ['width', '6px'], ['color', 'rgba(0,0,0,.5)'], ['margin', '0 2px']])(
+    'an ordinary %s keeps a var() fallback %s',
+    (prop, value) => {
+      expect(fallbackKept(prop, value)).toBe(true);
+    },
+  );
+
+  it('keeps a var() with no fallback, and drops a var() with a non-ASCII-safe name', () => {
+    expect(scrubCssText('a{color:var(--focus)}', masked)).toContain('color:var(--focus)');
+    expect(scrubCssText('a{color:var(--\\41 lice)}', masked)).not.toContain('color:');
+  });
+
+  it('stays linear on long near-miss values (S18)', () => {
+    const started = performance.now();
+    scrubCssText(`a{color:var(--a, ${'var(--b, '.repeat(20_000)})}`, masked);
+    scrubCssText(`:root{--v:${'calc('.repeat(20_000)}}`, masked);
+    scrubCssText(`:root{--v:rgb(${'1 '.repeat(30_000)})}`, masked);
+    scrubCssText(`a{margin:${'var(--a) '.repeat(30_000)}}`, masked);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
 });
