@@ -40,6 +40,8 @@ export const ReportEnvelope = z
           'everframe-react',
           'everframe-web',
           'everframe-react-native',
+          'everframe-flutter',
+          'everframe-kmp',
           'everframe-ios',
           'everframe-android',
           'everframe-roku',

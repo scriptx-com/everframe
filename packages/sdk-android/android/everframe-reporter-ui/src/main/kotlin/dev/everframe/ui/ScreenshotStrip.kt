@@ -87,6 +87,7 @@ internal fun ScreenshotStrip(
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    allowAdditionalScreenshots: Boolean = true,
 ) {
     LazyRow(
         // Pinning the row's height to one tile keeps it from jittering as
@@ -106,7 +107,7 @@ internal fun ScreenshotStrip(
                 onDelete = { onDelete(i) },
             )
         }
-        if (ShotListOps.showsAddTile(shots.size)) {
+        if (allowAdditionalScreenshots && ShotListOps.showsAddTile(shots.size)) {
             item(key = "add-shot-tile") {
                 AddShotTile(enabled = enabled, onClick = onAdd)
             }

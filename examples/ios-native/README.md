@@ -89,8 +89,8 @@ dashboard's Events panel. Setup is once per clone:
 
 3. **Create the iOS app's SDK key.** In the admin UI:
    - Sign up → create org → create an app named e.g. `iOS` → SDK Keys panel → "Generate".
-   - Copy the raw `txx_live_…` key (reveal-once UI; you only see it now).
-   - Paste it into the repo-root `.env` as `EVERFRAME_KEY_IOS=txx_live_…`.
+   - Copy the raw `evf_live_…` key (reveal-once UI; you only see it now).
+   - Paste it into the repo-root `.env` as `EVERFRAME_KEY_IOS=evf_live_…`.
      (Each probe has its own app/key — see the table in `docs/sample-apps.md`.)
    - Confirm `INGEST_URL=http://localhost:8787` is also present in `.env`.
 
@@ -129,7 +129,7 @@ dashboard's Events panel. Setup is once per clone:
 - Walker descends past `_UIHostingView`; emitted `componentType` strings
   are sanitized via family detection (no private API leaks).
 - `EverframeConfig.appId` is hard-validated at `start()` —
-  `txx_live_…` prefix + 41 chars required (D-03). Misconfiguration fails
+  `evf_live_…` prefix + 41 chars required (legacy `txx_live_…` also works). Misconfiguration fails
   loudly at launch with an actionable console message.
 - Repo-wide dev secrets now live in a single root `.env`. Per-package
   `.env` / `.env.local` files are gone. iOS reads via xcconfig → Info.plist

@@ -316,7 +316,10 @@ class ReportSubmitter(
             val entry = pending.entry
             try {
                 val authority = OutboxDrainAuthorization(outbox.store, pending.token,
-                    ReportAuthorizationFactory.forPending(drainSession, endpointAtInitiation, entry.endpoint, entry.sdkKey))
+                    ReportAuthorizationFactory.forPending(drainSession, endpointAtInitiation,
+                        entry.endpoint, entry.sdkKey,
+                        hostReplay = entry.attachmentRefs.any { it.name == "replay" &&
+                            it.filename == "replay.json" && it.contentType == "application/octet-stream" }))
                 val parts = entry.attachmentRefs.map { ref ->
                     MultipartUploader.Part(
                         name = ref.name,

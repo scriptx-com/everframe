@@ -104,6 +104,9 @@ internal object ReporterDialog {
         capture: ScreenshotCapture.CaptureResult,
         reportCapture: FrozenReportCapture,
         hostExtra: String? = null,
+        allowAdditionalScreenshots: Boolean = true,
+        hostReplayVTree: ByteArray? = null,
+        sdkName: String = "everframe-android",
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
 
@@ -133,6 +136,7 @@ internal object ReporterDialog {
                             capture = capture,
                             reportCapture = reportCapture,
                             hostExtra = hostExtra,
+                            allowAdditionalScreenshots = allowAdditionalScreenshots,
                             onCancel = {
                                 content.removeView(this)
                                 // Discard the frozen replay window and resume
@@ -184,6 +188,8 @@ internal object ReporterDialog {
                                         capturedSession = capturedSession,
                                         hostExtra = hostExtra,
                                         includes = includes,
+                                        hostReplayVTree = hostReplayVTree,
+                                        sdkName = sdkName,
                                     )
                                     deferred.complete(r)
                                 }
@@ -208,6 +214,7 @@ internal object ReporterDialog {
         capture: ScreenshotCapture.CaptureResult,
         reportCapture: FrozenReportCapture,
         hostExtra: String?,
+        allowAdditionalScreenshots: Boolean,
         onCancel: () -> Unit,
         onSubmit: (
             title: String,
@@ -264,6 +271,7 @@ internal object ReporterDialog {
                 reportCapture = reportCapture,
                 activity = activity,
                 hostExtra = hostExtra,
+                allowAdditionalScreenshots = allowAdditionalScreenshots,
                 onCancel = {
                     if (lastTitle.isNotBlank() || lastDescription.isNotBlank()) {
                         showDiscardConfirm = true
@@ -354,6 +362,8 @@ internal object ReporterDialog {
         capturedSession: dev.everframe.TXCapturedSession,
         hostExtra: String?,
         includes: dev.everframe.ui.details.ReporterIncludes,
+        hostReplayVTree: ByteArray? = null,
+        sdkName: String = "everframe-android",
     ): ReportResult {
         try {
         // FOLLOW-UPS ITEM 9 — the config comes from the snapshot taken at the
@@ -433,14 +443,18 @@ internal object ReporterDialog {
 
             // 2. Device metadata snapshot.
             val device = DeviceMetadata.collect(activity)
-            val isTablet = activity.resources.configuration.smallestScreenWidthDp >= 600
 
             // Select only the reporter-open owner's video; transport revalidates its live generation.
-            val video = if (reportCapture.matchesSession(capturedSession)) {
+            val authorization = if (hostReplayVTree != null)
+                ReportAuthorizationFactory.forHostReplay(capturedSession, reportCapture)
+            else ReportAuthorizationFactory.forCapture(capturedSession, reportCapture)
+            val hostReplay = if (hostReplayVTree != null && authorization.evaluate().replayAllowed)
+                HostImageVTreeAttachment.build(hostReplayVTree) else null
+            val video = if (hostReplayVTree == null && reportCapture.matchesSession(capturedSession)) {
                 reportCapture.exportVideo()?.let { NativeVideoAttachment().build(it) }
             } else null
-            val replayPart = video?.part
-            val replayEnvelopeAttachment = video?.envelope
+            val replayPart = hostReplay?.second ?: video?.part
+            val replayEnvelopeAttachment = hostReplay?.first ?: video?.envelope
 
             // 4. Build envelope.
             // 4a. Pull captured logs + network metadata from the shared ring
@@ -492,9 +506,10 @@ internal object ReporterDialog {
             val builder = EnvelopeBuilder(EnvelopeBuilder.DefaultRedactor)
             val encoded = builder.buildEncoded(
                 sdkVersion = Everframe.SDK_VERSION,
+                sdkName = sdkName,
                 title = title,
                 description = description,
-                formFactor = if (isTablet) "tablet" else "phone",
+                formFactor = DeviceMetadata.formFactor(device),
                 logs = capturedLogs,
                 networkRows = capturedNetwork,
                 networkBodies = capturedNetworkBodies,
@@ -612,7 +627,7 @@ internal object ReporterDialog {
                 attachments = screenshotParts + listOfNotNull(replayPart),
                 identitySubject = if (identity.epochStillCurrent) capturedSession.user.identitySubject else null,
                 identityToken = identity.token,
-                authorization = ReportAuthorizationFactory.forCapture(capturedSession, reportCapture),
+                authorization = authorization,
             )
         } ?: ReportResult.Cancelled("submit_guard_failed")
         } finally { reportCapture.finishConsumption() }

@@ -30,6 +30,13 @@ import java.util.TimeZone
 // device metadata at envelope build time.
 object DeviceMetadata {
 
+    /** Match the protocol form factor using the same snapshot sent in device context. */
+    fun formFactor(device: Map<String, Any?>): String = when {
+        device["isTv"] == true -> "tv"
+        device["isTablet"] == true -> "tablet"
+        else -> "phone"
+    }
+
     /** Capture a snapshot of host device metadata. */
     fun collect(context: Context): Map<String, Any?> {
         val cfg = context.resources.configuration

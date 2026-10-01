@@ -51,4 +51,3 @@ export function main(argv: string[]): number {
   console.log(`${report.wrapped.length} function(s) wrapped, ${report.injected.length} component(s) hooked, ${report.screens.length} screen(s) tracked${values['dry-run'] ? ' (dry run)' : ''}`);
   return 0;
 }
-

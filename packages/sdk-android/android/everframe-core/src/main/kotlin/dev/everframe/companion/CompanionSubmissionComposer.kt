@@ -226,8 +226,6 @@ object CompanionSubmissionComposer {
             // 2. Device metadata + form-factor classification (mirrors
             //    ReporterDialog.kt:259-261).
             val device = DeviceMetadata.collect(inputs.activity)
-            val isTablet =
-                inputs.activity.resources.configuration.smallestScreenWidthDp >= 600
 
             // 3. Declare the screenshot attachment so parser.ts can pair the
             //    multipart 'screenshot' part with envelope.attachments[]
@@ -319,7 +317,7 @@ object CompanionSubmissionComposer {
                 sdkVersion = Everframe.SDK_VERSION,
                 title = titleClamped,
                 description = descriptionClamped,
-                formFactor = if (isTablet) "tablet" else "phone",
+                formFactor = DeviceMetadata.formFactor(device),
                 logs = capturedLogs,
                 networkRows = capturedNetwork,
                 networkBodies = capturedNetworkBodies,

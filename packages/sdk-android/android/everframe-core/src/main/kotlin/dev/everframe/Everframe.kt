@@ -1514,9 +1514,16 @@ object Everframe {
     /** Report a caught Throwable with owned structured error details. */
     @JvmStatic
     fun captureException(throwable: Throwable, options: CaptureExceptionOptions?) {
+        captureException(throwable, options, "everframe-android")
+    }
+
+    /** Report a caught framework-host Throwable with its SDK identity. */
+    @JvmStatic
+    fun captureException(throwable: Throwable, options: CaptureExceptionOptions?, sdkName: String) {
+        if (sdkName !in setOf("everframe-android", "everframe-flutter", "everframe-kmp")) return
         txGuardVoid("captureException") {
             if (!captureGate) return@txGuardVoid
-            if (dev.everframe.crash.CrashReporter.captureHandledThrowable(throwable, options)) requestOutboxDrain()
+            if (dev.everframe.crash.CrashReporter.captureHandledThrowable(throwable, options, sdkName)) requestOutboxDrain()
         }
     }
 

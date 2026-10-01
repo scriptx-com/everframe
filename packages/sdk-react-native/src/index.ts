@@ -22,6 +22,7 @@ export type { EverframeProviderProps } from './EverframeProvider.js';
 
 // Sensitive wrapper + hook.
 export { EverframeSensitive, useEverframeSensitiveRef } from './Sensitive.js';
+export { EverframeSensitive as Sensitive } from './Sensitive.js';
 
 // Top-level imperative open() + companion helpers (re-exported from the
 // context seam) for non-component call sites.
