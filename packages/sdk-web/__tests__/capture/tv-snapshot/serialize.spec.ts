@@ -184,6 +184,37 @@ describe('takeDomSnapshot', () => {
   }, 30_000);
 });
 
+describe('sensitive content inside open shadow roots', () => {
+  it('black-boxes a sensitive element the document-level registry scan cannot reach', () => {
+    document.body.innerHTML = '<section id="s"></section><div id="host"></div>';
+    const shadow = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    shadow.innerHTML =
+      '<p>public</p><section id="inner" data-everframe-sensitive>SHADOW_PRIVATE_NAME</section>' +
+      '<span id="wrap2" data-everframe-sensitive style="display:contents"><b>SHADOW_CONTENTS_CHILD</b>SHADOW_BARE</span>';
+    const taken = take({ sensitiveElements: () => [] });
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['SHADOW_PRIVATE_NAME', 'SHADOW_CONTENTS_CHILD', 'SHADOW_BARE'])).toEqual([]);
+    expect(json).toContain('public');
+    expect(taken.masked).toBe(true);
+    const inner = findEl(rootOf(taken), (e) => e.tagName === 'section' && e.childNodes.length === 0 && decls(e.attributes.style).background === '#000!important');
+    expect(inner).toBeDefined();
+  });
+
+  it('fails closed when the sensitivity check throws', () => {
+    document.body.innerHTML = '<section id="s"></section><div id="host"></div>';
+    document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = '<p id="x">THROWN_CHECK_TEXT</p>';
+    const taken = take({
+      sensitiveElements: () => [],
+      isSensitive: (el) => {
+        if (el.id === 'x') throw new Error('boom');
+        return false;
+      },
+    });
+    expect(findLeaks(JSON.stringify(taken.doc), ['THROWN_CHECK_TEXT'])).toEqual([]);
+    expect(taken.masked).toBe(true);
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

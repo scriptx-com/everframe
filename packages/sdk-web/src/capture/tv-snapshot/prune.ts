@@ -528,6 +528,15 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     return pos + neg;
   };
 
+  /** `deps.isSensitive`, failing closed: a check that throws never unmasks. */
+  const sensitiveSafe = (el: Element): boolean => {
+    try {
+      return deps.isSensitive(el);
+    } catch {
+      return true;
+    }
+  };
+
   /** A blocked sensitive element (rrweb `rr_width`/`rr_height`) → black same-box placeholder, no class. */
   const maskBlocked = (node: SnElement, live: Element | null, parent: Frame): Verdict => {
     result.masked = true;
@@ -563,6 +572,21 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     if (hasOwn(node.attributes, 'rr_width')) return maskBlocked(node, live, parent);
     const inherit = parent.maskText;
     if (parent.mode === 'head' || tag === 'head') return frame(node, 'head', live, null, parent);
+    // The registry's document-level scan (which rrweb blocks at serialization)
+    // cannot see into shadow roots, nor elements marked after it ran: judge
+    // every element itself. Boxed → black box; a display:contents wrapper has
+    // no box, so its bare text is masked and its boxed children blocked here.
+    // Only a wrapper that would be judged below can carry the text mask; any
+    // other sensitive element (svg/select content, html/body…) is boxed.
+    const sensitive = live !== null && (inherit || sensitiveSafe(live));
+    let sensitiveStyle: CSSStyleDeclaration | null = null;
+    if (sensitive) {
+      sensitiveStyle = deps.styleOf(live);
+      const judgedHere =
+        parent.mode !== 'svg' && parent.mode !== 'svgContent' && parent.mode !== 'selectContent' && !parent.closedSelect &&
+        !ALWAYS_VISIBLE.has(tag) && !NEVER_PRUNE.has(tag) && tag !== 'svg';
+      if (sensitiveStyle === null || sensitiveStyle.display !== 'contents' || !judgedHere) return maskBlocked(node, live, parent);
+    }
     if (parent.mode === 'svg' || parent.mode === 'svgContent') return frame(node, 'svgContent', live, null, parent);
     if (parent.closedSelect || parent.mode === 'selectContent') {
       const inSelect = frame(node, 'selectContent', live, null, parent);
@@ -607,6 +631,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       return svg;
     }
     const judged = frame(node, 'judge', live, rect, parent);
+    if (sensitiveStyle !== null) judged.style = sensitiveStyle;
     judgeBox(judged, parent);
     if (tag === 'select' && isClosedSelect(live)) {
       // Pin the measured box: blanked options would otherwise narrow it.
@@ -616,15 +641,12 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       const own = hasOwn(node.attributes, 'style') ? node.attributes.style : undefined;
       node.attributes.style = typeof own === 'string' && own !== '' ? `${pin};${own}` : pin;
     }
-    if (!inherit && deps.isSensitive(live)) {
-      // A sensitive display:contents wrapper cannot be blocked (it has no box);
-      // the registry blocks its element children. Its BARE text would still
-      // ship — mask it character-for-character (ruling 6).
-      const style = styleOnce(judged);
-      if (style !== null && style.display === 'contents') {
-        judged.maskText = true;
-        result.masked = true;
-      }
+    if (sensitive) {
+      // A sensitive display:contents wrapper (the only kind that gets here)
+      // cannot be blocked: it has no box. Its BARE text would still ship —
+      // mask it character-for-character (ruling 6).
+      judged.maskText = true;
+      result.masked = true;
     }
     return judged;
   };
