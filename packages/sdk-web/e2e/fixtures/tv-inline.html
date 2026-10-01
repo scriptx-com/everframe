@@ -1,0 +1,49 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe TV snapshot unseen-inline e2e fixture</title>
+<!-- Inline content the user never saw, inside VISIBLE blocks: a wrapped span
+     whose every line is scrolled above the viewport (the paragraph goes on
+     below it), and a span past the clip of a nowrap row. Both lose their text
+     but keep their line fragments, so the visible text after them does not
+     move. Plus a sensitive element inside an open shadow root, which the
+     document-level registry scan cannot see. -->
+<style>
+  body { margin: 0; font: 20px/30px sans-serif; background: #fff; color: #111; }
+  #spacer { height: 600px; }
+  #long { width: 500px; margin: 0 40px; }
+  #wrapped { background: #eef; padding: 0 6px; border: 1px solid #99a; }
+  #row { white-space: nowrap; overflow: hidden; width: 400px; margin: 20px 40px; }
+  #far { font-size: 32px; }
+  #host, #below { margin: 20px 40px; }
+</style>
+</head>
+<body>
+  <div id="spacer"></div>
+  <p id="long">Lead in. <span id="wrapped">WRAPPEDSECRET alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon</span> tail words here and some more tail words so that the marker <b id="after">AFTERMARK</b> lands on a later line than the span, then the rest.</p>
+  <div id="row"><span id="near">Visible start of a clipped row that runs</span> on and on <span id="far">FARSECRET beyond the clip</span></div>
+  <div id="host"></div>
+  <p id="below">Below marker</p>
+  <div style="height:1200px"></div>
+  <script>
+    document.getElementById('host').attachShadow({ mode: 'open' }).innerHTML =
+      '<p id="s-public">Shadow public</p><section data-everframe-sensitive style="height:40px">SHADOWSECRET</section>';
+  </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

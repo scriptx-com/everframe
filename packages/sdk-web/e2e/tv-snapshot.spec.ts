@@ -282,6 +282,35 @@ test('in-viewport content that is hidden, transparent or clipped out of a scroll
   expect(shown).toBe('***');
 });
 
+test('unseen inline text inside visible blocks is dropped, its line fragments kept; shadow-root sensitive content is boxed', async ({ page }) => {
+  const bodies = await stubApi(page);
+  await page.goto('/e2e/fixtures/tv-inline.html');
+  // Scroll the wrapped span's last line just above the viewport: every one of
+  // its lines is unseen, while the paragraph's later lines (and #after) are not.
+  const spanBottom = await page.evaluate(() => {
+    const rects = document.getElementById('wrapped')!.getClientRects();
+    return Math.ceil(rects[rects.length - 1]!.bottom + window.scrollY) + 1;
+  });
+  await page.evaluate((y) => window.scrollTo(0, y), spanBottom);
+  expect(await page.evaluate(() => window.scrollY)).toBe(spanBottom);
+  const ids = ['after', 'near', 'host', 'below'];
+  const live = await liveBoxes(page, ids);
+  expect(live.after!.y).toBeGreaterThanOrEqual(0); // #after really is on a later, visible line
+  const lines = await page.evaluate(() => document.getElementById('wrapped')!.getClientRects().length);
+  expect(lines).toBeGreaterThan(1);
+  const shot = await shoot(page);
+  expect(shot).toMatchObject({ hasImage: true, hasSnapshot: true });
+  const { text, doc } = decode(bodies[0]!);
+  expect(findLeaks(text, ['WRAPPEDSECRET', 'upsilon', 'FARSECRET', 'SHADOWSECRET'])).toEqual([]);
+  expect(text).toContain('AFTERMARK');
+  expect(text).toContain('Shadow public');
+  const root = doc.events[1].data.node;
+  expect(byId(root, 'wrapped')!.childNodes!.filter((c) => c.tagName === 'span')).toHaveLength(lines);
+
+  const rebuilt = await rebuild(page, doc, ids);
+  expectSameBoxes(live, rebuilt.boxes, 1);
+});
+
 test('keeps focus, dark media, ARIA state, grid areas and SVG refs on a masked page', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await stubApi(page);
