@@ -95,6 +95,51 @@ export interface PruneResult {
 }
 
 /**
+ * THE one way the pruner removes or blanks page content (codex r4 F2): it
+ * applies the change AND records it as withheld (`PruneResult.changed`, which
+ * switches the CSS scrub to its masked policy), so no branch can withhold
+ * content without the stylesheet policy following. Children dropped, text
+ * changed, or any attribute other than `style` dropped or changed counts;
+ * pure additions do not. (The walk's own removal of script/noscript/base and
+ * SDK chrome — never page content — is the one direct child-list write.)
+ */
+interface Withheld {
+  childNodes?: SnNode[];
+  attributes?: Record<string, SnAttributeValue>;
+  textContent?: string;
+}
+type Withhold = (node: SnNode, change: Withheld) => void;
+
+function makeWithhold(result: PruneResult): Withhold {
+  return (node, change) => {
+    if (change.childNodes !== undefined && (node.type === SN_ELEMENT || node.type === SN_DOCUMENT)) {
+      const next = new Set(change.childNodes);
+      for (const old of node.childNodes) {
+        if (!next.has(old)) {
+          result.changed = true;
+          break;
+        }
+      }
+      node.childNodes = change.childNodes;
+    }
+    if (change.attributes !== undefined && node.type === SN_ELEMENT) {
+      for (const key of Object.keys(node.attributes)) {
+        if (key === 'style') continue;
+        if (!hasOwn(change.attributes, key) || change.attributes[key] !== node.attributes[key]) {
+          result.changed = true;
+          break;
+        }
+      }
+      node.attributes = change.attributes;
+    }
+    if (change.textContent !== undefined && node.type === SN_TEXT) {
+      if (change.textContent !== node.textContent) result.changed = true;
+      node.textContent = change.textContent;
+    }
+  };
+}
+
+/**
  * - `visible`: seen (itself or a descendant; see header) — ancestors stay.
  * - `hidden`: claims no visibility; an ancestor may still be pruned.
  * - `keep`: an off-screen SVG reduced to its id definitions — retained, but
@@ -319,7 +364,7 @@ function hasIdAttr(node: SnElement): boolean {
  * path's `<text>` is still content) and reports whether anything in it can be
  * referenced by id. Iterative.
  */
-function scrubDefinition(def: SnElement): boolean {
+function scrubDefinition(def: SnElement, withhold: Withhold): boolean {
   let referenced = false;
   const stack: SnElement[] = [def];
   while (stack.length > 0) {
@@ -332,7 +377,7 @@ function scrubDefinition(def: SnElement): boolean {
       kept.push(child);
       if (child.type === SN_ELEMENT) stack.push(child);
     }
-    next.childNodes = kept;
+    withhold(next, { childNodes: kept });
   }
   return referenced;
 }
@@ -342,14 +387,14 @@ function scrubDefinition(def: SnElement): boolean {
  * document order, each with its own subtree — every other element is dropped.
  * Iterative.
  */
-function svgDefinitions(svg: SnElement): SnElement[] {
+function svgDefinitions(svg: SnElement, withhold: Withhold): SnElement[] {
   const defs: SnElement[] = [];
   const stack: SnNode[] = svg.childNodes.slice().reverse();
   while (stack.length > 0) {
     const next = stack.pop() as SnNode;
     if (next.type !== SN_ELEMENT) continue;
     if (SVG_DEFS.has(next.tagName.toLowerCase())) {
-      if (scrubDefinition(next)) defs.push(next);
+      if (scrubDefinition(next, withhold)) defs.push(next);
       continue;
     }
     for (let i = next.childNodes.length - 1; i >= 0; i--) stack.push(next.childNodes[i] as SnNode);
@@ -357,20 +402,15 @@ function svgDefinitions(svg: SnElement): SnElement[] {
   return defs;
 }
 
-/** Drops text- and URL-bearing attributes; true when it dropped any. */
-function stripContentAttrs(node: SnElement): boolean {
+/** Drops text- and URL-bearing attributes (and `extra` ones). */
+function stripContentAttrs(node: SnElement, withhold: Withhold, extra: readonly string[] = []): void {
   const next: Record<string, SnAttributeValue> = {};
-  let stripped = false;
   for (const key of Object.keys(node.attributes)) {
     const lower = key.toLowerCase();
-    if (CONTENT_ATTRS.has(lower) || lower.startsWith('aria-') || lower.startsWith('data-')) {
-      stripped = true;
-      continue;
-    }
+    if (CONTENT_ATTRS.has(lower) || lower.startsWith('aria-') || lower.startsWith('data-') || extra.indexOf(lower) !== -1) continue;
     next[key] = node.attributes[key] as SnAttributeValue;
   }
-  node.attributes = next;
-  return stripped;
+  withhold(node, { attributes: next });
 }
 
 function isOutOfFlow(s: CSSStyleDeclaration): boolean {
@@ -500,6 +540,7 @@ function isBlankText(text: string): boolean {
 
 export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   const result: PruneResult = { masked: false, changed: false, hiddenIds: new Set(), pruned: 0 };
+  const withhold = makeWithhold(result);
   const { width: vw, height: vh } = deps.viewport;
   const VIEWPORT = toRect(0, 0, vw, vh);
   /** A box with any extent that overlaps `clip` (an empty clip overlaps nothing). */
@@ -640,6 +681,15 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     return pos + neg;
   };
 
+  /** An unseen SVG resource loads nothing: its URL attributes are withheld. */
+  const stripUrlAttrs = (node: SnElement): void => {
+    const next: Record<string, SnAttributeValue> = {};
+    for (const key of Object.keys(node.attributes)) {
+      if (SVG_URL_ATTRS.indexOf(key.toLowerCase()) === -1) next[key] = node.attributes[key] as SnAttributeValue;
+    }
+    withhold(node, { attributes: next });
+  };
+
   /** `deps.isSensitive`, failing closed: a check that throws never unmasks. */
   const sensitiveSafe = (el: Element): boolean => {
     try {
@@ -653,21 +703,23 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   const maskBlocked = (node: SnElement, live: Element | null, parent: Frame): Verdict => {
     result.masked = true;
     collectIds(node, result.hiddenIds);
-    node.childNodes = [];
+    withhold(node, { childNodes: [] });
     const fallback = (w: string, h: string): string =>
       important(['display:inline-block', `width:${w}`, `height:${h}`, 'background:#000']);
     if (live === null) {
-      node.attributes = { style: fallback(lengthAttr(node.attributes.rr_width), lengthAttr(node.attributes.rr_height)) };
+      withhold(node, { attributes: { style: fallback(lengthAttr(node.attributes.rr_width), lengthAttr(node.attributes.rr_height)) } });
       return 'hidden';
     }
     const rect = deps.rectOf(live);
     const style = deps.styleOf(live);
     const size = deps.sizeOf(live, rect);
-    node.attributes = {
-      style: style !== null
-        ? placeholderStyle(style, size, true, { top: num(style.marginTop), bottom: num(style.marginBottom) })
-        : fallback(px(size.width), px(size.height)),
-    };
+    withhold(node, {
+      attributes: {
+        style: style !== null
+          ? placeholderStyle(style, size, true, { top: num(style.marginTop), bottom: num(style.marginBottom) })
+          : fallback(px(size.width), px(size.height)),
+      },
+    });
     return overlaps(rect, parent.clip) && !parent.faded ? 'visible' : 'hidden';
   };
 
@@ -685,8 +737,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     f.hideText = parent.hideText;
     if (SVG_DEFS.has(tag) || (parent.mode === 'svg' && !parent.seen)) f.svgSkip = true;
     if (SVG_NON_RENDERED.has(tag)) {
-      if (node.childNodes.length > 0) result.changed = true;
-      node.childNodes = [];
+      withhold(node, { childNodes: [] });
       return f;
     }
     if (f.svgSkip || live === null) return f;
@@ -697,14 +748,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         const unseen =
           parent.faded || isZeroOpacity(s) || isInvisible(s) || (s !== null && s.display === 'none') ||
           !overlaps(deps.rectOf(live), parent.clip);
-        if (unseen) {
-          for (const name of SVG_URL_ATTRS) {
-            if (hasOwn(node.attributes, name)) {
-              delete node.attributes[name];
-              result.changed = true;
-            }
-          }
-        }
+        if (unseen) stripUrlAttrs(node);
       }
       return f;
     }
@@ -752,8 +796,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       const inSelect = frame(node, 'selectContent', live, null, parent);
       inSelect.hideText = parent.hideText;
       inSelect.blankText = true;
-      if (stripContentAttrs(node)) result.changed = true; // an option/optgroup `label` is displayed text
-      if (hasOwn(node.attributes, 'label')) delete node.attributes.label;
+      stripContentAttrs(node, withhold, ['label']); // an option/optgroup `label` is displayed text
       if (tag === 'option' && live !== null && (live as HTMLOptionElement).selected === true) {
         // Shown in the closed box: keep it selected (rrweb drops `selected`
         // for masked inputs) and show the masked value in its place.
@@ -761,9 +804,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         let first: SnNode | undefined;
         for (const child of node.childNodes) if (child.type === SN_TEXT) { first = child; break; }
         if (first !== undefined && first.type === SN_TEXT) {
-          first.textContent = MASK_PLACEHOLDER;
-          result.changed = true;
-          node.childNodes = [first];
+          withhold(first, { textContent: MASK_PLACEHOLDER });
+          withhold(node, { childNodes: [first] });
         }
         inSelect.blankText = false;
       }
@@ -820,7 +862,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     for (const key of ['xmlns', 'xmlns:xlink']) {
       if (hasOwn(svg.attributes, key)) attrs[key] = svg.attributes[key] as SnAttributeValue;
     }
-    svg.attributes = attrs;
+    withhold(svg, { attributes: attrs });
     return svg;
   };
 
@@ -853,8 +895,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       css = placeholderStyle(style, deps.sizeOf(live, rect), false, margins);
       prunedFlow.set(node, { style, top: margins.top, bottom: margins.bottom });
     }
-    node.attributes = { style: css };
-    node.childNodes = carried.map(zeroSize);
+    withhold(node, { attributes: { style: css }, childNodes: carried.map(zeroSize) });
     return 'hidden';
   };
 
@@ -874,7 +915,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const fallback = rect.width + rect.height > 0 ? [rect] : [];
     const measured = rectsSafe(() => (deps.fragmentsOf ?? defaultFragmentsOf)(live), fallback);
     const fragments = measured.length > 0 ? measured : fallback;
-    node.childNodes = [...(f.carry ?? []).map(zeroSize), ...fragmentNodes(fragments)];
+    withhold(node, { childNodes: [...(f.carry ?? []).map(zeroSize), ...fragmentNodes(fragments)] });
     const own = hasOwn(node.attributes, 'style') ? node.attributes.style : undefined;
     const fold = important(['padding:0', 'border:0']);
     node.attributes.style = typeof own === 'string' && own !== '' ? `${own};${fold}` : fold;
@@ -911,7 +952,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     }
     if (changed) {
       result.pruned++;
-      node.childNodes = next;
+      withhold(node, { childNodes: next });
     }
   };
 
@@ -928,7 +969,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
           // Its definitions may still be referenced from visible content.
           const node = f.node as SnElement;
           collectIds(node, result.hiddenIds);
-          node.childNodes = svgDefinitions(node);
+          withhold(node, { childNodes: svgDefinitions(node, withhold) });
           result.pruned++;
         }
         return 'hidden';
@@ -941,12 +982,15 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const node = f.node as SnElement;
     if (f.seen) return 'visible';
     if (f.mode === 'svg') {
-      const defs = svgDefinitions(node);
+      const defs = svgDefinitions(node, withhold);
       if (defs.length > 0) {
         // Kept for its definitions only; claims no visibility, so an off-screen
         // screen holding an icon with a clipPath id is still pruned (it
-        // re-homes this SVG under its placeholder).
-        node.childNodes = defs;
+        // re-homes this SVG under its placeholder). Everything else in it is
+        // withheld — and hidden: nothing focused in it may be named.
+        const keptDefs = new Set<SnNode>(defs);
+        for (const child of node.childNodes) if (!keptDefs.has(child)) collectIds(child, result.hiddenIds);
+        withhold(node, { childNodes: defs });
         f.carry = [node];
         return 'keep';
       }
@@ -962,7 +1006,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     // replaced elements (img, video, …) are atomic boxes even when inline, so
     // they are pruned to an inline-block of the same size (rulings 8, S20).
     if (style !== null && (style.display === 'contents' || (style.display === 'inline' && !isReplaced(node)))) {
-      if (stripContentAttrs(node)) result.changed = true;
+      stripContentAttrs(node, withhold);
       if (style.display === 'inline') blankInline(f);
       else blankUnseenText(f);
       return 'hidden';
@@ -997,20 +1041,19 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         stack.push(frame(child, 'transparent', null, null, top));
       } else {
         if (child.type === SN_TEXT && (top.blankText || top.maskText || top.hideText) && !isBlankText(child.textContent)) {
-          result.changed = true;
-          child.textContent = top.blankText ? '' : child.textContent.replace(/\S/g, '•');
+          withhold(child, { textContent: top.blankText ? '' : child.textContent.replace(/\S/g, '•') });
         }
         top.kept.push(child);
       }
       continue;
     }
-    top.node.childNodes = top.kept;
+    top.node.childNodes = top.kept; // only script/noscript/base/SDK chrome were left out — never page content
     stack.pop();
     const parent = stack[stack.length - 1];
     const verdict = finish(top, parent);
     if (parent !== undefined) settle(parent, top.node, verdict, top);
   }
-  if (dropUnreferencedDefinitions(root)) result.changed = true;
+  dropUnreferencedDefinitions(root, withhold);
   if (result.masked || result.pruned > 0) result.changed = true;
   return result;
 }
@@ -1073,12 +1116,10 @@ interface DefUnit {
  * referenced one loses bare text that never renders (outside text/tspan/
  * textPath/style). References come from every attribute and stylesheet
  * outside definitions, then from kept definitions in turn. Iterative.
- * Returns whether anything was dropped.
  */
-function dropUnreferencedDefinitions(root: SnParent): boolean {
+function dropUnreferencedDefinitions(root: SnParent, withhold: Withhold): void {
   const units: DefUnit[] = [];
   const outsideRefs = new Set<string>();
-  let changed = false;
   type Item = { node: SnNode; parent: SnParent | null; unit: DefUnit | null; inDefs: boolean };
   const stack: Item[] = [{ node: root, parent: null, unit: null, inDefs: false }];
   while (stack.length > 0) {
@@ -1101,9 +1142,7 @@ function dropUnreferencedDefinitions(root: SnParent): boolean {
       if (own === null && node.isSVG === true && tag === 'defs') {
         childInDefs = true;
         // Bare text directly in <defs> never renders.
-        const kept = node.childNodes.filter((c) => c.type !== SN_TEXT || isBlankText(c.textContent));
-        if (kept.length !== node.childNodes.length) changed = true;
-        node.childNodes = kept;
+        withhold(node, { childNodes: node.childNodes.filter((c) => c.type !== SN_TEXT || isBlankText(c.textContent)) });
       }
       if (own !== null) {
         const id = hasOwn(node.attributes, 'id') ? node.attributes.id : undefined;
@@ -1115,7 +1154,7 @@ function dropUnreferencedDefinitions(root: SnParent): boolean {
       stack.push({ node: node.childNodes[i] as SnNode, parent: node, unit: own, inDefs: childInDefs });
     }
   }
-  if (units.length === 0) return changed;
+  if (units.length === 0) return;
 
   // Closure: a kept definition's own references keep more definitions.
   const byId = new Map<string, DefUnit[]>();
@@ -1142,38 +1181,31 @@ function dropUnreferencedDefinitions(root: SnParent): boolean {
   const dropFrom = new Map<SnParent, Set<SnNode>>();
   for (const u of units) {
     if (kept.has(u)) {
-      if (dropStrayText(u.node)) changed = true;
+      dropStrayText(u.node, withhold);
       continue;
     }
-    changed = true;
     const set = dropFrom.get(u.parent);
     if (set === undefined) dropFrom.set(u.parent, new Set([u.node]));
     else set.add(u.node);
   }
   dropFrom.forEach((drop, parent) => {
-    parent.childNodes = parent.childNodes.filter((c) => !drop.has(c));
+    withhold(parent, { childNodes: parent.childNodes.filter((c) => !drop.has(c)) });
   });
-  return changed;
 }
 
 /** Removes bare text outside text-rendering SVG elements from a kept definition. Iterative. */
-function dropStrayText(def: SnElement): boolean {
-  let changed = false;
+function dropStrayText(def: SnElement, withhold: Withhold): void {
   const stack: SnElement[] = [def];
   while (stack.length > 0) {
     const el = stack.pop() as SnElement;
     const hostsText = SVG_TEXT_HOSTS.has(el.tagName.toLowerCase());
     const next: SnNode[] = [];
     for (const child of el.childNodes) {
-      if (child.type === SN_TEXT && !hostsText && !isBlankText(child.textContent)) {
-        changed = true;
-        continue;
-      }
+      if (child.type === SN_TEXT && !hostsText && !isBlankText(child.textContent)) continue;
       next.push(child);
       if (child.type === SN_ELEMENT) stack.push(child);
     }
-    el.childNodes = next;
+    withhold(el, { childNodes: next });
   }
-  return changed;
 }
 

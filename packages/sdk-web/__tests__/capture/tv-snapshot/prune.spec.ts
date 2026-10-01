@@ -2,10 +2,51 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { pruneSnapshot, type PruneDeps, type PruneRect } from '../../../src/capture/tv-snapshot/prune.js';
+import { pruneSnapshot as pruneSnapshotRaw, type PruneDeps, type PruneRect, type PruneResult } from '../../../src/capture/tv-snapshot/prune.js';
 import type { SnElement, SnNode } from '../../../src/capture/tv-snapshot/sn-types.js';
 import { doc, el, find, resetIds, text } from './sn-builders.js';
 import { findLeaks } from './leak-assert.js';
+
+/**
+ * Content a tree carries: every non-blank text and every non-style attribute
+ * value, counted. (Style is presentation; placeholders rewrite it.) Scripts,
+ * noscript, base and SDK chrome are removed outright and are not page content.
+ */
+function contentOf(root: SnNode, isChrome: (n: SnElement) => boolean): Map<string, number> {
+  const out = new Map<string, number>();
+  const add = (k: string): void => {
+    out.set(k, (out.get(k) ?? 0) + 1);
+  };
+  const stack: SnNode[] = [root];
+  for (let n = stack.pop(); n !== undefined; n = stack.pop()) {
+    if (n.type === 3 && n.textContent.trim() !== '') add(`t:${n.textContent}`);
+    if (n.type === 2) {
+      if (['script', 'noscript', 'base'].includes(n.tagName.toLowerCase()) || isChrome(n)) continue;
+      for (const [k, v] of Object.entries(n.attributes)) if (k !== 'style') add(`a:${k}=${String(v)}`);
+    }
+    if ('childNodes' in n) for (const c of n.childNodes) stack.push(c);
+  }
+  return out;
+}
+
+/**
+ * Every prune in this file goes through here and asserts the structural
+ * invariant (codex r4 F2): content withheld ⇒ `changed` (masked CSS policy).
+ */
+function pruneSnapshot(root: Parameters<typeof pruneSnapshotRaw>[0], deps: PruneDeps): PruneResult {
+  const isChrome = (n: SnElement): boolean =>
+    n.attributes['data-everframe-skip-capture'] === 'true' ||
+    (deps.nodeFor(n.id) as Element | null)?.getAttribute?.('data-everframe-skip-capture') === 'true';
+  const before = contentOf(root, isChrome);
+  const result = pruneSnapshotRaw(root, deps);
+  const after = contentOf(root, isChrome);
+  let withheld = false;
+  before.forEach((count, key) => {
+    if ((after.get(key) ?? 0) < count) withheld = true;
+  });
+  if (withheld) expect(result.changed, 'content was withheld, so the masked CSS policy must be on').toBe(true);
+  return result;
+}
 
 const VIEWPORT = { width: 1280, height: 720 };
 const rect = (left: number, top: number, width: number, height: number): PruneRect => ({
@@ -253,6 +294,17 @@ describe('pruneSnapshot', () => {
     });
     expect(sprite.childNodes).toHaveLength(1);
     expect(findLeaks(JSON.stringify(root), ['OVERLAYTEXT'])).toEqual([]);
+  });
+
+  it('an off-screen SVG kept in place for its definitions records withheld content (codex r4 F2)', () => {
+    const { bind, deps } = harness();
+    const grad = el('linearGradient', { id: 'g' }, [], { isSVG: true });
+    const old = bind(el('svg', {}, [el('text', {}, [text('OLDTEXT')], { isSVG: true }), grad], { isSVG: true }), { rect: ABOVE, style: { display: 'inline' } });
+    const cur = bind(el('svg', {}, [el('rect', { fill: 'url(#g)' }, [], { isSVG: true })], { isSVG: true }));
+    const root = doc(el('html', {}, [el('body', {}, [old, cur])]));
+    const result = pruneSnapshot(root, deps);
+    expect(findLeaks(JSON.stringify(root), ['OLDTEXT'])).toEqual([]);
+    expect(result.changed).toBe(true);
   });
 
   it('drops a carried definition nothing visible references', () => {

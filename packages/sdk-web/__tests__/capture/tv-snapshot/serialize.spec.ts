@@ -416,6 +416,22 @@ describe('pruned or hidden content does not survive in CSS', () => {
     expect(taken.masked).toBe(true);
   });
 
+  it('an off-screen SVG kept only for a referenced definition switches it (codex r4 F2)', () => {
+    document.head.innerHTML = '<style>.previous{--patient-name:Alice Smith}.previous::before{content:"OFFSCREEN_PRIVATE_PHRASE"}</style>';
+    document.body.innerHTML =
+      '<svg id="old" class="previous" width="10" height="10"><text>OLD_SVG_TEXT</text><linearGradient id="gr"><stop offset="0"></stop></linearGradient></svg>' +
+      '<svg id="cur" width="10" height="10"><rect fill="url(#gr)" width="5" height="5"></rect></svg>';
+    const above: PruneRect = { left: 0, top: -900, right: 100, bottom: -800, width: 100, height: 100 };
+    const taken = take({
+      sensitiveElements: () => [],
+      measure: { rectOf: (el) => (el.id === 'old' ? above : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) },
+    });
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['OLD_SVG_TEXT', 'OFFSCREEN_PRIVATE_PHRASE', 'Alice Smith'])).toEqual([]);
+    expect(findEl(rootOf(taken), (e) => e.attributes.id === 'gr')).toBeDefined();
+    expect(taken.masked).toBe(true);
+  });
+
   it('text masked for visibility:hidden also switches it', () => {
     document.head.innerHTML = `<style>${css}</style>`;
     document.body.innerHTML = '<p class="old" style="visibility:hidden">HIDDENTEXT</p><main class="now">current</main>';
