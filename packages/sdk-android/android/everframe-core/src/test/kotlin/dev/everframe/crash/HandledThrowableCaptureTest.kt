@@ -93,6 +93,12 @@ class HandledThrowableCaptureTest {
             .any { String(it.readBytes()).contains("handled probe") })
     }
 
+    @Test fun `framework handled error keeps KMP identity`() {
+        Everframe.captureException(IllegalStateException("kmp probe"), null, "everframe-kmp")
+        assertEquals("everframe-kmp", envelopes().single()["sdk"]!!.jsonObject["name"]!!.jsonPrimitive.content)
+        assertEquals(true, crash()["handled"]!!.jsonPrimitive.boolean)
+    }
+
     @Test fun `public capture owns supplied details before returning`() {
         val metadata = linkedMapOf<String, Any?>("attempt" to 3, "credential" to "Bearer abc.def-123")
 

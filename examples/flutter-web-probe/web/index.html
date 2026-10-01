@@ -1,0 +1,28 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Everframe Flutter web probe</title>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+  <script type="module">
+    import { init, INGEST_URL } from '/sdk/index.js';
+    import { flutterVisualCapture } from './assets/packages/everframe_flutter/assets/visual_capture.js';
+    if (!['http://127.0.0.1:8938', 'http://127.0.0.1:8787'].includes(INGEST_URL)) {
+      throw new Error('Flutter probe requires an SDK bundle configured for loopback ingest');
+    }
+    window.everframeFlutterInit = (config) => {
+      window.__everframeProbe = init({
+        ...config,
+        visualCapture: flutterVisualCapture(),
+      });
+      return window.__everframeProbe;
+    };
+    window.dispatchEvent(new Event('everframe-flutter-web-sdk-ready'));
+  </script>
+</body>
+</html>

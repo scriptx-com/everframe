@@ -71,8 +71,8 @@ android {
             // rewritten, so that AAR would be permanent. Do not reintroduce it:
             // point a local sample app at a dev ingest with the DEBUG variant.
             buildConfigField("String", "INGEST_URL", "\"https://everframe.dev\"")
-            // Library-level R8: the published AAR's classes.jar is obfuscated
-            // (internal symbols collapsed to short ids, debug info stripped).
+            // Library-level R8 shrinks the published AAR and shortens internal
+            // symbols. Source filenames and line tables remain for retracing.
             // `proguard-rules.pro` keeps the public API surface; everything
             // else is fair game. `consumer-rules.pro` (declared on
             // defaultConfig above) STILL ships inside the AAR for the
@@ -301,6 +301,11 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 from(components[rootProject.extra["everframePublishVariant"] as String])
+                artifact(layout.buildDirectory.file("outputs/mapping/release/mapping.txt")) {
+                    classifier = "mapping"
+                    extension = "txt"
+                    builtBy(tasks.named("minifyReleaseWithR8"))
+                }
                 groupId = "dev.everframe"
                 artifactId = "core"
                 version = project.version.toString()

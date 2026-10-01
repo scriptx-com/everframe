@@ -45,9 +45,7 @@ struct MyApp: App {
     init() {
         try? Everframe.shared.start(
             config: EverframeConfig(
-                appId: "txx_live_00000000000000000000000000000000",
-                endpoint: URL(string: "https://ingest.your-tenant.example/api/ingest")!,
-                sdkKey: "txx_live_…",
+                appId: "evf_live_00000000000000000000000000000000",
                 environment: .production
             )
         )

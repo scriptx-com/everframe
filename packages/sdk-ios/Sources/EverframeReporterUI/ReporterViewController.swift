@@ -68,6 +68,9 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
     /// Free-plan watermark gate — `shouldShowWatermark(BrandingServerConfigBox.shared.value)`,
     /// resolved alongside `palette` at presentation time.
     let showWatermark: Bool
+    private let allowsAdditionalScreenshots: Bool
+    private let hostReplayVTree: Data?
+    private let sdkName: String
     private let onComplete: (Result<ReportResult, Error>) -> Void
 
     // UI — outer scroll + content stack. Phase 13.1 plan 13.1-01: the
@@ -139,12 +142,18 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
         hostExtra: String? = nil,
         palette: ResolvedPalette = .brand,
         showWatermark: Bool = true,
+        allowsAdditionalScreenshots: Bool = true,
+        hostReplayVTree: Data? = nil,
+        sdkName: String = "everframe-ios",
         onComplete: @escaping (Result<ReportResult, Error>) -> Void
     ) {
         self.captureResult = captureResult
         self.hostExtra = hostExtra
         self.palette = palette
         self.showWatermark = showWatermark
+        self.allowsAdditionalScreenshots = allowsAdditionalScreenshots
+        self.hostReplayVTree = hostReplayVTree
+        self.sdkName = sdkName
         self.onComplete = onComplete
         // shots[0] = the open-time capture. When captureResult is nil
         // (defensive — sendTapped already early-returns on that case) seed
@@ -755,7 +764,7 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
         stripView.update(
             thumbnails: shots.indices.map { bakedPreview(forShotAt: $0) },
             activeIndex: activeShotIndex,
-            showAddTile: ShotListOps.showsAddTile(count: shots.count)
+            showAddTile: allowsAdditionalScreenshots && ShotListOps.showsAddTile(count: shots.count)
         )
     }
 
@@ -808,6 +817,7 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
     /// restore the reporter, and append the crop as a new active shot. On
     /// cancel: tear down and restore without appending.
     private func startAreaCapture() {
+        guard allowsAdditionalScreenshots else { return }
         // Defensive — the add tile itself hides at the cap, but guard here
         // too (e.g. programmatic taps racing a state update).
         guard ShotListOps.showsAddTile(count: shots.count) else { return }
@@ -1093,6 +1103,8 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
             includeMetadata: true,
             extraOverrides: [:],
             hostExtra: extraForEnvelope,
+            hostReplayVTree: hostReplayVTree,
+            sdkName: sdkName,
             // External review, finding 3 (Serious) — THE SUBMIT BOUNDARY for
             // the in-app reporter. Read synchronously in the Send handler, not
             // inside `ReporterSubmission.submit(_:)`: the `Task` below already

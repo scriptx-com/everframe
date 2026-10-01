@@ -130,6 +130,12 @@ object CrashReporter {
     internal fun captureHandledThrowable(
         throwable: Throwable,
         options: dev.everframe.CaptureExceptionOptions?,
+    ): Boolean = captureHandledThrowable(throwable, options, "everframe-android")
+
+    internal fun captureHandledThrowable(
+        throwable: Throwable,
+        options: dev.everframe.CaptureExceptionOptions?,
+        sdkName: String,
     ): Boolean {
         // Snapshot before any overridable accessor, and close reentrancy before extraction.
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
@@ -157,6 +163,7 @@ object CrashReporter {
                 captured = captured,
                 preparedJvm = jvm,
                 details = details,
+                sdkName = sdkName,
                 requireCurrentStart = true,
                 waitForStorage = true,
             )
@@ -241,6 +248,15 @@ object CrashReporter {
         jsBundle: JSBundle? = null,
     ): Boolean = captureHandledFactsWithDetails(exceptionType, message, framesRaw, occurredAt, jsBundle, null)
 
+    fun captureHandledFacts(
+        exceptionType: String,
+        message: String,
+        framesRaw: List<String>,
+        occurredAt: String,
+        jsBundle: JSBundle?,
+        sdkName: String,
+    ): Boolean = captureHandledFactsWithDetails(exceptionType, message, framesRaw, occurredAt, jsBundle, null, sdkName)
+
     /** Keeps the original handled facts descriptor/default bridge for old RN binaries. */
     fun captureHandledFactsWithDetails(
         exceptionType: String,
@@ -249,7 +265,18 @@ object CrashReporter {
         occurredAt: String,
         jsBundle: JSBundle?,
         details: Any?,
+    ): Boolean = captureHandledFactsWithDetails(exceptionType, message, framesRaw, occurredAt, jsBundle, details, "everframe-android")
+
+    fun captureHandledFactsWithDetails(
+        exceptionType: String,
+        message: String,
+        framesRaw: List<String>,
+        occurredAt: String,
+        jsBundle: JSBundle?,
+        details: Any?,
+        sdkName: String,
     ): Boolean {
+        if (sdkName !in setOf("everframe-android", "everframe-react-native", "everframe-flutter", "everframe-kmp")) return false
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
         return runCatching {
             capture(
@@ -264,6 +291,7 @@ object CrashReporter {
                 captured = captured,
                 jsBundle = jsBundle?.takeIf { validJsBundle(it) },
                 rnDetails = details,
+                sdkName = sdkName,
                 requireCurrentStart = true,
                 waitForStorage = true,
             )
@@ -312,6 +340,7 @@ object CrashReporter {
         rnDetails: Any? = null,
         requireCurrentStart: Boolean = false,
         waitForStorage: Boolean = false,
+        sdkName: String = "everframe-android",
     ): Boolean {
         val context = appContext ?: return false
         // From the crash-entry snapshot, not a field: same critical section as
@@ -361,6 +390,7 @@ object CrashReporter {
             val encoded = EnvelopeBuilder(EnvelopeBuilder.DefaultRedactor).buildEncoded(
                 reportId = reportId,
                 sdkVersion = dev.everframe.Everframe.SDK_VERSION,
+                sdkName = sdkName,
                 title = redactAndCap("$exceptionType: $redactedMessage", 50),
                 description = "",
                 appName = (device["bundleIdentifier"] as? String) ?: "unknown",

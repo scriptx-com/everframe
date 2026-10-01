@@ -35,6 +35,15 @@ public enum ScreenshotCapture {
         public let heightPoints: CGFloat
         public let scale: CGFloat
         public let pngData: Data
+
+        public init(image: UIImage, widthPoints: CGFloat, heightPoints: CGFloat,
+                    scale: CGFloat, pngData: Data) {
+            self.image = image
+            self.widthPoints = widthPoints
+            self.heightPoints = heightPoints
+            self.scale = scale
+            self.pngData = pngData
+        }
     }
 
     /// `CGImage` is immutable and safe to hand to another executor, but is not

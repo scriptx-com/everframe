@@ -35,6 +35,43 @@ final class OutboxKeyBindingTests: XCTestCase {
         }
     }
 
+    func test_host_image_replay_is_stripped_when_disabled_before_retry() async throws {
+        RecordingURLProtocol.reset()
+        defer { RecordingURLProtocol.reset() }
+        RecordingURLProtocol.responseStatus = 503
+        let box = makeOutbox()
+        let session = stubbedSession(); defer { session.invalidateAndCancel() }
+        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key-A"), outbox: box, session: session)
+        let replay = Data(#"{"version":"everframe-vtree-v1","frames":[]}"#.utf8)
+        let attachment = ReportSubmitter.Attachment(
+            name: "replay", filename: "replay.json", contentType: "application/octet-stream",
+            data: replay, sha256Hex: "replay-hash")
+        let envelope = Data(#"{"attachments":[{"partName":"replay","kind":"sessionReplay"}],"captureControl":{"included":[],"excluded":[]}}"#.utf8)
+        let result = try await submitter.submit(
+            envelopeBytes: envelope, idempotencyKey: "image-replay-idem",
+            attachments: [attachment], endpoint: "https://a.example.com")
+        guard case .queued = result else { return XCTFail("retryable upload must queue") }
+        let queued = try XCTUnwrap(box.hydrate().first)
+        XCTAssertEqual(queued.attachmentRefs.count, 1)
+        XCTAssertEqual(queued.attachmentRefs[0].filename, "replay.json")
+        XCTAssertEqual(Data(base64Encoded: queued.attachmentRefs[0].dataBase64), replay)
+        RecordingURLProtocol.responseStatus = 200
+        RecordingURLProtocol.onRequest = {
+            let pending = try? box.hydrate().first
+            XCTAssertEqual(pending?.attachmentRefs.count, 0,
+                "revoked replay must be removed from durable storage before retry")
+        }
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 0 })
+        XCTAssertEqual(box.count, 0)
+        XCTAssertEqual(RecordingURLProtocol.recorded.count, 2)
+        let stripped = try XCTUnwrap(ReportSubmitter.removingReplayReference(from: envelope))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: stripped) as? [String: Any])
+        XCTAssertEqual((object["attachments"] as? [[String: Any]])?.count, 0)
+        XCTAssertEqual((object["captureControl"] as? [String: Any])?["degradedReason"] as? String,
+            "replay_revoked")
+    }
+
     private var tempDir: URL!
 
     override func setUpWithError() throws {

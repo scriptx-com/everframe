@@ -132,7 +132,7 @@ class ReporterDialogSubmitBoundaryTest {
      * when the ingest connection fails, exactly like the no-server unit-test
      * environment here) is directly observable. This is the strongest
      * evidence available for THIS call site: it proves the subject that would
-     * drive `X-TX-Identity-Token` on drain actually reaches the entry, not
+     * drive `X-Everframe-Identity-Token` on drain actually reaches the entry, not
      * just that `resolveIdentityHeader` makes the right call in isolation.
      */
     @Test
@@ -441,7 +441,7 @@ class ReporterDialogSubmitBoundaryTest {
             assertNotNull("MockWebServer never received the submit request", request)
             assertNull(
                 "project B's live token must never drain onto a report captured under project A's session, even though the subject matches",
-                request!!.getHeader("X-TX-Identity-Token"),
+                request!!.getHeader("X-Everframe-Identity-Token"),
             )
         } finally {
             Everframe.setIdentityToken(null)
@@ -549,7 +549,7 @@ class ReporterDialogSubmitBoundaryTest {
                 assertNotNull("MockWebServer never received the drain request", recorded)
                 assertNull(
                     "the entry's null subject must withhold the header even though a live token's sub matches",
-                    recorded!!.getHeader("X-TX-Identity-Token"),
+                    recorded!!.getHeader("X-Everframe-Identity-Token"),
                 )
             } finally {
                 drainOutboxFile.delete()

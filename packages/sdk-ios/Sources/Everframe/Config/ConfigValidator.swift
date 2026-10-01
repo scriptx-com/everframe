@@ -15,9 +15,11 @@ enum ConfigValidator {
         // Per Phase 04.2 D-03: hard-fail at start() if the Everframe SDK key is missing,
         // wrong-prefix, or wrong-length. Reuses .missingAppId verbatim — the
         // appId/sdkKey rename is explicitly deferred (D-07). Length 41 = prefix
-        // "txx_live_" (9) + 32-char body matching admin SdkKeysPanel emission.
+        // The dashboard issues evf_live_ keys; older txx_live_ keys remain valid.
+        // Both prefixes are 9 chars followed by a 32-char body.
         let trimmed = config.appId.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty || !trimmed.hasPrefix("txx_live_") || trimmed.count != 41 {
+        if trimmed.count != 41 ||
+            !(trimmed.hasPrefix("evf_live_") || trimmed.hasPrefix("txx_live_")) {
             throw EverframeConfigError.missingAppId
         }
         // Session Vitals (iOS spec 2026-09-05 §1) — a local sample-rate
