@@ -336,6 +336,29 @@ describe('pruneSnapshot', () => {
     });
   });
 
+  describe('paint containment clips descendants whatever the overflow (codex r5 F4)', () => {
+    const leaks = (contain: string, position: string) => {
+      const { bind, deps } = harness();
+      const child = bind(el('div', {}, [text('PAINT_CLIPPED_CHILD')]), { rect: rect(150, 0, 50, 50), style: { position } });
+      const box = bind(el('div', {}, [child]), {
+        rect: rect(0, 0, 100, 50),
+        style: { contain, overflowX: 'visible', overflowY: 'visible', borderLeftWidth: '0px', borderRightWidth: '0px' },
+      });
+      const root = doc(el('html', {}, [el('body', {}, [box])]));
+      pruneSnapshot(root, deps);
+      return findLeaks(JSON.stringify(root), ['PAINT_CLIPPED_CHILD']).length > 0;
+    };
+    it.each(['paint', 'strict', 'content', 'layout paint'])('contain: %s', (contain) => {
+      expect(leaks(contain, 'absolute')).toBe(false);
+      expect(leaks(contain, 'static')).toBe(false);
+      expect(leaks(contain, 'fixed')).toBe(false);
+    });
+    it('layout or size containment alone does not clip', () => {
+      expect(leaks('layout', 'static')).toBe(true);
+      expect(leaks('size', 'static')).toBe(true);
+    });
+  });
+
   it('drops a carried definition nothing visible references', () => {
     const { bind, deps } = harness();
     const sprite = bind(el('svg', {}, [el('symbol', { id: 'play' }, [el('text', {}, [text('SYMBOLTEXT')], { isSVG: true })], { isSVG: true })], { isSVG: true }), { rect: ABOVE });

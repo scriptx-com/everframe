@@ -520,14 +520,18 @@ function toRect(left: number, top: number, right: number, bottom: number): Prune
 
 /**
  * The clip `el` imposes on its descendants: `outer` narrowed, per clipping
- * axis, to its padding box (border box minus borders). Inline and
+ * axis (overflow, or paint containment on both), to its padding box (border
+ * box minus borders). Inline and
  * display:contents boxes do not clip — except an atomic one (an <svg> root,
  * which clips its content to its viewport even when display:inline).
  */
 function clipFor(outer: PruneRect, r: PruneRect, s: CSSStyleDeclaration | null, atomic = false): PruneRect {
   if (s === null || s.display === 'contents' || s.display === 'none' || (s.display === 'inline' && !atomic)) return outer;
-  const x = clipsAxis(s.overflowX);
-  const y = clipsAxis(s.overflowY);
+  // Paint containment clips to the overflow clip edge (the padding box) on
+  // both axes whatever `overflow` says (CSS Containment §3.3).
+  const paint = hasKeyword((s as unknown as Record<string, string | undefined>).contain, ['paint', 'strict', 'content']);
+  const x = paint || clipsAxis(s.overflowX);
+  const y = paint || clipsAxis(s.overflowY);
   if (!x && !y) return outer;
   let { left, top, right, bottom } = outer;
   if (x) {
