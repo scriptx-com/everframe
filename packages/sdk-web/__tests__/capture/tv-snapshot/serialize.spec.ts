@@ -215,6 +215,61 @@ describe('sensitive content inside open shadow roots', () => {
   });
 });
 
+describe('off-screen inline content (viewport pruning)', () => {
+  const offRect: PruneRect = { left: 2000, top: 0, right: 2120, bottom: 20, width: 120, height: 20 };
+  const rectOf = (el: Element): PruneRect => (el.closest('#off, #offwrap') ? offRect : onScreen());
+
+  it('drops the text of an inline element entirely outside the viewport, keeping its measured box', () => {
+    document.body.innerHTML =
+      '<section id="s"></section><p id="row" style="white-space:nowrap">Visible <span id="off" title="T_ATTR">OFFSCREEN_PRIVATE_NAME <b>NESTED_PRIVATE</b></span> tail</p>';
+    const taken = take({ measure: { rectOf, sizeOf: () => ({ width: 100, height: 20 }) } });
+    const json = JSON.stringify(taken.doc);
+    expect(findLeaks(json, ['OFFSCREEN_PRIVATE_NAME', 'NESTED_PRIVATE', 'T_ATTR'])).toEqual([]);
+    expect(json).toContain('Visible');
+    expect(json).toContain('tail');
+    const off = findEl(rootOf(taken), (e) => e.tagName === 'span' && e.childNodes.some((c) => c.type === 2))!;
+    const box = off.childNodes[0] as SnElement;
+    expect(decls(box.attributes.style)).toMatchObject({
+      display: 'inline-block!important', width: '120px!important', height: '20px!important', visibility: 'hidden!important',
+    });
+    expect(parseDomSnapshot(JSON.parse(JSON.stringify(taken.doc)))).toMatchObject({ ok: true });
+  });
+
+  it('keeps one placeholder per line fragment of a wrapped inline element', () => {
+    document.body.innerHTML = '<section id="s"></section><p>Visible <span id="off">WRAPPED_PRIVATE_TEXT</span></p>';
+    const taken = take({
+      measure: {
+        rectOf,
+        sizeOf: () => ({ width: 100, height: 20 }),
+        fragmentsOf: () => [
+          { left: 2000, top: 0, right: 2050, bottom: 20, width: 50, height: 20 },
+          { left: 1100, top: 20, right: 1180, bottom: 40, width: 80, height: 20 },
+        ],
+      },
+    });
+    expect(findLeaks(JSON.stringify(taken.doc), ['WRAPPED_PRIVATE_TEXT'])).toEqual([]);
+    const off = findEl(rootOf(taken), (e) => e.tagName === 'span' && e.childNodes.length === 3)!;
+    expect(off.childNodes.map((c) => (c as SnElement).tagName)).toEqual(['span', 'br', 'span']);
+    expect(decls((off.childNodes[2] as SnElement).attributes.style).width).toBe('80px!important');
+  });
+
+  it('drops off-screen bare text of a display:contents element', () => {
+    document.body.innerHTML =
+      '<section id="s"></section><p>Visible <span id="offwrap" style="display:contents">CONTENTS_PRIVATE_TEXT</span></p>';
+    const taken = take({
+      measure: { rectOf, sizeOf: () => ({ width: 100, height: 20 }), textRectsOf: () => [offRect] },
+    });
+    expect(findLeaks(JSON.stringify(taken.doc), ['CONTENTS_PRIVATE_TEXT'])).toEqual([]);
+    expect(JSON.stringify(taken.doc)).toContain('Visible');
+  });
+
+  it('keeps on-screen bare text of a display:contents element', () => {
+    document.body.innerHTML = '<section id="s"></section><p>Visible <span style="display:contents">SEEN_CONTENTS_TEXT</span></p>';
+    const taken = take({ measure: { rectOf: onScreen, sizeOf: () => ({ width: 100, height: 20 }), textRectsOf: () => [onScreen()] } });
+    expect(JSON.stringify(taken.doc)).toContain('SEEN_CONTENTS_TEXT');
+  });
+});
+
 describe('placeholder styles survive the scrubber end to end (ruling S21)', () => {
   const OFF: PruneRect = { left: 0, top: 5000, right: 300, bottom: 5040, width: 300, height: 40 };
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {

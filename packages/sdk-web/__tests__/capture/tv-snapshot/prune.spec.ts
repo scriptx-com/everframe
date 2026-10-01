@@ -89,11 +89,13 @@ describe('pruneSnapshot', () => {
 
   it('never prunes inline or display:contents elements themselves', () => {
     const { bind, deps } = harness();
-    const inline = bind(el('span', { class: 'x' }, [text('inline')]), { rect: ABOVE, style: { display: 'inline' } });
+    const inline = bind(el('span', { class: 'x' }, [text('INLINETEXT')]), { rect: ABOVE, style: { display: 'inline' } });
     const contents = bind(el('div', { class: 'y' }, []), { rect: rect(0, 0, 0, 0), style: { display: 'contents' } });
     const p = bind(el('p', {}, [inline, contents]));
     pruneSnapshot(doc(el('html', {}, [el('body', {}, [p])])), deps);
-    expect(inline.attributes).toEqual({ class: 'x' });
+    // Kept (padding and border folded into its fragment placeholders) — its text is not.
+    expect(inline.attributes).toEqual({ class: 'x', style: imp('padding:0;border:0') });
+    expect(findLeaks(JSON.stringify(inline), ['INLINETEXT'])).toEqual([]);
     expect(contents.attributes).toEqual({ class: 'y' });
   });
 
@@ -205,7 +207,8 @@ describe('pruneSnapshot', () => {
     const input = bind(el('input', { type: 'text' }), { rect: rect(1400, 0, 50, 20), style: { display: 'inline' } });
     const p = bind(el('p', {}, [span, input]));
     pruneSnapshot(doc(el('html', {}, [el('body', {}, [p])])), deps);
-    expect(span.attributes).toEqual({ class: 's' });
+    expect(span.attributes).toEqual({ class: 's', style: imp('padding:0;border:0') });
+    expect(span.childNodes).toEqual([expect.objectContaining({ tagName: 'span', childNodes: [] })]);
     expect(input.attributes).toEqual({ type: 'text' });
   });
 
@@ -323,7 +326,7 @@ describe('pruneSnapshot', () => {
       { rect: rect(1400, 0, 50, 20), style: { display: 'inline' } },
     );
     pruneSnapshot(doc(el('html', {}, [el('body', {}, [bind(el('p', {}, [link]))])])), deps);
-    expect(link.attributes).toEqual({ class: 'k' });
+    expect(link.attributes).toEqual({ class: 'k', style: imp('padding:0;border:0') });
   });
 
   it('records every pruned or masked node id, descendants included, as hidden', () => {

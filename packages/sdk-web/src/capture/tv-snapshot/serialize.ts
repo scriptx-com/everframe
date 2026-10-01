@@ -15,7 +15,7 @@ import { cleanupSnapshot, createMirror, snapshot } from 'rrweb-snapshot';
 import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { applyReplayMaskClasses, MASK_PLACEHOLDER, RR_BLOCK_CLASS, RR_MASK_CLASS } from '../replay/mask-mapping.js';
 import type { RenderContext } from '../shot-capture.js';
-import { defaultSizeOf, pruneSnapshot, type PruneDeps } from './prune.js';
+import { defaultFragmentsOf, defaultSizeOf, defaultTextRectsOf, pruneSnapshot, type PruneDeps } from './prune.js';
 import { collectRetainedIds, scrubSnapshotTree } from './snapshot-scrub.js';
 import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
 import { sanitizeMetaHref } from './url-sanitize.js';
@@ -36,7 +36,7 @@ export interface SnapshotDeps {
   isSensitive: (el: Element) => boolean;
   redaction?: RedactionEngineConfig | undefined;
   now?: () => number;
-  measure?: Partial<Pick<PruneDeps, 'rectOf' | 'styleOf' | 'sizeOf'>>;
+  measure?: Partial<Pick<PruneDeps, 'rectOf' | 'styleOf' | 'sizeOf' | 'fragmentsOf' | 'textRectsOf'>>;
 }
 
 export interface TakenSnapshot {
@@ -116,6 +116,8 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
         }
       }),
     sizeOf: deps.measure?.sizeOf ?? defaultSizeOf,
+    fragmentsOf: deps.measure?.fragmentsOf ?? defaultFragmentsOf,
+    textRectsOf: deps.measure?.textRectsOf ?? defaultTextRectsOf,
     isSensitive: deps.isSensitive,
     viewport,
   });

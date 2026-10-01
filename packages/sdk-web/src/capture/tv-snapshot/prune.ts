@@ -21,8 +21,13 @@
 // Runs on slow TV silicon over page-sized trees: one iterative post-order walk
 // (no recursion — deep pages must not overflow the stack), at most one rect
 // and one computed-style read per judged element (plus a bounded
-// margin-collapse probe per block placeholder), and no layout
+// margin-collapse probe per block placeholder, and one line-fragment read per
+// unseen inline element or unseen display:contents text), and no layout
 // reads at all inside head or SVG content. LAZY (tv-snapshot chunk).
+//
+// Unseen inline content keeps its layout but not its content: an inline
+// element (or display:contents text) that no line box of is seen keeps one
+// empty inline-block per measured line fragment in place of its children.
 //
 // "Seen" means: the element's own box intersects the viewport INTERSECTED with
 // every clip of an ancestor whose overflow is not visible (hidden, clip, auto,
@@ -61,6 +66,10 @@ export interface PruneDeps {
   sizeOf(el: Element, rect: PruneRect): { width: number; height: number };
   isSensitive(el: Element): boolean;
   viewport: { width: number; height: number };
+  /** Per-line border boxes of an inline element (getClientRects). */
+  fragmentsOf?(el: Element): PruneRect[];
+  /** Per-line boxes of a text node (a Range's getClientRects). */
+  textRectsOf?(text: Node): PruneRect[];
 }
 
 export interface PruneResult {
@@ -412,6 +421,38 @@ function clipFor(outer: PruneRect, r: PruneRect, s: CSSStyleDeclaration | null):
   return toRect(left, top, right, bottom);
 }
 
+/** Per-line client rects, as PruneRects. */
+function clientRects(list: ArrayLike<PruneRect>): PruneRect[] {
+  const out: PruneRect[] = [];
+  for (let i = 0; i < list.length; i++) out.push(list[i] as PruneRect);
+  return out;
+}
+
+export function defaultFragmentsOf(el: Element): PruneRect[] {
+  return clientRects(el.getClientRects());
+}
+
+export function defaultTextRectsOf(text: Node): PruneRect[] {
+  const doc = text.ownerDocument;
+  if (doc === null || typeof doc.createRange !== 'function') return [];
+  const range = doc.createRange();
+  range.selectNodeContents(text);
+  return typeof range.getClientRects === 'function' ? clientRects(range.getClientRects()) : [];
+}
+
+/**
+ * One line fragment of unseen inline content: an empty inline-block of the
+ * fragment's width that adds no height to its line (its margin box is
+ * zero-tall, bottom on the text bottom), so the line keeps its own height.
+ */
+function fragmentStyle(r: PruneRect): string {
+  return important([
+    'display:inline-block', 'box-sizing:border-box', `width:${px(r.width)}`, `height:${px(r.height)}`,
+    'min-width:0', 'min-height:0', 'max-width:none', 'max-height:none',
+    `margin:${spx(-r.height)} 0 0 0`, 'padding:0', 'border:0', 'vertical-align:text-bottom', 'visibility:hidden',
+  ]);
+}
+
 function isBlankText(text: string): boolean {
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i);
@@ -432,6 +473,38 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   /** Pruned placeholders' effective margins, for their pruned ancestors' collapse probe. */
   const prunedFlow = new WeakMap<SnElement, PrunedFlow>();
   const zeroed = new WeakSet<SnElement>();
+  /** Next id for nodes the pruner adds (fragment placeholders); found on first use. */
+  let nextId = 0;
+  const freshId = (): number => {
+    if (nextId === 0) {
+      let max = 0;
+      const ids: SnNode[] = [root];
+      while (ids.length > 0) {
+        const n = ids.pop() as SnNode;
+        if (n.id > max) max = n.id;
+        if (n.type === SN_ELEMENT || n.type === SN_DOCUMENT) for (const c of n.childNodes) ids.push(c);
+      }
+      nextId = max + 1;
+    }
+    return nextId++;
+  };
+  /** A rect-list read that fails closed to `fallback`; an empty list means no box. */
+  const rectsSafe = (read: () => PruneRect[], fallback: PruneRect[]): PruneRect[] => {
+    try {
+      return read();
+    } catch {
+      return fallback;
+    }
+  };
+  /** Line-fragment placeholders, a <br> between fragments so each keeps its own line. */
+  const fragmentNodes = (rects: PruneRect[]): SnNode[] => {
+    const out: SnNode[] = [];
+    for (const r of rects) {
+      if (out.length > 0) out.push({ type: SN_ELEMENT, id: freshId(), tagName: 'br', attributes: {}, childNodes: [] });
+      out.push({ type: SN_ELEMENT, id: freshId(), tagName: 'span', attributes: { style: fragmentStyle(r) }, childNodes: [] });
+    }
+    return out;
+  };
 
   const liveElement = (node: SnElement): Element | null => {
     const live = deps.nodeFor(node.id);
@@ -697,6 +770,61 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     return 'hidden';
   };
 
+  /**
+   * An unseen inline element is kept — inline boxes span line fragments, so
+   * no single same-box placeholder fits — but its content is not: children
+   * become one empty placeholder per measured line fragment (padding and
+   * border folded into them), plus any carried SVG definitions.
+   */
+  const blankInline = (f: Frame): void => {
+    const node = f.node as SnElement;
+    if (node.childNodes.length === 0) return; // nothing to blank (a void element, an input): keep its box as is
+    const live = f.live as Element;
+    const rect = f.rect as PruneRect;
+    result.pruned++;
+    for (const child of node.childNodes) collectIds(child, result.hiddenIds);
+    const fallback = rect.width + rect.height > 0 ? [rect] : [];
+    const measured = rectsSafe(() => (deps.fragmentsOf ?? defaultFragmentsOf)(live), fallback);
+    const fragments = measured.length > 0 ? measured : fallback;
+    node.childNodes = [...(f.carry ?? []).map(zeroSize), ...fragmentNodes(fragments)];
+    const own = hasOwn(node.attributes, 'style') ? node.attributes.style : undefined;
+    const fold = important(['padding:0', 'border:0']);
+    node.attributes.style = typeof own === 'string' && own !== '' ? `${own};${fold}` : fold;
+  };
+
+  /**
+   * An unseen display:contents element has no box of its own; its bare text
+   * lays out in the parent's lines. Each text child none of whose line boxes
+   * meets the clip is replaced by fragment placeholders. Text already masked
+   * (invisible, sensitive) is left as is.
+   */
+  const blankContentsText = (f: Frame): void => {
+    if (f.hideText || f.maskText) return;
+    const node = f.node as SnElement;
+    let changed = false;
+    const next: SnNode[] = [];
+    for (const child of node.childNodes) {
+      if (child.type !== SN_TEXT || isBlankText(child.textContent)) {
+        next.push(child);
+        continue;
+      }
+      const live = deps.nodeFor(child.id);
+      // No live text to measure: it cannot be shown to be seen.
+      const rects = live === null ? [] : rectsSafe(() => (deps.textRectsOf ?? defaultTextRectsOf)(live), []);
+      if (rects.some((r) => overlaps(r, f.clip))) {
+        next.push(child);
+        continue;
+      }
+      changed = true;
+      result.hiddenIds.add(child.id);
+      for (const n of fragmentNodes(rects)) next.push(n);
+    }
+    if (changed) {
+      result.pruned++;
+      node.childNodes = next;
+    }
+  };
+
   /** Post-order step: the frame's children are final; decide its own verdict. */
   const finish = (f: Frame, parent: Frame | undefined): Verdict => {
     switch (f.mode) {
@@ -734,6 +862,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     // they are pruned to an inline-block of the same size (rulings 8, S20).
     if (style !== null && (style.display === 'contents' || (style.display === 'inline' && !isReplaced(node)))) {
       stripContentAttrs(node);
+      if (style.display === 'inline') blankInline(f);
+      else blankContentsText(f);
       return 'hidden';
     }
     return prune(f, parent);
