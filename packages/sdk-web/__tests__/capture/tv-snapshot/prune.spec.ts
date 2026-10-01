@@ -307,6 +307,35 @@ describe('pruneSnapshot', () => {
     expect(result.changed).toBe(true);
   });
 
+  describe('containing blocks established without position (codex r4 F3)', () => {
+    const clipped = (railStyle: Partial<CSSStyleDeclaration>, childPosition: 'absolute' | 'fixed') => {
+      const { bind, deps } = harness();
+      const child = bind(el('div', {}, [text('CLIPPED_OUT_CHILD')]), { rect: rect(150, 0, 50, 50), style: { position: childPosition } });
+      const rail = bind(el('div', {}, [child]), { rect: rect(0, 0, 100, 50), style: { overflowX: 'hidden', overflowY: 'hidden', ...railStyle } });
+      const root = doc(el('html', {}, [el('body', {}, [rail])]));
+      pruneSnapshot(root, deps);
+      return findLeaks(JSON.stringify(root), ['CLIPPED_OUT_CHILD']).length === 0;
+    };
+    it.each([
+      ['transform', { transform: 'matrix(1, 0, 0, 1, 0, 0)' }],
+      ['perspective', { perspective: '100px' }],
+      ['filter', { filter: 'blur(1px)' }],
+      ['backdrop-filter', { backdropFilter: 'blur(1px)' } as Partial<CSSStyleDeclaration>],
+      ['-webkit-backdrop-filter', { webkitBackdropFilter: 'blur(1px)' } as Partial<CSSStyleDeclaration>],
+      ['contain: paint', { contain: 'paint' }],
+      ['contain: strict', { contain: 'strict' }],
+      ['will-change: transform', { willChange: 'opacity, transform' }],
+      ['container-type', { containerType: 'inline-size' } as Partial<CSSStyleDeclaration>],
+    ])('%s clips absolute and fixed descendants', (_label, railStyle) => {
+      expect(clipped(railStyle, 'absolute')).toBe(true);
+      expect(clipped(railStyle, 'fixed')).toBe(true);
+    });
+    it('a plain overflow box still clips neither (they escape to the viewport)', () => {
+      expect(clipped({}, 'absolute')).toBe(false);
+      expect(clipped({ transform: 'none', filter: 'none', contain: 'none', willChange: 'auto' }, 'fixed')).toBe(false);
+    });
+  });
+
   it('drops a carried definition nothing visible references', () => {
     const { bind, deps } = harness();
     const sprite = bind(el('svg', {}, [el('symbol', { id: 'play' }, [el('text', {}, [text('SYMBOLTEXT')], { isSVG: true })], { isSVG: true })], { isSVG: true }), { rect: ABOVE });

@@ -45,8 +45,11 @@
 // of the rail is unseen), AND the element is not `visibility:hidden|collapse`
 // nor `opacity:0` (itself or any ancestor — opacity does not inherit, so it is
 // propagated). Clips follow the containing-block chain: an absolutely
-// positioned box escapes the clips of non-positioned ancestors below its
-// containing block, a fixed box escapes all of them. Bare text directly inside
+// positioned box escapes the clips of ancestors below its containing block
+// (the nearest positioned OR transform/perspective/filter/backdrop-filter/
+// contain/will-change/container-type box), a fixed box those below its
+// containing block (the nearest such non-position box, else the viewport).
+// Bare text directly inside
 // an invisible element is masked even when a `visibility:visible` descendant
 // keeps the element itself. Occlusion by other layers is NOT modelled.
 //
@@ -193,6 +196,8 @@ interface Frame {
   clip: PruneRect;
   /** The visible region for absolutely positioned descendants (containing-block chain). */
   absClip: PruneRect;
+  /** The visible region for fixed descendants: the viewport, unless an ancestor is their containing block. */
+  fixedClip: PruneRect;
   index: number;
   kept: SnNode[];
   anyVisible: boolean;
@@ -466,6 +471,38 @@ function isPositioned(s: CSSStyleDeclaration | null): boolean {
   return s !== null && s.position !== undefined && s.position !== '' && s.position !== 'static';
 }
 
+/** A computed value that is set and not `none` (missing on old engines → none). */
+function isSet(value: string | undefined): boolean {
+  return value !== undefined && value !== null && value !== '' && value !== 'none';
+}
+
+/** Whether a comma/space-separated computed keyword list holds one of `keywords`. Short lists only. */
+function hasKeyword(value: string | undefined, keywords: readonly string[]): boolean {
+  if (value === undefined || value === null || value === '' || value.length > 256) return false;
+  return value.split(/[\s,]+/).some((k) => keywords.indexOf(k) !== -1);
+}
+
+/**
+ * Whether `s` makes its box the containing block of absolutely AND fixed
+ * positioned descendants without `position` (CSS Transforms/Filter Effects/
+ * Containment): transform, perspective, filter, backdrop-filter (prefixed
+ * too), contain: paint/layout/strict/content, will-change naming one of
+ * those, or a container-type. Properties an old engine lacks read as none.
+ */
+function establishesContainingBlock(s: CSSStyleDeclaration | null): boolean {
+  if (s === null) return false;
+  const x = s as unknown as Record<string, string | undefined>;
+  return (
+    isSet(x.transform) || isSet(x.webkitTransform) ||
+    isSet(x.perspective) || isSet(x.webkitPerspective) ||
+    isSet(x.filter) || isSet(x.webkitFilter) ||
+    isSet(x.backdropFilter) || isSet(x.webkitBackdropFilter) ||
+    hasKeyword(x.contain, ['paint', 'layout', 'strict', 'content']) ||
+    hasKeyword(x.willChange, ['transform', 'perspective', 'filter', 'backdrop-filter', '-webkit-transform', '-webkit-filter']) ||
+    (x.containerType !== undefined && x.containerType !== null && x.containerType !== '' && x.containerType !== 'normal')
+  );
+}
+
 /** Invisible by its own computed style (visibility inherits, so this already covers hidden ancestors). */
 function isInvisible(s: CSSStyleDeclaration | null): boolean {
   return s !== null && (s.visibility === 'hidden' || s.visibility === 'collapse');
@@ -608,6 +645,7 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     seen: false,
     clip: parent?.clip ?? VIEWPORT,
     absClip: parent?.absClip ?? VIEWPORT,
+    fixedClip: parent?.fixedClip ?? VIEWPORT,
     index: 0, kept: [], anyVisible: false, carry: null,
   });
 
@@ -619,13 +657,18 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const s = styleOnce(f);
     const rect = f.rect as PruneRect;
     const position = s?.position;
-    const incoming = position === 'fixed' ? VIEWPORT : position === 'absolute' ? parent.absClip : parent.clip;
+    const incoming = position === 'fixed' ? parent.fixedClip : position === 'absolute' ? parent.absClip : parent.clip;
     f.faded = parent.faded || isZeroOpacity(s);
     const invisible = f.faded || isInvisible(s);
     f.hideText = invisible;
     f.seen = !invisible && overlaps(rect, incoming);
     f.clip = clipFor(incoming, rect, s, atomic);
-    f.absClip = isPositioned(s) ? f.clip : parent.absClip;
+    // A transform/filter/containment box is the containing block of absolute
+    // AND fixed descendants, so its clip reaches them; position alone only
+    // captures absolute ones.
+    const block = establishesContainingBlock(s);
+    f.absClip = isPositioned(s) || block ? f.clip : parent.absClip;
+    f.fixedClip = block ? f.clip : parent.fixedClip;
   };
 
   const styleOnce = (f: Frame): CSSStyleDeclaration | null => {
