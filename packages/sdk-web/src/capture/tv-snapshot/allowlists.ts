@@ -159,12 +159,42 @@ const SVG_ENUM: Readonly<Record<string, RegExp>> = {
 /** Every SVG_ENUM keyword/angle fits well within this. */
 const MAX_ENUM_LENGTH = 64;
 
-const LOCAL_REF_RE = /^url\(\s*['"]?#([^'")\s]+)['"]?\s*\)\s*(.*)$/i;
+/** Longer than any real `url(#id) <fallback colour>` paint or reference. */
+const MAX_REF_LENGTH = 1024;
+
+const isSpace = (c: string): boolean => c !== '' && /\s/.test(c);
+const isLineTerminator = (c: string): boolean => c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029';
+
+/**
+ * `url( ['"]#id['"] ) rest` → the id and the rest (leading whitespace
+ * skipped), or null — what /^url\(\s*['"]?#([^'")\s]+)['"]?\s*\)\s*(.*)$/i
+ * matches, by a single forward scan. (That regex backtracks quadratically
+ * between `\s*` and `(.*)` on a long whitespace run before a newline, S18.)
+ */
+function parseLocalRef(t: string): { id: string; rest: string } | null {
+  if (t.slice(0, 4).toLowerCase() !== 'url(') return null;
+  let i = 4;
+  while (isSpace(t.charAt(i))) i++;
+  if (t.charAt(i) === "'" || t.charAt(i) === '"') i++;
+  if (t.charAt(i) !== '#') return null;
+  const start = ++i;
+  for (let c = t.charAt(i); c !== '' && c !== "'" && c !== '"' && c !== ')' && !isSpace(c); c = t.charAt(++i));
+  if (i === start) return null;
+  const id = t.slice(start, i);
+  if (t.charAt(i) === "'" || t.charAt(i) === '"') i++;
+  while (isSpace(t.charAt(i))) i++;
+  if (t.charAt(i) !== ')') return null;
+  i++;
+  while (isSpace(t.charAt(i))) i++;
+  for (let k = i; k < t.length; k++) if (isLineTerminator(t.charAt(k))) return null; // `.` stops at line ends
+  return { id, rest: t.slice(i) };
+}
 
 function refToRetained(value: string, retainedIds: ReadonlySet<string>): { ok: boolean; rest: string } {
-  const m = LOCAL_REF_RE.exec(value.trim());
+  if (value.length > MAX_REF_LENGTH) return { ok: false, rest: '' };
+  const m = parseLocalRef(value.trim());
   if (m === null) return { ok: false, rest: '' };
-  return { ok: retainedIds.has(m[1]!), rest: m[2] ?? '' };
+  return { ok: retainedIds.has(m.id), rest: m.rest };
 }
 
 /** Is `name="value"` a validated SVG geometry/paint attribute? (Case-sensitive names, as the DOM keeps them.) */

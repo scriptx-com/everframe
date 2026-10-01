@@ -380,6 +380,16 @@ describe('rrweb-snapshot CSS passes stay linear on page-controlled CSS (S18)', (
     ).toBeLessThan(1000);
   });
 
+  it('an SVG paint attribute with a long whitespace near-miss after url(#id)', () => {
+    expect(
+      timed(() => {
+        document.getElementById('victim')!.innerHTML =
+          '<svg width="10" height="10"><linearGradient id="g"></linearGradient><rect id="r" width="5" height="5"></rect></svg>';
+        document.getElementById('r')!.setAttribute('fill', `url(#g)${' '.repeat(60_000)}x\nx`);
+      }),
+    ).toBeLessThan(1000);
+  });
+
   it('still absolutizes ordinary relative CSS urls the way rrweb does', () => {
     document.body.innerHTML = '<section id="s"></section><div id="bg" style="background:url(img/a.png) , url(\'/b.png\'), url(&quot;c.png&quot;)">x</div>';
     const style = findEl(rootOf(take()), (e) => e.attributes.id === 'bg')!.attributes.style;

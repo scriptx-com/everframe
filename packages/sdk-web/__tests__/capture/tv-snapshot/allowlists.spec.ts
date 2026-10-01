@@ -134,3 +134,50 @@ describe('number grammars stay linear on long digit runs', () => {
     expect(isCssColor('rgb(10.5 .5 1e2)')).toBe(true);
   });
 });
+
+describe('local url(#id) references (S18)', () => {
+  const ORIGINAL = /^url\(\s*['"]?#([^'")\s]+)['"]?\s*\)\s*(.*)$/i;
+  /** What the pre-scanner implementation accepted (same retained-id and rest rules). */
+  const viaRegex = (name: string, value: string): boolean => {
+    const m = ORIGINAL.exec(value.trim());
+    if (name === 'filter') {
+      if (value.trim() === 'none') return true;
+      return m !== null && ids.has(m[1]!) && (m[2] ?? '') === '';
+    }
+    if (value.trim().toLowerCase().startsWith('url(')) return m !== null && ids.has(m[1]!) && ((m[2] ?? '') === '' || isCssColor(m[2]!));
+    return isCssColor(value);
+  };
+
+  it('rejects a long whitespace near-miss in well under a second', () => {
+    const nearMiss = `url(#g)${' '.repeat(60_000)}x\nx`;
+    const started = performance.now();
+    expect(isAllowedSvgAttr('fill', nearMiss, ids)).toBe(false);
+    expect(isAllowedSvgAttr('clip-path', nearMiss, ids)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it('accepts exactly what the original pattern accepted', () => {
+    const cases = [
+      'url(#g)', 'url( #g )', "url('#g')", 'url("#g")', 'url("#g\')', 'URL(#g) red', 'url(#g)\n red', 'url(#g) red\nx',
+      'url(#g) ', 'url(#missing)', 'url(# g)', 'url(#g', 'url(#g)red', 'url(#g) Alice', 'url(#g)) ', 'url(#play) #fff',
+      "url(\t'#g'\t)", 'url(#g"x)', 'url(#)', 'none', 'red',
+    ];
+    for (const value of cases) {
+      expect(isAllowedSvgAttr('fill', value, ids), `fill ${JSON.stringify(value)}`).toBe(viaRegex('fill', value));
+      expect(isAllowedSvgAttr('filter', value, ids), `filter ${JSON.stringify(value)}`).toBe(viaRegex('filter', value));
+    }
+    const alphabet = ['url(', 'URL(', '#', 'g', 'play', ' ', '\n', "'", '"', ')', 'red', 'x'];
+    let seed = 11;
+    const rand = (n: number): number => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % n;
+    };
+    for (let i = 0; i < 4000; i++) {
+      let value = '';
+      const len = 1 + rand(9);
+      for (let k = 0; k < len; k++) value += alphabet[rand(alphabet.length)];
+      expect(isAllowedSvgAttr('fill', value, ids), JSON.stringify(value)).toBe(viaRegex('fill', value));
+      expect(isAllowedSvgAttr('filter', value, ids), JSON.stringify(value)).toBe(viaRegex('filter', value));
+    }
+  });
+});
