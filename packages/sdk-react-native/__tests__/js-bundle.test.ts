@@ -50,3 +50,35 @@ it('snapshots identity at runtime mount and picks a new build after remount', ()
   expect(vi.mocked(NativeEverframe.reportCrash).mock.calls.map(([json]) => JSON.parse(json).jsBundle?.buildId)).toEqual(['first', 'second']);
   expect(vi.mocked(NativeEverframe.configureSync).mock.calls[0][0]).not.toHaveProperty('jsBundle');
 });
+
+// @everframe/metro stamps this global into the bundle, so an app no longer has
+// to hand-pass { buildId, bundleName } at init. vi.unstubAllGlobals() in the
+// afterEach above clears it between cases.
+it('falls back to the injected global when no config is passed', () => {
+  vi.stubGlobal('__EVERFRAME_BUILD__', {
+    buildId: '7d4e6f42-2491-4ca0-99a8-1064bde003c6',
+    bundleName: 'index.android.bundle',
+    platform: 'android',
+  });
+  expect(capture(undefined).jsBundle).toEqual({
+    engine: 'hermes',
+    platform: 'android',
+    buildId: '7d4e6f42-2491-4ca0-99a8-1064bde003c6',
+    bundleName: 'index.android.bundle',
+  });
+});
+
+it('prefers an explicit config over the injected global', () => {
+  vi.stubGlobal('__EVERFRAME_BUILD__', { buildId: 'injected', bundleName: 'injected.bundle' });
+  expect(capture({ buildId: 'explicit', bundleName: 'explicit.bundle' }).jsBundle.buildId)
+    .toBe('explicit');
+});
+
+it('omits identity when neither a config nor the injected global is present', () => {
+  expect(capture(undefined).jsBundle).toBeUndefined();
+});
+
+it('omits identity when the injected global fails validation', () => {
+  vi.stubGlobal('__EVERFRAME_BUILD__', { buildId: 'ok', bundleName: '../escape' });
+  expect(capture(undefined).jsBundle).toBeUndefined();
+});

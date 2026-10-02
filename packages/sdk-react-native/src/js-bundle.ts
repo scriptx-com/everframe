@@ -6,13 +6,19 @@ import type { JsBundleMetadata } from '@everframe/protocol';
 export interface JsBundleConfig { buildId: string; bundleName: string }
 
 /** Copy at installation: callers cannot retag code already loaded in this runtime. */
-export function captureJsBundleMetadata(input: unknown): Readonly<JsBundleMetadata> | undefined {
+export function captureJsBundleMetadata(input?: unknown): Readonly<JsBundleMetadata> | undefined {
   try {
     if (!(globalThis as { HermesInternal?: unknown }).HermesInternal) return undefined;
     const platform = Platform.OS;
     if (platform !== 'android' && platform !== 'ios') return undefined;
-    if (!input || typeof input !== 'object') return undefined;
-    const { buildId, bundleName } = input as JsBundleConfig;
+    // @everframe/metro injects this global into the bundle at build time, so the
+    // running JavaScript reports its own identity. That is what makes an OTA
+    // update, a rollback and an offline embedded launch each resolve to the
+    // right source map without inferring anything from the native app version.
+    // An explicit argument still wins, so existing callers are unaffected.
+    const source = input ?? (globalThis as { __EVERFRAME_BUILD__?: unknown }).__EVERFRAME_BUILD__;
+    if (!source || typeof source !== 'object') return undefined;
+    const { buildId, bundleName } = source as JsBundleConfig;
     if (typeof buildId !== 'string' || buildId.length < 1 || buildId.length > 200 ||
         !/\S/u.test(buildId) || !/^(?:[^\u0000\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u.test(buildId)) return undefined;
     if (typeof bundleName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(bundleName)) return undefined;
