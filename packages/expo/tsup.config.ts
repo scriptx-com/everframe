@@ -10,5 +10,5 @@ export default defineConfig({
   sourcemap: false,
   target: "node22",
   outDir: "dist",
-  external: ["@expo/config-plugins"],
+  external: ["@expo/config-plugins", "@everframe/cli"],
 });

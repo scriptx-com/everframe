@@ -25,6 +25,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "@everframe/cli": "workspace:^",
     "@expo/config-plugins": "^57.0.0"
   },
   "devDependencies": {

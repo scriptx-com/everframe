@@ -339,6 +339,9 @@ importers:
 
   packages/expo:
     dependencies:
+      '@everframe/cli':
+        specifier: workspace:^
+        version: link:../cli
       '@expo/config-plugins':
         specifier: ^57.0.0
         version: 57.0.9(typescript@5.9.3)
