@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 internal object CompanionPinPresenter {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var dialog: AlertDialog? = null
-    private var installed = false
+    private var collector: Job? = null
     private var expiryJob: Job? = null
 
     // Stale re-present fix (spec 2026-08-19 review finding 2). [onActivityResumed]
@@ -54,10 +54,8 @@ internal object CompanionPinPresenter {
     private var trackedDeadlineElapsedRealtime: Long = 0L
 
     fun install() {
-        if (installed) return
-        installed = true
-        Everframe.__attachPinUiInstalled = true
-        scope.launch {
+        if (collector?.isActive == true) return
+        val job = scope.launch {
             dev.everframe.companion.Companion.attachChallenge.collect { challenge ->
                 if (challenge == null) {
                     trackedChallenge = null
@@ -74,6 +72,8 @@ internal object CompanionPinPresenter {
                 }
             }
         }
+        collector = job
+        Everframe.__attachPinUiInstalled = job.isActive
     }
 
     /** Re-check on foreground: ActivityRegistry calls this from onActivityResumed. */

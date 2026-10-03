@@ -36,7 +36,10 @@ internal class TXReporterPresenter(
      * Suspending entry — caller awaits a `ReportResult` once the user submits
      * or cancels. Shape is identical to iOS `TXReporterPresenter.openAndAwait`.
      */
-    suspend fun openReporter(activity: Activity): ReportResult {
+    suspend fun openReporter(activity: Activity): ReportResult =
+        openReporter(activity) { !activity.isFinishing && !activity.isDestroyed }
+
+    internal suspend fun openReporter(activity: Activity, isCurrent: () -> Boolean): ReportResult {
         // Plan 05.1-02: flip the observable presenting-state at entry, and
         // ensure we flip it back at every exit (success / cancel / failure /
         // throw). The try/finally outside txGuardSuspend keeps the flag
@@ -125,6 +128,7 @@ internal class TXReporterPresenter(
             val capture = captureScreenshot(activity, rects)
 
             if (capture == null) return@txGuardSuspend ReportResult.Cancelled("capture_failed")
+            if (!isCurrent()) return@txGuardSuspend ReportResult.Cancelled("no_active_activity")
 
             // 3. Show the phone/tablet Compose Dialog. (Android TV used to
             //    hand off to a separate :everframe-tv Activity; that module
