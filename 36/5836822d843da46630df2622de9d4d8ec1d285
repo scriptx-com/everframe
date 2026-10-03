@@ -1,0 +1,33 @@
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ActivityRegistry.kt
+  s_25cbf9c00cc88e::t_bad3d64640972e 1-52
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/CompanionPinPresenter.kt
+  s_25cbf9c00cc88e::t_6318d81db20539 36,57-58,75-76
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterInstallation.kt
+  s_25cbf9c00cc88e::t_878846f70c7ea2 1-56
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterResolverInstaller.kt
+  s_25cbf9c00cc88e::t_5c7bd1991ecbc8 10-12,14,16-28
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ActivityRegistryTest.kt
+  s_25cbf9c00cc88e::t_fcb2667562c449 1-42
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterActivityOwnershipTest.kt
+  s_25cbf9c00cc88e::t_28a6939f6d7ed9 1-63
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterResolverInstallerTest.kt
+  s_25cbf9c00cc88e::t_17f274d13df5b2 1-116
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterTestState.kt
+  s_25cbf9c00cc88e::t_89c3b2753e4851 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "365836822d843da46630df2622de9d4d8ec1d285",
+  "prompts": {},
+  "sessions": {
+    "s_25cbf9c00cc88e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10081-39db-7481-8922-b7d392a482c0",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
