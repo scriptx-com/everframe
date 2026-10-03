@@ -847,6 +847,10 @@ class EverframeModule(
 
     @ReactMethod
     override fun startCompanion() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post { startCompanion() }
+            return
+        }
         txGuardVoid("startCompanion") {
             // Idempotent: a live client means a prior startCompanion already
             // opened the socket. Do NOT recreate it — callers must
@@ -860,13 +864,16 @@ class EverframeModule(
                 return@txGuardVoid
             }
 
+            // Await the main-thread install before the relay can announce PIN capability.
+            // configureSync itself remains non-blocking with respect to main.
+            reporterBridge.scheduleInstall(reactContext)
             installCompanionCollectorsIfNeeded()
 
             // Runtime suppression of the built-in PIN presenter (spec
             // 2026-08-19, controller ruling): a runtime flag, not an
             // install-site gate. `:everframe-reporter-ui`'s
             // `CompanionPinPresenter` is auto-installed via
-            // `ReporterResolverInstaller` (androidx.startup) regardless of
+            // `ReporterResolverInstaller` (Startup or the bridge above) regardless of
             // the configured mode, so `Everframe.__attachPinUiInstalled`
             // stays an honest capability signal — only the PRESENTING is
             // silenced, here, at the one site where the mode is already
@@ -972,6 +979,10 @@ class EverframeModule(
 
     @ReactMethod
     override fun stopCompanion() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post { stopCompanion() }
+            return
+        }
         txGuardVoid("stopCompanion") {
             // External review, finding NN1 — only ever stop/unregister OUR
             // OWN client. `companionClient` is non-null here ONLY when a

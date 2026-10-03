@@ -15,6 +15,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineStart
+import org.junit.Before
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
@@ -52,8 +53,9 @@ class SuspendedReporterFixture {
 @Config(sdk = [29])
 @LooperMode(LooperMode.Mode.PAUSED)
 class ReporterBridgeTest {
-    @After fun after() { Everframe.report.__resolver = null }
-    private fun context(): BridgeReactContext = BridgeReactContext(RuntimeEnvironment.getApplication())
+    @Before fun before() { resetBridgeReporterState(); com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsForTests.setUp() }
+    @After fun after() { Everframe.kill(); resetBridgeReporterState() }
+    private fun context(): BridgeReactContext = BridgeReactContext(RuntimeEnvironment.getApplication()).apply { initializeWithInstance(FakeCatalystInstance()) }
     private fun resumed(title: String = "current"): BridgeReactContext {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         activity.title = title
@@ -111,6 +113,31 @@ class ReporterBridgeTest {
         thread.start(); thread.join(2000)
         assertFalse(thread.isAlive)
         shadowOf(Looper.getMainLooper()).idle()
+    }
+    @Test fun companionStartWaitsForReporterInstallationWithoutBlockingWorker() {
+        assertEquals("http://127.0.0.1:9", dev.everframe.BuildConfig.INGEST_URL)
+        val module = EverframeModule(resumed())
+        try {
+            val worker = Thread {
+                module.configure(JavaOnlyMap.of("apiKey", "reporter-test-only"))
+                module.startCompanion()
+            }
+            worker.start(); worker.join(2000)
+            assertFalse("JS worker must not wait for main", worker.isAlive)
+            assertFalse(Everframe.__attachPinUiInstalled)
+            assertNull("must not start the relay before main installs PIN UI", module.companionClientForTesting())
+            shadowOf(Looper.getMainLooper()).idle()
+            assertTrue(Everframe.__attachPinUiInstalled)
+            assertNotNull(org.robolectric.shadows.ShadowLog.getLogs().joinToString("\n"), module.companionClientForTesting())
+        } finally { module.stopCompanion(); shadowOf(Looper.getMainLooper()).idle() }
+    }
+    @Test fun queuedCompanionStartThenStopCannotLeaveClientRunning() {
+        val module = EverframeModule(resumed())
+        val worker = Thread { module.startCompanion(); module.stopCompanion() }
+        worker.start(); worker.join(2000)
+        assertFalse(worker.isAlive)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertNull(module.companionClientForTesting())
     }
     @Test fun moduleSanitizesImmediateAndSuspendedCancellationAtPromiseBoundary() {
         assertEquals("http://127.0.0.1:9", dev.everframe.BuildConfig.INGEST_URL)
