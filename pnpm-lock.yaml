@@ -318,6 +318,35 @@ importers:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
 
+  packages/cli:
+    dependencies:
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6(patch_hash=szurow4zhzyfyo22tumm2pdqcq)
+    devDependencies:
+      '@everframe/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.4
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+
+  packages/expo:
+    dependencies:
+      '@expo/config-plugins':
+        specifier: ^57.0.0
+        version: 57.0.9(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.4
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+
   packages/identity:
     dependencies:
       jose:
@@ -333,6 +362,22 @@ importers:
       publint:
         specifier: ^0.3.0
         version: 0.3.24
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+
+  packages/metro:
+    dependencies:
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6(patch_hash=szurow4zhzyfyo22tumm2pdqcq)
+    devDependencies:
+      '@everframe/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.4
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
@@ -1736,8 +1781,14 @@ packages:
   '@expo/config-plugins@56.0.16':
     resolution: {integrity: sha512-IfdCDxIGpaeaBN+r1DFg3j8Vmg/pN0G58WMaJwJw++dopSU0CLmXL8348llPKvvUpSEQQhx6TyVi5au6spZCbw==}
 
+  '@expo/config-plugins@57.0.9':
+    resolution: {integrity: sha512-hHgfL1avkCdEvDSw7IwlKwRYYNgcxzbNNMIk6W6lTkJpY0MajinAfeJUS0J+wPCsjUfGbVqOJM+XhPaO5ulUxg==}
+
   '@expo/config-types@56.0.7':
     resolution: {integrity: sha512-V7bxawNsNned/yMppAHdisIOxniZXgPKRWpIUiQOQBs45/A5MBd2gfDM4Ecq5gnbilnQUTaI6Zxn6JcW7L3TAA==}
+
+  '@expo/config-types@57.0.2':
+    resolution: {integrity: sha512-ewW08OonrcRIsRKIlFvvcmmafE5zemb1ocu3HkNwtVPyRtj2w42pZCAkMIROYpcVBaPnc3mDT9UZDzwXWC3i6g==}
 
   '@expo/config@56.0.14':
     resolution: {integrity: sha512-OxKFAjFiOoWIBornS+QeACEt1HyIidZhLL1RKe+lyY/afk+c2H3BT8ftMLTp7NgQ28Af4MuKu8sJznUEEQFs1A==}
@@ -1835,11 +1886,22 @@ packages:
   '@expo/plist@0.7.0':
     resolution: {integrity: sha512-vrpryU1GoqSIRNqRB2D3IjXDmzNYfiQpEF6AH/xknlD7eiYmEDt3mb26V7cLcedcPG8PY/1xWHdBXVQJfEAh6Q==}
 
+  '@expo/plist@0.8.1':
+    resolution: {integrity: sha512-3gTReGIUm0oRaMClsAJYxBnVPCl6fVpsl8HS+DTVxDhW4GyVyxg9E/Znm3BvcHtUJ51RJJI14pC1wvrNilCRHw==}
+
   '@expo/prebuild-config@56.0.23':
     resolution: {integrity: sha512-cXHsaLMMN1NJUV84TAXbajdllzQVFwtZ4dW+iyWEjc1nFGiMih66Oj7EfvhAM2y6IvsDEEu02XoCnl4zlAlRHA==}
 
   '@expo/require-utils@56.1.7':
     resolution: {integrity: sha512-7Huw3V4VVThWZglueHpHX4gxdYvjhKOO5DzC/1NBuaDY4IPf/iPhqE+diFA6J/ZF0nC+tcC4YmUidXhnr7cmzQ==}
+    peerDependencies:
+      typescript: ^5.0.0 || ^5.0.0-0 || ^6.0.0 || ^7.0.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  '@expo/require-utils@57.0.5':
+    resolution: {integrity: sha512-kTAXj9lDFEIPMsbAOGCGbjBbMF0oi7CqkYM79KOX0DDD9wSwXmlKL1z2h8OwsrBf7mbOo2DjlRvZu4BEjrIxGw==}
     peerDependencies:
       typescript: ^5.0.0 || ^5.0.0-0 || ^6.0.0 || ^7.0.0
     peerDependenciesMeta:
@@ -7201,7 +7263,28 @@ snapshots:
       - supports-color
       - typescript
 
+  '@expo/config-plugins@57.0.9(typescript@5.9.3)':
+    dependencies:
+      '@expo/config-types': 57.0.2
+      '@expo/json-file': 11.0.1
+      '@expo/plist': 0.8.1
+      '@expo/require-utils': 57.0.5(typescript@5.9.3)
+      '@expo/sdk-runtime-versions': 1.0.0
+      chalk: 4.1.2
+      debug: 4.4.3
+      getenv: 2.0.0
+      glob: 13.0.6
+      semver: 7.8.5
+      slugify: 1.6.9
+      xcode: 3.0.1
+      xml2js: 0.6.0
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
+
   '@expo/config-types@56.0.7': {}
+
+  '@expo/config-types@57.0.2': {}
 
   '@expo/config@56.0.14(typescript@5.9.3)':
     dependencies:
@@ -7431,6 +7514,12 @@ snapshots:
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
 
+  '@expo/plist@0.8.1':
+    dependencies:
+      '@xmldom/xmldom': 0.8.15
+      base64-js: 1.5.1
+      xmlbuilder: 15.1.1
+
   '@expo/prebuild-config@56.0.23(typescript@5.9.3)':
     dependencies:
       '@expo/config': 56.0.14(typescript@5.9.3)
@@ -7448,6 +7537,16 @@ snapshots:
       - typescript
 
   '@expo/require-utils@56.1.7(typescript@5.9.3)':
+    dependencies:
+      '@babel/code-frame': 7.29.7
+      '@babel/core': 7.29.7
+      '@babel/plugin-transform-modules-commonjs': 7.29.7(@babel/core@7.29.7)
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@expo/require-utils@57.0.5(typescript@5.9.3)':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/core': 7.29.7

@@ -1,7 +1,10 @@
 {
   "publicPackages": [
     "@everframe/babel-plugin-displayname",
+    "@everframe/cli",
+    "@everframe/expo",
     "@everframe/identity",
+    "@everframe/metro",
     "@everframe/protocol",
     "@everframe/react",
     "@everframe/react-native",
@@ -70,8 +73,11 @@
     "examples/tvos-replay",
     "examples/vue-web",
     "packages/babel-plugin-displayname/package.json",
+    "packages/cli/package.json",
     "packages/everframe_flutter/pubspec.yaml",
+    "packages/expo/package.json",
     "packages/identity/package.json",
+    "packages/metro/package.json",
     "packages/protocol/package.json",
     "packages/sdk-android/package.json",
     "packages/sdk-core/package.json",

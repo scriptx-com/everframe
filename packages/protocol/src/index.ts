@@ -38,6 +38,7 @@ export * from './network-body.js';
 export * from './crash.js';
 export * from './crash-causes.js';
 export * from './crash-details.js';
+export * from './build-artifacts.js';
 export {
   VitalsPlayerEventType, VitalsPlayerId, VitalsSample, VitalsPlayerEvent,
   VitalsCustomEntry, VitalsEntry, VitalsChunk, SessionSummaryDims,
