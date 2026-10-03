@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { parseArgs } from "node:util";
-import type { StagedBuild } from "@everframe/protocol";
 import { realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,7 +9,8 @@ import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
 import { collectR8Build } from "./r8.js";
-import { readComplete, readPointer } from "./staging-io.js";
+import { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
+import { uploadStagedHermes } from "./staged-upload.js";
 import { uploadBuild, uploadCollectedBuild } from "./upload.js";
 
 export type { LocalBuild } from "./manifest.js";
@@ -25,11 +25,14 @@ export type {
   UploadOptions,
 } from "./upload.js";
 export { uploadBuild, uploadCollectedBuild } from "./upload.js";
+export { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
+export { uploadStagedHermes } from "./staged-upload.js";
 
 const HELP = `Usage:
   everframe sourcemaps upload --app-id <uuid> --build <id> --dir <path> [--url-prefix <url>] [--delete-after-upload]
   everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios> --bundle-name <name> --bundle <path> --source-map <path>
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
+  everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
@@ -53,11 +56,52 @@ export async function main(
   const isR8Command = argv[0] === "r8" && argv[1] === "upload";
   const isBuildCommand =
     argv[0] === "build" && (argv[1] === "collect" || argv[1] === "verify");
-  if (!isSourceMapCommand && !isR8Command && !isBuildCommand) {
+  const isExpoExportCommand = argv[0] === "upload-expo-export";
+  if (
+    !isSourceMapCommand &&
+    !isR8Command &&
+    !isBuildCommand &&
+    !isExpoExportCommand
+  ) {
     console.error("invalid_command");
     return 1;
   }
   try {
+    if (isExpoExportCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(1),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          dist: { type: "string", default: "dist" },
+          staging: { type: "string", default: ".everframe" },
+          "app-id": { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const token = env.EVERFRAME_API_TOKEN;
+      if (!token) throw new Error("missing_required_option");
+      const appId = await resolveExpoAppId(
+        parsed.values["app-id"],
+        env,
+        process.cwd(),
+      );
+      const results = await uploadExpoExport({
+        distDir: parsed.values.dist,
+        stagingDir: parsed.values.staging,
+        appId,
+        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        token,
+      });
+      for (const { platform, buildUuid } of results)
+        console.log(`Source-map build ${buildUuid} is ready (${platform}).`);
+      return 0;
+    }
+
     if (isBuildCommand) {
       const parsed = parseArgs({
         args: argv.slice(2),
@@ -189,7 +233,6 @@ export async function main(
       let bundleName = parsed.values["bundle-name"];
       let bundlePath = parsed.values.bundle;
       let sourceMapPath = parsed.values["source-map"];
-      let staged: StagedBuild | undefined;
 
       if (manifestDir !== undefined) {
         if (
@@ -201,12 +244,18 @@ export async function main(
           throw new Error("manifest_conflicts_with_explicit_options");
         if (platform !== "android" && platform !== "ios")
           throw new Error("missing_required_option");
-        const pointerBuildId = await readPointer(manifestDir, platform);
-        staged = await readComplete(manifestDir, pointerBuildId);
-        buildId = staged.buildId;
-        bundleName = staged.bundleName;
-        bundlePath = staged.bundlePath;
-        sourceMapPath = staged.mapPath;
+        if (!appId || !token) throw new Error("missing_required_option");
+        const result = await uploadStagedHermes(
+          {
+            stagingDir: manifestDir,
+            platform,
+            appId,
+            apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+            token,
+          },
+        );
+        console.log(`Source-map build ${result.buildUuid} is ready.`);
+        return 0;
       }
 
       if (
@@ -226,24 +275,6 @@ export async function main(
         bundlePath,
         sourceMapPath,
       });
-      // `build collect` hashed the bundle and the map the moment hermesc
-      // finished; `collectHermesBuild` above re-hashed whatever is on disk
-      // now. If those disagree, something rewrote an artifact between the
-      // two steps and the map no longer describes the bytecode being
-      // uploaded — the exact "map came from a different run than the
-      // binary" failure this staging pipeline exists to prevent. Refuse
-      // rather than publish a silently-mismatched pair.
-      if (staged) {
-        const artifact = local.manifest.artifacts[0];
-        if (!artifact) throw new Error("invalid_local_build");
-        if (artifact.generatedSha256 !== staged.generatedSha256)
-          throw new Error(adviceFor("staged_bundle_changed"));
-        if (
-          artifact.mapSha256 !== staged.mapSha256 ||
-          artifact.mapBytes !== staged.mapBytes
-        )
-          throw new Error(adviceFor("staged_source_map_changed"));
-      }
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(sourceMapPath)),
