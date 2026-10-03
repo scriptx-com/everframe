@@ -229,7 +229,8 @@
     ],
     "exemptPathPatterns": [
       "(^|/)(?:SampleApp|Everframe|KmpIosProbes)\\.xcodeproj/(?:project\\.pbxproj|project\\.xcworkspace/contents\\.xcworkspacedata|xcshareddata/xcschemes/[^/]+\\.xcscheme)$",
-      "^examples/kmp-ios-probes/Kmp(?:NativeProbe|ComposeHost)-Info\\.plist$"
+      "^examples/kmp-ios-probes/Kmp(?:NativeProbe|ComposeHost)-Info\\.plist$",
+      "^packages/cli/__tests__/fixtures/ios/project\\.pbxproj$"
     ]
   }
 }

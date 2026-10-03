@@ -27,6 +27,10 @@
     "./hermes": {
       "types": "./dist/hermes.d.ts",
       "default": "./dist/hermes.js"
+    },
+    "./native-setup": {
+      "types": "./dist/native-setup/index.d.ts",
+      "default": "./dist/native-setup/index.js"
     }
   },
   "files": [
@@ -40,6 +44,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "xcode": "^3.0.1",
     "zod": "^4.3.0"
   },
   "devDependencies": {

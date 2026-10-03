@@ -3,7 +3,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/manifest.ts", "src/upload.ts", "src/hermes.ts"],
+  entry: ["src/index.ts", "src/manifest.ts", "src/upload.ts", "src/hermes.ts", "src/native-setup/index.ts"],
   format: ["esm"],
   // protocol is private: true and never reaches npm, so its types and code
   // are inlined (see sdk-react-native/tsup.config.ts for why dts needs resolve).
