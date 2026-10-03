@@ -10,6 +10,7 @@ import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
 import { collectR8Build } from "./r8.js";
 import { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
+import { setupReactNative } from "./setup-react-native.js";
 import { uploadStagedHermes } from "./staged-upload.js";
 import { uploadBuild, uploadCollectedBuild } from "./upload.js";
 
@@ -33,6 +34,7 @@ const HELP = `Usage:
   everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios> --bundle-name <name> --bundle <path> --source-map <path>
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
+  everframe setup react-native --app-id <uuid> [--project <dir>]
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
@@ -57,7 +59,9 @@ export async function main(
   const isBuildCommand =
     argv[0] === "build" && (argv[1] === "collect" || argv[1] === "verify");
   const isExpoExportCommand = argv[0] === "upload-expo-export";
+  const isSetupCommand = argv[0] === "setup" && argv[1] === "react-native";
   if (
+    !isSetupCommand &&
     !isSourceMapCommand &&
     !isR8Command &&
     !isBuildCommand &&
@@ -67,6 +71,34 @@ export async function main(
     return 1;
   }
   try {
+    if (isSetupCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          project: { type: "string", default: "." },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"];
+      if (!appId) throw new Error("missing_required_option");
+      const { changed, metroHint } = await setupReactNative({
+        projectRoot: resolve(parsed.values.project),
+        appId,
+      });
+      if (changed.length === 0) console.log("Already set up; no changes.");
+      for (const path of changed) console.log(`Updated ${path}`);
+      console.log("Add to metro.config.js:");
+      console.log(metroHint);
+      return 0;
+    }
+
     if (isExpoExportCommand) {
       const parsed = parseArgs({
         args: argv.slice(1),
