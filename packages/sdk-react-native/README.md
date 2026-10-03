@@ -523,3 +523,19 @@ recipes above.
 ## License
 
 MIT
+
+### Android reporter initialization
+
+The Android reporter can be opened after the host activity has resumed, including
+apps that disable AndroidX Startup. Use matching updated React Native bridge and
+`dev.everframe:reporter-ui` artifacts: the bridge supplies the current resumed
+activity, and installation and presentation run on the main thread. Repeated
+configuration does not register another lifecycle observer. Capture configuration
+remains synchronous without waiting for reporter UI initialization.
+
+The existing `ReporterResolverInstaller.create(Context)` entry point is retained
+for compiled callers. A new bridge with an older reporter uses its legacy entry
+point when the activity-aware method is absent; that combination retains the old
+late-initialization limitation. A failure from an available method is reported,
+not retried through the legacy path. Background or unavailable activities return
+a cancelled result with reason `no_active_activity`.

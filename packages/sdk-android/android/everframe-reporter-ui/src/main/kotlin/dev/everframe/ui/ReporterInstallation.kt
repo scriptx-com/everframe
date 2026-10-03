@@ -9,6 +9,8 @@ import android.os.Looper
 import android.util.Log
 import dev.everframe.Everframe
 import dev.everframe.config.ReportResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Process ownership is independent of RN module instances. State is main-only. */
 internal object ReporterInstallation {
@@ -35,9 +37,11 @@ internal class ReporterInstallationState(
     private var registeredApplication: Application? = null
     private val activitySupplier = { ActivityRegistry.activeActivity() }
     private val resolver: suspend () -> ReportResult = {
-        val activity = ActivityRegistry.activeActivity()
-        if (activity == null) ReportResult.Cancelled("no_active_activity")
-        else TXReporterPresenter().openReporter(activity) { ActivityRegistry.isCurrent(activity) }
+        withContext(Dispatchers.Main.immediate) {
+            val activity = ActivityRegistry.activeActivity()
+            if (activity == null) ReportResult.Cancelled("no_active_activity")
+            else TXReporterPresenter().openReporter(activity) { ActivityRegistry.isCurrent(activity) }
+        }
     }
 
     fun ensureInstalled(application: Application) {

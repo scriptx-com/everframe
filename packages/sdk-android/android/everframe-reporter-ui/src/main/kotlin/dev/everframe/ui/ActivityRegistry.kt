@@ -49,4 +49,3 @@ internal object ActivityRegistry : Application.ActivityLifecycleCallbacks {
         }
     }
 }
-
