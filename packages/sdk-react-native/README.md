@@ -538,10 +538,19 @@ a cancelled result with reason `no_active_activity`.
 
 Legacy off-main `create(Context)` schedules installation and returns before it is
 ready; use the awaited activity-aware bridge to open immediately after configure.
-Older reporter artifacts also retain their repeated-installation behavior.
+With a new bridge and an older reporter, each configure, companion start, and
+open invokes legacy installation again. This can add duplicate lifecycle
+callbacks and overwrite that older reporter's resolver and activity supplier;
+the previous bridge limited installation to once per module. Conversely, an old
+compiled bridge with the new reporter can announce companion PIN capability
+before asynchronous reporter installation finishes, temporarily advertising no
+PIN support. Use the matching updated pair for the qualified behavior.
+
 Activity recreation is supported between reporter openings. Destruction while
 the dialog is already mounted remains a known limitation: the pending open may
-not settle until the process exits.
+never settle, presenting state stays active, and the frozen replay capture is
+not released. Shake-to-report may remain disabled until process restart. This
+change does not fix that existing mounted-dialog lifecycle defect.
 
 ## License
 
