@@ -77,6 +77,13 @@ internal class ReporterBridge(
         try { method.invoke(instance, *arguments) }
         catch (failure: InvocationTargetException) { throw failure.targetException }
 
+    /** Only SDK-owned constant messages may cross the JS promise boundary. */
+    fun rejectionMessage(failure: Throwable): String = when (failure) {
+        is ReporterBridgeFailure -> failure.message!!
+        is CancellationException -> "Reporter opening was cancelled"
+        else -> "Reporter initialization or opening failed"
+    }
+
     // No host exception/cause is forwarded to JS or diagnostic logs.
     private class ReporterBridgeFailure(message: String) : IllegalStateException(message)
 }

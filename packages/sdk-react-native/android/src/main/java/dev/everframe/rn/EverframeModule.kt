@@ -405,7 +405,8 @@ class EverframeModule(
                 }
                 promise.resolve(dict)
             } catch (t: Throwable) {
-                promise.reject(REJECT_OPEN_REPORTER_FAILED, t.message, t)
+                promise.reject(REJECT_OPEN_REPORTER_FAILED, reporterBridge.rejectionMessage(t))
+                if (t is kotlinx.coroutines.CancellationException) throw t
             }
         }
     }

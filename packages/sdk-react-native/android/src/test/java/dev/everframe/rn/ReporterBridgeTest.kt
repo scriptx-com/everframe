@@ -5,6 +5,9 @@ package dev.everframe.rn
 import android.app.Activity
 import android.content.Context
 import android.os.Looper
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.JavaOnlyMap
+import kotlinx.coroutines.CancellationException
 import com.facebook.react.bridge.BridgeReactContext
 import dev.everframe.Everframe
 import dev.everframe.config.ReportResult
@@ -109,4 +112,41 @@ class ReporterBridgeTest {
         assertFalse(thread.isAlive)
         shadowOf(Looper.getMainLooper()).idle()
     }
+    @Test fun moduleSanitizesImmediateAndSuspendedCancellationAtPromiseBoundary() {
+        assertEquals("http://127.0.0.1:9", dev.everframe.BuildConfig.INGEST_URL)
+        val module = EverframeModule(resumed())
+        module.configure(JavaOnlyMap().apply { putString("apiKey", "reporter-test-only") })
+        for (suspended in listOf(false, true)) {
+            val gate = CompletableDeferred<ReportResult>()
+            val privateError = CancellationException("private-host-value").apply {
+                initCause(IllegalStateException("private-host-cause"))
+            }
+            var invoked = 0
+            Everframe.report.__resolver = {
+                invoked++
+                if (suspended) gate.await() else throw privateError
+            }
+            val rejections = mutableListOf<List<Any?>>()
+            val promise = java.lang.reflect.Proxy.newProxyInstance(
+                Promise::class.java.classLoader, arrayOf(Promise::class.java),
+            ) { _, method, arguments ->
+                if (method.name == "reject") rejections += arguments!!.toList()
+                if (method.name == "resolve") fail("must reject")
+                null
+            } as Promise
+            module.openReporter(promise)
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(1, invoked)
+            if (suspended) {
+                assertTrue(rejections.isEmpty())
+                gate.completeExceptionally(privateError)
+                shadowOf(Looper.getMainLooper()).idle()
+            }
+            assertEquals(1, rejections.size)
+            assertEquals("must not forward throwable/cause to JS", 2, rejections.single().size)
+            assertFalse(rejections.single().toString().contains("private-host"))
+        }
+        Everframe.kill()
+    }
+
 }
