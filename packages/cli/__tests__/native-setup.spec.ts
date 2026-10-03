@@ -95,6 +95,19 @@ describe('patchXcodeProject', () => {
     for (const s of settings) expect(s.SOURCEMAP_FILE).toBe(SOURCEMAP_FILE_VALUE);
   });
 
+  it('replaces the phase script when the app id changes', () => {
+    const other = '11111111-1111-4111-8111-111111111111';
+    const project = loadProject();
+    patchXcodeProject(project, APP);
+    patchXcodeProject(project, other);
+    const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
+    const keys = Object.keys(section).filter((key) => section[`${key}_comment`] === XCODE_PHASE_NAME);
+    expect(keys).toHaveLength(1);
+    const script = (section[keys[0]!] as { shellScript: string }).shellScript;
+    expect(script).toContain(other);
+    expect(script).not.toContain(APP);
+  });
+
   it('keeps a SOURCEMAP_FILE the app already defines', () => {
     const project = loadProject();
     for (const s of appBuildSettings(project)) s.SOURCEMAP_FILE = '"custom.map"';

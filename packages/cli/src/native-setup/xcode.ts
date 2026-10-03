@@ -20,11 +20,18 @@ export interface XcodeProjectLike {
   pbxXCBuildConfigurationSection(): unknown;
 }
 
-/** Appends the upload as the last Run Script phase and defines `SOURCEMAP_FILE` if unset. */
+/**
+ * Appends the upload as the last Run Script phase, or rewrites an existing phase's script
+ * so a new app id or script fix lands; defines `SOURCEMAP_FILE` if unset.
+ */
 export function patchXcodeProject(project: XcodeProjectLike, appId: string): void {
   const target = project.getFirstTarget();
-  if (!project.pbxItemByComment(XCODE_PHASE_NAME, 'PBXShellScriptBuildPhase')) {
-    const script = buildPhaseScript({ platform: 'ios', appId, stagingDir: '$SRCROOT/../.everframe', projectRoot: '$SRCROOT/..' });
+  const script = buildPhaseScript({ platform: 'ios', appId, stagingDir: '$SRCROOT/../.everframe', projectRoot: '$SRCROOT/..' });
+  const existing = project.pbxItemByComment(XCODE_PHASE_NAME, 'PBXShellScriptBuildPhase') as { shellScript?: string } | null;
+  if (existing) {
+    // Same quoting `addBuildPhase` applies, so an unchanged script serializes identically.
+    existing.shellScript = `"${script.replace(/"/g, '\\"')}"`;
+  } else {
     project.addBuildPhase([], 'PBXShellScriptBuildPhase', XCODE_PHASE_NAME, target.uuid, {
       shellPath: '/bin/bash',
       shellScript: script,

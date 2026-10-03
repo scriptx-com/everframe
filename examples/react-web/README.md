@@ -92,7 +92,9 @@ instructions in the Everframe dashboard.
 ## Readable stack traces
 
 Set `EVERFRAME_APP_ID`, `EVERFRAME_API_TOKEN` (a token with `artifacts:write`)
-and `EVERFRAME_BUNDLER_PLUGIN=1`; the plugin covers client webpack builds only:
+and `EVERFRAME_BUNDLER_PLUGIN=1`. The plugin covers client webpack builds only, so
+the production build must use `--webpack` to upload. Next 16's default Turbopack
+build still succeeds but is not stamped or uploaded, and the plugin warns about it:
 
 ```bash
 EVERFRAME_BUNDLER_PLUGIN=1 EVERFRAME_APP_ID=<app uuid> EVERFRAME_API_TOKEN=<token> pnpm exec next build --webpack

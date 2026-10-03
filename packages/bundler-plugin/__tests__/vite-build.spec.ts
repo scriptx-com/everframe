@@ -117,4 +117,24 @@ describe('vite', () => {
     const js = (await readdir(join(root, 'dist', 'assets'))).find((f) => f.endsWith('.js'))!;
     expect(await readFile(join(root, 'dist', 'assets', js), 'utf8')).toMatch(/__EVERFRAME_BUILD__/);
   });
+
+  it('is a silent no-op locally without an app id', async () => {
+    const root = await app();
+    const upload = vi.fn();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await build({ root, logLevel: 'silent', plugins: [plugin({ appId: undefined }, { env: { EVERFRAME_API_TOKEN: 't' }, upload })] });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('appId'));
+    } finally {
+      warn.mockRestore();
+    }
+    const assets = await readdir(join(root, 'dist', 'assets'));
+    expect(assets.some((f) => f.endsWith('.map'))).toBe(false);
+    expect(await readFile(join(root, 'dist', 'assets', assets.find((f) => f.endsWith('.js'))!), 'utf8')).not.toContain('__EVERFRAME_BUILD__');
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('fails in CI without an app id', () => {
+    expect(() => plugin({ appId: undefined }, { env: { CI: 'true' } })).toThrow(/appId/);
+  });
 });

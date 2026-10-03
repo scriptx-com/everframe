@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -48,5 +48,57 @@ describe('setupReactNative', () => {
     const before = await readFile(join(root, 'android/app/build.gradle'), 'utf8');
     await expect(setupReactNative({ projectRoot: root, appId: 'nope' })).rejects.toThrow(/UUID/);
     expect(await readFile(join(root, 'android/app/build.gradle'), 'utf8')).toBe(before);
+  });
+
+  it('rewrites the xcode phase when re-run with a new app id', async () => {
+    const other = '11111111-1111-4111-8111-111111111111';
+    const root = await bareProject();
+    await setupReactNative({ projectRoot: root, appId: APP });
+    const result = await setupReactNative({ projectRoot: root, appId: other });
+    expect(result.changed).toEqual(['android/app/build.gradle', 'ios/App.xcodeproj/project.pbxproj']);
+    const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
+    expect(pbx).toContain(other);
+    expect(pbx).not.toContain(APP);
+    expect(pbx.match(/Upload Everframe Build Artifacts \*\/ = \{/g)).toHaveLength(1);
+  });
+
+  it('patches an android-only project', async () => {
+    const root = await bareProject();
+    await rm(join(root, 'ios'), { recursive: true });
+    const result = await setupReactNative({ projectRoot: root, appId: APP });
+    expect(result.changed).toEqual(['android/app/build.gradle']);
+  });
+
+  it('patches an ios-only project', async () => {
+    const root = await bareProject();
+    await rm(join(root, 'android'), { recursive: true });
+    const result = await setupReactNative({ projectRoot: root, appId: APP });
+    expect(result.changed).toEqual(['ios/App.xcodeproj/project.pbxproj']);
+  });
+
+  it('fails without any native project', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'evf-bare-'));
+    await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow('no_native_project');
+  });
+
+  it('rejects multiple xcode projects without writing anything', async () => {
+    const root = await bareProject();
+    await mkdir(join(root, 'ios', 'Other.xcodeproj'));
+    const gradle = join(root, 'android/app/build.gradle');
+    const before = await readFile(gradle, 'utf8');
+    const mtime = (await stat(gradle)).mtimeMs;
+    await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow('multiple_xcode_projects');
+    expect(await readFile(gradle, 'utf8')).toBe(before);
+    expect((await stat(gradle)).mtimeMs).toBe(mtime);
+  });
+
+  it('rejects a kotlin gradle script before patching xcode', async () => {
+    const root = await bareProject();
+    await rm(join(root, 'android/app/build.gradle'));
+    await writeFile(join(root, 'android/app/build.gradle.kts'), '');
+    const pbx = join(root, 'ios/App.xcodeproj/project.pbxproj');
+    const before = await readFile(pbx, 'utf8');
+    await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow(/Groovy/);
+    expect(await readFile(pbx, 'utf8')).toBe(before);
   });
 });

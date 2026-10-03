@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { finishBuild, identityBanner, resolveSettings } from '../src/core.js';
+import { finishBuild, identityBanner, resolvePluginSettings, resolveSettings } from '../src/core.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
 
@@ -33,6 +33,27 @@ describe('resolveSettings', () => {
 
   it('rejects a missing or non-uuid app id', () => {
     expect(() => resolveSettings({ appId: '' }, {})).toThrow(/appId/);
+  });
+});
+
+describe('resolvePluginSettings', () => {
+  it('warns and disables the plugin outside CI when the app id is missing or not a uuid', () => {
+    const log = vi.fn();
+    expect(resolvePluginSettings({ appId: undefined }, {}, log)).toBeUndefined();
+    expect(resolvePluginSettings({ appId: 'nope' }, { CI: 'false' }, log)).toBeUndefined();
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('appId'));
+  });
+
+  it('keeps failing in CI', () => {
+    expect(() => resolvePluginSettings({ appId: undefined }, { CI: 'true' }, vi.fn())).toThrow(/appId must be an Everframe application UUID/);
+    expect(() => resolvePluginSettings({ appId: 'nope' }, { CI: '1' }, vi.fn())).toThrow(/appId/);
+  });
+
+  it('resolves settings for a valid app id without logging', () => {
+    const log = vi.fn();
+    expect(resolvePluginSettings({ appId: APP, buildId: 'b1' }, {}, log)).toMatchObject({ appId: APP, buildId: 'b1' });
+    expect(log).not.toHaveBeenCalled();
   });
 });
 
