@@ -57,16 +57,17 @@ function encodePath(path: string): string {
 export async function collectBuild(
   options: Pick<UploadOptions, "buildId" | "root" | "urlPrefix">,
 ): Promise<LocalBuild> {
-  if (!options.urlPrefix.endsWith("/"))
-    throw new Error("url_prefix_must_end_with_slash");
-  let prefix: URL;
-  try {
-    prefix = new URL(options.urlPrefix);
-  } catch {
-    throw new Error("invalid_url_prefix");
-  }
-  if (prefix.username || prefix.password || prefix.search || prefix.hash) {
-    throw new Error("invalid_url_prefix");
+  let prefix: URL | undefined;
+  if (options.urlPrefix !== undefined) {
+    if (!options.urlPrefix.endsWith("/"))
+      throw new Error("url_prefix_must_end_with_slash");
+    try {
+      prefix = new URL(options.urlPrefix);
+    } catch {
+      throw new Error("invalid_url_prefix");
+    }
+    if (prefix.username || prefix.password || prefix.search || prefix.hash)
+      throw new Error("invalid_url_prefix");
   }
 
   const root = await realpath(resolve(options.root));
@@ -130,7 +131,9 @@ export async function collectBuild(
     totalBytes += mapBytes;
     if (totalBytes > BUILD_MAX_BYTES) throw new Error("build_too_large");
     const url = normalizeAssetUrl(
-      new URL(encodePath(generatedRelative), prefix).href,
+      prefix
+        ? new URL(encodePath(generatedRelative), prefix).href
+        : `~/${encodePath(generatedRelative)}`,
     );
     artifacts.push({
       url,

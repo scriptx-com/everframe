@@ -135,6 +135,64 @@ it("collects one snapshot and still rejects map changes after reporting uncovere
   }
 });
 
+it("uploads by path when --url-prefix is omitted", async () => {
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const manifestModule = await import("../src/manifest.js");
+  const collect = vi.spyOn(manifestModule, "collectBuild");
+  const root = await mkdtemp(join(tmpdir(), "everframe-command-"));
+  await writeFile(join(root, "a.js"), "a();");
+  await writeFile(join(root, "a.js.map"), "{}");
+  await writeFile(join(root, "uncovered.js"), "u();");
+  const { writeFileSync } = await import("node:fs");
+  const log = vi.spyOn(console, "log").mockImplementation((line) => {
+    if (String(line).startsWith("Uncovered"))
+      writeFileSync(join(root, "a.js.map"), '{"changed":true}');
+  });
+  const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const fetcher = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(
+      Response.json({
+        buildUuid: "build",
+        status: "uploading",
+        artifacts: [
+          {
+            artifactUuid: "artifact",
+            url: "~/a.js",
+            available: false,
+          },
+        ],
+      }),
+    );
+  try {
+    const code = await main(
+      [
+        "sourcemaps",
+        "upload",
+        "--app-id",
+        "app",
+        "--build",
+        "b",
+        "--dir",
+        root,
+      ],
+      { EVERFRAME_API_TOKEN: "secret" },
+    );
+    expect(collect).toHaveBeenCalledTimes(1);
+    expect(code).toBe(1);
+    expect(error).toHaveBeenCalledWith("source_map_changed");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(String(fetcher.mock.calls[0]![1]!.body));
+    expect(body.artifacts[0].url).toMatch(/^~\//);
+  } finally {
+    collect.mockRestore();
+    log.mockRestore();
+    error.mockRestore();
+    fetcher.mockRestore();
+  }
+});
+
 describe("build commands", () => {
   it("rejects an unknown build subcommand", async () => {
     expect(await main(["build", "frobnicate"], {})).toBe(1);

@@ -12,7 +12,7 @@ export interface UploadOptions {
   appId: string;
   buildId: string;
   root: string;
-  urlPrefix: string;
+  urlPrefix?: string | undefined;
   apiUrl: string;
   token: string;
   deleteAfterUpload: boolean;

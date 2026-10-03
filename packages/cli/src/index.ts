@@ -27,7 +27,7 @@ export type {
 export { uploadBuild, uploadCollectedBuild } from "./upload.js";
 
 const HELP = `Usage:
-  everframe sourcemaps upload --app-id <uuid> --build <id> --dir <path> --url-prefix <url> [--delete-after-upload]
+  everframe sourcemaps upload --app-id <uuid> --build <id> --dir <path> [--url-prefix <url>] [--delete-after-upload]
   everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios> --bundle-name <name> --bundle <path> --source-map <path>
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
@@ -277,7 +277,7 @@ export async function main(
     const root = parsed.values.dir;
     const urlPrefix = parsed.values["url-prefix"];
     const token = env.EVERFRAME_API_TOKEN;
-    if (!appId || !buildId || !root || !urlPrefix || !token)
+    if (!appId || !buildId || !root || !token)
       throw new Error("missing_required_option");
     const local = await collectBuild({ buildId, root, urlPrefix });
     for (const path of local.uncovered)

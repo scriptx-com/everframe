@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, symlink, truncate, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, realpath, symlink, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -136,4 +136,20 @@ it("rejects a sparse map one byte above the local 32 MiB stat limit", async () =
   await expect(
     collectBuild({ buildId: "b", root, urlPrefix: "https://cdn.example/" }),
   ).rejects.toThrow("source_map_too_large");
+});
+
+describe("collectBuild without a url prefix", () => {
+  it("uses path-only urls when no url prefix is given", async () => {
+    const root = await mkdtemp(join(tmpdir(), "evf-manifest-"));
+    await mkdir(join(root, "assets"));
+    await writeFile(join(root, "assets", "a b.js"), "x");
+    await writeFile(join(root, "assets", "a b.js.map"), "{}");
+    const local = await collectBuild({ buildId: "b1", root });
+    expect(local.manifest.artifacts.map((a) => a.url)).toEqual([
+      "~/assets/a%20b.js",
+    ]);
+    expect(local.mapPaths.get("~/assets/a%20b.js")).toBe(
+      join(await realpath(root), "assets", "a b.js.map"),
+    );
+  });
 });
