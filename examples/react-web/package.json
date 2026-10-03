@@ -23,6 +23,7 @@
     "shaka-player": "^5.2.8"
   },
   "devDependencies": {
+    "@everframe/bundler-plugin": "workspace:*",
     "@everframe/swc-plugin-displayname": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",

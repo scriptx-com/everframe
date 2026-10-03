@@ -124,6 +124,15 @@ importers:
       '@everframe/babel-plugin-displayname':
         specifier: workspace:*
         version: link:../../packages/babel-plugin-displayname
+      '@everframe/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      '@everframe/expo':
+        specifier: workspace:*
+        version: link:../../packages/expo
+      '@everframe/metro':
+        specifier: workspace:*
+        version: link:../../packages/metro
       '@types/react':
         specifier: ^19.1.1
         version: 19.3.0
@@ -149,6 +158,9 @@ importers:
         specifier: 19.2.5
         version: 19.2.5(react@19.2.5)
     devDependencies:
+      '@everframe/bundler-plugin':
+        specifier: workspace:*
+        version: link:../../packages/bundler-plugin
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0
@@ -192,6 +204,9 @@ importers:
         specifier: ^5.2.8
         version: 5.2.11
     devDependencies:
+      '@everframe/bundler-plugin':
+        specifier: workspace:*
+        version: link:../../packages/bundler-plugin
       '@everframe/swc-plugin-displayname':
         specifier: workspace:*
         version: link:../../packages/swc-plugin-displayname
