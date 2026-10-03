@@ -1,6 +1,7 @@
 {
   "publicPackages": [
     "@everframe/babel-plugin-displayname",
+    "@everframe/bundler-plugin",
     "@everframe/cli",
     "@everframe/expo",
     "@everframe/identity",
@@ -73,6 +74,7 @@
     "examples/tvos-replay",
     "examples/vue-web",
     "packages/babel-plugin-displayname/package.json",
+    "packages/bundler-plugin/package.json",
     "packages/cli/package.json",
     "packages/everframe_flutter/pubspec.yaml",
     "packages/expo/package.json",
