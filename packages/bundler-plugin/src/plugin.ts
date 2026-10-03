@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import MagicString from 'magic-string';
 import { createUnplugin, type UnpluginInstance } from 'unplugin';
 import { finishBuild, identityBanner, resolveSettings, type EverframeBundlerOptions } from './core.js';
@@ -9,6 +9,10 @@ import type { uploadBuild } from '@everframe/cli/upload';
 export interface PluginDeps {
   env?: NodeJS.ProcessEnv;
   upload?: typeof uploadBuild;
+}
+
+function outputRoot(output: { dir?: string | undefined; file?: string | undefined }): string {
+  return resolve(output.dir ?? (output.file ? dirname(output.file) : 'dist'));
 }
 
 /** Factory with injectable env/upload for tests; production code uses `everframeUnplugin`. */
@@ -23,24 +27,25 @@ export function createEverframePlugin(deps: PluginDeps = {}): UnpluginInstance<E
       s.prepend(`${banner}\n`);
       return { code: s.toString(), map: s.generateMap({ hires: true }) };
     };
-    let active = true;
     return {
       name: 'everframe',
       vite: {
         apply: 'build',
-        config(config) {
-          if (config.build?.ssr) {
-            active = false;
-            return;
-          }
+        // Only the browser bundle is stamped and uploaded; SSR/server environments are skipped.
+        applyToEnvironment(environment) {
+          return environment.config.consumer === 'client';
+        },
+        configEnvironment(name, config) {
+          // consumer is unset for the default client environment at this stage.
+          if ((config.consumer ?? (name === 'client' ? 'client' : 'server')) !== 'client') return;
           return { build: { sourcemap: config.build?.sourcemap ?? 'hidden' } };
         },
         renderChunk(code, chunk) {
-          if (!active || !chunk.isEntry) return null;
+          if (!chunk.isEntry) return null;
           return stamp(code);
         },
         async writeBundle(output) {
-          if (active) await finish(resolve(output.dir ?? 'dist'));
+          await finish(outputRoot(output));
         },
       },
       rollup: {
@@ -52,7 +57,7 @@ export function createEverframePlugin(deps: PluginDeps = {}): UnpluginInstance<E
           return stamp(code);
         },
         async writeBundle(output) {
-          await finish(resolve(output.dir ?? 'dist'));
+          await finish(outputRoot(output));
         },
       },
     };

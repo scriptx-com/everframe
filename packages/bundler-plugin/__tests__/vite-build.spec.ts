@@ -4,7 +4,7 @@ import { mkdtemp, readdir, readFile, realpath, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping';
-import { build, type PluginOption } from 'vite';
+import { build, createBuilder, type PluginOption } from 'vite';
 import { describe, expect, it, vi } from 'vitest';
 import { createEverframePlugin } from '../src/plugin.js';
 
@@ -82,5 +82,39 @@ describe('vite', () => {
     });
     const js = (await readdir(join(root, 'dist', 'assets'))).find((f) => f.endsWith('.js'))!;
     expect(await readFile(join(root, 'dist', 'assets', js), 'utf8')).toContain('sourceMappingURL');
+  });
+
+  it('stamps and uploads only the client environment of a multi-environment build', async () => {
+    const root = await app();
+    await writeFile(join(root, 'server.js'), 'export const s = 1;\n');
+    const upload = vi.fn().mockResolvedValue({});
+    const builder = await createBuilder({
+      root,
+      logLevel: 'silent',
+      plugins: [plugin({ appId: APP, buildId: 'b1', deleteAfterUpload: false }, { env: { EVERFRAME_API_TOKEN: 't' }, upload })],
+      environments: {
+        client: { build: { outDir: join(root, 'dist', 'client') } },
+        ssr: { build: { ssr: join(root, 'server.js'), outDir: join(root, 'dist', 'server') } },
+      },
+    });
+    await builder.buildApp();
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'dist', 'client') }));
+    const server = await readdir(join(root, 'dist', 'server'));
+    expect(server.some((f) => f.endsWith('.map'))).toBe(false);
+    expect(await readFile(join(root, 'dist', 'server', server.find((f) => /\.m?js$/.test(f))!), 'utf8')).not.toContain('__EVERFRAME_BUILD__');
+  });
+
+  it('re-enables a shared plugin instance for a client build after an SSR build', async () => {
+    const root = await app();
+    const upload = vi.fn().mockResolvedValue({});
+    const instance = createEverframePlugin({ env: { EVERFRAME_API_TOKEN: 't' }, upload });
+    const make = () => instance.vite({ appId: APP, buildId: 'b1', deleteAfterUpload: false }) as unknown as PluginOption;
+    await build({ root, logLevel: 'silent', build: { ssr: join(root, 'main.js'), outDir: 'dist-ssr' }, plugins: [make()] });
+    expect(upload).not.toHaveBeenCalled();
+    await build({ root, logLevel: 'silent', plugins: [make()] });
+    expect(upload).toHaveBeenCalledTimes(1);
+    const js = (await readdir(join(root, 'dist', 'assets'))).find((f) => f.endsWith('.js'))!;
+    expect(await readFile(join(root, 'dist', 'assets', js), 'utf8')).toMatch(/__EVERFRAME_BUILD__/);
   });
 });

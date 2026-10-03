@@ -16,7 +16,7 @@
   "files": ["dist", "LICENSE", "NOTICE"],
   "scripts": { "build": "tsup", "test": "vitest run", "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json" },
   "dependencies": { "@everframe/cli": "workspace:^", "magic-string": "^0.30.0", "unplugin": "^2.3.0" },
-  "devDependencies": { "@jridgewell/trace-mapping": "^0.3.25", "@types/node": "^22.0.0", "tsup": "^8.0.0", "vite": "^6.0.0" },
+  "devDependencies": { "@jridgewell/trace-mapping": "^0.3.25", "@types/node": "^22.0.0", "rollup": "^4.0.0", "tsup": "^8.0.0", "vite": "^6.0.0" },
   "repository": { "type": "git", "url": "git+https://github.com/scriptx-com/everframe.git", "directory": "packages/bundler-plugin" },
   "publishConfig": { "access": "public" }
 }
