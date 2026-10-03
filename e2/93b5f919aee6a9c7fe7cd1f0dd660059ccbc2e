@@ -1,0 +1,27 @@
+packages/sdk-react-native/README.md
+  s_25cbf9c00cc88e::t_ae9bd6b0f775e0 523,529,538-548
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_25cbf9c00cc88e::t_95b38e83331a96 850-853,867-869,876,982-985
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeCompanionOwnershipTest.kt
+  s_25cbf9c00cc88e::t_7ffd16f56da10d 259
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterBridgeTest.kt
+  s_25cbf9c00cc88e::t_e352c901532704 18,56-58,117-141
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterTestState.kt
+  s_25cbf9c00cc88e::t_1b3d1aea443964 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e293b5f919aee6a9c7fe7cd1f0dd660059ccbc2e",
+  "prompts": {},
+  "sessions": {
+    "s_25cbf9c00cc88e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10081-39db-7481-8922-b7d392a482c0",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
