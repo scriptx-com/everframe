@@ -1,0 +1,19 @@
+packages/sdk-react-native/README.md
+  s_25cbf9c00cc88e::t_92b5a21fa0d0e0 541-548,551-553
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f3b8a254f5c4bf98fd3eff48e9c789222ae975b9",
+  "prompts": {},
+  "sessions": {
+    "s_25cbf9c00cc88e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10081-39db-7481-8922-b7d392a482c0",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
