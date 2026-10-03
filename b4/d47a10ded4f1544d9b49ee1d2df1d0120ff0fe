@@ -1,0 +1,29 @@
+packages/sdk-android/android/everframe-reporter-ui/consumer-rules.pro
+  s_25cbf9c00cc88e::t_32ef45ee653dd5 6-13
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterInstallation.kt
+  s_25cbf9c00cc88e::t_b8578324c65bb2 12-13,40-44
+packages/sdk-react-native/README.md
+  s_25cbf9c00cc88e::t_031527ffa2bb20 526-541
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_25cbf9c00cc88e::t_85e611432f608a 108-109,336,362-365,389
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/ReporterBridge.kt
+  s_25cbf9c00cc88e::t_ab01306453ed95 1-82
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterBridgeTest.kt
+  s_25cbf9c00cc88e::t_3df4b7563568f2 1-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b4d47a10ded4f1544d9b49ee1d2df1d0120ff0fe",
+  "prompts": {},
+  "sessions": {
+    "s_25cbf9c00cc88e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10081-39db-7481-8922-b7d392a482c0",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
