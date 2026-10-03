@@ -1,0 +1,23 @@
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_25cbf9c00cc88e::t_9e12ad09558b58 408-409
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/ReporterBridge.kt
+  s_25cbf9c00cc88e::t_eb04f538a87c23 80-86
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterBridgeTest.kt
+  s_25cbf9c00cc88e::t_01389aacc70d18 8-10,115-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "33f4b1ca009b38cc55404ac45df23c4c21240e7c",
+  "prompts": {},
+  "sessions": {
+    "s_25cbf9c00cc88e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10081-39db-7481-8922-b7d392a482c0",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
