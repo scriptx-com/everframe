@@ -58,4 +58,4 @@ config.resolver.extraNodeModules = {
   'react-native': path.resolve(workspaceRoot, 'node_modules/react-native'),
 };
 
-module.exports = config;
+module.exports = require('@everframe/metro').withEverframe(config, { projectRoot });

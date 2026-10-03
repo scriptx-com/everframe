@@ -40,6 +40,15 @@ on the oldest supported emulator before changing the SDK capture path.
 4. `ares-install --device emulator <file>.ipk` → installs into the emulator.
 5. `ares-launch --device emulator com.everframe.example.reacttv` → launches.
 
+## Readable stack traces
+
+Set `EVERFRAME_APP_ID` and `EVERFRAME_API_TOKEN` (a token with `artifacts:write`)
+and the Vite build uploads its source maps and stamps a build ID:
+
+```bash
+EVERFRAME_APP_ID=<app uuid> EVERFRAME_API_TOKEN=<token> pnpm build
+```
+
 ## QR library — host choice, not SDK
 
 This sample uses [`qrcode.react`](https://github.com/zpao/qrcode.react). The
