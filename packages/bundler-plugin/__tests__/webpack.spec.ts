@@ -26,7 +26,10 @@ describe('webpack', () => {
     const finish = vi.fn().mockResolvedValue(undefined);
     applyWebpack(fake.compiler as never, resolveSettings({ appId: APP, buildId: 'b1' }, {}), finish);
     expect(fake.compiler.options.devtool).toBe('hidden-source-map');
-    expect(fake.applied).toEqual([expect.objectContaining({ entryOnly: true, raw: true, banner: expect.stringContaining('"b1"') })]);
+    expect(fake.applied).toEqual([expect.objectContaining({ entryOnly: true, raw: true, test: /\.[cm]?js$/, banner: expect.stringContaining('"b1"') })]);
+    const test = (fake.applied[0] as { test: RegExp }).test;
+    expect(['a.js', 'a.mjs', 'a.cjs'].every((f) => test.test(f))).toBe(true);
+    expect(test.test('a.css')).toBe(false);
     await fake.afterEmit[0]!();
     expect(finish).toHaveBeenCalledWith('/out');
   });

@@ -17,7 +17,7 @@ function outputRoot(output: { dir?: string | undefined; file?: string | undefine
 
 interface WebpackCompilerLike {
   options: { devtool?: unknown; mode?: string; output: { path?: string } };
-  webpack: { BannerPlugin: new (options: { banner: string; raw: boolean; entryOnly: boolean }) => { apply(c: unknown): void } };
+  webpack: { BannerPlugin: new (options: { banner: string; raw: boolean; entryOnly: boolean; test: RegExp }) => { apply(c: unknown): void } };
   hooks: { afterEmit: { tapPromise(name: string, fn: () => Promise<void>): void } };
 }
 
@@ -25,7 +25,7 @@ interface WebpackCompilerLike {
 export function applyWebpack(compiler: WebpackCompilerLike, settings: Settings, finish: (dir: string) => Promise<void>): void {
   if (compiler.options.mode !== 'production') return;
   if (!compiler.options.devtool) compiler.options.devtool = 'hidden-source-map';
-  new compiler.webpack.BannerPlugin({ banner: identityBanner(settings.buildId), raw: true, entryOnly: true }).apply(compiler);
+  new compiler.webpack.BannerPlugin({ banner: identityBanner(settings.buildId), raw: true, entryOnly: true, test: /\.[cm]?js$/ }).apply(compiler);
   compiler.hooks.afterEmit.tapPromise('everframe', () => finish(resolve(compiler.options.output.path ?? 'dist')));
 }
 
@@ -79,15 +79,19 @@ export function createEverframePlugin(deps: PluginDeps = {}): UnpluginInstance<E
       },
       esbuild: {
         setup(build) {
-          build.initialOptions.sourcemap ??= 'external';
-          build.initialOptions.banner = {
-            ...build.initialOptions.banner,
-            js: `${banner}\n${build.initialOptions.banner?.js ?? ''}`,
-          };
+          const env = deps.env ?? process.env;
+          const opts = build.initialOptions;
+          if (opts.minify !== true && env.NODE_ENV !== 'production') return;
+          opts.sourcemap ??= 'external';
+          opts.banner = { ...opts.banner, js: `${banner}\n${opts.banner?.js ?? ''}` };
           build.onEnd(async (result) => {
             if (result.errors.length) return;
-            const dir = build.initialOptions.outdir;
-            if (!dir) throw new Error('everframe: esbuild needs outdir to upload source maps');
+            if (opts.write === false) {
+              console.warn('everframe: esbuild write:false, skipping source-map upload');
+              return;
+            }
+            const dir = opts.outdir ?? (opts.outfile ? dirname(opts.outfile) : undefined);
+            if (!dir) throw new Error('everframe: esbuild needs outdir or outfile to upload source maps');
             await finish(resolve(dir));
           });
         },
