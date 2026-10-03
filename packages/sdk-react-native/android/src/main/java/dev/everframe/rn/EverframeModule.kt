@@ -105,6 +105,8 @@ class EverframeModule(
     private val reactContext: ReactApplicationContext,
 ) : NativeEverframeSpec(reactContext) {
 
+    private val reporterBridge = ReporterBridge()
+
     private val videoPrivacyAdapter = Everframe.__registerVideoPrivacyAdapter(RnVideoPrivacyAdapter)
     private val sensitiveRegistration = RnSensitiveRegistration(
         { tag -> UIManagerHelper.getUIManagerForReactTag(reactContext, tag)?.resolveView(tag) },
@@ -331,7 +333,7 @@ class EverframeModule(
                     "Everframe.rn",
                     "configure: SDK already running this exact config — skipping start()",
                 )
-                installPresenterResolverIfNeeded()
+                reporterBridge.scheduleInstall(reactContext)
                 completed = true
                 return@txGuardSurface
             }
@@ -357,10 +359,10 @@ class EverframeModule(
 
             // Wire TXReporterPresenter as the resolver for
             // Everframe.shared.report.open(). Mirrors iOS TXReporterPresenter
-            // .installResolver(). Reflective lookup keeps :sdk-react-native
-            // from a hard dependency on :everframe-reporter-ui (which the host
-            // app pulls in via its app build.gradle).
-            installPresenterResolverIfNeeded()
+            // .installResolver(). Reflection preserves compatibility with
+            // separately built reporter artifacts; the awaited open retries
+            // installation on main before selecting the resumed host.
+            reporterBridge.scheduleInstall(reactContext)
             completed = true
         }
         return completed
@@ -382,16 +384,9 @@ class EverframeModule(
             promise.reject(REJECT_CAPTURE_DISABLED, "Everframe not started (captureGate=false). Call configure() first.")
             return
         }
-        // ReporterResolverInstaller tracks the active Activity via its own
-        // ActivityRegistry — we don't pass currentActivity through. But we
-        // ensure the resolver is installed so report.open() doesn't throw.
-        installPresenterResolverIfNeeded()
-
         MainScope().launch {
             try {
-                val result: ReportResult = withContext(Dispatchers.Main) {
-                    Everframe.report.open()
-                }
+                val result: ReportResult = reporterBridge.open(reactContext)
                 val dict = Arguments.createMap().apply {
                     when (result) {
                         is ReportResult.Submitted -> {
@@ -410,7 +405,8 @@ class EverframeModule(
                 }
                 promise.resolve(dict)
             } catch (t: Throwable) {
-                promise.reject(REJECT_OPEN_REPORTER_FAILED, t.message, t)
+                promise.reject(REJECT_OPEN_REPORTER_FAILED, reporterBridge.rejectionMessage(t))
+                if (t is kotlinx.coroutines.CancellationException) throw t
             }
         }
     }
@@ -851,6 +847,10 @@ class EverframeModule(
 
     @ReactMethod
     override fun startCompanion() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post { startCompanion() }
+            return
+        }
         txGuardVoid("startCompanion") {
             // Idempotent: a live client means a prior startCompanion already
             // opened the socket. Do NOT recreate it — callers must
@@ -864,13 +864,16 @@ class EverframeModule(
                 return@txGuardVoid
             }
 
+            // Await the main-thread install before the relay can announce PIN capability.
+            // configureSync itself remains non-blocking with respect to main.
+            reporterBridge.scheduleInstall(reactContext)
             installCompanionCollectorsIfNeeded()
 
             // Runtime suppression of the built-in PIN presenter (spec
             // 2026-08-19, controller ruling): a runtime flag, not an
             // install-site gate. `:everframe-reporter-ui`'s
             // `CompanionPinPresenter` is auto-installed via
-            // `ReporterResolverInstaller` (androidx.startup) regardless of
+            // `ReporterResolverInstaller` (Startup or the bridge above) regardless of
             // the configured mode, so `Everframe.__attachPinUiInstalled`
             // stays an honest capability signal — only the PRESENTING is
             // silenced, here, at the one site where the mode is already
@@ -976,6 +979,10 @@ class EverframeModule(
 
     @ReactMethod
     override fun stopCompanion() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post { stopCompanion() }
+            return
+        }
         txGuardVoid("stopCompanion") {
             // External review, finding NN1 — only ever stop/unregister OUR
             // OWN client. `companionClient` is non-null here ONLY when a
@@ -1607,34 +1614,7 @@ class EverframeModule(
 
     // ---------------- Helpers ----------------
 
-    @Volatile
-    private var resolverInstalled = false
 
-    /**
-     * Idempotently runs `ReporterResolverInstaller.create(applicationContext)`
-     * — the androidx.startup `Initializer` from :everframe-reporter-ui. Hosts
-     * using AndroidX App Startup will have this run automatically at process
-     * launch; this method covers hosts that disable App Startup (common in
-     * React Native apps) by invoking the same code path reflectively. No-op
-     * after the first successful call.
-     */
-    private fun installPresenterResolverIfNeeded() {
-        if (resolverInstalled) return
-        try {
-            val cls = Class.forName("dev.everframe.ui.ReporterResolverInstaller")
-            val ctor = cls.getDeclaredConstructor()
-            ctor.isAccessible = true
-            val instance = ctor.newInstance()
-            val create = cls.getMethod("create", android.content.Context::class.java)
-            create.invoke(instance, reactContext.applicationContext)
-            resolverInstalled = true
-        } catch (t: Throwable) {
-            android.util.Log.w(
-                "Everframe.rn",
-                "ReporterResolverInstaller not on classpath; openReporter will fail until the host app depends on :everframe-reporter-ui (${t.javaClass.simpleName}: ${t.message})",
-            )
-        }
-    }
 
     private fun ReadableMap.takeIfHasString(key: String): String? =
         if (hasKey(key) && !isNull(key)) getString(key) else null

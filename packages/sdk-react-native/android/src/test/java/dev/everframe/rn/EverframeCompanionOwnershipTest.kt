@@ -256,7 +256,7 @@ class EverframeCompanionOwnershipTest {
  * ever ask for is `RCTDeviceEventEmitter`); every other member is dead code
  * for these tests' purposes and just satisfies the interface.
  */
-private class FakeCatalystInstance : CatalystInstance {
+internal class FakeCatalystInstance : CatalystInstance {
     private val emitter = FakeRCTDeviceEventEmitter()
 
     override fun runJSBundle() = Unit
