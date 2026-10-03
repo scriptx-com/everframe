@@ -302,3 +302,34 @@ it.each([' a😀b ', 'a\ufffdb', '😀'.repeat(100)])(
     expect(parseManifest({ version: 1, buildId, artifacts: [] }).buildId).toBe(buildId);
   },
 );
+
+describe('path-only asset URLs', () => {
+  it.each(['~/assets/app.js', '~/a/b%20c.js', '~/x.js'])('accepts %s unchanged', (url) => {
+    expect(normalizeAssetUrl(url)).toBe(url);
+  });
+
+  it.each(['~/', '~', '~assets/x.js', '~/a/../x.js', '~/./x.js', '~/a//x.js', '~/x.js?v=1', '~/x.js#h', '~/a\\x.js', `~/${'a'.repeat(2048)}`])(
+    'rejects %j',
+    (url) => {
+      expect(() => normalizeAssetUrl(url)).toThrow('invalid_asset_url');
+    },
+  );
+
+  it('parses a v1 manifest that mixes path-only and absolute urls', () => {
+    const parsed = parseManifest({
+      version: 1,
+      buildId: 'b1',
+      artifacts: [
+        { url: '~/assets/b.js', ...artifact },
+        { url: 'https://cdn.example/assets/a.js', ...artifact },
+      ],
+    });
+    expect(parsed.artifacts.map((a) => a.url)).toEqual(['https://cdn.example/assets/a.js', '~/assets/b.js']);
+  });
+
+  it('rejects the same path-only url twice', () => {
+    expect(() =>
+      parseManifest({ version: 1, buildId: 'b1', artifacts: [{ url: '~/x.js', ...artifact }, { url: '~/x.js', ...artifact }] }),
+    ).toThrow('duplicate_asset_url');
+  });
+});

@@ -155,6 +155,17 @@ export function normalizeAssetUrl(input: string): string {
     throw new SourceMapManifestError('invalid_asset_url');
   }
 
+  if (input.startsWith('~/')) {
+    const segments = input.slice(2).split('/');
+    if (
+      /[?#\\]/.test(input) ||
+      segments.some((segment) => segment === '' || segment === '.' || segment === '..')
+    ) {
+      throw new SourceMapManifestError('invalid_asset_url');
+    }
+    return input;
+  }
+
   let url: URL;
   try {
     url = new URL(input);
