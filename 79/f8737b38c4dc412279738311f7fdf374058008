@@ -1,0 +1,21 @@
+docs/mcp-registry/README.md
+  s_b93781f9633bd1::t_b6d096e1d1f210 1-17
+docs/mcp-registry/server.json
+  s_b93781f9633bd1::t_b6d096e1d1f210 1-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "79f8737b38c4dc412279738311f7fdf374058008",
+  "prompts": {},
+  "sessions": {
+    "s_b93781f9633bd1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "419db780-9ec3-46a1-83af-1790580bb7c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
