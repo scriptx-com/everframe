@@ -1,0 +1,15 @@
+{
+  "name": "everframe",
+  "displayName": "Everframe",
+  "version": "1.0.0",
+  "description": "Read Everframe bug reports, crashes and tickets in Cursor: screenshots, console, network, breadcrumbs and device context from your web, mobile and TV apps, so the agent fixes the bug instead of asking what it is.",
+  "author": {
+    "name": "ScriptX",
+    "email": "support@everframe.dev"
+  },
+  "homepage": "https://everframe.dev/docs/mcp/",
+  "repository": "https://github.com/scriptx-com/everframe",
+  "license": "MIT",
+  "keywords": ["everframe", "bug-reporting", "crash-reporting", "debugging", "qa", "mcp", "mobile", "smart-tv"],
+  "logo": "assets/logo.png"
+}
