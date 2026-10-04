@@ -1,0 +1,31 @@
+public-boundary.json
+  s_27f43fb5a2db76::t_2fbcbccbbbf68c 17,41
+.cursor-plugin/marketplace.json
+  s_27f43fb5a2db76::t_08e31a7f7da5f3 1-18
+plugins/everframe/mcp.json
+  s_27f43fb5a2db76::t_2e029929ed2a17 1-7
+REUSE.toml
+  s_27f43fb5a2db76::t_7cf33a58f7e2c6 12
+plugins/everframe/README.md
+  s_27f43fb5a2db76::t_4a90e1202afc7a 1-28
+plugins/everframe/skills/everframe-bug-triage/SKILL.md
+  s_27f43fb5a2db76::t_92fdd5c7ff2f9a 1-49
+plugins/everframe/.cursor-plugin/plugin.json
+  s_27f43fb5a2db76::t_8d94eb08125e0b 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a19b93bb1e02d5e5500b13edb798bd68333641b3",
+  "prompts": {},
+  "sessions": {
+    "s_27f43fb5a2db76": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "878cb82f-781b-4b5c-8133-4ba238ff34b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
