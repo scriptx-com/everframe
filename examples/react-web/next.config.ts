@@ -3,6 +3,7 @@
 import type { NextConfig } from 'next';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { withEverframe } from '@everframe/bundler-plugin/next';
 
 // Resolved through the package's own subpath export rather than by walking the
 // filesystem. The old form passed an ABSOLUTE path to `experimental.swcPlugins`,
@@ -88,4 +89,7 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+// Opt-in so existing manual source-map flows keep their own build IDs.
+export default process.env.EVERFRAME_BUNDLER_PLUGIN === '1' && process.env.EVERFRAME_APP_ID
+  ? withEverframe(config, { appId: process.env.EVERFRAME_APP_ID })
+  : config;

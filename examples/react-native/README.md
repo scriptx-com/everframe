@@ -316,6 +316,15 @@ Generated (not committed):
 | `ios/` | `app.json` → `expo-build-properties` + RN autolinking |
 | `android/` | `app.json` → `with-everframe-workspace.js` + RN autolinking |
 
+## Readable stack traces
+
+Set `EVERFRAME_APP_ID` and `EVERFRAME_API_TOKEN` (a token with `artifacts:write`)
+before a release build; Metro stamps the bundle and the Expo plugin uploads it:
+
+```bash
+EVERFRAME_APP_ID=<app uuid> EVERFRAME_API_TOKEN=<token> pnpm prebuild && pnpm ios -- --configuration Release
+```
+
 ## Optional private Hermes maps
 
 ### Local optimized builds for manual error tests

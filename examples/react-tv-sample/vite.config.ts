@@ -11,9 +11,13 @@
 // `pnpm dev` this sample.
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import everframe from '@everframe/bundler-plugin/vite';
+
+// Unset keeps the sample credential-free; the plugin validates the id at construction.
+const appId = process.env.EVERFRAME_APP_ID;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), ...(appId ? [everframe({ appId })] : [])],
   base: '/',
   server: {
     port: 4173,
