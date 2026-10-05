@@ -35,7 +35,8 @@
       ],
       "./plugins/with-everframe-workspace.js",
       "./plugins/with-everframe-tv-prebuild.js",
-      "./plugins/with-everframe-ios-local.js"
+      "./plugins/with-everframe-ios-local.js",
+      "./plugins/with-everframe-artifacts.js"
     ]
   }
 }

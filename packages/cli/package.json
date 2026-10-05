@@ -1,0 +1,63 @@
+{
+  "name": "@everframe/cli",
+  "version": "0.0.2",
+  "private": false,
+  "description": "Command-line tool for uploading source maps and build artifacts to Everframe.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "everframe": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "default": "./dist/manifest.js"
+    },
+    "./upload": {
+      "types": "./dist/upload.d.ts",
+      "default": "./dist/upload.js"
+    },
+    "./hermes": {
+      "types": "./dist/hermes.d.ts",
+      "default": "./dist/hermes.js"
+    },
+    "./native-setup": {
+      "types": "./dist/native-setup/index.d.ts",
+      "default": "./dist/native-setup/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "pnpm build && vitest run",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "xcode": "^3.0.1",
+    "zod": "^4.3.0"
+  },
+  "devDependencies": {
+    "@everframe/protocol": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scriptx-com/everframe.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

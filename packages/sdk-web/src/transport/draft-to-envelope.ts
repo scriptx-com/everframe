@@ -23,6 +23,7 @@ import type { WebEverframeConfig } from '../internal/types.js';
 import { REACT_SDK_NAME, type HostSdkName } from '../internal/sdk-identity.js';
 import { stampActiveVitals } from '../vitals/stamp-active-vitals.js';
 import { stampResources } from '../resources/stamp.js';
+import { resolveAppBuild } from '../build-identity.js';
 
 /** One baked (or raw) screenshot shot bound for a single attachment (report-window overhaul). */
 export interface BundleScreenshot {
@@ -397,7 +398,7 @@ export function draftToEnvelope(
     app: {
       name: config.appName ?? 'unknown-app',
       version: config.appVersion ?? '0.0.0',
-      ...(config.appBuild !== undefined ? { build: config.appBuild } : {}),
+      ...((build) => (build !== undefined ? { build } : {}))(resolveAppBuild(config.appBuild)),
     },
     attachments: attachmentRefs,
   });

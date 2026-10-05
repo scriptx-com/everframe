@@ -11,6 +11,9 @@
 /ios
 /android
 
+# Build artifacts collected by @everframe/cli
+.everframe/
+
 # Expo internals
 .expo/
 .expo-shared/
