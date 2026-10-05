@@ -1,9 +1,55 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, expect, it, vi } from 'vitest';
+import { createPromiseRejectionObserver } from '../src/promise-rejections.js';
 import { installHermesRejectionAdapter, type AdapterEnvironment } from '../src/hermes-rejection-adapter.js';
 
 const disposals: (() => void)[] = [];
+it.each(['_B', '_C'] as const)('clears pending work permanently when a callback detects temporary %s replacement', (replaced) => {
+  const { C, environment } = engine();
+  const priorB = vi.fn(), priorC = vi.fn();
+  C._B = priorB; C._C = priorC;
+  const delivered = vi.fn(() => 'accepted' as const);
+  const timers = new Set<() => void>();
+  let now = 0;
+  const observer = createPromiseRejectionObserver({
+    prepareRejection: () => ({ payload: '{}', key: 'pending' }),
+    submitRejection: delivered, isActive: () => true,
+    scheduler: {
+      now: () => now, occurredAt: () => '2026-10-05T12:00:00.000Z',
+      setTimer: (fn) => { timers.add(fn); return fn; },
+      clearTimer: (handle) => { timers.delete(handle as () => void); },
+    },
+    installAdapter: (options) => installHermesRejectionAdapter({ ...options, environment }),
+  });
+  disposals.push(observer.dispose);
+  const pending = {};
+  C._C!.call(C, pending, 'first');
+  expect(timers.size).toBe(1);
+  const queued = [...timers];
+  const savedB = C._B!, savedC = C._C!;
+  const replacement = vi.fn();
+  C[replaced] = replacement;
+  if (replaced === '_B') {
+    C._B!.call(C, pending); // The cancellation happens outside this observer.
+    savedC.call(C, {}, 'during gap', 'extra');
+    expect(priorC).toHaveBeenLastCalledWith(expect.any(Object), 'during gap', 'extra');
+  } else {
+    savedB.call(C, {});
+    expect(priorB.mock.contexts.at(-1)).toBe(C);
+  }
+  // Cleanup must happen in the callback, before a status read or timer.
+  expect(timers.size).toBe(0);
+  expect(C[replaced]).toBe(replacement);
+  C._B = savedB; C._C = savedC;
+  now = 2000;
+  queued.forEach((fn) => fn());
+  savedC.call(C, {}, 'after restoration');
+  expect(delivered).not.toHaveBeenCalled();
+  expect(observer.getStatus()).toMatchObject({
+    status: 'displaced', reason: 'hook-displaced', counters: { pending: 0, accepted: 0 },
+  });
+});
 afterEach(() => { disposals.splice(0).reverse().forEach((dispose) => dispose()); vi.restoreAllMocks(); });
 function engine() {
   function Candidate(this: object, executor: (resolve: () => void) => void) { executor(() => {}); }

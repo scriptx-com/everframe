@@ -21,6 +21,7 @@ export interface AdapterEnvironment {
 export interface AdapterOptions {
   onReject(promise: object, reason: unknown): void;
   onHandle(promise: object): void;
+  onDisplaced?(): void;
   isActive(): boolean;
   environment?: AdapterEnvironment;
 }
@@ -83,8 +84,8 @@ export function installHermesRejectionAdapter(options: AdapterOptions): AdapterR
     if (!valid(previousB) || !valid(previousC)) return unsupported('hook-shape');
     if (!options.isActive()) return { status: 'install-failed', reason: 'hook-install' };
     const token = {}, previousToken = installations.get(C);
-    let alive = true, ready = false, probe: object | undefined, observed = false;
-    function ownsHooks(): boolean {
+    let alive = true, ready = false, displaced = false, probe: object | undefined, observed = false;
+    function hasOwnership(): boolean {
       try {
         if (!alive || !options.isActive() || installations.get(C as Function) !== token) return false;
         const current = env.currentPromise ? env.currentPromise() : env.promise;
@@ -92,6 +93,16 @@ export function installHermesRejectionAdapter(options: AdapterOptions): AdapterR
         return current === C && b?.value === handle && c?.value === reject &&
           alive && options.isActive() && installations.get(C as Function) === token;
       } catch { return false; }
+    }
+    function ownsHooks(): boolean {
+      if (!alive || displaced) return false;
+      if (hasOwnership()) return true;
+      if (ready) {
+        // Once coverage is interrupted, restored hooks cannot revive this mount.
+        displaced = true;
+        try { options.onDisplaced?.(); } catch { /* Keep Promise execution isolated. */ }
+      }
+      return false;
     }
     function handle(this: unknown, ...args: unknown[]): unknown {
       try {

@@ -163,7 +163,8 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
     scheduler = options.scheduler ?? defaultScheduler();
     now();
     const result = (options.installAdapter ?? installHermesRejectionAdapter)({
-      onReject, onHandle, isActive: () => active && options.isActive(),
+      onReject, onHandle, onDisplaced: () => stop('displaced', 'hook-displaced'),
+      isActive: () => active && options.isActive(),
     });
     if (result.status === 'observing') {
       adapter = result;
