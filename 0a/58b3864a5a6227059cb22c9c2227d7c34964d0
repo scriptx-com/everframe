@@ -1,0 +1,23 @@
+.changeset/ios-replay-60s.md
+  s_983a450ce6fb89::t_58497c0a084a93 9-10
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoPrivacy.swift
+  s_983a450ce6fb89::t_7d2f92f1251d8b 33-39
+packages/sdk-ios/Tests/EverframeTests/NativeVideoCaptureTests.swift
+  s_983a450ce6fb89::t_156073a5eecb52 268-298
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0a58b3864a5a6227059cb22c9c2227d7c34964d0",
+  "prompts": {},
+  "sessions": {
+    "s_983a450ce6fb89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb47f35d-a17b-4f3b-9851-1c9249241f1c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
