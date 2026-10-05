@@ -265,6 +265,37 @@ struct NativeVideoCaptureTests {
         #expect(pixel(frame, 32, 32) == [0, 0, 0, 255])
         #expect(pixel(frame, 4, 4) == [255, 255, 255, 255])
     }
+    @Test func playerControlsStayVisibleOverMaskedVideo() async throws {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
+        window.backgroundColor = .white; window.isHidden = false
+        defer { window.isHidden = true }
+        let host = UIView(frame: window.bounds)
+        let video = AVPlayerLayer(); video.frame = host.bounds
+        let picture = CALayer(); picture.frame = video.bounds; picture.backgroundColor = UIColor.red.cgColor
+        video.addSublayer(picture)
+        host.layer.addSublayer(video)
+        let control = UIView(frame: CGRect(x: 8, y: 40, width: 16, height: 16)); control.backgroundColor = .blue
+        host.addSubview(control); window.addSubview(host)
+        let privacy = try NativeVideoPrivacy.collect(window: window)
+        #expect(privacy.excludedLayers.contains(ObjectIdentifier(video)))
+        #expect(privacy.rects.isEmpty)
+        let frame = try #require(await NativeVideoCapture().capture(window: window, timestampNanos: 1))
+        #expect(pixel(frame, frame.width * 3 / 4, frame.height / 4) == [0, 0, 0, 255])
+        #expect(pixel(frame, frame.width * 16 / 64, frame.height * 48 / 64) == [255, 0, 0, 255])
+    }
+    @Test func sensitiveVideoStillBlacksOutOverlays() async throws {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
+        window.backgroundColor = .white; window.isHidden = false
+        defer { window.isHidden = true }
+        let host = UIView(frame: window.bounds)
+        let player = UIView(frame: host.bounds)
+        let video = AVPlayerLayer(); video.frame = player.bounds; player.layer.addSublayer(video)
+        let control = UIView(frame: CGRect(x: 8, y: 40, width: 16, height: 16)); control.backgroundColor = .blue
+        host.addSubview(player); host.addSubview(control); window.addSubview(host)
+        SensitiveRectRegistry.mark(player)
+        let frame = try #require(await NativeVideoCapture().capture(window: window, timestampNanos: 1))
+        #expect(pixel(frame, frame.width * 16 / 64, frame.height * 48 / 64) == [0, 0, 0, 255])
+    }
     @Test func hiddenAncestorDoesNotDrawDescendants() async throws {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
         window.backgroundColor = .white; window.isHidden = false
