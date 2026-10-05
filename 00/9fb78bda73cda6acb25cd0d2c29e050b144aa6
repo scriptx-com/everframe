@@ -1,0 +1,23 @@
+packages/sdk-ios/Tests/EverframeTests/NativeVideoSubmissionTests.swift
+  s_983a450ce6fb89::t_cf10448164172b 49-66
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoExporter.swift
+  s_983a450ce6fb89::t_fef66ec5a71687 111
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_983a450ce6fb89::t_63db7bfcfbbffa 843
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "009fb78bda73cda6acb25cd0d2c29e050b144aa6",
+  "prompts": {},
+  "sessions": {
+    "s_983a450ce6fb89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb47f35d-a17b-4f3b-9851-1c9249241f1c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
