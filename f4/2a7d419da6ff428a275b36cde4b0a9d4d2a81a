@@ -1,0 +1,29 @@
+packages/protocol/__tests__/crash-causes.spec.ts
+  s_97602a0a2d8f20::t_04bf2f12a83739 528-538
+packages/protocol/__tests__/fixtures/crash-causes-native-parity.json
+  s_97602a0a2d8f20::t_407e5d824431bd 1-222
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashCauseNormalizer.kt
+  s_97602a0a2d8f20::t_048072ec148b75 1-143
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_97602a0a2d8f20::t_0435ff9e0cb931 213-218,235,285-289,306,354,401-405
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashCauseNormalizerTest.kt
+  s_97602a0a2d8f20::t_6c15ee49ca1df8 1-83
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_97602a0a2d8f20::t_60abd565d67feb 127-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f42a7d419da6ff428a275b36cde4b0a9d4d2a81a",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
