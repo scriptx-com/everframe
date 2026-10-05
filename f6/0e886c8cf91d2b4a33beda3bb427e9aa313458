@@ -1,0 +1,23 @@
+packages/sdk-react-native/src/promise-rejection-types.ts
+  s_97602a0a2d8f20::t_c87171953a0fa6 6-27
+packages/sdk-react-native/__tests__/promise-rejections.test.ts
+  s_97602a0a2d8f20::t_7f81a8684e5430 1-122
+packages/sdk-react-native/src/promise-rejections.ts
+  s_97602a0a2d8f20::t_c87171953a0fa6 1-187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f60e886c8cf91d2b4a33beda3bb427e9aa313458",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
