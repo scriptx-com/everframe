@@ -108,7 +108,7 @@ actor NativeVideoExporter {
         let byteCount = try output.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard byteCount > 0, byteCount <= 8 * 1024 * 1024 else { throw NativeVideoExportError.oversized }
         let duration = AVURLAsset(url: output).duration.seconds * 1000
-        guard duration.isFinite, duration > 0, duration <= 30_000 else { throw NativeVideoExportError.exportFailed }
+        guard duration.isFinite, duration > 0, duration <= Double(NativeVideoLimits.maxDurationSec * 1000) else { throw NativeVideoExportError.exportFailed }
         transferred = true
         return .init(url: output, byteCount: byteCount, startEpochMs: epoch, durationMs: duration,
             width: dimensions.width, height: dimensions.height, ownedDirectory: directory)
