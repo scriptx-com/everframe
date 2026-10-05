@@ -4,7 +4,7 @@ import { captureJsBundleMetadata, type JsBundleConfig } from './js-bundle.js';
 import NativeEverframe from './NativeEverframe.js';
 import { extractFacts } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
-import { redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
+import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
 
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
 interface ErrorUtilsLike {
@@ -66,10 +66,13 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       const details = explicit
         ? normalizeCrashDetails(options, (value) => redactStringContent(value, {}), 'error')
         : undefined;
+      const causeChain = extractCrashCauseChain(error, (value) => redactStringContent(value, {}), ownsCapture);
+      if (!ownsCapture()) return;
       const payload = JSON.stringify({
         ...facts,
         ...(jsBundle ? { jsBundle } : {}),
         ...(details ? { details } : {}),
+        ...(causeChain ? { causeChain } : {}),
         source: fatal ? 'crash' : 'error',
         mechanism: explicit ? 'captureException' : 'errorutils',
         handled: explicit,
