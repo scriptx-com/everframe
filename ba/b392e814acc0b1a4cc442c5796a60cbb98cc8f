@@ -1,0 +1,36 @@
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoRecorder.swift
+  s_983a450ce6fb89::t_8e0220c41e8f5b 6-12
+  s_97602a0a2d8f20::t_ecb32702e14b09 40
+packages/sdk-ios/Tests/EverframeTests/NativeVideoSessionTests.swift
+  s_983a450ce6fb89::t_a4879ae1c04f09 98-111
+.changeset/ios-replay-60s.md
+  s_983a450ce6fb89::t_3056ad213a53ab 1-8
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoExporter.swift
+  s_983a450ce6fb89::t_b3f2cb55a8a9f3 58
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoSession.swift
+  s_983a450ce6fb89::t_16dde996f7b71d 93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bab392e814acc0b1a4cc442c5796a60cbb98cc8f",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_983a450ce6fb89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb47f35d-a17b-4f3b-9851-1c9249241f1c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
