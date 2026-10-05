@@ -24,6 +24,7 @@ import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.config.ReportResult
 import dev.everframe.envelope.txGuardSuspend
+import kotlinx.coroutines.CompletableDeferred
 
 internal class TXReporterPresenter(
     private val captureScreenshot: suspend (Activity, List<android.graphics.Rect>) -> ScreenshotCapture.CaptureResult? =
@@ -40,6 +41,33 @@ internal class TXReporterPresenter(
         openReporter(activity) { !activity.isFinishing && !activity.isDestroyed }
 
     internal suspend fun openReporter(activity: Activity, isCurrent: () -> Boolean): ReportResult {
+        // Single-flight: every open path (host `report.open()`, the React Native
+        // bridge, the SDK's own shake trigger) funnels through here. Two opens
+        // at once used to present two dialogs: the second froze an EMPTY replay
+        // capture (the first already owned the freeze), and the hidden first
+        // kept the recorder frozen until it closed. A caller arriving while a
+        // report is open now joins it and receives the same result.
+        val (mine, existing) = synchronized(lock) {
+            val running = inFlight?.takeIf { !it.isCompleted }
+            if (running != null) {
+                null to running
+            } else {
+                CompletableDeferred<ReportResult>().also { inFlight = it } to null
+            }
+        }
+        if (existing != null) return existing.await()
+        val owned = mine!!
+        try {
+            return presentOnce(activity, isCurrent).also { owned.complete(it) }
+        } catch (t: Throwable) {
+            owned.completeExceptionally(t)
+            throw t
+        } finally {
+            synchronized(lock) { if (inFlight === owned) inFlight = null }
+        }
+    }
+
+    private suspend fun presentOnce(activity: Activity, isCurrent: () -> Boolean): ReportResult {
         // Plan 05.1-02: flip the observable presenting-state at entry, and
         // ensure we flip it back at every exit (success / cancel / failure /
         // throw). The try/finally outside txGuardSuspend keeps the flag
@@ -148,5 +176,10 @@ internal class TXReporterPresenter(
             if (submitted) frozenCapture?.finishConsumption() else frozenCapture?.cancel()
             Everframe.report.__setPresenting(false)
         }
+    }
+
+    internal companion object {
+        private val lock = Any()
+        private var inFlight: CompletableDeferred<ReportResult>? = null
     }
 }
