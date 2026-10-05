@@ -114,10 +114,13 @@ import { EverframeProvider, getPromiseRejectionStatus } from '@everframe/react-n
 const status = getPromiseRejectionStatus();
 ```
 
-The initial candidate is Android/iOS `react-native-tvos@0.85.3-0` with Hermes
-release `250829098.0.10`, Release/Static Hermes and bytecode 98. Installed mobile
-qualification is pending. Matching the SDK's broader RN peer range does not
-establish rejection support. Other versions, JSC, browser execution, tvOS,
+The verified runtime is Android/iOS `react-native-tvos@0.85.3-0` with Hermes
+release `250829098.0.10`, Release/Static Hermes and bytecode 98. Qualification
+uses optimized apps on an Android API 35 arm64 emulator and an iOS 26.5 arm64
+simulator with Debug/local native SDK transport, including suspension expiry,
+source mapping and encrypted retry after relaunch. Physical devices and
+production transport are not qualified by these checks. Matching the SDK's
+broader RN peer range does not establish rejection support. Other versions, JSC, browser execution, tvOS,
 unverified Promise replacements and incompatible hooks return `unsupported`.
 The adapter checks runtime identity and a fulfilled-only hook handshake; it
 does not generate a test rejection or replace the Promise constructor.
