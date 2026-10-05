@@ -1,0 +1,21 @@
+packages/sdk-react-native/__tests__/error-causes.test.ts
+  s_97602a0a2d8f20::t_3a050c595bc821 1-71
+packages/sdk-react-native/src/errors.ts
+  s_97602a0a2d8f20::t_e6e6ea470a22ff 7,69-70,75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a725c0dbc8c50e879dc02af95661c34528119ade",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
