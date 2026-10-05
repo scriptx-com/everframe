@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogLifecycleTest.kt
+  s_97602a0a2d8f20::t_d92992aa80b199 1-174
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_97602a0a2d8f20::t_144b510e3462c9 54,113,115-120,123-127,129-208,210,213-218
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialogLifecycle.kt
+  s_97602a0a2d8f20::t_817490adf84124 1-54
+packages/sdk-react-native/README.md
+  s_97602a0a2d8f20::t_4138eaebb6434b 549-555
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c07bb1a94b729df6aa38c8dc5b67d720d09f05f4",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
