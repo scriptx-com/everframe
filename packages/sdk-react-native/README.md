@@ -546,11 +546,13 @@ compiled bridge with the new reporter can announce companion PIN capability
 before asynchronous reporter installation finishes, temporarily advertising no
 PIN support. Use the matching updated pair for the qualified behavior.
 
-Activity recreation is supported between reporter openings. Destruction while
-the dialog is already mounted remains a known limitation: the pending open may
-never settle, presenting state stays active, and the frozen replay capture is
-not released. Shake-to-report may remain disabled until process restart. This
-change does not fix that existing mounted-dialog lifecycle defect.
+Activity destruction while a reporter is open resolves the pending call with
+`{ status: "cancelled", reason: "activity_destroyed" }`, releases that report's
+frozen replay capture, and clears presenting state so the reporter can open
+again. Backgrounding alone does not cancel the dialog. Once Send is tapped,
+submission owns the result and continues independently of activity destruction;
+its normal delivery result is preserved. Unsaved drafts are not restored after
+activity recreation.
 
 ## License
 
