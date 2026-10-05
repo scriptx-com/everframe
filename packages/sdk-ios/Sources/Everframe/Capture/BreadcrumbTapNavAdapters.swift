@@ -493,6 +493,17 @@ enum WindowTapBreadcrumbAdapter {
 
     /// Install-once. See TapBreadcrumbAdapter.install()'s doc comment for
     /// why IMP capture-and-replace, never method_exchangeImplementations.
+    #if os(tvOS)
+    /// The view holding focus in `window`'s focus system. Never asks
+    /// `UIScreen.focusedView`: UIKit aborts with "screen-based focus
+    /// unsupported" when the host app uses scene-based focus (the UIScene
+    /// lifecycle), which made every remote press crash the app.
+    @MainActor
+    static func focusedView(in window: UIWindow) -> UIView? {
+        UIFocusSystem.focusSystem(for: window)?.focusedItem as? UIView
+    }
+    #endif
+
     static func install() {
         lock.lock(); defer { lock.unlock() }
         guard !installed else { return }
@@ -521,7 +532,7 @@ enum WindowTapBreadcrumbAdapter {
                 MainActor.assumeIsolated {
                     WindowTapBreadcrumbAdapter.recordEndedPress(
                         type: ended.type,
-                        focusedView: window.screen.focusedView,
+                        focusedView: WindowTapBreadcrumbAdapter.focusedView(in: window),
                         eventTimestamp: event.timestamp)
                 }
                 return
