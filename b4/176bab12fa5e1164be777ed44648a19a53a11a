@@ -1,0 +1,24 @@
+packages/sdk-react-native/__tests__/rejection-capture.test.ts
+  s_97602a0a2d8f20::t_6dd8e7a6b26532 1-21,23-25,27-118
+  s_97602a0a2d8f20::t_e28f82219c91e9 22,26
+packages/sdk-react-native/src/errors.ts
+  s_97602a0a2d8f20::t_c24102b2ad2c24 8,30-31,40-41,47-97,114-115,118,146,184-185
+packages/sdk-react-native/src/rejection-capture.ts
+  s_97602a0a2d8f20::t_c24102b2ad2c24 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4176bab12fa5e1164be777ed44648a19a53a11a",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
