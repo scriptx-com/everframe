@@ -92,35 +92,64 @@ object CrashReporter {
 
     /** Native path — the process is dying; source = crash, handled = false. */
     fun captureThrowable(thread: Thread, throwable: Throwable) {
+        captureAutomaticThrowable(thread, throwable, null)
+    }
+
+    internal data class OuterThrowableFacts(val type: String, val message: String, val frames: List<Frame>)
+
+    /** Share one safe snapshot with the uncaught-handler breadcrumb. */
+    internal fun captureThrowableWithBreadcrumb(
+        thread: Thread,
+        throwable: Throwable,
+        breadcrumb: (OuterThrowableFacts) -> Unit,
+    ) = captureAutomaticThrowable(thread, throwable, breadcrumb)
+
+    private fun captureAutomaticThrowable(
+        thread: Thread,
+        throwable: Throwable,
+        breadcrumb: ((OuterThrowableFacts) -> Unit)?,
+    ) {
         // CRASH ENTRY — round-5 external review, finding 2 (Serious). See
         // [capture]'s `captured` parameter for the full defect. Taken as
         // the FIRST statement, before the stack-frame mapping below: that maps
         // up to 256 StackTraceElements into Frame objects, and everything after
         // it is prep for a crash that has already happened.
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
-        if (acceptedHermesFatal.consume(throwable, captured.user.startEpoch, captured.killGeneration)) return
-        val details = normalizeCrashDetails(null)
-        val frames = throwable.stackTrace.take(256).map { el ->
-            Frame(
-                raw = el.toString().take(1024),
-                file = el.fileName,
-                function = el.methodName,
-                line = if (el.lineNumber >= 0) el.lineNumber.toLong() else null,
+        val suppressed = acceptedHermesFatal.consume(throwable, captured.user.startEpoch, captured.killGeneration)
+        if (suppressed && breadcrumb == null) return
+        // Reserve before any overridable outer getter, just as the cause walker
+        // is guarded. A callback cannot recursively assemble another report.
+        if (!handling.compareAndSet(false, true)) return
+        try {
+            val type = throwable.javaClass.name.take(256)
+            val frames = runCatching { throwable.stackTrace }.getOrNull().orEmpty().take(256).map { el ->
+                Frame(
+                    raw = el.toString().take(1024),
+                    file = el.fileName,
+                    function = el.methodName,
+                    line = if (el.lineNumber >= 0) el.lineNumber.toLong() else null,
+                )
+            }
+            val message = runCatching { throwable.message }.getOrNull() ?: type
+            breadcrumb?.invoke(OuterThrowableFacts(type, message, frames))
+            if (suppressed) return
+            capture(
+                exceptionType = type,
+                message = message,
+                frames = frames,
+                mechanism = "uncaught-exception-handler",
+                handled = false,
+                fatal = true,
+                threadName = thread.name,
+                occurredAt = Instant.now().toString(),
+                captured = captured,
+                jvmThrowable = throwable,
+                details = normalizeCrashDetails(null),
+                handlingReserved = true,
             )
+        } finally {
+            handling.set(false)
         }
-        capture(
-            exceptionType = throwable.javaClass.name.take(256),
-            message = throwable.message ?: throwable.javaClass.name,
-            frames = frames,
-            mechanism = "uncaught-exception-handler",
-            handled = false,
-            fatal = true,
-            threadName = thread.name,
-            occurredAt = Instant.now().toString(),
-            captured = captured,
-            jvmThrowable = throwable,
-            details = details,
-        )
     }
 
     /** Deliberate native capture acknowledges synchronous encrypted storage. */
@@ -360,6 +389,7 @@ object CrashReporter {
         requireCurrentStart: Boolean = false,
         waitForStorage: Boolean = false,
         sdkName: String = "everframe-android",
+        handlingReserved: Boolean = false,
     ): Boolean {
         val context = appContext ?: return false
         // From the crash-entry snapshot, not a field: same critical section as
@@ -367,7 +397,7 @@ object CrashReporter {
         // of. See TXCapturedSession.
         val cfg = captured.config ?: return false
         if (!cfg.capture.crash) return false
-        if (!handling.compareAndSet(false, true)) return false
+        if (!handlingReserved && !handling.compareAndSet(false, true)) return false
         try {
             // Automatic JVM capture retains its existing reentrancy protection.
             // Native handled capture supplies only prepared data here: none of its
@@ -507,7 +537,9 @@ object CrashReporter {
         } catch (_: Throwable) {
             return false
         } finally {
-            handling.set(false)
+            // The automatic entry owns its reservation through breadcrumb and
+            // fact extraction; only its outer finally may release that latch.
+            if (!handlingReserved) handling.set(false)
         }
     }
 

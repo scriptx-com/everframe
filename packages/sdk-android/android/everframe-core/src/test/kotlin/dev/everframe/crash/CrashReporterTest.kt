@@ -57,6 +57,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -438,6 +439,65 @@ class CrashReporterTest {
             assertEquals("at f (address at index.bundle:1:0)", crash["frames"]!!.jsonArray[0].jsonObject["raw"]!!.jsonPrimitive.content)
             assertEquals(dev.everframe.capture.DeviceMetadata.collect(context)["appBuild"].toString(), env["context"]!!.jsonObject["app"]!!.jsonObject["build"]!!.jsonPrimitive.content)
         }
+    }
+
+    @Test
+    fun `automatic capture preserves outer event and causes when outer getters throw`() {
+        for (failStack in listOf(false, true)) {
+            val outer = object : RuntimeException("outer", IllegalArgumentException("inner")) {
+                override val message: String? get() = if (failStack) "outer" else error("unreadable message")
+                override fun getStackTrace(): Array<StackTraceElement> = if (failStack) error("unreadable stack") else emptyArray()
+            }
+            CrashReporter.captureThrowable(Thread.currentThread(), outer)
+            val crash = persistedEnvelope("throwing-outer-$failStack")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            assertEquals(outer.javaClass.name, crash["exceptionType"]!!.jsonPrimitive.content)
+            assertEquals(if (failStack) "outer" else outer.javaClass.name, crash["message"]!!.jsonPrimitive.content)
+            assertEquals("inner", crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            runBlocking { encryptedOutbox().drain { true } }
+        }
+    }
+
+    @Test
+    fun `uncaught adapter shares single-read outer facts and still chains previous handler`() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        var chained = 0
+        var messageReads = 0
+        var stackReads = 0
+        val outer = object : RuntimeException("outer", IllegalArgumentException("inner")) {
+            override val message: String? get() { check(++messageReads == 1); return "single-read outer" }
+            override fun getStackTrace(): Array<StackTraceElement> {
+                check(++stackReads == 1)
+                return arrayOf(StackTraceElement("Fixture", "entry", "Fixture.kt", 42))
+            }
+        }
+        try {
+            Thread.setDefaultUncaughtExceptionHandler { _, error -> assertSame(outer, error); chained++ }
+            dev.everframe.capture.ErrorBreadcrumbAdapter.__resetForTesting()
+            dev.everframe.capture.ErrorBreadcrumbAdapter.install()
+            dev.everframe.capture.ErrorBreadcrumbAdapter.handle(Thread.currentThread(), outer)
+            val crash = persistedEnvelope("stateful-outer")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            assertEquals("single-read outer", crash["message"]!!.jsonPrimitive.content)
+            assertEquals("Fixture.kt", crash["frames"]!!.jsonArray.single().jsonObject["file"]!!.jsonPrimitive.content)
+            assertEquals("inner", crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            assertEquals(1, messageReads); assertEquals(1, stackReads); assertEquals(1, chained)
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+            dev.everframe.capture.ErrorBreadcrumbAdapter.__resetForTesting()
+        }
+    }
+
+    @Test
+    fun `automatic outer getter reentry persists only one report`() {
+        var reads = 0
+        val outer = object : RuntimeException("outer") {
+            override val message: String? get() {
+                if (++reads < 3) CrashReporter.captureThrowable(Thread.currentThread(), this)
+                return "outer"
+            }
+        }
+        CrashReporter.captureThrowable(Thread.currentThread(), outer)
+        persistedEnvelope("outer-getter-reentry")
+        assertEquals(1, reads)
     }
 
     @Test
