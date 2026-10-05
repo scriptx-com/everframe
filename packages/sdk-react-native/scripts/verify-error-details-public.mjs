@@ -138,7 +138,14 @@ writeFileSync(
 );
 cpSync(FIXTURE, join(CONSUMER_ROOT, "consumer.ts"));
 
-linkPackage("@everframe/react-native", RN_ROOT);
+// Model an installed package: a workspace symlink resolves declarations back
+// through the SDK's own node_modules and can mix its development RN peer with
+// the consumer's different RN version. Published consumers resolve their peer
+// from this node_modules tree instead.
+const installedSdk = join(CONSUMER_ROOT, "node_modules", "@everframe", "react-native");
+mkdirSync(installedSdk, { recursive: true });
+cpSync(join(RN_ROOT, "package.json"), join(installedSdk, "package.json"));
+cpSync(DIST_ROOT, join(installedSdk, "dist"), { recursive: true });
 for (const name of ["react", "react-native", "zod", "bippy", "@types/react"]) {
   linkPackage(name, resolve(REPO_ROOT, "node_modules", name));
 }

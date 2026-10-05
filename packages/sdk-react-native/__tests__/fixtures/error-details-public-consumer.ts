@@ -2,9 +2,18 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import {
   captureException,
+  getPromiseRejectionStatus,
   useEverframe,
+  type PromiseRejectionStatus,
+  type EverframeProviderProps,
   type CaptureExceptionOptions,
 } from '@everframe/react-native';
+
+const status: PromiseRejectionStatus = getPromiseRejectionStatus();
+const config: EverframeProviderProps['config'] = {
+  apiKey: 'publishable', crashReporting: { promiseRejections: { enabled: true } },
+};
+void status; void config;
 
 const options: CaptureExceptionOptions = {
   severity: 'warning',

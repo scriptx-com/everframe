@@ -13,11 +13,14 @@
 import { type ReporterResult, EverframeNotMountedError } from './reporter/types.js';
 import type { CaptureExceptionOptions, ExtraResolver } from '@everframe/sdk-core';
 import type { EverframeUserSpec } from './NativeEverframe.js';
+import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
 
 export { EverframeNotMountedError };
 
 /** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
 export interface EverframeContextValue {
+  /** Optional for compatibility with existing context implementations. */
+  getPromiseRejectionStatus?(): PromiseRejectionStatus;
   /** Capture a handled exception without opening the reporter. No-op outside the owning mount. */
   captureException(error: unknown, options?: CaptureExceptionOptions): void;
   /**
@@ -99,6 +102,15 @@ export interface EverframeContextValue {
 }
 
 let __currentContext: EverframeContextValue | null = null;
+
+/** Bounded coverage status only; does not install an observer or report delivery. */
+export function getPromiseRejectionStatus(): PromiseRejectionStatus {
+  try {
+    return __currentContext?.getPromiseRejectionStatus?.() ?? emptyPromiseRejectionStatus('not-mounted', 'no-mount');
+  } catch {
+    return emptyPromiseRejectionStatus('install-failed', 'hook-install');
+  }
+}
 
 export function __setCurrentContext(ctx: EverframeContextValue | null): void {
   __currentContext = ctx;

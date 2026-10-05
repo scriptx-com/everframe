@@ -96,6 +96,56 @@ provider context and attach any non-sensitive context needed for diagnosis.
 The source API requires matching rebuilt native components; published `0.7.0`
 artifacts are not evidence of support.
 
+## Promise rejection observation
+
+Automatic Hermes rejection observation is opt-in:
+
+```tsx
+import { EverframeProvider, getPromiseRejectionStatus } from '@everframe/react-native';
+
+<EverframeProvider config={{
+  apiKey: '…',
+  crashReporting: { promiseRejections: { enabled: true } },
+}}>
+  <App />
+</EverframeProvider>
+
+// Read after mount. This reports observer coverage, not delivery confirmation.
+const status = getPromiseRejectionStatus();
+```
+
+The initial candidate is Android/iOS `react-native-tvos@0.85.3-0` with Hermes
+release `250829098.0.10`, Release/Static Hermes and bytecode 98. Installed mobile
+qualification is pending. Matching the SDK's broader RN peer range does not
+establish rejection support. Other versions, JSC, browser execution, tvOS,
+unverified Promise replacements and incompatible hooks return `unsupported`.
+The adapter checks runtime identity and a fulfilled-only hook handshake; it
+does not generate a test rejection or replace the Promise constructor.
+
+Rejections still unhandled after 2 seconds enter the existing nonfatal capture
+path. A handler attached within that interval cancels capture; later handling
+does not retract an accepted report. Explicit capture and automatic reporting
+share accepted error identity, and automatic reports retain their existing
+10-distinct-key allowance per mount.
+
+The observer retains at most 16 detached snapshots, each at most 64 KiB of
+serialized UTF-8 data. It drops new arrivals when full and oversize snapshots
+rather than retaining arbitrary error graphs. Work older than 30 seconds is
+discarded when JavaScript resumes; cleanup cannot run while JS is suspended.
+Error facts and causes are snapshotted at rejection time. Native context and
+breadcrumbs are collected at notification time. A preserved external tracker
+may independently retain errors or generate its own reports.
+
+`getPromiseRejectionStatus()` returns `disabled`, `unsupported`, `observing`,
+`displaced`, `install-failed`, or `not-mounted`, with a reason and bounded
+counters for pending, accepted, cancelled, dropped, suppressed and refused
+captures. Counters saturate at 2,147,483,647 and reset on each mount; they contain
+no captured messages or stacks. Replacing either hook stops this observer until
+a new mount. `crashReporting.disabled: true` overrides the opt-in, and unmount
+discards pending work. Configuration changes take effect on a new mount.
+The browser export reports Hermes observation as unsupported and preserves the
+browser SDK's own error handling.
+
 ## Network body capture (client veto)
 
 ```tsx

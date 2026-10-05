@@ -10,6 +10,10 @@ import * as reactSdk from '@everframe/react';
 const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
 
 describe('React Native browser entry', () => {
+  it('reports Hermes observation as unsupported without altering browser exports', () => {
+    expect(webEntry.getPromiseRejectionStatus()).toMatchObject({ status: 'unsupported', reason: 'platform', counters: {pending: 0} });
+    expect(typeof nativeEntry.getPromiseRejectionStatus).toBe('function');
+  });
   it('routes browser resolution to a dedicated web bundle and keeps native as the default', () => {
     expect(manifest.exports['.'].browser).toEqual({
       types: './dist/index.web.d.ts',
