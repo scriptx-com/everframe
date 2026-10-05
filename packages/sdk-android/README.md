@@ -57,3 +57,14 @@ contains real source and API-documentation artifacts.
 ## License
 
 MIT
+
+## Error cause chains
+
+Native handled and uncaught `Throwable` capture includes a generic `causeChain`
+alongside the existing JVM metadata. Each cause is read once; generic fitting
+does not reduce the independently retained JVM metadata or change its R8 mapping
+identity. Suppressed-exception graphs are not traversed as linear causes.
+
+Chains retain at most 8 causes, 32 frames per cause, and 65,536 serialized UTF-8
+bytes after redaction. Cycles, unreadable fields and discarded data are marked
+with truncation flags. Causes do not change the outer error's grouping key.

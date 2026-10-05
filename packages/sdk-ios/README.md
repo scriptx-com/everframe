@@ -356,6 +356,20 @@ required.
 
 ---
 
+## Error cause chains
+
+`captureException` includes `NSUnderlyingErrorKey` chains from `NSError` and
+Swift errors that expose an underlying error through `CustomNSError.errorUserInfo`.
+Plain Swift errors without this metadata retain their normal outer error capture.
+Cause frames are empty because Foundation does not provide per-cause throw stacks.
+Multiple-underlying-error branches are marked truncated and are not flattened.
+
+Chains retain at most 8 causes, 32 frames per cause, and 65,536 serialized UTF-8
+bytes after redaction. Capture owns the retained values; later mutation does not
+change a queued report. Causes do not change the outer error's grouping key.
+
+---
+
 ## Privacy
 
 By default the SDK requests no permissions. Sensitive UI is redacted at bake

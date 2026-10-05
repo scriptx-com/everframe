@@ -109,4 +109,3 @@ private fun normalizeJsonbText(value: String): String {
     }
     return normalized.toString()
 }
-

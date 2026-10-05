@@ -48,6 +48,35 @@ final class HandledErrorCaptureTests: XCTestCase {
         return try XCTUnwrap(payload["crash"] as? [String: Any])
     }
 
+    func testNativeUnderlyingChainPersistsOwnedAndDeduplicatesOuterError() throws {
+        let outbox = makeOutbox()
+        let inner = MutableUnderlyingError()
+        inner.underlying = NSError(domain: "tail", code: 2)
+        let root = NSError(domain: "outer", code: 1, userInfo: [NSUnderlyingErrorKey: inner])
+        XCTAssertTrue(CrashReporter.captureHandledError(root, outbox: outbox))
+        let first = try XCTUnwrap(try outbox.hydrate().first)
+        inner.underlying = nil
+        XCTAssertFalse(CrashReporter.captureHandledError(root, outbox: outbox))
+        XCTAssertEqual(try outbox.hydrate().count, 1)
+        XCTAssertEqual(try outbox.hydrate().first?.envelopeBytes, first.envelopeBytes)
+        let chain = try XCTUnwrap(try crash(first)["causeChain"] as? [String: Any])
+        XCTAssertEqual((chain["causes"] as? [[String: Any]])?.count, 2)
+        XCTAssertNil(try Data(contentsOf: outbox.resolvedFileURL).range(of: Data("mutable cause".utf8)))
+    }
+
+    func testCauseUserInfoReentryKeepsOnlyOuterAndConfigReplacementRefusesCapture() throws {
+        let outbox = makeOutbox()
+        let root = MutableUnderlyingError()
+        root.underlying = NSError(domain: "inner", code: 2)
+        root.onRead = { XCTAssertFalse(CrashReporter.captureHandledError(NSError(domain: "recursive", code: 1), outbox: outbox)) }
+        XCTAssertTrue(CrashReporter.captureHandledError(root, outbox: outbox))
+        XCTAssertEqual(try outbox.hydrate().count, 1)
+        let replacing = MutableUnderlyingError()
+        replacing.onRead = { Everframe.__setConfigForTesting(EverframeConfig(appId: "new-session")) }
+        XCTAssertFalse(CrashReporter.captureHandledError(replacing, outbox: outbox))
+        XCTAssertEqual(try outbox.hydrate().count, 1)
+    }
+
     func testPublicCapturePersistsHandledErrorInDefaultEncryptedOutbox() throws {
         Everframe.shared.setUser(EFUser(id: "captured-user"))
         Everframe.shared.captureException(NSError(

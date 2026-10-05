@@ -212,6 +212,10 @@ public enum CrashReporter {
             occurredAt: ISO8601DateFormatter().string(from: Date()),
             mechanism: "captureException"
         )
+        let causeChain = captureFoundationCauseChain(error, redact: { detailsRedactor.redact($0) }, stillOwned: {
+            Everframe.captureGate && !captured.isSuperseded &&
+                !Everframe.killGenerationChanged(since: captured.killGeneration)
+        })
         accepted = capture(
             facts: facts,
             sdkName: sdkName,
@@ -221,7 +225,8 @@ public enum CrashReporter {
             captured: captured,
             device: device,
             requireCurrentSession: true,
-            details: details
+            details: details,
+            causeChain: causeChain
         )
         return accepted
     }
