@@ -1,0 +1,29 @@
+packages/sdk-android/README.md
+  s_97602a0a2d8f20::t_e00c54896cbb7c 60-70
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_3f04e667c94bb1 359-372
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_97602a0a2d8f20::t_01b9b617e2a943 215-218,228-229
+packages/sdk-ios/Sources/Everframe/Crash/FoundationCrashCauses.swift
+  s_97602a0a2d8f20::t_1dca8d1dd0c0ba 1-61
+packages/sdk-ios/Tests/EverframeTests/FoundationCrashCausesTests.swift
+  s_97602a0a2d8f20::t_715fa24100021a 1-82
+packages/sdk-ios/Tests/EverframeTests/HandledErrorCaptureTests.swift
+  s_97602a0a2d8f20::t_7f02ddd0fd6301 51-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e03e5081e47916471c493ff62fb6ec41f55d24b4",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
