@@ -124,6 +124,31 @@ class CrashReporterTest {
         Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject
     }
 
+    @Test fun `RN cause enrichment is fitted before encrypted persistence without changing outer facts`() {
+        fun capture(causes: Any?) = CrashReporter.captureFactsAcceptedWithCauses(
+            "Error", "outer", listOf("at outer (a.js:1:2)"), "errorutils", false,
+            "2026-10-05T00:00:00Z", null, null, causes,
+        )
+        assertTrue(capture(null))
+        val control = persistedEnvelope("control")["payload"]!!.jsonObject["crash"]!!.jsonObject
+        val chain = org.json.JSONObject("""{"causes":[{"exceptionType":"TypeError","message":"inner","frames":[],"framesTruncated":false}],"truncated":false}""")
+        assertTrue(capture(chain))
+        chain.getJSONArray("causes").getJSONObject(0).put("message", "mutated")
+        val result = persistedEnvelope("causes")["payload"]!!.jsonObject["crash"]!!.jsonObject
+        assertEquals(control["fingerprint"], result["fingerprint"])
+        assertEquals("inner", result["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+        assertEquals(control, kotlinx.serialization.json.JsonObject(result.filterKeys { it != "causeChain" }))
+    }
+
+    @Test fun `malformed optional causes preserve accepted handled outer error`() {
+        assertTrue(CrashReporter.captureHandledFactsWithCauses("Error", "outer", emptyList(),
+            "2026-10-05T00:00:00Z", null, null, org.json.JSONObject.NULL, "everframe-react-native"))
+        val crash = persistedEnvelope("invalid-causes")["payload"]!!.jsonObject["crash"]!!.jsonObject
+        assertEquals(Json.parseToJsonElement("""{"causes":[],"truncated":true}"""), crash["causeChain"])
+        assertEquals("true", crash["handled"]!!.jsonPrimitive.content)
+        assertEquals("false", crash["fatal"]!!.jsonPrimitive.content)
+    }
+
     private fun failStorage() {
         CrashReporter.sidecarFactory = { CrashSidecar(sidecarFile(), keys, object : dev.everframe.outbox.OutboxFileOps by JvmOutboxFileOps() {
             override fun syncFile(file: File) { throw java.io.IOException("unavailable") }

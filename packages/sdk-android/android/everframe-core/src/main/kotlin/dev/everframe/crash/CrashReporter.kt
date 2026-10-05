@@ -210,6 +210,12 @@ object CrashReporter {
         occurredAt: String,
         jsBundle: JSBundle?,
         details: Any?,
+    ): Boolean = captureFactsAcceptedWithCauses(exceptionType, message, framesRaw, mechanism, fatal, occurredAt, jsBundle, details, null)
+
+    /** Additive RN enrichment; existing JVM descriptors remain callable. */
+    fun captureFactsAcceptedWithCauses(
+        exceptionType: String, message: String, framesRaw: List<String>, mechanism: String,
+        fatal: Boolean, occurredAt: String, jsBundle: JSBundle?, details: Any?, causeChain: Any?,
     ): Boolean {
         val attempt = if (fatal) acceptedHermesFatal.beginAttempt() else null
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
@@ -226,6 +232,7 @@ object CrashReporter {
                 captured = captured,
                 jsBundle = jsBundle?.takeIf { validJsBundle(it) },
                 rnDetails = details,
+                rnCauseChain = causeChain,
             )
         }.getOrDefault(false)
         if (accepted && fatal && mechanism == "errorutils" && jsBundle != null && validJsBundle(jsBundle) &&
@@ -275,6 +282,11 @@ object CrashReporter {
         jsBundle: JSBundle?,
         details: Any?,
         sdkName: String,
+    ): Boolean = captureHandledFactsWithCauses(exceptionType, message, framesRaw, occurredAt, jsBundle, details, null, sdkName)
+
+    fun captureHandledFactsWithCauses(
+        exceptionType: String, message: String, framesRaw: List<String>, occurredAt: String,
+        jsBundle: JSBundle?, details: Any?, causeChain: Any?, sdkName: String,
     ): Boolean {
         if (sdkName !in setOf("everframe-android", "everframe-react-native", "everframe-flutter", "everframe-kmp")) return false
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
@@ -291,6 +303,7 @@ object CrashReporter {
                 captured = captured,
                 jsBundle = jsBundle?.takeIf { validJsBundle(it) },
                 rnDetails = details,
+                rnCauseChain = causeChain,
                 sdkName = sdkName,
                 requireCurrentStart = true,
                 waitForStorage = true,
@@ -338,6 +351,7 @@ object CrashReporter {
         preparedJvm: JVMCrashMetadata? = null,
         details: CrashDetails? = null,
         rnDetails: Any? = null,
+        rnCauseChain: Any? = null,
         requireCurrentStart: Boolean = false,
         waitForStorage: Boolean = false,
         sdkName: String = "everframe-android",
@@ -384,6 +398,11 @@ object CrashReporter {
                 jsBundle = jsBundle,
                 jvm = jvm,
                 details = details ?: normalizeRNCrashDetails(rnDetails),
+                causeChain = normalizeCrashCauseChain(rnCauseChain, dev.everframe.envelope.RedactionEngine::redact) {
+                    dev.everframe.Everframe.captureGate &&
+                        !dev.everframe.Everframe.killGenerationChanged(captured.killGeneration) &&
+                        captured.user.startEpoch == dev.everframe.Everframe.currentStartEpoch()
+                },
             )
             val device = DeviceMetadata.collect(context)
             val reportId = UUID.randomUUID()
