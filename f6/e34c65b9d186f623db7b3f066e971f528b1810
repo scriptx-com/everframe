@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_97602a0a2d8f20::t_a789af9c10650e 152,164,314-318,356,375-376,404,406-407
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/JvmCrashContext.kt
+  s_97602a0a2d8f20::t_9bf486132fd151 16-28,30,34-39,41-53,55-64,66-68,70-75,112
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_97602a0a2d8f20::t_858667ad040222 152-172
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/ThrowableCauseCaptureTest.kt
+  s_97602a0a2d8f20::t_4f83920763d46a 1-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f6e34c65b9d186f623db7b3f066e971f528b1810",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
