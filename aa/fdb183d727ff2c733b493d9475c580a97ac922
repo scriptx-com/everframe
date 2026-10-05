@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_97602a0a2d8f20::t_c40819d52f020a 60
+  s_97602a0a2d8f20::t_b7fb3939f599d6 444-502
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_97602a0a2d8f20::t_04afac3cbb4844 95-111,118-123,150-151,392,400
+  s_97602a0a2d8f20::t_04ba294604a871 124-148,540-542
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbAdapters.kt
+  s_97602a0a2d8f20::t_083c07ff6ca233 300-313,315-316
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aafdb183d727ff2c733b493d9475c580a97ac922",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
