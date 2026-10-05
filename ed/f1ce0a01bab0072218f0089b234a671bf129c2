@@ -1,0 +1,32 @@
+packages/sdk-react-native/__tests__/hermes-rejection-adapter.test.ts
+  s_97602a0a2d8f20::t_1aa935730811d3 4,8-52
+packages/sdk-react-native/src/hermes-rejection-adapter.ts
+  s_97602a0a2d8f20::t_a82bf97a56fd03 24,87-88,97-105
+  s_983a450ce6fb89::t_eb80fdd2c8f18e 106
+packages/sdk-react-native/src/promise-rejections.ts
+  s_97602a0a2d8f20::t_a82bf97a56fd03 166-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "edf1ce0a01bab0072218f0089b234a671bf129c2",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_983a450ce6fb89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb47f35d-a17b-4f3b-9851-1c9249241f1c",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
