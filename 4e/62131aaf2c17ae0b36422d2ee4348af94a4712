@@ -1,0 +1,21 @@
+packages/sdk-core/__tests__/crash-causes.spec.ts
+  s_97602a0a2d8f20::t_54e2ee8948e3c7 578-618
+packages/sdk-core/src/crash/causes.ts
+  s_97602a0a2d8f20::t_8c101ac1118902 32,35-41,48-49,79,81-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e62131aaf2c17ae0b36422d2ee4348af94a4712",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
