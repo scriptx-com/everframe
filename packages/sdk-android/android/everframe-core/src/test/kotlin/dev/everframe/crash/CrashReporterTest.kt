@@ -149,6 +149,27 @@ class CrashReporterTest {
         assertEquals("false", crash["fatal"]!!.jsonPrimitive.content)
     }
 
+    @Test fun `native automatic and handled capture persist generic causes with stable JVM metadata`() {
+        for (handled in listOf(false, true)) {
+            val inner = IllegalArgumentException("inner").apply { stackTrace = arrayOf(StackTraceElement("Sample", "cause", "Sample.kt", 12)) }
+            val root = RuntimeException("outer", inner)
+            if (handled) assertTrue(CrashReporter.captureHandledThrowable(root))
+            else CrashReporter.captureThrowable(Thread.currentThread(), root)
+            val crash = persistedEnvelope("native-cause")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            assertEquals("inner", crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            assertEquals("inner", crash["jvm"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            if (handled) assertFalse(CrashReporter.captureHandledThrowable(root))
+        }
+    }
+
+    @Test fun `native cause getter revocation cannot enqueue stale capture`() {
+        val inner = object : RuntimeException() {
+            override val message: String? get() { Everframe.kill(); return "revoked" }
+        }
+        assertFalse(CrashReporter.captureHandledThrowable(RuntimeException("outer", inner)))
+        assertEquals(0, runBlocking { encryptedOutbox().count() })
+    }
+
     private fun failStorage() {
         CrashReporter.sidecarFactory = { CrashSidecar(sidecarFile(), keys, object : dev.everframe.outbox.OutboxFileOps by JvmOutboxFileOps() {
             override fun syncFile(file: File) { throw java.io.IOException("unavailable") }

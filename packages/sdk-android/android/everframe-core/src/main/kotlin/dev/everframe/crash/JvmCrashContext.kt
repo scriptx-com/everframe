@@ -13,59 +13,66 @@ private const val MAX_CAUSES = 8
 private const val MAX_CAUSE_FRAMES = 32
 private val R8_MAPPING_ID = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 
-/** Capture the bounded JVM-only context that complements the outer crash fields. */
-internal fun captureJvmContext(throwable: Throwable, mappingId: String?): JVMCrashMetadata {
+internal data class CapturedThrowableContext(
+    val jvm: JVMCrashMetadata,
+    val causeChain: dev.everframe.protocol.generated.CrashCauseChain?,
+)
+
+/** Preserve the existing JVM projection for callers that only need that context. */
+internal fun captureJvmContext(throwable: Throwable, mappingId: String?): JVMCrashMetadata =
+    captureThrowableContext(throwable, mappingId) { true }.jvm
+
+/** One host traversal, with independently fitted JVM and generic wire projections. */
+internal fun captureThrowableContext(
+    throwable: Throwable, mappingId: String?, stillOwned: () -> Boolean,
+): CapturedThrowableContext {
     val causes = ArrayList<JVMCause>(MAX_CAUSES)
+    val generic = org.json.JSONArray()
     val visited = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
     visited.add(throwable)
-
     var causesTruncated = false
-    var current = try {
-        throwable.cause
-    } catch (_: Throwable) {
-        causesTruncated = true
-        null
+    var genericLoss = false
+    var cancelled = false
+    fun owned(): Boolean {
+        val current = runCatching { stillOwned() }.getOrDefault(false)
+        if (!current) cancelled = true
+        return current
     }
-
-    while (current != null) {
-        if (causes.size == MAX_CAUSES || !visited.add(current)) {
-            causesTruncated = true
-            break
-        }
-
-        val exceptionType = redactAndCap(current.javaClass.name, 256)
-        val message = try {
-            current.message ?: current.javaClass.name
-        } catch (_: Throwable) {
-            current.javaClass.name
-        }
-
-        val stack = try {
-            current.stackTrace
-        } catch (_: Throwable) {
-            null
-        }
+    fun next(node: Throwable): Throwable? {
+        if (!owned()) return null
+        val value = try { node.cause } catch (_: Throwable) { causesTruncated = true; null }
+        return if (owned()) value else null
+    }
+    var current = next(throwable)
+    while (current != null && owned()) {
+        if (causes.size == MAX_CAUSES || !visited.add(current)) { causesTruncated = true; break }
+        val rawType = current.javaClass.name
+        val rawMessage = try { current.message ?: rawType } catch (_: Throwable) { genericLoss = true; rawType }
+        if (!owned()) break
+        val stack = try { current.stackTrace } catch (_: Throwable) { null }
+        if (!owned()) break
         val frames = stack?.take(MAX_CAUSE_FRAMES)?.map(::captureFrame).orEmpty()
-        causes += JVMCause(
-            exceptionType = exceptionType,
-            message = redactAndCap(message, 4096),
-            frames = frames,
-            framesTruncated = stack == null || stack.size > MAX_CAUSE_FRAMES,
-        )
-
-        current = try {
-            current.cause
-        } catch (_: Throwable) {
-            causesTruncated = true
-            null
+        val framesLost = stack == null || stack.size > MAX_CAUSE_FRAMES
+        causes += JVMCause(exceptionType = redactAndCap(rawType, 256), message = redactAndCap(rawMessage, 4096),
+            frames = frames, framesTruncated = framesLost)
+        // One extra scan unit lets the generic fitter describe discarded text.
+        // This independent input never alters the legacy JVM redaction/capping.
+        val rawFrames = org.json.JSONArray()
+        stack?.take(MAX_CAUSE_FRAMES)?.forEach { element ->
+            rawFrames.put(org.json.JSONObject().put("raw", element.toString().take(8193))
+                .put("file", element.fileName?.take(8193)).put("function", element.methodName.take(8193))
+                .apply { if (element.lineNumber >= 0) put("line", element.lineNumber) })
         }
+        generic.put(org.json.JSONObject().put("exceptionType", rawType.take(8193)).put("message", rawMessage.take(8193))
+            .put("frames", rawFrames).put("framesTruncated", framesLost))
+        current = next(current)
     }
-
-    return JVMCrashMetadata(
-        causes = causes,
-        causesTruncated = causesTruncated,
-        mappingID = mappingId?.takeIf { R8_MAPPING_ID.matches(it) },
-    )
+    val jvm = JVMCrashMetadata(causes = causes, causesTruncated = causesTruncated || cancelled,
+        mappingID = mappingId?.takeIf { R8_MAPPING_ID.matches(it) })
+    val causeChain = if (cancelled || (causes.isEmpty() && !causesTruncated && !genericLoss)) null else
+        normalizeCrashCauseChain(org.json.JSONObject().put("causes", generic).put("truncated", causesTruncated || genericLoss),
+            RedactionEngine::redact, stillOwned)
+    return CapturedThrowableContext(jvm, causeChain)
 }
 
 internal fun captureFrame(element: StackTraceElement) = Frame(
@@ -102,3 +109,4 @@ private fun normalizeJsonbText(value: String): String {
     }
     return normalized.toString()
 }
+

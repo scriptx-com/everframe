@@ -149,7 +149,7 @@ object CrashReporter {
             val message = runCatching { throwable.message }.getOrNull() ?: type
             val frames = runCatching { throwable.stackTrace }.getOrNull()
                 ?.take(256)?.map(::captureFrame).orEmpty()
-            val jvm = runCatching { captureJvmContext(throwable, captured.config.r8MappingId) }.getOrNull()
+            val throwableContext = runCatching { captureThrowableContext(throwable, captured.config.r8MappingId) { ownsCauseCapture(captured) } }.getOrNull()
             val details = normalizeCrashDetails(options)
             accepted = capture(
                 exceptionType = type,
@@ -161,7 +161,7 @@ object CrashReporter {
                 threadName = redactAndCap(Thread.currentThread().name, 256),
                 occurredAt = Instant.now().toString(),
                 captured = captured,
-                preparedJvm = jvm,
+                preparedThrowable = throwableContext,
                 details = details,
                 sdkName = sdkName,
                 requireCurrentStart = true,
@@ -311,6 +311,11 @@ object CrashReporter {
         }.getOrDefault(false)
     }
 
+    private fun ownsCauseCapture(captured: dev.everframe.TXCapturedSession): Boolean =
+        dev.everframe.Everframe.captureGate &&
+            !dev.everframe.Everframe.killGenerationChanged(captured.killGeneration) &&
+            captured.user.startEpoch == dev.everframe.Everframe.currentStartEpoch()
+
     /**
      * @param captured the session — user, config and revocation counter —
      *   snapshotted in ONE `Everframe.stateLock` critical section at CRASH
@@ -348,7 +353,7 @@ object CrashReporter {
         captured: dev.everframe.TXCapturedSession,
         jsBundle: JSBundle? = null,
         jvmThrowable: Throwable? = null,
-        preparedJvm: JVMCrashMetadata? = null,
+        preparedThrowable: CapturedThrowableContext? = null,
         details: CrashDetails? = null,
         rnDetails: Any? = null,
         rnCauseChain: Any? = null,
@@ -367,8 +372,8 @@ object CrashReporter {
             // Automatic JVM capture retains its existing reentrancy protection.
             // Native handled capture supplies only prepared data here: none of its
             // outer or cause getters may hold this shared automatic collector latch.
-            val jvm = preparedJvm ?: jvmThrowable?.let { throwable ->
-                runCatching { captureJvmContext(throwable, cfg.r8MappingId) }.getOrNull()
+            val throwableContext = preparedThrowable ?: jvmThrowable?.let { throwable ->
+                runCatching { captureThrowableContext(throwable, cfg.r8MappingId) { ownsCauseCapture(captured) } }.getOrNull()
             }
             // Inside the try so the `finally` below still clears the latch if a
             // test hook throws.
@@ -396,12 +401,10 @@ object CrashReporter {
                 occurredAt = occurredAt,
                 fingerprint = fingerprint,
                 jsBundle = jsBundle,
-                jvm = jvm,
+                jvm = throwableContext?.jvm,
                 details = details ?: normalizeRNCrashDetails(rnDetails),
-                causeChain = normalizeCrashCauseChain(rnCauseChain, dev.everframe.envelope.RedactionEngine::redact) {
-                    dev.everframe.Everframe.captureGate &&
-                        !dev.everframe.Everframe.killGenerationChanged(captured.killGeneration) &&
-                        captured.user.startEpoch == dev.everframe.Everframe.currentStartEpoch()
+                causeChain = throwableContext?.causeChain ?: normalizeCrashCauseChain(rnCauseChain, dev.everframe.envelope.RedactionEngine::redact) {
+                    ownsCauseCapture(captured)
                 },
             )
             val device = DeviceMetadata.collect(context)
