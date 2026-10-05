@@ -55,7 +55,7 @@ actor NativeVideoExporter {
         guard !cancelled, !Task.isCancelled else { throw CancellationError() }
         guard let first = segments.first, let last = segments.last else { return nil }
         guard first.startNanos >= anchorNanos, last.endNanos > first.startNanos,
-              last.endNanos - first.startNanos <= 30_000_000_000,
+              last.endNanos - first.startNanos <= NativeVideoLimits.maxDurationNanos,
               anchorEpochMs.isFinite, anchorEpochMs >= 0 else { throw NativeVideoExportError.invalidSegments }
         let epoch = anchorEpochMs + Double(first.startNanos - anchorNanos) / 1_000_000
         guard epoch.isFinite else { throw NativeVideoExportError.invalidSegments }
