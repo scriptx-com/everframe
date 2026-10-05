@@ -1,0 +1,37 @@
+packages/sdk-react-native/__tests__/web-entry.spec.ts
+  s_97602a0a2d8f20::t_e7408a6d00b449 13-16
+packages/sdk-react-native/README.md
+  s_97602a0a2d8f20::t_20d7037c62daa9 99-148
+packages/sdk-react-native/__tests__/promise-rejection-runtime.test.ts
+  s_97602a0a2d8f20::t_e7408a6d00b449 1-72
+packages/sdk-react-native/src/runtime.ts
+  s_97602a0a2d8f20::t_df5cde0dc1f330 27-28,120-121,371-372,385-390,559-561,574-584,625
+packages/sdk-react-native/src/index.web.ts
+  s_97602a0a2d8f20::t_df5cde0dc1f330 5-10
+packages/sdk-react-native/scripts/verify-error-details-public.mjs
+  s_97602a0a2d8f20::t_5b1b583b5de0c9 141-148
+packages/sdk-react-native/src/index.ts
+  s_97602a0a2d8f20::t_df5cde0dc1f330 32,40
+packages/sdk-react-native/__tests__/fixtures/error-details-public-consumer.ts
+  s_97602a0a2d8f20::t_df5cde0dc1f330 5,7-8,12-16
+  s_97602a0a2d8f20::t_5100460818dca9 17
+packages/sdk-react-native/src/contextSeam.ts
+  s_97602a0a2d8f20::t_df5cde0dc1f330 16,22-23,106-113
+  s_97602a0a2d8f20::t_0fee018ea3d0df 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9426f6ca63b5a311cbb37b723567ebacdd513b5d",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
