@@ -1,0 +1,35 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_97602a0a2d8f20::t_28f8309726be8e 65,69,77-80,98,108-117,286
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsPipelineTest.kt
+  s_97602a0a2d8f20::t_57008adf1a21b2 33-90
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/transport/ReportSubmitterTest.kt
+  s_97602a0a2d8f20::t_32ab7a31ee5cdc 94-142
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogSubmitBoundaryTest.kt
+  s_97602a0a2d8f20::t_7e3697d643b62b 82-129
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsPipelineTests.swift
+  s_97602a0a2d8f20::t_7793e5f03815e5 100-131,222-241
+packages/sdk-ios/Tests/EverframeTests/ReporterSubmitKeyBindingTests.swift
+  s_97602a0a2d8f20::t_71e3cb70d1987a 143-156
+packages/sdk-react-native/__tests__/report-delivery-status.test.ts
+  s_97602a0a2d8f20::t_b02727eb415972 11,45,81-119
+packages/sdk-react-native/src/report-delivery-status.ts
+  s_97602a0a2d8f20::t_57654628d00d6a 52-61,64-69,82-88,91-94,96,100,110-113,118-122,128-129,150-151,161,163,169
+packages/sdk-react-native/src/runtime.ts
+  s_97602a0a2d8f20::t_bd1236a4a5852a 41-42,398-401,403
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ebf2e4d035734432639b84bc7d2453b869f83ce2",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
