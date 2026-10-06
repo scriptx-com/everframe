@@ -91,6 +91,55 @@ class ReportSubmitterTest {
         endpointOverride = server.url("/api/ingest").toString(),
     )
 
+    @Test fun `late live and drain uploads cannot publish into a replacement generation`() = runBlocking {
+        for (draining in listOf(false, true)) {
+            val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+            val entered = java.util.concurrent.CountDownLatch(1)
+            val release = java.util.concurrent.CountDownLatch(1)
+            server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+                override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                    entered.countDown()
+                    check(release.await(5, TimeUnit.SECONDS))
+                    return MockResponse().setResponseCode(202)
+                }
+            }
+            val submitter = makeSubmitter().observing(owner)
+            if (draining) outbox.enqueue(OutboxEntry("late-drain", 1L, "{}".toByteArray(), "late", emptyList(), "test-sdk-key", server.url("/api/ingest").toString()))
+            val task = async(kotlinx.coroutines.Dispatchers.IO) {
+                if (draining) submitter.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 })
+                else assertTrue(submitter.submit("{}".toByteArray(), "late-live", emptyList()) is ReportResult.Submitted)
+            }
+            try {
+                withTimeout(3000) { while (entered.count != 0L) delay(5) }
+                ledger.beginGeneration(1, true)
+            } finally { release.countDown() }
+            task.await()
+            assertTrue(outbox.hydrate().isEmpty())
+            assertEquals(0, ledger.snapshot().revision)
+        }
+    }
+
+    @Test fun `accepted upload followed by generation replacement during removal stays with its owner`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+        var removed = false
+        val ops = object : dev.everframe.outbox.OutboxFileOps by JvmOutboxFileOps() {
+            override fun renameAtomic(from: File, to: File) {
+                if (to.extension == "removed") {
+                    assertEquals(1, ledger.snapshot().transport.getValue("outbox-drain").outcomes.getValue("server-accepted"))
+                    ledger.beginGeneration(1, true); removed = true
+                }
+                JvmOutboxFileOps().renameAtomic(from, to)
+            }
+        }
+        val box = JSONLOutbox(File(tmp.newFolder(), "outbox.jsonl"), JceTestOutboxKeyProvider(), ops)
+        box.enqueue(OutboxEntry("late-remove", 1L, "{}".toByteArray(), "late", emptyList(), "test-sdk-key", server.url("/api/ingest").toString()))
+        server.enqueue(MockResponse().setResponseCode(202))
+        ReportSubmitter(makeConfig(), box, MultipartUploader(client), server.url("/api/ingest").toString()).observing(owner)
+            .drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 })
+        assertTrue(removed); assertTrue(box.hydrate().isEmpty())
+        assertEquals(0, ledger.snapshot().revision)
+    }
+
     @Test fun `diagnostics keep server acceptance when durable removal fails`() = runBlocking {
         val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
         val ops = object : dev.everframe.outbox.OutboxFileOps by JvmOutboxFileOps() {

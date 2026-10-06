@@ -38,6 +38,8 @@ import type { ReporterResult } from "./reporter/types.js";
 import { projectUserSpec } from "./user-projection.js";
 import type { EverframeIntegration } from "./integrations/types.js";
 
+const applyDeliveryMethod = Reflect.apply;
+
 /**
  * Runtime configuration — the host-facing `EverframeProvider config` shape.
  *
@@ -393,10 +395,12 @@ export function createRuntime(config: RuntimeConfig): Runtime {
       try {
         const method = NativeEverframe.getReportDeliveryStatusJson;
         if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
-        if (typeof method !== 'function') return emptyReportDeliveryStatus('unavailable', 'native-method-missing');
-        const json: unknown = Reflect.apply(method, NativeEverframe, []);
+        if (typeof method !== 'function') return emptyReportDeliveryStatus('unsupported', 'native-method-missing');
+        const json: unknown = applyDeliveryMethod(method, NativeEverframe, []);
         if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
-        return parseReportDeliveryStatus(json) ?? emptyReportDeliveryStatus('unavailable', 'invalid-native-snapshot');
+        const snapshot = parseReportDeliveryStatus(json);
+        if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+        return snapshot ?? emptyReportDeliveryStatus('unavailable', 'invalid-native-snapshot');
       } catch {
         return emptyReportDeliveryStatus(owned() ? 'unavailable' : 'not-mounted', owned() ? 'native-call-failed' : 'no-mount');
       }

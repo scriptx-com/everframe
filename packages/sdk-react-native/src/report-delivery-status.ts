@@ -49,9 +49,24 @@ export interface ReportDeliveryStatus {
   transport: Record<ReportTransportOrigin, ReportTransportStatus>;
 }
 
+// Capture before a native property accessor or call can run application code.
+const parseJSON = JSON.parse;
+const objectKeys = Object.keys;
+const hasOwn = Object.hasOwn;
+const isArray = Array.isArray;
+const isInteger = Number.isInteger;
+const applyFunction = Reflect.apply;
+const testPattern = RegExp.prototype.test;
+const nonASCII = /[^\x00-\x7f]/;
+
 const MAX = 2_147_483_647;
 function mapKeys<K extends string, V>(keys: readonly K[], make: (key: K) => V): Record<K, V> {
-  return Object.fromEntries(keys.map(key => [key, make(key)])) as Record<K, V>;
+  const result = {} as Record<K, V>;
+  for (let index = 0; index < keys.length; index++) {
+    const key = keys[index]!;
+    result[key] = make(key);
+  }
+  return result;
 }
 /** Native-free fallback. Unknown policy and unsupported paths assert no native coverage. */
 export function emptyReportDeliveryStatus(status: ReportDeliveryStatus['status'], reason: ReportDeliveryReason): ReportDeliveryStatus {
@@ -64,17 +79,25 @@ export function emptyReportDeliveryStatus(status: ReportDeliveryStatus['status']
 }
 
 function record(value: unknown, required: readonly string[], optional: readonly string[] = []): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
-  const keys = Object.keys(value);
-  if (required.some(key => !Object.hasOwn(value, key)) || keys.some(key => !required.includes(key) && !optional.includes(key))) throw new Error();
+  if (!value || typeof value !== 'object' || isArray(value)) throw new Error();
+  const keys = objectKeys(value);
+  for (let index = 0; index < required.length; index++) if (!hasOwn(value, required[index]!)) throw new Error();
+  for (let index = 0; index < keys.length; index++) {
+    const key = keys[index]!;
+    if (!contains(required, key) && !contains(optional, key)) throw new Error();
+  }
   return value as Record<string, unknown>;
 }
+function contains<T>(values: readonly T[], value: T): boolean {
+  for (let index = 0; index < values.length; index++) if (values[index] === value) return true;
+  return false;
+}
 function enumeration<K extends string>(value: unknown, choices: readonly K[]): K {
-  if (typeof value !== 'string' || !choices.includes(value as K)) throw new Error();
+  if (typeof value !== 'string' || !contains(choices, value as K)) throw new Error();
   return value as K;
 }
 function counter(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > MAX) throw new Error();
+  if (typeof value !== 'number' || !isInteger(value) || value < 0 || value > MAX) throw new Error();
   return value;
 }
 function boolean(value: unknown): boolean { if (typeof value !== 'boolean') throw new Error(); return value; }
@@ -84,10 +107,17 @@ function counters<K extends string>(value: unknown, keys: readonly K[]): Record<
 }
 function settled<K extends string>(input: Record<string, unknown>, keys: readonly K[]) {
   const outcomes = counters(input.outcomes, keys), settledAttempts = counter(input.settledAttempts);
-  if (Math.min(MAX, Object.values<number>(outcomes).reduce((a, b) => a + b, 0)) !== settledAttempts) throw new Error();
-  const lastOutcome = Object.hasOwn(input, 'lastOutcome') ? enumeration(input.lastOutcome, keys) : undefined;
+  let sum = 0;
+  for (let index = 0; index < keys.length; index++) sum += outcomes[keys[index]!];
+  if ((sum > MAX ? MAX : sum) !== settledAttempts) throw new Error();
+  const lastOutcome = hasOwn(input, 'lastOutcome') ? enumeration(input.lastOutcome, keys) : undefined;
   if ((settledAttempts > 0) !== (lastOutcome !== undefined) || (lastOutcome !== undefined && outcomes[lastOutcome] === 0)) throw new Error();
   return { settledAttempts, outcomes, ...(lastOutcome === undefined ? {} : { lastOutcome }) };
+}
+
+function nonzero<K extends string, V>(values: Record<K, V>, keys: readonly K[], read: (value: V) => number): boolean {
+  for (let index = 0; index < keys.length; index++) if (read(values[keys[index]!]) !== 0) return true;
+  return false;
 }
 
 /** Strict projection of the bounded, content-free native schema. Never returns arbitrary native keys. */
@@ -95,8 +125,8 @@ export function parseReportDeliveryStatus(json: unknown): ReportDeliveryStatus |
   try {
     // The complete wire vocabulary is ASCII. This also makes the character cap
     // an exact byte cap without requiring a TextEncoder polyfill in Hermes.
-    if (typeof json !== 'string' || json.length > 16_384 || /[^\x00-\x7f]/.test(json)) return null;
-    const input = record(JSON.parse(json), ['schemaVersion', 'status', 'reason', 'scope', 'coverage', 'revision', 'capture', 'queue', 'transport']);
+    if (typeof json !== 'string' || json.length > 16_384 || applyFunction(testPattern, nonASCII, [json])) return null;
+    const input = record(parseJSON(json), ['schemaVersion', 'status', 'reason', 'scope', 'coverage', 'revision', 'capture', 'queue', 'transport']);
     if (input.schemaVersion !== 1 || input.scope !== 'native-runtime-observations' || input.coverage !== 'best-effort') return null;
     const status = enumeration(input.status, ['active', 'not-started', 'disabled', 'unavailable'] as const);
     const reason = enumeration(input.reason, ['none', 'no-start', 'capture-disabled', 'snapshot-busy'] as const);
@@ -117,8 +147,8 @@ export function parseReportDeliveryStatus(json: unknown): ReportDeliveryStatus |
       terminalHttpPolicy: enumeration(rawQueue.terminalHttpPolicy, ['retain', 'attempt-remove']),
       operations: counters(rawQueue.operations, queueOperations),
       migration: enumeration(rawQueue.migration, ['not-observed', 'clear', 'blocked', 'unknown']),
-      ...(Object.hasOwn(rawQueue, 'pendingCount') ? { pendingCount: counter(rawQueue.pendingCount) } : {}),
-      ...(Object.hasOwn(rawQueue, 'lastFailure') ? { lastFailure: enumeration(rawQueue.lastFailure, storageFailures) } : {}),
+      ...(hasOwn(rawQueue, 'pendingCount') ? { pendingCount: counter(rawQueue.pendingCount) } : {}),
+      ...(hasOwn(rawQueue, 'lastFailure') ? { lastFailure: enumeration(rawQueue.lastFailure, storageFailures) } : {}),
     };
     if ((queue.capacityPolicy === 'reject-new') !== (queue.terminalHttpPolicy === 'retain')) return null;
     if ((queue.observation !== 'observed' || queue.quality === 'unknown') && queue.pendingCount !== undefined) return null;
@@ -128,15 +158,15 @@ export function parseReportDeliveryStatus(json: unknown): ReportDeliveryStatus |
     const transport = mapKeys(transportOrigins, origin => {
       const raw = record(rawTransport[origin], ['settledAttempts', 'outcomes'], ['lastOutcome', 'lastHttpStatus']);
       const result: ReportTransportStatus = settled(raw, transportOutcomes);
-      if (Object.hasOwn(raw, 'lastHttpStatus')) {
+      if (hasOwn(raw, 'lastHttpStatus')) {
         const code = counter(raw.lastHttpStatus);
-        if (code < 100 || code > 599 || !['server-accepted', 'retryable-http', 'terminal-http'].includes(result.lastOutcome ?? '')) throw new Error();
+        if (code < 100 || code > 599 || !contains(['server-accepted', 'retryable-http', 'terminal-http'], result.lastOutcome ?? '')) throw new Error();
         result.lastHttpStatus = code;
       }
       return result;
     });
     const result: ReportDeliveryStatus = { schemaVersion: 1, status, reason, scope: 'native-runtime-observations', coverage: 'best-effort', revision: counter(input.revision), capture: { enabled: boolean(capture.enabled), paths }, queue, transport };
-    if (status !== 'active' && (result.revision !== 0 || result.capture.enabled || queue.observation !== 'not-observed' || capturePaths.some(p => paths[p].settledAttempts !== 0) || transportOrigins.some(p => transport[p].settledAttempts !== 0) || queueOperations.some(op => queue.operations[op] !== 0))) return null;
+    if (status !== 'active' && (result.revision !== 0 || result.capture.enabled || queue.observation !== 'not-observed' || nonzero(paths, capturePaths, p => p.settledAttempts) || nonzero(transport, transportOrigins, p => p.settledAttempts) || nonzero(queue.operations, queueOperations, n => n))) return null;
     return result;
   } catch { return null; }
 }

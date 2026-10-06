@@ -8,6 +8,7 @@ import { __setCurrentContext, getReportDeliveryStatus } from '../src/contextSeam
 import { getReportDeliveryStatus as publicGetter } from '../src/index.js';
 import { getReportDeliveryStatus as browserGetter } from '../src/index.web.js';
 import { parseReportDeliveryStatus } from '../src/report-delivery-status.js';
+import * as deliveryStatus from '../src/report-delivery-status.js';
 
 const fixtureText = readFileSync(new URL('./fixtures/report-delivery-status-v1.json', import.meta.url), 'utf8');
 const owners: Runtime[] = [];
@@ -41,7 +42,7 @@ it.each([
   ['non-string', () => () => ({ private: 'content' }), 'invalid-native-snapshot'],
 ] as const)('%s native bridge has a content-free fallback', (_name, get, reason) => {
   mount(); bridge(get);
-  expect(getReportDeliveryStatus()).toMatchObject({ status: 'unavailable', reason, revision: 0 });
+  expect(getReportDeliveryStatus()).toMatchObject({ status: reason === 'native-method-missing' ? 'unsupported' : 'unavailable', reason, revision: 0 });
   expect(JSON.stringify(getReportDeliveryStatus())).not.toContain('private');
 });
 it.each([
@@ -76,4 +77,43 @@ it('property reentrancy cannot call a method after ownership changes', () => {
   bridge(() => { runtime.unmount(); mount(); return method; });
   expect(getReportDeliveryStatus().status).toBe('not-mounted');
   expect(method).not.toHaveBeenCalled();
+});
+
+it('bridge accessors cannot weaken fixed enum validation by replacing array intrinsics', () => {
+  mount();
+  const payload = JSON.parse(fixtureText); payload.queue.migration = 'PRIVATE_NATIVE_CONTENT';
+  const text = JSON.stringify(payload), original = Array.prototype.includes;
+  let result;
+  bridge(() => { Array.prototype.includes = () => true; return () => text; });
+  try { result = getReportDeliveryStatus(); } finally { Array.prototype.includes = original; }
+  expect(result).toMatchObject({ status: 'unavailable', reason: 'invalid-native-snapshot' });
+  expect(JSON.stringify(result)).not.toContain('PRIVATE_NATIVE_CONTENT');
+});
+it('bridge accessors cannot replace the invocation intrinsic', () => {
+  mount(); const original = Reflect.apply; let replacedCalls = 0, result;
+  bridge(() => { Reflect.apply = () => { replacedCalls++; throw new Error('private replacement'); }; return () => fixtureText; });
+  try { result = getReportDeliveryStatus(); } finally { Reflect.apply = original; }
+  expect(replacedCalls).toBe(0);
+  expect(result?.status).toBe('active');
+});
+it('bridge accessors cannot install a parse callback that remounts the runtime', () => {
+  const runtime = mount(), original = JSON.parse; let replacedCalls = 0, result;
+  bridge(() => { JSON.parse = text => { replacedCalls++; runtime.unmount(); runtime.mount(); return original(text); }; return () => fixtureText; });
+  try { result = getReportDeliveryStatus(); } finally { JSON.parse = original; }
+  expect(replacedCalls).toBe(0);
+  expect(result?.status).toBe('active');
+});
+it('rechecks mount ownership after projection before exposing the observation', () => {
+  const runtime = mount(); bridge(() => () => fixtureText);
+  vi.spyOn(deliveryStatus, 'parseReportDeliveryStatus').mockImplementation(text => {
+    const result = JSON.parse(String(text)); runtime.unmount(); runtime.mount(); return result;
+  });
+  expect(getReportDeliveryStatus()).toMatchObject({ status: 'not-mounted', reason: 'no-mount' });
+});
+it('native-free fallback cannot expose data from a replaced projection intrinsic', () => {
+  const original = Object.fromEntries; let result;
+  Object.fromEntries = () => ({ private: 'PRIVATE_NATIVE_CONTENT' });
+  try { result = browserGetter(); } finally { Object.fromEntries = original; }
+  expect(result?.status).toBe('unsupported');
+  expect(JSON.stringify(result)).not.toContain('PRIVATE_NATIVE_CONTENT');
 });

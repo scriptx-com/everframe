@@ -62,9 +62,11 @@ internal class OutboxStore(
         val current = currentGeneration(create = true) ?: error("Generation missing")
         checkAllowed(authorization)
         val observedFiles = committedFiles()
+        var readableFiles = 0
         for (file in observedFiles) {
             val token = token(current, file)
             val existing = decode(token, file)
+            readableFiles++
             if (existing.reportId == entry.reportId) {
                 if (existing != entry) throw OutboxWriteException(OutboxFailure.INVALID_ENTRY)
                 // Reconcile a previous uncertain rename by syncing it before claiming durability.
@@ -72,7 +74,10 @@ internal class OutboxStore(
                 ops.syncDirectory(active)
                 finishAdmission(token, authorization)
                 diagnostics?.queueOperation(QueueOperation.ENQUEUE_COMMITTED)
-                diagnostics?.queueObserved(observedFiles.size, QueueQuality.COMPLETE)
+                // Duplicate reconciliation returns early by design. Remaining files
+                // have not been decoded, so their readability is still unknown.
+                if (readableFiles == observedFiles.size) observeQueueSize(diagnostics, readableFiles)
+                else diagnostics?.queueObserved(null, QueueQuality.UNKNOWN, migrationDiagnostic())
                 return token
             }
         }
@@ -90,7 +95,7 @@ internal class OutboxStore(
         ops.syncDirectory(active)
         finishAdmission(token, authorization)
         diagnostics?.queueOperation(QueueOperation.ENQUEUE_COMMITTED)
-        diagnostics?.queueObserved(observedFiles.size + 1, QueueQuality.COMPLETE)
+        observeQueueSize(diagnostics, observedFiles.size + 1)
         return token
     }
 
@@ -99,6 +104,16 @@ internal class OutboxStore(
         private set
 
     private var migrationObserved = false
+
+    private fun migrationDiagnostic() =
+        if (!migrationObserved) "not-observed" else if (migrationBlocked == null) "clear" else "blocked"
+
+    private fun observeQueueSize(diagnostics: ReportDiagnostics.Handle?, count: Int) {
+        diagnostics?.queueObserved(count,
+            if (migrationBlocked == null) QueueQuality.COMPLETE else QueueQuality.PARTIAL,
+            migrationDiagnostic())
+    }
+
 
     fun migrateLegacy(): Int {
         var imported = 0
@@ -268,9 +283,7 @@ internal class OutboxStore(
             }.sortedWith(compareBy<Pair<OutboxToken, Long>> { it.second }.thenBy { it.first.fileId }).map { it.first }
             // A revoked lease does not establish an empty durable queue.
             if (!hasCurrentLease()) diagnostics?.queueObserved(null, QueueQuality.UNKNOWN)
-            else diagnostics?.queueObserved(tokens.size,
-                if (migrationBlocked == null) QueueQuality.COMPLETE else QueueQuality.PARTIAL,
-                if (!migrationObserved) "not-observed" else if (migrationBlocked == null) "clear" else "blocked")
+            else observeQueueSize(diagnostics, tokens.size)
             tokens
         } }
 

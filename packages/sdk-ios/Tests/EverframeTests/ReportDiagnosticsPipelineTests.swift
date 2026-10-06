@@ -97,6 +97,38 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
         XCTAssertEqual(gate.count, reads)
     }
 
+    func testGenerationReplacementDuringEnqueueAndRemovalCannotUpdateSuccessor() throws {
+        for removing in [false, true] {
+            let owner = ledger.beginGeneration(epoch: 1, enabled: true)
+            let url = directory.appendingPathComponent(removing ? "remove-generation" : "enqueue-generation")
+            let original = JSONLOutbox(testFileURL: url)
+            let first = entry()
+            if removing { try original.enqueue(first); try original.enqueue(entry()) }
+            let gate = DeliveryGenerationGate(ledger: ledger, trigger: removing ? 2 : 1)
+            let queue = JSONLOutbox(fileURL: url, keyProvider: { gate.read() })
+            if removing { try queue.drain(where: { $0.reportId == first.reportId }, diagnostics: owner, reason: .removedAfterAcceptance) }
+            else { try queue.enqueue(first, diagnostics: owner) }
+            XCTAssertTrue(gate.replaced)
+            XCTAssertEqual(try original.hydrate().count, 1)
+            XCTAssertEqual(ledger.snapshot().revision, 0)
+            XCTAssertTrue(ledger.snapshot().queue.operations.values.allSatisfy { $0 == 0 })
+        }
+    }
+
+    func testAcceptedUploadThenGenerationReplacementDuringRemovalCannotUpdateSuccessor() async throws {
+        let url = directory.appendingPathComponent("accepted-late-removal")
+        let original = JSONLOutbox(testFileURL: url); try original.enqueue(entry())
+        let gate = DeliveryGenerationGate(ledger: ledger, trigger: .max)
+        let queue = JSONLOutbox(fileURL: url, keyProvider: { gate.read() })
+        let session = session(); defer { session.invalidateAndCancel() }
+        DeliveryURLProtocol.response = { gate.arm(); return .success(202) }
+        await drain(ReportSubmitter(config: EverframeConfig(appId: "fixture"), outbox: queue, session: session).observing(owner))
+        XCTAssertTrue(gate.replaced)
+        XCTAssertEqual(gate.acceptedBeforeReplacement, 1)
+        XCTAssertTrue(try original.hydrate().isEmpty)
+        XCTAssertEqual(ledger.snapshot().revision, 0)
+    }
+
     func testHTTPClassificationsAndTerminalDrainPolicy() async throws {
         let session = session(); defer { session.invalidateAndCancel() }
         for status in [202, 400, 403, 408, 429, 503] {
@@ -184,6 +216,26 @@ private final class DeliveryKeyGate: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         reads += 1
         if reads == 2 { throw OutboxStorageError.invalidKey }
+        return Data(repeating: 0xA7, count: 32)
+    }
+}
+
+private final class DeliveryGenerationGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private let ledger: ReportDiagnostics
+    private var reads = 0
+    private var trigger: Int
+    private(set) var replaced = false
+    private(set) var acceptedBeforeReplacement = 0
+    init(ledger: ReportDiagnostics, trigger: Int) { self.ledger = ledger; self.trigger = trigger }
+    func arm() { lock.lock(); defer { lock.unlock() }; trigger = reads + 1 }
+    func read() -> Data {
+        lock.lock(); defer { lock.unlock() }
+        reads += 1
+        if reads == trigger {
+            acceptedBeforeReplacement = ledger.snapshot().transport["outbox-drain"]?.outcomes["server-accepted"] ?? 0
+            ledger.beginGeneration(epoch: 2, enabled: true); replaced = true
+        }
         return Data(repeating: 0xA7, count: 32)
     }
 }

@@ -30,6 +30,64 @@ class ReportDiagnosticsPipelineTest {
         assertFalse(ledger.snapshot().toJson().contains("original-person"))
     }
 
+    @Test fun duplicateBeforeCorruptEntryDoesNotClaimCompleteReadableQueue() {
+        val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
+        val root = tmp.newFolder()
+        val box = OutboxStore(root, JceTestOutboxKeyProvider(), JvmOutboxFileOps())
+        box.enqueueSync(entry("one"), allowed, owner)
+        box.enqueueSync(entry("two"), allowed, owner)
+        val tokens = box.snapshotTokens(owner)
+        val files = File(root, "active").listFiles()!!.filter { it.extension == "txq" }
+        val firstToken = tokens.single { it.fileId == files.first().nameWithoutExtension }
+        val first = box.readIfPresent(firstToken)!!.entry
+        files.last().writeText("corrupt trailing entry")
+        assertEquals(firstToken, box.enqueueSync(first, allowed, owner))
+        assertNull(ledger.snapshot().queue.pendingCount)
+        assertEquals("unknown", ledger.snapshot().queue.quality)
+        assertEquals(3, ledger.snapshot().queue.operations.getValue("enqueue-committed"))
+    }
+
+    @Test fun enqueueAndDuplicatePreserveKnownMigrationDebt() {
+        val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
+        val legacy = tmp.newFile().apply { writeText("malformed legacy entry\n") }
+        val box = OutboxStore(tmp.newFolder(), JceTestOutboxKeyProvider(), JvmOutboxFileOps(), legacyFiles = listOf(legacy))
+        box.migrateLegacy()
+        assertNotNull(box.migrationBlocked)
+        box.snapshotTokens(owner)
+        assertEquals("partial", ledger.snapshot().queue.quality)
+        val item = entry("new")
+        val token = box.enqueueSync(item, allowed, owner)
+        assertEquals("partial", ledger.snapshot().queue.quality)
+        assertEquals("blocked", ledger.snapshot().queue.migration)
+        assertEquals(token, box.enqueueSync(item, allowed, owner))
+        assertEquals("partial", ledger.snapshot().queue.quality)
+        assertEquals(1, ledger.snapshot().queue.pendingCount)
+        assertTrue(legacy.exists())
+    }
+
+    @Test fun generationReplacementDuringStorageCommitCannotUpdateSuccessor() {
+        for (operation in listOf("enqueue", "remove")) {
+            val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
+            var replaceOn: String? = null
+            val ops = object : OutboxFileOps by JvmOutboxFileOps() {
+                override fun renameAtomic(from: File, to: File) {
+                    if (to.extension == replaceOn) { replaceOn = null; ledger.beginGeneration(2, true) }
+                    JvmOutboxFileOps().renameAtomic(from, to)
+                }
+            }
+            val box = OutboxStore(tmp.newFolder(), JceTestOutboxKeyProvider(), ops)
+            if (operation == "enqueue") replaceOn = "txq"
+            val token = box.enqueueSync(entry(operation), allowed, owner)
+            if (operation == "remove") {
+                replaceOn = "removed"
+                box.removeIfPresent(token, owner, QueueOperation.REMOVED_AFTER_ACCEPTANCE)
+            }
+            assertEquals(operation == "enqueue", box.isPresent(token))
+            assertEquals("late $operation must not publish", 0, ledger.snapshot().revision)
+            assertTrue(ledger.snapshot().queue.operations.values.all { it == 0 })
+        }
+    }
+
     @Test fun capacityAndRevocationNeverPretendAnEmptyQueue() {
         val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
         val box = OutboxStore(tmp.newFolder(), JceTestOutboxKeyProvider(), JvmOutboxFileOps(), maxEntries = 1)
