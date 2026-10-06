@@ -1,0 +1,21 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyGate.kt
+  s_983a450ce6fb89::t_e3740f7232fe2e 23,82,89-92
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_983a450ce6fb89::t_668f0fd9bf57a7 146-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "938925473bd042dc54be62a103461ae5185c1eaf",
+  "prompts": {},
+  "sessions": {
+    "s_983a450ce6fb89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb47f35d-a17b-4f3b-9851-1c9249241f1c",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
