@@ -18,7 +18,11 @@ let package = Package(
         cSettings: headers.map { .headerSearchPath($0) },
         cxxSettings: headers.map { .headerSearchPath($0) },
         linkerSettings: [.linkedFramework("Foundation"), .linkedLibrary("c++")]
-    )],
+    ),
+    .target(name: "EFCRProbeNative", dependencies: ["EverframeCrashRecorder"], path: "Tests/ProbeNative",
+        cSettings: headers.map { .headerSearchPath("../../Sources/EverframeCrashRecorder/" + $0) }),
+    .executableTarget(name: "EFCRProbe", dependencies: ["EverframeCrashRecorder", "EFCRProbeNative"], path: "Tests/Probe")
+    ],
     cLanguageStandard: .gnu11,
     cxxLanguageStandard: .gnucxx11
 )
