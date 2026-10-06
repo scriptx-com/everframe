@@ -1,0 +1,47 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsPipelineTest.kt
+  s_97602a0a2d8f20::t_233b436d19598a 1-142
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/CaptureObservation.kt
+  s_97602a0a2d8f20::t_adc94f3ce14566 1-14
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_cfa2b097969c69 1083,1500
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_97602a0a2d8f20::t_cbf1befe33e2b5 378
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_97602a0a2d8f20::t_5255447bc0e0e3 20,119,121-152,154-155,157,176,178-214,260,275,278,332-336,338-339,356,358,392,413,417-419,505,554-555
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDeliveryStatus.kt
+  s_97602a0a2d8f20::t_2f40199b824452 62-63
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDiagnostics.kt
+  s_97602a0a2d8f20::t_3a8b99aa0a0572 59
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/CrashSidecar.kt
+  s_97602a0a2d8f20::t_2f9583e931706f 6,30-31,37-38
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/JSONLOutbox.kt
+  s_97602a0a2d8f20::t_69fe7a027885ff 6,136,139,145-146,165,167,169,173
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_97602a0a2d8f20::t_dce51a08105068 5,39-44,47-55,58,64-65,74-75,92-93,101-102,106,262-275,277-280,289-296,371,377,384,443-459
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_97602a0a2d8f20::t_10eaf45806b942 24,75-105,183-186,200-203,231,352,441,453
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_97602a0a2d8f20::t_0c7beb9ab41610 128-185
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsTest.kt
+  s_97602a0a2d8f20::t_ee465cbeee2fe0 30,35,115
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/transport/ReportSubmitterTest.kt
+  s_97602a0a2d8f20::t_59c71742818e25 94-179
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_97602a0a2d8f20::t_cfa3689251d44e 618
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "746094d71cc48ad192d4104bba90276b87779f6c",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
