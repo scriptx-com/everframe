@@ -13,3 +13,7 @@ export function getPromiseRejectionStatus(): PromiseRejectionStatus {
 export type { ErrorCaptureStatus, ErrorCaptureCounters, ErrorCapturePath, ErrorCaptureOutcome } from './error-capture-status.js';
 /** Mobile admission diagnostics are unavailable on the browser entry. */
 export function getErrorCaptureStatus(): ErrorCaptureStatus { return emptyErrorCaptureStatus('unsupported', 'platform'); }
+
+export type { ReportDeliveryStatus, ReportDeliveryReason, ReportCapturePath, ReportCaptureOutcome, ReportCapturePathStatus, ReportQueueOperation, ReportQueueStatus, ReportStorageFailure, ReportTransportOrigin, ReportTransportOutcome, ReportTransportStatus } from "./report-delivery-status.js";
+import { emptyReportDeliveryStatus, type ReportDeliveryStatus } from "./report-delivery-status.js";
+export function getReportDeliveryStatus(): ReportDeliveryStatus { return emptyReportDeliveryStatus("unsupported", "platform"); }

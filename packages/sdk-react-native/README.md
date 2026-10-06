@@ -675,3 +675,43 @@ this matrix. Installed checks cover four genuine boundary capture cases,
 disabled/initial zero controls, mapped causes, and byte-identical encrypted retry
 after relaunch. The application/JS builds are optimized; native SDKs are
 Debug/local. Physical-device and production-endpoint qualification remains open.
+
+### Native report delivery diagnostics
+
+`getReportDeliveryStatus()` synchronously copies cached native observations. It
+performs no file reads, uploads, drains, or hook installation. Use
+`getErrorCaptureStatus()` separately for JavaScript admission decisions.
+
+```ts
+import { getReportDeliveryStatus } from '@everframe/react-native';
+const status = getReportDeliveryStatus();
+console.log(status.status, status.queue.observation, status.queue.pendingCount);
+```
+
+The schema separates native capture acceptance, queue operations and settled
+transport attempts (`live-submit` and `outbox-drain`). `server-accepted` means an
+HTTP 2xx response; it does not establish processing, symbolication, dashboard
+visibility or queue removal. Removal has its own operation counter. Counters are
+operations, not unique reports, and saturate at 2,147,483,647.
+
+The queue is the SDK's shared report outbox, including reporter submissions and
+entries from earlier configurations. Its count is last-observed, not a fresh
+measurement or a current-project/crash-only total. Missing counts mean unknown;
+`partial` means only readable entries were counted. Android rejects new entries
+at capacity and retains terminal HTTP responses during drain. iOS can evict older
+entries and attempts removal after terminal HTTP responses. Custom standalone
+outbox/submitter instances are not automatically included.
+
+Snapshots contain only fixed codes and counters, never report content, IDs,
+URLs, credentials or exception strings. Observations are process-local and reset
+on native start/reconfiguration or kill. They are best-effort: contention and
+termination may lose observations; a busy getter reports `snapshot-busy`.
+`bridge-handled` and `bridge-automatic` cover fact entry paths shared by framework
+bridges. iOS marks `jvm-uncaught` unsupported and implies no automatic iOS native
+crash collector.
+
+Without a mounted provider the result is `not-mounted`; the browser export is
+`unsupported`. Older native SDKs return `unavailable/native-method-missing`.
+Malformed native responses return `unavailable/invalid-native-snapshot`. These
+fallbacks have an unobserved queue and `unknown` platform policies. This API does
+not provide a per-report delivery guarantee or trigger a retry.

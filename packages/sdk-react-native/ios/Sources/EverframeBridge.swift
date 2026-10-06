@@ -592,6 +592,11 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         }
     }
 
+    /// Cached, content-free native delivery facts. Encoding failure is rejected by JS.
+    @objc public static func getReportDeliveryStatusJson() -> NSString {
+        ((try? Everframe.shared.getReportDeliveryStatus().toJSON()) ?? "{}") as NSString
+    }
+
     // MARK: - reportCrash (Task 13 — crash/error reporting spec 2026-07-18)
 
     /// Crash/error reporting. Synchronous: the RN fatal path must finish

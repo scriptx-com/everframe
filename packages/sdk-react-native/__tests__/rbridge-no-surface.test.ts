@@ -72,7 +72,7 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
       });
     }
 
-    it("declares exactly the 17 locked report methods and no other non-companion report method", () => {
+    it("declares exactly the 18 locked report methods and no other non-companion report method", () => {
       const REPORT_METHODS = [
         "configure",
         "openReporter",
@@ -103,6 +103,8 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
         "reportCrash",
         // Explicit-capture spec 2026-09-14: distinct sync storage acknowledgement.
         "captureHandledException",
+        // Additive content-free diagnostics; no replay or transport control.
+        "getReportDeliveryStatusJson",
         // Additive sync startup path. The legacy void configure stays for
         // already-compiled callers, while the runtime uses configureSync so
         // an immediate blocking capture cannot overtake native startup.

@@ -31,6 +31,7 @@ export {
   captureException,
   getPromiseRejectionStatus,
   getErrorCaptureStatus,
+  getReportDeliveryStatus,
   setExtra,
   setUser,
   addBreadcrumb,
@@ -86,3 +87,5 @@ export type { CaptureExceptionOptions, ReportDraft, DeviceMetadata } from '@ever
 export { EXTRA_MAX_CHARS } from '@everframe/sdk-core';
 
 export type { ErrorCaptureStatus, ErrorCaptureCounters, ErrorCapturePath, ErrorCaptureOutcome } from './error-capture-status.js';
+
+export type { ReportDeliveryStatus, ReportDeliveryReason, ReportCapturePath, ReportCaptureOutcome, ReportCapturePathStatus, ReportQueueOperation, ReportQueueStatus, ReportStorageFailure, ReportTransportOrigin, ReportTransportOutcome, ReportTransportStatus } from "./report-delivery-status.js";
