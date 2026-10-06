@@ -88,3 +88,18 @@ it('same-runtime remount during info inspection cannot charge the successor moun
   captureReactError(new Error('old invocation'), info);
   expect(native).not.toHaveBeenCalled(); expect(getErrorCaptureStatus().counters.handled.attempted).toBe(0);
 });
+it('a hostile info trap cannot remount through a late Reflect.apply lookup', () => {
+  const old = mount();
+  const original = Object.getOwnPropertyDescriptor(Reflect, 'apply')!;
+  let lookups = 0;
+  const info = new Proxy({}, { getOwnPropertyDescriptor() {
+    Object.defineProperty(Reflect, 'apply', { configurable: true, get() {
+      Object.defineProperty(Reflect, 'apply', original); lookups++; old.unmount(); mount(); return original.value;
+    } });
+    return { configurable: true, value: 'stack' };
+  } });
+  try { captureReactError(new Error('original mount'), info); }
+  finally { Object.defineProperty(Reflect, 'apply', original); }
+  expect(lookups).toBe(0);
+  expect(old.getErrorCaptureStatus().counters.handled.accepted).toBe(1);
+});

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { __getCurrentContext, __getContextEpoch } from '../contextSeam.js';
+// Resolve the intrinsic before host metadata can mutate its property.
+const applyFunction = Reflect.apply;
 
 /**
  * Call from an application's componentDidCatch after EverframeProvider mounts.
@@ -22,7 +24,7 @@ export function captureReactError(error: unknown, info?: { componentStack?: stri
     const capture = owner.captureException;
     if (__getCurrentContext() !== owner || __getContextEpoch() !== epoch) return;
     // The normalizer owns bounded scanning and truncation evidence.
-    Reflect.apply(capture, owner, [error, { context: 'react.error-boundary',
+    applyFunction(capture, owner, [error, { context: 'react.error-boundary',
       ...(componentStack !== undefined ? { metadata: { componentStack } } : {}) }]);
   } catch { /* Reporting must not break the application's boundary callback. */ }
 }
