@@ -1,0 +1,37 @@
+packages/sdk-react-native/README.md
+  s_50ef5cb0514104::t_8a3a24f4105f09 613-673
+packages/sdk-react-native/__tests__/fixtures/error-details-public-consumer.ts
+  s_97602a0a2d8f20::t_f280ed363e3332 36-47
+packages/sdk-react-native/__tests__/react-adapter-packaging.test.ts
+  s_97602a0a2d8f20::t_d363ac356169be 1-24
+packages/sdk-react-native/package.json
+  s_50ef5cb0514104::t_25180a41c879cf 4,76-80
+packages/sdk-react-native/scripts/verify-error-details-public.mjs
+  s_50ef5cb0514104::t_31db467ffed0c4 149-156
+packages/sdk-react-native/tsup.config.ts
+  s_50ef5cb0514104::t_157d71164804c0 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc972b48580feef73d12733458ec613ff86bb81f",
+  "prompts": {},
+  "sessions": {
+    "s_50ef5cb0514104": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e98b6f9-1059-4977-9c48-97ee9d044c6b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
