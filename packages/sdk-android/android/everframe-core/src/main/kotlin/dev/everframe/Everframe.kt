@@ -889,6 +889,7 @@ object Everframe {
             // ordering.
             _identityHolder.set(null)
             appContext = context.applicationContext
+            dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(epoch, config.capture.crash)
             captureGate = true
             true
         }
@@ -1285,6 +1286,7 @@ object Everframe {
                 // revocation survive a later start() that re-opens captureGate.
                 _killGeneration += 1
                 _killGenerationMirror.set(_killGeneration)
+                dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
                 _config = null
                 _user = null
@@ -1506,6 +1508,11 @@ object Everframe {
             }
         }
     }
+
+    /** Cached, content-free observations. Does not inspect storage or initiate delivery. */
+    @JvmStatic
+    fun getReportDeliveryStatus(): dev.everframe.diagnostics.ReportDeliveryStatus =
+        dev.everframe.diagnostics.ReportDiagnostics.shared.snapshot()
 
     /** Report a caught Throwable. Returns after a best-effort durable capture, before delivery. */
     @JvmStatic
