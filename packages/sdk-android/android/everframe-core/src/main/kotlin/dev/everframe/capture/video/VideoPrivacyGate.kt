@@ -20,7 +20,7 @@ import dev.everframe.sensitive.TXSensitiveView
 import java.lang.ref.WeakReference
 
 /**
- * Main-only traversal. Inputs, video surfaces and sensitive views are masked; WebViews, Compose,
+ * Main-only traversal. Inputs, TextureViews and sensitive views are masked; WebViews, Compose,
  * unclassified views and anything that cannot be placed on screen refuse the frame.
  */
 internal class VideoPrivacyGate(
@@ -79,13 +79,17 @@ internal class VideoPrivacyGate(
             if (classification == VideoPrivacyAdapter.Classification.EXCLUDE ||
                 (marker != null && marker != false) || view is TXSensitiveView || view is EditText ||
                 (view is TextView && (view.onCheckIsTextEditor() || view.transformationMethod is PasswordTransformationMethod)) ||
-                view is SurfaceView || view is TextureView) {
+                view is TextureView) {
                 // Painted black, children included, instead of refusing the frame. History keeps
                 // it covered if it is later reparented into an overlay this walk cannot reach.
                 VideoSensitiveViews.remember(view)
                 if (!mask(view)) { allowed = false; break }
                 continue
             }
+            // A SurfaceView renders into its own surface, which a window PixelCopy never contains:
+            // its area comes out empty without a mask, and overlays drawn above it (subtitles,
+            // player controls) stay visible. A TextureView draws into the window and is masked.
+            if (view is SurfaceView) continue
             if (view is WebView) {
                 val hiddenVisits = HiddenVideoWebView.inspect(view, start + 2_000_000L, 2048 - visited - queue.size, nowNanos)
                 if (hiddenVisits == null) {

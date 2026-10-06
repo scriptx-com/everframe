@@ -143,6 +143,8 @@ class VideoPrivacyGateTest {
                     val seen = gate.observe(root)
                     if (child is android.webkit.WebView || child.javaClass == composeType) {
                         assertFalse("unsupported warm type ${child.javaClass.name}", seen.allowed)
+                    } else if (child is android.view.SurfaceView) {
+                        assertTrue("SurfaceView pixels are never in a window copy", seen.allowed && seen.masks.isEmpty())
                     } else {
                         assertTrue("maskable warm type ${child.javaClass.name}", masked(seen, child, root))
                     }
