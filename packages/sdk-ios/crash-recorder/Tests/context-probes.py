@@ -19,7 +19,7 @@ def run(binary, evidence):
               'ctx-current':'11111111-1111-4111-8111-111111111111',
               'ctx-switched':'22222222-2222-4222-8222-222222222222',
               'ctx-admitted':'11111111-1111-4111-8111-111111111111',
-              'ctx-cleared':None,'ctx-capacity':'00000000-0000-0000-0000-0000000000fe'}
+              'ctx-cleared':None,'ctx-admitted-empty':None,'ctx-capacity':'00000000-0000-0000-0000-0000000000fe'}
     rows=[]
     for mode,identifier in expected.items():
         directory=evidence/mode;directory.mkdir(mode=0o700)
@@ -34,7 +34,7 @@ def run(binary, evidence):
         (evidence/f'{mode}.stdout').write_bytes(process.stdout);(evidence/f'{mode}.stderr').write_bytes(process.stderr)
         reports=list((directory/'Reports').glob('*.json'))
         row={'mode':mode,'command':command,'exitCode':process.returncode,'reports':len(reports),'expectedContext':identifier,
-             'syntheticPriorAdmission':mode=='ctx-admitted'}
+             'syntheticPriorAdmission':mode in ['ctx-admitted','ctx-admitted-empty']}
         rows.append(row);(evidence/'processes.json').write_text(json.dumps(rows,indent=2)+'\n')
         assert process.returncode==-5 and len(reports)==1,row
         raw=reports[0].read_bytes();report=json.loads(raw)
@@ -42,7 +42,7 @@ def run(binary, evidence):
         row.update(reportPath=str(reports[0].relative_to(evidence)),reportSha256=hashlib.sha256(raw).hexdigest(),reportID=report['report']['id'])
     proof={'schemaVersion':1,'binarySha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'processes':rows}
     (evidence/'proof.json').write_text(json.dumps(proof,indent=2)+'\n')
-    print('6 real fatal context probes passed; admitted-A row uses explicit synthetic prior admission')
+    print('7 real fatal context probes passed; admitted-A row uses explicit synthetic prior admission')
     return proof
 
 

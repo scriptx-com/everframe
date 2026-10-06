@@ -94,6 +94,6 @@ callers that publish nothing keep the original report shape. No application cont
 configuration, identity object or arbitrary userInfo is read in either callback.
 The SDK's automatic startup/recovery integration is still pending.
 
-`Tests/context-probes.py` runs six real fatal context cases. The admitted-A case
-explicitly invokes the admission callback before publishing B, then triggers a real
+`Tests/context-probes.py` runs seven real fatal context cases. The admitted-A and empty-context cases
+explicitly invoke the admission callback before publishing B, then trigger a real
 fatal report; this exercises the boundary deterministically, not a scheduler race.

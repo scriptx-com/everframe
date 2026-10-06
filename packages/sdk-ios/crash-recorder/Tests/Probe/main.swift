@@ -46,6 +46,12 @@ if mode.hasPrefix("ctx-") {
         check(EFCRSetEnabled(false), "disable before publishing B")
         check(EFCRSetContextIdentifier(contextB), "publish B")
     case "ctx-cleared": check(EFCRSetContextIdentifier(nil), "clear while disabled")
+    case "ctx-admitted-empty":
+        check(EFCRSetContextIdentifier(nil), "clear before admission")
+        check(EFCRSetEnabled(true), "enable without context")
+        check(EFCRProbeAdmitContext() == 0, "synthetic empty admission")
+        check(EFCRSetEnabled(false), "disable after empty admission")
+        check(EFCRSetContextIdentifier(contextB), "publish B after empty admission")
     case "ctx-capacity":
         // A occupies the first slot;255 other immutable identifiers fill the budget.
         for index in 0..<255 {
