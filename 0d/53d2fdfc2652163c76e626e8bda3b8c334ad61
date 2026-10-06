@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDeliveryStatus.kt
+  s_97602a0a2d8f20::t_551e2252eb77ff 1-86
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsTest.kt
+  s_97602a0a2d8f20::t_8219d5d9aedc4f 1-125
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDiagnostics.kt
+  s_97602a0a2d8f20::t_551e2252eb77ff 1-90
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_df5bcaf442a5b9 892,1289,1512-1516
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_97602a0a2d8f20::t_acf307a94eea09 134-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0d53d2fdfc2652163c76e626e8bda3b8c334ad61",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
