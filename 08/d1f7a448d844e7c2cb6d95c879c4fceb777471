@@ -1,0 +1,37 @@
+packages/sdk-ios/crash-recorder/README.md
+  s_97602a0a2d8f20::t_86a2ec7f127ef4 80-99
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Recorder.m
+  s_97602a0a2d8f20::t_f64b0a9d584b4d 80,107-112
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/RecorderGate.c
+  s_97602a0a2d8f20::t_30d3d98f8a6a23 5,7-14,20-62
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/RecorderGate.h
+  s_97602a0a2d8f20::t_1504401b9eaafe 7,13-15
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/include/EverframeCrashRecorder.h
+  s_97602a0a2d8f20::t_de83b5af302153 25-30
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_97602a0a2d8f20::t_4a69373eb66a7f 13-14,30-63
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/ProbeNative.m
+  s_97602a0a2d8f20::t_9c7c08fc0227e6 42-48
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/include/ProbeNative.h
+  s_97602a0a2d8f20::t_bbc292d31d4fa0 7
+packages/sdk-ios/crash-recorder/Tests/context-probes.py
+  s_97602a0a2d8f20::t_f32933ed6d9a5e 1-51
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_97602a0a2d8f20::t_acdc1e1da14bf3 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08d1f7a448d844e7c2cb6d95c879c4fceb777471",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
