@@ -1,0 +1,475 @@
+// SPDX-License-Identifier: MIT
+// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude.
+// Original copyright and license notices retained below.
+#include "EverframeKSCrashNamespace.h"
+//
+//  KSLogger.c
+//
+//  Created by Karl Stenerud on 11-06-25.
+//
+//  Copyright (c) 2011 Karl Stenerud. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall remain in place
+// in this source code.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+
+#include "KSLogger.h"
+
+#include "KSString.h"
+#include "KSSystemCapabilities.h"
+
+// ===========================================================================
+#pragma mark - Common -
+// ===========================================================================
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+// Compiler hints for "if" statements
+#define likely_if(x) if (__builtin_expect(x, 1))
+#define unlikely_if(x) if (__builtin_expect(x, 0))
+
+/** The buffer size to use when writing log entries.
+ *
+ * If this value is > 0, any log entries that expand beyond this length will
+ * be truncated.
+ * If this value = 0, the logging system will dynamically allocate memory
+ * and never truncate. However, the log functions won't be async-safe.
+ *
+ * Unless you're logging from within signal handlers, it's safe to set it to 0.
+ */
+#ifndef KSLOGGER_CBufferSize
+#define KSLOGGER_CBufferSize 1024
+#endif
+
+/** Where console logs will be written */
+static char g_logFilename[1024];
+
+/** Write a formatted string to the log.
+ *
+ * @param fmt The format string, followed by its arguments.
+ */
+static void writeFmtToLog(const char *fmt, ...);
+
+/** Write a formatted string to the log using a vararg list.
+ *
+ * @param fmt The format string.
+ *
+ * @param args The variable arguments.
+ */
+static void writeFmtArgsToLog(const char *fmt, va_list args);
+
+/** Flush the log stream.
+ */
+static void flushLog(void);
+
+static inline const char *lastPathEntry(const char *const path)
+{
+    const char *lastFile = strrchr(path, '/');
+    return lastFile == 0 ? path : lastFile + 1;
+}
+
+static inline void writeFmtToLog(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    writeFmtArgsToLog(fmt, args);
+    va_end(args);
+}
+
+#if KSLOGGER_CBufferSize > 0
+
+/** The file descriptor where log entries get written. */
+static int g_fd = -1;
+
+static void writeToLog(const char *const str)
+{
+    if (g_fd >= 0) {
+        int bytesToWrite = (int)strlen(str);
+        const char *pos = str;
+        while (bytesToWrite > 0) {
+            int bytesWritten = (int)write(g_fd, pos, (unsigned)bytesToWrite);
+            unlikely_if(bytesWritten == -1) { break; }
+            bytesToWrite -= bytesWritten;
+            pos += bytesWritten;
+        }
+    }
+    write(STDOUT_FILENO, str, strlen(str));
+}
+
+// Minimal signal-safe formatter. Handles: %s, %d, %u, %x, %p, %08x, 0x%x, %ld, %lu, %lx, %lld, %llu, %llx, %%.
+static void writeFmtArgsToLog(const char *fmt, va_list args)
+{
+    unlikely_if(fmt == NULL)
+    {
+        writeToLog("(null)");
+        return;
+    }
+
+    char buffer[KSLOGGER_CBufferSize];
+    char *p = buffer;
+    char *end = buffer + sizeof(buffer) - 1;
+
+    while (*fmt && p < end) {
+        if (*fmt != '%') {
+            *p++ = *fmt++;
+            continue;
+        }
+        fmt++;  // skip '%'
+
+        // Lone '%' at end of string
+        if (*fmt == '\0') {
+            if (p < end) *p++ = '%';
+            break;
+        }
+
+        // Parse flags (-, +, #, space are consumed and ignored)
+        bool zeroPad = false;
+        int width = 0;
+        while (*fmt == '-' || *fmt == '+' || *fmt == '#' || *fmt == ' ' || *fmt == '0') {
+            if (*fmt == '0') zeroPad = true;
+            fmt++;
+        }
+        // Width — cap to prevent signed overflow on pathological input
+        while (*fmt >= '0' && *fmt <= '9') {
+            if (width < 4096) width = width * 10 + (*fmt - '0');
+            fmt++;
+        }
+
+        // Parse precision (e.g. ".3" in "%.3f") — consumed but ignored
+        if (*fmt == '.') {
+            fmt++;
+            while (*fmt >= '0' && *fmt <= '9') {
+                fmt++;
+            }
+        }
+
+        // Parse length modifier (h, hh, j, t, L, q are consumed but don't change
+        // the va_arg type — char/short/float get default-promoted to int/double)
+        int longCount = 0;
+        bool isSizeT = false;
+        while (*fmt == 'l') {
+            longCount++;
+            fmt++;
+        }
+        if (*fmt == 'z') {
+            isSizeT = true;
+            fmt++;
+        } else if (*fmt == 'h') {
+            fmt++;
+            if (*fmt == 'h') fmt++;
+        } else if (*fmt == 'j' || *fmt == 't' || *fmt == 'L' || *fmt == 'q') {
+            fmt++;
+        }
+
+        // If the format string ended mid-specifier, bail
+        if (*fmt == '\0') {
+            break;
+        }
+
+        char convBuf[32];
+        size_t convLen = 0;
+        const char *strVal = NULL;
+
+        switch (*fmt) {
+            case 's':
+                strVal = va_arg(args, const char *);
+                if (!strVal) strVal = "(null)";
+                while (*strVal && p < end) {
+                    *p++ = *strVal++;
+                }
+                fmt++;
+                continue;
+            case 'c': {
+                // Always consume the arg, even if buffer is full — otherwise
+                // subsequent specifiers would read the wrong va_list slot.
+                char ch = (char)va_arg(args, int);
+                if (p < end) *p++ = ch;
+                fmt++;
+                continue;
+            }
+            case 'd': {
+                int64_t val;
+                if (isSizeT)
+                    val = (int64_t)va_arg(args, ssize_t);
+                else if (longCount >= 2)
+                    val = va_arg(args, long long);
+                else if (longCount == 1)
+                    val = va_arg(args, long);
+                else
+                    val = va_arg(args, int);
+                convLen = ksstring_int64ToDecimal(val, convBuf, sizeof(convBuf));
+                break;
+            }
+            case 'u': {
+                uint64_t val;
+                if (isSizeT)
+                    val = (uint64_t)va_arg(args, size_t);
+                else if (longCount >= 2)
+                    val = va_arg(args, unsigned long long);
+                else if (longCount == 1)
+                    val = va_arg(args, unsigned long);
+                else
+                    val = va_arg(args, unsigned int);
+                convLen = ksstring_uint64ToDecimal(val, convBuf, sizeof(convBuf));
+                break;
+            }
+            case 'x': {
+                uint64_t val;
+                if (isSizeT)
+                    val = (uint64_t)va_arg(args, size_t);
+                else if (longCount >= 2)
+                    val = va_arg(args, unsigned long long);
+                else if (longCount == 1)
+                    val = va_arg(args, unsigned long);
+                else
+                    val = va_arg(args, unsigned int);
+                convLen = ksstring_uint64ToHex(val, convBuf, sizeof(convBuf), 1, false);
+                break;
+            }
+            case 'f':
+            case 'g':
+            case 'e': {
+                double val = va_arg(args, double);
+                convLen = ksstring_doubleToString(val, convBuf, sizeof(convBuf));
+                break;
+            }
+            case 'p': {
+                void *ptr = va_arg(args, void *);
+                if (p < end) *p++ = '0';
+                if (p < end) *p++ = 'x';
+                convLen = ksstring_uint64ToHex((uint64_t)(uintptr_t)ptr, convBuf, sizeof(convBuf), 1, false);
+                break;
+            }
+            case '%':
+                if (p < end) *p++ = '%';
+                fmt++;
+                continue;
+            default:
+                // Unknown specifier — emit "%<char>" literally WITHOUT consuming
+                // an arg. Consuming a speculative void* would desynchronize the
+                // va_list and corrupt every subsequent specifier's output.
+                if (p < end) *p++ = '%';
+                if (p < end) *p++ = *fmt;
+                fmt++;
+                continue;
+        }
+        fmt++;
+
+        // Apply zero-padding for width, emitting sign before zeros (e.g. "%06d" + -1 → "-00001")
+        size_t copyStart = 0;
+        if (zeroPad && width > 0 && convLen < (size_t)width) {
+            if (convLen > 0 && convBuf[0] == '-') {
+                if (p < end) *p++ = '-';
+                copyStart = 1;
+                convLen--;
+            }
+            size_t pad = (size_t)width - convLen - copyStart;
+            for (size_t i = 0; i < pad && p < end; i++) {
+                *p++ = '0';
+            }
+        }
+        for (size_t i = copyStart; i < copyStart + convLen && p < end; i++) {
+            *p++ = convBuf[i];
+        }
+    }
+
+    *p = '\0';
+    writeToLog(buffer);
+}
+
+static inline void flushLog(void)
+{
+    // Nothing to do.
+}
+
+static inline void setLogFD(int fd)
+{
+    if (g_fd >= 0 && g_fd != STDOUT_FILENO && g_fd != STDERR_FILENO && g_fd != STDIN_FILENO) {
+        close(g_fd);
+    }
+    g_fd = fd;
+}
+
+bool kslog_setLogFilename(const char *filename, bool overwrite)
+{
+    static int fd = -1;
+    if (filename != NULL) {
+        int openMask = O_WRONLY | O_CREAT;
+        if (overwrite) {
+            openMask |= O_TRUNC;
+        }
+        fd = open(filename, openMask, 0644);
+        unlikely_if(fd < 0)
+        {
+            writeFmtToLog("KSLogger: Could not open %s: %s", filename, strerror(errno));
+            return false;
+        }
+        if (filename != g_logFilename) {
+            strlcpy(g_logFilename, filename, sizeof(g_logFilename));
+        }
+    }
+
+    setLogFD(fd);
+    return true;
+}
+
+#else  // if KSLogger_CBufferSize <= 0
+
+static FILE *g_file = NULL;
+
+static inline void setLogFD(FILE *file)
+{
+    if (g_file != NULL && g_file != stdout && g_file != stderr && g_file != stdin) {
+        fclose(g_file);
+    }
+    g_file = file;
+}
+
+void writeToLog(const char *const str)
+{
+    if (g_file != NULL) {
+        fprintf(g_file, "%s", str);
+    }
+    fprintf(stdout, "%s", str);
+}
+
+static inline void writeFmtArgsToLog(const char *fmt, va_list args)
+{
+    unlikely_if(g_file == NULL) { g_file = stdout; }
+
+    if (fmt == NULL) {
+        writeToLog("(null)");
+    } else {
+        vfprintf(g_file, fmt, args);
+    }
+}
+
+static inline void flushLog(void) { fflush(g_file); }
+
+bool kslog_setLogFilename(const char *filename, bool overwrite)
+{
+    static FILE *file = NULL;
+    FILE *oldFile = file;
+    if (filename != NULL) {
+        file = fopen(filename, overwrite ? "wb" : "ab");
+        unlikely_if(file == NULL)
+        {
+            writeFmtToLog("KSLogger: Could not open %s: %s", filename, strerror(errno));
+            return false;
+        }
+    }
+    if (filename != g_logFilename) {
+        strlcpy(g_logFilename, filename, sizeof(g_logFilename));
+    }
+
+    if (oldFile != NULL) {
+        fclose(oldFile);
+    }
+
+    setLogFD(file);
+    return true;
+}
+
+#endif
+
+bool kslog_clearLogFile(void) { return kslog_setLogFilename(g_logFilename, true); }
+
+// ===========================================================================
+#pragma mark - C -
+// ===========================================================================
+
+void i_kslog_logCBasic(const char *const fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    writeFmtArgsToLog(fmt, args);
+    va_end(args);
+    writeToLog("\n");
+    flushLog();
+}
+
+void i_kslog_logC(const char *const level, const char *const file, const int line, const char *const function,
+                  const char *const fmt, ...)
+{
+    writeFmtToLog("%s: %s (%u): %s: ", level, lastPathEntry(file), line, function);
+    va_list args;
+    va_start(args, fmt);
+    writeFmtArgsToLog(fmt, args);
+    va_end(args);
+    writeToLog("\n");
+    flushLog();
+}
+
+// ===========================================================================
+#pragma mark - Objective-C -
+// ===========================================================================
+
+#if KSCRASH_HAS_OBJC
+#include <CoreFoundation/CoreFoundation.h>
+
+void i_kslog_logObjCBasic(CFStringRef fmt, ...)
+{
+    if (fmt == NULL) {
+        writeToLog("(null)");
+        return;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    CFStringRef entry = CFStringCreateWithFormatAndArguments(NULL, NULL, fmt, args);
+    va_end(args);
+
+    int bufferLength = (int)CFStringGetLength(entry) * 4 + 1;
+    char *stringBuffer = malloc((unsigned)bufferLength);
+    if (CFStringGetCString(entry, stringBuffer, (CFIndex)bufferLength, kCFStringEncodingUTF8)) {
+        writeToLog(stringBuffer);
+    } else {
+        writeToLog("Could not convert log string to UTF-8. No logging performed.");
+    }
+    writeToLog("\n");
+
+    free(stringBuffer);
+    CFRelease(entry);
+}
+
+void i_kslog_logObjC(const char *const level, const char *const file, const int line, const char *const function,
+                     CFStringRef fmt, ...)
+{
+    CFStringRef logFmt = NULL;
+    if (fmt == NULL) {
+        logFmt = CFStringCreateWithCString(NULL, "%s: %s (%u): %s: (null)", kCFStringEncodingUTF8);
+        i_kslog_logObjCBasic(logFmt, level, lastPathEntry(file), line, function);
+    } else {
+        va_list args;
+        va_start(args, fmt);
+        CFStringRef entry = CFStringCreateWithFormatAndArguments(NULL, NULL, fmt, args);
+        va_end(args);
+
+        logFmt = CFStringCreateWithCString(NULL, "%s: %s (%u): %s: %@", kCFStringEncodingUTF8);
+        i_kslog_logObjCBasic(logFmt, level, lastPathEntry(file), line, function, entry);
+
+        CFRelease(entry);
+    }
+    CFRelease(logFmt);
+}
+#endif  // KSCRASH_HAS_OBJC
