@@ -254,10 +254,10 @@ class PixelCopyVideoCaptureTest {
         val h = Harness(); h.request(); h.commit(); h.extraCommit!!(); h.callback()
         assertEquals(0,h.accepted)
     }
-    @Test fun nativeAdapterRejectsSecondTraversalBeforeDelayedPrimaryDelivery() {
+    private fun nativeTraversal(sensitiveOnSecond: Boolean): Pair<Int, Int> {
         val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
         val activity = controller.get()
-        val root = activity.window.decorView
+        val root = activity.window.decorView as android.view.ViewGroup
         root.layout(0,0,100,100)
         val registrations = mutableListOf<Runnable>()
         val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
@@ -274,16 +274,50 @@ class PixelCopyVideoCaptureTest {
             assertTrue(h.request())
             val delayedPrimary = registrations.single()
             root.viewTreeObserver.dispatchOnPreDraw()
+            if (sensitiveOnSecond) root.addView(android.widget.EditText(activity))
             root.viewTreeObserver.dispatchOnPreDraw()
             delayedPrimary.run(); h.drain()
-            assertTrue("second traversal must prevent native copy submission", h.copies.isEmpty())
-            assertEquals(0,h.accepted)
+            val submitted = h.copies.size
+            if (h.copies.isNotEmpty()) h.callback()
             assertTrue(registrations.isEmpty())
+            return submitted to h.accepted
         } finally {
             h.capture.cancel(); h.drain()
             if (h.copies.isNotEmpty()) h.callback()
             controller.pause().stop().destroy()
         }
+    }
+    @Test fun nativeAdapterKeepsFrameAcrossCleanExtraTraversal() {
+        // Animations redraw continuously; each traversal is re-observed, so the frame stays valid.
+        assertEquals(1 to 1, nativeTraversal(sensitiveOnSecond = false))
+    }
+    @Test fun nativeAdapterDropsFrameWhenExtraTraversalBringsSensitiveView() {
+        val (submitted, accepted) = nativeTraversal(sensitiveOnSecond = true)
+        assertEquals("a traversal that fails the gate must prevent native copy submission", 0, submitted)
+        assertEquals(0, accepted)
+    }
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun admittedFramePaintsMasksBlackAndLeavesTheRest() {
+        val h = Harness()
+        h.capture = PixelCopyVideoCapture(h.platform, h.scheduler, { size ->
+            Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.WHITE) }.also { h.bitmap = it }
+        })
+        h.observation = h.observation.copy(masks = listOf(android.graphics.Rect(10, 10, 30, 30)))
+        var inside = 0; var outside = 0
+        h.request(consume = { frame -> frame.withPixels { inside = it.getPixel(20, 20); outside = it.getPixel(60, 60) }; h.accepted++; frame.close() })
+        h.commit(); h.callback()
+        assertEquals(1, h.accepted)
+        assertEquals(android.graphics.Color.BLACK, inside)
+        assertEquals(android.graphics.Color.WHITE, outside)
+    }
+    @Test fun movedMaskBeforeCopyDropsFrameAsPrivacyExclusion() {
+        val h = Harness()
+        h.observation = h.observation.copy(masks = listOf(android.graphics.Rect(10, 10, 30, 30)))
+        h.request(); h.commit()
+        h.observation = h.observation.copy(epoch = h.observation.epoch + 1, masks = listOf(android.graphics.Rect(40, 10, 60, 30)))
+        h.callback()
+        assertEquals(0, h.accepted)
+        assertEquals(1L, h.capture.privacyExclusions.get())
     }
     @Test fun failedObservationAfterCopyReleasesWithoutAdmission() {
         val h = Harness(); h.request(); h.commit(); h.observationThrows = true

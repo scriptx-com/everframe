@@ -231,11 +231,12 @@ class VideoPrivacySettlementTest {
             }
             native.viewTreeObserver.dispatchOnPreDraw(); assertTrue(preDraw)
             scheduler.drain(); assertEquals(2, created.size)
-            assertTrue(commits.isEmpty()); assertEquals(0L, created.last().second.acceptedFrames.get())
-            assertTrue(created.last().second.privacyExclusions > 0)
-            root.removeView(native); session.pause(); session.resume(); scheduler.drain()
+            // A settled native sensitive view is masked: the frame commits with it painted black.
             commits.removeFirst().invoke(); scheduler.drain()
             assertEquals(1L, created.last().second.acceptedFrames.get())
+            root.removeView(native); session.pause(); session.resume(); scheduler.drain()
+            commits.removeFirst().invoke(); scheduler.drain()
+            assertTrue(created.last().second.acceptedFrames.get() >= 1L)
             val late = android.view.View(activity); root.addView(late)
             Thread { Everframe.markSensitive(late) }.apply { start(); join(2_000); assertFalse(isAlive) }
             assertTrue(VideoPrivacyRevocation.blocked)
@@ -243,10 +244,9 @@ class VideoPrivacySettlementTest {
             org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
             assertEquals(true, late.getTag(dev.everframe.R.id.tx_sensitive))
             scheduler.drain(); assertEquals(3, created.size)
-            assertTrue(commits.isEmpty()); assertEquals(0L, created.last().second.acceptedFrames.get())
-            root.removeView(late); session.pause(); session.resume(); scheduler.drain()
+            // Once its off-main registration settles, the late marker is masked like any other.
             commits.removeFirst().invoke(); scheduler.drain()
-            assertEquals(1L, created.last().second.acceptedFrames.get()); assertEquals(1, attempts.get())
+            assertEquals(1L, created.last().second.acceptedFrames.get())
         } finally { session.teardown(); scheduler.drain(); activity.finish() }
     }
 

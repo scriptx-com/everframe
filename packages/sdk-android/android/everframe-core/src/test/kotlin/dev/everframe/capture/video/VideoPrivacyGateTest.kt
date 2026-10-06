@@ -25,6 +25,11 @@ class VideoPrivacyGateTest {
     }
     private class NewView(context: android.content.Context) : View(context)
 
+    private fun masked(o: PrivacyObservation, view: View, root: View): Boolean {
+        val bounds = VideoMaskBounds.of(view, root) ?: return false
+        return o.allowed && o.masks.any { it.contains(bounds) }
+    }
+
     @Test fun warmClassStillChecksMarkerPasswordAndEditorForEachInstance() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
@@ -40,10 +45,11 @@ class VideoPrivacyGateTest {
                 val second = MutableTextView(a); root.addView(second)
                 repeat(2) { assertTrue(gate.observe(root).allowed) }
                 mutate(second)
-                assertFalse(gate.observe(root).allowed)
+                assertTrue("sensitive instance is masked", masked(gate.observe(root), second, root))
                 // Observed sensitive instances remain in weak history until actual detach.
                 root.removeView(second)
-                assertTrue(gate.observe(root).allowed)
+                val clean = gate.observe(root)
+                assertTrue(clean.allowed); assertTrue(clean.masks.isEmpty())
             }
         } finally { a.finish() }
     }
@@ -64,7 +70,7 @@ class VideoPrivacyGateTest {
             decision = VideoPrivacyAdapter.Classification.ORDINARY_VIEW
             assertTrue(gate.observe(root).allowed)
             decision = VideoPrivacyAdapter.Classification.EXCLUDE
-            assertFalse(gate.observe(root).allowed)
+            assertTrue("adapter exclusion is masked", masked(gate.observe(root), native, root))
             root.removeView(native)
             native = NativeSubclass(a); root.addView(native)
             decision = VideoPrivacyAdapter.Classification.ORDINARY_VIEW
@@ -134,7 +140,12 @@ class VideoPrivacyGateTest {
                     child.layout(0, 0, 100, 100)
                     // Robolectric's WebView provider leaves setFrame unimplemented.
                     child.left = 0; child.top = 0; child.right = 100; child.bottom = 100
-                    assertFalse("unsupported warm type ${child.javaClass.name}", gate.observe(root).allowed)
+                    val seen = gate.observe(root)
+                    if (child is android.webkit.WebView || child.javaClass == composeType) {
+                        assertFalse("unsupported warm type ${child.javaClass.name}", seen.allowed)
+                    } else {
+                        assertTrue("maskable warm type ${child.javaClass.name}", masked(seen, child, root))
+                    }
                     root.removeView(child)
                     if (child is android.webkit.WebView) child.destroy()
                     assertTrue(gate.observe(root).allowed)
@@ -215,10 +226,10 @@ class VideoPrivacyGateTest {
         val gate = VideoPrivacyGate({ a }, { 0L }, { true })
         val clean = gate.observe(root)
         val before = VideoPrivacyRevocation.current
-        root.addView(EditText(a))
+        val input = EditText(a); root.addView(input)
         val excluded = gate.observe(root)
-        assertFalse(excluded.allowed)
-        assertTrue(excluded.epoch > clean.epoch)
+        assertTrue(masked(excluded, input, root))
+        assertTrue("a new mask is a new privacy state", excluded.epoch > clean.epoch)
         assertTrue("ordinary gaps preserve already-safe history", VideoPrivacyRevocation.permits(before))
         a.finish()
     }
@@ -251,7 +262,9 @@ class VideoPrivacyGateTest {
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
         val gate = VideoPrivacyGate({ a }, { 0L }, { true })
         dev.everframe.Everframe.markSensitive(root)
-        assertFalse("pre-start sensitivity must persist", gate.observe(root).allowed)
+        val marked = gate.observe(root)
+        assertTrue("pre-start sensitivity must persist: the whole root is masked",
+            marked.allowed && marked.masks.any { it.contains(android.graphics.Rect(0, 0, root.width, root.height)) })
         val clean = FrameLayout(a); a.setContentView(clean); clean.layout(0,0,100,100)
         assertTrue(gate.observe(clean).allowed)
         a.window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_WIDE_COLOR_GAMUT
@@ -267,10 +280,10 @@ class VideoPrivacyGateTest {
         root.layout(0,0,100,100)
         assertTrue(gate.observe(root).allowed)
         val child = View(activity); child.translationX = 10000f; child.setTag(R.id.tx_sensitive,true); root.addView(child)
-        val sensitive = gate.observe(root); assertFalse(sensitive.allowed)
+        val sensitive = gate.observe(root); assertTrue(masked(sensitive, child, root))
         root.removeAllViews(); assertTrue(gate.observe(root).epoch > sensitive.epoch)
-        child.setTag(R.id.tx_sensitive,"unknown"); root.addView(child); assertFalse(gate.observe(root).allowed)
-        root.removeAllViews(); root.addView(EditText(activity)); assertFalse(gate.observe(root).allowed)
+        child.setTag(R.id.tx_sensitive,"unknown"); root.addView(child); assertTrue(masked(gate.observe(root), child, root))
+        root.removeAllViews(); val input = EditText(activity); root.addView(input); assertTrue(masked(gate.observe(root), input, root))
         activity.finish()
     }
     @Test fun countAndTimeBudgetFailClosed() {
@@ -282,5 +295,45 @@ class VideoPrivacyGateTest {
         var now = 0L
         assertFalse(VideoPrivacyGate({ a }, { now.also { now += 2_000_001 } }, { true }).observe(root).allowed)
         a.finish()
+    }
+
+    @Test fun masksFollowTransformsScrollAndVisibilityAndSkipChildren() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        val scroller = FrameLayout(a); root.addView(scroller); scroller.layout(0,0,400,400); scroller.scrollTo(0, 50)
+        val holder = FrameLayout(a); scroller.addView(holder); holder.layout(100,100,300,300)
+        val input = EditText(a); holder.addView(input); input.layout(10,20,110,60)
+        val inside = View(a)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            val o = gate.observe(root)
+            assertTrue(o.allowed)
+            assertEquals(listOf(android.graphics.Rect(109, 69, 211, 111)), o.masks)
+            holder.translationX = 30f
+            assertEquals(android.graphics.Rect(139, 69, 241, 111), gate.observe(root).masks.single())
+            holder.visibility = View.INVISIBLE
+            val hidden = gate.observe(root)
+            assertTrue(hidden.allowed); assertTrue("hidden input needs no mask", hidden.masks.isEmpty())
+            holder.visibility = View.VISIBLE
+            val group = FrameLayout(a); root.addView(group); group.layout(0,0,50,50)
+            group.setTag(R.id.tx_sensitive, true)
+            group.addView(inside)
+            val withGroup = gate.observe(root)
+            assertTrue(masked(withGroup, group, root))
+            assertEquals("children of a masked view are covered, not walked", 2, withGroup.masks.size)
+        } finally { a.finish() }
+    }
+
+    @Test fun rememberedInputIsMaskedOnLaterFramesUntilDetached() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
+        val input = EditText(a); root.addView(input); input.layout(0,0,40,20)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            repeat(3) { assertTrue("an input seen once must not stop later frames", masked(gate.observe(root), input, root)) }
+            root.removeView(input)
+            val clean = gate.observe(root)
+            assertTrue(clean.allowed); assertTrue(clean.masks.isEmpty())
+        } finally { a.finish() }
     }
 }

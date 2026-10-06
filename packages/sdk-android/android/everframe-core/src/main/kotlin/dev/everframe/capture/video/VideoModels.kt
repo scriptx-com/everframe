@@ -11,6 +11,8 @@ data class VideoSize internal constructor(val width: Int, val height: Int) {
 data class VideoOwner internal constructor(val sessionId: String, val captureId: String)
 internal data class PrivacyObservation(
     val windowIdentity: Any?, val width: Int, val height: Int, val epoch: Long, val allowed: Boolean,
+    /** Root-relative rectangles painted black on an admitted frame: inputs, video surfaces, sensitive views. */
+    val masks: List<android.graphics.Rect> = emptyList(),
 )
 
 /** Worker-exclusive pixels. Call close on the capture worker; never retain the bitmap. */

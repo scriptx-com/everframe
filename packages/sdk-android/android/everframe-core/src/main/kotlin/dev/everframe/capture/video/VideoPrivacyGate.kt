@@ -19,7 +19,10 @@ import dev.everframe.R
 import dev.everframe.sensitive.TXSensitiveView
 import java.lang.ref.WeakReference
 
-/** Main-only traversal. Only automatically excluded WebViews can supply a visibility proof. */
+/**
+ * Main-only traversal. Inputs, video surfaces and sensitive views are masked; WebViews, Compose,
+ * unclassified views and anything that cannot be placed on screen refuse the frame.
+ */
 internal class VideoPrivacyGate(
     private val activity: () -> Activity?,
     private val nowNanos: () -> Long = SystemClock::elapsedRealtimeNanos,
@@ -45,7 +48,15 @@ internal class VideoPrivacyGate(
             window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE == 0
         val queue = ArrayDeque<View>()
         if (allowed) queue.add(root)
-        var visited = if (allowed) VideoSensitiveViews.inspect(identity, start + 2_000_000L, 2048, nowNanos) { view, remaining ->
+        val masks = LinkedHashSet<android.graphics.Rect>()
+        // True when the view is hidden or its bounds were added as a mask; false when its
+        // position on screen cannot be proven (not under this root), which refuses the frame.
+        fun mask(view: View): Boolean {
+            val bounds = VideoMaskBounds.of(view, root) ?: return false
+            if (!bounds.isEmpty) masks.add(bounds)
+            return true
+        }
+        var visited = if (allowed) VideoSensitiveViews.inspect(identity, start + 2_000_000L, 2048, nowNanos, ::mask) { view, remaining ->
             val marker = view.getTag(R.id.tx_sensitive)
             val classification = try { platformAdapter?.classify(view) } catch (_: Throwable) { VideoPrivacyAdapter.Classification.UNKNOWN }
             if ((marker != null && marker != false) || view is TXSensitiveView ||
@@ -60,17 +71,20 @@ internal class VideoPrivacyGate(
             val adapter = platformAdapter
             val classification = try { adapter?.classify(view) } catch (_: Throwable) { VideoPrivacyAdapter.Classification.UNKNOWN }
             val types = typeCache.classify(view.javaClass)
-            if (types == null || classification == VideoPrivacyAdapter.Classification.EXCLUDE ||
-                classification == VideoPrivacyAdapter.Classification.UNKNOWN || (adapter == null && types.reactNative)) {
-                if (classification == VideoPrivacyAdapter.Classification.EXCLUDE) VideoSensitiveViews.rememberObserved(view)
+            if (types == null || classification == VideoPrivacyAdapter.Classification.UNKNOWN ||
+                (adapter == null && types.reactNative)) {
                 allowed = false; break
             }
             val marker = view.getTag(R.id.tx_sensitive)
-            if ((marker != null && marker != false) || view is TXSensitiveView || view is EditText ||
+            if (classification == VideoPrivacyAdapter.Classification.EXCLUDE ||
+                (marker != null && marker != false) || view is TXSensitiveView || view is EditText ||
                 (view is TextView && (view.onCheckIsTextEditor() || view.transformationMethod is PasswordTransformationMethod)) ||
                 view is SurfaceView || view is TextureView) {
-                VideoSensitiveViews.rememberObserved(view)
-                allowed = false; break
+                // Painted black, children included, instead of refusing the frame. History keeps
+                // it covered if it is later reparented into an overlay this walk cannot reach.
+                VideoSensitiveViews.remember(view)
+                if (!mask(view)) { allowed = false; break }
+                continue
             }
             if (view is WebView) {
                 val hiddenVisits = HiddenVideoWebView.inspect(view, start + 2_000_000L, 2048 - visited - queue.size, nowNanos)
@@ -102,10 +116,12 @@ internal class VideoPrivacyGate(
         }
         if (nowNanos() - start > 2_000_000L) allowed = false
         val old = previous
+        val maskList = if (allowed) masks.toList() else emptyList()
+        // A moved or new mask is a new privacy state: a pending copy made under the old masks is dropped.
         if (rootRef.get() !== root || old == null || old.windowIdentity !== identity || old.width != root.width ||
-            old.height != root.height || old.allowed != allowed || !allowed) epoch++
+            old.height != root.height || old.allowed != allowed || !allowed || old.masks != maskList) epoch++
         rootRef = WeakReference(root)
-        return PrivacyObservation(identity, root.width, root.height, epoch, allowed).also { previous = it }
+        return PrivacyObservation(identity, root.width, root.height, epoch, allowed, maskList).also { previous = it }
     }
 
     companion object {
