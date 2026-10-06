@@ -1,0 +1,38 @@
+packages/sdk-ios/Sources/Everframe/Diagnostics/CaptureObservation.swift
+  s_97602a0a2d8f20::t_d8eb3e633b91f7 1-16
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsPipelineTests.swift
+  s_97602a0a2d8f20::t_dbe782dcb29ebd 1-162
+  s_97602a0a2d8f20::t_b022a3f2862968 163-189
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_97602a0a2d8f20::t_1e6bd2ad84302a 166-167,174,190-192,196,231-232,241-242,245,295,300,309-310,324-325,327,480,511-512,515,557
+packages/sdk-ios/Sources/Everframe/Diagnostics/ReportDiagnostics.swift
+  s_97602a0a2d8f20::t_3c8b28db0fef93 37-42
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_97602a0a2d8f20::t_a2418bb874fdc0 960
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_97602a0a2d8f20::t_c4e603c3472894 212-214,216-229,234-237,242-246,248-258,264-296,299-301
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_97602a0a2d8f20::t_a8b923d2a4cf49 692
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_97602a0a2d8f20::t_ead13d44ec862c 21-22,35-36,41-42,46-75,151,157,293,321,403,414,422,426,487
+packages/sdk-ios/Tests/EverframeTests/CrashReporterTests.swift
+  s_97602a0a2d8f20::t_91654103467c92 38-79
+packages/sdk-ios/Tests/EverframeTests/HandledErrorCaptureTests.swift
+  s_97602a0a2d8f20::t_b23f8274fca8bd 312-314,324-325
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1cd7be12df5da63f6e01341c0d30611b26b94cfd",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
