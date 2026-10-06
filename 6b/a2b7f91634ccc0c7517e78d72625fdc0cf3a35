@@ -1,0 +1,23 @@
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_97602a0a2d8f20::t_5beb69cf264c37 328,512,516
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_97602a0a2d8f20::t_b2418a0de96642 95,120,122,137-138
+packages/sdk-ios/Tests/EverframeTests/CrashReporterTests.swift
+  s_97602a0a2d8f20::t_fd7bbc37bb9796 39-40,67-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ba2b7f91634ccc0c7517e78d72625fdc0cf3a35",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
