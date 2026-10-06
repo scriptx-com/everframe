@@ -1,0 +1,37 @@
+.changeset/android-replay-mask.md
+  s_983a450ce6fb89::t_04349c538cbf13 1-8
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/PixelCopyVideoCapture.kt
+  s_983a450ce6fb89::t_083aa970dbdab6 28,119,191,288-292,314
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoMaskBounds.kt
+  s_983a450ce6fb89::t_5681100afd31f3 1-51
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoModels.kt
+  s_983a450ce6fb89::t_21ba7847c7cdc1 14-15
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyGate.kt
+  s_983a450ce6fb89::t_ecb8f7cb0dc49d 22-25,51-59,74-75,79-80,83-87,119-120,122,124
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoSensitiveViews.kt
+  s_983a450ce6fb89::t_8510990b30a495 49,51,62-67
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/HiddenWebViewReplayTest.kt
+  s_983a450ce6fb89::t_0cfeb31f708f4f 96-99
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/PixelCopyVideoCaptureTest.kt
+  s_983a450ce6fb89::t_d256bc72f2af39 257,260,277,280-281,283,290-321
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_983a450ce6fb89::t_9beffd9c460e73 28-32,48,51-52,73,143-148,229,231-232,265-267,283,285-286,299-338
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacySettlementTest.kt
+  s_983a450ce6fb89::t_c473cb5c2fd829 234,237-239,247,249
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66ba27b1fc13d6e19e042c32036e8cb41590bf4e",
+  "prompts": {},
+  "sessions": {
+    "s_983a450ce6fb89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb47f35d-a17b-4f3b-9851-1c9249241f1c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
