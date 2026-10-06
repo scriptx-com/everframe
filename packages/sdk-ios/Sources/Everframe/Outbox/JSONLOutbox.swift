@@ -209,51 +209,96 @@ public final class JSONLOutbox: @unchecked Sendable {
     }
 
     /// Append one entry; evict oldest entries until under capacity.
-    public func enqueue(_ entry: OutboxEntry) throws {
+    public func enqueue(_ entry: OutboxEntry) throws { try enqueue(entry, diagnostics: nil) }
+
+    internal func enqueue(_ entry: OutboxEntry, diagnostics: ReportDiagnostics.Handle?) throws {
         try queue.sync {
-            var entries = try readAll()
-            entries.removeAll { $0.reportId == entry.reportId }
-            entries.append(entry)
-            entries = try applyCapacity(entries)
-            try writeAll(entries)
+            do {
+                var entries = try readAll(diagnostics: diagnostics)
+                entries.removeAll { $0.reportId == entry.reportId }
+                entries.append(entry)
+                let beforeCapacity = entries.count
+                entries = try applyCapacity(entries)
+                try writeAll(entries)
+                diagnostics?.queueOperation(.enqueueCommitted)
+                diagnostics?.queueOperation(.capacityEvicted, amount: beforeCapacity - entries.count)
+                diagnostics?.queueObserved(count: entries.count, quality: .complete, migration: "clear")
+            } catch {
+                diagnostics?.queueOperation(.enqueueFailed, failure: Self.failure(error))
+                throw error
+            }
         }
     }
 
     /// Read every entry currently on disk; returns empty if the file is missing.
-    public func hydrate() throws -> [OutboxEntry] {
-        return try queue.sync { try readAll() }
+    public func hydrate() throws -> [OutboxEntry] { try hydrate(diagnostics: nil) }
+
+    internal func hydrate(diagnostics: ReportDiagnostics.Handle?) throws -> [OutboxEntry] {
+        try queue.sync { try readAll(diagnostics: diagnostics) }
     }
 
     /// Atomically remove every entry matching the predicate.
     public func drain(where predicate: (OutboxEntry) -> Bool) throws {
+        try drain(where: predicate, diagnostics: nil, reason: nil)
+    }
+
+    internal func drain(where predicate: (OutboxEntry) -> Bool, diagnostics: ReportDiagnostics.Handle?,
+                        reason: ReportQueueOperation?) throws {
         try queue.sync {
-            var entries = try readAll()
-            entries.removeAll(where: predicate)
-            try writeAll(entries)
+            do {
+                var entries = try readAll(diagnostics: diagnostics)
+                let before = entries.count
+                entries.removeAll(where: predicate)
+                try writeAll(entries)
+                if let reason { diagnostics?.queueOperation(reason, amount: before - entries.count) }
+                diagnostics?.queueObserved(count: entries.count, quality: .complete, migration: "clear")
+            } catch {
+                diagnostics?.queueOperation(.removalFailed, failure: Self.failure(error))
+                throw error
+            }
         }
     }
 
     // MARK: - Private I/O
 
-    private func readAll() throws -> [OutboxEntry] {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
-        let stored = try Data(contentsOf: fileURL)
-        // No legacy migration: unprotected native report queues are obsolete.
-        guard stored.starts(with: Self.magic) else { return [] }
-        let sealed = try AES.GCM.SealedBox(combined: stored.dropFirst(Self.magic.count))
-        let data = try AES.GCM.open(sealed, using: encryptionKey(), authenticating: Self.magic)
-        var out: [OutboxEntry] = []
-        // JSONL: split on newline, skip empty lines, decode each.
-        for line in data.split(separator: 0x0a, omittingEmptySubsequences: true) {
-            do {
-                let entry = try decoder.decode(OutboxEntry.self, from: Data(line))
-                out.append(entry)
-            } catch {
-                // Skip malformed line — best-effort outbox (T-04-20: accept).
-                continue
+    private func readAll(diagnostics: ReportDiagnostics.Handle? = nil) throws -> [OutboxEntry] {
+        do {
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                diagnostics?.queueObserved(count: 0, quality: .complete, migration: "clear")
+                return []
+            }
+            let stored = try Data(contentsOf: fileURL)
+            // Preserve legacy handling, but do not claim an empty readable queue.
+            guard stored.starts(with: Self.magic) else {
+                diagnostics?.queueObserved(count: nil, quality: .unknown, migration: "blocked")
+                return []
+            }
+            let sealed = try AES.GCM.SealedBox(combined: stored.dropFirst(Self.magic.count))
+            let data = try AES.GCM.open(sealed, using: encryptionKey(), authenticating: Self.magic)
+            var out: [OutboxEntry] = []
+            var partial = false
+            for line in data.split(separator: 0x0a, omittingEmptySubsequences: true) {
+                do { out.append(try decoder.decode(OutboxEntry.self, from: Data(line))) }
+                catch { partial = true } // Existing skip-malformed policy.
+            }
+            diagnostics?.queueObserved(count: out.count, quality: partial ? .partial : .complete, migration: "clear")
+            return out
+        } catch {
+            diagnostics?.queueOperation(.readFailed, failure: Self.failure(error))
+            throw error
+        }
+    }
+
+    private static func failure(_ error: Error) -> ReportStorageFailure {
+        if let error = error as? OutboxStorageError {
+            switch error {
+            case .capacityExceeded: return .capacity
+            case .invalidKey, .keychain: return .keyUnavailable
             }
         }
-        return out
+        if error is CryptoKitError { return .corrupt }
+        if error is CocoaError { return .io }
+        return .unknown
     }
 
     private func writeAll(_ entries: [OutboxEntry]) throws {

@@ -34,6 +34,12 @@ final class ReportDiagnostics: @unchecked Sendable {
         return current?.epoch == epoch ? current : nil
     }
 
+    func currentHandle() -> Handle? {
+        guard lock.try() else { return nil }
+        defer { lock.unlock() }
+        return current
+    }
+
     func snapshot() -> ReportDeliveryStatus {
         guard lock.try() else {
             var busy = ReportDeliveryStatus()

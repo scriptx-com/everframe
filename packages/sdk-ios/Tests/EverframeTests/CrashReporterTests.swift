@@ -35,6 +35,48 @@ final class CrashReporterTests: XCTestCase {
         try super.tearDownWithError()
     }
 
+    func testDiagnosticsSettleBridgeAndNativeAdmissionOnce() throws {
+        let outbox = makeOutbox()
+        let config = EverframeConfig(appId: "fixture")
+        Everframe.__setConfigForTesting(config)
+        Everframe.captureGate = true
+        let ledger = ReportDiagnostics.shared
+        ledger.beginGeneration(epoch: Everframe.shared.currentStartEpoch, enabled: true)
+        defer { ledger.retireGeneration(epoch: Everframe.shared.currentStartEpoch) }
+        XCTAssertFalse(CrashReporter.captureHandledFacts(json: "invalid private input", outbox: outbox, config: config))
+        let json = #"{"exceptionType":"Error","message":"private report","fatal":true,"framesRaw":[]}"#
+        XCTAssertTrue(CrashReporter.captureFacts(json: json, outbox: outbox, config: config))
+        XCTAssertTrue(CrashReporter.captureHandledFacts(json: json, outbox: outbox, config: config))
+        let error = NSError(domain: "private-domain", code: 1)
+        XCTAssertTrue(CrashReporter.captureHandledError(error, outbox: outbox))
+        XCTAssertFalse(CrashReporter.captureHandledError(error, outbox: outbox))
+        var disabled = config; disabled.capture.crash = false
+        XCTAssertFalse(CrashReporter.captureHandledFacts(json: json, outbox: outbox, config: disabled))
+        let snapshot = ledger.snapshot()
+        XCTAssertEqual(snapshot.capture.paths["bridge-automatic"]?.settledAttempts, 1)
+        XCTAssertEqual(snapshot.capture.paths["bridge-handled"]?.settledAttempts, 3)
+        XCTAssertEqual(snapshot.capture.paths["bridge-handled"]?.outcomes["invalid-input"], 1)
+        XCTAssertEqual(snapshot.capture.paths["bridge-handled"]?.outcomes["disabled"], 1)
+        XCTAssertEqual(snapshot.capture.paths["native-handled"]?.settledAttempts, 2)
+        XCTAssertEqual(snapshot.capture.paths["native-handled"]?.outcomes["admission-suppressed"], 1)
+        XCTAssertEqual(snapshot.queue.operations["enqueue-committed"], 3)
+        XCTAssertFalse(try snapshot.toJSON().contains("private"))
+    }
+
+    func testDiagnosticsCaptureStorageFailureDoesNotConsumeIdentity() throws {
+        Everframe.__setConfigForTesting(EverframeConfig(appId: "fixture"))
+        Everframe.captureGate = true
+        let ledger = ReportDiagnostics.shared
+        ledger.beginGeneration(epoch: Everframe.shared.currentStartEpoch, enabled: true)
+        defer { ledger.retireGeneration(epoch: Everframe.shared.currentStartEpoch) }
+        let bad = JSONLOutbox(testFileURL: tempDir.appendingPathComponent("refused"), maxEntries: 0)
+        let error = NSError(domain: "private", code: 2)
+        XCTAssertFalse(CrashReporter.captureHandledError(error, outbox: bad))
+        XCTAssertTrue(CrashReporter.captureHandledError(error, outbox: makeOutbox()))
+        XCTAssertEqual(ledger.snapshot().capture.paths["native-handled"]?.outcomes["storage-unavailable"], 1)
+        XCTAssertEqual(ledger.snapshot().capture.paths["native-handled"]?.outcomes["persisted"], 1)
+    }
+
     private func makeOutbox() -> JSONLOutbox {
         JSONLOutbox(testFileURL: tempDir.appendingPathComponent("outbox.jsonl"))
     }

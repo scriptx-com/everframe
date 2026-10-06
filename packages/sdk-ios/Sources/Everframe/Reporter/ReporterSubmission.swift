@@ -689,7 +689,7 @@ public enum ReporterSubmission {
             identityToken = nil
         }
 
-        let submitter = Self.__submitterFactoryForTesting?(cfg) ?? ReportSubmitter(config: cfg)
+        let submitter = Self.__submitterFactoryForTesting?(cfg) ?? ReportSubmitter(config: cfg).observing(ReportDiagnostics.shared.handle(epoch: inputs.capturedSession.user.startEpoch))
         // All asynchronous packing and identity resolution is now complete.
         // Config-off, lifecycle invalidation, restart and kill revoke a claim
         // even after the movie was consumed into multipart Data. Never revive

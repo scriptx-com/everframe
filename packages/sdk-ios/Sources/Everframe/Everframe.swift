@@ -957,7 +957,7 @@ public final class Everframe: @unchecked Sendable {
             // envelopes from previous sessions. ReportSubmitter constructs its
             // own URLSession that excludes our own URLProtocol-based capture
             // interceptor (so submission requests don't recurse).
-            let submitter = ReportSubmitter(config: config)
+            let submitter = ReportSubmitter(config: config).observing(ReportDiagnostics.shared.handle(epoch: epoch))
             // Native identity Task 8b — the real singleton holder + the live
             // `ReplayConfig`, not the inert defaults `drainOutbox` used to
             // fall back to.

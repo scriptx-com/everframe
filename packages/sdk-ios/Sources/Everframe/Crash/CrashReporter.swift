@@ -163,13 +163,15 @@ public enum CrashReporter {
         sdkName: String = "everframe-ios",
         outbox: JSONLOutbox = JSONLOutbox()
     ) -> Bool {
+        let diagnostic = CaptureObservation(.nativeHandled)
+        defer { diagnostic.settle() }
         // This latch is independent from the JSON automatic/fatal latch. A
         // host description may reenter this API, but it must not suppress an
         // automatic fatal capture on another thread.
         lock.lock()
         if handlingNativeHandled {
             lock.unlock()
-            return false
+            return diagnostic.reject(.reentrant)
         }
         handlingNativeHandled = true
         let device = cachedDevice
@@ -185,13 +187,13 @@ public enum CrashReporter {
         let captured = Everframe.shared.captureSessionSnapshot()
         guard Everframe.captureGate,
               let config = captured.config,
-              config.capture.crash,
-              !captured.isSuperseded,
-              let reservation = handledAdmission.reserve(
+              config.capture.crash else { return diagnostic.reject(.disabled) }
+        guard !captured.isSuperseded else { return diagnostic.reject(.ownershipLost) }
+        guard let reservation = handledAdmission.reserve(
                   error,
                   capturedEpoch: captured.user.startEpoch
               )
-        else { return false }
+        else { return diagnostic.reject(.admissionSuppressed) }
 
         var accepted = false
         defer { handledAdmission.settle(reservation, durablyAccepted: accepted) }
@@ -226,7 +228,8 @@ public enum CrashReporter {
             device: device,
             requireCurrentSession: true,
             details: details,
-            causeChain: causeChain
+            causeChain: causeChain,
+            diagnostic: diagnostic
         )
         return accepted
     }
@@ -235,9 +238,11 @@ public enum CrashReporter {
         json: String, sdkName: String, outbox: JSONLOutbox,
         config: EverframeConfig?, classification: Classification
     ) -> Bool {
+        let diagnostic = CaptureObservation(classification == .handled ? .bridgeHandled : .bridgeAutomatic)
+        defer { diagnostic.settle() }
         // Own the latch before any callback can reenter either public path.
         lock.lock()
-        if handling { lock.unlock(); return false }
+        if handling { lock.unlock(); return diagnostic.reject(.reentrant) }
         handling = true
         let device = cachedDevice
         lock.unlock()
@@ -287,12 +292,12 @@ public enum CrashReporter {
         // read returned. Capturing the config alongside the user removes the
         // read outright.
         guard let config = config ?? captured.config, config.capture.crash else {
-            return false
+            return diagnostic.reject(.disabled)
         }
         guard let data = json.data(using: .utf8),
               let facts = try? JSONDecoder().decode(Facts.self, from: data),
               facts.exceptionType != nil
-        else { return false }
+        else { return diagnostic.reject(.invalidInput) }
         return capture(
             facts: facts,
             sdkName: sdkName,
@@ -301,7 +306,8 @@ public enum CrashReporter {
             classification: classification,
             captured: captured,
             device: device,
-            requireCurrentSession: false
+            requireCurrentSession: false,
+            diagnostic: diagnostic
         )
     }
 
@@ -315,9 +321,10 @@ public enum CrashReporter {
         device: DeviceMetadata?,
         requireCurrentSession: Bool,
         details: EverframeCrashDetails? = nil,
-        causeChain: EverframeCrashCauseChain? = nil
+        causeChain: EverframeCrashCauseChain? = nil,
+        diagnostic: CaptureObservation
     ) -> Bool {
-        guard let exceptionType = facts.exceptionType else { return false }
+        guard let exceptionType = facts.exceptionType else { return diagnostic.reject(.invalidInput) }
         let capturedUser = captured.user
         let redactor = RedactionEngine()
         let resolvedDetails = details ?? normalizeRNCrashDetails(facts.details) {
@@ -470,7 +477,7 @@ public enum CrashReporter {
             // see the register.
             if Everframe.killGenerationChanged(since: captured.killGeneration)
                 || (requireCurrentSession && captured.isSuperseded) {
-                return false
+                return diagnostic.reject(.ownershipLost)
             }
 
             // Native identity Task 8b — thread the ALREADY-CAPTURED subject
@@ -501,10 +508,11 @@ public enum CrashReporter {
                 reportId: reportId, createdAt: Date(), envelopeBytes: bytes,
                 idempotencyKey: idempotencyKey, attachmentRefs: [],
                 sdkKey: config.appId, endpoint: IngestEndpoint.url.absoluteString,
-                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil))
+                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil), diagnostics: diagnostic.owner)
+            diagnostic.outcome = .persisted
             if !fatal {
                 // Runtime survives — ship now instead of waiting for next launch.
-                let submitter = ReportSubmitter(config: config, outbox: outbox)
+                let submitter = ReportSubmitter(config: config, outbox: outbox).observing(diagnostic.owner)
                 // Independent review, round 8, Serious 1 — captured
                 // atomically with `config` (via `captured` above, at
                 // the top of this function) and threaded through here
@@ -546,7 +554,7 @@ public enum CrashReporter {
             }
             return true
         } catch {
-            return false
+            return diagnostic.reject(.storageUnavailable)
         }
     }
 
