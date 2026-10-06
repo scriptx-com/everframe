@@ -610,3 +610,64 @@ activity recreation.
 ## License
 
 MIT
+
+### React error boundary callback
+
+An existing React class boundary can opt into handled capture after the
+`EverframeProvider` has mounted:
+
+```tsx
+import * as React from 'react';
+import { captureReactError } from '@everframe/react-native/integrations/react';
+
+class Boundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    captureReactError(error, info);
+  }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+```
+
+The application owns fallback and recovery UI. This callback reports caught
+component errors; it does not install global renderer hooks or capture arbitrary
+async/event-handler errors. An initial render failure before the provider mounts
+is inert and is not replayed. Disabled crash reporting and unmounted calls are
+also inert. Component-stack metadata is bounded and redacted by the existing
+capture pipeline, without replacing exception frames or cause data.
+
+The original error shares accepted identity with manual and nonfatal automatic
+capture within a mount. Native refusal permits recapture; equal fingerprint keys
+can also suppress distinct objects. A later fatal escalation may report separately.
+The adapter subpath is unavailable to browser-conditioned consumers.
+
+### Local capture admission diagnostics
+
+```ts
+import { getErrorCaptureStatus } from '@everframe/react-native';
+const status = getErrorCaptureStatus();
+const { attempted, accepted, duplicateSuppressed } = status.counters.handled;
+```
+
+Snapshots are detached, contain no captured content, reset on remount, and perform
+no native query or upload. Paths are `handled` (including the boundary callback),
+`errorUtils`, and `rejection` (submission only). Each active attempt has one outcome:
+`accepted`, `duplicateSuppressed`, `allowanceSuppressed`, `bridgeUnavailable`,
+`nativeRefused`, `captureFailed`, `reentrantSuppressed`, `inactiveAborted`, or
+`legacyAttempted`. Counters saturate at 2,147,483,647. Existing limits are ten
+handled and ten automatic distinct keys; fatal capture bypasses them.
+
+`accepted` requires exactly true from a current native capture method. It does
+not mean upload success, server processing or outbox removal. An automatic call
+to an older native fallback is only `legacyAttempted`, regardless of its return.
+Old-binary unavailable/throwing methods are covered by unit controls, not an
+installed old-binary qualification. Native queue and delivery diagnostics remain
+unavailable. Status is neutral `not-mounted` without a provider, `disabled` under
+the crash-reporting veto, and `unsupported` on the browser root entry.
+
+Installed boundary qualification is pending for the retained phone-host row:
+React 19.2.5, `react-native-tvos` 0.85.3-0 aliased as `react-native`, Expo
+56.0.0-preview.7, Hermes 250829098.0.10 / bytecode 98. Other RN distributions,
+versions, TV, physical devices and production endpoints are not qualified by
+these callback/unit checks.

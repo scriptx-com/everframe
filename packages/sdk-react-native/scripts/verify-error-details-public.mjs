@@ -146,6 +146,14 @@ const installedSdk = join(CONSUMER_ROOT, "node_modules", "@everframe", "react-na
 mkdirSync(installedSdk, { recursive: true });
 cpSync(join(RN_ROOT, "package.json"), join(installedSdk, "package.json"));
 cpSync(DIST_ROOT, join(installedSdk, "dist"), { recursive: true });
+const adapterResolution = "console.log(import.meta.resolve('@everframe/react-native/integrations/react'))";
+const nativeAdapter = spawnSync(process.execPath, ['--input-type=module', '-e', adapterResolution], { cwd: CONSUMER_ROOT, encoding: 'utf8' });
+assert.equal(nativeAdapter.status, 0, nativeAdapter.stderr);
+assert.ok(nativeAdapter.stdout.includes('/dist/integrations/react.js'));
+const browserAdapter = spawnSync(process.execPath, ['--conditions=browser', '--input-type=module', '-e', adapterResolution], { cwd: CONSUMER_ROOT, encoding: 'utf8' });
+assert.notEqual(browserAdapter.status, 0);
+assert.ok(browserAdapter.stderr.includes('ERR_PACKAGE_PATH_NOT_EXPORTED'));
+
 for (const name of ["react", "react-native", "zod", "bippy", "@types/react"]) {
   linkPackage(name, resolve(REPO_ROOT, "node_modules", name));
 }

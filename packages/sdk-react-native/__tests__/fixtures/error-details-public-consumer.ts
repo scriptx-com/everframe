@@ -33,3 +33,15 @@ hook.captureException(new Error('hook'), options);
 captureException(new Error('invalid severity'), { severity: 'fatal' });
 // @ts-expect-error CaptureExceptionOptions context is a string when supplied.
 hook.captureException(new Error('invalid context'), { context: 42 });
+
+import { captureReactError } from '@everframe/react-native/integrations/react';
+import { getErrorCaptureStatus, type ErrorCaptureStatus, type ErrorCaptureCounters,
+  type ErrorCapturePath, type ErrorCaptureOutcome } from '@everframe/react-native';
+import type { ErrorInfo } from 'react';
+const captureStatus: ErrorCaptureStatus = getErrorCaptureStatus();
+const capturePath: ErrorCapturePath = 'handled';
+const captureCounters: ErrorCaptureCounters = captureStatus.counters[capturePath];
+const captureOutcome: ErrorCaptureOutcome = 'accepted';
+const errorInfo: ErrorInfo = { componentStack: '\n at Boundary' };
+captureReactError(new Error('boundary'), errorInfo);
+void captureCounters[captureOutcome];
