@@ -1,0 +1,39 @@
+packages/sdk-ios/crash-recorder/Package.swift
+  s_97602a0a2d8f20::t_da4acc1c4eb0c1 15
+packages/sdk-ios/crash-recorder/README.md
+  s_97602a0a2d8f20::t_324c80f7f96c36 32,49-51,59
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy
+  s_97602a0a2d8f20::t_06ed5b1bb8e9f6 2-3,5
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException.m
+  s_97602a0a2d8f20::t_c94038e7c2781b 2,115-116
+packages/sdk-ios/crash-recorder/THIRD_PARTY_NOTICES.md
+  s_97602a0a2d8f20::t_3179405787a80b 22-23
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/ProbeNative.m
+  s_97602a0a2d8f20::t_a763b7bc940293 12
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_97602a0a2d8f20::t_acd974cd3d6a4e 48-56
+packages/sdk-ios/crash-recorder/scripts/prepare-vendor.mjs
+  s_97602a0a2d8f20::t_020051ea23cc0d 36-43,51-81,100-102
+packages/sdk-ios/crash-recorder/scripts/vendor.test.mjs
+  s_97602a0a2d8f20::t_b170f1bd5d6b83 63-78
+packages/sdk-ios/crash-recorder/scripts/verify-vendor.mjs
+  s_97602a0a2d8f20::t_ecc1c71a296b84 7,37-40
+packages/sdk-ios/crash-recorder/vendor-lock.json
+  s_97602a0a2d8f20::t_3de3bff8e4b940 404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1c78106c218edfae21a2dbafa15641c2d8f2579f",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
