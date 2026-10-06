@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Pure orchestration runtime for the RN bridge. After the D-05/D-07 flip
 // (2026-05-11) the report UI is owned entirely by native; this module's
@@ -225,6 +226,7 @@ export interface RuntimeConfig
 }
 
 export interface Runtime extends EverframeContextValue {
+  getErrorCaptureStatus(): ErrorCaptureStatus;
   mount(): void;
   unmount(): void;
 }
@@ -382,6 +384,10 @@ export function createRuntime(config: RuntimeConfig): Runtime {
 
   const runtime: Runtime = {
     open,
+    getErrorCaptureStatus() {
+      if (!mounted || __getCurrentContext() !== runtime) return emptyErrorCaptureStatus('not-mounted', 'no-mount');
+      return mounted.controller?.getErrorCaptureStatus() ?? emptyErrorCaptureStatus('disabled', 'crash-reporting-disabled');
+    },
     getPromiseRejectionStatus() {
       if (!mounted || __getCurrentContext() !== runtime)
         return emptyPromiseRejectionStatus('not-mounted', 'no-mount');

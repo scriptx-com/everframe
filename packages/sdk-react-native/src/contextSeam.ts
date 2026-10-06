@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Module-level context seam. The top-level `open()` convenience MUST work
 // from non-React call sites (global error handlers, deep-link handlers,
@@ -19,6 +20,8 @@ export { EverframeNotMountedError };
 
 /** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
 export interface EverframeContextValue {
+  /** Local admission only; optional for older context implementations. */
+  getErrorCaptureStatus?(): ErrorCaptureStatus;
   /** Optional for compatibility with existing context implementations. */
   getPromiseRejectionStatus?(): PromiseRejectionStatus;
   /** Capture a handled exception without opening the reporter. No-op outside the owning mount. */
@@ -102,6 +105,10 @@ export interface EverframeContextValue {
 }
 
 let __currentContext: EverframeContextValue | null = null;
+let __contextEpoch: object = {};
+
+/** Internal mount identity, including remounts of the same runtime object. */
+export function __getContextEpoch(): object { return __contextEpoch; }
 
 /** Bounded coverage status only; does not install an observer or report delivery. */
 export function getPromiseRejectionStatus(): PromiseRejectionStatus {
@@ -114,6 +121,7 @@ export function getPromiseRejectionStatus(): PromiseRejectionStatus {
 
 export function __setCurrentContext(ctx: EverframeContextValue | null): void {
   __currentContext = ctx;
+  __contextEpoch = {};
 }
 
 export function __getCurrentContext(): EverframeContextValue | null {
@@ -189,4 +197,10 @@ export function setUser(user?: EverframeUserSpec): void {
 /** Capture a handled exception from any call site. No-op without a mounted provider. */
 export function captureException(error: unknown, options?: CaptureExceptionOptions): void {
   __currentContext?.captureException(error, options);
+}
+
+/** Detached local admission snapshot. Does not query native delivery or install hooks. */
+export function getErrorCaptureStatus(): ErrorCaptureStatus {
+  try { return __currentContext?.getErrorCaptureStatus?.() ?? emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
+  catch { return emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
 }

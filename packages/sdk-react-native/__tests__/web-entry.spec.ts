@@ -11,6 +11,7 @@ const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json'
 
 describe('React Native browser entry', () => {
   it('reports Hermes observation as unsupported without altering browser exports', () => {
+    expect(webEntry.getErrorCaptureStatus()).toMatchObject({ status: 'unsupported', reason: 'platform', counters: { handled: { attempted: 0 } } });
     expect(webEntry.getPromiseRejectionStatus()).toMatchObject({ status: 'unsupported', reason: 'platform', counters: {pending: 0} });
     expect(typeof nativeEntry.getPromiseRejectionStatus).toBe('function');
   });
