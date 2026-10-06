@@ -999,6 +999,9 @@
             "jvm": {
               "$ref": "#/$defs/JvmCrashMetadata"
             },
+            "native": {
+              "$ref": "#/$defs/NativeCrashMetadata"
+            },
             "exceptionType": {
               "type": "string",
               "maxLength": 256
@@ -2200,6 +2203,191 @@
       ],
       "additionalProperties": {},
       "title": "Frame"
+    },
+    "NativeCrashMetadata": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "const": "apple",
+          "title": "NativeCrashPlatform"
+        },
+        "timestampMicros": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,17})$(?![\\s\\S])"
+        },
+        "crashedThreadIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "framesIncomplete": {
+          "type": "boolean"
+        },
+        "imagesIncomplete": {
+          "type": "boolean"
+        },
+        "images": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeCrashImage"
+          }
+        },
+        "frames": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeCrashFrame"
+          }
+        },
+        "error": {
+          "$ref": "#/$defs/NativeCrashError"
+        }
+      },
+      "required": [
+        "platform",
+        "timestampMicros",
+        "crashedThreadIndex",
+        "framesIncomplete",
+        "imagesIncomplete",
+        "images",
+        "frames",
+        "error"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashMetadata"
+    },
+    "NativeCrashImage": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "allOf": [
+            {
+              "pattern": "^[^/\\\\\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
+            },
+            {
+              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])+$(?![\\s\\S])"
+            }
+          ]
+        },
+        "loadAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "vmAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "size": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "cpuType": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "cpuSubtype": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "architecture": {
+          "type": "string",
+          "enum": [
+            "arm64",
+            "arm64e",
+            "x86_64",
+            "x86_64h",
+            "unknown"
+          ],
+          "title": "NativeCrashArchitecture"
+        }
+      },
+      "required": [
+        "uuid",
+        "name",
+        "loadAddress",
+        "size",
+        "cpuType",
+        "cpuSubtype",
+        "architecture"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashImage"
+    },
+    "NativeCrashFrame": {
+      "type": "object",
+      "properties": {
+        "instructionAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "imageIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "imageOffset": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "instructionAddress"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashFrame"
+    },
+    "NativeCrashError": {
+      "type": "object",
+      "properties": {
+        "signalNumber": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "signalCode": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "machException": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "machCode": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "machSubcode": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "faultAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        }
+      },
+      "additionalProperties": false,
+      "title": "NativeCrashError"
     }
   }
 }
