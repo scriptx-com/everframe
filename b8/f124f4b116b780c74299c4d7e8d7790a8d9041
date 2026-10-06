@@ -1,0 +1,25 @@
+packages/sdk-ios/Tests/NativeCrashContextProof/main.swift
+  s_97602a0a2d8f20::t_eb51f017f60b82 1-55
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_97602a0a2d8f20::t_cd9375ff1132a3 49-54
+packages/sdk-ios/crash-recorder/README.md
+  s_97602a0a2d8f20::t_d78c4011fd62de 97-98
+packages/sdk-ios/crash-recorder/Tests/context-probes.py
+  s_97602a0a2d8f20::t_21b3c289df54bd 22,37,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8f124f4b116b780c74299c4d7e8d7790a8d9041",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
