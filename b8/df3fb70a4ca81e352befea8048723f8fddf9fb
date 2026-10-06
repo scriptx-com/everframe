@@ -1,0 +1,23 @@
+packages/sdk-react-native/__tests__/error-capture-status.test.ts
+  s_97602a0a2d8f20::t_fcfec53a59376e 1-132
+packages/sdk-react-native/src/error-capture-status.ts
+  s_97602a0a2d8f20::t_c9c6c5283e0398 1-54
+packages/sdk-react-native/src/errors.ts
+  s_97602a0a2d8f20::t_80c4f4d35001ab 10-11,31,44,83-84,86,88-89,92-94,97,100,109-111,113,120-122,124,128-130,135,147,153-154,156,165,198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8df3fb70a4ca81e352befea8048723f8fddf9fb",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
