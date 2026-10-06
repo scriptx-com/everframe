@@ -3,36 +3,46 @@
 #include "RecorderGate.h"
 #include <stdatomic.h>
 #include <string.h>
-_Static_assert(ATOMIC_BOOL_LOCK_FREE == 2, "Crash gate must always be lock free");
-_Static_assert(ATOMIC_POINTER_LOCK_FREE == 2, "Crash context pointer must always be lock free");
+#include <limits.h>
+_Static_assert(ATOMIC_INT_LOCK_FREE == 2, "Crash admission must always be lock free");
+_Static_assert(sizeof(unsigned) * CHAR_BIT >= 19, "Crash admission state needs19 bits");
 typedef struct { char identifier[37]; } EFCRContext;
-static const EFCRContext noContext = {{0}};
 static EFCRContext contexts[256];
 // Healthy publication is serialized by Recorder.m. Never reuse or free a slot.
 static unsigned contextCount = 0;
-static _Atomic(const EFCRContext *) published = ATOMIC_VAR_INIT(&noContext);
-static _Atomic(const EFCRContext *) admitted = ATOMIC_VAR_INIT(NULL);
-static atomic_bool enabled = ATOMIC_VAR_INIT(false);
-void efcr_gateSet(bool value) { atomic_store_explicit(&enabled, value, memory_order_release); }
-bool efcr_gateGet(void) { return atomic_load_explicit(&enabled, memory_order_acquire); }
+// One atomic value ties eligibility and ownership to the admission CAS.
+// Current0 is empty;1..256 name slots. Admitted0 is unset;1 is frozen empty.
+// Healthy mutations preserve the admitted field for this terminating process.
+enum { CURRENT_MASK = 0x1ffu, ADMITTED_SHIFT = 9,
+       ADMITTED_MASK = 0x1ffu << ADMITTED_SHIFT, ENABLED = 1u << 18 };
+static atomic_uint state = ATOMIC_VAR_INIT(0);
+void efcr_gateSet(bool value) {
+    if (value) atomic_fetch_or_explicit(&state, ENABLED, memory_order_release);
+    else atomic_fetch_and_explicit(&state, ~ENABLED, memory_order_release);
+}
+bool efcr_gateGet(void) { return (atomic_load_explicit(&state, memory_order_acquire) & ENABLED) != 0; }
 void efcr_willWriteReport(KSCrash_ExceptionHandlingPlan *plan, const struct KSCrash_MonitorContext *context) {
     (void)context;
-    if (!atomic_load_explicit(&enabled, memory_order_acquire)) {
-        plan->shouldWriteReport = false;
-        return;
+    unsigned observed = atomic_load_explicit(&state, memory_order_acquire);
+    for (;;) {
+        if (!(observed & ENABLED)) { plan->shouldWriteReport = false; return; }
+        if (!plan->shouldWriteReport || (observed & ADMITTED_MASK)) return;
+        unsigned admitted = ((observed & CURRENT_MASK) + 1) << ADMITTED_SHIFT;
+        if (atomic_compare_exchange_weak_explicit(&state, &observed, observed | admitted,
+                                                  memory_order_acq_rel, memory_order_acquire)) return;
+        // Disable/publication raced admission: retry against their complete state,
+        // never combine one context's enabled bit with another context's identity.
     }
-    if (plan->shouldWriteReport) {
-        const EFCRContext *expected = NULL;
-        const EFCRContext *current = atomic_load_explicit(&published, memory_order_acquire);
-        // A non-NULL empty sentinel also freezes legacy/no-context admission.
-        atomic_compare_exchange_strong_explicit(&admitted, &expected, current,
-                                                memory_order_release, memory_order_relaxed);
-    }
+}
+static void publishSlot(unsigned slot) {
+    unsigned observed = atomic_load_explicit(&state, memory_order_relaxed);
+    while (!atomic_compare_exchange_weak_explicit(&state, &observed, (observed & ~CURRENT_MASK) | slot,
+                                                  memory_order_release, memory_order_relaxed)) {}
 }
 
 bool efcr_contextPublish(const char *identifier) {
     if (!identifier) {
-        atomic_store_explicit(&published, &noContext, memory_order_release);
+        publishSlot(0);
         return true;
     }
     if (strnlen(identifier, 37) != 36) return false;
@@ -43,21 +53,22 @@ bool efcr_contextPublish(const char *identifier) {
     }
     for (unsigned i = 0; i < contextCount; i++) {
         if (memcmp(contexts[i].identifier, identifier, 37) == 0) {
-            atomic_store_explicit(&published, &contexts[i], memory_order_release);
+            publishSlot(i + 1);
             return true;
         }
     }
     if (contextCount == 256) return false;
     EFCRContext *slot = &contexts[contextCount++];
     memcpy(slot->identifier, identifier, 37);
-    atomic_store_explicit(&published, slot, memory_order_release);
+    publishSlot(contextCount);
     return true;
 }
 
 void efcr_writeContext(const KSCrash_ExceptionHandlingPlan *plan, const KSCrashReportWriter *writer) {
     (void)plan;
-    const EFCRContext *context = atomic_load_explicit(&admitted, memory_order_acquire);
-    if (context && context->identifier[0]) {
-        writer->addStringElement(writer, "everframe_context_id", context->identifier);
+    unsigned admitted = (atomic_load_explicit(&state, memory_order_acquire) & ADMITTED_MASK) >> ADMITTED_SHIFT;
+    //0 means not admitted;1 freezes the empty context;2..257 name slots0..255.
+    if (admitted > 1) {
+        writer->addStringElement(writer, "everframe_context_id", contexts[admitted - 2].identifier);
     }
 }
