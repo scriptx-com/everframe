@@ -1,0 +1,23 @@
+packages/sdk-ios/crash-recorder/README.md
+  s_97602a0a2d8f20::t_92e080ff3cc786 1-77
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/EverframeKSCrashNamespace.h
+  s_97602a0a2d8f20::t_f7a01b2f727bdb 19-23
+packages/sdk-ios/crash-recorder/Tests/DualProbe/main.m
+  s_97602a0a2d8f20::t_9059c1996f1809 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dc7a9e8e312bb3e1067ce21175653a9e43d80144",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
