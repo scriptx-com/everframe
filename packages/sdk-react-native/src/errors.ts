@@ -7,6 +7,8 @@ import { normalizeCrashDetails } from '@everframe/protocol';
 import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
 import { captureKey, type CaptureIdentity, type PreparedRejection, type RejectionOutcome } from './rejection-capture.js';
 
+import { createErrorCaptureLedger, emptyErrorCaptureStatus, type ErrorCaptureStatus, type ErrorCaptureOutcome } from './error-capture-status.js';
+
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
 interface ErrorUtilsLike {
   getGlobalHandler: () => ErrorHandlerCallback;
@@ -26,6 +28,7 @@ export interface InstallErrorHandlerOptions {
   isActive?: () => boolean;
 }
 export interface CaptureController {
+  getErrorCaptureStatus(): ErrorCaptureStatus;
   captureException(error: unknown, options?: CaptureExceptionOptions): void;
   prepareRejection(reason: unknown, occurredAt: string): PreparedRejection | undefined;
   submitRejection(snapshot: PreparedRejection): RejectionOutcome;
@@ -38,6 +41,7 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
   const handledKeys = new Set<string>();
   const automaticKeys = new Set<string>();
   const identities = new WeakMap<object, CaptureIdentity>();
+  const ledger = createErrorCaptureLedger();
   const prepared = new WeakSet<PreparedRejection>();
   let active = true;
   let capturing = false;
@@ -76,23 +80,24 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
 
   function submitRejection(snapshot: PreparedRejection): RejectionOutcome {
     if (!ownsCapture() || !prepared.has(snapshot)) return 'inactive';
-    if (capturing) return 'capture-failed';
+    const finish = ledger.begin('rejection');
+    if (capturing) { finish('reentrantSuppressed'); return 'capture-failed'; }
     capturing = true;
+    let outcome: ErrorCaptureOutcome = 'captureFailed';
     try {
-      if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) return 'duplicate';
-      if (automaticKeys.size >= 10) return 'allowance';
-      // The new path requires the current acceptance-capable bridge. Existing
-      // ErrorUtils callers alone retain old-binary attempt accounting below.
+      if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) { outcome = 'duplicateSuppressed'; return 'duplicate'; }
+      if (automaticKeys.size >= 10) { outcome = 'allowanceSuppressed'; return 'allowance'; }
       const handledMethod = NativeEverframe.captureHandledException;
       const method = NativeEverframe.reportCrash;
-      if (!ownsCapture()) return 'inactive';
-      if (typeof handledMethod !== 'function' || typeof method !== 'function') return 'native-refused';
-      if (applyFunction(method, NativeEverframe, [snapshot.payload]) !== true) return 'native-refused';
+      if (!ownsCapture()) { outcome = 'inactiveAborted'; return 'inactive'; }
+      if (typeof handledMethod !== 'function' || typeof method !== 'function') { outcome = 'bridgeUnavailable'; return 'native-refused'; }
+      if (applyFunction(method, NativeEverframe, [snapshot.payload]) !== true) { outcome = 'nativeRefused'; return 'native-refused'; }
       automaticKeys.add(snapshot.key);
       if (snapshot.identity) snapshot.identity.accepted = true;
+      outcome = 'accepted';
       return 'accepted';
     } catch { return 'capture-failed'; }
-    finally { capturing = false; }
+    finally { capturing = false; finish(outcome); }
   }
 
   function capture(
@@ -101,27 +106,33 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     fatal: boolean,
     options?: CaptureExceptionOptions,
   ): void {
-    if (!ownsCapture() || capturing) return;
+    if (!ownsCapture()) return;
+    const finish = ledger.begin(explicit ? 'handled' : 'errorUtils');
+    if (capturing) { finish('reentrantSuppressed'); return; }
     capturing = true;
+    let outcome: ErrorCaptureOutcome = 'captureFailed';
     try {
       // Older native binaries may omit the distinct method or throw on lookup.
       let handledMethod: typeof NativeEverframe.captureHandledException | undefined;
       try {
         const method = NativeEverframe.captureHandledException;
         if (typeof method === 'function') handledMethod = method;
-      } catch { /* automatic capture keeps its legacy path */ }
-      if (explicit && !handledMethod) return;
+      } catch (error) { if (explicit) throw error; /* automatic capture keeps its legacy path */ }
+      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      if (explicit && !handledMethod) { outcome = 'bridgeUnavailable'; return; }
       const identity = identityFor(error);
-      if (!fatal && handledMethod && identity?.accepted) return;
+      if (!fatal && handledMethod && identity?.accepted) { outcome = 'duplicateSuppressed'; return; }
       const facts = extractFacts(error);
       const keys = explicit ? handledKeys : automaticKeys;
       const key = captureKey(facts);
-      if (!fatal && (keys.size >= 10 || keys.has(key))) return;
+      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      if (!fatal && keys.has(key)) { outcome = 'duplicateSuppressed'; return; }
+      if (!fatal && keys.size >= 10) { outcome = 'allowanceSuppressed'; return; }
       const details = explicit
         ? normalizeCrashDetails(options, (value) => redactStringContent(value, {}), 'error')
         : undefined;
       const causeChain = extractCrashCauseChain(error, (value) => redactStringContent(value, {}), ownsCapture);
-      if (!ownsCapture()) return;
+      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
       const payload = JSON.stringify({
         ...facts,
         ...(jsBundle ? { jsBundle } : {}),
@@ -133,14 +144,16 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         fatal,
         occurredAt: new Date().toISOString(),
       });
-      if (!ownsCapture()) return;
+      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
       const legacyAttempt = !explicit && !handledMethod;
       // Preserve old-binary attempt accounting, including a failed lookup.
       if (!fatal && legacyAttempt) keys.add(key);
       const method = explicit ? handledMethod : NativeEverframe.reportCrash;
       // Bridge property reads may themselves reenter teardown.
-      if (typeof method !== 'function' || !ownsCapture()) return;
+      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      if (typeof method !== 'function') { outcome = 'bridgeUnavailable'; return; }
       const accepted = applyFunction(method, NativeEverframe, [payload]) === true;
+      outcome = legacyAttempt ? 'legacyAttempted' : accepted ? 'accepted' : 'nativeRefused';
       if (!fatal && !legacyAttempt && accepted) {
         keys.add(key);
         if (identity) identity.accepted = true;
@@ -149,6 +162,7 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       // Neither hostile thrown values nor a failed bridge may escape capture.
     } finally {
       capturing = false;
+      finish(outcome);
     }
   }
 
@@ -181,6 +195,7 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     console.warn('[everframe] crash handler install threw');
   }
   return {
+    getErrorCaptureStatus() { return { ...emptyErrorCaptureStatus('active', 'none'), counters: ledger.snapshot() }; },
     prepareRejection,
     submitRejection,
     captureException(error, options) { capture(error, true, false, options); },
