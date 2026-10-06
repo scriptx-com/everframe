@@ -1,0 +1,53 @@
+packages/sdk-ios/Sources/EverframeProtocol/CrashCompat.swift
+  s_97602a0a2d8f20::t_bd88e137eae63b 6-31,96
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_f7a1741191f56a 41
+packages/protocol/src/native-crash.ts
+  s_97602a0a2d8f20::t_b3bbdbca1cf17b 9-20,68-70
+  s_97602a0a2d8f20::t_82c9bd5a285ca4 28-29,74-77
+  s_97602a0a2d8f20::t_f7a1741191f56a 1-8,21-27,30-67,71-73,78-100
+packages/protocol/compat/native-crash/OldCrashCaller.swift
+  s_97602a0a2d8f20::t_569ed7c519bc5d 1-20
+packages/protocol/compat/native-crash/SwiftMain.swift
+  s_97602a0a2d8f20::t_569ed7c519bc5d 1-6,9
+  s_97602a0a2d8f20::t_ae427194ef87cd 7-8,10-14
+packages/protocol/__tests__/native-crash.spec.ts
+  s_97602a0a2d8f20::t_7f0bbe3cbcddcb 1-62,64-74,76-79,84-92,94-101
+  s_97602a0a2d8f20::t_6491a650124390 63,75
+  s_97602a0a2d8f20::t_423f7aebe72458 80-83,93
+packages/protocol/compat/native-crash/OldCrashCaller.kt
+  s_97602a0a2d8f20::t_569ed7c519bc5d 1-21
+packages/protocol/src/crash.ts
+  s_97602a0a2d8f20::t_f7a1741191f56a 13,61,78-83
+packages/protocol/compat/native-crash/OldCrashLegacyCaller.swift
+  s_97602a0a2d8f20::t_ae427194ef87cd 1-13
+packages/protocol/compat/native-crash/README.md
+  s_97602a0a2d8f20::t_00d0896f430938 3-22
+  s_97602a0a2d8f20::t_40875266a15c99 1-2
+packages/protocol/__tests__/fixtures/apple-native-crash.json
+  s_97602a0a2d8f20::t_ee5680ca9ed242 1-103
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_5a54e6e0a07b62 1002-1004,2206-2390
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_8322a741c93ea2 36,52,63-65,72,75-93,109,127
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_09468c0c0d0174 211-212,214-232,248,266,355-409
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_caeea6f7ac5a30 753,757,769,805,821,1305-1573
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5090a5b1ab5a282009ffe3ac9f125d9c9630611",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
