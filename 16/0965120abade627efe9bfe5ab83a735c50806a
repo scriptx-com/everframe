@@ -1,0 +1,21 @@
+packages/sdk-ios/crash-recorder/Tests/GateAdmission/main.c
+  s_97602a0a2d8f20::t_e7f6e3d3d1d706 1-41
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/RecorderGate.c
+  s_97602a0a2d8f20::t_971d9a5f59085d 6-8,13-23,26-34,37-41,45,56,63,69-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "160965120abade627efe9bfe5ab83a735c50806a",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
