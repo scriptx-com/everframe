@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { revision, vendorRoot, sha256, licenseFor, transform, sourceRoots } from './prepare-vendor.mjs';
+import { revision, vendorRoot, sha256, licenseFor, transform, sourceRoots, mergePrivacy } from './prepare-vendor.mjs';
 async function paths(root,relative) {
   const entries=await readdir(join(root,relative),{withFileTypes:true});
   return (await Promise.all(entries.map(entry=> {
@@ -34,11 +34,10 @@ export async function verifyVendor(root, {upstreamRoot} = {}) {
     }
     if(sha256(await readFile(join(root,entry.path)))!==entry.packagedSha256) throw new Error(`source integrity mismatch: ${entry.path}`);
   }
-  for(const name of sourceRoots) {
-    const original=await readFile(join(root,vendorRoot,name,'Resources/PrivacyInfo.xcprivacy'));
-    const packaged=await readFile(join(root,'Sources/EverframeCrashRecorder/Resources',name,'PrivacyInfo.xcprivacy'));
-    if(!original.equals(packaged)) throw new Error('resource integrity mismatch');
-  }
+  const resources='Sources/EverframeCrashRecorder/Resources';
+  if(JSON.stringify(await paths(root,resources))!==JSON.stringify([`${resources}/PrivacyInfo.xcprivacy`])) throw new Error('resource integrity file set mismatch');
+  const merged=mergePrivacy(await Promise.all(sourceRoots.map(name=>readFile(join(root,vendorRoot,name,'Resources/PrivacyInfo.xcprivacy'),'utf8'))));
+  if(await readFile(join(root,resources,'PrivacyInfo.xcprivacy'),'utf8')!==merged) throw new Error('resource integrity mismatch');
   return {files:actual.length,revision};
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) console.log(await verifyVendor(resolve(process.argv[2]??new URL('..',import.meta.url).pathname), {upstreamRoot:process.env.KSCRASH_CHECKOUT}));

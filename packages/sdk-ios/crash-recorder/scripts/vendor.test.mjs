@@ -60,3 +60,19 @@ test('upstream verification rejects forged original provenance even with valid p
   await writeFile(join(root,'vendor-lock.json'),JSON.stringify(manifest));
   await assert.rejects(verifyVendor(root,{upstreamRoot}),/provenance/);
 });
+test('merges all vendor privacy declarations into one component manifest', async t => {
+  const root=await fixture(t);
+  const path=join(root,'Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy');
+  const manifest=JSON.parse(execFileSync('plutil',['-convert','json','-o','-',path],{encoding:'utf8'}));
+  assert.equal(manifest.NSPrivacyTracking,false);
+  assert.deepEqual(manifest.NSPrivacyTrackingDomains,[]);
+  assert.deepEqual(manifest.NSPrivacyCollectedDataTypes.map(row=>row.NSPrivacyCollectedDataType).sort(),[
+    'NSPrivacyCollectedDataTypeCrashData','NSPrivacyCollectedDataTypeDeviceID',
+    'NSPrivacyCollectedDataTypeOtherDiagnosticData','NSPrivacyCollectedDataTypePerformanceData']);
+  assert.deepEqual(manifest.NSPrivacyAccessedAPITypes,[{NSPrivacyAccessedAPIType:'NSPrivacyAccessedAPICategoryFileTimestamp',NSPrivacyAccessedAPITypeReasons:['C617.1']}]);
+});
+test('rejects altered component privacy declarations', async t => {
+  const root=await fixture(t);
+  await writeFile(join(root,'Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy'),'changed');
+  await assert.rejects(verifyVendor(root),/resource integrity/);
+});

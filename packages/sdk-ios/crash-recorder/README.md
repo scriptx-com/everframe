@@ -29,7 +29,7 @@ Foundation, locking, envelope construction or network work runs in the report ga
 
 The selected detectors cover Mach faults, fatal signals and uncaught Objective-C
 exceptions, including tested Swift traps. Watchdog/termination/CPU reporting,
-C++ interception, memory introspection, queue-name lookup and console attachments
+C++ interception, memory introspection, queue-name lookup, exception userInfo and console attachments
 are not enabled. Required upstream infrastructure can still write sidecar context.
 
 Raw reports remain local and can contain exception messages, stack/image addresses
@@ -46,7 +46,9 @@ outbox promotion and native symbolication belong to subsequent SDK integration.
 
 [KSCrash2.6.0](https://github.com/kstenerud/KSCrash/releases/tag/2.6.0) is pinned
 at`3f77f379c2db001e0c261c2a51b7e2b115d31f91`. See THIRD_PARTY_NOTICES.md and LICENSES
-for MIT, BSD3 and APSL terms. Original notices and dated modifications are retained.
+for MIT, BSD3 and APSL terms. Original notices and dated modifications are retained. The three original privacy
+manifests remain in the vendor source; a deterministic union is processed into the
+component resource-bundle root for iOS/tvOS privacy aggregation.
 `vendor-lock.json` records original and packaged hashes for197 files.
 
 Every translation unit includes the fixed private namespace prelude. The owned
@@ -54,7 +56,7 @@ overlay also names missing upstream C exports, protocol identities and the weak
 C++ throw interposer. The latter prevents this component from interposing the
 application's throw ABI. This does not qualify arbitrary third-party crash reporters.
 
-From this directory, with an exact unmodified upstream checkout available:
+From this directory on macOS (Node and system `plutil`), with an exact unmodified upstream checkout available:
 
 ```sh
 KSCRASH_CHECKOUT=/path/to/KSCrash node --test scripts/vendor.test.mjs

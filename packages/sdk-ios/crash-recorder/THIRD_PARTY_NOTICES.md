@@ -19,6 +19,8 @@ Modifications by ScriptX, dated 2026-10-07: accurate SPDX metadata, preserved
 notices, a private namespace prelude in every translation unit, and replacement
 of the sidecar NSFileProtectionNone policy with
 NSFileProtectionCompleteUntilFirstUserAuthentication in KSFileUtilsObjC.m.
+NSException metadata collection is also removed: the owned monitor neither reads
+nor formats `exception.userInfo`, and records NULL for that field.
 The historical upstream helper name still says “NoFileProtection”; the modified
 implementation preserves the component's mobile protection policy.
 

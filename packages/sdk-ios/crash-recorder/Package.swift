@@ -12,7 +12,7 @@ let package = Package(
         name: "EverframeCrashRecorder",
         exclude: ["Vendor/KSCrashCore/Resources", "Vendor/KSCrashRecordingCore/Resources", "Vendor/KSCrashRecording/Resources"],
         resources: [
-            .copy("Resources"),
+            .process("Resources/PrivacyInfo.xcprivacy"),
         ],
         publicHeadersPath: "include",
         cSettings: headers.map { .headerSearchPath($0) },

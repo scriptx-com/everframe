@@ -45,6 +45,15 @@ def run_probes(binary, evidence):
         (evidence / 'processes.json').write_text(json.dumps(results, indent=2) + '\n')
         assert (result.returncode < 0 if fatal else result.returncode == 0), row
         assert len(reports) == count, row
+        if mode != 'invalid' and Path(path).is_dir():
+            for persisted in Path(path).rglob('*'):
+                if persisted.is_file():
+                    assert b'EFCR_USERINFO_SECRET_91a73f' not in persisted.read_bytes(), f'userInfo leaked into {persisted}'
+        if extra == 'objc' and count:
+            parsed = json.loads((evidence / reports[0]['path']).read_bytes())
+            assert parsed['crash']['error']['nsexception']['name'] == 'EFCRQualification'
+            assert parsed['crash']['error']['reason'] == 'synthetic fatal exception'
+            assert any(t.get('crashed') and t.get('backtrace',{}).get('contents') for t in parsed['crash']['threads'])
         return row
 
     run('missing', 'invalid', evidence / 'absent')

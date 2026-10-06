@@ -9,7 +9,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 void EFCRProbeObjCException(void) {
-    @throw [NSException exceptionWithName:@"EFCRQualification" reason:@"synthetic fatal exception" userInfo:nil];
+    @throw [NSException exceptionWithName:@"EFCRQualification" reason:@"synthetic fatal exception" userInfo:@{@"sensitive":@"EFCR_USERINFO_SECRET_91a73f"}];
 }
 void EFCRProbeMemoryFault(void) {
     void *page = mmap(NULL, (size_t)getpagesize(), PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);

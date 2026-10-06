@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude.
+// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude; omit NSException userInfo without reading or formatting it.
 // Original copyright and license notices retained below.
 #include "EverframeKSCrashNamespace.h"
 //
@@ -112,9 +112,8 @@ static KS_NOINLINE void handleException(NSException *exception, BOOL isUserRepor
         // Gather this info before we require async-safety (ObjC messaging is not signal-safe):
         const char *exceptionName = exception.name.UTF8String;
         const char *exceptionReason = exception.reason.UTF8String;
-        NS_VALID_UNTIL_END_OF_SCOPE NSString *userInfoString =
-            exception.userInfo != nil ? [NSString stringWithFormat:@"%@", exception.userInfo] : nil;
-        const char *userInfo = userInfoString.UTF8String;
+        // Everframe: never read or format arbitrary exception metadata.
+        const char *userInfo = NULL;
 
         // Capture the exception's own backtrace (from callStackReturnAddresses).
         // This uses ObjC, so it must happen before notify() enters async-safe mode.

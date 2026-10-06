@@ -401,7 +401,7 @@
       "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException.m",
       "license": "MIT",
       "originalSha256": "d9f93437128df4b20d02651e0a6b2a51c2746003a248a2a00fa34c831a976507",
-      "packagedSha256": "b038134cb6e71287c800289dc5da88e67ddfe554dda98b3db6883d9ae873ca39"
+      "packagedSha256": "535ffa1f3a5e0d1b023a56b394902b8e72d756a112e06b912c17a6d483286bdd"
     },
     {
       "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Resource.h",
