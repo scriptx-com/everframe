@@ -1,0 +1,21 @@
+packages/sdk-react-native/__tests__/react-error-adapter.test.tsx
+  s_97602a0a2d8f20::t_ed0b0b14ae74ef 91-105
+packages/sdk-react-native/src/integrations/react.ts
+  s_97602a0a2d8f20::t_9a17611d0d4217 4-5,27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f15705d5f18be50737c24a2bf25699ce212acb15",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
