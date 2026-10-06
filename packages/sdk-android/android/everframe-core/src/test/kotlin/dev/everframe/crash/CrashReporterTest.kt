@@ -125,6 +125,64 @@ class CrashReporterTest {
         Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject
     }
 
+    @Test fun `diagnostics distinguish invalid bridge input disabled capture and reentrancy`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        assertFalse(CrashReporter.captureHandledFactsWithCauses("E", "", emptyList(), "2026-10-06T00:00:00Z", null, null, null, "invalid-sdk"))
+        assertEquals(1, Everframe.getReportDeliveryStatus().capture.paths.getValue("bridge-handled").outcomes.getValue("invalid-input"))
+        Everframe.__setConfigForTesting(config.copy(capture = dev.everframe.config.CaptureConfig(crash = false)))
+        assertFalse(CrashReporter.captureHandledThrowable(IllegalStateException("disabled")))
+        assertEquals(1, Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled").outcomes.getValue("disabled"))
+        Everframe.__setConfigForTesting(config)
+        var called = false
+        val outer = object : RuntimeException() {
+            override val message: String get() {
+                if (!called) { called = true; assertFalse(CrashReporter.captureHandledThrowable(IllegalArgumentException("nested"))) }
+                return "outer"
+            }
+        }
+        assertTrue(CrashReporter.captureHandledThrowable(outer))
+        val path = Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled")
+        assertEquals(1, path.outcomes.getValue("reentrant"))
+        assertEquals(1, path.outcomes.getValue("persisted"))
+    }
+
+    @Test fun `diagnostics expose native storage refusal without accepting identity`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        CrashReporter.sidecarFactory = { CrashSidecar(sidecarFile(), keys, JvmOutboxFileOps(), maxEntries = 0) }
+        val caught = IllegalStateException("refused")
+        assertFalse(CrashReporter.captureHandledThrowable(caught))
+        val rejected = Everframe.getReportDeliveryStatus()
+        assertEquals(1, rejected.capture.paths.getValue("native-handled").outcomes.getValue("storage-unavailable"))
+        assertEquals("capacity", rejected.queue.lastFailure)
+        CrashReporter.sidecarFactory = { CrashSidecar(sidecarFile(), keys, JvmOutboxFileOps()) }
+        assertTrue(CrashReporter.captureHandledThrowable(caught))
+        assertEquals(1, Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled").outcomes.getValue("persisted"))
+    }
+
+    @Test fun `diagnostics report real handled acceptance and duplicate suppression once`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        val caught = IllegalStateException("secret payload")
+        assertTrue(CrashReporter.captureHandledThrowable(caught))
+        assertFalse(CrashReporter.captureHandledThrowable(caught))
+        val status = Everframe.getReportDeliveryStatus()
+        val path = status.capture.paths.getValue("native-handled")
+        assertEquals(2, path.settledAttempts)
+        assertEquals(1, path.outcomes.getValue("persisted"))
+        assertEquals(1, path.outcomes.getValue("admission-suppressed"))
+        assertEquals(1, status.queue.operations.getValue("enqueue-committed"))
+        assertFalse(status.toJson().contains("secret payload"))
+    }
+
+    @Test fun `diagnostics classify automatic RN forwarding and native uncaught capture separately`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        assertTrue(CrashReporter.captureFactsAccepted("Automatic", "", emptyList(), "errorutils", false, "2026-10-06T00:00:00Z"))
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("native"))
+        val paths = Everframe.getReportDeliveryStatus().capture.paths
+        assertEquals(1, paths.getValue("bridge-automatic").outcomes.getValue("persisted"))
+        assertEquals(1, paths.getValue("jvm-uncaught").outcomes.getValue("persisted"))
+        assertEquals(0, paths.getValue("native-handled").settledAttempts)
+    }
+
     @Test fun `RN cause enrichment is fitted before encrypted persistence without changing outer facts`() {
         fun capture(causes: Any?) = CrashReporter.captureFactsAcceptedWithCauses(
             "Error", "outer", listOf("at outer (a.js:1:2)"), "errorutils", false,

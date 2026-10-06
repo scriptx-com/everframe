@@ -1080,7 +1080,7 @@ object Everframe {
                 // baseline inside `drainOutbox` itself could not: see that
                 // parameter's doc comment in ReportSubmitter.kt for the
                 // full mechanism.
-                ReportSubmitter(config, outbox).drainOutbox(
+                ReportSubmitter(config, outbox).__observingDelivery(epoch).drainOutbox(
                     identityHolder = _identityHolder,
                     currentReplayConfig = { currentReplayConfig() },
                     epochAtInitiation = epoch,
@@ -1497,7 +1497,7 @@ object Everframe {
                 // just-crashed-but-still-alive JS error wrote already carries
                 // its captured identitySubject (CrashReporter.kt), so this is
                 // what actually resolves it into a header.
-                ReportSubmitter(cfg, outbox).drainOutbox(
+                ReportSubmitter(cfg, outbox).__observingDelivery(epochAtInitiation).drainOutbox(
                     identityHolder = _identityHolder,
                     currentReplayConfig = { currentReplayConfig() },
                     epochAtInitiation = epochAtInitiation,

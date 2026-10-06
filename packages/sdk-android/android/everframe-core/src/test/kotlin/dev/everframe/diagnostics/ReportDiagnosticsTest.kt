@@ -27,12 +27,12 @@ class ReportDiagnosticsTest {
         first.capture(CapturePath.NATIVE_HANDLED, CaptureOutcome.PERSISTED)
         val retained = ledger.snapshot()
         val second = ledger.beginGeneration(1, false)
-        first.capture(CapturePath.RN_AUTOMATIC, CaptureOutcome.PERSISTED)
+        first.capture(CapturePath.BRIDGE_AUTOMATIC, CaptureOutcome.PERSISTED)
         second.capture(CapturePath.NATIVE_HANDLED, CaptureOutcome.DISABLED)
         val current = ledger.snapshot()
         assertEquals(1, retained.capture.paths.getValue("native-handled").outcomes.getValue("persisted"))
         assertFalse(current.capture.enabled)
-        assertEquals(0, current.capture.paths.getValue("rn-automatic").settledAttempts)
+        assertEquals(0, current.capture.paths.getValue("bridge-automatic").settledAttempts)
         assertEquals(1, current.capture.paths.getValue("native-handled").outcomes.getValue("disabled"))
         ledger.retireGeneration(2)
         second.capture(CapturePath.NATIVE_HANDLED, CaptureOutcome.PERSISTED)
@@ -112,7 +112,7 @@ class ReportDiagnosticsTest {
     @Test fun jsonOmitsUnknownCountAndArbitraryContent() {
         val ledger = ReportDiagnostics()
         val owner = ledger.beginGeneration(1, true)
-        owner.capture(CapturePath.RN_HANDLED, CaptureOutcome.INVALID_INPUT)
+        owner.capture(CapturePath.BRIDGE_HANDLED, CaptureOutcome.INVALID_INPUT)
         owner.transport(TransportOrigin.LIVE_SUBMIT, TransportOutcome.NETWORK_FAILURE, -1)
         val encoded = ledger.snapshot().toJson()
         val parsed = Json.parseToJsonElement(encoded).jsonObject

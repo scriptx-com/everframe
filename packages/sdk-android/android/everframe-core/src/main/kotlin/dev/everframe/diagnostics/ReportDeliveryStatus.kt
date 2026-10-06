@@ -59,8 +59,8 @@ data class TransportStatus(
 )
 
 internal enum class CapturePath(val code: String) {
-    NATIVE_HANDLED("native-handled"), RN_HANDLED("rn-handled"),
-    RN_AUTOMATIC("rn-automatic"), JVM_UNCAUGHT("jvm-uncaught")
+    NATIVE_HANDLED("native-handled"), BRIDGE_HANDLED("bridge-handled"),
+    BRIDGE_AUTOMATIC("bridge-automatic"), JVM_UNCAUGHT("jvm-uncaught")
 }
 internal enum class CaptureOutcome(val code: String) {
     PERSISTED("persisted"), DISABLED("disabled"), ADMISSION_SUPPRESSED("admission-suppressed"),

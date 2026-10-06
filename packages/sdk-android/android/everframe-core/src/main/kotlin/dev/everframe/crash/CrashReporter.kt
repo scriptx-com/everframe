@@ -17,6 +17,7 @@
 //     no longer needs to pre-truncate.
 package dev.everframe.crash
 
+import dev.everframe.diagnostics.*
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import dev.everframe.capture.DeviceMetadata
@@ -115,41 +116,45 @@ object CrashReporter {
         // up to 256 StackTraceElements into Frame objects, and everything after
         // it is prep for a crash that has already happened.
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
-        val suppressed = acceptedHermesFatal.consume(throwable, captured.user.startEpoch, captured.killGeneration)
-        if (suppressed && breadcrumb == null) return
-        // Reserve before any overridable outer getter, just as the cause walker
-        // is guarded. A callback cannot recursively assemble another report.
-        if (!handling.compareAndSet(false, true)) return
+        val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.JVM_UNCAUGHT)
         try {
-            val type = throwable.javaClass.name.take(256)
-            val frames = runCatching { throwable.stackTrace }.getOrNull().orEmpty().take(256).map { el ->
-                Frame(
-                    raw = el.toString().take(1024),
-                    file = el.fileName,
-                    function = el.methodName,
-                    line = if (el.lineNumber >= 0) el.lineNumber.toLong() else null,
+            val suppressed = acceptedHermesFatal.consume(throwable, captured.user.startEpoch, captured.killGeneration)
+            if (suppressed && breadcrumb == null) { diagnostic.outcome = CaptureOutcome.ADMISSION_SUPPRESSED; return }
+            // Reserve before any overridable outer getter, just as the cause walker
+            // is guarded. A callback cannot recursively assemble another report.
+            if (!handling.compareAndSet(false, true)) { diagnostic.outcome = CaptureOutcome.REENTRANT; return }
+            try {
+                val type = throwable.javaClass.name.take(256)
+                val frames = runCatching { throwable.stackTrace }.getOrNull().orEmpty().take(256).map { el ->
+                    Frame(
+                        raw = el.toString().take(1024),
+                        file = el.fileName,
+                        function = el.methodName,
+                        line = if (el.lineNumber >= 0) el.lineNumber.toLong() else null,
+                    )
+                }
+                val message = runCatching { throwable.message }.getOrNull() ?: type
+                breadcrumb?.invoke(OuterThrowableFacts(type, message, frames))
+                if (suppressed) { diagnostic.outcome = CaptureOutcome.ADMISSION_SUPPRESSED; return }
+                capture(
+                    exceptionType = type,
+                    message = message,
+                    frames = frames,
+                    mechanism = "uncaught-exception-handler",
+                    handled = false,
+                    fatal = true,
+                    threadName = thread.name,
+                    occurredAt = Instant.now().toString(),
+                    captured = captured,
+                    jvmThrowable = throwable,
+                    details = normalizeCrashDetails(null),
+                    handlingReserved = true,
+                    diagnostic = diagnostic,
                 )
+            } finally {
+                handling.set(false)
             }
-            val message = runCatching { throwable.message }.getOrNull() ?: type
-            breadcrumb?.invoke(OuterThrowableFacts(type, message, frames))
-            if (suppressed) return
-            capture(
-                exceptionType = type,
-                message = message,
-                frames = frames,
-                mechanism = "uncaught-exception-handler",
-                handled = false,
-                fatal = true,
-                threadName = thread.name,
-                occurredAt = Instant.now().toString(),
-                captured = captured,
-                jvmThrowable = throwable,
-                details = normalizeCrashDetails(null),
-                handlingReserved = true,
-            )
-        } finally {
-            handling.set(false)
-        }
+        } finally { diagnostic.settle() }
     }
 
     /** Deliberate native capture acknowledges synchronous encrypted storage. */
@@ -168,41 +173,45 @@ object CrashReporter {
     ): Boolean {
         // Snapshot before any overridable accessor, and close reentrancy before extraction.
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
-        if (!captured.captureConsent || captured.config?.capture?.crash != true) return false
-        if (handling.get() || !handlingNativeHandled.compareAndSet(false, true)) return false
-        var reservation: HandledThrowableAdmission.Reservation? = null
-        var accepted = false
+        val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.NATIVE_HANDLED)
         try {
-            reservation = handledAdmission.reserve(throwable, captured.user.startEpoch) ?: return false
-            val type = redactAndCap(throwable.javaClass.name, 256)
-            val message = runCatching { throwable.message }.getOrNull() ?: type
-            val frames = runCatching { throwable.stackTrace }.getOrNull()
-                ?.take(256)?.map(::captureFrame).orEmpty()
-            val throwableContext = runCatching { captureThrowableContext(throwable, captured.config.r8MappingId) { ownsCauseCapture(captured) } }.getOrNull()
-            val details = normalizeCrashDetails(options)
-            accepted = capture(
-                exceptionType = type,
-                message = redactAndCap(message, 4096),
-                frames = frames,
-                mechanism = "captureException",
-                handled = true,
-                fatal = false,
-                threadName = redactAndCap(Thread.currentThread().name, 256),
-                occurredAt = Instant.now().toString(),
-                captured = captured,
-                preparedThrowable = throwableContext,
-                details = details,
-                sdkName = sdkName,
-                requireCurrentStart = true,
-                waitForStorage = true,
-            )
-            return accepted
-        } catch (_: Throwable) {
-            return false
-        } finally {
-            reservation?.let { handledAdmission.settle(it, accepted) }
-            handlingNativeHandled.set(false)
-        }
+            if (!captured.captureConsent || captured.config?.capture?.crash != true) return diagnostic.reject(CaptureOutcome.DISABLED)
+            if (handling.get() || !handlingNativeHandled.compareAndSet(false, true)) return diagnostic.reject(CaptureOutcome.REENTRANT)
+            var reservation: HandledThrowableAdmission.Reservation? = null
+            var accepted = false
+            try {
+                reservation = handledAdmission.reserve(throwable, captured.user.startEpoch) ?: return diagnostic.reject(CaptureOutcome.ADMISSION_SUPPRESSED)
+                val type = redactAndCap(throwable.javaClass.name, 256)
+                val message = runCatching { throwable.message }.getOrNull() ?: type
+                val frames = runCatching { throwable.stackTrace }.getOrNull()
+                    ?.take(256)?.map(::captureFrame).orEmpty()
+                val throwableContext = runCatching { captureThrowableContext(throwable, captured.config.r8MappingId) { ownsCauseCapture(captured) } }.getOrNull()
+                val details = normalizeCrashDetails(options)
+                accepted = capture(
+                    exceptionType = type,
+                    message = redactAndCap(message, 4096),
+                    frames = frames,
+                    mechanism = "captureException",
+                    handled = true,
+                    fatal = false,
+                    threadName = redactAndCap(Thread.currentThread().name, 256),
+                    occurredAt = Instant.now().toString(),
+                    captured = captured,
+                    preparedThrowable = throwableContext,
+                    details = details,
+                    sdkName = sdkName,
+                    requireCurrentStart = true,
+                    waitForStorage = true,
+                    diagnostic = diagnostic,
+                )
+                return accepted
+            } catch (_: Throwable) {
+                return false
+            } finally {
+                reservation?.let { handledAdmission.settle(it, accepted) }
+                handlingNativeHandled.set(false)
+            }
+        } finally { diagnostic.settle() }
     }
 
     /** Existing Unit API; keep its JVM descriptor and Kotlin default bridge. */
@@ -248,6 +257,7 @@ object CrashReporter {
     ): Boolean {
         val attempt = if (fatal) acceptedHermesFatal.beginAttempt() else null
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
+        val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.BRIDGE_AUTOMATIC)
         val accepted = runCatching {
             capture(
                 exceptionType = exceptionType.take(256),
@@ -262,8 +272,10 @@ object CrashReporter {
                 jsBundle = jsBundle?.takeIf { validJsBundle(it) },
                 rnDetails = details,
                 rnCauseChain = causeChain,
+                diagnostic = diagnostic,
             )
         }.getOrDefault(false)
+        diagnostic.settle()
         if (accepted && fatal && mechanism == "errorutils" && jsBundle != null && validJsBundle(jsBundle) &&
             jsBundle.platform == dev.everframe.protocol.generated.JSBundlePlatform.Android) {
             // Optional correlation must never change successful persistence acknowledgement.
@@ -317,9 +329,14 @@ object CrashReporter {
         exceptionType: String, message: String, framesRaw: List<String>, occurredAt: String,
         jsBundle: JSBundle?, details: Any?, causeChain: Any?, sdkName: String,
     ): Boolean {
-        if (sdkName !in setOf("everframe-android", "everframe-react-native", "everframe-flutter", "everframe-kmp")) return false
+        if (sdkName !in setOf("everframe-android", "everframe-react-native", "everframe-flutter", "everframe-kmp")) {
+            ReportDiagnostics.shared.handle(dev.everframe.Everframe.currentStartEpochVolatile())
+                ?.capture(CapturePath.BRIDGE_HANDLED, CaptureOutcome.INVALID_INPUT)
+            return false
+        }
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
-        return runCatching {
+        val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.BRIDGE_HANDLED)
+        return try { runCatching {
             capture(
                 exceptionType = exceptionType.take(256),
                 message = message,
@@ -336,8 +353,9 @@ object CrashReporter {
                 sdkName = sdkName,
                 requireCurrentStart = true,
                 waitForStorage = true,
+                diagnostic = diagnostic,
             )
-        }.getOrDefault(false)
+        }.getOrDefault(false) } finally { diagnostic.settle() }
     }
 
     private fun ownsCauseCapture(captured: dev.everframe.TXCapturedSession): Boolean =
@@ -371,6 +389,7 @@ object CrashReporter {
      *   cannot deadlock us here either.
      */
     private fun capture(
+        diagnostic: CaptureObservation,
         exceptionType: String,
         message: String,
         frames: List<Frame>,
@@ -391,13 +410,13 @@ object CrashReporter {
         sdkName: String = "everframe-android",
         handlingReserved: Boolean = false,
     ): Boolean {
-        val context = appContext ?: return false
+        val context = appContext ?: return diagnostic.reject(CaptureOutcome.DISABLED)
         // From the crash-entry snapshot, not a field: same critical section as
         // the user, so there is no second read for a start() to land in front
         // of. See TXCapturedSession.
-        val cfg = captured.config ?: return false
-        if (!cfg.capture.crash) return false
-        if (!handlingReserved && !handling.compareAndSet(false, true)) return false
+        val cfg = captured.config ?: return diagnostic.reject(CaptureOutcome.DISABLED)
+        if (!cfg.capture.crash) return diagnostic.reject(CaptureOutcome.DISABLED)
+        if (!handlingReserved && !handling.compareAndSet(false, true)) return diagnostic.reject(CaptureOutcome.REENTRANT)
         try {
             // Automatic JVM capture retains its existing reentrancy protection.
             // Native handled capture supplies only prepared data here: none of its
@@ -483,7 +502,7 @@ object CrashReporter {
             // meantime cannot resurrect this.
             //
             // Admission also retains this original kill generation across facade construction.
-            if (dev.everframe.Everframe.killGenerationChanged(captured.killGeneration)) return false
+            if (dev.everframe.Everframe.killGenerationChanged(captured.killGeneration)) return diagnostic.reject(CaptureOutcome.OWNERSHIP_LOST)
 
             // Independent review, P1 — gate the PERSISTED identity subject on
             // the SAME epoch check `captured.user.resolve()` just used for the
@@ -532,8 +551,8 @@ object CrashReporter {
                     (!requireCurrentStart || captured.user.startEpoch == dev.everframe.Everframe.currentStartEpochVolatile())
             }
             val sidecar = sidecarFactory(context)
-            return if (waitForStorage) sidecar.appendHandledSyncAccepted(entry, authorization)
-            else sidecar.appendSyncAccepted(entry, authorization)
+            return diagnostic.accepted(if (waitForStorage) sidecar.appendHandledSyncAccepted(entry, authorization, diagnostic.owner)
+            else sidecar.appendSyncAccepted(entry, authorization, diagnostic.owner))
         } catch (_: Throwable) {
             return false
         } finally {

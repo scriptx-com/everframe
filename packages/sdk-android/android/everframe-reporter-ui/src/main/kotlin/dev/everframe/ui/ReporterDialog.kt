@@ -615,7 +615,7 @@ internal object ReporterDialog {
             // 4. Ship via ReportSubmitter (isolated client).
             val outbox = JSONLOutbox(activity.applicationContext)
             val submitter = __submitterFactoryForTesting?.invoke(cfg, outbox)
-                ?: ReportSubmitter(cfg, outbox)
+                ?: ReportSubmitter(cfg, outbox).__observingDelivery(capturedSession.user.startEpoch)
 
             // FOLLOW-UPS ITEM 9, FIFTH ROUND (external review 2026-08-13,
             // codex). THIS is the authoritative revocation check — immediately
