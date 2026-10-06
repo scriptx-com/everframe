@@ -39,3 +39,10 @@ int EFCRProbeGate(void) {
     efcr_gateSet(false);
     return 0;
 }
+
+int EFCRProbeAdmitContext(void) {
+    KSCrash_ExceptionHandlingPlan plan = {0};
+    plan.shouldWriteReport = true;
+    efcr_willWriteReport(&plan, NULL);
+    return plan.shouldWriteReport ? 0 : 1;
+}

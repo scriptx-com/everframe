@@ -4,3 +4,4 @@ void EFCRProbeObjCException(void);
 void EFCRProbeMemoryFault(void);
 int EFCRProbePoisonVendor(const char *directory);
 int EFCRProbeGate(void);
+int EFCRProbeAdmitContext(void);

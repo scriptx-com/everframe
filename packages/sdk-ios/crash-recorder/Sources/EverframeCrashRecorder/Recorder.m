@@ -77,6 +77,7 @@ EFCRInstallResult EFCRInstall(const char *runDirectory) {
                 configuration.printPreviousLogOnStartup = false;
                 configuration.userInfoJSON = NULL;
                 configuration.willWriteReportCallback = efcr_willWriteReport;
+                configuration.isWritingReportCallback = efcr_writeContext;
                 installed = kscrash_install("Everframe", runDirectory, &configuration) == KSCrashInstallErrorNone;
                 kscm_disableAllMonitors();
                 result = installed ? EFCRInstallSuccess : EFCRInstallVendorFailure;
@@ -100,6 +101,12 @@ bool EFCRSetEnabled(bool enabled) {
             kscm_disableAllMonitors();
         }
     }
+    pthread_mutex_unlock(&installLock);
+    return success;
+}
+bool EFCRSetContextIdentifier(const char *identifier) {
+    pthread_mutex_lock(&installLock);
+    bool success = installed && !efcr_gateGet() && efcr_contextPublish(identifier);
     pthread_mutex_unlock(&installLock);
     return success;
 }

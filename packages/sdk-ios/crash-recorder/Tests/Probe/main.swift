@@ -9,8 +9,9 @@ func check(_ value: @autoclosure () -> Bool, _ message: String) {
 }
 check(!EFCRIsEnabled(), "initial gate")
 check(!EFCRSetEnabled(true), "cannot enable before installation")
-check(EFCRProbeGate() == 0, "callback suppresses only when gate is closed")
 let mode = args[1], directory = args[2]
+if !mode.hasPrefix("ctx-") { check(EFCRProbeGate() == 0, "callback suppresses only when gate is closed") }
+if mode.hasPrefix("ctx-") { check(!EFCRSetContextIdentifier(nil), "cannot publish before install") }
 if mode == "invalid" {
     check(EFCRInstall(directory) == EFCRInstallInvalidDirectory, "invalid path")
     check(!EFCRIsEnabled(), "invalid install stays disabled")
@@ -26,6 +27,40 @@ if mode == "terminal" {
 check(EFCRInstall(nil) == EFCRInstallInvalidDirectory, "nil path is recoverable validation failure")
 check(EFCRInstall(directory) == EFCRInstallSuccess, "install")
 check(!EFCRIsEnabled(), "installation returns disabled")
+if mode.hasPrefix("ctx-") {
+    let contextA = "11111111-1111-4111-8111-111111111111"
+    let contextB = "22222222-2222-4222-8222-222222222222"
+    check(EFCRSetContextIdentifier(contextA), "publish A while disabled")
+    switch mode {
+    case "ctx-invalid":
+        for value in ["", "../../outside", "11111111-1111-4111-8111-11111111111Z", "11111111-1111-4111-8111-111111111111x", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"] {
+            check(!EFCRSetContextIdentifier(value), "invalid context preserves A")
+        }
+    case "ctx-current":
+        check(EFCRSetEnabled(true), "enable A")
+        check(!EFCRSetContextIdentifier(contextB), "cannot publish while enabled")
+        check(!EFCRSetContextIdentifier(nil), "cannot clear while enabled")
+    case "ctx-switched", "ctx-admitted":
+        check(EFCRSetEnabled(true), "enable A")
+        if mode == "ctx-admitted" { check(EFCRProbeAdmitContext() == 0, "synthetic admission before publication") }
+        check(EFCRSetEnabled(false), "disable before publishing B")
+        check(EFCRSetContextIdentifier(contextB), "publish B")
+    case "ctx-cleared": check(EFCRSetContextIdentifier(nil), "clear while disabled")
+    case "ctx-capacity":
+        // A occupies the first slot;255 other immutable identifiers fill the budget.
+        for index in 0..<255 {
+            let identifier = String(format: "00000000-0000-0000-0000-%012x", index)
+            check(EFCRSetContextIdentifier(identifier), "slot within budget")
+            check(EFCRSetContextIdentifier(identifier), "duplicate consumes no slot")
+        }
+        check(!EFCRSetContextIdentifier(contextB), "exhaustion preserves last owner")
+        check(EFCRSetContextIdentifier(contextA), "existing slot reusable after exhaustion")
+        check(EFCRSetContextIdentifier("00000000-0000-0000-0000-0000000000fe"), "restore final slot")
+    default: exit(93)
+    }
+    check(EFCRSetEnabled(true), "enable context probe")
+    fatalError("EFCR synthetic context trap")
+}
 if mode == "state" {
     check(EFCRInstall(args[3]) == EFCRInstallAlreadyInstalled, "cannot replace owner")
     check(EFCRSetEnabled(true) && EFCRIsEnabled(), "enable")

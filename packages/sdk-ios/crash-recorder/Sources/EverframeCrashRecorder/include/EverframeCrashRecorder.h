@@ -22,6 +22,12 @@ EFCRInstallResult EFCRInstall(const char *runDirectory);
 // Returns false before successful installation or if enabling monitors fails.
 bool EFCRSetEnabled(bool enabled);
 bool EFCRIsEnabled(void);
+// Healthy threads, after installation and only while disabled. Persist context
+// bytes durably BEFORE publication, then enable only after this returns true.
+// Canonical lowercase UUID (36 chars); NULL clears. Invalid/capacity failure leaves
+// the previous owner unchanged.256 immutable lifetime slots; duplicates reuse one.
+// A fatal event already admitted retains its original identifier across updates.
+bool EFCRSetContextIdentifier(const char *identifier);
 const char *EFCRVersion(void);
 #ifdef __cplusplus
 }

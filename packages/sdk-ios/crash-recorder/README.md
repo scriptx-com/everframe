@@ -77,3 +77,23 @@ installation, Swift/Objective-C/memory faults, disable/re-enable and rapid runs.
 Every output and raw report is retained. `Tests/DualProbe/main.m` supports full-object
 link and fatal-chain qualification alongside ordinary upstream recording objects.
 Test helpers are not part of the library product.
+
+## Immutable context handoff
+
+`EFCRSetContextIdentifier` adds an integration-only ownership reference. After
+successful installation, persist the corresponding context durably, keep recording
+disabled, publish its canonical lowercase UUID, then enable only on success. NULL
+clears the current reference. Publishing or clearing while enabled fails. Invalid
+input and exhaustion leave the previous reference unchanged.
+
+There are256 immutable process-lifetime slots; repeated identifiers reuse a slot.
+The first admitted fatal event freezes its slot, including the no-context sentinel,
+for that terminating process and any recrash. The writer emits only that identifier
+under `user.everframe_context_id`. Later publication cannot reassign it. Existing
+callers that publish nothing keep the original report shape. No application context,
+configuration, identity object or arbitrary userInfo is read in either callback.
+The SDK's automatic startup/recovery integration is still pending.
+
+`Tests/context-probes.py` runs six real fatal context cases. The admitted-A case
+explicitly invokes the admission callback before publishing B, then triggers a real
+fatal report; this exercises the boundary deterministically, not a scheduler race.
