@@ -16,4 +16,9 @@
 #define kscrash_notifyAppCrash KSCRASH_NS(kscrash_notifyAppCrash)
 #define kscrash_testcode_setMonitors KSCRASH_NS(kscrash_testcode_setMonitors)
 #define kscrash_testcode_setLastRunID KSCRASH_NS(kscrash_testcode_setLastRunID)
+// Full-object qualification also exposes protocol identities and a weak ABI interposer.
+// C++ capture is not selected; do not interpose the application's __cxa_throw.
+#define KSCrashReport KSCRASH_NS(KSCrashReport)
+#define KSCrashMonitorPlugin KSCRASH_NS(KSCrashMonitorPlugin)
+#define __cxa_throw KSCRASH_NS(__cxa_throw)
 #endif
