@@ -666,8 +666,12 @@ installed old-binary qualification. Native queue and delivery diagnostics remain
 unavailable. Status is neutral `not-mounted` without a provider, `disabled` under
 the crash-reporting veto, and `unsupported` on the browser root entry.
 
-Installed boundary qualification is pending for the retained phone-host row:
+Installed boundary qualification passes on Android API 35 arm64 emulator and
+iOS 26.5 arm64 simulator for this exact phone-host row:
 React 19.2.5, `react-native-tvos` 0.85.3-0 aliased as `react-native`, Expo
 56.0.0-preview.7, Hermes 250829098.0.10 / bytecode 98. Other RN distributions,
 versions, TV, physical devices and production endpoints are not qualified by
-these callback/unit checks.
+this matrix. Installed checks cover four genuine boundary capture cases,
+disabled/initial zero controls, mapped causes, and byte-identical encrypted retry
+after relaunch. The application/JS builds are optimized; native SDKs are
+Debug/local. Physical-device and production-endpoint qualification remains open.
