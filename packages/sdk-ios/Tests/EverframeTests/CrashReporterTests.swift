@@ -36,7 +36,8 @@ final class CrashReporterTests: XCTestCase {
     }
 
     func testDiagnosticsSettleBridgeAndNativeAdmissionOnce() throws {
-        let outbox = makeOutbox()
+        let outbox = JSONLOutbox(fileURL: tempDir.appendingPathComponent("sdk-owned"),
+            keyProvider: { Data(repeating: 0xA7, count: 32) }, observesSDKDiagnostics: true)
         let config = EverframeConfig(appId: "fixture")
         Everframe.__setConfigForTesting(config)
         Everframe.captureGate = true
@@ -61,6 +62,17 @@ final class CrashReporterTests: XCTestCase {
         XCTAssertEqual(snapshot.capture.paths["native-handled"]?.outcomes["admission-suppressed"], 1)
         XCTAssertEqual(snapshot.queue.operations["enqueue-committed"], 3)
         XCTAssertFalse(try snapshot.toJSON().contains("private"))
+    }
+
+    func testStandaloneCaptureOutboxDoesNotPolluteDefaultQueueDiagnostics() throws {
+        let ledger = ReportDiagnostics.shared
+        ledger.beginGeneration(epoch: Everframe.shared.currentStartEpoch, enabled: true)
+        defer { ledger.retireGeneration(epoch: Everframe.shared.currentStartEpoch) }
+        let json = #"{"exceptionType":"Error","fatal":true}"#
+        XCTAssertTrue(CrashReporter.captureFacts(json: json, outbox: makeOutbox(), config: EverframeConfig(appId: "fixture")))
+        XCTAssertEqual(ledger.snapshot().capture.paths["bridge-automatic"]?.outcomes["persisted"], 1)
+        XCTAssertEqual(ledger.snapshot().queue.observation, "not-observed")
+        XCTAssertEqual(ledger.snapshot().queue.operations["enqueue-committed"], 0)
     }
 
     func testDiagnosticsCaptureStorageFailureDoesNotConsumeIdentity() throws {

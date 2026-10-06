@@ -325,6 +325,7 @@ public enum CrashReporter {
         diagnostic: CaptureObservation
     ) -> Bool {
         guard let exceptionType = facts.exceptionType else { return diagnostic.reject(.invalidInput) }
+        let deliveryOwner = outbox.observesSDKDiagnostics ? diagnostic.owner : nil
         let capturedUser = captured.user
         let redactor = RedactionEngine()
         let resolvedDetails = details ?? normalizeRNCrashDetails(facts.details) {
@@ -508,11 +509,11 @@ public enum CrashReporter {
                 reportId: reportId, createdAt: Date(), envelopeBytes: bytes,
                 idempotencyKey: idempotencyKey, attachmentRefs: [],
                 sdkKey: config.appId, endpoint: IngestEndpoint.url.absoluteString,
-                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil), diagnostics: diagnostic.owner)
+                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil), diagnostics: deliveryOwner)
             diagnostic.outcome = .persisted
             if !fatal {
                 // Runtime survives — ship now instead of waiting for next launch.
-                let submitter = ReportSubmitter(config: config, outbox: outbox).observing(diagnostic.owner)
+                let submitter = ReportSubmitter(config: config, outbox: outbox).observing(deliveryOwner)
                 // Independent review, round 8, Serious 1 — captured
                 // atomically with `config` (via `captured` above, at
                 // the top of this function) and threaded through here

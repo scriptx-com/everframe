@@ -92,6 +92,7 @@ public final class JSONLOutbox: @unchecked Sendable {
     private static let magic = Data("EVRBOX01".utf8)
     private static let encryptionOverhead = 8 + 12 + 16 // version + nonce + GCM tag
 
+    internal let observesSDKDiagnostics: Bool
     private let fileURL: URL
 
     /// The path this outbox actually resolved to. Read-only; exists so tests
@@ -116,8 +117,9 @@ public final class JSONLOutbox: @unchecked Sendable {
 
     init(fileURL: URL, maxEntries: Int = JSONLOutbox.DEFAULT_MAX_ENTRIES,
          maxTotalBytes: Int = JSONLOutbox.DEFAULT_MAX_TOTAL_BYTES,
-         keyProvider: @escaping @Sendable () throws -> Data) {
+         keyProvider: @escaping @Sendable () throws -> Data, observesSDKDiagnostics: Bool = false) {
         self.fileURL = fileURL
+        self.observesSDKDiagnostics = observesSDKDiagnostics
         self.maxEntries = max(0, maxEntries)
         self.maxTotalBytes = max(0, maxTotalBytes)
         self.keyProvider = keyProvider
@@ -132,7 +134,8 @@ public final class JSONLOutbox: @unchecked Sendable {
 
     /// Convenience: production path = `Library/Caches/dev.everframe/outbox.jsonl`.
     public convenience init() {
-        self.init(fileURL: JSONLOutbox.outboxURL())
+        self.init(fileURL: JSONLOutbox.outboxURL(), keyProvider: { try OutboxEncryptionKey.getOrCreate() },
+                  observesSDKDiagnostics: true)
     }
 
     /// Per-LAUNCH temp directory for the default outbox under XCTest.
