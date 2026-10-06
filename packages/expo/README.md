@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Everframe with Expo Updates
 
 Use a separate identity for each JavaScript bundle. Native app version and Expo

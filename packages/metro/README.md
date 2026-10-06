@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # @everframe/metro
 
 `withEverframe(config, { projectRoot, dev })` preserves the existing Metro
