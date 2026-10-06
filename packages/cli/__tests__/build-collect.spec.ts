@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { collectStagedBuild } from '../src/build-collect.js';
-import { readComplete } from '../src/staging-io.js';
+import { readComplete, readPointer } from '../src/staging-io.js';
 
 const HERMES_MAGIC = Buffer.from([0xc6, 0x1f, 0xbc, 0x03, 0xc1, 0x03, 0x19, 0x1f]);
 const buildId = '8f3ac21e-0000-4000-8000-000000000001';
@@ -32,12 +32,35 @@ beforeEach(async () => {
   );
   bundlePath = join(root, 'index.android.bundle');
   mapPath = join(root, 'index.android.bundle.map');
-  await writeFile(bundlePath, Buffer.concat([HERMES_MAGIC, Buffer.alloc(64)]));
-  await writeFile(mapPath, JSON.stringify({ version: 3, sources: [], mappings: '' }));
+  await writeFile(bundlePath, Buffer.concat([HERMES_MAGIC, Buffer.from(buildId), Buffer.alloc(64)]));
+  await writeFile(mapPath, JSON.stringify({ version: 3, sources: [`/.everframe/${buildId}/identity.js`], mappings: '' }));
 });
 afterEach(async () => { await rm(root, { recursive: true, force: true }); });
 
 describe('collectStagedBuild', () => {
+  it('selects the artifact identity after a later Metro configuration replaces the latest pointer', async () => {
+    const newer='22222222-2222-4222-8222-222222222222';
+    await mkdir(join(staging,newer));
+    await writeFile(join(staging,newer,'manifest.partial.json'),JSON.stringify({schema:1,buildId:newer,platform:'android',bundleName:'index.android.bundle',dev:false}));
+    await writeFile(join(staging,'latest-android.json'),JSON.stringify({buildId:newer}));
+    const result=await collectStagedBuild({stagingDir:staging,platform:'android',bundlePath,mapPath});
+    expect(result.buildId).toBe(buildId);
+    expect(await readPointer(staging,'android')).toBe(buildId);
+    await expect(readComplete(staging,newer)).rejects.toThrow('manifest_not_collected');
+  });
+  it('does not promote an artifact with wrong compiled identity', async () => {
+    const before=await readFile(join(staging,'latest-android.json'),'utf8');
+    await writeFile(bundlePath,Buffer.concat([HERMES_MAGIC,Buffer.alloc(64)]));
+    await expect(collectStagedBuild({stagingDir:staging,platform:'android',bundlePath,mapPath})).rejects.toThrow('compiled_build_identity_missing');
+    expect(await readFile(join(staging,'latest-android.json'),'utf8')).toBe(before);
+    await expect(readComplete(staging,buildId)).rejects.toThrow('manifest_not_collected');
+  });
+  it('rejects a staged partial whose platform does not match the artifact', async () => {
+    const file=join(staging,buildId,'manifest.partial.json');
+    const partial=JSON.parse(await readFile(file,'utf8'));partial.platform='ios';await writeFile(file,JSON.stringify(partial));
+    await expect(collectStagedBuild({stagingDir:staging,platform:'android',bundlePath,mapPath})).rejects.toThrow('staged_identity_mismatch');
+  });
+
   it('completes the manifest with hashes and sizes', async () => {
     const staged = await collectStagedBuild({
       stagingDir: staging, platform: 'android', bundlePath, mapPath,
@@ -88,10 +111,10 @@ describe('collectStagedBuild', () => {
     ).rejects.toThrow('source_map_not_found');
   });
 
-  it('fails when metro never staged this platform', async () => {
+  it('rejects an artifact requested under the wrong platform', async () => {
     await expect(
       collectStagedBuild({ stagingDir: staging, platform: 'ios', bundlePath, mapPath }),
-    ).rejects.toThrow('no_staged_build');
+    ).rejects.toThrow('staged_identity_mismatch');
   });
 
   it('records native identity when a dsym directory is supplied', async () => {

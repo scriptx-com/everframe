@@ -38,9 +38,14 @@ artifact storage; do not include them among update assets served to clients.
 
 The export command expects one Hermes bytecode bundle and its matching composed
 map per selected platform. A missing map, plain JavaScript bundle, missing token
-or changed staged artifact is a build failure. Do not share `.everframe` between
-concurrent builds or run another Metro configuration between export and upload:
-collection selects that platform's latest staged identity.
+or changed staged artifact is a build failure. Collection selects the generated
+identity from the composed map and checks it against the staged partial and
+compiled bundle. This remains valid when Expo loads Metro configuration again
+after bundling. Maps that omit source contents are supported.
+
+Do not share `.everframe` between concurrent builds or run another Metro
+configuration between collection and upload. Collection promotes its completed
+identity to the platform pointer; a subsequent configuration can replace it.
 
 For a native build, `@everframe/expo` supplies native build-phase setup; for an OTA
 export, use `upload-expo-export` after export and before promotion. Artifact upload

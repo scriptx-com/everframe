@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import type { Stats } from 'node:fs';
-import { open, stat, type FileHandle } from 'node:fs/promises';
+import { open, readFile, stat, type FileHandle } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseStagedBuild, type StagedBuild } from '@everframe/protocol';
 import { hashFile } from './manifest.js';
 import { collectNativeIdentity, type RunCommand } from './native-identity.js';
-import { readPartial, readPointer, writeComplete } from './staging-io.js';
+import { readPartial, writeComplete, writePointer } from './staging-io.js';
+
+import { readBundleIdentity, assertCompiledBuildIdentity } from './bundle-identity.js';
 
 const HERMES_MAGIC = Buffer.from([0xc6, 0x1f, 0xbc, 0x03, 0xc1, 0x03, 0x19, 0x1f]);
 const MAP_MAX_BYTES = 32 * 1024 * 1024;
@@ -57,9 +59,6 @@ async function statSourceMap(path: string): Promise<Stats> {
 }
 
 export async function collectStagedBuild(options: CollectOptions): Promise<StagedBuild> {
-  const buildId = await readPointer(options.stagingDir, options.platform);
-  const partial = await readPartial(options.stagingDir, buildId);
-
   const bundlePath = resolve(options.bundlePath);
   const mapPath = resolve(options.mapPath);
   await assertHermesBytecode(bundlePath);
@@ -67,6 +66,14 @@ export async function collectStagedBuild(options: CollectOptions): Promise<Stage
   const mapStat = await statSourceMap(mapPath);
   if (mapStat.size <= 0) throw new Error('source_map_empty');
   if (mapStat.size > MAP_MAX_BYTES) throw new Error('source_map_too_large');
+
+  let sourceMap: unknown;
+  try { sourceMap = JSON.parse(await readFile(mapPath, 'utf8')); } catch { throw new Error('invalid_bundle_identity'); }
+  const identity = readBundleIdentity(sourceMap, options.platform);
+  const partial = await readPartial(options.stagingDir, identity.buildId);
+  if (partial.buildId !== identity.buildId || partial.platform !== identity.platform || partial.bundleName !== identity.bundleName)
+    throw new Error('staged_identity_mismatch');
+  await assertCompiledBuildIdentity(bundlePath, identity.buildId);
 
   const [generatedSha256, mapSha256] = await Promise.all([
     hashFile(bundlePath),
@@ -87,5 +94,6 @@ export async function collectStagedBuild(options: CollectOptions): Promise<Stage
     }),
   });
   await writeComplete(options.stagingDir, staged);
+  await writePointer(options.stagingDir, options.platform, staged.buildId);
   return staged;
 }
