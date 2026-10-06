@@ -1,0 +1,33 @@
+packages/sdk-react-native/__tests__/error-capture-runtime.test.ts
+  s_97602a0a2d8f20::t_81899d2b5f736a 1-27
+packages/sdk-react-native/__tests__/react-error-adapter.test.tsx
+  s_97602a0a2d8f20::t_4939429f191efe 1-90
+packages/sdk-react-native/__tests__/web-entry.spec.ts
+  s_97602a0a2d8f20::t_f568cdde972566 14
+packages/sdk-react-native/src/contextSeam.ts
+  s_97602a0a2d8f20::t_a8e928ae9ebe52 3,23-24,108-111,124,201-206
+packages/sdk-react-native/src/index.ts
+  s_97602a0a2d8f20::t_0d96f6a1ab5558 33,87-88
+packages/sdk-react-native/src/index.web.ts
+  s_97602a0a2d8f20::t_d814e28e85446d 3,12-15
+packages/sdk-react-native/src/integrations/react.ts
+  s_97602a0a2d8f20::t_abb7d95c2e53bf 1-28
+packages/sdk-react-native/src/runtime.ts
+  s_97602a0a2d8f20::t_5dc11c646464a8 3,229,387-390
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ecb9d4ac0c3fc0bbe4ea575d28f614442fecf078",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
