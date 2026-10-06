@@ -1,0 +1,47 @@
+packages/sdk-react-native/__tests__/report-delivery-status.test.ts
+  s_97602a0a2d8f20::t_8acaafd6fd255b 1-79
+packages/sdk-react-native/src/report-delivery-status.ts
+  s_97602a0a2d8f20::t_c912b53da45624 1-142
+packages/sdk-react-native/README.md
+  s_97602a0a2d8f20::t_2855fd6470a115 678-717
+packages/sdk-react-native/__tests__/fixtures/error-details-public-consumer.ts
+  s_97602a0a2d8f20::t_f63db6423353ef 48-57
+packages/sdk-react-native/__tests__/fixtures/report-delivery-status-v1.json
+  s_97602a0a2d8f20::t_5f7b198f5376fb 1-116
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_97602a0a2d8f20::t_1eb43a77248207 75,106-107
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_97602a0a2d8f20::t_bdf09dcfbe49a1 640-643
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnErrorDetailsBridgeTest.kt
+  s_97602a0a2d8f20::t_1a0d1932232af1 57-70
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_97602a0a2d8f20::t_bf7d3db686e4db 595-599
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_97602a0a2d8f20::t_f262462ea50d7b 422-425
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_97602a0a2d8f20::t_2148324e81f237 331-332
+packages/sdk-react-native/src/contextSeam.ts
+  s_97602a0a2d8f20::t_f876ac3b83594e 3,25,209-217
+packages/sdk-react-native/src/index.ts
+  s_97602a0a2d8f20::t_aabece566b8d86 34,90-91
+packages/sdk-react-native/src/index.web.ts
+  s_97602a0a2d8f20::t_8c0a4d1cd719bb 16-19
+packages/sdk-react-native/src/runtime.ts
+  s_97602a0a2d8f20::t_ed1055746a0b7a 3,230,389-403
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1631300b53eac636ff4d1d3e46855883882a143f",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
