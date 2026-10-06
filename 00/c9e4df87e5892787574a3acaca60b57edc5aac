@@ -1,0 +1,37 @@
+packages/cli/__tests__/build-collect.spec.ts
+  s_97602a0a2d8f20::t_3f6c4e81a4bfab 3,8,35-36,41-63,114,117
+packages/cli/__tests__/bundle-identity.spec.ts
+  s_97602a0a2d8f20::t_03fc156f04e0d1 1-16
+packages/cli/__tests__/command.spec.ts
+  s_97602a0a2d8f20::t_c2a1f2b77c9fb5 279,283
+packages/cli/__tests__/expo-export.spec.ts
+  s_97602a0a2d8f20::t_daa3f51cdf8e91 26,31-32,35-36,38-39,72,74
+packages/cli/src/build-collect.ts
+  s_97602a0a2d8f20::t_5ef3e3d7b06744 4,9-11,70-77,97
+packages/cli/src/build-verify.ts
+  s_97602a0a2d8f20::t_40d11aedc19083 20-29
+packages/cli/src/bundle-identity.ts
+  s_97602a0a2d8f20::t_e68599ea5f6d4a 1-52
+packages/cli/src/staging-io.ts
+  s_97602a0a2d8f20::t_0fe6df643ceb4f 3-4,70-82
+packages/expo/README.md
+  s_97602a0a2d8f20::t_046f8ebe6a31a4 41-48
+packages/metro/README.md
+  s_97602a0a2d8f20::t_f4060d16f74ab1 15-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "00c9e4df87e5892787574a3acaca60b57edc5aac",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
