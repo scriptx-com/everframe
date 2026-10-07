@@ -199,14 +199,15 @@ export default function App() {
 }
 ```
 
-A boundary that wraps `EverframeProvider` never reports: when it switches to its
-fallback, React unmounts the provider in the same commit, before
-`componentDidCatch` runs. Errors caught during the provider's first commit (the
-initial render that also mounts the provider) are not captured either, even when
-the boundary is inside it, and they are not replayed. Disabled crash reporting
-and calls after unmount are also inert. In development builds, a call that finds
-no mounted provider logs a warning, at most once until a provider mounts or
-unmounts.
+A boundary that wraps `EverframeProvider` does not report through it: its
+fallback replaces the provider in the same commit, before `componentDidCatch`
+runs. Such a boundary reports only if its fallback renders its own
+`EverframeProvider`, which mounts before `componentDidCatch` runs. Errors that a
+boundary inside the provider catches during the provider's first commit (the
+initial render that also mounts the provider) are not captured, and they are
+not replayed. Disabled crash reporting and calls after unmount are also inert.
+In development builds, a call that finds no mounted provider logs a warning, at
+most once until a provider mounts or unmounts.
 
 The application owns fallback and recovery UI. This callback reports caught
 component errors; it does not install global renderer hooks or capture arbitrary
