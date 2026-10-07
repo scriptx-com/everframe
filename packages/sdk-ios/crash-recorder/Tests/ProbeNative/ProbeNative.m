@@ -77,6 +77,7 @@ int EFCRProbeAdmitContext(void) {
 void EFCRProbeSetGate(bool open) { efcr_gateSet(open); }
 static void *installOffMain(void *directory) { return (void *)(intptr_t)EFCRInstall(directory); }
 static void *enableOffMain(void *unused) { (void)unused; return (void *)(intptr_t)EFCRSetEnabled(true); }
+static void *publishOffMain(void *identifier) { return (void *)(intptr_t)EFCRSetContextIdentifier(identifier); }
 static int onBackgroundThread(void *(*body)(void *), void *argument) {
     pthread_t thread;
     void *result = NULL;
@@ -85,3 +86,4 @@ static int onBackgroundThread(void *(*body)(void *), void *argument) {
 }
 int EFCRProbeInstallOffMain(const char *directory) { return onBackgroundThread(installOffMain, (void *)directory); }
 int EFCRProbeEnableOffMain(void) { return onBackgroundThread(enableOffMain, NULL); }
+int EFCRProbePublishOffMain(const char *identifier) { return onBackgroundThread(publishOffMain, (void *)identifier); }

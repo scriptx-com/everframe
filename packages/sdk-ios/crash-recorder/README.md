@@ -148,7 +148,11 @@ Test helpers are not part of the library product.
 successful installation, persist the corresponding context durably, keep recording
 disabled, publish its canonical lowercase UUID, then enable only on success. NULL
 clears the current reference. Publishing or clearing while enabled fails. Invalid
-input and exhaustion leave the previous reference unchanged.
+input and exhaustion leave the previous reference unchanged. Unlike installation and
+enable/disable, publication may run on any healthy thread: it takes the same lock but
+calls no UIKit or vendor code. It must never run in a crash or signal handler. A
+caller that publishes off the main thread still enables on the main thread, after
+publication returns true.
 
 There are256 immutable process-lifetime slots; repeated identifiers reuse a slot.
 The first admitted fatal event freezes its slot, including the no-context sentinel,
@@ -165,6 +169,7 @@ read in either callback. The SDK's automatic startup/recovery integration is sti
 runs eight real fatal context cases. The admitted-A and empty-context cases
 explicitly invoke the admission callback before publishing B, then trigger a real
 fatal report; this exercises the boundary deterministically, not a scheduler race.
+The switched and admitted-A cases publish B from a background thread.
 The two capacity cases trap right after a rejected publication, so their reports
 show the owner each rejection kept: the last allocated slot, or a reused earlier one.
 

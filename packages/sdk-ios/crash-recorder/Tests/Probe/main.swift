@@ -53,7 +53,7 @@ if mode.hasPrefix("ctx-") {
         check(EFCRSetEnabled(true), "enable A")
         if mode == "ctx-admitted" { check(EFCRProbeAdmitContext() == 0, "synthetic admission before publication") }
         check(EFCRSetEnabled(false), "disable before publishing B")
-        check(EFCRSetContextIdentifier(contextB), "publish B")
+        check(EFCRProbePublishOffMain(contextB) == 1, "publish B off the main thread")
     case "ctx-cleared": check(EFCRSetContextIdentifier(nil), "clear while disabled")
     case "ctx-admitted-empty":
         check(EFCRSetContextIdentifier(nil), "clear before admission")
