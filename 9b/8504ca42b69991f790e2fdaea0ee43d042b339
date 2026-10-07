@@ -1,0 +1,23 @@
+packages/protocol/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_cff649e12e883b 1-39
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_afda68ea90b789 64-68
+packages/protocol/src/release-health.ts
+  s_97602a0a2d8f20::t_a78f6549ba8ead 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9b8504ca42b69991f790e2fdaea0ee43d042b339",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
