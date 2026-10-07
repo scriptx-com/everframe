@@ -1,0 +1,32 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_360d9eb003c487::t_652a939850f824 459-505
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_a01af45b96e46c 577-578
+  s_360d9eb003c487::t_3307f841194a08 561-562,579-585,599-601
+packages/sdk-android/android/everframe-core/src/androidTest/kotlin/dev/everframe/capture/video/VideoPrivacyInstrumentedTest.kt
+  s_360d9eb003c487::t_a32bb63e2f5c7a 341-370
+  s_360d9eb003c487::t_18845f5c8ad117 371
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoMaskBounds.kt
+  s_360d9eb003c487::t_a84556f35028f5 25-26,31,35-37
+  s_360d9eb003c487::t_70938e3b3fccad 53
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/HiddenWebViewReplayTest.kt
+  s_360d9eb003c487::t_2c13e20984b163 96-99,102
+.changeset/android-replay-mask.md
+  s_360d9eb003c487::t_a4ca62d8bc3923 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d3ebcb90b70ccd93447d80a5919d619c3dd0643",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
