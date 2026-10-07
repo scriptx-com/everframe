@@ -205,6 +205,19 @@ describe('captureException', () => {
     expect(details.truncated).toBe(true);
   });
 
+  it('drops a cause email address cut by the redaction scan limit', async () => {
+    handle = init({ apiKey: 'pk_test', redaction: { maskInputs: ['email'] } });
+    // Redacted tokens shrink the text, so the cut address would fit the message cap.
+    const before = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(250)}.${'S'.repeat(13)} `.repeat(28).padEnd(8_177, 'p');
+
+    handle.captureException(failureWithCause(new TypeError(`${before} john.doe@example.com tail`)));
+
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    const causeChain = sent[0]!.payload.crash!.causeChain!;
+    expect(causeChain.causes[0]!.message).toBe(`${'[REDACTED:JWT] '.repeat(28)}${'p'.repeat(169)}`);
+    expect(causeChain.truncated).toBe(true);
+  });
+
   it.each(['kill', 'destroy'] as const)(
     'persists nothing when capture-option proxy work triggers %s', async action => {
       handle = init({ apiKey: 'pk_test' });

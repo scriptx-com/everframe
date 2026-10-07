@@ -66,9 +66,10 @@ public enum CrashReporter {
         let mechanism: String?
         let jsBundle: EverframeJSBundle?
         let details: RNCrashDetailsWire?
+        let causeChain: RNCrashCausesWire?
 
         enum CodingKeys: String, CodingKey {
-            case exceptionType, message, framesRaw, fatal, occurredAt, mechanism, jsBundle, details
+            case exceptionType, message, framesRaw, fatal, occurredAt, mechanism, jsBundle, details, causeChain
         }
 
         init(from decoder: Decoder) throws {
@@ -87,6 +88,9 @@ public enum CrashReporter {
             details = values.contains(.details)
                 ? ((try? values.decode(RNCrashDetailsWire.self, forKey: .details)) ?? .invalid)
                 : nil
+            causeChain = values.contains(.causeChain)
+                ? ((try? values.decode(RNCrashCausesWire.self, forKey: .causeChain)) ?? .invalid)
+                : nil
         }
 
         init(
@@ -104,6 +108,7 @@ public enum CrashReporter {
             self.mechanism = mechanism
             self.jsBundle = nil
             self.details = nil
+            self.causeChain = nil
         }
     }
 
@@ -207,6 +212,10 @@ public enum CrashReporter {
             occurredAt: ISO8601DateFormatter().string(from: Date()),
             mechanism: "captureException"
         )
+        let causeChain = captureFoundationCauseChain(error, redact: { detailsRedactor.redact($0) }, stillOwned: {
+            Everframe.captureGate && !captured.isSuperseded &&
+                !Everframe.killGenerationChanged(since: captured.killGeneration)
+        })
         accepted = capture(
             facts: facts,
             sdkName: sdkName,
@@ -216,7 +225,8 @@ public enum CrashReporter {
             captured: captured,
             device: device,
             requireCurrentSession: true,
-            details: details
+            details: details,
+            causeChain: causeChain
         )
         return accepted
     }
@@ -304,7 +314,8 @@ public enum CrashReporter {
         captured: EFCapturedSession,
         device: DeviceMetadata?,
         requireCurrentSession: Bool,
-        details: EverframeCrashDetails? = nil
+        details: EverframeCrashDetails? = nil,
+        causeChain: EverframeCrashCauseChain? = nil
     ) -> Bool {
         guard let exceptionType = facts.exceptionType else { return false }
         let capturedUser = captured.user
@@ -341,7 +352,11 @@ public enum CrashReporter {
         }
         let fp = fingerprint(exceptionType: cappedExceptionType, frameKeys: frameKeys)
 
+        let resolvedCauses = causeChain ?? normalizeCrashCauseChain(facts.causeChain, redact: { redactor.redact($0) }, stillOwned: {
+            !captured.isSuperseded && !Everframe.killGenerationChanged(since: captured.killGeneration)
+        })
         let crash = EverframeCrash(
+            causeChain: resolvedCauses,
             details: resolvedDetails,
             exceptionType: cappedExceptionType,
             fatal: fatal,

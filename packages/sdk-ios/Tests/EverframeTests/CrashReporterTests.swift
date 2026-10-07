@@ -56,6 +56,46 @@ final class CrashReporterTests: XCTestCase {
         XCTAssertNil(disk.range(of: Data("private handled message".utf8)))
     }
 
+    func testCauseChainPersistsEncryptedAndDoesNotChangeOuterFingerprint() throws {
+        let chain = #"{"causes":[{"exceptionType":"TypeError","message":"underlying secret","frames":[],"framesTruncated":false}],"truncated":false}"#
+        let base = #""exceptionType":"Error","message":"outer","framesRaw":["at outer"],"occurredAt":"2026-10-05T00:00:00Z""#
+        var results: [[String: Any]] = []
+        for suffix in ["", ",\"causeChain\":\(chain)"] {
+            let outbox = JSONLOutbox(testFileURL: tempDir.appendingPathComponent(UUID().uuidString))
+            XCTAssertTrue(CrashReporter.captureHandledFacts(json: "{\(base)\(suffix)}", outbox: outbox, config: EverframeConfig(appId: "app")))
+            results.append(try decodedCrash(XCTUnwrap(try outbox.hydrate().first)))
+            XCTAssertNil(try Data(contentsOf: outbox.resolvedFileURL).range(of: Data("underlying secret".utf8)))
+        }
+        XCTAssertEqual(results[0]["fingerprint"] as? String, results[1]["fingerprint"] as? String)
+        let causes = try XCTUnwrap(results[1]["causeChain"] as? [String: Any])
+        XCTAssertEqual((causes["causes"] as? [[String: Any]])?.first?["message"] as? String, "underlying secret")
+    }
+
+    func testBridgedCauseTextIsRedactedByTheNativeRedactorBeforePersistence() throws {
+        let chain = #"{"causes":[{"exceptionType":"TypeError","message":"inner Bearer abc.def-123","frames":[{"raw":"at inner ssn 123-45-6789"}],"framesTruncated":false}],"truncated":false}"#
+        let base = #""exceptionType":"Error","message":"outer","framesRaw":["at outer"],"occurredAt":"2026-10-05T00:00:00Z""#
+        let outbox = makeOutbox()
+        XCTAssertTrue(CrashReporter.captureHandledFacts(json: "{\(base),\"causeChain\":\(chain)}", outbox: outbox, config: EverframeConfig(appId: "app")))
+        let entry = try XCTUnwrap(try outbox.hydrate().first)
+        let cause = try XCTUnwrap(((try decodedCrash(entry)["causeChain"] as? [String: Any])?["causes"] as? [[String: Any]])?.first)
+        XCTAssertEqual(cause["message"] as? String, "inner [REDACTED:bearer]")
+        XCTAssertEqual((cause["frames"] as? [[String: Any]])?.first?["raw"] as? String, "at inner ssn [REDACTED:ssn-us]")
+        let bytes = String(decoding: entry.envelopeBytes, as: UTF8.self)
+        XCTAssertNil(bytes.range(of: "abc.def-123"))
+        XCTAssertNil(bytes.range(of: "123-45-6789"))
+    }
+
+    func testMalformedOptionalCausePreservesOuterCapture() throws {
+        for invalid in ["null", "42", "{}", #"{"causes":[{"message":"\ud800"}],"truncated":false}"#] {
+            let outbox = JSONLOutbox(testFileURL: tempDir.appendingPathComponent(UUID().uuidString))
+            let json = "{\"exceptionType\":\"Error\",\"framesRaw\":[\"at raw\"],\"causeChain\":\(invalid)}"
+            XCTAssertTrue(CrashReporter.captureHandledFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app")))
+            let crash = try decodedCrash(XCTUnwrap(try outbox.hydrate().first))
+            XCTAssertEqual(crash["causeChain"] as? NSDictionary, ["causes": [], "truncated": true] as NSDictionary)
+            XCTAssertEqual(crash["frames"] as? NSArray, [["raw": "at raw"]] as NSArray)
+        }
+    }
+
     private func decode(_ entry: OutboxEntry) throws -> [String: Any] {
         try XCTUnwrap(JSONSerialization.jsonObject(with: entry.envelopeBytes) as? [String: Any])
     }

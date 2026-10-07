@@ -140,6 +140,32 @@ function prefixWithoutSplit(value: string, limit: number): { value: string; lost
   return { value: value.slice(0, end), lost: true };
 }
 
+// Units of the tokens redaction only matches whole: JWT, bearer and email.
+function isTokenUnit(unit: number): boolean {
+  return (unit >= 0x30 && unit <= 0x39) || (unit >= 0x41 && unit <= 0x5A) || (unit >= 0x61 && unit <= 0x7A)
+    || unit === 0x25 || unit === 0x2B || unit === 0x2D || unit === 0x2E || unit === 0x2F || unit === 0x3D
+    || unit === 0x40 || unit === 0x5F || unit === 0x7E;
+}
+
+// Digits, dashes and JavaScript whitespace: the units of card and SSN numbers.
+function isDigitGroupUnit(unit: number): boolean {
+  return (unit >= 0x30 && unit <= 0x39) || unit === 0x2D || (unit >= 0x09 && unit <= 0x0D) || unit === 0x20
+    || unit === 0xA0 || unit === 0x1680 || (unit >= 0x2000 && unit <= 0x200A) || unit === 0x2028
+    || unit === 0x2029 || unit === 0x202F || unit === 0x205F || unit === 0x3000 || unit === 0xFEFF;
+}
+
+/**
+ * A scan cut can end inside a secret that redaction only matches whole, such
+ * as a JWT without its last segment. Drop that token and any digit group
+ * before it; the native normalizers apply the same rule.
+ */
+export function dropCrashCauseCutToken(value: string): string {
+  let end = value.length;
+  while (end > 0 && isTokenUnit(value.charCodeAt(end - 1))) end--;
+  while (end > 0 && isDigitGroupUnit(value.charCodeAt(end - 1))) end--;
+  return value.slice(0, end);
+}
+
 function repairText(value: string): string {
   let output = '';
   for (let index = 0; index < value.length; index++) {
@@ -204,7 +230,7 @@ export function createCrashCauseChainFitter(
   const normalizeText = (value: unknown, cap: number): NormalizedText | undefined => {
     if (typeof value !== 'string' || !safeOwned(stillOwned)) return undefined;
     const scanned = prefixWithoutSplit(value, MAX_CRASH_CAUSE_TEXT_SCAN_UNITS);
-    const repairedInput = repairText(scanned.value);
+    const repairedInput = repairText(scanned.lost ? dropCrashCauseCutToken(scanned.value) : scanned.value);
     let redacted: unknown;
     try {
       if (!safeOwned(stillOwned)) return undefined;

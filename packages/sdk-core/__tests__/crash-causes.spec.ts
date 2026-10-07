@@ -342,7 +342,7 @@ describe('extractCrashCauseChain', () => {
 
   it('continues after clipped header text while room remains for the next cause', () => {
     const deepest = new RangeError('deepest');
-    const clipped = new Error('x'.repeat(9_000));
+    const clipped = new Error('x '.repeat(4_500));
     dataCause(clipped, deepest);
     const outer = errorWithCause('outer', clipped);
 
@@ -394,8 +394,8 @@ describe('extractCrashCauseChain', () => {
   });
 
   it('repairs Unicode, bounds stack scanning, and marks frame loss', () => {
-    const inner = new Error(`broken-\uD800-${'m'.repeat(9_000)}`);
-    dataStack(inner, `Error: ignored\n${'s'.repeat(MAX_CRASH_CAUSE_STACK_SCAN_UNITS + 2_000)}`);
+    const inner = new Error(`broken-\uD800-${'m '.repeat(4_500)}`);
+    dataStack(inner, `Error: ignored\n${'s '.repeat((MAX_CRASH_CAUSE_STACK_SCAN_UNITS + 2_000) / 2)}`);
     const chain = extractCrashCauseChain(errorWithCause('outer', inner), identity, () => true);
 
     expect(chain?.causes[0]?.message).toContain('\uFFFD');
@@ -404,6 +404,30 @@ describe('extractCrashCauseChain', () => {
     expect(chain?.causes[0]?.frames[0]?.raw).toHaveLength(1_024);
     expect(chain?.causes[0]?.framesTruncated).toBe(true);
     expect(chain?.truncated).toBe(true);
+  });
+
+  it('drops a secret cut by the stack scan limit instead of keeping its unmatched prefix', () => {
+    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+    const inner = new Error('inner');
+    const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
+    dataStack(inner, `Error: inner\n${filler}\ntoken eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(3_000)}.${'S'.repeat(43)}`);
+    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => value.replace(jwt, '[REDACTED:JWT]'), () => true);
+
+    expect(chain?.causes[0]?.frames).toHaveLength(32);
+    expect(chain?.causes[0]?.frames[31]?.raw).toBe('token');
+    expect(chain?.causes[0]?.framesTruncated).toBe(true);
+  });
+
+  it('drops an email address cut by the stack scan limit before an email rule can miss it', () => {
+    const email = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const inner = new Error('inner');
+    const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
+    dataStack(inner, `Error: inner\n${filler}\nmail john.doe@${'d'.repeat(3_000)}.com`);
+    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => value.replace(email, '[REDACTED:EMAIL]'), () => true);
+
+    expect(chain?.causes[0]?.frames).toHaveLength(32);
+    expect(chain?.causes[0]?.frames[31]?.raw).toBe('mail');
+    expect(chain?.causes[0]?.framesTruncated).toBe(true);
   });
 
   it('stops every later source read and redactor callback after byte exhaustion', () => {
@@ -574,4 +598,54 @@ describe('extractCrashCauseChain', () => {
         }],
       });
   });
+});
+
+it('reads the captured Hermes prototype stack intrinsic without invoking replacement getters', async () => {
+  const NativeError = Error;
+  const stacks = new WeakMap<object, string>();
+  const getter = vi.fn(function(this: object) { return stacks.get(this); });
+  class HermesError extends NativeError {
+    constructor(message = '') {
+      super(message);
+      delete this.stack;
+      stacks.set(this, `Error: ${message}\n    at hermesCause (address at index.android.bundle:1:42)`);
+    }
+  }
+  Object.defineProperty(HermesError.prototype, 'stack', { configurable: true, get: getter });
+  let hermes: typeof import('../src/crash/causes.js');
+  vi.stubGlobal('Error', HermesError);
+  try { vi.resetModules(); hermes = await import('../src/crash/causes.js'); }
+  finally { vi.unstubAllGlobals(); }
+  const inner = new HermesError('inner');
+  const outer = errorWithCause('outer', inner);
+  expect(hermes!.extractCrashCauseChain(outer, identity, () => true)).toMatchObject({
+    causes: [{ message: 'inner', frames: [{raw: 'at hermesCause (address at index.android.bundle:1:42)'}], framesTruncated: false }], truncated: false,
+  });
+  expect(getter).toHaveBeenCalledTimes(1);
+  let owned = true;
+  const proxy = new Proxy(inner, { getPrototypeOf(target) { owned = false; return Reflect.getPrototypeOf(target); } });
+  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', proxy), identity, () => owned)).toBeUndefined();
+  expect(getter).toHaveBeenCalledTimes(1);
+  let deep: object = HermesError.prototype;
+  for (let level = 0; level < 20; level += 1) deep = Object.create(deep);
+  Object.defineProperty(deep, 'message', { value: 'deep' });
+  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', deep), identity, () => true)).toMatchObject({
+    causes: [{ frames: [], framesTruncated: true }],
+  });
+  expect(getter).toHaveBeenCalledTimes(1);
+  // Babel's wrapped native super adds a prototype below each compiled Error
+  // hierarchy, so a third-level subclass instance is five links from the intrinsic.
+  const compiled = new HermesError('compiled');
+  const wrapper = Object.create(HermesError.prototype);
+  Object.setPrototypeOf(compiled, Object.create(Object.create(Object.create(wrapper))));
+  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', compiled), identity, () => true)).toMatchObject({
+    causes: [{ message: 'compiled', frames: [{raw: 'at hermesCause (address at index.android.bundle:1:42)'}], framesTruncated: false }], truncated: false,
+  });
+  expect(getter).toHaveBeenCalledTimes(2);
+  const replacement = vi.fn(() => 'unsafe');
+  Object.defineProperty(HermesError.prototype, 'stack', { get: replacement });
+  expect(hermes!.extractCrashCauseChain(outer, identity, () => true)).toMatchObject({
+    causes: [{ frames: [], framesTruncated: true }],
+  });
+  expect(replacement).not.toHaveBeenCalled();
 });
