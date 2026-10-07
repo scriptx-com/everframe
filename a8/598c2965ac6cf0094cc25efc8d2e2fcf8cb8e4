@@ -1,0 +1,26 @@
+packages/sdk-react-native/src/errors.ts
+  s_360d9eb003c487::t_89d9470ada4bdc 60-62,64-66
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_f89e589c46be76 151-154
+packages/sdk-react-native/__tests__/rejection-capture.test.ts
+  s_360d9eb003c487::t_4fbaec1cee8f61 175-181
+  s_360d9eb003c487::t_12f6bd8a37f372 182-186
+.changeset/react-native-promise-rejections.md
+  s_360d9eb003c487::t_6cb591f7555b98 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a8598c2965ac6cf0094cc25efc8d2e2fcf8cb8e4",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
