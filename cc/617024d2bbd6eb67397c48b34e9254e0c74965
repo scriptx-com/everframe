@@ -1,0 +1,27 @@
+packages/cli/README.md
+  s_97602a0a2d8f20::t_e99036cafb4490 21-69
+packages/cli/__tests__/apple-upload.spec.ts
+  s_97602a0a2d8f20::t_cf1ff84e9f3066 1-213
+packages/cli/examples/upload-apple-symbols.sh
+  s_97602a0a2d8f20::t_54dd17bc550938 1-23
+packages/cli/src/apple-upload.ts
+  s_97602a0a2d8f20::t_96e4659bfd3fac 1-65
+packages/cli/src/index.ts
+  s_97602a0a2d8f20::t_2044c777a41104 11,42,64,76,212-231,426-428
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc617024d2bbd6eb67397c48b34e9254e0c74965",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
