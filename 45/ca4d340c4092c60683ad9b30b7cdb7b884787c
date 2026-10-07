@@ -1,0 +1,23 @@
+packages/cli/__tests__/apple-build-fixture.ts
+  s_97602a0a2d8f20::t_e999e3a035dcff 1-72
+packages/cli/__tests__/apple-build.spec.ts
+  s_97602a0a2d8f20::t_b7c47aa29890d3 1-291
+packages/cli/src/apple-build.ts
+  s_97602a0a2d8f20::t_2e8b7180f500b4 1-329
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45ca4d340c4092c60683ad9b30b7cdb7b884787c",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
