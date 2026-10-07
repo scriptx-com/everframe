@@ -1,0 +1,21 @@
+packages/sdk-ios/Tests/EverframeTests/NativeVideoCaptureTests.swift
+  s_360d9eb003c487::t_c3eb66e6c9efa8 351-354
+  s_360d9eb003c487::t_92bea7f605a0a9 286,299-322
+  s_360d9eb003c487::t_53efc9c5fc1e00 323
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a0fa98ee74ecc0a61c9010721cd56fba598ce956",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
