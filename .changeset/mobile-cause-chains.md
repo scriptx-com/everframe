@@ -1,8 +1,8 @@
 ---
-"@everframe/react-native": patch
+"@everframe/react-native": minor
 "@everframe/web": patch
-"@everframe/sdk-android": patch
-"@everframe/sdk-ios-marker": patch
+"@everframe/sdk-android": minor
+"@everframe/sdk-ios-marker": minor
 ---
 
 <!-- SPDX-License-Identifier: MIT -->
