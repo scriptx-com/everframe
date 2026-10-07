@@ -466,6 +466,55 @@ class VideoPrivacyGateTest {
         } finally { org.robolectric.util.ReflectionHelpers.setField(viewRoot, "mCurScrollY", 0); a.finish() }
     }
 
+    @Test fun maskedGroupUnderNonClippingParentCoversChildrenDrawnOutsideIt() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        val container = FrameLayout(a); root.addView(container); container.layout(0,0,400,400)
+        val group = FrameLayout(a); container.addView(group); group.layout(10,10,60,60)
+        group.setTag(R.id.tx_sensitive, true)
+        val child = View(a); group.addView(child); child.layout(60,0,160,50)
+        val inner = FrameLayout(a); group.addView(inner); inner.layout(0,0,50,50)
+        val deep = View(a); inner.addView(deep); deep.layout(200,200,250,250)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            assertEquals("a clipping parent confines the group's subtree to its bounds",
+                listOf(android.graphics.Rect(9, 9, 61, 61)), gate.observe(root).masks)
+            // React Native views never clip children, so the group's own bounds cover nothing outside them.
+            container.clipChildren = false
+            assertTrue("a child laid out outside the group", masked(gate.observe(root), child, root))
+            child.layout(0,0,50,50); child.translationX = 100f
+            assertTrue("a child translated outside the group", masked(gate.observe(root), child, root))
+            assertFalse("a clipping group confines inner's subtree to inner's bounds",
+                gate.observe(root).masks.any { it.contains(VideoMaskBounds.of(deep, root)!!) })
+            group.clipChildren = false
+            assertTrue("a grandchild drawn outside a non-clipping child", masked(gate.observe(root), deep, root))
+            // History covers the same subtree once only it can reach the group.
+            root.startViewTransition(container); root.removeView(container)
+            try {
+                assertEquals(-1, root.indexOfChild(container))
+                assertTrue("history covers a retained group's children", masked(gate.observe(root), deep, root))
+            } finally { root.endViewTransition(container) }
+        } finally { a.finish() }
+    }
+
+    @Test fun unplaceableOrOversizedSubtreeOfNonClippedMaskRefuses() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        root.clipChildren = false
+        val group = FrameLayout(a); root.addView(group); group.layout(10,10,60,60)
+        group.setTag(R.id.tx_sensitive, true)
+        val child = View(a); group.addView(child); child.layout(0,0,50,50)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            assertTrue(masked(gate.observe(root), child, root))
+            child.startAnimation(android.view.animation.TranslateAnimation(0f, 200f, 0f, 0f).apply { duration = 1000 })
+            assertFalse("a descendant animated outside the group", gate.observe(root).allowed)
+            child.clearAnimation()
+            repeat(2048) { group.addView(View(a)) }
+            assertFalse("covering a subtree shares the node budget", gate.observe(root).allowed)
+        } finally { a.finish() }
+    }
+
     @Test fun rememberedInputIsMaskedOnLaterFramesUntilDetached() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)

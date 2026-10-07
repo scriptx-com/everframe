@@ -48,6 +48,31 @@ internal object VideoMaskBounds {
         return Rect(floor(r.left).toInt() - 1, floor(r.top).toInt() - 1, ceil(r.right).toInt() + 1, ceil(r.bottom).toInt() + 1)
     }
 
+    /**
+     * Adds the rects covering [view]'s drawn subtree to [into]: its own bounds and, below any
+     * node whose parent does not clip children (React Native views never do), each child's
+     * bounds too. Returns the descendants visited, or null when one cannot be placed or the
+     * budget runs out.
+     */
+    fun cover(view: View, root: View, remaining: Int, deadlineNs: Long, now: () -> Long, into: MutableCollection<Rect>): Int? {
+        val pending = ArrayDeque<View>()
+        var visited = 0
+        var node = view
+        while (true) {
+            val bounds = of(node, root) ?: return null
+            if (!bounds.isEmpty) {
+                into.add(bounds)
+                // A parent that clips children confines this node's whole subtree to its bounds.
+                if (node is ViewGroup && node !== root && (node.parent as? ViewGroup)?.clipChildren != true) {
+                    if (visited + pending.size + node.childCount > remaining) return null
+                    for (i in 0 until node.childCount) pending.add(node.getChildAt(i))
+                }
+            }
+            node = pending.removeFirstOrNull() ?: return visited
+            if (++visited > remaining || now() >= deadlineNs) return null
+        }
+    }
+
     // Tweens and animation matrices are applied while drawing, outside getMatrix(), and a layout
     // transition moves and fades children. A shared-element ghost draws an INVISIBLE original
     // from an overlay, and transition alpha hides an original while a copy is drawn.

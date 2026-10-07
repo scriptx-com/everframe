@@ -49,13 +49,10 @@ internal class VideoPrivacyGate(
         val queue = ArrayDeque<View>()
         if (allowed) queue.add(root)
         val masks = LinkedHashSet<android.graphics.Rect>()
-        // True when the view is hidden or its bounds were added as a mask; false when its
-        // position on screen cannot be proven (not under this root), which refuses the frame.
-        fun mask(view: View): Boolean {
-            val bounds = VideoMaskBounds.of(view, root) ?: return false
-            if (!bounds.isEmpty) masks.add(bounds)
-            return true
-        }
+        // Nodes visited to cover the view's drawn subtree with masks (none when it is hidden), or
+        // null when its position on screen cannot be proven, which refuses the frame.
+        fun mask(view: View, remaining: Int): Int? =
+            VideoMaskBounds.cover(view, root, remaining, start + 2_000_000L, nowNanos, masks)
         var visited = if (allowed) VideoSensitiveViews.inspect(identity, start + 2_000_000L, 2048, nowNanos, ::mask) { view, remaining ->
             val marker = view.getTag(R.id.tx_sensitive)
             val classification = try { platformAdapter?.classify(view) } catch (_: Throwable) { VideoPrivacyAdapter.Classification.UNKNOWN }
@@ -83,7 +80,9 @@ internal class VideoPrivacyGate(
                 // Painted black, children included, instead of refusing the frame. History keeps
                 // it covered if it is later reparented into an overlay this walk cannot reach.
                 VideoSensitiveViews.remember(view)
-                if (!mask(view)) { allowed = false; break }
+                val covered = mask(view, 2048 - visited - queue.size)
+                if (covered == null) { allowed = false; break }
+                visited += covered
                 continue
             }
             // A SurfaceView renders into its own surface, which a window PixelCopy never contains:
