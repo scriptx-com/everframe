@@ -52,6 +52,19 @@ def run_probes(binary, evidence):
         path.mkdir(mode=0o700)
         return path
 
+    def bounded(name, length):
+        # An existing empty 0700 directory whose canonical path is exactly `length` bytes.
+        path = directory(name)
+        remaining = length - len(str(path))
+        require(remaining >= 2, f'evidence root is too long for a {length}-byte run directory')
+        while remaining:
+            size = min(255, remaining - 1)
+            size -= remaining - size - 1 == 1
+            path = path / ('p' * size)
+            path.mkdir(mode=0o700)
+            remaining -= size + 1
+        return path
+
     def run(name, mode, path, extra=None, fatal=False, count=0):
         command = [str(binary), mode, str(path)] + ([] if extra is None else [str(extra)])
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -104,7 +117,9 @@ def run_probes(binary, evidence):
 
     run('missing', 'invalid', evidence / 'absent')
     run('relative', 'invalid', 'relative-directory')
-    run('oversized', 'invalid', '/' + 'x' * 1100)
+    run('overlong-nonexistent', 'invalid', '/' + 'x' * 1100)
+    # The System monitor's 512-byte sidecar path allows run directories of at most 449 bytes.
+    run('oversized', 'invalid', bounded('oversized', 450))
     permissive = directory('permissive'); permissive.chmod(0o755)
     run('permissive', 'invalid', permissive)
     nonempty = directory('nonempty'); (nonempty / 'sentinel').write_text('preserve')
@@ -118,6 +133,9 @@ def run_probes(binary, evidence):
     second = directory('replacement')
     run('state', 'state', directory('state'), second)
     require(not list(second.iterdir()), 'second installation touched replacement directory')
+    at_bound = bounded('at-bound', 449)
+    run('at-bound', 'state', at_bound, directory('at-bound-replacement'))
+    require(list(at_bound.glob('RunSidecars/*/System.ksscr')), 'System sidecar missing at the path bound')
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
     for fault in ['leaf', 'overflow']:
         run(f'enabled-{fault}', 'enabled', directory(f'enabled-{fault}'), fault, fatal=True, count=1)

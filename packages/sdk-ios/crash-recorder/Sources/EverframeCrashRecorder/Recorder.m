@@ -6,6 +6,7 @@
 #include "KSCrashC.h"
 #include "KSCrashCConfiguration.h"
 #include "KSCrashMonitor.h"
+#include "KSCrashMonitor_System.h"
 #import <Foundation/Foundation.h>
 #include <TargetConditionals.h>
 #include <dirent.h>
@@ -15,12 +16,15 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
+// The System monitor formats <run>/RunSidecars/<36-character run ID>/System.ksscr into a
+// KSSYS_MAX_PATH buffer, the smallest run-path buffer in the vendor recorder.
+#define EFCR_MAX_RUN_PATH (KSSYS_MAX_PATH - (sizeof("/RunSidecars/") - 1) - 36 - sizeof("/System.ksscr"))
 static pthread_mutex_t installLock = PTHREAD_MUTEX_INITIALIZER;
 static bool attempted = false;
 static bool installed = false;
 
 static bool validDirectory(const char *path) {
-    if (!path || path[0] != '/' || strnlen(path, PATH_MAX) > PATH_MAX - 160) return false;
+    if (!path || path[0] != '/' || strnlen(path, PATH_MAX) > EFCR_MAX_RUN_PATH) return false;
     char canonical[PATH_MAX];
     if (!realpath(path, canonical) || strcmp(path, canonical) != 0) return false;
     int fd = open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);

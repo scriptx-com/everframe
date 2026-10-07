@@ -13,7 +13,8 @@ typedef enum {
     EFCRInstallVendorFailure = 3
 } EFCRInstallResult;
 // Healthy-process integration only. Supply an existing, empty, canonical absolute
-// directory owned by this user with mode 0700, reserved exclusively for this run.
+// directory of at most 449 bytes, owned by this user with mode 0700, reserved
+// exclusively for this run.
 // Do not rename/replace it concurrently. Validation failure permits correction;
 // entering the vendor installer is terminal even if it fails. Success is disabled.
 EFCRInstallResult EFCRInstall(const char *runDirectory);

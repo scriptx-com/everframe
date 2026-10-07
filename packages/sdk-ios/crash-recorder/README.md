@@ -15,7 +15,8 @@ are private to the Clang target. The package uses no unsafe compiler flags.
 A healthy caller creates a fresh UUID run directory in its private application
 storage, mode0700, resolves its canonical absolute path, and reserves it for this
 process. `EFCRInstall(path)` rejects missing, relative, symlinked, noncanonical,
-nonempty, permissive and oversized directories. Do not replace or rename the
+nonempty and permissive directories, and paths longer than 449 bytes, the most the
+vendor's 512-byte System sidecar path allows. Do not replace or rename the
 reserved directory concurrently. Validation failures permit a corrected attempt;
 entering the vendor installer is terminal, even on failure. A successful install
 returns with recording disabled. Call `EFCRSetEnabled(true)` explicitly.
@@ -86,8 +87,9 @@ upstream checkout checks the packaged manifest and resource integrity. Supplying
 the manifest alone is not a cryptographic attestation.
 
 `Tests/run-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
-runs39 fresh processes with25-second deadlines and child-only core-dump disabling.
-The probes cover directory validation, initial disabled state, repeated/failed
+runs41 fresh processes with25-second deadlines and child-only core-dump disabling.
+The probes cover directory validation, including real 449- and 450-byte run
+directories at the path bound, initial disabled state, repeated/failed
 installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
 monitor can record, disable/re-enable and rapid runs. Two modes move one control at a
 time: a closed report gate with enabled monitors, and an open gate with the monitors
