@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/PixelCopyVideoCaptureTest.kt
+  s_360d9eb003c487::t_e9f45089091d35 211-240
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/HiddenWebViewReplayTest.kt
+  s_360d9eb003c487::t_ef5f1ff30f58f4 97
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_360d9eb003c487::t_b2022ee497b23e 562-579
+  s_360d9eb003c487::t_192e0ab7049306 325,330-332
+  s_360d9eb003c487::t_538ba7796d1af0 30-31
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoMaskBounds.kt
+  s_360d9eb003c487::t_9d12b5c7184da0 54-55,64-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cbd828847dfbed8dc13361ac706a103a37f9d449",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
