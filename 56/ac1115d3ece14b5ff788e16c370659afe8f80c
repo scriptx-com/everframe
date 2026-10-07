@@ -1,0 +1,23 @@
+packages/sdk-ios/Tests/NativeCrashRecordProof/main.swift
+  s_97602a0a2d8f20::t_96e22ccb946b00 1-24
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_97602a0a2d8f20::t_02063efe04200f 68-76
+packages/sdk-ios/docs/native-record-decoder.md
+  s_97602a0a2d8f20::t_1b20ed8e4ae191 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "56ac1115d3ece14b5ff788e16c370659afe8f80c",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
