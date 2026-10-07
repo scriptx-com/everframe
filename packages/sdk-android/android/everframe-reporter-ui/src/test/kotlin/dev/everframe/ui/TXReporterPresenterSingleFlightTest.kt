@@ -41,7 +41,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
 class TXReporterPresenterSingleFlightTest {
-    @After fun close() { Everframe.kill() }
+    @After fun close() { Everframe.kill(); Everframe.clearExtra() }
 
     @Test fun concurrentOpensPresentOneReporterAndShareItsResult() = runBlocking {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
@@ -108,15 +108,43 @@ class TXReporterPresenterSingleFlightTest {
         }
     }
 
-    private fun presenter(presented: AtomicInteger, show: suspend () -> ReportResult) = TXReporterPresenter(
+    @Test fun joiningCallerDropsItsPendingExtra() = runBlocking {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        startSdk(activity)
+        val presented = AtomicInteger(0)
+        val extras = mutableListOf<String?>()
+        val userSends = CompletableDeferred<ReportResult>()
+        val first = async { presenter(presented) { extras += extra; userSends.await() }.openReporter(activity) }
+        awaitPresented(presented, 1)
+
+        // The host's own open arrives second, carrying its extra, and joins.
+        Everframe.setExtra("joiner-extra")
+        val joined = async { presenter(presented) { error("a joining open must not present") }.openReporter(activity) }
+        yield()
+        userSends.complete(ReportResult.Cancelled("user"))
+        first.await()
+        joined.await()
+
+        presenter(presented) { extras += extra; ReportResult.Cancelled("later") }.openReporter(activity)
+        assertEquals("a later, unrelated report must not inherit the joining caller's extra", listOf(null, null), extras)
+    }
+
+    /** What a fake dialog is opened with. */
+    private class Shown(val extra: String?)
+
+    private fun presenter(presented: AtomicInteger, show: suspend Shown.() -> ReportResult) = TXReporterPresenter(
         captureScreenshot = { _, _ ->
             ScreenshotCapture.CaptureResult(Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888), 2, 2, byteArrayOf(1))
         },
-        showDialog = { _, _, _, _ ->
+        showDialog = { _, _, _, extra ->
             presented.incrementAndGet()
-            show()
+            Shown(extra).show()
         },
     )
+
+    /** Bounded, so a first open that returns without presenting fails instead of hanging the run. */
+    private suspend fun awaitPresented(presented: AtomicInteger, count: Int) =
+        withTimeout(5_000) { while (presented.get() < count) yield() }
 
     private fun startSdk(activity: Activity) {
         Everframe.start(

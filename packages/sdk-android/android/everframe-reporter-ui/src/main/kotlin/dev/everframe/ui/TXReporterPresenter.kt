@@ -60,7 +60,14 @@ internal class TXReporterPresenter(
                 Flight(activity).also { inFlight = it } to null
             }
         }
-        if (existing != null) return existing.result.await()
+        if (existing != null) {
+            // A joining open presents nothing, so drop its caller's pending
+            // extra here rather than let it ship with a later, unrelated
+            // report. The owner drains first: opens run on the main thread,
+            // and an extra resolver round trip is serialised.
+            Everframe.consumePendingAttachments()
+            return existing.result.await()
+        }
         val owned = mine!!
         try {
             return presentOnce(activity, isCurrent).also { owned.result.complete(it) }
