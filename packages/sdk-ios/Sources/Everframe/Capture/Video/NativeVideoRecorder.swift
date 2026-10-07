@@ -3,6 +3,13 @@
 #if canImport(UIKit)
 import Foundation
 
+/// Longest replay window the device keeps. Matches Android and the dashboard's
+/// replay duration setting, which goes up to 60 seconds.
+enum NativeVideoLimits {
+    static let maxDurationSec = 60
+    static let maxDurationNanos = UInt64(maxDurationSec) * 1_000_000_000
+}
+
 protocol NativeVideoRecording: Sendable {
     func append(_ frame: NativeVideoFrame) async throws -> Bool
     func finish(anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64?) async throws -> NativeVideoArtifact?
@@ -30,7 +37,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
         guard framesPerSecond == 5 || framesPerSecond == 10 else { throw NativeVideoWriterError.invalidFrame }
         self.directory = directory
         self.framesPerSecond = framesPerSecond
-        ring = NativeVideoRing(directory: directory, durationNanos: min(30_000_000_000, durationNanos),
+        ring = NativeVideoRing(directory: directory, durationNanos: min(NativeVideoLimits.maxDurationNanos, durationNanos),
             byteLimit: min(8 * 1024 * 1024, byteLimit))
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
             attributes: [.protectionKey: FileProtectionType.complete])
