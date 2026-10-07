@@ -19,6 +19,7 @@ async function makeExpoProject(options: {
   platforms: Array<'android' | 'ios'>;
   extraBundle?: boolean;
   staged?: boolean;
+  identity?: boolean;
 }): Promise<string> {
   const project = await mkdtemp(join(tmpdir(), 'everframe-expo-'));
   const staging = join(project, '.everframe');
@@ -29,7 +30,8 @@ async function makeExpoProject(options: {
     const names = options.extraBundle ? ['index-abc.hbc', 'index-def.hbc'] : ['index-abc.hbc'];
     for (const name of names) {
       await writeFile(join(dir, name), Buffer.concat([HERMES_MAGIC, Buffer.from(platformBuildId), Buffer.alloc(64)]));
-      await writeFile(join(dir, `${name}.map`), JSON.stringify({ version: 3, sources: [`/.everframe/${platformBuildId}/identity.js`], mappings: '' }));
+      const sources = options.identity === false ? [] : [`/.everframe/${platformBuildId}/identity.js`];
+      await writeFile(join(dir, `${name}.map`), JSON.stringify({ version: 3, sources, mappings: '' }));
     }
     if (options.staged === false) continue;
     await mkdir(join(staging, platformBuildId), { recursive: true });
@@ -90,6 +92,11 @@ describe('uploadExpoExport', () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toMatch(/^staged_partial_missing: .*--staging/);
     expect((error as Error).message).not.toMatch(/withEverframe/);
+  });
+
+  it('names withEverframe when the export map has no identity', async () => {
+    const project = await makeExpoProject({ platforms: ['android'], identity: false });
+    await expect(uploadExpoExport(base(project))).rejects.toThrow(/^missing_bundle_identity: .*withEverframe/);
   });
 });
 
