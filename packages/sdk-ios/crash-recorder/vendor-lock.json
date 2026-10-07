@@ -191,7 +191,7 @@
       "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportC.c",
       "license": "MIT",
       "originalSha256": "f13a798f86453b8abba3b955b36efb3129f976f6779fd0e0f3c6a92e4b43c8b5",
-      "packagedSha256": "9949309a30dfee1c531d7604ebba82595559ea3a3cd8d7e2b8731a0c1733fcb4"
+      "packagedSha256": "842d381feb2cbbce16b1681cb1fb5ab36ce22c8b2ba51e803c0bf31e62512776"
     },
     {
       "source": "Sources/KSCrashRecording/KSCrashReportC.h",
@@ -415,7 +415,7 @@
       "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Resource.m",
       "license": "MIT",
       "originalSha256": "5679ee1d6b37399590e7f2d234e3fc1ac3d36fda12fdbfdf1eaaacba0d00b68e",
-      "packagedSha256": "bc08518c55f61ff94cbd098e2005aa8bb826a6a7c80f98277a506b149226bd52"
+      "packagedSha256": "fb3f5cf9fb97addf4f6720d211c6d5b38b487e79102229433a0177d048d51ac9"
     },
     {
       "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_ResourceStitch.m",
@@ -1052,7 +1052,7 @@
       "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c",
       "license": "MIT",
       "originalSha256": "2f3eb9d67c2b628065a179350f80b7b824bd182db623bd63e32594ca64ca6cd8",
-      "packagedSha256": "56bfe672e90d9092acc4d8dbecdd0e1c04c3e227658cf592fc146c907aea12fb"
+      "packagedSha256": "42acbce9139bef5ce561195d1fcbd65bf7c4b29b305f34452893374d3b7acc57"
     },
     {
       "source": "Sources/KSCrashRecordingCore/include/KSBacktrace.h",

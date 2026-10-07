@@ -18,6 +18,49 @@ import Testing
 import Foundation
 
 struct CrashReportCrossSDKTests {
+    @Test func appleNativeFixtureRoundTripsExactNativeMetadata() throws {
+        let data = try Data(contentsOf: Bundle.module.url(forResource: "apple-native-crash", withExtension: "json")!)
+        let crash = try #require(try Self.canonicalDecoder().decode(EverframeReportEnvelope.self, from: data).payload.crash)
+        let native = try #require(crash.native)
+        #expect(native.platform == .apple)
+        #expect(native.timestampMicros == "1791331200000000")
+        #expect(native.crashedThreadIndex == 4)
+        #expect(native.framesIncomplete == false)
+        #expect(native.imagesIncomplete == true)
+        #expect(native.images.map(\.uuid) == ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"])
+        #expect(native.images.map(\.name) == ["App", "Kit"])
+        #expect(native.images.map(\.loadAddress) == ["0x20000000000001", "0x20000000100001"])
+        #expect(native.images.map(\.size) == ["0x1000", "0x2000"])
+        #expect(native.images.map(\.vmAddress) == ["0x100000000", nil])
+        #expect(native.images.map(\.cpuType) == [16777228, 16777228])
+        #expect(native.images.map(\.cpuSubtype) == [0, -2147483646])
+        #expect(native.images.map(\.architecture) == [.arm64, .arm64E])
+        #expect(native.frames.map(\.instructionAddress) == ["0x20000000000011", "0x20000000100021", "0xfffffff000000001"])
+        #expect(native.frames.map(\.imageIndex) == [0, 1, nil])
+        #expect(native.frames.map(\.imageOffset) == ["0x10", "0x20", nil])
+        #expect(native.error.signalNumber == 10)
+        #expect(native.error.signalCode == 0)
+        #expect(native.error.machException == 1)
+        #expect(native.error.machCode == "0x2")
+        #expect(native.error.machSubcode == "0x20000000000011")
+        #expect(native.error.faultAddress == "0x20000000000011")
+
+        // Absent optional fields stay absent, so the sidecar re-encodes to the fixture's exact JSON.
+        func sidecar(_ crash: Any?) -> NSDictionary? { (crash as? [String: Any])?["native"] as? NSDictionary }
+        let fixture = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let original = sidecar((fixture?["payload"] as? [String: Any])?["crash"])
+        let encoded = sidecar(try JSONSerialization.jsonObject(with: Self.canonicalEncoder().encode(crash)))
+        #expect(original != nil && original == encoded)
+
+        // Pre-native initializers omit the sidecar; generated copies keep it.
+        let legacy = EverframeCrash(causeChain: crash.causeChain, details: crash.details, exceptionType: crash.exceptionType,
+            fatal: crash.fatal, fingerprint: crash.fingerprint, frames: crash.frames, handled: crash.handled,
+            jsBundle: crash.jsBundle, jvm: crash.jvm, mechanism: crash.mechanism, message: crash.message,
+            occurredAt: crash.occurredAt, threadName: crash.threadName)
+        #expect(legacy.native == nil)
+        #expect(crash.with(message: "copied").native?.timestampMicros == native.timestampMicros)
+    }
+
     @Test func hermesIdentityRoundTripsExactly() throws {
         let data = try Data(contentsOf: Bundle.module.url(forResource: "crash-report-hermes", withExtension: "json")!)
         let env = try Self.canonicalDecoder().decode(EverframeReportEnvelope.self, from: data)

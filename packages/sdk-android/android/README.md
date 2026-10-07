@@ -473,6 +473,10 @@ release R8 config when you depend on the AAR. It preserves:
   `SourceFile`, `LineNumberTable` (KFunction.name walks).
 - kotlinx.serialization companion serializers (envelope JSON).
 - The OkHttp interceptor entry surface.
+- The class names of React Native views and of Flutter's host View
+  (`io.flutter.embedding.android.FlutterView`), by which native video recognises windows it must
+  not record. Flutter minifies release builds by default; without this rule a renamed Flutter host
+  would be recorded like an ordinary view.
 
 To verify your release APK preserves the names Everframe needs, run:
 
@@ -540,23 +544,90 @@ MIT. See top-level `LICENSE`.
 
 ### Native video privacy boundaries
 
-Native video currently excludes Compose windows. A typed semantics prototype is retained only
-in shared test sources: Compose can walk thousands of nonsemantic layout nodes while computing
-a public semantics child list, exceeding the SDK's 2,048-node / 2 ms admission budget. Screenshot
-semantics handling is unchanged.
+Each native video frame is checked against the window's view tree before it is drawn, after the
+copy is committed and again when the copy returns. The frame is either recorded with sensitive
+areas painted black, or refused (not recorded) when the SDK cannot prove where those areas are
+drawn.
 
-Mark sensitive overlay content **before attachment**, for example
+**Painted black.** Views marked with `Everframe.markSensitive`, `TXSensitiveView` or the
+`R.id.tx_sensitive` tag (any value except `false`), React Native `<EverframeSensitive>`, `EditText`s,
+editable or password `TextView`s, and `TextureView`s are painted black over their bounds, mapped
+through every ancestor's transform and scroll and padded by a pixel. A platform adapter's
+`VideoPrivacyAdapter.Classification.EXCLUDE` means the same. A view whose parent clips children
+confines its whole subtree to its own bounds, so that subtree is not inspected. Where parents do not
+clip children (React Native views never do), the masked view's descendants are inspected too, down
+to those confined that way: the part of a descendant's bounds outside the masked view is painted as
+well, so a child laid out or moved outside the view stays covered, and a descendant whose position
+cannot be proven refuses the frame (see below). Masks are clipped to the window. Only these views
+are masked: content that repeats a secret elsewhere, such as one-time-code digit cells, a card
+preview or a search echo, needs its own marker. Copies that other code draws are not covered either:
+a snapshot of a view drawn in a transition overlay, a view drawn after it was removed from the
+window (a container transform still draws a container the app removed instead of hiding), or a
+container that a transition or container transform draws elsewhere while it sits inside a masked
+view. Such a container is not evaluated on its own, whether it is `GONE` or not, so frames are
+recorded with only the outer mask unless a descendant check below refuses them. Mark the container
+itself with `Everframe.markSensitive` (`TXSensitiveView` and `<EverframeSensitive>` call it), which
+tracks it (see below) so that it is evaluated on its own: native video ignores a bare
+`R.id.tx_sensitive` tag on a view inside another masked view.
+
+**SurfaceViews.** A `SurfaceView` renders into its own surface, which a window copy never contains.
+Its area is left empty without a mask, and views drawn above it, such as subtitles and player
+controls, are recorded.
+
+**Refused frames.** No frame is recorded while:
+
+- a WebView is visible (see the exception below), or the window shows Compose or Flutter content.
+  Compose can walk thousands of nonsemantic layout nodes while computing a public semantics child
+  list, exceeding the SDK's 2,048-node / 2 ms admission budget; a typed semantics prototype is
+  retained only in shared test sources. Flutter pixels are recorded only through the Flutter
+  plugin's masked Dart replay. Screenshot handling is unchanged.
+- a view cannot be classified, a React Native view appears without the platform adapter, or the
+  adapter answers `UNKNOWN`.
+- the drawn position of a masked view the walk reaches (in the window's child tree and not inside
+  another masked view), or of a tracked one (see below), cannot be proven: it or an ancestor sits in
+  an overlay or under a broken parent chain; a legacy `Animation` or an animation matrix applies to
+  it or an ancestor (an `Animation` kept with `fillAfter` keeps refusing frames until
+  `clearAnimation()`); a layout transition is running above it; it or an ancestor is `INVISIBLE`,
+  has transition alpha below one, or is fully transparent (alpha 0) even while `GONE`, because then
+  only another drawing can show it (a shared-element ghost draws a hidden original from an overlay,
+  and a container transform makes both containers transparent, the closing one usually also `GONE`,
+  while it draws them from an overlay with `View.draw`, which ignores visibility); or it is `GONE`
+  while a removal transition still draws it. Otherwise a `GONE` ordinary child needs no mask. This
+  refuses frames while an inline `NumberPicker` (including spinner-mode date and time pickers) is
+  shown after its first touch, which hides its input as `INVISIBLE`; while a React Native
+  `TextInput` is hidden with `display: 'none'` or styled with `opacity: 0`, as one-time-code fields
+  often are; and for as long as a container faded to alpha 0 and then set `GONE` holds such a masked
+  view. Restore such a container's alpha once it is hidden, or remove it.
+- an inspected descendant of a masked view (see above) is animated, `INVISIBLE` or
+  transition-hidden, or runs a layout transition, for the same reasons. React Native hides
+  `display: 'none'` content and the spinner of `<ActivityIndicator animating={false}>` as
+  `INVISIBLE`: inside `<EverframeSensitive>` they refuse frames for as long as they stay mounted, so
+  unmount hidden content instead.
+- the keyboard pans the window (`adjustPan`) and the frame needs masks: the panned window is drawn
+  shifted, so the masks would miss the views they cover.
+- the window is `FLAG_SECURE`, wide-gamut or HDR, or unfocused, the 2,048-node / 2 ms budget runs
+  out, or sensitive-view tracking is uncertain or full.
+
+A masked area that moves on screen while a copy is pending, for example while a list scrolls, drops
+that frame too. Masked areas that stay still or move entirely outside the window do not, and neither
+does a descendant moving within its masked ancestor's bounds, such as a pulsing indicator.
+
+Mark sensitive overlay content **before attachment** with `Everframe.markSensitive`
+(`TXSensitiveView` and `<EverframeSensitive>` call it), for example
 `Everframe.markSensitive(overlayView)` before `container.overlay.add(overlayView)`. Android's public
 View child traversal cannot enumerate views inserted directly into an overlay. An input that was
-never observed in the normal child tree therefore requires this explicit marker. The SDK retains
-bounded weak tracking for explicitly marked and previously observed sensitive Views, including
-Views moved into overlays or retained by removal transitions. Explicit sensitivity and unsupported
-inputs/surfaces continue excluding their window until detachment. Tracking uncertainty or capacity
-exhaustion excludes video.
+never observed in the normal child tree therefore requires this marker; a bare `R.id.tx_sensitive`
+tag, or an unmarked input, on a view added straight to an overlay is never tracked and is recorded
+unmasked. The SDK retains bounded weak tracking for views marked with `Everframe.markSensitive` and
+previously observed sensitive Views until they detach: one retained by a removal transition stays
+masked, and one moved into an overlay, directly or with a container (as a fade-out transition does),
+refuses its window's frames. Tracking uncertainty or capacity exhaustion excludes video.
 
 Automatically detected WebViews are an exception: an attached background WebView does not block
 replay when its ordinary child ancestry proves it `GONE`, fully transparent, or fully clipped in a
-hierarchy that clips children. Nearly transparent and partially visible WebViews remain excluded.
+hierarchy that clips children. That proof also accepts a WebView whose container a container
+transform has made transparent while drawing it from an overlay, so mark a WebView in such a
+container sensitive. Nearly transparent and partially visible WebViews remain excluded.
 `INVISIBLE` ancestors and non-default transition alpha remain excluded: transitions can draw an
 overlay ghost while hiding the original. Removal-transition children that retain a parent without
 normal child membership are also excluded. Legacy animations, animation matrices, running layout
@@ -564,8 +635,7 @@ transitions, uninspectable overlay ancestry, and exhausted inspection budgets re
 Visibility is rechecked during frame capture and in weak history, so hiding a previously visible
 WebView can resume recording without unmounting it. Initially hidden WebViews are tracked too, to
 protect later moves into overlays. Explicit markers and platform-adapter exclusions take precedence
-over this exception. This does not add WebView or text-input masking; visible login inputs still
-exclude native video.
+over this exception: a marked WebView is painted black like any other marked view.
 
 For React Native Android first paint, use `<EverframeSensitive>`: its native host constructor marks
 the existing wrapper node before mounting. The imperative `useEverframeSensitiveRef` hook runs

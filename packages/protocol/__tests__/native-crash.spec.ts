@@ -17,6 +17,7 @@ const native = () => ({
   error: { signalNumber: 5, signalCode: 0, machException: 6, machCode: '0x1', faultAddress: '0x20000000000011' },
 });
 const crash = () => ({ ...legacy(), frames: [{ raw: 'App 0x20000000000011' }], native: native() });
+const escaped = (text: string) => text.replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
 describe('Apple native crash metadata', () => {
   it('leaves existing payloads unchanged', () => {
@@ -55,11 +56,15 @@ describe('Apple native crash metadata', () => {
     }
   });
   it('rejects incorrect offsets, out-of-range PCs and overflowing images', () => {
+    // Range rules apply to every image, so test them on one that no frame references.
+    const unreferenced = () => ({ ...image(), uuid: '22222222-2222-4222-8222-222222222222', loadAddress: '0x30000000000000' });
+    const valid = crash(); valid.native.images.push(unreferenced());
+    expect(CrashPayload.safeParse(valid).success).toBe(true);
     for (const mutate of [
       (value: ReturnType<typeof crash>) => { value.native.frames[0]!.imageOffset = '0x11'; },
       (value: ReturnType<typeof crash>) => { value.native.frames[0]!.instructionAddress = '0x20000000001001'; value.native.frames[0]!.imageOffset = '0x1000'; },
-      (value: ReturnType<typeof crash>) => { value.native.images[0]!.size = '0x0'; },
-      (value: ReturnType<typeof crash>) => { value.native.images[0]!.loadAddress = '0xffffffffffffffff'; value.native.images[0]!.size = '0x2'; },
+      (value: ReturnType<typeof crash>) => { value.native.images.push({ ...unreferenced(), size: '0x0' }); },
+      (value: ReturnType<typeof crash>) => { value.native.images.push({ ...unreferenced(), loadAddress: '0xffffffffffffffff', size: '0x2' }); },
       (value: ReturnType<typeof crash>) => { value.native.images[0]!.vmAddress = '0xffffffffffffffff'; },
     ]) {
       const value = crash(); mutate(value); expect(CrashPayload.safeParse(value).success).toBe(false);
@@ -72,9 +77,14 @@ describe('Apple native crash metadata', () => {
   });
   it('rejects paths, controls, uppercase UUIDs and oversized names', () => {
     for (const patch of [{ name: '/private/App' }, { name: 'dir\\App' }, { name: 'App\0' },
-      { name: 'App\n' }, { name: '\ud800' }, { name: '😀'.repeat(129) }, { uuid: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' }]) {
+      { name: 'App\n' }, { name: 'App\u007f' }, { name: 'App\u0080' }, { name: 'App\u0085' }, { name: 'App\u009b' },
+      { name: 'App\u009f' }, { name: '\ud800' }, { name: '😀'.repeat(129) }, { uuid: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' }]) {
       const value = crash(); Object.assign(value.native.images[0]!, patch);
-      expect(CrashPayload.safeParse(value).success).toBe(false);
+      expect(CrashPayload.safeParse(value).success, escaped(Object.values(patch).join())).toBe(false);
+    }
+    for (const name of ['App~', 'App ', 'App Store']) {
+      const value = crash(); value.native.images[0]!.name = name;
+      expect(CrashPayload.safeParse(value).success, escaped(name)).toBe(true);
     }
   });
   it('rejects architecture labels that contradict CPU identity', () => {
@@ -92,10 +102,19 @@ describe('Apple native crash metadata', () => {
   it('rejects invalid CPU/error fields while retaining signed subtype capability bits', () => {
     const value = crash(); value.native.images[0]!.cpuSubtype = -2147483646; value.native.images[0]!.architecture = 'arm64e';
     expect(CrashPayload.safeParse(value).success).toBe(true);
-    for (const patch of [{ cpuType: 2147483648 }, { cpuSubtype: -2147483649 }, { architecture: 'armv7' }]) {
+    // An 'unknown' label agrees with out-of-range CPU values, so only the signed32 bounds reject them.
+    for (const patch of [{ cpuType: 2147483648, architecture: 'unknown' }, { cpuSubtype: -2147483649, architecture: 'unknown' },
+      { architecture: 'armv7' }]) {
       const invalid = crash(); Object.assign(invalid.native.images[0]!, patch);
       expect(CrashPayload.safeParse(invalid).success).toBe(false);
     }
-    expect(NativeCrashMetadata.safeParse({ ...native(), error: { signalNumber: 1.5 } }).success).toBe(false);
+    for (const key of ['signalNumber', 'signalCode', 'machException']) {
+      for (const bound of [2147483647, -2147483648]) {
+        expect(NativeCrashMetadata.safeParse({ ...native(), error: { [key]: bound } }).success, `${key} ${bound}`).toBe(true);
+      }
+      for (const invalid of [2147483648, -2147483649, 1.5]) {
+        expect(NativeCrashMetadata.safeParse({ ...native(), error: { [key]: invalid } }).success, `${key} ${invalid}`).toBe(false);
+      }
+    }
   });
 });

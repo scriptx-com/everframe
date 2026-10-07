@@ -47,6 +47,19 @@
 -keep class dev.everframe.CaptureExceptionOptions { *; }
 -keep enum dev.everframe.ErrorSeverity { *; }
 
+# Report delivery diagnostics. `Everframe.getReportDeliveryStatus()` returns
+# these types, and the React Native bridge, compiled separately against the
+# published AAR, calls `toJson()` on the result. A keep on `Everframe` does not
+# cascade to a member's return type, and nothing inside core calls `toJson()`,
+# so without these R8 renames the snapshot types and strips their accessors.
+# The internal ledger, observation handle and code enums stay obfuscated;
+# scripts/verify-android-publication.sh checks the published classes.
+-keep class dev.everframe.diagnostics.ReportDeliveryStatus { *; }
+-keep class dev.everframe.diagnostics.CaptureStatus { *; }
+-keep class dev.everframe.diagnostics.CapturePathStatus { *; }
+-keep class dev.everframe.diagnostics.QueueStatus { *; }
+-keep class dev.everframe.diagnostics.TransportStatus { *; }
+
 # TXScreen() navigation-marker composable (TXScreen.kt -> TXScreenKt facade).
 -keep class dev.everframe.TXScreenKt { *; }
 
@@ -356,3 +369,6 @@
 -keep public enum dev.everframe.capture.video.VideoPrivacyAdapter$Classification { *; }
 # Production fallback identifies absent RN privacy facilities by native View ancestry.
 -keepnames class com.facebook.react.** extends android.view.View
+# Native video refuses Flutter host windows by View ancestry name (see consumer-rules.pro).
+-keepnames class io.flutter.embedding.android.FlutterView
+-keepnames class io.flutter.view.FlutterView

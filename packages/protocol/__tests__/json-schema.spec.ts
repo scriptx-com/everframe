@@ -9,6 +9,7 @@ import addFormats from 'ajv-formats';
 import { ReportEnvelope } from '../src/index.js';
 import hermes from './fixtures/crash-report-hermes.json';
 import jvmCrash from './fixtures/jvm-crash-envelope.json';
+import appleNative from './fixtures/apple-native-crash.json';
 import minimal from './fixtures/v1-minimal.json';
 import full from './fixtures/v1-full.json';
 
@@ -186,6 +187,36 @@ describe('Crash details exported schema', () => {
   ] as const)('%s has the same result in Ajv and Zod', (_name, details, accepted) => {
     const envelope = structuredClone(hermes) as any;
     envelope.payload.crash.details = details;
+    expect(ReportEnvelope.safeParse(envelope).success).toBe(accepted);
+    expect(validate(envelope)).toBe(accepted);
+  });
+});
+
+describe('Apple native crash schema parity', () => {
+  const ajv = new AjvCtor({ strict: false, allErrors: true });
+  addFormatsFn(ajv);
+  const validate = ajv.compile(jsonSchema);
+
+  it('accepts the shared Apple native fixture in Ajv and Zod', () => {
+    expect(ReportEnvelope.safeParse(appleNative).success).toBe(true);
+    expect(validate(appleNative)).toBe(true);
+  });
+
+  it.each([
+    ['128 astral pairs', '😀'.repeat(128), true],
+    ['129 astral pairs', '😀'.repeat(129), false],
+    ['256 BMP units', 'a'.repeat(256), true],
+    ['257 BMP units', 'a'.repeat(257), false],
+    ['odd BMP prefix within 256', `a${'😀'.repeat(127)}a`, true],
+    ['odd BMP prefix over 256', `a${'😀'.repeat(127)}ab`, false],
+    ['DEL', 'App\u007f', false],
+    ['C1 control U+0085', 'App\u0085', false],
+    ['C1 control U+009B', 'App\u009b', false],
+    ['no-break space after C1', 'App\u00a0', true],
+    ['path separator', 'dir/App', false],
+  ] as const)('image name %s has the same result in Ajv and Zod', (_name, name, accepted) => {
+    const envelope = structuredClone(appleNative);
+    envelope.payload.crash.native.images[0]!.name = name;
     expect(ReportEnvelope.safeParse(envelope).success).toBe(accepted);
     expect(validate(envelope)).toBe(accepted);
   });

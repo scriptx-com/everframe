@@ -7,7 +7,9 @@ import android.app.Application
 import android.os.Bundle
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.config.ReportResult
+import java.util.WeakHashMap
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 
 /** Main-thread ownership of a mounted dialog, ending at cancellation or Send. */
 internal class ReporterDialogLifecycle(
@@ -33,6 +35,7 @@ internal class ReporterDialogLifecycle(
     fun beginSubmit(): Boolean {
         if (!editing) return false
         editing = false
+        SubmittedCaptures.add(capture, result)
         detach()
         return true
     }
@@ -51,4 +54,17 @@ internal class ReporterDialogLifecycle(
     override fun onActivityPaused(activity: Activity) {}
     override fun onActivityStopped(activity: Activity) {}
     override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) {}
+}
+
+/**
+ * Captures that Send handed to a running submission, which releases them when
+ * it ends, each with the result that submission settles after the release.
+ * Weak keys: an entry lives no longer than its capture.
+ */
+internal object SubmittedCaptures {
+    private val sent = WeakHashMap<FrozenReportCapture, Deferred<ReportResult>>()
+
+    fun add(capture: FrozenReportCapture, result: Deferred<ReportResult>) { synchronized(sent) { sent[capture] = result } }
+    /** The result of the submission [capture] was handed to, or null if it was never sent. */
+    fun submissionOf(capture: FrozenReportCapture): Deferred<ReportResult>? = synchronized(sent) { sent[capture] }
 }

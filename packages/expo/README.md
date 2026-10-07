@@ -39,6 +39,15 @@ application bundle. Preserve the matching bytecode, composed source map, staging
 manifest and hashes before promoting the update. Keep source maps in private
 artifact storage; do not include them among update assets served to clients.
 
+Publish exactly the export you uploaded. Every bundling run generates new build
+IDs, so a re-export ships bundles whose artifacts were never uploaded, and events
+from that update report a missing build. Plain `eas update` bundles again by
+default: pass `--skip-bundler --input-dir dist` so it publishes the uploaded
+directory unchanged. If `eas update` must bundle, run `upload-expo-export` on the
+directory it published right after it, from the same workspace. If your own
+update server serves the export directory, move the `.map` files out of it after
+upload.
+
 The export command expects one Hermes bytecode bundle and its matching composed
 map per selected platform. A missing map, plain JavaScript bundle, missing token
 or changed staged artifact is a build failure. Collection selects the generated

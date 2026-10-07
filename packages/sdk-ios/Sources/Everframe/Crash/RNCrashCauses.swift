@@ -37,8 +37,8 @@ private struct RNDecodedCause: Decodable {
     private enum Keys: String, CodingKey { case exceptionType, message, frames, framesTruncated }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: Keys.self)
-        let type = CrashCauseText.prefix(try values.decode(String.self, forKey: .exceptionType), limit: 8192)
-        let message = CrashCauseText.prefix(try values.decode(String.self, forKey: .message), limit: 8192)
+        let type = CrashCauseText.scan(try values.decode(String.self, forKey: .exceptionType))
+        let message = CrashCauseText.scan(try values.decode(String.self, forKey: .message))
         var framesLost = try values.decode(Bool.self, forKey: .framesTruncated)
         var frames: [EverframeCrashCauseFrame] = []
         if var array = try? values.nestedUnkeyedContainer(forKey: .frames) {
@@ -60,12 +60,12 @@ private struct RNDecodedCauseFrame: Decodable {
     private enum Keys: String, CodingKey { case raw, file, function, line, col }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: Keys.self)
-        let raw = CrashCauseText.prefix(try values.decode(String.self, forKey: .raw), limit: 8192)
+        let raw = CrashCauseText.scan(try values.decode(String.self, forKey: .raw))
         var loss = raw.lost
         func text(_ key: Keys) -> String? {
             guard values.contains(key) else { return nil }
             guard let text = try? values.decode(String.self, forKey: key) else { loss = true; return nil }
-            let scanned = CrashCauseText.prefix(text, limit: 8192)
+            let scanned = CrashCauseText.scan(text)
             loss = loss || scanned.lost
             return scanned.text
         }

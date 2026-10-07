@@ -25,6 +25,7 @@ internal interface VideoCaptureScheduler {
 }
 internal interface VideoCapturePlatform {
     fun observe(): PrivacyObservation
+    /** onPreDraw: re-observe before each traversal draws. onInvalidated: the window detached or lost focus. */
     fun watch(onPreDraw: () -> Unit, onExtraCommit: () -> Unit): () -> Unit
     fun commit(callback: () -> Unit): () -> Unit
     fun copy(bitmap: Bitmap, callback: (Boolean) -> Unit)
@@ -115,7 +116,7 @@ internal class PixelCopyVideoCapture(
         val okay = try {
             if (!VideoPrivacyRevocation.permits(p.privacyGeneration)) excludePrivacy(p)
             valid(p) && platform.observe().let { next ->
-                if (!next.allowed) excludePrivacy(p)
+                if (!next.allowed || next.masks != p.observation?.masks) excludePrivacy(p)
                 matches(p, next)
             }
         } catch (_: Throwable) { excludePrivacy(p); false }
@@ -187,6 +188,7 @@ internal class PixelCopyVideoCapture(
             scheduler.worker {
                 val bitmap = p.bitmap
                 if (!transfer || bitmap == null) { release(p); return@worker }
+                p.observation?.let { VideoMaskBounds.paint(bitmap, it) }
                 val frame = SafeVideoFrame.fromCapture(p.lease.owner, p.generation, p.captureTime, bitmap, p.lease, scheduler, p.privacyGeneration) {
                     synchronized(lock) { VideoPrivacyRevocation.permits(p.privacyGeneration) && enabled && generation == p.generation && !p.invalid }
                 }
@@ -272,7 +274,6 @@ internal class AndroidVideoCapturePlatform(
     },
 ) : VideoCapturePlatform {
     private var rootRef = WeakReference<View>(null)
-    private var awaitingPrimaryTraversal = false
     override fun observe(): PrivacyObservation {
         check(Looper.myLooper() == Looper.getMainLooper())
         val root = activity()?.window?.decorView
@@ -284,19 +285,11 @@ internal class AndroidVideoCapturePlatform(
         val root = rootRef.get() ?: error("Detached root")
         val observer = root.viewTreeObserver
         var watching = true
-        val preDraw = ViewTreeObserver.OnPreDrawListener {
-            onPreDraw()
-            if (watching) {
-                if (awaitingPrimaryTraversal) {
-                    awaitingPrimaryTraversal = false
-                } else {
-                    // A later traversal may precede delivery of the primary commit callback.
-                    // Conservatively reject immediately; no asynchronous guard can be missed.
-                    onExtraCommit()
-                }
-            }
-            true
-        }
+        // Every traversal while a copy is pending is re-observed right before it draws, so
+        // PixelCopy can only see frames that each passed the gate. An extra traversal (any
+        // animation: focus, scrolling, a spinner) is therefore not a reason to drop the frame;
+        // a failed re-observation is, and onPreDraw drops it.
+        val preDraw = ViewTreeObserver.OnPreDrawListener { if (watching) onPreDraw(); true }
         val attach = object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) = Unit
             override fun onViewDetachedFromWindow(v: View) { onExtraCommit() }
@@ -315,11 +308,10 @@ internal class AndroidVideoCapturePlatform(
     }
     override fun commit(callback: () -> Unit): () -> Unit {
         val root = rootRef.get() ?: error("Detached root")
-        awaitingPrimaryTraversal = true
         val runnable = Runnable { callback() }
         val unregister = registerCommit(root, runnable)
         root.invalidate()
-        return { awaitingPrimaryTraversal = false; unregister() }
+        return { unregister() }
     }
     override fun copy(bitmap: Bitmap, callback: (Boolean) -> Unit) {
         val window = activity()?.window ?: error("Missing window")

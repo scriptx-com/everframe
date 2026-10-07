@@ -6,6 +6,7 @@
 #include "KSCrashC.h"
 #include "KSCrashCConfiguration.h"
 #include "KSCrashMonitor.h"
+#include "KSCrashMonitor_System.h"
 #import <Foundation/Foundation.h>
 #include <TargetConditionals.h>
 #include <dirent.h>
@@ -15,15 +16,20 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
+// The System monitor formats <run>/RunSidecars/<36-character run ID>/System.ksscr into a
+// KSSYS_MAX_PATH buffer, the smallest run-path buffer in the vendor recorder.
+#define EFCR_MAX_RUN_PATH (KSSYS_MAX_PATH - (sizeof("/RunSidecars/") - 1) - 36 - sizeof("/System.ksscr"))
 static pthread_mutex_t installLock = PTHREAD_MUTEX_INITIALIZER;
 static bool attempted = false;
 static bool installed = false;
 
-static bool validDirectory(const char *path) {
-    if (!path || path[0] != '/' || strnlen(path, PATH_MAX) > PATH_MAX - 160) return false;
-    char canonical[PATH_MAX];
-    if (!realpath(path, canonical) || strcmp(path, canonical) != 0) return false;
-    int fd = open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+static bool validDirectory(const char *path, char canonical[PATH_MAX]) {
+    if (!path || path[0] != '/' || strnlen(path, PATH_MAX) > EFCR_MAX_RUN_PATH) return false;
+    if (!realpath(path, canonical) || strlen(canonical) > EFCR_MAX_RUN_PATH) return false;
+    // Foundation reports /var and /tmp locations without the /private prefix realpath(3) adds.
+    if (strcmp(path, canonical) != 0 &&
+        (strncmp(canonical, "/private/", 9) != 0 || strcmp(path, canonical + 8) != 0)) return false;
+    int fd = open(canonical, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0) return false;
     struct stat st;
     if (fstat(fd, &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != geteuid() || (st.st_mode & 07777) != 0700) {
@@ -55,13 +61,16 @@ static bool protectDirectory(const char *path) {
 }
 
 EFCRInstallResult EFCRInstall(const char *runDirectory) {
+    // Vendor monitors call UIKit while installing; the signal stack is the caller's own.
+    if (pthread_main_np() != 1) return EFCRInstallWrongThread;
     pthread_mutex_lock(&installLock);
     EFCRInstallResult result;
+    char canonical[PATH_MAX];
     if (attempted) result = installed ? EFCRInstallAlreadyInstalled : EFCRInstallVendorFailure;
-    else if (!validDirectory(runDirectory)) result = EFCRInstallInvalidDirectory;
+    else if (!validDirectory(runDirectory, canonical)) result = EFCRInstallInvalidDirectory;
     else {
         @autoreleasepool {
-            if (!protectDirectory(runDirectory)) result = EFCRInstallInvalidDirectory;
+            if (!protectDirectory(canonical)) result = EFCRInstallInvalidDirectory;
             else {
                 attempted = true;
                 efcr_gateSet(false);
@@ -78,7 +87,7 @@ EFCRInstallResult EFCRInstall(const char *runDirectory) {
                 configuration.userInfoJSON = NULL;
                 configuration.willWriteReportCallback = efcr_willWriteReport;
                 configuration.isWritingReportCallback = efcr_writeContext;
-                installed = kscrash_install("Everframe", runDirectory, &configuration) == KSCrashInstallErrorNone;
+                installed = kscrash_install("Everframe", canonical, &configuration) == KSCrashInstallErrorNone;
                 kscm_disableAllMonitors();
                 result = installed ? EFCRInstallSuccess : EFCRInstallVendorFailure;
             }
@@ -89,6 +98,9 @@ EFCRInstallResult EFCRInstall(const char *runDirectory) {
 }
 
 bool EFCRSetEnabled(bool enabled) {
+    // Enabling reaches UIKit through the vendor monitors. Disabling only closes the gate, flips
+    // monitor flags, cancels a timer, removes observers and unmaps sidecars: any thread works.
+    if (enabled && pthread_main_np() != 1) return false;
     pthread_mutex_lock(&installLock);
     bool success = installed;
     if (installed && enabled != efcr_gateGet()) {

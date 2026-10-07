@@ -8,27 +8,45 @@ import Foundation
 enum NativeCrashJSONPreflight {
     private struct Container {
         let object: Bool
-        let path: [String]
+        /// Integer-path trie node for this container's values; nil once no structural integer can follow.
+        let node: Int?
         var key: String?
         var expectingKey: Bool
         var keys = Set<String>()
     }
-    private static let integerPaths: Set<[String]> = {
-        var paths: Set<[String]> = [["report", "timestamp"], ["crash", "error", "address"],
-            ["crash", "threads", "index"], ["crash", "threads", "backtrace", "skipped"]]
+    private struct Node { var integer = false; var children: [String: Int] = [:] }
+    /// Structural integer paths as a trie with transparent arrays, so each value costs one lookup
+    /// of its own key, independent of nesting depth and ancestor key length.
+    private static let integerPaths: [Node] = {
+        var paths: [[String]] = [["report", "timestamp"], ["crash", "error", "address"],
+            ["crash", "threads", "index"], ["crash", "threads", "backtrace", "skipped"],
+            ["crash", "last_exception_backtrace", "skipped"]]
         for key in ["image_addr", "image_vmaddr", "image_size", "cpu_type", "cpu_subtype"] {
-            paths.insert(["binary_images", key])
+            paths.append(["binary_images", key])
         }
         for key in ["instruction_addr", "object_addr"] {
-            paths.insert(["crash", "threads", "backtrace", "contents", key])
+            paths.append(["crash", "threads", "backtrace", "contents", key])
+            paths.append(["crash", "last_exception_backtrace", "contents", key])
         }
-        for key in ["exception", "code", "subcode"] { paths.insert(["crash", "error", "mach", key]) }
-        for key in ["signal", "code"] { paths.insert(["crash", "error", "signal", key]) }
-        return paths
+        for key in ["exception", "code", "subcode"] { paths.append(["crash", "error", "mach", key]) }
+        for key in ["signal", "code"] { paths.append(["crash", "error", "signal", key]) }
+        var nodes = [Node()]
+        for path in paths {
+            var node = 0
+            for key in path {
+                if let next = nodes[node].children[key] { node = next; continue }
+                nodes.append(Node()); nodes[node].children[key] = nodes.count - 1; node = nodes.count - 1
+            }
+            nodes[node].integer = true
+        }
+        return nodes
     }()
-    private static func valuePath(_ container: Container?) -> [String] {
-        guard let container else { return [] }
-        return container.object ? container.path + (container.key.map { [$0] } ?? []) : container.path
+    /// The trie node for a value inside `container`; top-level values use the root.
+    private static func valueNode(_ container: Container?) -> Int? {
+        guard let container else { return 0 }
+        guard container.object else { return container.node }
+        guard let node = container.node, let key = container.key else { return nil }
+        return integerPaths[node].children[key]
     }
     static func validate(_ data: Data) throws {
         typealias Failure = NativeCrashRecordDecoder.Failure
@@ -58,7 +76,7 @@ enum NativeCrashJSONPreflight {
                 }
             } else if byte == 123 || byte == 91 {
                 guard stack.count < 64 else { throw Failure.inputLimit }
-                stack.append(Container(object: byte == 123, path: valuePath(stack.last), expectingKey: byte == 123))
+                stack.append(Container(object: byte == 123, node: valueNode(stack.last), expectingKey: byte == 123))
             } else if byte == 125 || byte == 93 {
                 guard let top = stack.popLast(), top.object == (byte == 125) else { throw Failure.malformed }
             } else if byte == 44, let last = stack.indices.last, stack[last].object {
@@ -69,7 +87,7 @@ enum NativeCrashJSONPreflight {
                 while index < bytes.count, (48...57).contains(bytes[index]) || [43, 45, 46, 69, 101].contains(bytes[index]) {
                     index += 1
                 }
-                if integerPaths.contains(valuePath(stack.last)),
+                if let node = valueNode(stack.last), integerPaths[node].integer,
                    bytes[start..<index].contains(where: { $0 == 46 || $0 == 69 || $0 == 101 }) {
                     // Pinned recorder structural fields use integer spelling. Even integral
                     // decimal/exponent forms are rejected; ignored metadata may use them.

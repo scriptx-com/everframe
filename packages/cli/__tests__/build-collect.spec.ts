@@ -60,6 +60,23 @@ describe('collectStagedBuild', () => {
     const partial=JSON.parse(await readFile(file,'utf8'));partial.platform='ios';await writeFile(file,JSON.stringify(partial));
     await expect(collectStagedBuild({stagingDir:staging,platform:'android',bundlePath,mapPath})).rejects.toThrow('staged_identity_mismatch');
   });
+  it('reports a missing staged partial for the map identity, not a missing Metro wrapper', async () => {
+    const before = await readFile(join(staging, 'latest-android.json'), 'utf8');
+    await rm(join(staging, buildId, 'manifest.partial.json'));
+    await expect(
+      collectStagedBuild({ stagingDir: staging, platform: 'android', bundlePath, mapPath }),
+    ).rejects.toThrow('staged_partial_missing');
+    expect(await readFile(join(staging, 'latest-android.json'), 'utf8')).toBe(before);
+  });
+  it('rejects a composed map without the generated identity and keeps the pointer', async () => {
+    const before = await readFile(join(staging, 'latest-android.json'), 'utf8');
+    await writeFile(mapPath, JSON.stringify({ version: 3, sources: [], mappings: '' }));
+    await expect(
+      collectStagedBuild({ stagingDir: staging, platform: 'android', bundlePath, mapPath }),
+    ).rejects.toThrow('missing_bundle_identity');
+    expect(await readFile(join(staging, 'latest-android.json'), 'utf8')).toBe(before);
+    await expect(readComplete(staging, buildId)).rejects.toThrow('manifest_not_collected');
+  });
 
   it('completes the manifest with hashes and sizes', async () => {
     const staged = await collectStagedBuild({

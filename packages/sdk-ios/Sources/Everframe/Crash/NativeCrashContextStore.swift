@@ -106,18 +106,18 @@ final class NativeCrashContextStore: @unchecked Sendable {
 
     /// Explicit retirement can remove corrupt ciphertext, but never follows links
     /// or silently removes unknown content. Caller coordinates raw-event retention.
+    /// One rename retires the run before any file is deleted, so an interrupted
+    /// removal leaves a recognized tombstone that the next scan finishes.
     func removeRun(_ runID: UUID) throws {
         try Self.lock.withLock {
             try Files.directory(rootURL)
             let path = runURL(runID)
             guard try Files.info(path) != nil else { throw Failure.missingRun }
-            try Files.directory(path)
-            for entry in try Files.entries(path, maximum: limits.maxContextsPerRun + 8) {
-                guard entry == "run.json" || contextID(entry) != nil || stagingContextID(entry) != nil else { throw Failure.unknownEntry }
-                try Files.regular(path.appendingPathComponent(entry))
-            }
-            try FileManager.default.removeItem(at: path)
+            try checkRunFiles(path)
+            let tombstone = rootURL.appendingPathComponent(".removing-" + name(runID), isDirectory: true)
+            try FileManager.default.moveItem(at: path, to: tombstone)
             try Files.syncDirectory(rootURL)
+            try removeTombstone(tombstone)
         }
     }
 
@@ -127,6 +127,10 @@ final class NativeCrashContextStore: @unchecked Sendable {
             let path = rootURL.appendingPathComponent(entry, isDirectory: true)
             if entry.hasPrefix(".creating-"), uuid(String(entry.dropFirst(10))) != nil {
                 try removeAbandonedRun(path)
+                continue
+            }
+            if entry.hasPrefix(".removing-"), uuid(String(entry.dropFirst(10))) != nil {
+                try removeTombstone(path)
                 continue
             }
             guard let id = uuid(entry) else { throw Failure.unknownEntry }
@@ -164,6 +168,22 @@ final class NativeCrashContextStore: @unchecked Sendable {
             guard info.st_size >= 0, info.st_size <= 1024 else { throw Failure.capacity }
         }
         try FileManager.default.removeItem(at: path)
+    }
+
+    /// A run or retirement tombstone holds only recognized regular files; any
+    /// subset is valid because deletion can stop after an arbitrary unlink.
+    private func checkRunFiles(_ path: URL) throws {
+        try Files.directory(path)
+        for entry in try Files.entries(path, maximum: limits.maxContextsPerRun + 8) {
+            guard entry == "run.json" || contextID(entry) != nil || stagingContextID(entry) != nil else { throw Failure.unknownEntry }
+            try Files.regular(path.appendingPathComponent(entry))
+        }
+    }
+
+    private func removeTombstone(_ path: URL) throws {
+        try checkRunFiles(path)
+        try FileManager.default.removeItem(at: path)
+        try Files.syncDirectory(rootURL)
     }
 
     private func loadRun(_ id: UUID) throws -> Run {

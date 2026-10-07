@@ -44,6 +44,18 @@ it('captures once through the owning mounted controller after the grace period',
   expect(payload).toMatchObject({ mechanism: 'unhandledrejection', handled: false, fatal: false, message: 'mounted' });
   expect(getPromiseRejectionStatus().counters.accepted).toBe(1);
 });
+it.each([true, false])('notifies overdue work while timers are paused only through a bridgeless native queue: %s', (bridgeless) => {
+  const queued: (() => void)[] = [];
+  vi.stubGlobal('RN$Bridgeless', bridgeless);
+  vi.stubGlobal('queueMicrotask', (fn: () => void) => { queued.push(fn); });
+  try { runtime({promiseRejections: {enabled: true}}).mount(); } finally { vi.unstubAllGlobals(); }
+  engine.hooks[0].onReject({}, new Error('paused timers'));
+  vi.clearAllTimers(); vi.advanceTimersByTime(2500);
+  engine.hooks[0].onHandle({});
+  expect(NativeEverframe.reportCrash).not.toHaveBeenCalled();
+  queued.splice(0).forEach((fn) => fn());
+  expect(NativeEverframe.reportCrash).toHaveBeenCalledTimes(bridgeless ? 1 : 0);
+});
 it('unmount clears pending work and a remount starts fresh counters', () => {
   const r = runtime({promiseRejections: {enabled: true}}); r.mount();
   const old = engine.hooks[0]; old.onReject({}, new Error('old'));

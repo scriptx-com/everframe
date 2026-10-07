@@ -24,6 +24,17 @@ if mode == "terminal" {
     check(!EFCRSetEnabled(true), "failed install cannot enable")
     exit(0)
 }
+if mode == "background-install" {
+    check(EFCRProbeInstallOffMain(directory) == Int32(EFCRInstallWrongThread.rawValue), "install off the main thread")
+    check((try? FileManager.default.contentsOfDirectory(atPath: directory))?.isEmpty == true, "off-main install left no files")
+    check(EFCRInstall(directory) == EFCRInstallSuccess, "install on the main thread")
+    check(EFCRProbeEnableOffMain() == 0 && !EFCRIsEnabled(), "enable off the main thread")
+    check(EFCRSetEnabled(true) && EFCRIsEnabled(), "enable on the main thread")
+    check(EFCRProbeDisableOffMain() == 1 && !EFCRIsEnabled(), "disable off the main thread")
+    check(EFCRSetEnabled(true) && EFCRIsEnabled(), "re-enable on the main thread")
+    check(EFCRSetEnabled(false), "final disable")
+    exit(0)
+}
 check(EFCRInstall(nil) == EFCRInstallInvalidDirectory, "nil path is recoverable validation failure")
 check(EFCRInstall(directory) == EFCRInstallSuccess, "install")
 check(!EFCRIsEnabled(), "installation returns disabled")
@@ -44,7 +55,7 @@ if mode.hasPrefix("ctx-") {
         check(EFCRSetEnabled(true), "enable A")
         if mode == "ctx-admitted" { check(EFCRProbeAdmitContext() == 0, "synthetic admission before publication") }
         check(EFCRSetEnabled(false), "disable before publishing B")
-        check(EFCRSetContextIdentifier(contextB), "publish B")
+        check(EFCRProbePublishOffMain(contextB) == 1, "publish B off the main thread")
     case "ctx-cleared": check(EFCRSetContextIdentifier(nil), "clear while disabled")
     case "ctx-admitted-empty":
         check(EFCRSetContextIdentifier(nil), "clear before admission")
@@ -52,16 +63,19 @@ if mode.hasPrefix("ctx-") {
         check(EFCRProbeAdmitContext() == 0, "synthetic empty admission")
         check(EFCRSetEnabled(false), "disable after empty admission")
         check(EFCRSetContextIdentifier(contextB), "publish B after empty admission")
-    case "ctx-capacity":
+    case "ctx-capacity", "ctx-capacity-last":
         // A occupies the first slot;255 other immutable identifiers fill the budget.
         for index in 0..<255 {
             let identifier = String(format: "00000000-0000-0000-0000-%012x", index)
             check(EFCRSetContextIdentifier(identifier), "slot within budget")
             check(EFCRSetContextIdentifier(identifier), "duplicate consumes no slot")
         }
-        check(!EFCRSetContextIdentifier(contextB), "exhaustion preserves last owner")
-        check(EFCRSetContextIdentifier(contextA), "existing slot reusable after exhaustion")
-        check(EFCRSetContextIdentifier("00000000-0000-0000-0000-0000000000fe"), "restore final slot")
+        // The fatal report, not a republication, shows which owner each rejection kept.
+        check(!EFCRSetContextIdentifier(contextB), "capacity rejects a new identifier")
+        if mode == "ctx-capacity" {
+            check(EFCRSetContextIdentifier(contextA), "existing slot reusable after exhaustion")
+            check(!EFCRSetContextIdentifier(contextB), "capacity still rejects a new identifier")
+        }
     default: exit(93)
     }
     check(EFCRSetEnabled(true), "enable context probe")
@@ -85,13 +99,26 @@ if mode == "state" {
     check(String(cString: EFCRVersion()).contains("2.6.0"), "version metadata")
     exit(0)
 }
-if mode != "disabled" { check(EFCRSetEnabled(true), "enable fatal detector") }
+if mode != "disabled" && mode != "monitors-off" { check(EFCRSetEnabled(true), "enable fatal detector") }
 if mode == "disabled-after" || mode == "reenabled" { check(EFCRSetEnabled(false), "disable fatal detector") }
 if mode == "reenabled" { check(EFCRSetEnabled(true), "reenable fatal detector") }
+// Move the report gate alone, so the gate and the install-time monitor disable are each proven.
+if mode == "gate-closed" { EFCRProbeSetGate(false); check(!EFCRIsEnabled(), "gate closed while monitors run") }
+if mode == "monitors-off" { EFCRProbeSetGate(true); check(EFCRIsEnabled(), "gate open while monitors are off") }
+// An opt-out on another thread must close the gate and disable the monitors; reopening only
+// the gate afterwards shows the monitors stayed off.
+if mode == "disabled-off-main" {
+    check(EFCRProbeDisableOffMain() == 1 && !EFCRIsEnabled(), "disable off the main thread")
+    EFCRProbeSetGate(true); check(EFCRIsEnabled(), "gate reopened while monitors are off")
+}
 switch args[3] {
 case "swift": fatalError("EFCR synthetic Swift trap")
 case "objc": EFCRProbeObjCException()
 case "memory": EFCRProbeMemoryFault()
+case "leaf": EFCRProbeLeafFault()
+case "overflow": EFCRProbeStackOverflow()
+// abort() is outside the Mach exception mask, so only the signal monitor can record it.
+case "signal": abort()
 default: exit(91)
 }
 exit(92)

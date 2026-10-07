@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude.
+// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude; omit raw stack contents and registers of threads that did not crash.
 // Original copyright and license notices retained below.
 #include "EverframeKSCrashNamespace.h"
 //
@@ -967,13 +967,7 @@ static void writeStackContents(const KSCrashReportWriter *const writer, const ch
         writer->addUIntegerElement(writer, KSCrashField_DumpEnd, highAddress);
         writer->addUIntegerElement(writer, KSCrashField_StackPtr, sp);
         writer->addBooleanElement(writer, KSCrashField_Overflow, stackOverflow);
-        uint8_t stackBuffer[kStackContentsTotalDistance * sizeof(sp)];
-        int copyLength = (int)(highAddress - lowAddress);
-        if (ksmem_copySafely((void *)lowAddress, stackBuffer, copyLength)) {
-            writer->addDataElement(writer, KSCrashField_Contents, (void *)stackBuffer, copyLength);
-        } else {
-            writer->addStringElement(writer, KSCrashField_Error, "Stack contents not accessible");
-        }
+        // Everframe: never copy raw stack memory into reports.
     }
     writer->endContainer(writer);
 }
@@ -1179,7 +1173,8 @@ static void writeThread(const KSCrashReportWriter *const writer, const char *con
         if (hasBacktrace) {
             writeBacktrace(writer, KSCrashField_Backtrace, &stackCursor, referencedImages);
         }
-        if (ksmc_canHaveCPUState(machineContext)) {
+        // Everframe: keep register state for the crashed thread only.
+        if (isCrashedThread && ksmc_canHaveCPUState(machineContext)) {
             writeRegisters(writer, KSCrashField_Registers, machineContext);
         }
         writer->addIntegerElement(writer, KSCrashField_Index, threadIndex);

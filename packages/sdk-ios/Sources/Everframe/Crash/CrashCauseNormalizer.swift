@@ -7,6 +7,15 @@ internal enum CrashCauseText {
     static func prefix(_ text: String, limit: Int) -> (text: String, lost: Bool) {
         (CrashText.capped(text, utf16Limit: limit), text.utf16.prefix(limit + 1).count > limit)
     }
+    /// Retain the 8,192-unit redaction scan window. A cut can end inside a secret
+    /// that redaction only matches whole, such as a JWT without its last segment,
+    /// so a cut drops that token and any digit group before it, exactly as the
+    /// shared TypeScript normalizer does.
+    static func scan(_ text: String) -> (text: String, lost: Bool) {
+        let window = prefix(text, limit: 8192)
+        guard window.lost else { return window }
+        return (RedactionWindow.droppingCutToken(window.text), true)
+    }
 }
 private enum CauseNormalizationError: Error { case cancelled }
 
@@ -20,7 +29,7 @@ internal func normalizeCrashCauseChain(
         var truncated = input.truncated || input.causes.count > 8
         func text(_ value: String, limit: Int) throws -> (text: String, lost: Bool) {
             guard stillOwned() else { throw CauseNormalizationError.cancelled }
-            let scanned = CrashCauseText.prefix(value, limit: 8192)
+            let scanned = CrashCauseText.scan(value)
             let redacted = try redact(scanned.text)
             guard stillOwned() else { throw CauseNormalizationError.cancelled }
             let capped = CrashCauseText.prefix(redacted, limit: limit)

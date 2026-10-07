@@ -9,17 +9,19 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
     let reportID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     let contextID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
     let imageID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
-    func image(base: UInt64 = 0x20000000000001, size: UInt64 = 0x100) -> [String: Any] {
+    let systemID = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+    func image(base: UInt64 = 0x20000000000001, size: UInt64 = 0x100, uuid: String? = nil,
+               name: String = "/Applications/App.app/App") -> [String: Any] {
         ["image_addr": base, "image_vmaddr": UInt64(0x100000000), "image_size": size,
-         "uuid": imageID.uppercased(), "name": "/Applications/App.app/App",
+         "uuid": (uuid ?? imageID).uppercased(), "name": name,
          "cpu_type": 16777228, "cpu_subtype": 0]
     }
-    func frame(pc: UInt64 = 0x20000000000011) -> [String: Any] {
-        ["instruction_addr": pc, "symbol_name": "fatalFunction"]
+    func frame(pc: UInt64 = 0x20000000000011, symbol: String = "fatalFunction") -> [String: Any] {
+        ["instruction_addr": pc, "symbol_name": symbol]
     }
     func record(type: String = "mach", frames: [[String: Any]]? = nil,
-                images: [[String: Any]]? = nil) -> [String: Any] {
-        ["report": ["version": "3.9.0", "type": "standard", "id": reportID.uppercased(),
+                images: [[String: Any]]? = nil, exceptionFrames: [[String: Any]]? = nil) -> [String: Any] {
+        let value: [String: Any] = ["report": ["version": "3.9.0", "type": "standard", "id": reportID.uppercased(),
                     "run_id": reportID, "timestamp": UInt64(1791331200000001)],
          "user": ["everframe_context_id": contextID],
          "binary_images": images ?? [image()],
@@ -30,6 +32,8 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                             "nsexception": ["name": "CustomException", "userInfo": ["secret": "NEVER_COPY"]],
                             "reason": "failure"],
                    "threads": [["index": 7, "crashed": true, "backtrace": ["contents": frames ?? [frame()]]]]]]
+        guard let exceptionFrames else { return value }
+        return changeCrash(value, "last_exception_backtrace", ["contents": exceptionFrames, "skipped": 0])
     }
     func data(_ value: [String: Any]) throws -> Data { try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]) }
     func decode(_ value: [String: Any], redact: (String) -> String = { $0 }) throws -> NativeCrashRecord {
@@ -38,6 +42,10 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
     func changeError(_ input: [String: Any], _ key: String, _ value: Any) -> [String: Any] {
         var input = input, crash = input["crash"] as! [String: Any], error = crash["error"] as! [String: Any]
         error[key] = value; crash["error"] = error; input["crash"] = crash; return input
+    }
+    func changeCrash(_ input: [String: Any], _ key: String, _ value: Any) -> [String: Any] {
+        var input = input, crash = input["crash"] as! [String: Any]
+        crash[key] = value; input["crash"] = crash; return input
     }
     func testThreeFaultClassesPreserveOriginalIdentityAndExactAddresses() throws {
         for (type, expected) in [("mach", "EXC_BREAKPOINT"), ("signal", "SIGTRAP"), ("nsexception", "CustomException")] {
@@ -83,14 +91,15 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                       changeError(record(), "is_clean_exit", true)] { XCTAssertThrowsError(try decode(input)) }
     }
     func testCrashedThreadMustBeUniqueAndBounded() throws {
-        for threads: [[String: Any]] in [[], [["index": 0, "crashed": false]],
-            [["index": 0, "crashed": true], ["index": 1, "crashed": true]],
-            Array(repeating: ["index": 0, "crashed": false], count: 257),
-            [["index": 65536, "crashed": true]]] {
+        // Over the recorder's 1000-thread maximum, the record is otherwise valid: exactly one thread crashed.
+        let overLimit = Array(repeating: ["index": 0, "crashed": false], count: 1000) + [["index": 1000, "crashed": true]]
+        for (threads, expected): ([[String: Any]], NativeCrashRecordDecoder.Failure) in [
+            ([], .crashedThread), ([["index": 0, "crashed": false]], .crashedThread),
+            ([["index": 0, "crashed": true], ["index": 1, "crashed": true]], .crashedThread),
+            (overLimit, .collectionLimit), ([["index": 65536, "crashed": true]], .crashedThread)] {
             var input = record(), crash = input["crash"] as! [String: Any]; crash["threads"] = threads; input["crash"] = crash
-            XCTAssertThrowsError(try decode(input))
+            XCTAssertThrowsError(try decode(input)) { XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, expected) }
         }
-        XCTAssertThrowsError(try decode(record(images: Array(repeating: image(), count: 1025))))
     }
     func testMalformedCappedAndAbsentStacksStayAlignedAndHonest() throws {
         let result = try decode(record(frames: [frame(), ["instruction_addr": "bad"], frame(pc: 0x20000000000012)]))
@@ -121,12 +130,26 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         XCTAssertEqual(try decode(record(images: [overflow])).crash.native?.images[0].architecture, .arm64E)
     }
     func testSensitiveUnknownFieldsIgnoredAndExpandingRedactionRebounded() throws {
-        var input = record(); input["system"] = ["path": "NEVER_COPY"]; input["memory"] = ["token": "NEVER_COPY"]
-        let result = try decode(input, redact: { _ in "/redacted\\\u{0}" + String(repeating: "😀", count: 5000) })
+        // Reason and name are words: their windows drop a cut token, which would be all of one long token.
+        let long = String(repeating: "x", count: 20_000), words = String(repeating: " x", count: 10_000)
+        var input = record(type: "nsexception", frames: [frame(symbol: "SYMBOL" + long)],
+                           images: [image(name: "/Applications/App.app/IMAGE" + long)])
+        input["system"] = ["path": "NEVER_COPY"]; input["memory"] = ["token": "NEVER_COPY"]
+        input = changeError(changeError(input, "reason", "REASON" + words), "nsexception", ["name": "NAME" + words])
+        var inputs: [String] = []
+        let result = try decode(input, redact: { inputs.append($0); return "/redacted\\\u{0}" + String(repeating: "😀", count: 5000) })
+        // Each field reaches the redactor already bounded, and is bounded again afterwards.
+        for (prefix, limit) in [("REASON", 8192), ("NAME", 512), ("SYMBOL", 1024), ("IMAGE", 512)] {
+            let seen = inputs.filter { $0.hasPrefix(prefix) }
+            XCTAssertFalse(seen.isEmpty, prefix)
+            XCTAssertTrue(seen.allSatisfy { $0.utf16.count <= limit }, prefix)
+        }
         let native = try XCTUnwrap(result.crash.native)
         XCTAssertLessThanOrEqual(result.crash.message.utf16.count, 4096)
         XCTAssertLessThanOrEqual(result.crash.exceptionType.utf16.count, 256)
         XCTAssertLessThanOrEqual(native.images[0].name.utf16.count, 256)
+        XCTAssertTrue(result.crash.frames.allSatisfy { ($0.function?.utf16.count ?? 0) <= 512 && $0.raw.utf16.count <= 1024 })
+        XCTAssertEqual(result.crash.frames[0].function?.utf16.count, 512)
         XCTAssertFalse(native.images[0].name.contains("/")); XCTAssertFalse(native.images[0].name.contains("\\"))
         XCTAssertFalse(native.images[0].name.contains("\u{0}"))
         let encoded = String(decoding: try JSONEncoder().encode(result.crash), as: UTF8.self)
@@ -154,6 +177,15 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                 XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, .malformed, key + ":" + token)
             }
         }
+        // The NSException origin backtrace (sorted before threads) carries the same structural integers.
+        let origin = String(decoding: try data(record(type: "nsexception", exceptionFrames: [associated])), as: UTF8.self)
+        for (key, token) in [("instruction_addr", "9007199254740993.1"), ("object_addr", "9007199254740993.1"), ("skipped", "0.1")] {
+            let range = try XCTUnwrap(origin.range(of: #"""# + key + #"":-?[0-9]+"#, options: .regularExpression))
+            let altered = origin.replacingCharacters(in: range, with: #"""# + key + #"":"# + token)
+            XCTAssertThrowsError(try NativeCrashRecordDecoder.decode(Data(altered.utf8), redact: { $0 }), "origin " + key) {
+                XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, .malformed, "origin " + key)
+            }
+        }
         // Unknown metadata must not inherit the structural integer-only spelling rule.
         let ignored = #"{"system":{"timestamp":1791331200000001.1,"code":1.5,"uptime":1e-3},"# + original.dropFirst()
         XCTAssertNoThrow(try NativeCrashRecordDecoder.decode(Data(ignored.utf8), redact: { $0 }))
@@ -161,20 +193,255 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
     func testByteDepthKeyAndEscapedDuplicateBoundsBeforeDecode() throws {
         let original = String(decoding: try data(record()), as: UTF8.self)
         let suffix = String(original.dropFirst())
-        let invalid = [
-            Data(repeating: 32, count: 2 * 1024 * 1024 + 1),
-            Data(("{\"unknown\":" + String(repeating: "[", count: 65) + "0" + String(repeating: "]", count: 65) + "," + suffix).utf8),
-            Data(("{\"duplicate\":1,\"dupli\\u0063ate\":2," + suffix).utf8),
-            Data(("{\"" + String(repeating: "x", count: 1025) + "\":0," + suffix).utf8),
-            Data(#"{"secret":"#.utf8),
+        // Each input would decode if only its own bound were missing.
+        var padded = record(); padded["padding"] = String(repeating: "x", count: 2 * 1024 * 1024)
+        let invalid: [(Data, NativeCrashRecordDecoder.Failure)] = [
+            (try data(padded), .inputLimit),
+            (Data(("{\"unknown\":" + String(repeating: "[", count: 65) + "0" + String(repeating: "]", count: 65) + "," + suffix).utf8), .inputLimit),
+            (Data(("{\"duplicate\":1,\"dupli\\u0063ate\":2," + suffix).utf8), .duplicateKey),
+            (Data(("{\"" + String(repeating: "x", count: 1025) + "\":0," + suffix).utf8), .inputLimit),
+            (Data(#"{"secret":"#.utf8), .malformed),
         ]
-        for bytes in invalid {
+        for (bytes, expected) in invalid {
             XCTAssertThrowsError(try NativeCrashRecordDecoder.decode(bytes, redact: { $0 })) {
-                XCTAssertTrue($0 is NativeCrashRecordDecoder.Failure)
+                XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, expected)
                 XCTAssertFalse(String(describing: $0).contains("secret"))
             }
         }
         // Identical keys in separate objects are legal.
         XCTAssertNoThrow(try decode(record()))
+    }
+    func testNSExceptionUsesExceptionOriginBacktrace() throws {
+        let images = [image(base: 0x180000000, size: 0x100000, uuid: systemID,
+                            name: "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"), image()]
+        // The uncaught handler can run after the throw site was unwound (for example inside GCD).
+        let handler = [frame(pc: 0x180000010, symbol: "__handleUncaughtException"),
+                       frame(pc: 0x180000020, symbol: "_objc_terminate"), frame(pc: 0x180000030, symbol: "_dispatch_client_callout")]
+        let origin = [frame(pc: 0x180000040, symbol: "__exceptionPreprocess"),
+                      frame(pc: 0x180000050, symbol: "objc_exception_throw"), frame(pc: 0x20000000000021, symbol: "appClosure")]
+        let result = try decode(record(type: "nsexception", frames: handler, images: images, exceptionFrames: origin))
+        let native = try XCTUnwrap(result.crash.native)
+        XCTAssertEqual(result.crash.frames.map(\.function), ["__exceptionPreprocess", "objc_exception_throw", "appClosure"])
+        XCTAssertEqual(native.frames.map(\.instructionAddress), ["0x180000040", "0x180000050", "0x20000000000021"])
+        XCTAssertEqual(native.frames[2].imageIndex.map { native.images[$0].name }, "App")
+        XCTAssertEqual(native.crashedThreadIndex, 7); XCTAssertFalse(native.framesIncomplete)
+        // Without an origin, and for other fault types, the crashed thread stays the source.
+        for input in [record(type: "nsexception", frames: handler, images: images),
+                      record(type: "mach", frames: handler, images: images, exceptionFrames: origin)] {
+            XCTAssertEqual(try decode(input).crash.frames.map(\.function),
+                           ["__handleUncaughtException", "_objc_terminate", "_dispatch_client_callout"])
+        }
+        // A malformed origin falls back to the handler stack and is reported incomplete.
+        let malformed = changeCrash(record(type: "nsexception", frames: handler, images: images),
+                                    "last_exception_backtrace", ["contents": "bad"])
+        let fallback = try XCTUnwrap(decode(malformed).crash.native)
+        XCTAssertEqual(fallback.frames.map(\.instructionAddress), ["0x180000010", "0x180000020", "0x180000030"])
+        XCTAssertTrue(fallback.framesIncomplete)
+    }
+    func testFingerprintKeysAppFramesNotSystemMachinery() throws {
+        let system: [(String, UInt64)] = [
+            ("/usr/lib/system/libsystem_kernel.dylib", 0x180000000), ("/usr/lib/libc++abi.dylib", 0x181000000),
+            ("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", 0x182000000),
+            ("/Library/Developer/CoreSimulator/Volumes/iOS/Library/Developer/CoreSimulator/Profiles/Runtimes/"
+             + "iOS.simruntime/Contents/Resources/RuntimeRoot/usr/lib/libobjc.A.dylib", 0x183000000)]
+        func images(build: Int) -> [[String: Any]] {
+            system.enumerated().map { index, entry in
+                image(base: entry.1, size: 0x100000, uuid: String(format: "%08lx-0000-4000-8000-%012lx", build, index), name: entry.0)
+            } + [image()]
+        }
+        let machinery = [frame(pc: 0x180000010), frame(pc: 0x181000010), frame(pc: 0x181000020),
+                         frame(pc: 0x182000010), frame(pc: 0x183000010)]
+        func fingerprint(_ type: String, site: UInt64, build: Int = 1) throws -> String {
+            try decode(record(type: type, frames: machinery + [frame(pc: site)], images: images(build: build))).crash.fingerprint
+        }
+        for type in ["nsexception", "mach"] {
+            // Identical terminate/abort machinery must not merge distinct app call sites.
+            XCTAssertNotEqual(try fingerprint(type, site: 0x20000000000011), try fingerprint(type, site: 0x20000000000021), type)
+            // An OS update changes system image identity, not the app call site's group.
+            XCTAssertEqual(try fingerprint(type, site: 0x20000000000011), try fingerprint(type, site: 0x20000000000011, build: 2), type)
+        }
+        // Without any app frame, the leading frames still key the group.
+        XCTAssertNotEqual(try decode(record(frames: machinery, images: images(build: 1))).crash.fingerprint,
+                          try decode(record(frames: Array(machinery.reversed()), images: images(build: 1))).crash.fingerprint)
+    }
+    func testEntryPointAloneDoesNotMergeSystemOnlyFaults() throws {
+        // OS images, then the app, whose entry point (main, or $main and main) sits directly above the loader's start:
+        // dyld's start on devices; on simulators dyld_sim's start_sim, which the host's dyld start runs. Either loader
+        // image can be unlisted, and an exception's own backtrace can end in an unknown frame.
+        let runtime = "/Library/Developer/CoreSimulator/Volumes/iOS/Library/Developer/CoreSimulator/Profiles/Runtimes/"
+            + "iOS.simruntime/Contents/Resources/RuntimeRoot"
+        let system = ["/usr/lib/libobjc.A.dylib", "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+                      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+                      "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+                      "/System/Library/Frameworks/SwiftUI.framework/SwiftUI", "/usr/lib/system/libdispatch.dylib",
+                      "/usr/lib/system/libsystem_pthread.dylib", "/usr/lib/system/libsystem_kernel.dylib",
+                      "/usr/lib/system/libsystem_c.dylib", "/usr/lib/swift/libswiftCore.dylib",
+                      "/usr/lib/swift/libswift_Concurrency.dylib"]
+        let (objc, quartz, cf, uikit, swiftUI, dispatch, pthread, kernel, libc, swiftCore, concurrency) = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        let (dyld, dyldSim, app, unknown) = (11, 12, 13, 14)
+        let layouts: [(name: String, simulator: Bool, unlisted: Set<Int>, start: [(Int, UInt64)])] = [
+            ("device", false, [dyldSim], [(dyld, 0x700)]), ("simulator", true, [], [(dyldSim, 0x20), (dyld, 0x700)]),
+            ("simulator without dyld_sim", true, [dyldSim], [(dyldSim, 0x20), (dyld, 0x700), (unknown, 0)]),
+            ("simulator without the host's dyld", true, [dyld], [(dyldSim, 0x20), (dyld, 0x700), (unknown, 0)])]
+        for layout in layouts {
+            let paths = system.map { (layout.simulator ? runtime : "") + $0 } + ["/usr/lib/dyld", runtime + "/usr/lib/dyld_sim",
+                (layout.simulator ? "/Users/me/Library/Developer/CoreSimulator/Devices/D/data/Containers" : "/private/var/containers")
+                + "/Bundle/Application/X/App.app/App"]
+            func fingerprint(_ stack: [(Int, UInt64)], type: String = "mach", osBuild: Int = 1, slide: UInt64 = 0) throws -> String {
+                func base(_ index: Int) -> UInt64 { 0x180000000 + UInt64(index) * 0x1000000 + slide }
+                let images = paths.indices.filter { !layout.unlisted.contains($0) }.map { index in
+                    image(base: base(index), size: 0x400000,
+                          uuid: index == app ? nil : String(format: "%08lx-0000-4000-8000-%012lx", osBuild, index), name: paths[index])
+                }
+                let frames = stack.map { frame(pc: base($0.0) + $0.1) }
+                return try decode(type == "nsexception" ? record(type: type, images: images, exceptionFrames: frames)
+                                  : record(type: type, frames: frames, images: images)).crash.fingerprint
+            }
+            // Over-releases in a Core Animation commit and in an autorelease-pool pop, both under UIApplicationMain.
+            let tail: [(Int, UInt64)] = [(cf, 0x400), (uikit, 0x500), (app, 0x600)] + layout.start
+            let commit: [(Int, UInt64)] = [(objc, 0x10), (quartz, 0x100), (cf, 0x200)] + tail
+            let pop: [(Int, UInt64)] = [(objc, 0x20), (objc, 0x120), (cf, 0x300)] + tail
+            XCTAssertNotEqual(try fingerprint(commit), try fingerprint(pop), layout.name)
+            let swiftUITail: [(Int, UInt64)] = [(uikit, 0x500), (swiftUI, 0x100), (app, 0x700), (app, 0x600)] + layout.start
+            XCTAssertNotEqual(try fingerprint([(objc, 0x10), (quartz, 0x100)] + swiftUITail),
+                              try fingerprint([(objc, 0x20), (cf, 0x300)] + swiftUITail), layout.name)
+            // The same fault still converges across ASLR slides.
+            XCTAssertEqual(try fingerprint(commit), try fingerprint(commit, slide: 0x4000), layout.name)
+            // App frames above the entry point, on the main or a background thread, still key the group alone, as do
+            // app code that main calls directly and an initializer that the loader's own frames run, so an OS update
+            // neither merges their call sites nor splits them.
+            let site = { (offset: UInt64) -> [(Int, UInt64)] in [(cf, 0x10), (objc, 0x50), (app, offset), (uikit, 0x100)] + tail }
+            XCTAssertNotEqual(try fingerprint(site(0x100), type: "nsexception"), try fingerprint(site(0x200), type: "nsexception"),
+                              layout.name)
+            let background: [(Int, UInt64)] = [(cf, 0x10), (objc, 0x50), (app, 0x100), (dispatch, 0x100), (dispatch, 0x200), (pthread, 0x100)]
+            let direct: [(Int, UInt64)] = [(app, 0x100), (app, 0x600)] + layout.start
+            let loader = layout.start[0].0
+            let initializer: [(Int, UInt64)] = [(cf, 0x10), (objc, 0x50), (app, 0x100), (loader, 0x100), (loader, 0x200)] + layout.start
+            // A crash inside a Swift Task: the recorded stack can end at the concurrency runtime's job runner, with no
+            // loader frame, so the app's async function is not an entry point.
+            let task = { (fault: [(Int, UInt64)], site: UInt64) -> [(Int, UInt64)] in fault + [(app, site), (concurrency, 0x100)] }
+            for (label, stack, type) in [("site", site(0x100), "nsexception"), ("background", background, "nsexception"),
+                                         ("direct", direct, "mach"), ("initializer", initializer, "nsexception"),
+                                         ("task", task([(swiftCore, 0x10), (swiftCore, 0x20)], 0x100), "mach")] {
+                XCTAssertEqual(try fingerprint(stack, type: type), try fingerprint(stack, type: type, osBuild: 2), layout.name + " " + label)
+            }
+            // Distinct Task call sites stay apart however deep the fault sits in OS code: a fault five OS frames down
+            // under a MainActor Task, and an abort-shaped runtime trap such as an exclusivity violation.
+            let uiFault: [(Int, UInt64)] = [(objc, 0x10), (uikit, 0x100), (uikit, 0x200), (uikit, 0x300), (quartz, 0x100)]
+            let trap: [(Int, UInt64)] = [(kernel, 0x10), (pthread, 0x20), (libc, 0x30), (swiftCore, 0x100), (swiftCore, 0x200),
+                                         (swiftCore, 0x300), (swiftCore, 0x400)]
+            for (label, fault, type) in [("task fault", uiFault, "mach"), ("task trap", trap, "signal")] {
+                XCTAssertNotEqual(try fingerprint(task(fault, 0x100), type: type), try fingerprint(task(fault, 0x200), type: type),
+                                  layout.name + " " + label)
+            }
+        }
+    }
+    func testDefaultRedactionSeesSeparatorsAndSecretsStraddlingTheCap() throws {
+        let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqYW5lQGV4YW1wbGUuY29tIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        for (reason, secret) in [("Payment declined\n4111111111111111\nCode 51", "4111111111111111"),
+                                 ("Applicant ID\t123-45-6789", "123-45-6789"), ("Bearer\tabc.def-123", "abc.def-123"),
+                                 (String(repeating: "a ", count: 2030) + jwt, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")] {
+            let input = changeError(record(type: "nsexception"), "reason", reason)
+            let message = try decode(input, redact: { RedactionEngine().redact($0) }).crash.message
+            XCTAssertFalse(message.contains(secret), secret)
+            XCTAssertLessThanOrEqual(message.utf16.count, 4096)
+            XCTAssertFalse(message.unicodeScalars.contains { $0.value < 32 || (127...159).contains($0.value) }, secret)
+        }
+    }
+    func testSecretsCutByTheRedactionWindowAreDropped() throws {
+        // Redaction matches JWTs and card numbers only whole, so a token the 2x window cuts must not survive.
+        let header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", claims = "eyJzdWIiOiJqYW5lQGV4YW1wbGUuY29tIn0"
+        let jwt = header + "." + claims + ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        let short = "eyJhbGciOiJIUzI1NiJ9." + String(repeating: "B", count: 240) + "." + String(repeating: "C", count: 43)
+        // Earlier redactions shrink the text, which moves a token cut at the window edge inside the output cap.
+        func cut(_ secret: String, keeping kept: Int, window: Int, shrinking count: Int) -> String {
+            let prefix = Array(repeating: short, count: count).joined(separator: " ")
+            return prefix + " " + String(repeating: "y", count: window - kept - prefix.utf16.count - 2) + " " + secret
+        }
+        func crash(reason: String, name: String = "CustomException") throws -> EverframeCrash {
+            let input = changeError(changeError(record(type: "nsexception"), "reason", reason), "nsexception", ["name": name])
+            return try decode(input, redact: { RedactionEngine().redact($0) }).crash
+        }
+        let lone = String(repeating: "x", count: 4000) + " eyJhbGciOiJIUzI1NiJ9." + String(repeating: "A", count: 9000)
+            + "." + String(repeating: "S", count: 43)
+        XCTAssertEqual(try crash(reason: lone).message, String(repeating: "x", count: 4000))
+        // Four signature characters, or fifteen card digits, fall inside the window.
+        let signed = header.utf16.count + claims.utf16.count + 6
+        let cases: [(String, [String], Int)] = try [
+            (crash(reason: cut(jwt, keeping: signed, window: 8192, shrinking: 20)).message, [header, claims], 4096),
+            (crash(reason: cut("4111111111111111", keeping: 15, window: 8192, shrinking: 20)).message, ["41111111"], 4096),
+            (crash(reason: "failure", name: cut(jwt, keeping: signed, window: 512, shrinking: 1)).exceptionType, [header, claims], 256)]
+        for (text, secrets, limit) in cases {
+            for secret in secrets { XCTAssertFalse(text.contains(secret), secret) }
+            XCTAssertLessThanOrEqual(text.utf16.count, limit)
+            XCTAssertFalse(text.unicodeScalars.contains { $0.value < 32 || (127...159).contains($0.value) })
+        }
+        // Text the window does not cut keeps its trailing token, even at exactly twice the limit.
+        XCTAssertEqual(try crash(reason: "Payment failed with code 51").message, "Payment failed with code 51")
+        XCTAssertTrue(try crash(reason: cut("51", keeping: 2, window: 8192, shrinking: 20)).message.hasSuffix("y 51"))
+    }
+    func testNSExceptionHandlerStackAtRecorderCapacityIsIncomplete() throws {
+        // The pinned recorder writes at most 94 uncaught-handler frames, with no truncation marker.
+        for (type, count, expected) in [("nsexception", 94, true), ("nsexception", 93, false), ("mach", 94, false)] {
+            let native = try XCTUnwrap(decode(record(type: type, frames: Array(repeating: frame(), count: count))).crash.native)
+            XCTAssertEqual(native.framesIncomplete, expected, "\(type) \(count)")
+        }
+        let origin = try decode(record(type: "nsexception", frames: Array(repeating: frame(), count: 94),
+                                       exceptionFrames: Array(repeating: frame(), count: 94)))
+        XCTAssertEqual(origin.crash.native?.framesIncomplete, false)
+    }
+    func testLargeImageAndThreadListsDegradeInsteadOfRejecting() throws {
+        // UI processes can load more than a thousand images; only referenced images are emitted.
+        let many = try XCTUnwrap(decode(record(images: Array(repeating: image(base: 0x9000), count: 1500) + [image()])).crash.native)
+        XCTAssertEqual(many.images.count, 1); XCTAssertEqual(many.frames[0].imageIndex, 0)
+        XCTAssertEqual(many.frames[0].imageOffset, "0x10"); XCTAssertFalse(many.imagesIncomplete)
+        // Up to the recorder's own 1000-thread maximum, the unique crashed thread is found anywhere.
+        var threads: [[String: Any]] = (0..<1000).map { ["index": $0, "crashed": false] }
+        threads[999] = ["index": 999, "crashed": true, "backtrace": ["contents": [frame()]]]
+        XCTAssertEqual(try decode(changeCrash(record(), "threads", threads)).crash.native?.crashedThreadIndex, 999)
+    }
+    func testRuntimeCrashInfoBecomesRedactedMessage() throws {
+        var swift = image(base: 0x180000000, size: 0x100000, uuid: systemID, name: "/usr/lib/swift/libswiftCore.dylib")
+        swift["crash_info_message"] = "Feature.swift:42: Fatal error: boom 4111111111111111\n"
+        var stale = image(base: 0x190000000, size: 0x1000, uuid: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", name: "/usr/lib/libStale.dylib")
+        stale["crash_info_message"] = "STALE"
+        let trap = changeError(record(frames: [frame(pc: 0x180000010), frame()], images: [swift, image(), stale]), "reason", NSNull())
+        let crash = try decode(trap, redact: { RedactionEngine().redact($0) }).crash
+        XCTAssertEqual(crash.exceptionType, "EXC_BREAKPOINT")
+        XCTAssertTrue(crash.message.hasPrefix("Feature.swift:42: Fatal error: boom "), crash.message)
+        XCTAssertFalse(crash.message.contains("4111111111111111")); XCTAssertFalse(crash.message.contains("STALE"))
+        XCTAssertFalse(crash.message.unicodeScalars.contains { $0.value < 32 })
+        // A recorded reason still wins, and a malformed message does not invalidate its image.
+        XCTAssertEqual(try decode(record(frames: [frame(pc: 0x180000010)], images: [swift])).crash.message, "failure")
+        swift["crash_info_message"] = 7
+        let malformed = changeError(record(frames: [frame(pc: 0x180000010)], images: [swift]), "reason", NSNull())
+        XCTAssertEqual(try decode(malformed).crash.native?.frames[0].imageIndex, 0)
+        XCTAssertEqual(try decode(malformed).crash.message, "EXC_BREAKPOINT")
+    }
+    func testPreflightCostDoesNotGrowWithAncestorKeys() throws {
+        // Deep, long ancestor keys must not multiply the per-number structural path check.
+        let key = String(repeating: "k", count: 1024), numbers = Array(repeating: "0", count: 30_000).joined(separator: ",")
+        let nested = Data((String(repeating: "{\"" + key + "\":", count: 63) + "[" + numbers + "]" + String(repeating: "}", count: 63)).utf8)
+        let flat = Data(("{\"padding\":\"" + String(repeating: "x", count: 63 * 1030) + "\",\"values\":[" + numbers + "]}").utf8)
+        func seconds(_ data: Data) throws -> TimeInterval {
+            let start = Date(); try NativeCrashJSONPreflight.validate(data); return Date().timeIntervalSince(start)
+        }
+        _ = try seconds(flat)
+        let baseline = try seconds(flat), elapsed = try seconds(nested)
+        XCTAssertLessThan(elapsed, max(baseline, 0.01) * 20, "nested \(elapsed)s, flat \(baseline)s")
+    }
+    func testDistinctImagesAssociateDeduplicateAndRemapAfterInvalidEntries() throws {
+        let a = "aaaaaaaa-0000-4000-8000-00000000000a", b = "bbbbbbbb-0000-4000-8000-00000000000b"
+        let imageA = image(base: 0x1000, uuid: a, name: "/private/var/containers/Bundle/Application/X/App.app/App")
+        var imageB = image(base: 0x2000, uuid: b, name: "/private/var/containers/Bundle/Application/X/App.app/Frameworks/Kit.framework/Kit")
+        imageB.removeValue(forKey: "image_vmaddr"); imageB["cpu_subtype"] = 2
+        let native = try XCTUnwrap(decode(record(frames: [frame(pc: 0x1010), frame(pc: 0x2020), frame(pc: 0x1030)],
+                                                 images: [["name": "only-name"], imageA, imageB])).crash.native)
+        XCTAssertEqual(native.images.map(\.uuid), [a, b]); XCTAssertEqual(native.images.map(\.name), ["App", "Kit"])
+        XCTAssertEqual(native.images.map(\.loadAddress), ["0x1000", "0x2000"]); XCTAssertEqual(native.images.map(\.size), ["0x100", "0x100"])
+        XCTAssertEqual(native.images.map(\.vmAddress), ["0x100000000", nil]); XCTAssertEqual(native.images.map(\.cpuType), [16777228, 16777228])
+        XCTAssertEqual(native.images.map(\.cpuSubtype), [0, 2]); XCTAssertEqual(native.images.map(\.architecture), [.arm64, .arm64E])
+        XCTAssertEqual(native.frames.map(\.imageIndex), [0, 1, 0]); XCTAssertEqual(native.frames.map(\.imageOffset), ["0x10", "0x20", "0x30"])
+        XCTAssertTrue(native.imagesIncomplete)
     }
 }

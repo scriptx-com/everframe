@@ -45,6 +45,24 @@ it.each([
   expect(getReportDeliveryStatus()).toMatchObject({ status: reason === 'native-method-missing' ? 'unsupported' : 'unavailable', reason, revision: 0 });
   expect(JSON.stringify(getReportDeliveryStatus())).not.toContain('private');
 });
+it('README names the fallback pairs the getters return', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const start = readme.indexOf('### Native report delivery diagnostics');
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(start).toBeLessThan(readme.indexOf('\n## License'));
+  const end = readme.slice(start + 1).search(/\n#{2,3} /);
+  const section = end < 0 ? readme.slice(start) : readme.slice(start, start + 1 + end);
+  const pairs = [publicGetter(), browserGetter()].map(({ status, reason }) => `${status}/${reason}`);
+  mount();
+  for (const get of [(): undefined => undefined, () => () => { throw new Error('private'); }, () => () => ({})]) {
+    bridge(get);
+    const { status, reason } = getReportDeliveryStatus();
+    pairs.push(`${status}/${reason}`);
+  }
+  for (const pair of pairs) expect(section).toContain(`\`${pair}\``);
+  expect(section).not.toContain('`unavailable/native-method-missing`');
+  expect(readme.replace(/\s+/g, ' ')).not.toContain('Native queue and delivery diagnostics remain unavailable');
+});
 it.each([
   ['version', (s: any) => { s.schemaVersion = 2; }],
   ['root-extra', (s: any) => { s.secret = 'private'; }],

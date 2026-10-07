@@ -47,6 +47,15 @@ class VideoPrivacyTypeCacheTest {
         assertTrue(cache.classify(Class.forName("androidx.compose.ui.platform.AndroidComposeView"))!!.composeHost)
     }
 
+    @Test fun flutterHostsIncludingSubclassesAreClassified() {
+        val cache = VideoPrivacyTypeCache()
+        assertTrue(cache.classify(io.flutter.embedding.android.FlutterView::class.java)!!.flutterHost)
+        val subclass = object : io.flutter.embedding.android.FlutterView(androidx.test.core.app.ApplicationProvider.getApplicationContext()) {}
+        assertTrue(cache.classify(subclass.javaClass)!!.flutterHost)
+        assertFalse(cache.classify(View::class.java)!!.flutterHost)
+        assertFalse(cache.classify(android.widget.FrameLayout::class.java)!!.flutterHost)
+    }
+
     @Test fun failedAncestryReadIsUnknownAndIsNotRetained() {
         var fail = true
         val cache = VideoPrivacyTypeCache { if (fail) error("unavailable ancestry") else it.superclass }

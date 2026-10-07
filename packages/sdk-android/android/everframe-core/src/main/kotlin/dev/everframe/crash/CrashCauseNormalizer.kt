@@ -46,10 +46,10 @@ private class CauseNormalizer(val redact: (String) -> String, val stillOwned: ()
     private fun text(value: String, limit: Int): Pair<String, Boolean> {
         checkOwned()
         val scanned = prefix(value, 8192)
-        val redacted = redact(repair(scanned))
+        val cut = value.length > scanned.length
+        val redacted = redact(repair(if (cut) dropCutToken(scanned) else scanned))
         checkOwned()
-        return prefix(repair(prefix(redacted, limit + 1)), limit) to
-            (value.length > scanned.length || redacted.length > limit)
+        return prefix(repair(prefix(redacted, limit + 1)), limit) to (cut || redacted.length > limit)
     }
     // Reserve false flags (one byte longer than true), matching the shared fitter.
     private fun fits(): Boolean = EnvelopeBuilder.JSON.encodeToString(CrashCauseChain(
@@ -126,6 +126,23 @@ private fun prefix(value: String, limit: Int): String {
     val end = if (limit > 0 && Character.isHighSurrogate(value[limit - 1]) && Character.isLowSurrogate(value[limit])) limit - 1 else limit
     return value.substring(0, end)
 }
+/**
+ * A scan cut can end inside a secret that redaction only matches whole, such as
+ * a JWT without its last segment. Drop that token and any digit group before it,
+ * exactly as the shared TypeScript normalizer does.
+ */
+private fun dropCutToken(value: String): String {
+    var end = value.length
+    while (end > 0 && isTokenUnit(value[end - 1])) end--
+    while (end > 0 && isDigitGroupUnit(value[end - 1])) end--
+    return value.substring(0, end)
+}
+// Units of the tokens redaction only matches whole: JWT, bearer and email.
+private fun isTokenUnit(unit: Char) = unit in 'A'..'Z' || unit in 'a'..'z' || unit in '0'..'9' || unit in "%+-./=@_~"
+// Digits, dashes and JavaScript whitespace: the units of card and SSN numbers.
+private fun isDigitGroupUnit(unit: Char) = unit in '0'..'9' || unit == '-' || unit in '\u0009'..'\u000D' ||
+    unit == ' ' || unit == '\u00A0' || unit == '\u1680' || unit in '\u2000'..'\u200A' || unit == '\u2028' ||
+    unit == '\u2029' || unit == '\u202F' || unit == '\u205F' || unit == '\u3000' || unit == '\uFEFF'
 private fun repair(value: String): String = buildString(value.length) {
     var index = 0
     while (index < value.length) {

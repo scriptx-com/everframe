@@ -15,6 +15,14 @@ const version = '0.9.0';
 const formerName = 'trace' + 'itx';
 const formerGroup = `com.${formerName}`;
 const formerEndpoint = `https://${formerName}.com`;
+const coreClasses = {
+  'dev/everframe/Everframe.class': 'https://everframe.dev dev.everframe Everframe',
+  'dev/everframe/diagnostics/ReportDeliveryStatus.class': 'toJson',
+  'dev/everframe/diagnostics/CaptureStatus.class': 'class',
+  'dev/everframe/diagnostics/CapturePathStatus.class': 'class',
+  'dev/everframe/diagnostics/QueueStatus.class': 'class',
+  'dev/everframe/diagnostics/TransportStatus.class': 'class',
+};
 
 function zip(destination, entries) {
   const source = mkdtempSync(path.join(tmpdir(), 'everframe-zip-'));
@@ -50,10 +58,18 @@ function fixture() {
         'classes.jar': readFileSync(classes),
       });
       rmSync(classes);
+    } else if (artifact === 'core') {
+      const classes = `${prefix}-classes.jar`;
+      zip(classes, coreClasses);
+      zip(`${prefix}.aar`, {
+        'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+        'classes.jar': readFileSync(classes),
+      });
+      rmSync(classes);
     } else {
       zip(`${prefix}.aar`, {
         'AndroidManifest.xml': '<manifest package="dev.everframe" />',
-        'classes.jar': artifact === 'core' ? 'https://everframe.dev dev.everframe Everframe' : 'dev.everframe Everframe',
+        'classes.jar': 'dev.everframe Everframe',
       });
     }
     if (['core', 'reporter-ui', 'media3'].includes(artifact)) {
@@ -157,5 +173,34 @@ test('rejects a release reporter AAR missing the host-image entry point', () => 
     assert.match(`${result.stdout}\n${result.stderr}`, /EFReporterFromImage/);
   } finally {
     rmSync(repository, { recursive: true, force: true });
+  }
+});
+
+test('rejects a release core AAR whose delivery diagnostics API was renamed or stripped', () => {
+  const renamed = Object.fromEntries(Object.entries(coreClasses)
+    .filter(([entry]) => !entry.endsWith('/ReportDeliveryStatus.class')));
+  renamed['dev/everframe/diagnostics/p.class'] = 'class';
+  const stripped = { ...coreClasses, 'dev/everframe/diagnostics/ReportDeliveryStatus.class': 'class' };
+  for (const [classes, message] of [
+    [renamed, /missing dev\.everframe\.diagnostics\.ReportDeliveryStatus/],
+    [stripped, /ReportDeliveryStatus has no toJson/],
+  ]) {
+    const repository = fixture();
+    try {
+      const prefix = path.join(repository, 'dev/everframe/core/0.9.0/core-0.9.0');
+      const jar = `${prefix}-classes.jar`;
+      zip(jar, classes);
+      rmSync(`${prefix}.aar`);
+      zip(`${prefix}.aar`, {
+        'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+        'classes.jar': readFileSync(jar),
+      });
+      rmSync(jar);
+      const result = verify(repository);
+      assert.notEqual(result.status, 0);
+      assert.match(`${result.stdout}\n${result.stderr}`, message);
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
   }
 });

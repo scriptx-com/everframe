@@ -90,7 +90,7 @@ import UIKit
     }
 
     func apply(settings: NativeVideoSettings?, durationSec: Int = 30, samplingRate: Double = 1) {
-        let duration = min(30, max(1, durationSec))
+        let duration = min(NativeVideoLimits.maxDurationSec, max(1, durationSec))
         if settings != nil, sampledIn == nil {
             sampledIn = samplingRate.isFinite && random() < max(0, min(1, samplingRate))
         }
