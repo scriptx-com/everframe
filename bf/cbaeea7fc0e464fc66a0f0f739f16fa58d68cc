@@ -1,0 +1,23 @@
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_de328f485ca48c 86-87,89
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_360d9eb003c487::t_2902563182e3e4 45-46
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_360d9eb003c487::t_3aa22f7245f847 20,24-25,106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bfcbaeea7fc0e464fc66a0f0f739f16fa58d68cc",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
