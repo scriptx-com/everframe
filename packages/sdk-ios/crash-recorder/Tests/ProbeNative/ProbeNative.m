@@ -44,3 +44,5 @@ int EFCRProbeGate(void) {
     efcr_gateSet(false);
     return 0;
 }
+// Moves only the report gate, leaving the vendor monitors as they are.
+void EFCRProbeSetGate(bool open) { efcr_gateSet(open); }

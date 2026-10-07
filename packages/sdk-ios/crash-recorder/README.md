@@ -84,7 +84,9 @@ the manifest alone is not a cryptographic attestation.
 runs25 fresh processes with25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, initial disabled state, repeated/failed
 installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
-monitor can record, disable/re-enable and rapid runs.
+monitor can record, disable/re-enable and rapid runs. Two modes move one control at a
+time: a closed report gate with enabled monitors, and an open gate with the monitors
+still disabled by installation; both must leave no report.
 Each fatal process must end with its fault's signal, and each report must record the
 expected Mach, signal or NSException error with a crashed-thread backtrace. The checks are
 explicit, so they also run under `python3 -O`. Every persisted file is scanned for the exception userInfo sentinel and for a stack

@@ -35,9 +35,12 @@ if mode == "state" {
     check(String(cString: EFCRVersion()).contains("2.6.0"), "version metadata")
     exit(0)
 }
-if mode != "disabled" { check(EFCRSetEnabled(true), "enable fatal detector") }
+if mode != "disabled" && mode != "monitors-off" { check(EFCRSetEnabled(true), "enable fatal detector") }
 if mode == "disabled-after" || mode == "reenabled" { check(EFCRSetEnabled(false), "disable fatal detector") }
 if mode == "reenabled" { check(EFCRSetEnabled(true), "reenable fatal detector") }
+// Move the report gate alone, so the gate and the install-time monitor disable are each proven.
+if mode == "gate-closed" { EFCRProbeSetGate(false); check(!EFCRIsEnabled(), "gate closed while monitors run") }
+if mode == "monitors-off" { EFCRProbeSetGate(true); check(EFCRIsEnabled(), "gate open while monitors are off") }
 switch args[3] {
 case "swift": fatalError("EFCR synthetic Swift trap")
 case "objc": EFCRProbeObjCException()

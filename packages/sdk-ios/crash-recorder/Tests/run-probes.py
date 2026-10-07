@@ -102,7 +102,7 @@ def run_probes(binary, evidence):
     run('state', 'state', directory('state'), second)
     require(not list(second.iterdir()), 'second installation touched replacement directory')
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
-    for mode in ['enabled', 'disabled', 'disabled-after', 'reenabled']:
+    for mode in ['enabled', 'disabled', 'disabled-after', 'reenabled', 'gate-closed', 'monitors-off']:
         for fault in ['swift', 'objc', 'memory', 'signal']:
             name = f'{mode}-{fault}'
             run(name, mode, directory(name), fault, fatal=True, count=int(mode in ['enabled', 'reenabled']))
