@@ -1,0 +1,21 @@
+docs/release-health.md
+  s_97602a0a2d8f20::t_5e98235e6e0acd 1-3
+packages/sdk-web/src/release-health/runtime.ts
+  s_97602a0a2d8f20::t_a9cdf9ec11b269 38,122,133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "551a0fd4a382d5d5b3073f0b058b67440102bb65",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
