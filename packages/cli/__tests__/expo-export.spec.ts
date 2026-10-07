@@ -84,9 +84,12 @@ describe('uploadExpoExport', () => {
     await expect(uploadExpoExport(base(project))).rejects.toThrow('expo_export_ambiguous:android');
   });
 
-  it('names withEverframe when metro never staged the platform', async () => {
+  it('names the staging directory when the export identity was not staged there', async () => {
     const project = await makeExpoProject({ platforms: ['android'], staged: false });
-    await expect(uploadExpoExport(base(project))).rejects.toThrow(/withEverframe/);
+    const error = await uploadExpoExport(base(project)).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(/^staged_partial_missing: .*--staging/);
+    expect((error as Error).message).not.toMatch(/withEverframe/);
   });
 });
 

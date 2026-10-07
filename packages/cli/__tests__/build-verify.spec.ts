@@ -88,6 +88,7 @@ describe('verifyStagedBuild', () => {
       'invalid_hermes_bytecode',
       'source_map_empty',
       'source_map_too_large',
+      'staged_partial_missing',
       'staged_bundle_changed',
       'staged_source_map_changed',
     ]) {
