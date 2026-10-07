@@ -161,8 +161,37 @@ data class Payload (
     val networkBodies: List<NetworkBody>? = null,
     val redactions: JsonArray? = null,
     val resources: List<Resource>? = null,
-    val vitals: List<Vital>? = null
-)
+    val vitals: List<Vital>? = null,
+    val diagnostic: DiagnosticEvidence? = null
+) {
+    constructor(
+    annotations: JsonArray? = null,
+    breadcrumbs: List<Breadcrumb>? = null,
+    crash: Crash? = null,
+    extra: String? = null,
+    focus: Focus? = null,
+    logs: JsonArray? = null,
+    network: JsonArray? = null,
+    networkBodies: List<NetworkBody>? = null,
+    redactions: JsonArray? = null,
+    resources: List<Resource>? = null,
+    vitals: List<Vital>? = null
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, null)
+
+    fun copy(
+    annotations: JsonArray? = this.annotations,
+    breadcrumbs: List<Breadcrumb>? = this.breadcrumbs,
+    crash: Crash? = this.crash,
+    extra: String? = this.extra,
+    focus: Focus? = this.focus,
+    logs: JsonArray? = this.logs,
+    network: JsonArray? = this.network,
+    networkBodies: List<NetworkBody>? = this.networkBodies,
+    redactions: JsonArray? = this.redactions,
+    resources: List<Resource>? = this.resources,
+    vitals: List<Vital>? = this.vitals
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic)
+}
 
 @Serializable
 data class Breadcrumb (
@@ -469,6 +498,121 @@ enum class NativeCrashPlatform(val value: String) {
 }
 
 @Serializable
+data class DiagnosticEvidence (
+    val android: Android,
+    val attribution: Attribution,
+    val cause: DiagnosticCause,
+    val collectedAt: String,
+
+    @SerialName("evidenceId")
+    val evidenceID: String,
+
+    val kind: DiagnosticKind,
+    val occurredAt: String,
+    val outcome: Outcome,
+
+    @SerialName("processLaunchId")
+    val processLaunchID: String,
+
+    val provenance: Provenance,
+    val scope: Scope,
+    val trace: Trace,
+    val version: Double
+)
+
+@Serializable
+data class Android (
+    val apiLevel: Long,
+    val pid: Long,
+    val reason: Long
+)
+
+@Serializable
+data class Attribution (
+    val process: Process,
+    val release: Release,
+    val session: Session,
+    val webExposure: Session
+)
+
+@Serializable
+enum class Process(val value: String) {
+    @SerialName("exact_os_token") ExactOSToken("exact_os_token");
+}
+
+@Serializable
+enum class Release(val value: String) {
+    @SerialName("frozen") Frozen("frozen");
+}
+
+@Serializable
+enum class Session(val value: String) {
+    @SerialName("unavailable") Unavailable("unavailable");
+}
+
+@Serializable
+enum class DiagnosticCause(val value: String) {
+    @SerialName("anr") Anr("anr"),
+    @SerialName("java_crash") JavaCrash("java_crash"),
+    @SerialName("native_crash") NativeCrash("native_crash"),
+    @SerialName("system_low_memory") SystemLowMemory("system_low_memory"),
+    @SerialName("system_other") SystemOther("system_other"),
+    @SerialName("unknown") Unknown("unknown"),
+    @SerialName("user_requested") UserRequested("user_requested");
+}
+
+@Serializable
+enum class DiagnosticKind(val value: String) {
+    @SerialName("process_exit") ProcessExit("process_exit");
+}
+
+@Serializable
+enum class Outcome(val value: String) {
+    @SerialName("terminated") Terminated("terminated");
+}
+
+@Serializable
+enum class Provenance(val value: String) {
+    @SerialName("android_application_exit_info") AndroidApplicationExitInfo("android_application_exit_info");
+}
+
+@Serializable
+enum class Scope(val value: String) {
+    @SerialName("os_process") OSProcess("os_process");
+}
+
+@Serializable
+data class Trace (
+    val format: DiagnosticTraceFormat,
+    val frames: List<DiagnosticFrame>,
+    val status: DiagnosticTraceStatus,
+    val truncated: Boolean
+)
+
+@Serializable
+enum class DiagnosticTraceFormat(val value: String) {
+    @SerialName("android_anr_text") AndroidAnrText("android_anr_text"),
+    @SerialName("android_tombstone") AndroidTombstone("android_tombstone"),
+    @SerialName("none") None("none");
+}
+
+@Serializable
+data class DiagnosticFrame (
+    val file: String? = null,
+    val function: String,
+    val line: Long? = null
+)
+
+@Serializable
+enum class DiagnosticTraceStatus(val value: String) {
+    @SerialName("available") Available("available"),
+    @SerialName("malformed") Malformed("malformed"),
+    @SerialName("not_requested") NotRequested("not_requested"),
+    @SerialName("unavailable") Unavailable("unavailable"),
+    @SerialName("unsupported") Unsupported("unsupported");
+}
+
+@Serializable
 data class Focus (
     val componentPath: String,
     val cursor: Cursor? = null,
@@ -636,6 +780,7 @@ enum class Platform(val value: String) {
 @Serializable
 enum class ReportEnvelopeSource(val value: String) {
     @SerialName("crash") Crash("crash"),
+    @SerialName("diagnostic") Diagnostic("diagnostic"),
     @SerialName("error") Error("error"),
     @SerialName("manual") Manual("manual");
 }

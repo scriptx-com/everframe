@@ -21,7 +21,8 @@ internal object AndroidNativeCrashRuntime {
     private val lock = Any()
     private val requests = AndroidNativeRecoveryRequests()
     fun noteKill() { requests.invalidate() }
-    fun request(epoch: Int, enabled: Boolean): Long = requests.request(epoch, enabled)
+    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false): Long = requests.request(epoch, enabled, diagnostics)
+    fun diagnosticsReady(epoch: Int): Boolean = requests.diagnosticsEnabled(epoch) && ready(epoch)
     fun ready(epoch: Int): Boolean = requests.enabled(epoch) && synchronized(lock) { controller }?.ready(epoch) == true
     private var controller: AndroidNativeRecoveryController? = null
     private var eraseWhenContextAvailable = false
@@ -37,8 +38,8 @@ internal object AndroidNativeCrashRuntime {
     }
 
     /** Off-main caller. Defaults to no state-summary ownership until explicitly requested by the host. */
-    fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, request: Long): Boolean {
-        if (Build.VERSION.SDK_INT < 31 || !captured.captureConsent || captured.config?.capture?.crash != true) return false
+    fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, request: Long, diagnostics: Boolean = false): Boolean {
+        if (Build.VERSION.SDK_INT < (if (diagnostics) 30 else 31) || !captured.captureConsent || captured.config?.capture?.crash != true) return false
         val epoch = captured.user.startEpoch
         val gate = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch && requests.allows(request, epoch, true)
@@ -52,7 +53,7 @@ internal object AndroidNativeCrashRuntime {
         }) return false
         val erase = synchronized(lock) { eraseWhenContextAvailable.also { eraseWhenContextAvailable = false } }
         if (erase) owner.retire(epoch, true) { gate.isAllowed() }
-        return owner.enable(epoch, gate, System.currentTimeMillis(), {
+        val template = {
             val device = DeviceMetadata.collect(context)
             val encoded = EnvelopeBuilder(vitalsStamp = { null }).buildEncoded(
                 reportId = UUID.randomUUID(), sdkVersion = Everframe.SDK_VERSION,
@@ -65,14 +66,17 @@ internal object AndroidNativeCrashRuntime {
             )
             OutboxEntry(encoded.envelope.reportID, System.currentTimeMillis(), encoded.bytes, encoded.idempotencyKey,
                 emptyList(), captured.config.sdkKey, IngestEndpoint.url, identitySubject = null)
-        }) { entry ->
+        }
+        val admit: (OutboxEntry) -> Boolean = { entry ->
             try { outbox.store.enqueueSync(entry, gate); true } catch (_: Exception) { false }
         }
+        return if (diagnostics) owner.enableDiagnostics(epoch, gate, System.currentTimeMillis(), template, admit)
+            else owner.enable(epoch, gate, System.currentTimeMillis(), template, admit)
     }
 
     /** Outside SDK stateLock. Pending OS reads cannot block this transition. */
     fun boundary(context: Context?, epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean, request: Long? = null) {
-        if (Build.VERSION.SDK_INT < 31 || !isCurrent()) return
+        if (Build.VERSION.SDK_INT < 30 || !isCurrent()) return
         val command = request ?: requests.boundary(epoch)
         val owns = { isCurrent() && requests.allows(command, epoch, false) }
         if (!owns()) return
@@ -94,7 +98,7 @@ internal object AndroidNativeCrashRuntime {
     }
 }
 
-@RequiresApi(31)
+@RequiresApi(30)
 private class AndroidExitPlatform(private val context: Context) : AndroidNativeExitPlatform {
     override val apiLevel: Int get() = Build.VERSION.SDK_INT
     override val pid: Int get() = Process.myPid()
