@@ -1,0 +1,28 @@
+packages/cli/__tests__/apple-upload.spec.ts
+  s_97602a0a2d8f20::t_2ed0b7b0d69464 9,138-142
+  s_97602a0a2d8f20::t_7fa1c776b39363 143-146
+packages/cli/__tests__/apple-build.spec.ts
+  s_97602a0a2d8f20::t_159b939198795a 53,67-142,144-146,148-157,159-173
+  s_97602a0a2d8f20::t_2ed0b7b0d69464 22,66,143,147,158
+packages/cli/src/apple-build.ts
+  s_97602a0a2d8f20::t_eb366eb328ce57 142-180,191
+  s_97602a0a2d8f20::t_bfa062d4ea7398 181-190,192-204
+packages/cli/__tests__/apple-build-fixture.ts
+  s_97602a0a2d8f20::t_2ed0b7b0d69464 73-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0b6f5770bcda793a9ce47f91f35990c04d076716",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
