@@ -5,7 +5,14 @@ import NativeEverframe from './NativeEverframe.js';
 import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
 import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
-import { captureKey, rejectionKey, type CaptureIdentity, type PreparedRejection, type RejectionOutcome } from './rejection-capture.js';
+import {
+  captureKey,
+  exceedsValueShare,
+  rejectionKey,
+  type CaptureIdentity,
+  type PreparedRejection,
+  type RejectionOutcome,
+} from './rejection-capture.js';
 
 import { createErrorCaptureLedger, emptyErrorCaptureStatus, type ErrorCaptureStatus, type ErrorCaptureOutcome } from './error-capture-status.js';
 
@@ -61,10 +68,13 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     try {
       const identity = identityFor(reason);
       // Rejected non-Error values are often responses or request configs:
-      // report their type, never their headers, cookies or URLs.
-      const facts = extractFacts(reason, renderLabel);
+      // report their type, never their headers, cookies, URLs or cause.
+      let labelled = false;
+      const facts = extractFacts(reason, (value) => { labelled = true; return renderLabel(value); });
       if (!ownsCapture()) return undefined;
-      const causeChain = extractCrashCauseChain(reason, (value) => redactStringContent(value, {}), ownsCapture);
+      const causeChain = labelled
+        ? undefined
+        : extractCrashCauseChain(reason, (value) => redactStringContent(value, {}), ownsCapture);
       if (!ownsCapture()) return undefined;
       const payload = JSON.stringify({
         ...facts,
@@ -88,7 +98,7 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     let outcome: ErrorCaptureOutcome = 'captureFailed';
     try {
       if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) { outcome = 'duplicateSuppressed'; return 'duplicate'; }
-      if (automaticKeys.size >= 10) { outcome = 'allowanceSuppressed'; return 'allowance'; }
+      if (automaticKeys.size >= 10 || exceedsValueShare(automaticKeys, snapshot.key)) { outcome = 'allowanceSuppressed'; return 'allowance'; }
       const handledMethod = NativeEverframe.captureHandledException;
       const method = NativeEverframe.reportCrash;
       if (!ownsCapture()) { outcome = 'inactiveAborted'; return 'inactive'; }

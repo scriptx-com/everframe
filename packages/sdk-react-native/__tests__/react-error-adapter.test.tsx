@@ -89,6 +89,18 @@ it('an error caught during the provider first commit is not captured', () => {
   expect(screen.getByText('Boundary fallback')).toBeTruthy(); expect(native).not.toHaveBeenCalled();
   expect(getErrorCaptureStatus()).toMatchObject({ status: 'active', counters: { handled: { attempted: 0 } } });
 });
+class ProviderFallback extends Boundary {
+  override render() { return this.state.failed ? <EverframeProvider config={{ apiKey: 'txx_test_key' }}><span>Provider fallback</span></EverframeProvider> : this.props.children; }
+}
+const outsideWithProvider = (error?: Error) => <ProviderFallback><EverframeProvider config={{ apiKey: 'txx_test_key' }}><Child error={error} /></EverframeProvider></ProviderFallback>;
+it.each(['update', 'first render'])('a wrapping boundary reports through the provider its fallback mounts (%s error)', when => {
+  vi.stubGlobal('__DEV__', true); const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  if (when === 'update') render(outsideWithProvider()).rerender(outsideWithProvider(new Error(when)));
+  else render(outsideWithProvider(new Error(when)));
+  expect(screen.getByText('Provider fallback')).toBeTruthy(); expect(native).toHaveBeenCalledTimes(1);
+  expect(getErrorCaptureStatus()).toMatchObject({ status: 'active', counters: { handled: { attempted: 1, accepted: 1 } } });
+  expect(warn).not.toHaveBeenCalled();
+});
 it('development builds warn once per provider mount change when no provider is mounted', () => {
   vi.stubGlobal('__DEV__', true); const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   render(firstCommit()); expect(warn).toHaveBeenCalledTimes(1); cleanup();
