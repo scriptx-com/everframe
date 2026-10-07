@@ -1,0 +1,49 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_fe85cb5a5c04d2 600-634,827-830,1328,1378-1380
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_97602a0a2d8f20::t_0d6d216d578de8 1-108
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_5962212a426267::t_524107c88273e5 1-143
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_97602a0a2d8f20::t_535afb1534de1b 1-90
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRequests.kt
+  s_97602a0a2d8f20::t_67c9af3c708980 1-20
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRevocation.kt
+  s_97602a0a2d8f20::t_2029e1f7eb9d82 1-22
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_5962212a426267::t_2632ea728b1d5c 24,36,105,109,117,136
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_97602a0a2d8f20::t_842d5ab048b076 1-122
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_5962212a426267::t_323fff8023928d 1-146
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidTombstoneReaderTest.kt
+  s_5962212a426267::t_03246c5f749953 45-48
+packages/sdk-ios/Sources/EverframeProtocol/CrashCompat.swift
+  s_97602a0a2d8f20::t_8d95c728fd8e7f 6-33,52,119
+packages/sdk-ios/Tests/EverframeTests/CrashReportCrossSDKTests.swift
+  s_97602a0a2d8f20::t_2f276afb55f7f4 163-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09125baad8ef49b993009f9111a24658291b59e4",
+  "prompts": {},
+  "sessions": {
+    "s_5962212a426267": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa9beed1-8fd6-43b6-8213-e48bea82c638",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
