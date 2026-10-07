@@ -81,10 +81,29 @@ function renderValue(value: unknown): string {
   return output;
 }
 
-export function extractFacts(value: unknown): { exceptionType: string; message: string; framesRaw: string[] } {
+const numberToString = Number.prototype.toString;
+/** Keeps bounded primitives; never reads properties, coerces objects or serializes contents. */
+export function renderLabel(value: unknown): string {
+  if (value === null) return 'null';
+  switch (typeof value) {
+    case 'undefined': return 'undefined';
+    case 'string': return value.slice(0, MAX_MESSAGE);
+    case 'boolean': return value ? 'true' : 'false';
+    case 'number': return numberToString.call(value);
+    case 'bigint': return '[bigint]';
+    case 'symbol': return '[symbol]';
+    case 'function': return '[function]';
+    default: return '[object]';
+  }
+}
+
+export function extractFacts(
+  value: unknown,
+  renderOther: (value: unknown) => string = renderValue,
+): { exceptionType: string; message: string; framesRaw: string[] } {
   let isError = false;
   try { isError = value instanceof Error; } catch { /* hostile proxy */ }
-  if (!isError) return { exceptionType: 'UnhandledValue', message: renderValue(value), framesRaw: [] };
+  if (!isError) return { exceptionType: 'UnhandledValue', message: renderOther(value), framesRaw: [] };
   const error = value as object;
   const name = read(error, 'name');
   const exceptionType = typeof name === 'string' && name ? name.slice(0, MAX_TYPE) : 'Error';

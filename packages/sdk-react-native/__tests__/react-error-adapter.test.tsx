@@ -74,6 +74,30 @@ it('initial fallback before any provider remains inert and is not replayed', () 
   expect(getErrorCaptureStatus().status).toBe('not-mounted'); mount();
   expect(native).not.toHaveBeenCalled(); expect(getErrorCaptureStatus().counters.handled.attempted).toBe(0);
 });
+const outside = (error?: Error) => <Boundary><EverframeProvider config={{ apiKey: 'txx_test_key' }}><Child error={error} /></EverframeProvider></Boundary>;
+const firstCommit = () => <EverframeProvider config={{ apiKey: 'txx_test_key' }}><Boundary><Child error={new Error('first commit')} /></Boundary></EverframeProvider>;
+it('a boundary wrapping the provider is inert because the provider unmounts before componentDidCatch', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const view = render(outside()); expect(getErrorCaptureStatus().status).toBe('active');
+  view.rerender(outside(new Error('update failure')));
+  expect(screen.getByText('Boundary fallback')).toBeTruthy();
+  expect(native).not.toHaveBeenCalled(); expect(getErrorCaptureStatus().status).toBe('not-mounted');
+  expect(warn).not.toHaveBeenCalled();
+});
+it('an error caught during the provider first commit is not captured', () => {
+  render(firstCommit());
+  expect(screen.getByText('Boundary fallback')).toBeTruthy(); expect(native).not.toHaveBeenCalled();
+  expect(getErrorCaptureStatus()).toMatchObject({ status: 'active', counters: { handled: { attempted: 0 } } });
+});
+it('development builds warn once per provider mount change when no provider is mounted', () => {
+  vi.stubGlobal('__DEV__', true); const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  render(firstCommit()); expect(warn).toHaveBeenCalledTimes(1); cleanup();
+  const view = render(outside()); view.rerender(outside(new Error('update failure'))); captureReactError(new Error('repeat'));
+  expect(warn).toHaveBeenCalledTimes(2);
+  for (const [message] of warn.mock.calls) expect(String(message)).toContain('inside <EverframeProvider>');
+  mount(true); captureReactError(new Error('disabled')); expect(warn).toHaveBeenCalledTimes(2);
+  expect(native).not.toHaveBeenCalled();
+});
 it('disabled and unmounted calls remain inert; remount resets counters', () => {
   captureReactError(new Error('before')); const disabled = mount(true); captureReactError(new Error('disabled'));
   expect(getErrorCaptureStatus()).toMatchObject({ status: 'disabled', reason: 'crash-reporting-disabled', counters: { handled: { attempted: 0 } } });

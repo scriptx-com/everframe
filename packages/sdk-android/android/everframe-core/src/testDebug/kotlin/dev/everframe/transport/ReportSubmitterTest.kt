@@ -191,6 +191,41 @@ class ReportSubmitterTest {
         assertEquals(1, ledger.snapshot().transport.getValue("live-submit").outcomes.getValue("authorization-cancelled"))
     }
 
+    @Test fun `live authorization revoked after the pre-check is labelled authorization cancelled`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+        val revokedAtStart = object : ReportAuthorization {
+            override fun evaluate() = ReportAuthorizationDecision(true, true)
+            override fun tryStart(expected: ReportAuthorizationDecision, start: () -> Unit) = false
+        }
+        val before = server.requestCount
+        val result = makeSubmitter().observing(owner).submit("{}".toByteArray(), "revoked-in-flight", emptyList(), authorization = revokedAtStart)
+        assertTrue(result is ReportResult.Cancelled)
+        assertEquals(before, server.requestCount)
+        val live = ledger.snapshot().transport.getValue("live-submit")
+        assertEquals(1, live.settledAttempts)
+        assertEquals(1, live.outcomes.getValue("authorization-cancelled"))
+        assertEquals(0, live.outcomes.getValue("network-failure"))
+        assertEquals(0, live.outcomes.getValue("failed"))
+        assertTrue(outbox.hydrate().isEmpty())
+    }
+
+    @Test fun `drain upload refused after a kill invalidates the store is labelled authorization cancelled`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+        val endpoint = server.url("/api/ingest").toString()
+        outbox.enqueue(OutboxEntry("revoked-drain", 1L, "{}".toByteArray(), "revoked-drain", emptyList(), "test-sdk-key", endpoint))
+        // The epoch closure runs inside the drain after the entry was read and before
+        // its upload starts: invalidate there, as a kill landing mid-drain does.
+        makeSubmitter().observing(owner).drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0,
+            { outbox.store.invalidateSync(); 0 })
+        val paths = generateSequence { server.takeRequest(100, TimeUnit.MILLISECONDS) }.map { it.path }.toList()
+        assertFalse("drain must not upload: $paths", paths.any { it != "/api/config" })
+        val drain = ledger.snapshot().transport.getValue("outbox-drain")
+        assertEquals(1, drain.settledAttempts)
+        assertEquals(1, drain.outcomes.getValue("authorization-cancelled"))
+        assertEquals(0, drain.outcomes.getValue("network-failure"))
+        assertEquals(0, drain.outcomes.getValue("failed"))
+    }
+
     @Test fun `diagnostics distinguish retry terminal retention and server accepted removal`() = runBlocking {
         val ledger = dev.everframe.diagnostics.ReportDiagnostics()
         val owner = ledger.beginGeneration(0, true)
