@@ -27,11 +27,17 @@ enum NativeCrashContextFiles {
         return value
     }
 
+    /// One mkdir sets the final mode; umask can only clear bits. A directory that
+    /// fails protection or validation is removed before the error propagates.
     static func makeDirectory(_ url: URL) throws {
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false,
-                                              attributes: [.posixPermissions: 0o700])
-        try protect(url, directory: true)
-        try directory(url)
+        guard mkdir(url.path, 0o700) == 0 else { throw posixError() }
+        do {
+            try protect(url, directory: true)
+            try directory(url)
+        } catch {
+            rmdir(url.path)
+            throw error
+        }
     }
 
     static func protect(_ url: URL, directory: Bool) throws {
