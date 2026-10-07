@@ -1,0 +1,22 @@
+packages/sdk-ios/crash-recorder/Tests/context-probes.py
+  s_360d9eb003c487::t_e76982809b824a 15-19
+  s_360d9eb003c487::t_5ea0b8c492e73c 46,48-49
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_360d9eb003c487::t_1e928508fd9613 81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d6591a2172e79d355280fc85dffad0581e8caa4",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
