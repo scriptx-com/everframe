@@ -1013,7 +1013,6 @@ export function init(config: WebEverframeConfig): Everframe {
       // that was already superseded, must not tear down a LIVE instance.
       if (current !== handle) return;
       disposed = true;
-      stoppingNormally = true;
       void releaseHealth.stop();
       // Always finalizes (collector.stop() sends the final summary) and is
       // idempotent — a server-config-flip stop that already ran this session
@@ -1082,10 +1081,15 @@ export function init(config: WebEverframeConfig): Everframe {
       // a no-op), and are re-claimed by the next init()'s
       // `__rebindCrumbHooks()`; `kill()` is what stops THIS client from
       // capturing through them.
+      stoppingNormally = true;
       try {
         client.kill();
       } catch {
         /* swallow — DEFE-02 */
+      } finally {
+        // A later explicit kill on the retained handle must still revoke its
+        // durable health route; only this internal teardown call is exempt.
+        stoppingNormally = false;
       }
       current = null;
     },

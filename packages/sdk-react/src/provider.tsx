@@ -52,6 +52,7 @@ export interface InternalContext {
   adapter: WebPlatformAdapter;
   config: WebEverframeConfig;
   releaseHealth: ReturnType<typeof createProviderReleaseHealth>;
+  stopClient: () => void;
   /** Freeze-then-open helper — freezes the replay buffer before mounting the modal. */
   openModal: () => void;
 }
@@ -95,6 +96,12 @@ function sha256OfBytes(bytes: Uint8Array): Promise<string> {
 // in its for-of type inference. A const has identical React semantics here and
 // gives Babel an unambiguous lexical binding.
 export const EverframeProvider = ({ config, identity, children }: EverframeProviderProps) => {
+  // Repairable client contexts share the same real-mount configuration. A
+  // child's effect may mutate the caller's object before StrictMode repairs it.
+  const [mountConfig] = useState<WebEverframeConfig>(() => ({
+    ...config,
+    ...(config.releaseHealth ? { releaseHealth: { ...config.releaseHealth } } : {}),
+  }));
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({
@@ -131,6 +138,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   });
 
   const createCtx = (): InternalContext => {
+    const config = mountConfig;
     // The adapter's own crash path stamps `envelope.sdk.name` + `.version`.
     // It lives in @everframe/web now — a package with a different name on the
     // wire and an independently versioned PKG_VERSION — so tell it which SDK
@@ -144,10 +152,17 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     const client = createClient(adapter);
     client.init(config);
     const releaseHealth = createProviderReleaseHealth(config, PKG_VERSION);
+    let normalCleanupCall = false;
     const originalOnKill = adapter.onKill?.bind(adapter);
     adapter.onKill = () => {
       try { originalOnKill?.(); }
-      finally { if (!releaseHealth.stoppedNormally) releaseHealth.revoke(); }
+      finally { if (!normalCleanupCall) releaseHealth.revoke(); }
+    };
+    const stopClient = () => {
+      releaseHealth.stop();
+      normalCleanupCall = true;
+      try { client.kill(); }
+      finally { normalCleanupCall = false; }
     };
     // Bind the crumb sink to the client's buffer (one chain for auto + manual
     // crumbs; addBreadcrumb and the web adapters share redaction + lifecycle).
@@ -198,7 +213,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // __openReporter's pending-promise lifecycle now; it calls this on every
     // open request).
     adapter.__registerShowModal(openModal);
-    return { client, adapter, config, releaseHealth, openModal };
+    return { client, adapter, config, releaseHealth, stopClient, openModal };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   };
   // Single-init by design — config swap requires Provider remount.
@@ -576,9 +591,8 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   useEffect(() => {
     return () => {
       // DEFE-03 cleanup on unmount
-      ctxValue.releaseHealth.stop();
       try {
-        ctxValue.client.kill();
+        ctxValue.stopClient();
       } catch {
         /* swallow — DEFE-02 */
       }

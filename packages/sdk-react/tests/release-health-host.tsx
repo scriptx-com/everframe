@@ -10,30 +10,36 @@ import type { WebEverframeConfig } from '@everframe/web';
 let root: Root | undefined;
 let client: ReturnType<typeof useEverframe> | undefined;
 let config: WebEverframeConfig;
-function Controls({ killOnMount, mutateOnMount }: { killOnMount?: boolean; mutateOnMount?: boolean }) {
+let strict = false;
+function Controls({ killOnMount, mutateOnMount, mutateConsentOnMount }: {
+  killOnMount?: boolean; mutateOnMount?: boolean; mutateConsentOnMount?: boolean;
+}) {
   client = useEverframe();
   useEffect(() => {
     if (mutateOnMount) {
       config.apiKey = 'mutated-key';
       config.releaseHealth!.loadedBuildId = 'mutated-build';
     }
+    if (mutateConsentOnMount) { config.disabled = true; config.releaseHealth!.enabled = false; }
     if (killOnMount) client!.kill();
   }, []);
   return <button id="alive">Host mounted</button>;
 }
 export function mount(options: { apiKey?: string; build?: string; strict?: boolean; killOnMount?: boolean;
-  mutateOnMount?: boolean; health?: boolean; disabled?: boolean } = {}) {
+  mutateOnMount?: boolean; mutateConsentOnMount?: boolean; health?: boolean; disabled?: boolean } = {}) {
   if (root) throw new Error('Unmount the previous host first');
   config = { apiKey: options.apiKey ?? 'pk_test_a', disabled: options.disabled === true, vitals: { enabled: false },
     ...(options.health === undefined ? {} : { releaseHealth: { enabled: options.health,
       ...(options.build === undefined ? {} : { loadedBuildId: options.build }) } }) };
   root = createRoot(document.getElementById('root')!);
+  strict = options.strict === true;
   const tree = <EverframeProvider config={config}><Controls {...options}/></EverframeProvider>;
-  flushSync(() => root!.render(options.strict ? <StrictMode>{tree}</StrictMode> : tree));
+  flushSync(() => root!.render(strict ? <StrictMode>{tree}</StrictMode> : tree));
 }
 export function rerender() {
-  flushSync(() => root!.render(<EverframeProvider config={{ ...config, apiKey: 'ignored-new-key',
-    releaseHealth: { enabled: true, loadedBuildId: 'ignored-new-build' } }}><Controls/></EverframeProvider>));
+  const tree = <EverframeProvider config={{ ...config, apiKey: 'ignored-new-key',
+    releaseHealth: { enabled: true, loadedBuildId: 'ignored-new-build' } }}><Controls/></EverframeProvider>;
+  flushSync(() => root!.render(strict ? <StrictMode>{tree}</StrictMode> : tree));
 }
 export function unmount() { flushSync(() => root?.unmount()); root = undefined; }
 export function kill() { client!.kill(); }

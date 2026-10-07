@@ -142,6 +142,18 @@ try {
     return { before, after };
   });
   assert.deepEqual(defaultOffPurge, { before: 2, after: 0 });
+  // Explicit privacy kill remains effective after normal destruction.
+  await page.evaluate(() => window.handle.destroy()); await load();
+  await start('late-destroy-kill', 'pk_late_destroy');
+  const lateDestroyPurge = await page.evaluate(async () => {
+    window.handle.destroy(); await new Promise(r => setTimeout(r, 100));
+    const before = (await window.handle.releaseHealth.diagnostics()).queued;
+    window.handle.kill();
+    const deadline = Date.now() + 5000; let after;
+    do { after = (await window.handle.releaseHealth.diagnostics()).queued; if (after === 0) break; await new Promise(r => setTimeout(r, 20)); } while (Date.now() < deadline);
+    return { before, after };
+  });
+  assert.deepEqual(lateDestroyPurge, { before: 2, after: 0 });
   // A failed purge remains a barrier for subsequent producers in this document.
   const failedPurge = await page.evaluate(async () => {
     const original = IDBDatabase.prototype.transaction;
@@ -174,6 +186,6 @@ try {
   });
   assert.deepEqual(failedPurge, ['kill', 'disabled'].map(mode => ({ mode, blockedState: 'unavailable', sent: ['new-build'] })));
   await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: await browser.version(), received,
-    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'default-off-kill-purges-prior-route', 'failed-purge-reenable-barrier'] }, null, 2));
+    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'default-off-kill-purges-prior-route', 'explicit-kill-after-destroy', 'failed-purge-reenable-barrier'] }, null, 2));
   console.log('PASS: actual init, real IndexedDB, offline reload, frozen build/route, privacy kill and disabled purge');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

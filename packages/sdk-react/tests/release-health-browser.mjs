@@ -48,7 +48,7 @@ try {
   }
   const queued = n => waitRecords(page, n);
   async function settle() { await page.waitForTimeout(150); }
-  await load(); await mount({ health: true, build: 'build-A', mutateOnMount: true });
+  await load(); await mount({ health: true, build: 'build-A', strict: true, mutateOnMount: true });
   const [first] = await queued(1);
   assert.equal(first.exposure.loadedBuildId, 'build-A');
   await page.evaluate(() => { window.host.identify(); window.host.rerender(); });
@@ -72,7 +72,7 @@ try {
   checks.push('kill-purge-and-reenable');
   await context.close();
 
-  for (const scenario of ['strict', 'child-kill', 'strict-child-kill', 'absent', 'disabled', 'storage-denied']) {
+  for (const scenario of ['strict', 'strict-consent-mutation', 'child-kill', 'strict-child-kill', 'absent', 'disabled', 'storage-denied']) {
     const isolated = await browser.newContext(); const tab = await isolated.newPage();
     tab.on('pageerror', error => browserErrors.push(error.message));
     if (scenario === 'storage-denied') await tab.addInitScript(() => {
@@ -84,9 +84,9 @@ try {
     });
     const before = accepted.length;
     await tab.goto(endpoint); await tab.waitForFunction(() => !!window.host);
-    await tab.evaluate(scenario => window.host.mount({ build: scenario, strict: scenario === 'strict' || scenario === 'strict-child-kill',
+    await tab.evaluate(scenario => window.host.mount({ build: scenario, strict: scenario.startsWith('strict'), mutateConsentOnMount: scenario === 'strict-consent-mutation',
       killOnMount: scenario === 'child-kill' || scenario === 'strict-child-kill', health: scenario === 'absent' ? undefined : scenario !== 'disabled' }), scenario);
-    if (scenario === 'strict') {
+    if (scenario === 'strict' || scenario === 'strict-consent-mutation') {
       await waitRecords(tab, 0);
       await tab.waitForTimeout(200); assert.equal(accepted.length, before + 1);
       await tab.evaluate(() => window.host.kill());
@@ -111,7 +111,16 @@ try {
   assert(remaining.every(row => row.exposure.loadedBuildId === 'route-B'));
   await tab.evaluate(() => { window.host.unmount(); window.host.mount({ apiKey: 'pk_route_b' }); window.host.kill(); });
   await waitRecords(tab, 0);
-  await routes.close(); checks.push('key-isolation-and-disabled-purge', 'kill-without-opt-in-purges-prior-route');
+  await tab.evaluate(() => window.host.unmount()); online = false;
+  await tab.evaluate(() => window.host.mount({ apiKey: 'pk_late_kill', health: true, build: 'late-kill-old' }));
+  await waitRecords(tab, 1); await tab.evaluate(() => window.host.unmount()); await waitRecords(tab, 2);
+  await tab.evaluate(() => window.host.kill()); await waitRecords(tab, 0);
+  await tab.goto(endpoint); await tab.waitForFunction(() => !!window.host); online = true;
+  const beforeLate = accepted.length;
+  await tab.evaluate(() => window.host.mount({ apiKey: 'pk_late_kill', health: true, build: 'after-late-kill' }));
+  await tab.waitForTimeout(200); assert.equal(accepted.length, beforeLate + 1);
+  assert.equal(accepted.at(-1).record.exposure.loadedBuildId, 'after-late-kill');
+  await routes.close(); checks.push('key-isolation-and-disabled-purge', 'kill-without-opt-in-purges-prior-route', 'explicit-kill-after-unmount');
   assert.equal(browserErrors.length, 0, browserErrors.join('\n'));
   for (const { record } of attempts) {
     assert.equal(record.exposure.subject, 'anonymous_exposure');
