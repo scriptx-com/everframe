@@ -1,0 +1,33 @@
+docs/release-health.md
+  s_97602a0a2d8f20::t_22a4f7bc1d6fa1 1-23
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_d20052b660fa2f 1-23
+packages/sdk-web/src/index.ts
+  s_97602a0a2d8f20::t_b60e879aecced4 204-205
+packages/sdk-web/src/init.ts
+  s_97602a0a2d8f20::t_fec8ee1a8d5acb 62,71-72,227-230,974,1016-1017
+packages/sdk-web/src/internal/types.ts
+  s_97602a0a2d8f20::t_a088693ef22853 8-10
+packages/sdk-web/src/release-health/journal.ts
+  s_97602a0a2d8f20::t_98d472e4ba53c8 1-142
+packages/sdk-web/src/release-health/runtime.ts
+  s_97602a0a2d8f20::t_488c9dbbc48e72 1-150
+packages/sdk-web/tests/release-health-browser.mjs
+  s_97602a0a2d8f20::t_86c9c93c20e599 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee9139a51639043a50c8024cadcb5c56ea780957",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
