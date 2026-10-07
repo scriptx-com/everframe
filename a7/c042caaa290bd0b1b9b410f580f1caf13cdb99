@@ -1,0 +1,69 @@
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_97602a0a2d8f20::t_20d36bd0551d0f 1-83
+packages/protocol/compat/diagnostic/OldPayloadCaller.kt
+  s_97602a0a2d8f20::t_3d7f7f5d78da1f 1-15
+packages/protocol/compat/diagnostic/OldPayloadCaller.swift
+  s_97602a0a2d8f20::t_0f0fcec2aba853 1-17
+packages/protocol/compat/diagnostic/README.md
+  s_97602a0a2d8f20::t_014f26470c05e4 1-7
+packages/protocol/compat/diagnostic/SwiftMain.swift
+  s_97602a0a2d8f20::t_fbb07c2508c736 1-10
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_bf0d33e77c7454 24-25,1058-1060,2491-2685
+packages/protocol/scripts/check-crash-model-compat.mjs
+  s_97602a0a2d8f20::t_4ff849879e7979 28-31,36,54,86,91
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_679230ce15f73e 159-183
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_4d2631f9a519e5 46-47
+packages/protocol/src/diagnostic.ts
+  s_97602a0a2d8f20::t_0c1b4b71da26ea 1-63
+packages/protocol/src/envelope.ts
+  s_97602a0a2d8f20::t_ee753051660be1 7,27,159,195-214
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_3f00bdcb8dcf59 67-68
+packages/sdk-android/README.md
+  s_97602a0a2d8f20::t_b148e020082df8 71-78
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_7ca2862a2cadf5 614-634,637-638,648
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidExitDiagnostic.kt
+  s_97602a0a2d8f20::t_085517d458372f 1-94
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_97602a0a2d8f20::t_ff62ff993e4571 24-25,41-42,56,69-70,73-74,79,101
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_97602a0a2d8f20::t_cb5697b91e8950 43-44,54-58,72-73,86-91,99-113,116-117,119,124,129-137,141,148-153,155,170,172-175
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_97602a0a2d8f20::t_c2bbc99a41c277 22,24,32-39,43,49,57,60,84
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRequests.kt
+  s_97602a0a2d8f20::t_fa6b7892b5d6e8 11,15,17,21-22,25,32
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidExitDiagnosticTest.kt
+  s_97602a0a2d8f20::t_e6eba9c233c0f4 1-149
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_97602a0a2d8f20::t_c4aec0cf3979c3 46-78
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_101df737558eab 164-194,500-614,783
+packages/sdk-android/tests/native-crash-host/README.md
+  s_97602a0a2d8f20::t_597c56ccbace97 1-2,14-15
+packages/sdk-android/tests/native-crash-host/app/src/main/java/dev/everframe/nativeproof/MainActivity.kt
+  s_97602a0a2d8f20::t_5862f453caaf1e 40,46,109,114-118
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_90d2d4af9e24c3 577,586,590,624,638,1729-2095,2663
+packages/sdk-ios/Sources/EverframeProtocol/PayloadCompat.swift
+  s_97602a0a2d8f20::t_441f675f7df237 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a7c042caaa290bd0b1b9b410f580f1caf13cdb99",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
