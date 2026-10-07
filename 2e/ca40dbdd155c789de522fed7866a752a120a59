@@ -1,0 +1,39 @@
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecorderAdapter.swift
+  s_97602a0a2d8f20::t_0039a9c262c81e 11-13,15-16
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryContext.swift
+  s_97602a0a2d8f20::t_ab4f79840c9a75 9
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_97602a0a2d8f20::t_99d07c60f07ac9 45,53
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_97602a0a2d8f20::t_dbc87dae9d9e5a 102-109
+packages/sdk-ios/Tests/NativeCrashStartupProof/.gitignore
+  s_97602a0a2d8f20::t_355d13742b17b8 1
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_97602a0a2d8f20::t_f9d573b2a1c6e7 1-136
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.h
+  s_97602a0a2d8f20::t_888e539a8884bc 1-8
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.m
+  s_97602a0a2d8f20::t_0a4ae5b6417ce8 1-44
+packages/sdk-ios/Tests/NativeCrashStartupProof/Proof.entitlements
+  s_97602a0a2d8f20::t_82199f3709181f 1-7
+packages/sdk-ios/Tests/NativeCrashStartupProof/project.yml
+  s_97602a0a2d8f20::t_f3bb84a136f536 1-42
+packages/sdk-ios/project.yml
+  s_97602a0a2d8f20::t_b7da18ee9575b4 93-96,128-132,134-135,138-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2eca40dbdd155c789de522fed7866a752a120a59",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
