@@ -34,6 +34,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -43,7 +44,8 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
 class TXReporterPresenterSingleFlightTest {
-    @After fun close() { Everframe.kill(); Everframe.clearExtra() }
+    @Before fun reset() { TXReporterPresenter.__resetSingleFlightForTesting() }
+    @After fun close() { Everframe.kill(); Everframe.clearExtra(); TXReporterPresenter.__resetSingleFlightForTesting() }
 
     @Test fun concurrentOpensPresentOneReporterAndShareItsResult() = runBlocking {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
@@ -66,7 +68,8 @@ class TXReporterPresenterSingleFlightTest {
 
         // Separate presenter instances, as separate entry points create them.
         val first = async { presenter().openReporter(activity) }
-        while (presented.get() == 0) yield()
+        awaitPresented(presented, 1)
+        assertTrue("the first open is still showing", first.isActive)
         val second = async { presenter().openReporter(activity) }
         yield()
         assertEquals("a second open while one is showing must not present again", 1, presented.get())
@@ -75,6 +78,7 @@ class TXReporterPresenterSingleFlightTest {
         userSends.complete(result)
         assertSame(result, first.await())
         assertSame("the joining caller receives the open report's result", result, second.await())
+        assertFalse(Everframe.report.isPresenting.value)
 
         // Once the report is closed, the next open presents normally.
         val next = presenter().openReporter(activity)

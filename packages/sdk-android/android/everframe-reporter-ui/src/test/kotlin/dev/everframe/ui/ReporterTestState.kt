@@ -19,4 +19,5 @@ internal fun resetReporterTestState() {
     Everframe.report.__resolver = null
     Everframe.__activitySupplier = null
     Everframe.__attachPinUiInstalled = false
+    TXReporterPresenter.__resetSingleFlightForTesting()
 }

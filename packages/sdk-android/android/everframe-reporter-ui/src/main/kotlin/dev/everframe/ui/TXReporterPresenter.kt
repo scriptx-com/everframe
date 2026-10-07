@@ -213,5 +213,10 @@ internal class TXReporterPresenter(
     internal companion object {
         private val lock = Any()
         private var inFlight: Flight? = null
+
+        /** Tests only: forget a flight that an earlier test left in this process. */
+        internal fun __resetSingleFlightForTesting() {
+            synchronized(lock) { inFlight = null }
+        }
     }
 }
