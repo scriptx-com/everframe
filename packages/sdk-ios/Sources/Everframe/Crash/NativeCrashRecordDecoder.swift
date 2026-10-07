@@ -48,7 +48,7 @@ enum NativeCrashRecordDecoder {
         let type = text(rawType, limit: 256, redact: redact, fallback: fault.type)
         let message = text(fault.reason ?? rawType, limit: 4096, redact: redact, fallback: type)
         var images: [EverframeNativeCrashImage] = [], frames: [EverframeFrame] = []
-        var nativeFrames: [EverframeNativeCrashFrame] = [], sourceToOutput: [Int: Int] = [:]
+        var nativeFrames: [EverframeNativeCrashFrame] = [], sourceToOutput: [Int: Int] = [:], appKeys: [String] = []
         var imagesIncomplete = vendor.binary_images == nil
         var candidates: [(Int, NativeCrashVendorRecord.Image, String)] = []
         for (index, entry) in (vendor.binary_images?.values ?? []).enumerated() {
@@ -78,6 +78,7 @@ enum NativeCrashRecordDecoder {
                         uuid: uuid, vmAddress: image.image_vmaddr.map(hex)))
                 }
                 offset = hex(pc - image.image_addr)
+                if !isSystemImage(image.name) { appKeys.append("\(uuid):\(hex(pc - image.image_addr))") }
             } else { imagesIncomplete = true }
             let symbol = entry.symbol_name.map { text($0, limit: 512, redact: redact, fallback: "<unknown>") }
             let raw = bounded("\(name) \(symbol ?? "<unknown>") \(hex(pc))", limit: 1024)
@@ -93,10 +94,12 @@ enum NativeCrashRecordDecoder {
                 || backtrace?.contents.incomplete == true || (backtrace?.skipped ?? 0) != 0,
             images: images, imagesIncomplete: imagesIncomplete, platform: .apple,
             timestampMicros: String(header.timestamp))
-        let keys = nativeFrames.prefix(5).enumerated().map { index, frame in
+        // Key app frames: OS images hold terminate/abort machinery and change with every OS update.
+        // Without any app frame, the leading frames key the group.
+        let keys = appKeys.isEmpty ? nativeFrames.prefix(5).enumerated().map { index, frame in
             if let image = frame.imageIndex, let offset = frame.imageOffset { return "\(images[image].uuid):\(offset)" }
             return frames[index].function ?? "<unknown>"
-        }
+        } : Array(appKeys.prefix(5))
         let fingerprint = SHA256.hash(data: Data(([type] + keys).joined(separator: "\n").utf8))
             .prefix(8).map { String(format: "%02x", $0) }.joined()
         let occurredAt = Date(timeIntervalSince1970: min(Double(header.timestamp) / 1_000_000, 253402300800.0.nextDown))
@@ -123,6 +126,11 @@ enum NativeCrashRecordDecoder {
         if type == 0x0100000c { if subtype <= 1 { return .arm64 }; if subtype == 2 { return .arm64E } }
         if type == 0x01000007 { if subtype == 3 { return .x8664 }; if subtype == 8 { return .x8664H } }
         return .unknown
+    }
+    /// OS images: shared-cache, cryptex and simulator runtime paths, judged before basename stripping.
+    private static func isSystemImage(_ path: String) -> Bool {
+        ["/System/", "/usr/lib/", "/Library/Apple/", "/private/preboot/"].contains { path.hasPrefix($0) }
+            || path.contains("/RuntimeRoot/")
     }
     private static func basename(_ value: String) -> String {
         String(value.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last ?? "")

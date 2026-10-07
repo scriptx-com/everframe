@@ -221,4 +221,30 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         XCTAssertEqual(fallback.frames.map(\.instructionAddress), ["0x180000010", "0x180000020", "0x180000030"])
         XCTAssertTrue(fallback.framesIncomplete)
     }
+    func testFingerprintKeysAppFramesNotSystemMachinery() throws {
+        let system: [(String, UInt64)] = [
+            ("/usr/lib/system/libsystem_kernel.dylib", 0x180000000), ("/usr/lib/libc++abi.dylib", 0x181000000),
+            ("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", 0x182000000),
+            ("/Library/Developer/CoreSimulator/Volumes/iOS/Library/Developer/CoreSimulator/Profiles/Runtimes/"
+             + "iOS.simruntime/Contents/Resources/RuntimeRoot/usr/lib/libobjc.A.dylib", 0x183000000)]
+        func images(build: Int) -> [[String: Any]] {
+            system.enumerated().map { index, entry in
+                image(base: entry.1, size: 0x100000, uuid: String(format: "%08lx-0000-4000-8000-%012lx", build, index), name: entry.0)
+            } + [image()]
+        }
+        let machinery = [frame(pc: 0x180000010), frame(pc: 0x181000010), frame(pc: 0x181000020),
+                         frame(pc: 0x182000010), frame(pc: 0x183000010)]
+        func fingerprint(_ type: String, site: UInt64, build: Int = 1) throws -> String {
+            try decode(record(type: type, frames: machinery + [frame(pc: site)], images: images(build: build))).crash.fingerprint
+        }
+        for type in ["nsexception", "mach"] {
+            // Identical terminate/abort machinery must not merge distinct app call sites.
+            XCTAssertNotEqual(try fingerprint(type, site: 0x20000000000011), try fingerprint(type, site: 0x20000000000021), type)
+            // An OS update changes system image identity, not the app call site's group.
+            XCTAssertEqual(try fingerprint(type, site: 0x20000000000011), try fingerprint(type, site: 0x20000000000011, build: 2), type)
+        }
+        // Without any app frame, the leading frames still key the group.
+        XCTAssertNotEqual(try decode(record(frames: machinery, images: images(build: 1))).crash.fingerprint,
+                          try decode(record(frames: Array(machinery.reversed()), images: images(build: 1))).crash.fingerprint)
+    }
 }

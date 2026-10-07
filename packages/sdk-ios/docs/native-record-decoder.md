@@ -24,8 +24,13 @@ The optional crash.native sidecar aligns one-for-one with display frames. Addres
 are exact unsigned64 lowercase hexadecimal strings; timestamps retain exact
 microseconds as decimal strings. Images retain UUID, CPU identity, range and
 optional VM address, using only redacted basenames. Display frames have no
-authored source location. Matching UUID/relative-offset fingerprints are stable
-across ASLR within one build; mapped cross-build grouping is a later layer.
+authored source location. The fingerprint hashes the exception type with the
+UUID/relative-offset keys of the first five frames in app images. OS images (paths
+under /System, /usr/lib, /Library/Apple, /private/preboot or a simulator
+RuntimeRoot) are skipped: they hold terminate/abort machinery and change with OS
+updates. Without any app frame, the first five frames are used; faults whose only
+app frame is the entry point share one group per exception type. Keys are stable
+across ASLR within one app build; mapped cross-build grouping is a later layer.
 
 The runtime protocol validator additionally checks image ranges, CPU/architecture
 consistency and frame associations. Generated JSON Schema expresses structural
