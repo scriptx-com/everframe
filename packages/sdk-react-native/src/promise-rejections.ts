@@ -7,9 +7,13 @@ import type { PreparedRejection, RejectionOutcome } from './rejection-capture.js
 
 export interface RejectionScheduler {
   now(): number;
+  /** Wall-clock time. The elapsed clock can exclude time an Android device sleeps. */
+  wallNow?(): number;
   occurredAt(): string;
   setTimer(callback: () => void, delayMs: number): unknown;
   clearTimer(handle: unknown): void;
+  /** Called inside Promise hooks, so it must never schedule through Promise. */
+  queueMicrotask?(callback: () => void): void;
 }
 interface ObserverOptions {
   prepareRejection(reason: unknown, occurredAt: string): PreparedRejection | undefined;
@@ -24,19 +28,32 @@ export interface RejectionObserver {
 }
 interface Pending {
   start: number;
+  wall: number;
   done: boolean;
   snapshot: PreparedRejection | undefined;
 }
 interface Timer { handle: unknown; assigned: boolean }
 
+function nativeMicrotask(): ((callback: () => void) => void) | undefined {
+  try {
+    // Bridgeless React Native installs the native microtask queue. The legacy
+    // polyfill schedules through Promise and would re-enter the observed hooks.
+    if ((globalThis as { RN$Bridgeless?: unknown }).RN$Bridgeless !== true) return undefined;
+    const queue = globalThis.queueMicrotask;
+    return typeof queue === 'function' ? (callback) => queue(callback) : undefined;
+  } catch { return undefined; }
+}
+
 function defaultScheduler(): RejectionScheduler {
   const performance = globalThis.performance;
   if (typeof performance?.now !== 'function') throw new Error('No elapsed clock');
   const now = performance.now.bind(performance);
+  const queueMicrotask = nativeMicrotask();
   return {
-    now, occurredAt: () => new Date().toISOString(),
+    now, wallNow: () => Date.now(), occurredAt: () => new Date().toISOString(),
     setTimer: (fn, delay) => setTimeout(fn, delay),
     clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    ...(queueMicrotask ? { queueMicrotask } : {}),
   };
 }
 
@@ -50,6 +67,8 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
   let identities = new WeakMap<object, Pending>();
   let timer: Timer | undefined;
   let scheduling = false;
+  let deferred: object | undefined;
+  let deferring = false;
   let lastTime = -Infinity;
   type Counter = Exclude<keyof PromiseRejectionStatus['counters'], 'pending'>;
   const count = (key: Counter, amount = 1) => {
@@ -88,6 +107,9 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
     lastTime = value;
     return value;
   }
+  function wallNow(): number {
+    try { return scheduler.wallNow?.() ?? NaN; } catch { return NaN; }
+  }
   function fail(reason: RejectionReason): void {
     count('captureFailed', pending.size);
     stop('install-failed', reason);
@@ -114,16 +136,40 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
     } catch { fail('hook-install'); }
     finally { scheduling = false; }
   }
+  /**
+   * Android pauses JS timers while its activity is paused, but JS can keep
+   * running. Promise traffic then notifies overdue records from a microtask,
+   * never synchronously inside the hook.
+   */
+  function flushOverdue(): void {
+    if (deferred || pending.size === 0 || !scheduler.queueMicrotask) return;
+    let time: number;
+    try { time = now(); } catch { fail('runtime'); return; }
+    if (![...pending].some((record) => record.snapshot && time - record.start >= 2000)) return;
+    const ticket = {};
+    deferred = ticket; deferring = true;
+    try {
+      scheduler.queueMicrotask(() => {
+        if (deferred !== ticket) return;
+        deferred = undefined;
+        if (!deferring) flush();
+      });
+    } catch { deferred = undefined; }
+    finally { deferring = false; }
+  }
   function flush(): void {
     if (!owns()) return;
     let time: number;
     try { time = now(); } catch { fail('runtime'); return; }
+    const wall = wallNow();
     for (const record of [...pending]) {
       if (!owns()) break;
       if (record.done || !record.snapshot || time - record.start < 2000) continue;
       const snapshot = record.snapshot;
       remove(record);
-      if (time - record.start > 30000) { count('expired'); continue; }
+      // Wall time also bounds age: the elapsed clock can exclude device sleep.
+      const wallAge = wall - record.wall;
+      if (time - record.start > 30000 || (Number.isFinite(wallAge) && wallAge > 30000)) { count('expired'); continue; }
       try {
         switch (options.submitRejection(snapshot)) {
           case 'accepted': count('accepted'); break;
@@ -138,13 +184,18 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
     schedule();
   }
   function onReject(promise: object, reason: unknown): void {
+    track(promise, reason);
+    flushOverdue();
+  }
+  function track(promise: object, reason: unknown): void {
     if (!owns() || identities.has(promise)) return;
     if (pending.size >= 16) { count('capacityDropped'); return; }
-    const record: Pending = { start: 0, done: false, snapshot: undefined };
+    const record: Pending = { start: 0, wall: NaN, done: false, snapshot: undefined };
     identities.set(promise, record); pending.add(record);
     try {
       record.start = now();
     } catch { fail('runtime'); return; }
+    record.wall = wallNow();
     try {
       const snapshot = options.prepareRejection(reason, scheduler.occurredAt());
       if (record.done || !owns()) return;
@@ -158,6 +209,7 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
     if (!owns()) return;
     const record = identities.get(promise);
     if (record && !record.done) { remove(record); count('cancelled'); }
+    flushOverdue();
   }
   try {
     scheduler = options.scheduler ?? defaultScheduler();

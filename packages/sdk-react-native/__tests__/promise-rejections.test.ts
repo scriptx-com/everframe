@@ -27,6 +27,7 @@ function fixture(prepare?: (reason: unknown, occurredAt: string) => PreparedReje
       previousCallbacksPresent: false, ownsHooks: () => owned, dispose: () => { owned = false; } }; },
   });
   return { observer, hooks, snapshot, timers, delivered, displace: () => { owned = false; },
+    at(time: number) { now = time; },
     tick(time: number) { now = time; const jobs = [...timers.values()]; timers.clear(); jobs.forEach(({fn}) => fn()); } };
 }
 it('waits 2000 ms and owns at most one timer', () => {
@@ -88,6 +89,41 @@ it('drops stale work instead of reporting it after a long suspension', () => {
   const f = fixture(); f.hooks.onReject({}, 'old'); f.tick(30001);
   expect(f.delivered).toEqual([]);
   expect(f.observer.getStatus().counters).toMatchObject({ pending: 0, expired: 1 });
+});
+it('notifies overdue work from later Promise activity while timers are paused', () => {
+  const microtasks: (() => void)[] = [];
+  const f = fixture(undefined, { queueMicrotask: (fn) => { microtasks.push(fn); } });
+  f.hooks.onReject({}, 'background');
+  f.at(1500); f.hooks.onHandle({});
+  expect(microtasks).toEqual([]);
+  f.at(2500); f.hooks.onHandle({}); f.hooks.onReject({}, 'second');
+  expect(f.delivered).toEqual([]);
+  expect(microtasks).toHaveLength(1);
+  microtasks.splice(0).forEach((fn) => fn());
+  expect(f.delivered.map((value) => JSON.parse(value.payload).message)).toEqual(['background']);
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 1, accepted: 1, expired: 0 });
+});
+it('never flushes synchronously inside a Promise hook', () => {
+  const f = fixture(undefined, { queueMicrotask: (fn) => fn() });
+  f.hooks.onReject({}, 'held'); f.at(2500); f.hooks.onHandle({});
+  expect(f.delivered).toEqual([]);
+  f.tick(2500); expect(f.delivered).toHaveLength(1);
+});
+it('expires work held across device sleep by wall-clock age', () => {
+  let wall = 0;
+  const f = fixture(undefined, { wallNow: () => wall });
+  f.hooks.onReject({}, 'slept'); wall = 600_000;
+  f.tick(1999); expect(f.observer.getStatus().counters).toMatchObject({ pending: 1, expired: 0 });
+  f.tick(15_000);
+  expect(f.delivered).toEqual([]);
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 0, expired: 1, accepted: 0 });
+});
+it('ignores a wall clock that moves backwards', () => {
+  let wall = 0;
+  const f = fixture(undefined, { wallNow: () => wall });
+  f.hooks.onReject({}, 'adjusted'); wall = -1_000_000; f.tick(2000);
+  expect(f.delivered).toHaveLength(1);
+  expect(f.observer.getStatus()).toMatchObject({ status: 'observing', counters: { accepted: 1, expired: 0 } });
 });
 it('fails closed on an elapsed-clock rollback', () => {
   const f = fixture(); f.hooks.onReject({}, 'old'); f.tick(-1);
