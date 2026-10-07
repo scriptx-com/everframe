@@ -141,13 +141,19 @@ enum NativeCrashRecordDecoder {
         return safe.isEmpty ? "<unknown>" : safe
     }
     private static func text(_ value: String, limit: Int, redact: (String) -> String, fallback: String) -> String {
-        let result = bounded(redact(bounded(value, limit: limit)), limit: limit)
+        // The redactor sees a 2x window with controls as spaces, so separators keep word boundaries
+        // and secrets straddling the output cap stay whole; its output is then stripped and capped.
+        let result = bounded(redact(bounded(value, limit: 2 * limit, separator: " ")), limit: limit)
+            .trimmingCharacters(in: .whitespaces)
         return result.isEmpty ? fallback : result
     }
-    private static func bounded(_ value: String, limit: Int) -> String {
+    private static func bounded(_ value: String, limit: Int, separator: Unicode.Scalar? = nil) -> String {
         var output = String.UnicodeScalarView(), units = 0
-        for scalar in value.unicodeScalars {
-            if scalar.value < 32 || (127...159).contains(scalar.value) { continue }
+        for var scalar in value.unicodeScalars {
+            if scalar.value < 32 || (127...159).contains(scalar.value) {
+                guard let separator else { continue }
+                scalar = separator
+            }
             let count = scalar.value > 0xffff ? 2 : 1
             if units + count > limit { break }
             output.append(scalar); units += count

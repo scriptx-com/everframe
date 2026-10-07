@@ -247,4 +247,16 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         XCTAssertNotEqual(try decode(record(frames: machinery, images: images(build: 1))).crash.fingerprint,
                           try decode(record(frames: Array(machinery.reversed()), images: images(build: 1))).crash.fingerprint)
     }
+    func testDefaultRedactionSeesSeparatorsAndSecretsStraddlingTheCap() throws {
+        let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqYW5lQGV4YW1wbGUuY29tIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        for (reason, secret) in [("Payment declined\n4111111111111111\nCode 51", "4111111111111111"),
+                                 ("Applicant ID\t123-45-6789", "123-45-6789"), ("Bearer\tabc.def-123", "abc.def-123"),
+                                 (String(repeating: "a ", count: 2030) + jwt, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")] {
+            let input = changeError(record(type: "nsexception"), "reason", reason)
+            let message = try decode(input, redact: { RedactionEngine().redact($0) }).crash.message
+            XCTAssertFalse(message.contains(secret), secret)
+            XCTAssertLessThanOrEqual(message.utf16.count, 4096)
+            XCTAssertFalse(message.unicodeScalars.contains { $0.value < 32 || (127...159).contains($0.value) }, secret)
+        }
+    }
 }

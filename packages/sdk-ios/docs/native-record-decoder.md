@@ -18,7 +18,9 @@ input frames are considered.
 Malformed frames/images and missing or ambiguous image matches remain explicitly
 incomplete. Unmatched instruction addresses remain available without guessed
 image associations. Process/system/memory/register metadata and exception
-userInfo are not copied.
+userInfo are not copied. Freeform text reaches the supplied redactor as a window of
+twice its output limit, with control characters replaced by spaces so separators
+keep word boundaries; the redacted text is then stripped of controls and capped.
 
 The optional crash.native sidecar aligns one-for-one with display frames. Addresses
 are exact unsigned64 lowercase hexadecimal strings; timestamps retain exact
