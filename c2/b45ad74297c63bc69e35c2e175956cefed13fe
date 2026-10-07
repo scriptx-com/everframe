@@ -1,0 +1,28 @@
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/TXReporterPresenterSingleFlightTest.kt
+  s_360d9eb003c487::t_87c6e401765459 91,93,100,111,115,117
+  s_360d9eb003c487::t_d7e1d436990d54 20-22,24-26,28,32,83-90,92,94-99,101-110,112-114,116,118-127
+  s_360d9eb003c487::t_d4da4414084c78 128
+.changeset/android-reporter-single-flight.md
+  s_360d9eb003c487::t_ad4a77e6c098c0 8
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_360d9eb003c487::t_d159b03175f7b5 52-53,59,63,66,68
+  s_360d9eb003c487::t_6d0e6a1b617d84 27
+  s_360d9eb003c487::t_ea8cc06f0716fd 56-58,60
+  s_360d9eb003c487::t_8e814dcd052617 186-195,198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c2b45ad74297c63bc69e35c2e175956cefed13fe",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
