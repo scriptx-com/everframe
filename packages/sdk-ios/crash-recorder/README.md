@@ -30,11 +30,26 @@ through the vendor monitors, and the signal alternate stack is set for the calli
 thread. Other threads get a recoverable `EFCRInstallWrongThread`, or `false` from
 `EFCRSetEnabled(true)`. Callers on another thread, such as the React Native JavaScript
 thread, must hop to the main thread asynchronously; a synchronous hop can deadlock.
-Disabling works on any healthy thread, so an opt-out takes effect where it is made: it
-closes a lock-free report gate before changing monitors, and the monitors then only
+Disabling works on any healthy thread, so an opt-out takes effect when its call returns:
+it closes a lock-free report gate before changing monitors, and the monitors then only
 flip flags, cancel a heartbeat timer, remove observers and unmap sidecars.
-A fatal handler that already passed the gate may finish writing. Underlying
-vendor tracker singletons can retain process-lifetime resources; disabled does
+A fatal handler that already passed the gate may finish writing.
+
+Calls take effect in the order they run, and the last call wins: the recorder cannot
+tell when a caller asked for a state. An enable still queued for the main thread
+therefore runs after a disable made directly in the meantime, on any thread, and turns
+capture back on. The queued block must apply the caller's latest request instead of a
+captured `true`. For example, keep the requested state under the integration's own
+lock. An enable request stores `true` and queues the block; an opt-out stores `false`
+and calls `EFCRSetEnabled(false)` while holding that lock; the block calls
+`EFCRSetEnabled(true)` while holding it only if `true` is still stored. A check made
+without that lock can pass just before an opt-out and still enable after it. Disabling
+never waits for the main thread, so a busy main thread delays an opt-out only while it
+runs that block. Alternatively, hop disables to the main queue as well: its first-in,
+first-out order then keeps the requests in order, but an opt-out waits for the main
+thread.
+
+Underlying vendor tracker singletons can retain process-lifetime resources; disabled does
 not mean every infrastructure object is destroyed. After a successful install,
 even while disabled, the fatal signal handlers, the Mach exception ports with their
 two handler threads and the uncaught NSException handler stay installed and pass
