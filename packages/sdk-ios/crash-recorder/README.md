@@ -58,8 +58,14 @@ context.
 
 Raw reports remain local. A report holds the exception type, name and reason, the
 crashed thread's register values, every thread's backtrace addresses with on-device
-symbol names, thread names and run states, and binary image paths, UUIDs and load
-addresses. System, resource and lifecycle details live in run sidecars. No raw stack
+symbol names, thread names and run states, and the paths, UUIDs and load addresses of
+every loaded binary image. An image entry also carries any runtime crash-info strings
+that image holds (`crash_info_message`, `crash_info_message2`, `crash_info_signature`,
+`crash_info_backtrace`, up to 4096 bytes each), such as a Swift `fatalError`,
+`precondition` or `try!` message with its source file and line, or a system library
+diagnostic. They are application- or library-controlled free text; importers must
+redact and bound them like the exception reason. System, resource and lifecycle details
+live in run sidecars. No raw stack
 memory is copied, and register state is kept for the crashed thread only; those
 registers can still hold small fragments of application data, such as short strings.
 On arm64, once the crashing function has saved the link register and made a call, the
@@ -87,8 +93,9 @@ Linking the library runs two vendored initializers before `main`, whether or not
 
 - `KSCrashRecording/KSCrashAppStateTracker.m`: `+load` creates the process-lifetime
   app-state tracker. It registers an `atexit` block and six UIApplication lifecycle
-  observers in apps (four NSExtensionHost observers in extensions; on macOS it marks
-  the state active) and reads the `ActivePrewarm` environment variable.
+  observers on iOS and tvOS, app extensions included (the vendor's NSExtensionHost
+  observers are compiled only for watchOS, which this package does not target); on
+  macOS it marks the state active. It also reads the `ActivePrewarm` environment variable.
 - `KSCrashRecordingCore/KSThreadInit.m`: a library constructor records the main thread.
 
 Neither writes files, installs handlers or enables capture. An integration that needs

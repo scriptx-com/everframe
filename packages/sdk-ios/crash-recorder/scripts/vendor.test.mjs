@@ -118,6 +118,19 @@ test('README names every vendored initializer that runs before main', async () =
   assert.deepEqual(initializers.sort(),['KSCrashRecording/KSCrashAppStateTracker.m','KSCrashRecordingCore/KSThreadInit.m']);
   assert.deepEqual(initializers.filter(path=>!section.includes(`\`${path}\``)),[]);
 });
+test('README raw-report inventory names every crash-info string the writer emits', async () => {
+  const readme=await readFile(join(componentRoot,'README.md'),'utf8');
+  const start=readme.indexOf('Raw reports remain local.');
+  assert.ok(start>=0,'README has a raw-report inventory');
+  const inventory=readme.slice(start,readme.indexOf('\n\n',start));
+  const writer=await readFile(join(componentRoot,vendorRoot,'KSCrashRecording/KSCrashReportC.c'),'utf8');
+  const fields=await readFile(join(componentRoot,vendorRoot,'KSCrashRecording/include/KSCrashReportFields.h'),'utf8');
+  const names=[...new Set([...writer.matchAll(/KSCrashField_(ImageCrashInfo\w+)/g)].map(match=>match[1]))];
+  assert.ok(names.length>0,'the writer emits crash-info strings');
+  const keys=names.map(name=>fields.match(new RegExp(`KSCRF_DEFINE_CONSTANT\\(KSCrashField, ${name}, \\w+, "(\\w+)"\\)`))?.[1]);
+  assert.ok(keys.every(Boolean),`every crash-info field has a JSON key: ${names}`);
+  assert.deepEqual(keys.filter(key=>!inventory.includes(`\`${key}\``)),[]);
+});
 test('namespace prelude keeps the aliases that full-object linking requires', async () => {
   const prelude=await readFile(join(componentRoot,'Sources/EverframeCrashRecorder/EverframeKSCrashNamespace.h'),'utf8');
   assert.match(prelude,/^#define KSCRASH_NAMESPACE _everframe$/m);
