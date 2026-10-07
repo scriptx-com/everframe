@@ -46,7 +46,9 @@ consistency and frame associations. Generated JSON Schema expresses structural
 limits only; JSON-Schema-only consumers must validate those semantic relationships
 before symbolication. Existing payloads without native remain supported.
 
-Host tests exercise real Swift traps, Objective-C exceptions and memory faults,
-fresh-process decoding and iOS/tvOS source compilation. They do not establish
-installed relaunch recovery, dSYM mapping, production distribution or physical
-device behavior.
+Unit tests decode synthetic records. A separate, externally driven harness
+(Tests/NativeCrashRecordProof, not part of `swift test`) decodes real Swift traps,
+Objective-C exceptions and memory faults from the recorder probe in fresh macOS
+processes. For iOS 15 and tvOS 15 simulators the decoder sources are only
+type-checked. None of this establishes installed relaunch recovery, dSYM mapping,
+production distribution or physical device behavior.
