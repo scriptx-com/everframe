@@ -1,0 +1,20 @@
+.changeset/mobile-cause-chains.md
+  s_360d9eb003c487::t_651fd4e1871f84 1-12
+  s_360d9eb003c487::t_044507d110bc36 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5e45fdc783683388fee9fc8ab42876282153644",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
