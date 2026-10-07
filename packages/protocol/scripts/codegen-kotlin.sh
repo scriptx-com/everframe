@@ -41,7 +41,13 @@ node --input-type=module - "$OUT_PATH" <<'NODE'
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const path = process.argv[2];
-const source = readFileSync(path, 'utf8');
+let source = readFileSync(path, 'utf8');
+// Adding a sibling schema must not rename the already published Android types.
+for (const [generated, stable] of Object.entries({ DiagnosticAttribution: 'Attribution',
+  PurpleProcess: 'Process', SessionEnum: 'Session', DiagnosticOutcome: 'Outcome',
+  DiagnosticProvenance: 'Provenance', DiagnosticScope: 'Scope' })) {
+  source = source.replace(new RegExp(`\\b${generated}\\b`, 'g'), stable);
+}
 const blockPattern = /data class Crash \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const match = source.match(blockPattern);
 if (!match) throw new Error('codegen-kotlin: Crash block shape changed');
@@ -161,25 +167,31 @@ let rewritten = source.replace(
 const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const payloadMatch = rewritten.match(payloadPattern);
 if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
-const diagnosticProperty = '    val diagnostic: DiagnosticEvidence? = null,';
 const payloadProperties = payloadMatch[1].split('\n');
-const diagnosticIndex = payloadProperties.indexOf(diagnosticProperty);
-if (diagnosticIndex < 0) throw new Error('codegen-kotlin: Payload.diagnostic missing');
-payloadProperties.splice(diagnosticIndex, 1);
+const additions = ['diagnostic', 'appleDiagnostic'];
+for (const name of additions) {
+  const index = payloadProperties.findIndex(line => line.trim().startsWith(`val ${name}:`));
+  if (index < 0) throw new Error(`codegen-kotlin: Payload.${name} missing`);
+  payloadProperties.splice(index, 1);
+}
 const oldParameters = payloadProperties.map(line => line.replace('val ', '').replace(/,$/, ''));
-const names = oldParameters.map(line => line.trim().split(':')[0]);
-const constructorParameters = oldParameters.join(',\n');
-const copyParameters = oldParameters.map((line, index) => line.replace(/ = null$/, ` = this.${names[index]}`)).join(',\n');
-payloadProperties[payloadProperties.length - 1] += ',';
-payloadProperties.push('    val diagnostic: DiagnosticEvidence? = null');
-rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${payloadProperties.join('\n')}\n) {
+const oldNames = oldParameters.map(line => line.trim().split(':')[0]);
+const e8Parameters = [...oldParameters, '    diagnostic: DiagnosticEvidence? = null'];
+const e8Names = [...oldNames, 'diagnostic'];
+const overload = (parameters, names, tail) => `
     constructor(
-${constructorParameters}
-    ) : this(${names.join(', ')}, null)
+${parameters.join(',\n')}
+    ) : this(${names.join(', ')}, ${tail.map(() => 'null').join(', ')})
 
     fun copy(
-${copyParameters}
-    ): Payload = Payload(${names.join(', ')}, diagnostic)
+${parameters.map((line, i) => line.replace(/ = null$/, ` = this.${names[i]}`)).join(',\n')}
+    ): Payload = Payload(${[...names, ...tail].join(', ')})
+`;
+const propertiesWithAdditions = [...payloadProperties.map(line => line.replace(/,$/, '')),
+  '    val diagnostic: DiagnosticEvidence? = null', '    val appleDiagnostic: AppleDiagnosticEvidence? = null'];
+rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertiesWithAdditions.join(',\n')}\n) {
+${overload(oldParameters, oldNames, ['diagnostic', 'appleDiagnostic'])}
+${overload(e8Parameters, e8Names, ['appleDiagnostic'])}
 }`);
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {

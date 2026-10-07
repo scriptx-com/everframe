@@ -306,6 +306,8 @@ public final class ReportSubmitter: Sendable {
     ) async {
         let entries = (try? outbox.hydrate(diagnostics: diagnostics)) ?? []
         for e in entries {
+            let appleDiagnostic = AppleDiagnosticDelivery.isApple(e)
+            if appleDiagnostic && !AppleDiagnosticDelivery.allows(e) { continue }
             // Keep the durable copy until acceptance. A crash, cancellation or
             // failed re-enqueue during the request must not lose the report.
 
@@ -416,7 +418,10 @@ public final class ReportSubmitter: Sendable {
                 #endif
                 // The entry remains durable throughout the attempt. Re-enqueuing
                 // on failure would change its age and could evict another entry.
-                let result = try await sender.observing(diagnostics, origin: .outboxDrain).performSubmit(
+                let authorizedSender = appleDiagnostic ? sender.authorizing {
+                    (sender.authorizeUpload?() ?? true) && AppleDiagnosticDelivery.allows(e)
+                } : sender
+                let result = try await authorizedSender.observing(diagnostics, origin: .outboxDrain).performSubmit(
                     envelopeBytes: envelopeBytes,
                     idempotencyKey: e.idempotencyKey,
                     attachments: attachments,
@@ -428,6 +433,7 @@ public final class ReportSubmitter: Sendable {
                     alreadyPersisted: true
                 )
                 if case .submitted = result {
+                    if appleDiagnostic { AppleDiagnosticDelivery.settle(e) }
                     try outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterAcceptance)
                 }
             } catch UploadAuthorizationError.revoked {
@@ -440,6 +446,7 @@ public final class ReportSubmitter: Sendable {
                 }
             } catch EverframeTransportError.serverError {
                 // submit throws serverError only for terminal HTTP statuses.
+                if appleDiagnostic { AppleDiagnosticDelivery.settle(e) }
                 try? outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterTerminal)
             } catch {
                 // Retain the original encrypted entry. Retrying a server-accepted
