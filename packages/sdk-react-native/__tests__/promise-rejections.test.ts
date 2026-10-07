@@ -162,9 +162,11 @@ it('contains a synchronous reentrant timer without early delivery', () => {
   expect(f.delivered).toEqual([]);
   expect(f.observer.getStatus()).toMatchObject({ status: 'install-failed', counters: {pending: 0} });
 });
-it('detects displacement on status read and releases pending snapshots', () => {
-  const f = fixture(); f.hooks.onReject({}, 'owned'); f.displace();
-  expect(f.observer.getStatus()).toMatchObject({ status: 'displaced', reason: 'hook-displaced', counters: {pending: 0} });
+it('detects displacement on status read and counts released pending snapshots', () => {
+  const f = fixture(); for (const reason of ['first', 'second', 'third']) f.hooks.onReject({}, reason);
+  f.displace();
+  expect(f.observer.getStatus()).toMatchObject({ status: 'displaced', reason: 'hook-displaced',
+    counters: {pending: 0, discarded: 3, captureFailed: 0} });
   f.tick(2000); expect(f.delivered).toEqual([]); expect(f.timers.size).toBe(0);
 });
 it('disposal makes retained callbacks inert and status contains no captured content', () => {

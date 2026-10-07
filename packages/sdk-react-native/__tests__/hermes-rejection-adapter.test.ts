@@ -47,7 +47,7 @@ it.each(['_B', '_C'] as const)('clears pending work permanently when a callback 
   savedC.call(C, {}, 'after restoration');
   expect(delivered).not.toHaveBeenCalled();
   expect(observer.getStatus()).toMatchObject({
-    status: 'displaced', reason: 'hook-displaced', counters: { pending: 0, accepted: 0 },
+    status: 'displaced', reason: 'hook-displaced', counters: { pending: 0, accepted: 0, discarded: 1 },
   });
 });
 afterEach(() => { disposals.splice(0).reverse().forEach((dispose) => dispose()); vi.restoreAllMocks(); });

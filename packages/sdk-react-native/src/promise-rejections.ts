@@ -91,6 +91,7 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
     if (pending.size === 0) clearTimer();
   }
   function stop(status: PromiseRejectionStatus['status'], reason: RejectionReason): void {
+    if (status === 'displaced') count('discarded', pending.size);
     state.status = status; state.reason = reason;
     for (const record of pending) { record.done = true; record.snapshot = undefined; }
     pending.clear(); identities = new WeakMap(); clearTimer();
