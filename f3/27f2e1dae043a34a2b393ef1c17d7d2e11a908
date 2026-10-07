@@ -1,0 +1,22 @@
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_a876f8dff6f447 61-68
+  s_360d9eb003c487::t_4e975fd8312063 96-98
+packages/sdk-ios/crash-recorder/scripts/vendor.test.mjs
+  s_360d9eb003c487::t_182bbfcd36b20c 121-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f327f2e1dae043a34a2b393ef1c17d7d2e11a908",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
