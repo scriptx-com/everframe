@@ -54,7 +54,11 @@ internal class VideoPrivacyGate(
         // null when its position on screen cannot be proven, which refuses the frame.
         fun mask(view: View, remaining: Int): Int? =
             VideoMaskBounds.cover(view, root, remaining, start + 2_000_000L, nowNanos, masks)
-        var visited = if (allowed) VideoSensitiveViews.inspect(identity, start + 2_000_000L, 2048, nowNanos, ::mask) { view, remaining ->
+        // Remembered views history covers in this pass; the walk below does not cover them again.
+        val coveredByHistory = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<View, Boolean>())
+        var visited = if (allowed) VideoSensitiveViews.inspect(identity, start + 2_000_000L, 2048, nowNanos, { view, remaining ->
+            mask(view, remaining)?.also { coveredByHistory.add(view) }
+        }) { view, remaining ->
             val marker = view.getTag(R.id.tx_sensitive)
             val classification = try { platformAdapter?.classify(view) } catch (_: Throwable) { VideoPrivacyAdapter.Classification.UNKNOWN }
             if ((marker != null && marker != false) || view is TXSensitiveView ||
@@ -80,6 +84,7 @@ internal class VideoPrivacyGate(
                 view is TextureView) {
                 // Painted black, children included, instead of refusing the frame. History keeps
                 // it covered if it is later reparented into an overlay this walk cannot reach.
+                if (view in coveredByHistory) continue
                 VideoSensitiveViews.remember(view)
                 val covered = mask(view, 2048 - visited - queue.size)
                 if (covered == null) { allowed = false; break }

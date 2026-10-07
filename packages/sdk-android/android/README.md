@@ -600,7 +600,8 @@ controls, are recorded.
   out, or sensitive-view tracking is uncertain or full.
 
 A masked area that moves on screen while a copy is pending, for example while a list scrolls, drops
-that frame too. Masked areas that stay still, or that move entirely outside the window, do not.
+that frame too. Masked areas that stay still or move entirely outside the window do not, and neither
+does a descendant moving within its masked ancestor's bounds, such as a pulsing indicator.
 
 Mark sensitive overlay content **before attachment**, for example
 `Everframe.markSensitive(overlayView)` before `container.overlay.add(overlayView)`. Android's public

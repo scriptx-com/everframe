@@ -56,14 +56,16 @@ internal object VideoMaskBounds {
 
     /**
      * Adds the rects covering [view]'s drawn subtree to [into]: its own bounds and, below any
-     * node whose parent does not clip children (React Native views never do), each child's
-     * bounds too, clipped to [root]. Returns the descendants visited, or null when one cannot
-     * be placed or the budget runs out.
+     * node whose parent does not clip children (React Native views never do), the bounds of each
+     * descendant that extends past them, clipped to [root]. Returns the descendants visited, or
+     * null when one cannot be placed or the budget runs out.
      */
     fun cover(view: View, root: View, remaining: Int, deadlineNs: Long, now: () -> Long, into: MutableCollection<Rect>): Int? {
         val bounds = of(view, root) ?: return null
         if (bounds.isEmpty) return 0
-        add(bounds, root, into)
+        // Painting covers anything inside the view's own bounds, so a descendant moving there is
+        // not a new privacy state: only one extending past them adds a mask.
+        val own = if (add(bounds, root, into)) bounds else null
         // A parent that clips children confines the view's whole subtree to its bounds.
         if (view === root || view !is ViewGroup || (view.parent as? ViewGroup)?.clipChildren == true) return 0
         // Each descendant is an ordinary child of a node already proven above it, so only its
@@ -87,7 +89,7 @@ internal object VideoMaskBounds {
                 preConcat(node.matrix)
             }
             val r = RectF(0f, 0f, node.width.toFloat(), node.height.toFloat()).also { toRoot.mapRect(it) }
-            add(padded(r), root, into)
+            add(padded(r), root, into, own)
             if (node is ViewGroup && !parent.clipChildren && !expand(node, toRoot)) return null
         }
     }
@@ -106,9 +108,12 @@ internal object VideoMaskBounds {
     }
 
     // A mask entirely outside the frame paints nothing; keeping it would make every scroll of
-    // off-screen content a new privacy state that drops the pending frame.
-    private fun add(bounds: Rect, root: View, into: MutableCollection<Rect>) {
-        if (bounds.intersect(0, 0, root.width, root.height)) into.add(bounds)
+    // off-screen content a new privacy state that drops the pending frame. Nor does one inside
+    // [within], a mask already added. Returns whether [bounds], now clipped, was added.
+    private fun add(bounds: Rect, root: View, into: MutableCollection<Rect>, within: Rect? = null): Boolean {
+        if (!bounds.intersect(0, 0, root.width, root.height) || within?.contains(bounds) == true) return false
+        into.add(bounds)
+        return true
     }
 
     private fun padded(r: RectF) =

@@ -238,6 +238,38 @@ class PixelCopyVideoCaptureTest {
         }
     }
 
+    @Test fun movementInsideANonClippedMaskedGroupKeepsThePendingFrame() {
+        val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
+        val activity = controller.get()
+        val root = android.widget.FrameLayout(activity)
+        activity.setContentView(root); root.layout(0,0,100,100)
+        root.clipChildren = false
+        val group = android.widget.FrameLayout(activity); root.addView(group); group.layout(10,10,90,90)
+        group.setTag(dev.everframe.R.id.tx_sensitive, true)
+        val dot = android.view.View(activity); group.addView(dot); dot.layout(20,20,40,40)
+        val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
+        val h = Harness()
+        h.platform = object : VideoCapturePlatform by h.platform {
+            override fun observe() = gate.observe(root)
+        }
+        h.capture = h.create()
+        try {
+            assertTrue(h.request())
+            h.preDraw!!.invoke(); h.drain()
+            // A pulse that stays inside the painted group.
+            dot.scaleX = 1.2f; dot.scaleY = 1.2f
+            h.preDraw!!.invoke(); h.drain()
+            assertEquals("the pulse must not discard the pending frame", 1, h.commits.size)
+            h.commit(); h.callback()
+            assertEquals(1, h.accepted)
+            assertEquals(0L, h.capture.privacyExclusions.get())
+        } finally {
+            h.capture.cancel(); h.drain()
+            if (h.copies.isNotEmpty()) h.callback()
+            controller.pause().stop().destroy()
+        }
+    }
+
     @Test fun mainPrivacyPhasesExcludeAsyncCommitAndCopyWaits() {
         val h = Harness(); h.observeCost = 7
         try {

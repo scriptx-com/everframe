@@ -648,6 +648,45 @@ class VideoPrivacyGateTest {
         } finally { a.finish() }
     }
 
+    @Test fun descendantMovingInsideANonClippedMaskedGroupKeepsThePrivacyState() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        val container = FrameLayout(a).apply { clipChildren = false }; root.addView(container); container.layout(0,0,400,400)
+        val group = FrameLayout(a); container.addView(group); group.layout(10,10,110,110)
+        group.setTag(R.id.tx_sensitive, true)
+        val child = View(a); group.addView(child); child.layout(20,20,40,40)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            val still = gate.observe(root)
+            assertEquals("the group's own mask already covers the child", listOf(android.graphics.Rect(9, 9, 111, 111)), still.masks)
+            // A pulsing dot inside the painted group.
+            child.scaleX = 1.2f
+            val pulsed = gate.observe(root)
+            assertEquals(still.masks, pulsed.masks)
+            assertEquals("movement inside the painted group is not a new privacy state", still.epoch, pulsed.epoch)
+            child.translationX = 200f
+            val outside = gate.observe(root)
+            assertTrue("a child drawn outside the group", masked(outside, child, root))
+            assertNotEquals(still.epoch, outside.epoch)
+        } finally { a.finish() }
+    }
+
+    @Test fun rememberedMaskedGroupIsCoveredOncePerObservation() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        root.clipChildren = false
+        val group = FrameLayout(a); root.addView(group); group.layout(0,0,200,200)
+        group.setTag(R.id.tx_sensitive, true)
+        // Fits the 2,048-node budget once, not twice.
+        repeat(1100) { group.addView(View(a)) }
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            assertTrue("the group's subtree fits the budget once", gate.observe(root).allowed)
+            // History now covers the group first; the walk must not cover it again.
+            assertTrue("a remembered group is covered once per observation", gate.observe(root).allowed)
+        } finally { a.finish() }
+    }
+
     @Test fun masksAreClippedToTheFrameSoMovementOutsideItKeepsThePrivacyState() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
