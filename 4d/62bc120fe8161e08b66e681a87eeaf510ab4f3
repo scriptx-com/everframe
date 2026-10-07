@@ -1,0 +1,39 @@
+packages/sdk-android/android/everframe-core/src/androidTest/kotlin/dev/everframe/capture/video/VideoPrivacyInstrumentedTest.kt
+  s_360d9eb003c487::t_3abe9c89569835 140,161-168,179,187,219,326,372
+  s_360d9eb003c487::t_f01312acef6018 137-139
+  s_360d9eb003c487::t_4c59533d6ed2a8 141-143
+  s_360d9eb003c487::t_d54df9bdbef6b4 158-160
+  s_360d9eb003c487::t_5c669c0d8d61cd 176-178
+  s_360d9eb003c487::t_f503dfd8d02b92 180-182,184-186
+  s_360d9eb003c487::t_fbe57dc5d463f1 188-190
+  s_360d9eb003c487::t_74038932938f96 216-218
+  s_360d9eb003c487::t_dc5f461280f786 220-222
+  s_360d9eb003c487::t_8d334fa970ac7f 323-325
+  s_360d9eb003c487::t_77db20acf45f1f 327-329,369-371
+  s_360d9eb003c487::t_578a08b553ea40 373-375
+  s_403f5b7dfe09d5::t_1f1277b442e58c 6,8,12-13,17-18,23,32-33,48,86,90,97-136,144-156,170-175,183,191-192,194-215,223-240,242-243,258-259,261-262,264-322,330-368,377,435-436,447,487,501,567
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4d62bc120fe8161e08b66e681a87eeaf510ab4f3",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_403f5b7dfe09d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad54fdacbfce81152",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
