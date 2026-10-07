@@ -1,0 +1,31 @@
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_10755c3af14183 564-567
+  s_360d9eb003c487::t_78058c4426e86b 585-595
+  s_360d9eb003c487::t_e584d223540321 621-623
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoMaskBounds.kt
+  s_360d9eb003c487::t_d4756c791bd3ac 22-27,36-37
+  s_360d9eb003c487::t_684031685f8d8a 35,38
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_360d9eb003c487::t_c07f5003185aec 473-474,476,480-488
+  s_360d9eb003c487::t_0b8970ec25931d 477-479
+packages/sdk-android/android/everframe-core/src/androidTest/kotlin/dev/everframe/capture/video/VideoPrivacyInstrumentedTest.kt
+  s_360d9eb003c487::t_7ef9100b47dae1 372-441
+.changeset/android-replay-mask.md
+  s_360d9eb003c487::t_6260cf0334ddbd 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b1c63f3f2abed0ae7690abd62400807c1407f30e",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
