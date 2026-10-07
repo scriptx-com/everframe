@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { captureJsBundleMetadata, type JsBundleConfig } from './js-bundle.js';
 import NativeEverframe from './NativeEverframe.js';
-import { extractFacts } from './error-facts.js';
+import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
 import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
 import { captureKey, type CaptureIdentity, type PreparedRejection, type RejectionOutcome } from './rejection-capture.js';
@@ -56,7 +56,9 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     capturing = true;
     try {
       const identity = identityFor(reason);
-      const facts = extractFacts(reason);
+      // Rejected non-Error values are often responses or request configs:
+      // report their type, never their headers, cookies or URLs.
+      const facts = extractFacts(reason, renderLabel);
       if (!ownsCapture()) return undefined;
       const causeChain = extractCrashCauseChain(reason, (value) => redactStringContent(value, {}), ownsCapture);
       if (!ownsCapture()) return undefined;

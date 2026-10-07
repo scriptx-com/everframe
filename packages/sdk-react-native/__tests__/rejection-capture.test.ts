@@ -109,6 +109,26 @@ it('native lookup disposal prevents stale submission', () => {
   finally { Object.defineProperty(NativeEverframe, 'reportCrash', descriptor); }
   expect(automatic).not.toHaveBeenCalled();
 });
+it.each([
+  ['fetch response', { type: 'default', status: 401, ok: false, headers: { map: { 'set-cookie': 'sid=secret-cookie' } },
+    url: 'https://api.example.com/v1/me?api_key=sk_live_secret' }, '[object]'],
+  ['request config', { config: { headers: { Authorization: 'Token abc123', 'x-api-key': 'live_abc123' } } }, '[object]'],
+  ['array', ['secret-cookie'], '[object]'],
+  ['function', function secretCookie() {}, '[function]'],
+  ['symbol', Symbol('secret-cookie'), '[symbol]'],
+  ['bigint', BigInt(42), '[bigint]'],
+  ['string', 'Session expired', 'Session expired'],
+  ['number', 404, '404'],
+  ['undefined', undefined, 'undefined'],
+  ['null', null, 'null'],
+])('reports a non-Error %s reason without serializing its contents', (_kind, reason, message) => {
+  const owner = controller();
+  expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('accepted');
+  const raw = automatic.mock.calls[0][0];
+  expect(JSON.parse(raw)).toMatchObject({ exceptionType: 'UnhandledValue', message, framesRaw: [],
+    mechanism: 'unhandledrejection' });
+  for (const secret of ['secret-cookie', 'sk_live_secret', 'abc123']) expect(raw).not.toContain(secret);
+});
 it('contains bridge failure and leaves later explicit admission available', () => {
   const owner = controller(), reason = error();
   automatic.mockImplementationOnce(() => { throw new Error('bridge unavailable'); });
