@@ -1,0 +1,23 @@
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbTapNavAdapters.swift
+  s_360d9eb003c487::t_8dca14c73c3965 617-619,622-626
+  s_360d9eb003c487::t_f9aad0ec088d29 608-616,620-621,627-628
+packages/sdk-ios/Tests/EverframeTests/PressCrumbTests.swift
+  s_360d9eb003c487::t_41194ebdb7b0d8 7
+  s_360d9eb003c487::t_a1783c2ed31c3e 115-162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d2d22e3a29cafc9c35f2d9384b2c66bb5bace3bb",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
