@@ -1,0 +1,29 @@
+packages/cli/__tests__/elf.spec.ts
+  s_97602a0a2d8f20::t_fc6a9b161fae19 1-206
+packages/cli/src/elf.ts
+  s_97602a0a2d8f20::t_8c33c910b064ee 1-66
+packages/cli/src/index.ts
+  s_97602a0a2d8f20::t_826001835d9b26 12,24-25,47,69,81,270-301
+packages/cli/src/upload.ts
+  s_97602a0a2d8f20::t_6131476c484c8c 8,286-287,353
+packages/protocol/__tests__/elf-manifest.spec.ts
+  s_97602a0a2d8f20::t_6374e04010accd 1-71
+packages/protocol/src/build-artifacts.ts
+  s_97602a0a2d8f20::t_f1e3979d0485a4 67-85,90-92,95,193-212,218,324-342
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ca75712ecca25770c1050f6367ad390494c1333d",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
