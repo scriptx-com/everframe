@@ -1,0 +1,43 @@
+packages/protocol/__tests__/android-native-crash.spec.ts
+  s_97602a0a2d8f20::t_a48445d058109c 1-54
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_130942a3ba4436 1005-1007,2394-2486
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_f73110f72fd9e0 36,53,67-69,76,79-98,105,116,133,151
+packages/protocol/src/android-native-crash.ts
+  s_97602a0a2d8f20::t_eda78c048316e8 1-29
+packages/protocol/src/crash.ts
+  s_97602a0a2d8f20::t_82982d90b6eada 14,63,82-84
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_bdd3d61ef11f62 65-66
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_97602a0a2d8f20::t_6d5962317785d9 1-198
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidTombstoneReaderTest.kt
+  s_97602a0a2d8f20::t_e89079791ba4c1 1-113
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_360d9eb003c487::t_170af295089947 742,758-759,796,813,840-986
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "21e4aba83b1c50710ee677d1f4016d352686ec9e",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
