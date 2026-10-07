@@ -1,0 +1,1387 @@
+{
+  "schemaVersion": 1,
+  "upstream": "https://github.com/kstenerud/KSCrash",
+  "version": "2.6.0",
+  "revision": "3f77f379c2db001e0c261c2a51b7e2b115d31f91",
+  "files": [
+    {
+      "source": "Sources/KSCrashCore/KSNSErrorHelper.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/KSNSErrorHelper.m",
+      "license": "MIT",
+      "originalSha256": "649a3b41e1e1c200ef61e3ac7a526a843958842a32100b26a7580a17c3752bfb",
+      "packagedSha256": "bf3c386654ce43231ea5e6be444c456fce62889c1439d3028fccea455e3e092d"
+    },
+    {
+      "source": "Sources/KSCrashCore/KSSpinLock.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/KSSpinLock.c",
+      "license": "MIT",
+      "originalSha256": "041b7eb8cf27f3e383a92ac7341ccd55a5e47daeb41725c27f5dc2e1037a70e6",
+      "packagedSha256": "dc94b2f38d4ebb1ef8d2516edfd583f426807a6c48e55fc838395f72fee243a4"
+    },
+    {
+      "source": "Sources/KSCrashCore/KSUnfairLock.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/KSUnfairLock.m",
+      "license": "MIT",
+      "originalSha256": "b92fe61ff687b097c0fc0e0a3f9180c436f1c02c092ad3879989f0689ca042e5",
+      "packagedSha256": "2b42e7d3077696d98467deee47b0d0437d895ebe196e2e39f843b477eb934b6e"
+    },
+    {
+      "source": "Sources/KSCrashCore/Resources/PrivacyInfo.xcprivacy",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/Resources/PrivacyInfo.xcprivacy",
+      "license": "MIT",
+      "originalSha256": "2f792e16c62592a8ee4bc11c039e50b3479b614f11f1c3f597033a8ba584a7c9",
+      "packagedSha256": "38e3f9106c9d5d24b3c2d1111afbd7c824d558baac97c37335463aeb2c54f399"
+    },
+    {
+      "source": "Sources/KSCrashCore/include/KSCompilerDefines.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSCompilerDefines.h",
+      "license": "MIT",
+      "originalSha256": "9ae09875a0f627ce49b816a3d47fa06af314dccb130774ec9bc02e50aa630a1f",
+      "packagedSha256": "f991819a39d83b93df51681c2b1c73888d17f571910ba52e4df18f39dde37896"
+    },
+    {
+      "source": "Sources/KSCrashCore/include/KSCrashNamespace.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSCrashNamespace.h",
+      "license": "MIT",
+      "originalSha256": "39c0f1cf8e7e834e17e6131c41f212ed223b50df8f749c121678fd27d0b3cd8a",
+      "packagedSha256": "e08aae49c8435412519b581438fd55605e3b30b68167b97df76be2b7421e51ff"
+    },
+    {
+      "source": "Sources/KSCrashCore/include/KSNSErrorHelper.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSNSErrorHelper.h",
+      "license": "MIT",
+      "originalSha256": "424199dd7a3795475d80c0424225e6d63332f2874dbc919ea6f50281b18648f8",
+      "packagedSha256": "8b3b2212bf8321b6a328636a69c0211af236cb4f05835fdddc8da17784211704"
+    },
+    {
+      "source": "Sources/KSCrashCore/include/KSSpinLock.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSSpinLock.h",
+      "license": "MIT",
+      "originalSha256": "5129cf11ae12bf3d8d3f6a9205cbe0efcb06ff7a812d9494f719183bb4ed89a7",
+      "packagedSha256": "424785a48717755f0a4c02d10bd81f66274240e1bedd7b081af54ce6fd7b7582"
+    },
+    {
+      "source": "Sources/KSCrashCore/include/KSSystemCapabilities.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSSystemCapabilities.h",
+      "license": "MIT",
+      "originalSha256": "2c98ce0ae674ba2569c0e7af8811e2d917d654487af64eee562ca31c65a8c34c",
+      "packagedSha256": "a4ff8592f739dea0cfc38f5667990dc938266a36444a1532c04c733477bd57c5"
+    },
+    {
+      "source": "Sources/KSCrashCore/include/KSUnfairLock.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSUnfairLock.h",
+      "license": "MIT",
+      "originalSha256": "a6830f389956c3fc98ef5fb9fa35f964a0821133c6fefcbd6298d6716e22cd0c",
+      "packagedSha256": "f2465b3759cec5dfc9950b02d6fd4a89ff76870b97e4013cd90735942ab70550"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrash+Backtrace.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Backtrace.m",
+      "license": "MIT",
+      "originalSha256": "b3d7e556d2321d3856d852584ab5236746521728966ff2e518d1add7b9a69eeb",
+      "packagedSha256": "f0b589bb0fa56df92b72197e325845baa98b54cf714e0ece7b64aa8f1a99732c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrash+Hang.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Hang.m",
+      "license": "MIT",
+      "originalSha256": "d146cc352469b579186ce9077d11fe4f7ac326846f5897e5a2e998fb54eac747",
+      "packagedSha256": "3dc1270829d914e5be3dff0ed2d962cd8e9b4c284430cef232c2716bffc4b6a4"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrash+Namespace.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Namespace.m",
+      "license": "MIT",
+      "originalSha256": "280d4510c6e3d5d2ec1b4fe702ca03c253a907f3e009ca148e6ac54870d87263",
+      "packagedSha256": "d2e31c5c3273670650d062049c33381cb2e239d2fdb45d944c2924a36dafe2fb"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrash+Private.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Private.h",
+      "license": "MIT",
+      "originalSha256": "57a926d843defc7a5c73d9d16060dd7c75d40c9a6fe43a8df23895ece702a9d1",
+      "packagedSha256": "868e873b8ceb7252af6d0f17a531826e0341ea9a80a751635f4921c65a35cd6b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrash+UserInfo.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+UserInfo.m",
+      "license": "MIT",
+      "originalSha256": "7c506426bb68e1b64dd7dce32184ee220d58e2f141033235535b429927f975aa",
+      "packagedSha256": "7959df0b370ebf24810eda7582d7fd9439538e981b0abae85174389fb03916e5"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrash.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash.m",
+      "license": "MIT",
+      "originalSha256": "dda8ba1e29395eec4455bafb85b4a66c98527136c387e9010f3c07f52c4fa477",
+      "packagedSha256": "b834cb380136e266e67b9300072e17c4d29788e5f8f8d7333ce7541589f086db"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashAppMemory+Private.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemory+Private.h",
+      "license": "MIT",
+      "originalSha256": "0f95d7fd508993df48ccf10444e6e31e541c33f49163a7c7c20d0ad145cb7b9a",
+      "packagedSha256": "9029fd9bf4029c4752dc45f15905d9c9ec7d151dbc9fbdbb38eccc5dee5b3c65"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashAppMemory.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemory.m",
+      "license": "MIT",
+      "originalSha256": "f6247744a892b513ea2eec63951f3afdb28533ac42ade43e9c4f2aa11badb5d3",
+      "packagedSha256": "bba3beb7480edd3f45c5eed7983489c0c1a027b2a6284d69f1fb67d69bd731b1"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashAppMemoryTracker.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemoryTracker.m",
+      "license": "MIT",
+      "originalSha256": "492918f6b2b89ac93472932a5c8267a868e2d0911ad816133199f1d7406fe79e",
+      "packagedSha256": "7e7433a4cadf4aef2c39255d52c48b4de27b76705e025de3811203637452eb7d"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashAppStateTracker.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppStateTracker.m",
+      "license": "MIT",
+      "originalSha256": "9e16f3ae92a12d1fa7f149779ee62ec60f51de61c2762a304705784b29958d36",
+      "packagedSha256": "f567781444ba7beeabedc3e6f15a54e554c6245fc3b2975a2f6716f658a877f6"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashBasicMonitorPlugin.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashBasicMonitorPlugin.m",
+      "license": "MIT",
+      "originalSha256": "3ad90481213625474d488f9c2251291294dc0c0d7bd987c2d48a983dc2b6c297",
+      "packagedSha256": "0183187eb7155f5befa39c89997b631cc37f221a70e938b653e6e6da33e75ddd"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashC.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashC.c",
+      "license": "MIT",
+      "originalSha256": "8c59ecaf39457531c65b58ef698adcb4bbb456af8d40c5c9f06628288b87b516",
+      "packagedSha256": "32b3900e9882b69222f58355fafa36281397ee6637568893c76432a0e4683411"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashCPUTracker.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashCPUTracker.m",
+      "license": "MIT",
+      "originalSha256": "dd25a116d701fd7b03c40847c9531496638333c6da1b8f56af4dbd67aebed2d7",
+      "packagedSha256": "4f70f7932864660c95dacc8f6bb37ab84e256da53dbd6733fe4e236506b79227"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashConfiguration+Private.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashConfiguration+Private.h",
+      "license": "MIT",
+      "originalSha256": "848784357aedbdb8c484b814696f77611e8b896e57d890c65478ec25b69a52ed",
+      "packagedSha256": "1c7e568a6b541d000b206ff96b4823fbe114a515bd253428f4ade2cc28f6795e"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashConfiguration.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashConfiguration.m",
+      "license": "MIT",
+      "originalSha256": "6970534a6ad90fb17bc0723fec0b57e93993fcec7d2e51c6b2a43bd8ac6a5302",
+      "packagedSha256": "069c3cdc8c218e1ea1d6e1e362306cbac8d22fbfa390878ba04bcf433ee1922c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReport.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReport.m",
+      "license": "MIT",
+      "originalSha256": "c0f9d2326fcc80a0b3c4fdc897a13cfc6f3210dd48b74b52edd379086663e4d6",
+      "packagedSha256": "e4562dd45205f7f2da9718b157bdd4aa19253c9176bcad448a89680c07f866f7"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportC.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportC.c",
+      "license": "MIT",
+      "originalSha256": "f13a798f86453b8abba3b955b36efb3129f976f6779fd0e0f3c6a92e4b43c8b5",
+      "packagedSha256": "9949309a30dfee1c531d7604ebba82595559ea3a3cd8d7e2b8731a0c1733fcb4"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportC.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportC.h",
+      "license": "MIT",
+      "originalSha256": "33258d53ce66c86a96512608ee9a2fa0a7a292cb0fbdf1992940531ef416c3d1",
+      "packagedSha256": "d9cc77c0a596a6ddacb7c02776bf4266ea5e81f6340ce59c62f497a58edb7bd3"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportFixer.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportFixer.h",
+      "license": "MIT",
+      "originalSha256": "0a330cc701358c39a461a17a951c5c7fab4a29b4f30dfb15d79189985dd83c73",
+      "packagedSha256": "99582e8499232e845fa4fb116de9729e6c6cfe3b0898e86a6a16d3db6df89d8d"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportFixer.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportFixer.m",
+      "license": "MIT",
+      "originalSha256": "9b0a7d345c400b5bde57494202bea16a35394b5462cbf7495ce66d3b790bc4b2",
+      "packagedSha256": "2cad606601d4eddd2e0585d84cd739f379ade933b19239e0310cff453e1f92fb"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportRunId.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportRunId.h",
+      "license": "MIT",
+      "originalSha256": "aede95b88f75fae46b64948d340ace9e65732d71a61b6a54df8f69a77fde1efa",
+      "packagedSha256": "7785e1d8193a7485bc81a12291c4e3193ae35eec11ebc97ac21fdaaee648894b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportRunId.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportRunId.m",
+      "license": "MIT",
+      "originalSha256": "9ee3644d82eee0baeb60b464dfc138e17053fe03658b444f02baac401c5abacc",
+      "packagedSha256": "8c9369ad11a1262e59f03a604e515316f430de5a1e37263e783bd242ae2d8f26"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportStore.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportStore.m",
+      "license": "MIT",
+      "originalSha256": "c582fcb449780eaae4cc498ef864158df0b8d7e76572e7dce1c54ec045ab45e2",
+      "packagedSha256": "ef1eb8f0db29d46923e9becf4e7814d950e854c1a4e3c6c57c72ba7a9400a586"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportStoreC+Private.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportStoreC+Private.h",
+      "license": "MIT",
+      "originalSha256": "9e6d9b1718d461295e10f2b7d6ada384b37f8a69abbd87109808f641cb606e26",
+      "packagedSha256": "1ec4a88c318206922aff7291f0c77552973da278420fa80b7c5bde06b6b03eaf"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportStoreC.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportStoreC.m",
+      "license": "MIT",
+      "originalSha256": "5ee7bc6484a4e832b0371d8fd7b4092042633bf30c2482be25c1678509cc711c",
+      "packagedSha256": "e4f5e2e09a79c7f5bde35ae89793b4701a88e82d29f17e244958ea0c7c2b9854"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashReportVersion.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportVersion.h",
+      "license": "MIT",
+      "originalSha256": "ccb64c1a4b6f9d065f6c65cc01aebcd8ae9865fe8a05f25c3a9eda78ef420f9a",
+      "packagedSha256": "a72838cb1c8aa8103b9e6de75598e8d56afd6bf80f15dc904933bac051014191"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashRunContext.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashRunContext.h",
+      "license": "MIT",
+      "originalSha256": "9d5e4dd97a4af6092df059a08587b2b282e47bd9dea89e806068a3cde3d6ddec",
+      "packagedSha256": "70fc8462338f79f886b4bd6ae4b00dcf52b2a7897b8bc05c549c86c32e29052c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashRunContext.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashRunContext.m",
+      "license": "MIT",
+      "originalSha256": "92a6e84e9dd38cec084e74f69cda8d227f277a998e1c2ed80faee4cd2b4a313e",
+      "packagedSha256": "db8b1ed9ff4c6419e2c931b8916aabff8588cc510496d823a00dcbf59bd0b281"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSCrashThreadcrumb.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashThreadcrumb.m",
+      "license": "MIT",
+      "originalSha256": "78a70ae6969d775a84271fb35065bf40bb753baf861105148c30194cfd60c260",
+      "packagedSha256": "34a6787c03a476c9c7b4780353d6767ed8006ab7689f4116472ffe1d0d382566"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSHang.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSHang.h",
+      "license": "MIT",
+      "originalSha256": "90aa7c186505ff7b5789717771d8929526d530071e6b27e837100f0e6b7944e8",
+      "packagedSha256": "32a6d258342db9d9215ac905fd9d33fd7f32a69df648e30e55a4e9ddf2e7f1aa"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSTaskRole.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSTaskRole.c",
+      "license": "MIT",
+      "originalSha256": "835fac970812d75a3094ef43d190c2cde74b7218bebbf131ec4ac043dc24040a",
+      "packagedSha256": "4b61bfc98ce3ed70df0ca4e9fae75edfb816989ea091947e9f3cf07e38c82e56"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSTaskRole.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSTaskRole.h",
+      "license": "MIT",
+      "originalSha256": "9d0716b9de5dd1213757d39c82096d2983d26db31239af987aa2b07e69e73cdc",
+      "packagedSha256": "6722a0043225497c025867c0bebbec01a392ac56488d733d7519decdf8a60852"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSTerminationReason.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSTerminationReason.c",
+      "license": "MIT",
+      "originalSha256": "957278d0075825974a4e7fc668894ef8573f769b8a374412ee3489a7fcdf678f",
+      "packagedSha256": "c6165ed07948e8bfac30d365ec16f3d0a100f2569ca1f36ac8417b90b5953e8e"
+    },
+    {
+      "source": "Sources/KSCrashRecording/KSThreadCache.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSThreadCache.c",
+      "license": "MIT",
+      "originalSha256": "dcd2ca448351f1fe65a0b64ee10d639aa73a04a6101356eae7fcd482243ca573",
+      "packagedSha256": "13f850c376b4183ff9fa279707449471717efe379c39c9e2241b4eb16216754c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_CPPException+Private.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_CPPException+Private.h",
+      "license": "MIT",
+      "originalSha256": "96882292c4e035949eb2b7890c79df50be473fdf5d4122383bfa560ddba654f5",
+      "packagedSha256": "2d20d022c4d4a5f85c4c4338fc9abe10e3c3c4cec89cb251eebe10e519532171"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_CPPException.cpp",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_CPPException.cpp",
+      "license": "MIT",
+      "originalSha256": "00ef384e1f78d5631554f9ea0b195481ade81667031acb2c47d1e46b3bd9c147",
+      "packagedSha256": "497e6febe65771efadec9ca48fc36a24af2666f3fb74201fd099495f2e00173c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_CPPException.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_CPPException.h",
+      "license": "MIT",
+      "originalSha256": "9c86fd1433de79e57f305c9d13aacfa80a230c4fe4d43a2a8d0ddb88599a9e3b",
+      "packagedSha256": "0e0b12c673ff58bfc2b58c3d1d3fd2a01d273bbd4ffb1c6673a3e3f64978de21"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Deadlock.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Deadlock.h",
+      "license": "MIT",
+      "originalSha256": "6afcb5e1b42c38f872cbccab34234637734cc41e4757940fc25c46da2f5675b0",
+      "packagedSha256": "e010a7addc3cebeb4628e73052e499d6721a5f68055e24fcefa91bde163aa5c4"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Deadlock.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Deadlock.m",
+      "license": "MIT",
+      "originalSha256": "946599d65008d35d46d80cb2a098c7b70cd911eb63c2544b0339aeacc0aab9eb",
+      "packagedSha256": "4ba373d4d27e34eb4ec550ccb88993953a55bc9eb6062dd976bdb423c301f525"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Lifecycle.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Lifecycle.h",
+      "license": "MIT",
+      "originalSha256": "a35bcafd48b1cb19b8c18e9d95f7f3cd763eebb3027367d550711105bb820a4c",
+      "packagedSha256": "66686a011d2aec90ff288d50f8d4c8a0be5c1bad270c159d7a1567256fedc4c9"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Lifecycle.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Lifecycle.m",
+      "license": "MIT",
+      "originalSha256": "f724b5337611bc746b17aa703c66939b6b0cbd4d66d1088428cf0a2c0ff0728f",
+      "packagedSha256": "892ed3fbe1244ce5221f20f5a74c4d21e55735accf84bb63b94e8b0b1a572a59"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_LifecycleStitch.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_LifecycleStitch.m",
+      "license": "MIT",
+      "originalSha256": "32a35281c5d1a79ae20820d429fd934dd3db96c34bc682c177f97db5a0508abe",
+      "packagedSha256": "0e006e703d957543c697d629427142e57384e20d0d298f51e4175ee860113e56"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_MachException.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_MachException.c",
+      "license": "MIT",
+      "originalSha256": "47a0597d2a69f4d9bb504e13e624d20d6f6cd4a4515dd29b327c1af43459106c",
+      "packagedSha256": "b92d49ffd9ea38a03e7b0e6d0993e36bdb23def4bc7af5bb2815b7ef6249d83d"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_MachException.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_MachException.h",
+      "license": "MIT",
+      "originalSha256": "6bcbf709d3bfa1d469fad98355e51db8b976907ea6a716878bcb7aeb13d696cc",
+      "packagedSha256": "69029a7a91a5f5788569dc52357794705e666c046925e87febda1810ebac776e"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_NSException+Private.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException+Private.h",
+      "license": "MIT",
+      "originalSha256": "b3570381d3b79b3fbfe9bb0d6a1de537733d147523080f5f2172cbdaff54dd78",
+      "packagedSha256": "3da575f2ec66b8ba72cbbcd19e2bb7afb029a3468a9f331fdf14d6703f08154b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_NSException.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException.h",
+      "license": "MIT",
+      "originalSha256": "935dd188e0c801ec9b7200723b5430a32c10ee689e1934965f503a38868331bf",
+      "packagedSha256": "bb7d4dde1ad21b67ca315538206b698d1d9fea2995afbf8fe7f0d044668e324b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_NSException.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException.m",
+      "license": "MIT",
+      "originalSha256": "d9f93437128df4b20d02651e0a6b2a51c2746003a248a2a00fa34c831a976507",
+      "packagedSha256": "535ffa1f3a5e0d1b023a56b394902b8e72d756a112e06b912c17a6d483286bdd"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Resource.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Resource.h",
+      "license": "MIT",
+      "originalSha256": "aa82dfcad92f0e3e9c36b4a8f3a9d6283184a014faa3044a1348fb24f0a63af1",
+      "packagedSha256": "8385171e92f78538cf01e7884bcd1177dc25a4e757f315091b4ddfff4aea8ed3"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Resource.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Resource.m",
+      "license": "MIT",
+      "originalSha256": "5679ee1d6b37399590e7f2d234e3fc1ac3d36fda12fdbfdf1eaaacba0d00b68e",
+      "packagedSha256": "bc08518c55f61ff94cbd098e2005aa8bb826a6a7c80f98277a506b149226bd52"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_ResourceStitch.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_ResourceStitch.m",
+      "license": "MIT",
+      "originalSha256": "6a01ccad855cf81d0ab58377a67048edb6730b476b963e6d0916abdcf1ea0a6c",
+      "packagedSha256": "b73b6622f81f30a52ffae87f2c4bd8afd1026ba87ca01c8ae55ee7c092297c70"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Signal.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Signal.c",
+      "license": "MIT",
+      "originalSha256": "57a5f78f8e6fb46d429dba00af4332e50a5b8dd39d1bf9208e4afc26c1f5e5a9",
+      "packagedSha256": "8981409fe4e12108ca6d1ab0add93c04ff689993414e833e1a423f4c03d1fc35"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Signal.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Signal.h",
+      "license": "MIT",
+      "originalSha256": "5d3c1762bb940085c06f3f3b79d2a3713faeb254464a3b1541ebe8e96e239eed",
+      "packagedSha256": "e5522754861cd7143f20d77d732689b1fda1ea9296bc9c5de07e468ed0f4113d"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_System.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_System.h",
+      "license": "MIT",
+      "originalSha256": "65a405a5fa578ca9e6e81bd8115a3a3173415788f058e94f5e52eb4cb6cb1aa7",
+      "packagedSha256": "ce4bffffd0be2b61bf8cbc777a374bc992af6bfd73955404fdb3fd286b5340a7"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_System.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_System.m",
+      "license": "MIT",
+      "originalSha256": "fa071a8d1c302059fbdb495981decc647a8769513535f4b098a2b370d6d73fd2",
+      "packagedSha256": "33414f23f8b5caf585726c397a556f6264f055db410b7e5799a6e42054fd0141"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_SystemStitch.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_SystemStitch.m",
+      "license": "MIT",
+      "originalSha256": "24525eb62cb62c7c241a7c885349dca966f1394fd15813a1ef3e74b533c2626b",
+      "packagedSha256": "478a6836037aa264a2e372b391596dea0018368e60783c7e2e3641fdc6dc841b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Termination.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Termination.h",
+      "license": "MIT",
+      "originalSha256": "b4c7feae609dfe47b502b2cac90c36df7f8d0600f12f9894ef15601a08751f85",
+      "packagedSha256": "f27c78247cfca35a47baecce82f520ec058ad5d42231909d56cd6cc98e3f63ef"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Termination.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Termination.m",
+      "license": "MIT",
+      "originalSha256": "49268792bf1fae57c58b2e2ab220ae680277a63e9cda4d81741a9b143bb66621",
+      "packagedSha256": "90f5db9694c4912451a48afdb1f2511adf49fa458eea101dded30b6c6710a273"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_User.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_User.c",
+      "license": "MIT",
+      "originalSha256": "679c62c09c53a62f5907d4e7ccfe693451999de89b065f903917b178bef6959e",
+      "packagedSha256": "bcc19eb171b3cad5d2bd236a7e55b90b3ac3059fab2b8fa06494c8502668d3f5"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_User.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_User.h",
+      "license": "MIT",
+      "originalSha256": "cfc8dac1f87fbf166dbff283ba56bf2c7f3df3c44160365f938e88fe5d57a3d4",
+      "packagedSha256": "dfcf99307072df29dfc8c53e1884cb9eac69ec97f7a180b71a9f6b911848311c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_UserInfo.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_UserInfo.c",
+      "license": "MIT",
+      "originalSha256": "dd4e552292b7e315a3be6d1e1ce8f28ff849ac5e43b33a8218ab2a04c63e4ed9",
+      "packagedSha256": "1a405848eebe4eaf99cc9983c94f530c8ed0af701ca3f55e08f764a972bf1e9e"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_UserInfo.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_UserInfo.h",
+      "license": "MIT",
+      "originalSha256": "affc94d8f796b515754925e8cba37fbe1c54e9457e6c1cc4834d23bfb5e4cf3f",
+      "packagedSha256": "7f5ec34a5aa3f123938787c3f33c0c50fb6c693e24dfa17083759fa6fd0407f9"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_UserInfoStitch.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_UserInfoStitch.m",
+      "license": "MIT",
+      "originalSha256": "c2595b0f90288b3119d0a5cf620f2ed74aeff632418d72804355bde2042bb952",
+      "packagedSha256": "f8dd11515c348b1d0bdbf36b6b8cb2884752014f23b9921b20cff8ba349fbf3f"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Watchdog.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Watchdog.c",
+      "license": "MIT",
+      "originalSha256": "c41cd3cf9e307cf1fa0b84cdcd6ea5261fec5873a5d3744948882be9054ac3a7",
+      "packagedSha256": "549ea0f5a7666815f54e37fbc904d4da5f1f69aaa3a14246446ce780d4e7a364"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Watchdog.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Watchdog.h",
+      "license": "MIT",
+      "originalSha256": "b9822d01d526e3fde8d1027fb1326b1c6a6075aedb7e93d94a968055f50e7608",
+      "packagedSha256": "91f64b2a57710c9416ce692538d2faee6e7e0019e753a6e757b8355a6bee1cd6"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_WatchdogSidecar.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_WatchdogSidecar.h",
+      "license": "MIT",
+      "originalSha256": "1d3e09ba38f164cbecda04d4b12c9431f4f9f7b9fb786a588286312cd2ba75dc",
+      "packagedSha256": "a0b27a4f022d4fa608b6c7ccc811fece3c47ae05c5065f727e00e963efab2893"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_WatchdogStitch.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_WatchdogStitch.m",
+      "license": "MIT",
+      "originalSha256": "25a381b83891c5de97b58169bbda5fe70d6deee3647f8ef14cf9ce0807a4e499",
+      "packagedSha256": "3ca5e9c66f1c62015cb88ca6ad76e4c28154e1d87736d242c269df0b8906e22a"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Zombie.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Zombie.c",
+      "license": "MIT",
+      "originalSha256": "cf7c80d08e5efcb22dcb3171d6ddb379fb37d0f014ed2a2ca6c195baad58a4ec",
+      "packagedSha256": "996595e7961ae51ec07b0b2aa5fe495b5c82bacb5b5044d963d7d46134e58ad8"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_Zombie.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Zombie.h",
+      "license": "MIT",
+      "originalSha256": "37c0837ffc80741a2d9c32a50defed62c4048d025129cbda1d5d975cecae8b92",
+      "packagedSha256": "7ebf0e92552a46da5c580fb4976eec0a60bb3d0641009e51f05cabd46ae17a47"
+    },
+    {
+      "source": "Sources/KSCrashRecording/Resources/PrivacyInfo.xcprivacy",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Resources/PrivacyInfo.xcprivacy",
+      "license": "MIT",
+      "originalSha256": "b75774dec3c97adb1355ba921d73f4cb44148dc609d5423e2e4f26e8146cc4ef",
+      "packagedSha256": "473e68bd5fa8942683bea886e529bd202afca568be0966f5e14000c4e749ca35"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrash+Backtrace.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+Backtrace.h",
+      "license": "MIT",
+      "originalSha256": "4afe10ef55dc6e2a275a9c75a37bed8d5fb32393f892720154cf1f9291c60ce3",
+      "packagedSha256": "ddb11f175d2ad76e77c846a99c973a8f55c9f69ea81620b7b8fb42941b9ad0bd"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrash+Hang.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+Hang.h",
+      "license": "MIT",
+      "originalSha256": "9c044bd4bcb47e143d3941645ef02aad48ce68b556d30ff8470fa86d31982d08",
+      "packagedSha256": "ba0050334ee3869cfd47343fc8bbb1bce42d0af1d8a897a116d2990f7050fb01"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrash+Namespace.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+Namespace.h",
+      "license": "MIT",
+      "originalSha256": "b426cf3155fcbb365a95a06a982f6df6ea29066ffb14ffb57a0d644bfec8f7fb",
+      "packagedSha256": "0ad0742e98890cef8d79b6b636e1aaf8762fc27572a3a1a33ecaf41c92139d8d"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrash+UserInfo.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+UserInfo.h",
+      "license": "MIT",
+      "originalSha256": "be6800fab5feed07ee56a1f7b7fbc09f8818dab95682c6884bfb9bc3b00cfd89",
+      "packagedSha256": "521da0a6e8fa4c62722789252278154c5bc1bddad9fd8176a6129ed86e8aa994"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrash.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash.h",
+      "license": "MIT",
+      "originalSha256": "071ac5805a7e224635273ebc2f8662274822ffeff9bc0f5a45d82b975f5a37cb",
+      "packagedSha256": "6825955d104c45c5571fb160473594c1329cbbd54654658fc0031852fbfcea6b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashAppMemory.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppMemory.h",
+      "license": "MIT",
+      "originalSha256": "459cdc63f9b2b94c6ff40e54e66c2e042809529381038ec89616eacc606a24e5",
+      "packagedSha256": "cca7572ed08e21fc854bedeae6c48a56260b70f3b387b670a85bd09b6dcbe6fd"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashAppMemoryTracker.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppMemoryTracker.h",
+      "license": "MIT",
+      "originalSha256": "96e1cda4a898ac6d05ba94b0fb3864c956edbfd4199ddfd899069c86bcca5dd5",
+      "packagedSha256": "69186928625902873a3eed53dc908c7f1f4f51b0c50c4460d367142f8bdf86e0"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashAppStateTracker.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppStateTracker.h",
+      "license": "MIT",
+      "originalSha256": "5bb12ef1b3c334a981c9304529f0f6c4fcebe8c8cfc1d4c01e6f6c16e356601e",
+      "packagedSha256": "c8bebd7ff4c1cb777d984d5e85c4408ff0d69bed5cabdc9e2bdde7e72ef3d88c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashAppTransitionState.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppTransitionState.h",
+      "license": "MIT",
+      "originalSha256": "c41abaa05988ee0a13451549d199df3cdaccfc71bd079d198ed8fc376e94b765",
+      "packagedSha256": "c2b7e834dafb59497d4025b1822883f31d122ceffc983d7da9da230163efb9c1"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashC.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashC.h",
+      "license": "MIT",
+      "originalSha256": "a3f33306ebfd53686e27e1b8b7ed9d09c76512532a314b8a28120dfdd56710ca",
+      "packagedSha256": "554d1bb5edefaba741753ab45925c737a267ddd8bae289fb6766e38174362b51"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashCConfiguration.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashCConfiguration.h",
+      "license": "MIT",
+      "originalSha256": "9e35ea8604f3f62cad258c37292dc6b22924fc5c331bc1b6092b34184eb027c2",
+      "packagedSha256": "a5a4cd934ded7a5d2c7c6e5a60eafa976a0f103dfd411475070c10d98a5ea92f"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashCPUTracker.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashCPUTracker.h",
+      "license": "MIT",
+      "originalSha256": "fbe7e5c254bdf90b50439994cd5e7edf50adf723db720ed76a5763a3e71ab4da",
+      "packagedSha256": "e2c9143c9cfcd3d2a0e466def098f33020059760a3015cb1af935bee3fcc5858"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashConfiguration.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashConfiguration.h",
+      "license": "MIT",
+      "originalSha256": "d21a9fdd4f2aaa21d83a46a8250d30e8ebd6f32a9b2267ac3644cb58f08b1424",
+      "packagedSha256": "c30043015025287243c25ec29c3c8d7f1fea9f566688460fc2fe67fcaac1eb76"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashError.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashError.h",
+      "license": "MIT",
+      "originalSha256": "49147631b42628f09a55a0a103eaff2242ac61dceb08d21268ab38054ff00aed",
+      "packagedSha256": "757120de48b1407184821864fbc0b3328d69d936a02a56983a2768c9b34860d7"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashHang.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashHang.h",
+      "license": "MIT",
+      "originalSha256": "c3ce668f56dfca4ad11e374050934d18468e45e0c19ad6d0558d63c21945085e",
+      "packagedSha256": "9c354421d0b6c8fb0cfc3a0502da15b54defccdc0a4bb4be80c9b8e62cacf83b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashMonitorPlugin.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashMonitorPlugin.h",
+      "license": "MIT",
+      "originalSha256": "058daadf368acfb569ef370d71ec1cf875b506928a22582cf5fab6aa1b04ae4d",
+      "packagedSha256": "6beec575b9055e37109412bccaa2852ae6add0301eb5802dab938dbbbf1b745c"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashMonitorType.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashMonitorType.h",
+      "license": "MIT",
+      "originalSha256": "2e32737d623fcb5998d707f557cdd415f895ee78e71c2e3bd9bd447fe0fe3336",
+      "packagedSha256": "d28e78480d5dfb2a6976d504984b04c9bc7d2fde93f8e376f5a1090e4b8074ed"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashReport.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReport.h",
+      "license": "MIT",
+      "originalSha256": "a7ba2e192d91282273d9d6510983f131fd8459e104f2f06091cf5b0490de5b97",
+      "packagedSha256": "7cc3185a5189a1495fb3a8fc02763e229e91598eba962f63a658e81680100b84"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashReportFields.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportFields.h",
+      "license": "MIT",
+      "originalSha256": "2656cfd5269e02e57ad701c01ba99442205de38f8644193d93e39484bc502bcd",
+      "packagedSha256": "0d3f1923c3288d2896125de9a49c01f6fb15628f52379d2c35bfa1d12ccefb1b"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashReportFilter.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportFilter.h",
+      "license": "MIT",
+      "originalSha256": "3616fb20f7a303185918b473513b25cadbeb6fe7bfc83ab3e9c254e614d62dc9",
+      "packagedSha256": "e8d20967bc5503073efd7b21f1f782d5e2a7e7d1a05d0b0f9744ff242ee84c46"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashReportStore.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportStore.h",
+      "license": "MIT",
+      "originalSha256": "cb7f2c98014b9149ada03a58eb034db96ce281713a543ce40b21fdcdc2e795f5",
+      "packagedSha256": "80bbee12aad9af9fde4f72b7df049fe395e9b0cab152cc506c273a5842a6bfd5"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashReportStoreC.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportStoreC.h",
+      "license": "MIT",
+      "originalSha256": "ce436151b2e3f496a3b5a3ff558496465338b1eabc9fa361e393535608376cab",
+      "packagedSha256": "9b1eb8b4cfab5ee9ddbd2edebc17e91022bb0d0f8b388ea5ce50ece4630151eb"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSCrashThreadcrumb.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashThreadcrumb.h",
+      "license": "MIT",
+      "originalSha256": "84ebda88bf9c2cf9a7d6d483b376b04c1e304dd2eaf12f4d829cfc44cf104931",
+      "packagedSha256": "b977ba6689afe7e586dc3c7e99692b40219ec6ca573333177355ed6f8abbc8cb"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSTerminationReason.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSTerminationReason.h",
+      "license": "MIT",
+      "originalSha256": "9e6010e6ffb33db844e491d2400d8119762136566917704160d567c5b1a79ed4",
+      "packagedSha256": "91cf6fd66bed22b2dbf97a42ed2b797777591e8b651014ed30db88453f05c543"
+    },
+    {
+      "source": "Sources/KSCrashRecording/include/KSThreadCache.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSThreadCache.h",
+      "license": "MIT",
+      "originalSha256": "b0f96a66f5559b9e9c8ed1fb6a35efe0c4ec79bafa4fe4c926d8259fa49d2cd1",
+      "packagedSha256": "42aacb71c0186114bc0bcbc95948f804e883804d92ffea3aec00897ea711aeca"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSBacktrace.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSBacktrace.c",
+      "license": "MIT",
+      "originalSha256": "a63ca05b8e6a7568c06b84a7477b66e1f98b3096690e4bc5ea7dd64dc98d3e35",
+      "packagedSha256": "d72eaca93c24294fef6633c657ed3146d12d425ac42af1a601e5c282df10d197"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSBinaryImageCache.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSBinaryImageCache.c",
+      "license": "MIT",
+      "originalSha256": "d4ffcc9a007ea140e9e12ceab7b8e86ed1f7f70a85aab7fc009365d4a0d69bde",
+      "packagedSha256": "0161e2997337d59ca64a2e649702d0aab83738b45b2aef9cc0d7464640079f43"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCPU.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU.c",
+      "license": "MIT",
+      "originalSha256": "b57dc3d8898ee5aaa42c50b37315ac1da3ec2164ab8727d3731df0a8a9959e66",
+      "packagedSha256": "6824b2c73cd0ef637482a30f0f0acae716cc2d5ac36b48fde5ddafb9bc9eaed4"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCPURingBuffer.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPURingBuffer.c",
+      "license": "MIT",
+      "originalSha256": "2dadedc89ab62a48f0fefcd8f4ee2095c4b023f40f3e1ba782250f9109e869d1",
+      "packagedSha256": "da1f8df16c4568e2dc8ba3bbb74cd45ce0a26868fe9333fe2d4b54ab692d4086"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCPU_arm.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_arm.c",
+      "license": "MIT",
+      "originalSha256": "f07659a0afa8874566a3fdd50e1fd2c45b1b23b5242d3f8ac69c7525563aa265",
+      "packagedSha256": "85bce9fc00302cbe3b7a6a62a0ed4d01db40e899940c9f957700de644e9774fc"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCPU_arm64.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_arm64.c",
+      "license": "MIT",
+      "originalSha256": "1249bb2c454e315752d2f3fa443e17bdd007a2a712d85059d79bb7488441fdd0",
+      "packagedSha256": "32730807ac7891d54594d90839a2f2d6421d3d243b7a305ca02b2c46fe63ba53"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCPU_x86_32.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_x86_32.c",
+      "license": "MIT",
+      "originalSha256": "9e5db5960e3a82b80765bbbe3cca7cfde8eac40ee5d3d75a6adba05fe4b41da8",
+      "packagedSha256": "c95809d6a6fbb44472538485cda6f4ccc9931fa9642d6afc4725b99d5b2df1d7"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCPU_x86_64.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_x86_64.c",
+      "license": "MIT",
+      "originalSha256": "60f35acd29585e29ecee5dc5d5bca838f5455f7ea1f0826ec65e4eb143c8d8da",
+      "packagedSha256": "22e2b0ea45376f2ca0da2fcd39c13723adc86e75268027b1ac2f6717a693341e"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCrashMonitor.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCrashMonitor.c",
+      "license": "MIT",
+      "originalSha256": "70658958a00d443d82867b540cc118efcd2cc12a32e359185812be683abcc006",
+      "packagedSha256": "cf2f42147cf77bab4c6068c9925fb85bdaa4e699a7c8949bc7b9af7c64b2909f"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCrashMonitorAPI.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCrashMonitorAPI.c",
+      "license": "MIT",
+      "originalSha256": "a51deca6aa89770bd0568226b7dc7dd7281812c1a06076444f6548f6ed80e6af",
+      "packagedSha256": "196aa7d7616e8f3efc6b9aac46eca5f199aa0532ce7ab2fa352d00590b8651bd"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCrashMonitorRegistry.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCrashMonitorRegistry.c",
+      "license": "MIT",
+      "originalSha256": "d75385d90f981c59c38e744d61a6103146913734578202d2c3e992e45970a4cb",
+      "packagedSha256": "c1e8721c6b59addfb8a7411936635fafc035d72a297db70bc8925fbb60a98b04"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSCxaThrowSwapper.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCxaThrowSwapper.c",
+      "license": "MIT AND BSD-3-Clause",
+      "originalSha256": "477ba7c65dffc4dc69ef3b58e6a5677212197132a576aac22fc5275c0757dd83",
+      "packagedSha256": "7b91c944d1d2e2a7d91ab164cc6141bf1c454a77c4cc52ed3b96632dec62a46f"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSDate.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSDate.c",
+      "license": "MIT",
+      "originalSha256": "72381a0742f0f4443f886f6923c9b4698c379d9c33d32bef9fb8a4a1c1160010",
+      "packagedSha256": "d3f97ac21b17e37b4b52e0aedb46a88e7ee7ef95aa8d50a3eb6279abde28666b"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSDebug.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSDebug.c",
+      "license": "MIT",
+      "originalSha256": "62dfdf365a25a729daa352692c92c3e7f36977e1f3e991f78eba1a8944cc1efa",
+      "packagedSha256": "1803cfbb776dd683b5971d04a91ddc264292d1091556a2c2688229686bbf1660"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSDynamicLinker.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSDynamicLinker.c",
+      "license": "MIT",
+      "originalSha256": "3d6b7a76b5800f8b3fbc67cf9c6624484d7b18403b6218a6d0187d3e55c4bb2a",
+      "packagedSha256": "38e8f60868bbc2e16592bc1a850d04979aee7d2adafc763e265b1192eaf090ee"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSFileUtils.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSFileUtils.c",
+      "license": "MIT",
+      "originalSha256": "339dcdad6d368c89755703f44676abf426d3475c0c670ef5d7b1e8a8896611df",
+      "packagedSha256": "5588f001a21978eebf74891d25fc56e64057395a2faaeec4274ae01b2fdd577f"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSFileUtilsObjC.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSFileUtilsObjC.m",
+      "license": "MIT",
+      "originalSha256": "5d77b081009a46f578c93294ca24f373d99d7b0d2bcee508b73547a46f99db2d",
+      "packagedSha256": "0c069f3650242fb24352612f72f5f66be7db791b2e72754e6520d1989505547a"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSID.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSID.c",
+      "license": "MIT",
+      "originalSha256": "d98f7065858b2e71d77f1ee07e40f7e970cd2d3a898bc41d354d8dd5ac779858",
+      "packagedSha256": "ee03e66b3d4ede52d902e051d43a0bcc4dc10394af8dc0f65184d0d36df75ca3"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSJSONCodec.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSJSONCodec.c",
+      "license": "MIT",
+      "originalSha256": "8ca2c68c1bff6ae6a2c06edee34a6a54031919753a86af74b5dd28da56b14d20",
+      "packagedSha256": "0cf835ba21ad9e080821fa8aecb47c5aaf66ce4582de016a4253d5e7efbd1176"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSJSONCodecObjC.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSJSONCodecObjC.m",
+      "license": "MIT",
+      "originalSha256": "e2be48be625a8a01d0b2c512aea90b6227aa246b79383c71ef83e1b03d9df2a4",
+      "packagedSha256": "4a591de4dd45a2cba7cda31530750231ca57bc3bab4eb881f4d1d5cacce6febe"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSKeyValueStore.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSKeyValueStore.c",
+      "license": "MIT",
+      "originalSha256": "e28a43ccd89b374def49f6502b6d94b32c5aa2c67520b850e1e9e2fa4b762a9f",
+      "packagedSha256": "d99ed8f9fc574b3fb9cb21e58025743538138dca263ae9a3eab57fcd6b5703f8"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSLogger.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSLogger.c",
+      "license": "MIT",
+      "originalSha256": "e1426be742f0d6bd8b49e0cf6df56b3d37000892d55a1a00e5d9dbda053dfc99",
+      "packagedSha256": "dfe75f3d6480cc084a5213dccdbef643792ac1c14cb099dee3a1e2a9fca7679f"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSMach-O.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMach-O.c",
+      "license": "MIT AND APSL-2.0",
+      "originalSha256": "7b76560449c6d6a68e0379a3e63d2c63340a00ad4aefeac23d8f11501f863af3",
+      "packagedSha256": "8a339ec63dd61eac04dc736c38ebd0cff876594783ce9cd177104a4f9048e6f4"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSMach.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMach.c",
+      "license": "MIT",
+      "originalSha256": "459db9bc15ed6891de41c690ef69258d21b07a04d2c327100ff13f7e1ce3c446",
+      "packagedSha256": "fad3be21945e9bd265956640bb3e0b21ccd229f36f82dc298c1ad1a5094929e0"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSMachineContext.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMachineContext.c",
+      "license": "MIT",
+      "originalSha256": "78844e352fa2e2e71444fb683fa1e3469efd1671b556dabf510c7a58b614f72e",
+      "packagedSha256": "6e30e8b8d6501013438000d45da6caf73892ef3a6fcd3a86e1c0643a6d4659a0"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSMemory.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMemory.c",
+      "license": "MIT",
+      "originalSha256": "ebce0ddf625eebeb05ab43f64d43e26767b1bbe1e0b7166907aaa261769c885e",
+      "packagedSha256": "46965e5df354eda0433f75b77a3250801db6743dbfdec7985367bf3ebb0fc059"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSObjC.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSObjC.c",
+      "license": "MIT",
+      "originalSha256": "d5befe23780b55332df3124f1414a4e5562f45d3c024c8a516392c6063b0cddf",
+      "packagedSha256": "6c1f63e882d17b48fa544676d4e8f4f21b28359fbe8f4c718999a54a1bc24a2e"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSObjCApple.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSObjCApple.h",
+      "license": "APSL-2.0",
+      "originalSha256": "618892a8f5ac373b95398c442d7e1cbfc5962cbeec025f17fb8e3019404f4e3b",
+      "packagedSha256": "b7d65aa439ecf5130bb36af5f5dc83758db2f79a35446f4386e0a8b3330e97f7"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSSignalInfo.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSSignalInfo.c",
+      "license": "MIT",
+      "originalSha256": "d9d5a20f9083eef6620231b6c0b249f952073d4539067fbb3631e5e51ef3974d",
+      "packagedSha256": "925d6e4f0616539b52087cda62d532be5afc6f5338443671c09bb0133dd62c99"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSStackCursor.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor.c",
+      "license": "MIT",
+      "originalSha256": "5ddc34c3172a0ca5433a51ecd7b9732fd86cb65e40eabd8bf9200ef2a4f43050",
+      "packagedSha256": "09e1d1ab5c06fc90776e215cd3dca32a812e5f792f855649c721bc89caa10fc8"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSStackCursor_Backtrace.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor_Backtrace.c",
+      "license": "MIT",
+      "originalSha256": "e460479d2ffbdc2fe505e0c1f219b13f9d89cfa620286d9d1bfe9cc2129afaec",
+      "packagedSha256": "a81e91353c171fd85690323079dfe91d4da57e3fc539090ee6501c66d572ac1c"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSStackCursor_MachineContext.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor_MachineContext.c",
+      "license": "MIT",
+      "originalSha256": "9f83506f703ac0cba14a7c7089de12de41bb5f51ef9c159c9d632a282981c05e",
+      "packagedSha256": "ec6d0c6d03f309a06fb88408e5ce9809c358a6f050d4ddeefd9a7bb65bc93fcd"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSStackCursor_SelfThread.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor_SelfThread.c",
+      "license": "MIT",
+      "originalSha256": "49689fb8abd01a9781fc98fe260e5e09c08176df3f21f845d28539d7a72d75d3",
+      "packagedSha256": "442da9fcc2d22663295a7ae61c463a686ffecf800232efc6266adb6bc5ec393f"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSString.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSString.c",
+      "license": "MIT",
+      "originalSha256": "8411e4235c4abe28501e49400e668c837d058d74459a449903080c36e06362b9",
+      "packagedSha256": "c97dfbd3fbf63069ad70320c7ab02be0d8d0767a1330f1ac1a52b0f1657e51e4"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSSymbolicator.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSSymbolicator.c",
+      "license": "MIT",
+      "originalSha256": "86247b40c1f472ecd2aab3928251c4dcf7042fea8ed0ec5aa38dca96fd62911a",
+      "packagedSha256": "9001924ab8de9eef43efa9233bdd6d2d8a12b974b6a9d8e1d093c7ebfe41ae8e"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSSysCtl.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSSysCtl.c",
+      "license": "MIT",
+      "originalSha256": "910c40d1b8a4bf8583640fda37a8cb01d13d04cbbd52d1d009bdbdf4ef2889c2",
+      "packagedSha256": "b8fa2a0b1f75cddccfe8d0b146a619d56d3bc1281a5e22b6f8e95c5cd25b033f"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSThread.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSThread.c",
+      "license": "MIT",
+      "originalSha256": "582a15bc06919d5213bf49741aa24bc63059c3b5c00067c03f3ec7e632a52aff",
+      "packagedSha256": "6662d0613d503729f69d2013bdf6478259a90f6d95d9aecaae89d7aea2d57677"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/KSThreadInit.m",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSThreadInit.m",
+      "license": "MIT",
+      "originalSha256": "1fe930dc4f5ca982f1dd1d1f6d230cc2e8faf1bc01715b21daea10a0f968b5b0",
+      "packagedSha256": "9e1276564c9d333815b7e44f516846b4be3029c3b452bea44f7f7a4cbface076"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Resources/PrivacyInfo.xcprivacy",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Resources/PrivacyInfo.xcprivacy",
+      "license": "MIT",
+      "originalSha256": "5b3af4fd8cde1500a756e826698c9928ab49d70c0915559b3d3acf56f7973706",
+      "packagedSha256": "fb98c70a8477779b72829d04e1eda0ba1546745b21933cdccd3efeb921da54a0"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Unwind/KSCompactUnwind.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind.c",
+      "license": "MIT",
+      "originalSha256": "5e1c5099ea9af5e231ce380d70697a0b957c977ff1d1c76c39d1eaffad229ef4",
+      "packagedSha256": "ab6189169a71d73e03c1f22c715590685e75d5993e25ef16ba1f55605fd23912"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Unwind/KSCompactUnwind_arm.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_arm.c",
+      "license": "MIT",
+      "originalSha256": "d161b74eb07ef595db88820bef4d4e6d8b1c16f69055db8bff71b4c72dd651af",
+      "packagedSha256": "8af25090e414216fb8f0ff124280df67485441432478b4da3047fe47005e7613"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Unwind/KSCompactUnwind_arm64.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_arm64.c",
+      "license": "MIT",
+      "originalSha256": "1fe7ab6a803e5ca363c0946708de169ecf3a7bb6aa5eb43d273a898cfc4b7800",
+      "packagedSha256": "4dea4b525e5a99a49bc639a3a8686dde4a30365b7e303be4524b92489e5c9cb1"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Unwind/KSCompactUnwind_x86.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_x86.c",
+      "license": "MIT",
+      "originalSha256": "c5b3f9cd75c7083e1f8be75c6c0c23aaec98b38a413f57712ea406cba5725e82",
+      "packagedSha256": "89784913cae51997f278728ea05a5f7b70f711f80f63baa50732089ae41eb212"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Unwind/KSCompactUnwind_x86_64.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_x86_64.c",
+      "license": "MIT",
+      "originalSha256": "70ab11a8f5574c2b636c84ec0128dc64140d23afffe9d96933c4d2de1528e217",
+      "packagedSha256": "8db86a0a9eb83015658c835b49c43c08624c5637f33e6f5be0c6f1559eab83b9"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Unwind/KSDwarfUnwind.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSDwarfUnwind.c",
+      "license": "MIT",
+      "originalSha256": "decfe7b4c382e43e279e333a49ad816f28a13c7c87add0f133b7cf70cf5a27ad",
+      "packagedSha256": "082cd404957ff60118dae71481e4d639046c3877ae233c9f1ba0e0f47cceb377"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c",
+      "license": "MIT",
+      "originalSha256": "2f3eb9d67c2b628065a179350f80b7b824bd182db623bd63e32594ca64ca6cd8",
+      "packagedSha256": "56bfe672e90d9092acc4d8dbecdd0e1c04c3e227658cf592fc146c907aea12fb"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSBacktrace.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSBacktrace.h",
+      "license": "MIT",
+      "originalSha256": "3d909fbea8bb2536838c8ca1b8defce4a227f18419c823c85cba9adb4f6470c6",
+      "packagedSha256": "d46eedfc2efef67f689deb1904dde135842c07cae7c289dbeaf2fd1cb05ad4e7"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSBinaryImageCache.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSBinaryImageCache.h",
+      "license": "MIT",
+      "originalSha256": "b9e960e029a0a20db92fba82a9d5889c06a24a2503450148c66fbdd8b177b5d6",
+      "packagedSha256": "96eaaf2b8276a510e421dc35eaf23b20de495eb35c8517114d22e292c69042eb"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCPU.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCPU.h",
+      "license": "MIT",
+      "originalSha256": "9c85271caa5a4e455d8b24d5da05e6df48d129d77cafda7a63aa5e0ea394d892",
+      "packagedSha256": "9ed9042d35018b27656213dc0a76bfe5a8f4490aca81d04d067c401853c50b10"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCPURingBuffer.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCPURingBuffer.h",
+      "license": "MIT",
+      "originalSha256": "ccdb84c3b3bb48ceae5b930730975bc2c4b217f5598ca259b9f7a9fe2dba0981",
+      "packagedSha256": "aa6bbcf0ce7256802043401f80c3fdeeaa56c01e32373464fff699f0a93882bf"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCPU_Apple.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCPU_Apple.h",
+      "license": "MIT",
+      "originalSha256": "a6a936d432a99a89e6733d550a732f0a4c666fbdcd9c34897bde77c893e0cd0f",
+      "packagedSha256": "69921ed182a320b03af9947ce367f7f325328267c20dde1bb64cc4f4eb9985af"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashExceptionHandlingPlan+Private.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashExceptionHandlingPlan+Private.h",
+      "license": "MIT",
+      "originalSha256": "bb6fcf581a3907d485a545adb654fff849edad5ce6d64d5619efb73f90d333be",
+      "packagedSha256": "4b03e3177800545c281706309f43a62386d724fbb3c23cf303a390ac67dddd6d"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashExceptionHandlingPlan.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashExceptionHandlingPlan.h",
+      "license": "MIT",
+      "originalSha256": "7b3571dd7e511d56988d625cae1f4e0e2e6876ba5b415b117b4e19634026a893",
+      "packagedSha256": "3f4a153ef8105a3938fe3960db09adc4d9860478206d60b329f6f7fda512f1ab"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashExceptionHandlingRequirements.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashExceptionHandlingRequirements.h",
+      "license": "MIT",
+      "originalSha256": "1871b81d9bfe9f16220a9067c728710e28a40a89dfc6c614d5fd6a5c85827f27",
+      "packagedSha256": "c02328d4497e25c0bcfe019a4ba0eb0a7efaa211abf201a502b812deb4d2bc05"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashMonitor.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitor.h",
+      "license": "MIT",
+      "originalSha256": "bb122f11d0d7f59748af335031a2853f55118661755c324d3d6d49821e46904e",
+      "packagedSha256": "0d22db086940bf09e65b3a240319b4959c8aa3c10abcfc40258594ab2f7c5ac9"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashMonitorAPI.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorAPI.h",
+      "license": "MIT",
+      "originalSha256": "d5139cb8b061414498a2797fa33a9cb22993666db81cc99217da998e401e8c29",
+      "packagedSha256": "6d5b998f9f7e50176f3aca8f7f7ed735fb76d62b530620204e55bf80c9cdb2eb"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashMonitorContext.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorContext.h",
+      "license": "MIT",
+      "originalSha256": "a4a0aedd94ff25c1cdebcc9c1d459b84d84c16d3061c077bcd5ec8b8c7ba46b1",
+      "packagedSha256": "77d57f4d3c61dae07fe28a0a1f7e2d7f24187029fe3406d07d73de2c23b9c23a"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashMonitorFlag.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorFlag.h",
+      "license": "MIT",
+      "originalSha256": "e88e9171abf8240bad1096672499f641d1a5a13ca9a530f341ee23b4409929df",
+      "packagedSha256": "7cfc0abf21d48ddda65dc6a039f32ad385c97f68f22d1356faea8d2e1a298240"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashMonitorHelper.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorHelper.h",
+      "license": "MIT",
+      "originalSha256": "ce5632733f5597ae0ad38cab0f9b83524d2b17a5aba8ee79625b28c742afefad",
+      "packagedSha256": "e3e93ccc61bdba9e317d73d7cd4a111b226707f3297f89ff623435407d28c8a7"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashMonitorRegistry.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorRegistry.h",
+      "license": "MIT",
+      "originalSha256": "d8ccbd00433bac87dfcbb9b8b731fb3ecb3feea73e5242aa2d2993b0f71497e4",
+      "packagedSha256": "9ec915001be2afb04220d256fa154bb913fd7c0e85c33b6052b9982007f4d2ba"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashReportWriter.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashReportWriter.h",
+      "license": "MIT",
+      "originalSha256": "992ba11d4a3aa36fa3d2da0bfbc1997f33b07d108fa052ee04b2aab426ba9842",
+      "packagedSha256": "8267eb2429a357516ff5445c1d90743e1ab0d640b2fb7d61e3b99cd84c5e6d9c"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCrashReportWriterCallbacks.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashReportWriterCallbacks.h",
+      "license": "MIT",
+      "originalSha256": "4d6a8f935718b8986d5cced3465b77d8a92970d46134d020e9669cec355d4896",
+      "packagedSha256": "ecae9cdaa2068eb2ed582f622efe3ec1b757e85fc3c91c46cf5cb25a010e7e3f"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSCxaThrowSwapper.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCxaThrowSwapper.h",
+      "license": "MIT",
+      "originalSha256": "80c190b87629880b9f834d7fd1a2378c83a509dd216de058d36f0d55dc2ed72a",
+      "packagedSha256": "5e0a457bba946a4ac9e69597335dc468fc8862850df44a2f4f6a5c8cb51b3ce9"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSDate.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSDate.h",
+      "license": "MIT",
+      "originalSha256": "80952f4144a6ae0a4c9799a04b825f4645f6c6ea97385a6af4b89b4536fb132a",
+      "packagedSha256": "9e269fe97eb89b6233d4aad95cce5bae0e5491b009512baea9daaf9b9c587288"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSDebug.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSDebug.h",
+      "license": "MIT",
+      "originalSha256": "1ae823328e2e5ffeedaec8a18c52a9a1fed560fb69044a6ec7d250fc09d27b92",
+      "packagedSha256": "d41f29ebdcefa59cea68a76b05ab86300d0e9ca9d7efde208f96c2806bf803b7"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSDynamicLinker.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSDynamicLinker.h",
+      "license": "MIT",
+      "originalSha256": "1c87f6a001912acac56ba476d84ae17e3df11f398ee592d89f4148dfc219a4b7",
+      "packagedSha256": "666c9995a20558092f04c7c88f8e5f5754605630176e533113a82d9f5c3e97c3"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSExcResource.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSExcResource.h",
+      "license": "MIT",
+      "originalSha256": "f0027e2ba7912b9eab2f40a7069c0d13136b23d5d0ac5c6c07dd8ebf1ccfaf17",
+      "packagedSha256": "cae86a159f247d31e5e00e53d0e87772770f8fd60ad62158dde9a3e46305652a"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSFileUtils.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSFileUtils.h",
+      "license": "MIT",
+      "originalSha256": "f0d4aa3204f90741ca07a20e0fc2cbe10e02c28f244691d6b485969c48066d03",
+      "packagedSha256": "14b31fb365b9b91eefce993bc97d3b481a6f6e405a45085869f0ff1b0e24e2a7"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSID.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSID.h",
+      "license": "MIT",
+      "originalSha256": "1ca317c9203cfad27976cb21289fc48b73774fd9d2b66b95410277d5677c4b42",
+      "packagedSha256": "dd056f7c60d38fe09ed6136bd3e9df86d10506ee7d0b0dd16e8815bab357b2ae"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSJSONCodec.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSJSONCodec.h",
+      "license": "MIT",
+      "originalSha256": "f32234159bb4802a7fa75dc29b86f23b4e674dd3fb5ff8eec6b1fda9d30edd46",
+      "packagedSha256": "3a21bb3cc63a89e031b6da86af63627dcef41d29cdd8981dd2d6897dfcd6d6b1"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSJSONCodecObjC.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSJSONCodecObjC.h",
+      "license": "MIT",
+      "originalSha256": "fe18aeb1b88f022d1a83b3739118d6b5ee23d2c24b9477ad7e99185d409a080b",
+      "packagedSha256": "604efed66e225fec66404981d221377543d5d108b3bf3154a67edcbbd7dd5c9a"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSJailbreak.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSJailbreak.h",
+      "license": "MIT",
+      "originalSha256": "830984fb432f984677015c90e786aa8e8ea37a80fb4ad66a2ad7a2aa2a9b3d55",
+      "packagedSha256": "cc944fa84d6e3407f24947fc53e0bc19ca6b871e1b5bfd2eca9295efe5a14de6"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSKeyValueStore.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSKeyValueStore.h",
+      "license": "MIT",
+      "originalSha256": "689eaeec9e40d2cc235e9b8e2a62cf04bd394e54e7a249e01e2988897d8cee0c",
+      "packagedSha256": "1b3e8c1ba8b5482ec555104ad12421a532c77fdb8a5deee53716b9e62f384ac4"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSLogger.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSLogger.h",
+      "license": "MIT",
+      "originalSha256": "fd5bcd0a4325785c2a63ead714eae91524239619d86f19f79a994e37a3d21bbf",
+      "packagedSha256": "7be84ec963b30af4e86c02d66c66a335b57643ad2458ba49bf9f31d7509bbc79"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSMach-O.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMach-O.h",
+      "license": "MIT",
+      "originalSha256": "35877340223a36d990098484876fe2a60457af7a9e82191f3988943ec5fe6eef",
+      "packagedSha256": "dc9fb9d3727a59e015835bd71a31b6670d45365f988d1e21e0d6752d092d274d"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSMach.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMach.h",
+      "license": "MIT",
+      "originalSha256": "8b0f16add3a98a0b812cdf4148e6c113b6bd351ac81c0b34b3bb7c88d8a3a3e6",
+      "packagedSha256": "38ec5156f02d1d48efbff0a1cac2f2be0a22758d80a2bdd0107d124b0316e777"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSMachineContext.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMachineContext.h",
+      "license": "MIT",
+      "originalSha256": "a7ab4023fe3098d862f1a4b7adc15fc0ebf176a08974df16d434f86939ee1538",
+      "packagedSha256": "79a5d37536de453082539801acaa3dbda5666ddda74a1a9bfd77456d61bdfa45"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSMachineContext_Apple.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMachineContext_Apple.h",
+      "license": "MIT",
+      "originalSha256": "9ba22d51b1a16e865c9606b921027c7f2bde434185f1ca197fec189856fabeab",
+      "packagedSha256": "b0220fc17083c0a171bae0696226946b47d590a1691d7be7cbfce6e996907e49"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSMemory.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMemory.h",
+      "license": "MIT",
+      "originalSha256": "8cad0e07174d10b50883b69ee38db28bedcc9d00d7eb008b9189278e7b0733d1",
+      "packagedSha256": "02b9ab1d287246eb8d9b3e957ec87c6bb78d0ec40aa3d3791f0b66f4c3555f1c"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSObjC.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSObjC.h",
+      "license": "MIT",
+      "originalSha256": "45e827c9b0dfa916fb0dec9819ab394a21be400c361db38b0063f1df795d0427",
+      "packagedSha256": "eed819f71e4f9c362ef822e39b75701536aad458a6583708253bad472bb57ba6"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSPlatformSpecificDefines.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSPlatformSpecificDefines.h",
+      "license": "MIT",
+      "originalSha256": "34351368e5b39fe1316bf1fc3445e0312124349dce63081f7e28e653a2a0ab8a",
+      "packagedSha256": "0165d51f95b1cd15dfa8d1f10b2cd740d40b5c7aea8e8b67429ae479de09af4e"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSSignalInfo.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSSignalInfo.h",
+      "license": "MIT",
+      "originalSha256": "84bf136139baf08ed1ab76918d09be372b34df92673ae65740db14a816a0e2c7",
+      "packagedSha256": "1ee87afb5dadebb252eed4b6740902a7c826b94bad98723fee140b8175a19a2c"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSStackCursor.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor.h",
+      "license": "MIT",
+      "originalSha256": "08503e69577afdf9b14bf1334d5b8946739102e6630e870944b9adc614c39868",
+      "packagedSha256": "2f8a819a78f2d81bc8c699af7bbd2fdae25309f656ca6a40411e634615e58594"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSStackCursor_Backtrace.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor_Backtrace.h",
+      "license": "MIT",
+      "originalSha256": "cf1ebed676a3a18c8ff553c43da29c9a235729526fa7bfbbd26c99b787b56b88",
+      "packagedSha256": "fd5c125242170be4a6d6c23e10091f593043eaefb980fb4a7082bb62c9c9e805"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSStackCursor_MachineContext.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor_MachineContext.h",
+      "license": "MIT",
+      "originalSha256": "3d9fa7dcf61f79b9e07a65a0ed8684dead5b196aada51360c36b74d12e73e582",
+      "packagedSha256": "81490c1586e7a6d8a6264d40273adfaaa62f0da5479dc068962573981a13f603"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSStackCursor_SelfThread.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor_SelfThread.h",
+      "license": "MIT",
+      "originalSha256": "b6a96559e6d943a1d61e60906ab60e1a6fe324e4a6f6bb6c1a67ff0651cec020",
+      "packagedSha256": "79a7cc5605d88430e643038363fa2f18e287d272be222f56086ac818a3912e6b"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSString.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSString.h",
+      "license": "MIT",
+      "originalSha256": "968acb8ae950e899116e3e4620ea3e23371828869555253314cc18115caa24b4",
+      "packagedSha256": "e7d0cd7fc01967c099067470e3ccf27801723b5780efd5be719b2dbf6d901ec4"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSSymbolicator.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSSymbolicator.h",
+      "license": "MIT",
+      "originalSha256": "3d10f8dc255a923b8f122206fedd69d041e5fc466db8d1805cacbc04cf96d832",
+      "packagedSha256": "56f08ccf423c2c3a422cd8080a3f453f1f548e298c3b6eda9ff72839809646c1"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSSysCtl.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSSysCtl.h",
+      "license": "MIT",
+      "originalSha256": "34f710187e2924c548de8a1a06abbc4d8d27e5d4495e095593adccc24b4f812c",
+      "packagedSha256": "bee863d12b5da6af7a29ce9e84aea9fb866955deec58f1919ec1cb52e1315dd8"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/KSThread.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSThread.h",
+      "license": "MIT",
+      "originalSha256": "81fe66a9e3f2462f2f2abb0701fee04ba6b7b22e397b2e7c0ac5df261378f880",
+      "packagedSha256": "5c995e8c1e6eba14cb2a884d79747e1b9af8a3df800338e535bd932c313a5013"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/Unwind/KSCompactUnwind.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/Unwind/KSCompactUnwind.h",
+      "license": "MIT",
+      "originalSha256": "1240f081882501b96a7c53ce63dc734fc553cd58f5e0846f69376615b3d26bdc",
+      "packagedSha256": "6131a901798b475421f2006e7450d0e3b51d6e8ae8cc5d896a1b38543b7b0cc5"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/Unwind/KSDwarfUnwind.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/Unwind/KSDwarfUnwind.h",
+      "license": "MIT",
+      "originalSha256": "285bfb47dddf49fc5d3cb0d568f577baaa948a02db0cdf856ec854b4f5bc8596",
+      "packagedSha256": "c025e592e544905969d4af1244cdf2442cd3215be79a6d4756fb7a0abbdccbc3"
+    },
+    {
+      "source": "Sources/KSCrashRecordingCore/include/Unwind/KSStackCursor_Unwind.h",
+      "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/Unwind/KSStackCursor_Unwind.h",
+      "license": "MIT",
+      "originalSha256": "2d6670ac27e066af7d2d1c2d9a3a00a8af90adf0050fe93ee8baa2f0a4ef390d",
+      "packagedSha256": "1eef9b518523322da09448700a4efbc4ed98298d320d197b4718970c7d8a8459"
+    }
+  ]
+}

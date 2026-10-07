@@ -21,7 +21,8 @@
       "enum": [
         "manual",
         "crash",
-        "error"
+        "error",
+        "diagnostic"
       ]
     },
     "sessionId": {
@@ -999,6 +1000,12 @@
             "jvm": {
               "$ref": "#/$defs/JvmCrashMetadata"
             },
+            "native": {
+              "$ref": "#/$defs/NativeCrashMetadata"
+            },
+            "androidNative": {
+              "$ref": "#/$defs/AndroidNativeCrashMetadata"
+            },
             "exceptionType": {
               "type": "string",
               "maxLength": 256
@@ -1048,6 +1055,9 @@
             "fingerprint"
           ],
           "additionalProperties": {}
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/DiagnosticEvidence"
         }
       },
       "additionalProperties": {}
@@ -2200,6 +2210,479 @@
       ],
       "additionalProperties": {},
       "title": "Frame"
+    },
+    "NativeCrashMetadata": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "const": "apple",
+          "title": "NativeCrashPlatform"
+        },
+        "timestampMicros": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,17})$(?![\\s\\S])"
+        },
+        "crashedThreadIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "framesIncomplete": {
+          "type": "boolean"
+        },
+        "imagesIncomplete": {
+          "type": "boolean"
+        },
+        "images": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeCrashImage"
+          }
+        },
+        "frames": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeCrashFrame"
+          }
+        },
+        "error": {
+          "$ref": "#/$defs/NativeCrashError"
+        }
+      },
+      "required": [
+        "platform",
+        "timestampMicros",
+        "crashedThreadIndex",
+        "framesIncomplete",
+        "imagesIncomplete",
+        "images",
+        "frames",
+        "error"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashMetadata"
+    },
+    "NativeCrashImage": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "allOf": [
+            {
+              "pattern": "^[^/\\\\\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
+            },
+            {
+              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])+$(?![\\s\\S])"
+            }
+          ]
+        },
+        "loadAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "vmAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "size": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "cpuType": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "cpuSubtype": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "architecture": {
+          "type": "string",
+          "enum": [
+            "arm64",
+            "arm64e",
+            "x86_64",
+            "x86_64h",
+            "unknown"
+          ],
+          "title": "NativeCrashArchitecture"
+        }
+      },
+      "required": [
+        "uuid",
+        "name",
+        "loadAddress",
+        "size",
+        "cpuType",
+        "cpuSubtype",
+        "architecture"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashImage"
+    },
+    "NativeCrashFrame": {
+      "type": "object",
+      "properties": {
+        "instructionAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "imageIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "imageOffset": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "instructionAddress"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashFrame"
+    },
+    "NativeCrashError": {
+      "type": "object",
+      "properties": {
+        "signalNumber": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "signalCode": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "machException": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "machCode": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "machSubcode": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "faultAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        }
+      },
+      "additionalProperties": false,
+      "title": "NativeCrashError"
+    },
+    "AndroidNativeCrashMetadata": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "const": "android-exit-info",
+          "title": "AndroidNativeSource"
+        },
+        "abi": {
+          "type": "string",
+          "enum": [
+            "armeabi-v7a",
+            "arm64-v8a",
+            "x86",
+            "x86_64",
+            "riscv64"
+          ],
+          "title": "AndroidNativeAbi"
+        },
+        "crashedThreadId": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "framesIncomplete": {
+          "type": "boolean"
+        },
+        "frames": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AndroidNativeFrame"
+          }
+        },
+        "signalNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "signalCode": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "source",
+        "abi",
+        "crashedThreadId",
+        "framesIncomplete",
+        "frames"
+      ],
+      "additionalProperties": false,
+      "title": "AndroidNativeCrashMetadata"
+    },
+    "AndroidNativeFrame": {
+      "type": "object",
+      "properties": {
+        "pc": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "relativePc": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "module": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "allOf": [
+            {
+              "pattern": "^[^/\\\\\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
+            },
+            {
+              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])+$(?![\\s\\S])"
+            }
+          ]
+        },
+        "buildId": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{2}){1,64}$(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "pc",
+        "relativePc"
+      ],
+      "additionalProperties": false,
+      "title": "AndroidNativeFrame"
+    },
+    "DiagnosticEvidence": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "evidenceId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "processLaunchId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "process_exit"
+        },
+        "provenance": {
+          "type": "string",
+          "const": "android_application_exit_info"
+        },
+        "scope": {
+          "type": "string",
+          "const": "os_process"
+        },
+        "outcome": {
+          "type": "string",
+          "const": "terminated"
+        },
+        "cause": {
+          "type": "string",
+          "enum": [
+            "anr",
+            "native_crash",
+            "java_crash",
+            "system_low_memory",
+            "user_requested",
+            "system_other",
+            "unknown"
+          ],
+          "title": "DiagnosticCause"
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "collectedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "attribution": {
+          "type": "object",
+          "properties": {
+            "process": {
+              "type": "string",
+              "const": "exact_os_token"
+            },
+            "release": {
+              "type": "string",
+              "const": "frozen"
+            },
+            "session": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "webExposure": {
+              "type": "string",
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "process",
+            "release",
+            "session",
+            "webExposure"
+          ],
+          "additionalProperties": false
+        },
+        "android": {
+          "type": "object",
+          "properties": {
+            "apiLevel": {
+              "type": "integer",
+              "minimum": 30,
+              "maximum": 1000
+            },
+            "reason": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            "pid": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          "required": [
+            "apiLevel",
+            "reason",
+            "pid"
+          ],
+          "additionalProperties": false
+        },
+        "trace": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "available",
+                "unavailable",
+                "malformed",
+                "unsupported",
+                "not_requested"
+              ],
+              "title": "DiagnosticTraceStatus"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "none",
+                "android_anr_text",
+                "android_tombstone"
+              ],
+              "title": "DiagnosticTraceFormat"
+            },
+            "truncated": {
+              "type": "boolean"
+            },
+            "frames": {
+              "maxItems": 64,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "function": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "pattern": "^[A-Za-z0-9_.$<>]+$"
+                  },
+                  "file": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_.$-]+$"
+                  },
+                  "line": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  }
+                },
+                "required": [
+                  "function"
+                ],
+                "additionalProperties": false,
+                "title": "DiagnosticFrame"
+              }
+            }
+          },
+          "required": [
+            "status",
+            "format",
+            "truncated",
+            "frames"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "evidenceId",
+        "processLaunchId",
+        "kind",
+        "provenance",
+        "scope",
+        "outcome",
+        "cause",
+        "occurredAt",
+        "collectedAt",
+        "attribution",
+        "android",
+        "trace"
+      ],
+      "additionalProperties": false,
+      "title": "DiagnosticEvidence"
     }
   }
 }

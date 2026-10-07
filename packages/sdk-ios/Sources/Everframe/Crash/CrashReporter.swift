@@ -66,9 +66,10 @@ public enum CrashReporter {
         let mechanism: String?
         let jsBundle: EverframeJSBundle?
         let details: RNCrashDetailsWire?
+        let causeChain: RNCrashCausesWire?
 
         enum CodingKeys: String, CodingKey {
-            case exceptionType, message, framesRaw, fatal, occurredAt, mechanism, jsBundle, details
+            case exceptionType, message, framesRaw, fatal, occurredAt, mechanism, jsBundle, details, causeChain
         }
 
         init(from decoder: Decoder) throws {
@@ -87,6 +88,9 @@ public enum CrashReporter {
             details = values.contains(.details)
                 ? ((try? values.decode(RNCrashDetailsWire.self, forKey: .details)) ?? .invalid)
                 : nil
+            causeChain = values.contains(.causeChain)
+                ? ((try? values.decode(RNCrashCausesWire.self, forKey: .causeChain)) ?? .invalid)
+                : nil
         }
 
         init(
@@ -104,6 +108,7 @@ public enum CrashReporter {
             self.mechanism = mechanism
             self.jsBundle = nil
             self.details = nil
+            self.causeChain = nil
         }
     }
 
@@ -158,13 +163,15 @@ public enum CrashReporter {
         sdkName: String = "everframe-ios",
         outbox: JSONLOutbox = JSONLOutbox()
     ) -> Bool {
+        let diagnostic = CaptureObservation(.nativeHandled)
+        defer { diagnostic.settle() }
         // This latch is independent from the JSON automatic/fatal latch. A
         // host description may reenter this API, but it must not suppress an
         // automatic fatal capture on another thread.
         lock.lock()
         if handlingNativeHandled {
             lock.unlock()
-            return false
+            return diagnostic.reject(.reentrant)
         }
         handlingNativeHandled = true
         let device = cachedDevice
@@ -180,13 +187,13 @@ public enum CrashReporter {
         let captured = Everframe.shared.captureSessionSnapshot()
         guard Everframe.captureGate,
               let config = captured.config,
-              config.capture.crash,
-              !captured.isSuperseded,
-              let reservation = handledAdmission.reserve(
+              config.capture.crash else { return diagnostic.reject(.disabled) }
+        guard !captured.isSuperseded else { return diagnostic.reject(.ownershipLost) }
+        guard let reservation = handledAdmission.reserve(
                   error,
                   capturedEpoch: captured.user.startEpoch
               )
-        else { return false }
+        else { return diagnostic.reject(.admissionSuppressed) }
 
         var accepted = false
         defer { handledAdmission.settle(reservation, durablyAccepted: accepted) }
@@ -207,6 +214,10 @@ public enum CrashReporter {
             occurredAt: ISO8601DateFormatter().string(from: Date()),
             mechanism: "captureException"
         )
+        let causeChain = captureFoundationCauseChain(error, redact: { detailsRedactor.redact($0) }, stillOwned: {
+            Everframe.captureGate && !captured.isSuperseded &&
+                !Everframe.killGenerationChanged(since: captured.killGeneration)
+        })
         accepted = capture(
             facts: facts,
             sdkName: sdkName,
@@ -216,7 +227,9 @@ public enum CrashReporter {
             captured: captured,
             device: device,
             requireCurrentSession: true,
-            details: details
+            details: details,
+            causeChain: causeChain,
+            diagnostic: diagnostic
         )
         return accepted
     }
@@ -225,9 +238,11 @@ public enum CrashReporter {
         json: String, sdkName: String, outbox: JSONLOutbox,
         config: EverframeConfig?, classification: Classification
     ) -> Bool {
+        let diagnostic = CaptureObservation(classification == .handled ? .bridgeHandled : .bridgeAutomatic)
+        defer { diagnostic.settle() }
         // Own the latch before any callback can reenter either public path.
         lock.lock()
-        if handling { lock.unlock(); return false }
+        if handling { lock.unlock(); return diagnostic.reject(.reentrant) }
         handling = true
         let device = cachedDevice
         lock.unlock()
@@ -277,12 +292,12 @@ public enum CrashReporter {
         // read returned. Capturing the config alongside the user removes the
         // read outright.
         guard let config = config ?? captured.config, config.capture.crash else {
-            return false
+            return diagnostic.reject(.disabled)
         }
         guard let data = json.data(using: .utf8),
               let facts = try? JSONDecoder().decode(Facts.self, from: data),
               facts.exceptionType != nil
-        else { return false }
+        else { return diagnostic.reject(.invalidInput) }
         return capture(
             facts: facts,
             sdkName: sdkName,
@@ -291,7 +306,8 @@ public enum CrashReporter {
             classification: classification,
             captured: captured,
             device: device,
-            requireCurrentSession: false
+            requireCurrentSession: false,
+            diagnostic: diagnostic
         )
     }
 
@@ -304,9 +320,12 @@ public enum CrashReporter {
         captured: EFCapturedSession,
         device: DeviceMetadata?,
         requireCurrentSession: Bool,
-        details: EverframeCrashDetails? = nil
+        details: EverframeCrashDetails? = nil,
+        causeChain: EverframeCrashCauseChain? = nil,
+        diagnostic: CaptureObservation
     ) -> Bool {
-        guard let exceptionType = facts.exceptionType else { return false }
+        guard let exceptionType = facts.exceptionType else { return diagnostic.reject(.invalidInput) }
+        let deliveryOwner = outbox.observesSDKDiagnostics ? diagnostic.owner : nil
         let capturedUser = captured.user
         let redactor = RedactionEngine()
         let resolvedDetails = details ?? normalizeRNCrashDetails(facts.details) {
@@ -341,7 +360,11 @@ public enum CrashReporter {
         }
         let fp = fingerprint(exceptionType: cappedExceptionType, frameKeys: frameKeys)
 
+        let resolvedCauses = causeChain ?? normalizeCrashCauseChain(facts.causeChain, redact: { redactor.redact($0) }, stillOwned: {
+            !captured.isSuperseded && !Everframe.killGenerationChanged(since: captured.killGeneration)
+        })
         let crash = EverframeCrash(
+            causeChain: resolvedCauses,
             details: resolvedDetails,
             exceptionType: cappedExceptionType,
             fatal: fatal,
@@ -455,7 +478,7 @@ public enum CrashReporter {
             // see the register.
             if Everframe.killGenerationChanged(since: captured.killGeneration)
                 || (requireCurrentSession && captured.isSuperseded) {
-                return false
+                return diagnostic.reject(.ownershipLost)
             }
 
             // Native identity Task 8b — thread the ALREADY-CAPTURED subject
@@ -486,10 +509,11 @@ public enum CrashReporter {
                 reportId: reportId, createdAt: Date(), envelopeBytes: bytes,
                 idempotencyKey: idempotencyKey, attachmentRefs: [],
                 sdkKey: config.appId, endpoint: IngestEndpoint.url.absoluteString,
-                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil))
+                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil), diagnostics: deliveryOwner)
+            diagnostic.outcome = .persisted
             if !fatal {
                 // Runtime survives — ship now instead of waiting for next launch.
-                let submitter = ReportSubmitter(config: config, outbox: outbox)
+                let submitter = ReportSubmitter(config: config, outbox: outbox).observing(deliveryOwner)
                 // Independent review, round 8, Serious 1 — captured
                 // atomically with `config` (via `captured` above, at
                 // the top of this function) and threaded through here
@@ -531,7 +555,7 @@ public enum CrashReporter {
             }
             return true
         } catch {
-            return false
+            return diagnostic.reject(.storageUnavailable)
         }
     }
 

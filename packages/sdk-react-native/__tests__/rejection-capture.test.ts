@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import NativeEverframe from '../src/NativeEverframe.js';
+import { createCaptureController } from '../src/errors.js';
+
+const occurredAt = '2026-10-05T12:00:00.000Z';
+const owners: ReturnType<typeof createCaptureController>[] = [];
+function controller() {
+  const value = createCaptureController({ jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' } });
+  owners.push(value);
+  return value;
+}
+function error(site = 'rejectionSite') {
+  const value = new Error('original message');
+  value.stack = `Error: original message\n at ${site} (index.bundle:1:5)`;
+  return value;
+}
+const automatic = vi.mocked(NativeEverframe.reportCrash);
+const explicit = vi.mocked(NativeEverframe.captureHandledException);
+beforeEach(() => {
+  vi.stubGlobal('HermesInternal', {});
+  automatic.mockReset().mockReturnValue(true);
+  explicit.mockReset().mockReturnValue(true);
+});
+afterEach(() => { owners.splice(0).forEach((owner) => owner.dispose()); vi.unstubAllGlobals(); });
+
+it('doesNotReserveAcceptanceWhilePending', () => {
+  const owner = controller(), reason = error();
+  const pending = owner.prepareRejection(reason, occurredAt)!;
+  expect(automatic).not.toHaveBeenCalled();
+  owner.captureException(reason);
+  expect(explicit).toHaveBeenCalledTimes(1);
+  expect(owner.submitRejection(pending)).toBe('duplicate');
+  expect(automatic).not.toHaveBeenCalled();
+});
+it('refusalAllowsLaterExplicitCapture', () => {
+  automatic.mockReturnValue(false);
+  const owner = controller(), reason = error();
+  expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('native-refused');
+  owner.captureException(reason);
+  expect(automatic).toHaveBeenCalledTimes(1);
+  expect(explicit).toHaveBeenCalledTimes(1);
+});
+it('acceptedExplicitSuppressesPendingRejection', () => {
+  const owner = controller(), reason = error();
+  owner.captureException(reason);
+  const pending = owner.prepareRejection(reason, occurredAt)!;
+  expect(owner.submitRejection(pending)).toBe('duplicate');
+  expect(automatic).not.toHaveBeenCalled();
+});
+it('accepted rejection suppresses later explicit capture of the same object', () => {
+  const owner = controller(), reason = error();
+  expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('accepted');
+  owner.captureException(reason);
+  expect(explicit).not.toHaveBeenCalled();
+});
+it('snapshotSurvivesCauseMutation', () => {
+  const owner = controller(), reason = error();
+  const cause = new Error('before');
+  Object.defineProperty(reason, 'cause', { value: cause });
+  const pending = owner.prepareRejection(reason, occurredAt)!;
+  reason.message = 'changed'; cause.message = 'after';
+  expect(owner.submitRejection(pending)).toBe('accepted');
+  const payload = JSON.parse(automatic.mock.calls[0][0]);
+  expect(payload).toMatchObject({ message: 'original message', occurredAt,
+    mechanism: 'unhandledrejection', source: 'error', handled: false, fatal: false,
+    jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' },
+    causeChain: { causes: [{ message: 'before' }] },
+  });
+  expect(pending).not.toHaveProperty('error');
+  expect(pending).not.toHaveProperty('reason');
+});
+it('shares automatic allowance while preserving independent explicit allowance', () => {
+  const owner = controller();
+  for (let i = 0; i < 10; i++)
+    expect(owner.submitRejection(owner.prepareRejection(error(`site${String.fromCharCode(65 + i)}`), occurredAt)!)).toBe('accepted');
+  const reason = error('eleventh');
+  expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('allowance');
+  owner.captureException(reason);
+  expect(explicit).toHaveBeenCalledTimes(1);
+  expect(automatic).toHaveBeenCalledTimes(10);
+});
+it('refusal does not spend an automatic key', () => {
+  const owner = controller();
+  automatic.mockReturnValueOnce(false);
+  expect(owner.submitRejection(owner.prepareRejection(error(), occurredAt)!)).toBe('native-refused');
+  expect(owner.submitRejection(owner.prepareRejection(error(), occurredAt)!)).toBe('accepted');
+});
+it('refuses stale or foreign snapshots without invoking native', () => {
+  const first = controller(), second = controller();
+  const pending = first.prepareRejection(error(), occurredAt)!;
+  expect(second.submitRejection(pending)).toBe('inactive');
+  first.dispose();
+  expect(first.submitRejection(pending)).toBe('inactive');
+  expect(automatic).not.toHaveBeenCalled();
+});
+it('getter disposal prevents preparation from surviving its owner', () => {
+  const owner = controller(), reason = error();
+  Object.defineProperty(reason, 'message', { get() { owner.dispose(); return 'stale'; } });
+  expect(owner.prepareRejection(reason, occurredAt)).toBeUndefined();
+  expect(automatic).not.toHaveBeenCalled();
+});
+it('native lookup disposal prevents stale submission', () => {
+  const owner = controller(), pending = owner.prepareRejection(error(), occurredAt)!;
+  const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'reportCrash')!;
+  Object.defineProperty(NativeEverframe, 'reportCrash', { configurable: true, get() { owner.dispose(); return automatic; } });
+  try { expect(owner.submitRejection(pending)).toBe('inactive'); }
+  finally { Object.defineProperty(NativeEverframe, 'reportCrash', descriptor); }
+  expect(automatic).not.toHaveBeenCalled();
+});
+it('contains bridge failure and leaves later explicit admission available', () => {
+  const owner = controller(), reason = error();
+  automatic.mockImplementationOnce(() => { throw new Error('bridge unavailable'); });
+  expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('capture-failed');
+  owner.captureException(reason);
+  expect(explicit).toHaveBeenCalledTimes(1);
+});

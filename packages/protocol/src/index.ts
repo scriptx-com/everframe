@@ -38,6 +38,7 @@ export * from './network-body.js';
 export * from './crash.js';
 export * from './crash-causes.js';
 export * from './crash-details.js';
+export * from './native-crash.js';
 export * from './build-artifacts.js';
 export {
   VitalsPlayerEventType, VitalsPlayerId, VitalsSample, VitalsPlayerEvent,
@@ -66,3 +67,7 @@ export {
   RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
 } from './release-health.js';
 export type { ReleaseHealthRecord, ReleaseHealthExposure } from './release-health.js';
+
+export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
+
+export { DiagnosticEvidence, DiagnosticCause, DiagnosticFrame, androidExitCause } from './diagnostic.js';

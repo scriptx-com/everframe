@@ -419,6 +419,10 @@ RCT_EXPORT_MODULE(Everframe)
   [EverframeBridge setUser:dict];
 }
 
+- (NSString *)getReportDeliveryStatusJson {
+  return [EverframeBridge getReportDeliveryStatusJson];
+}
+
 // MARK: - reportCrash(crashJson) — Task 13 (spec 2026-07-18)
 
 // Sync spec method: codegen emits a non-void, non-promise boolean-returning

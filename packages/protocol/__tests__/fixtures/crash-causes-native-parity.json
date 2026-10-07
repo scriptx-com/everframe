@@ -1,0 +1,222 @@
+{
+  "cases": [
+    {
+      "name": "valid",
+      "input": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [
+              {
+                "raw": "at inner",
+                "file": "a.js",
+                "function": "inner",
+                "line": 0,
+                "col": 9007199254740991
+              }
+            ],
+            "framesTruncated": false
+          }
+        ],
+        "truncated": false
+      },
+      "expected": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [
+              {
+                "raw": "at inner",
+                "file": "a.js",
+                "function": "inner",
+                "line": 0,
+                "col": 9007199254740991
+              }
+            ],
+            "framesTruncated": false
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "invalid-root",
+      "input": false,
+      "expected": {
+        "causes": [],
+        "truncated": true
+      }
+    },
+    {
+      "name": "empty",
+      "input": {
+        "causes": [],
+        "truncated": false
+      },
+      "expected": {
+        "causes": [],
+        "truncated": false
+      }
+    },
+    {
+      "name": "malformed-middle",
+      "input": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [
+              {
+                "raw": "at inner",
+                "file": "a.js",
+                "function": "inner",
+                "line": 0,
+                "col": 9007199254740991
+              }
+            ],
+            "framesTruncated": false
+          },
+          null,
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [
+              {
+                "raw": "at inner",
+                "file": "a.js",
+                "function": "inner",
+                "line": 0,
+                "col": 9007199254740991
+              }
+            ],
+            "framesTruncated": false
+          }
+        ],
+        "truncated": false
+      },
+      "expected": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [
+              {
+                "raw": "at inner",
+                "file": "a.js",
+                "function": "inner",
+                "line": 0,
+                "col": 9007199254740991
+              }
+            ],
+            "framesTruncated": false
+          }
+        ],
+        "truncated": true
+      }
+    },
+    {
+      "name": "bad-frame-options",
+      "input": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [
+              {
+                "raw": "ok",
+                "line": -1,
+                "col": true,
+                "file": false
+              }
+            ],
+            "framesTruncated": false
+          }
+        ],
+        "truncated": false
+      },
+      "expected": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [
+              {
+                "raw": "ok"
+              }
+            ],
+            "framesTruncated": true
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "missing-frames",
+      "input": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": null,
+            "framesTruncated": false
+          }
+        ],
+        "truncated": false
+      },
+      "expected": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "inner",
+            "frames": [],
+            "framesTruncated": true
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "nul-repair",
+      "input": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "a\u0000b",
+            "frames": [
+              {
+                "raw": "at inner",
+                "file": "a.js",
+                "function": "inner",
+                "line": 0,
+                "col": 9007199254740991
+              }
+            ],
+            "framesTruncated": false
+          }
+        ],
+        "truncated": false
+      },
+      "expected": {
+        "causes": [
+          {
+            "exceptionType": "Error",
+            "message": "a\ufffdb",
+            "frames": [
+              {
+                "raw": "at inner",
+                "file": "a.js",
+                "function": "inner",
+                "line": 0,
+                "col": 9007199254740991
+              }
+            ],
+            "framesTruncated": false
+          }
+        ],
+        "truncated": false
+      }
+    }
+  ]
+}

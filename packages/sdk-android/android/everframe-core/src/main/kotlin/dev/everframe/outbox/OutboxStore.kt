@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.outbox
 
+import dev.everframe.diagnostics.*
 import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import java.io.IOException
@@ -35,35 +36,48 @@ internal class OutboxStore(
 
     init { require(maxEntries >= 0); require(maxTotalBytes >= 0) }
 
-    fun enqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization): OutboxToken {
-        // A deliberate capture may wait for another thread's current storage
-        // operation, but must never recurse into this store's OS file lock.
-        if (coordinator.lock.isHeldByCurrentThread) throw OutboxWriteException(OutboxFailure.IO)
-        return locked { enqueueLocked(entry, authorization) }
-    }
+    fun enqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization,
+                    diagnostics: ReportDiagnostics.Handle? = null): OutboxToken =
+        observingFailure(diagnostics, QueueOperation.ENQUEUE_FAILED) {
+            if (coordinator.lock.isHeldByCurrentThread) throw OutboxWriteException(OutboxFailure.IO)
+            locked { enqueueLocked(entry, authorization, diagnostics = diagnostics) }
+        }
 
     /** Never wait for another storage operation, including reentrant crash entry. */
-    fun tryEnqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization): OutboxToken? {
-        if (coordinator.lock.isHeldByCurrentThread || !coordinator.lock.tryLock()) return null
-        return try { locked(tryOnly = true) { enqueueLocked(entry, authorization) } }
-        finally { coordinator.lock.unlock() }
+    fun tryEnqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization,
+                       diagnostics: ReportDiagnostics.Handle? = null): OutboxToken? {
+        if (coordinator.lock.isHeldByCurrentThread || !coordinator.lock.tryLock()) {
+            diagnostics?.queueOperation(QueueOperation.ENQUEUE_FAILED, failure = StorageFailure.BUSY)
+            return null
+        }
+        return try { observingFailure(diagnostics, QueueOperation.ENQUEUE_FAILED) {
+            locked(tryOnly = true) { enqueueLocked(entry, authorization, diagnostics = diagnostics) }
+        } } finally { coordinator.lock.unlock() }
     }
 
-    private fun enqueueLocked(entry: OutboxEntry, authorization: OutboxAuthorization, candidate: OutboxToken? = null): OutboxToken {
+    private fun enqueueLocked(entry: OutboxEntry, authorization: OutboxAuthorization, candidate: OutboxToken? = null, diagnostics: ReportDiagnostics.Handle? = null): OutboxToken {
         val size = try { cipher.encryptedSize(entry) }
         catch (invalid: IllegalArgumentException) { throw OutboxWriteException(OutboxFailure.INVALID_ENTRY, invalid) }
         checkAllowed(authorization)
         val current = currentGeneration(create = true) ?: error("Generation missing")
         checkAllowed(authorization)
-        for (file in committedFiles()) {
+        val observedFiles = committedFiles()
+        var readableFiles = 0
+        for (file in observedFiles) {
             val token = token(current, file)
             val existing = decode(token, file)
+            readableFiles++
             if (existing.reportId == entry.reportId) {
                 if (existing != entry) throw OutboxWriteException(OutboxFailure.INVALID_ENTRY)
                 // Reconcile a previous uncertain rename by syncing it before claiming durability.
                 ops.syncFile(file)
                 ops.syncDirectory(active)
                 finishAdmission(token, authorization)
+                diagnostics?.queueOperation(QueueOperation.ENQUEUE_COMMITTED)
+                // Duplicate reconciliation returns early by design. Remaining files
+                // have not been decoded, so their readability is still unknown.
+                if (readableFiles == observedFiles.size) observeQueueSize(diagnostics, readableFiles)
+                else diagnostics?.queueObserved(null, QueueQuality.UNKNOWN, migrationDiagnostic())
                 return token
             }
         }
@@ -80,6 +94,8 @@ internal class OutboxStore(
         ops.renameAtomic(tmp, target)
         ops.syncDirectory(active)
         finishAdmission(token, authorization)
+        diagnostics?.queueOperation(QueueOperation.ENQUEUE_COMMITTED)
+        observeQueueSize(diagnostics, observedFiles.size + 1)
         return token
     }
 
@@ -87,9 +103,22 @@ internal class OutboxStore(
     @Volatile internal var migrationBlocked: String? = null
         private set
 
+    private var migrationObserved = false
+
+    private fun migrationDiagnostic() =
+        if (!migrationObserved) "not-observed" else if (migrationBlocked == null) "clear" else "blocked"
+
+    private fun observeQueueSize(diagnostics: ReportDiagnostics.Handle?, count: Int) {
+        diagnostics?.queueObserved(count,
+            if (migrationBlocked == null) QueueQuality.COMPLETE else QueueQuality.PARTIAL,
+            migrationDiagnostic())
+    }
+
+
     fun migrateLegacy(): Int {
         var imported = 0
         return try { locked {
+            migrationObserved = true
             migrationBlocked = null
             if (File(root, "kill.history").exists() || File(root, "kill.pending").exists()) return@locked 0
             checkAllowed(MIGRATION_ALLOWED)
@@ -245,18 +274,23 @@ internal class OutboxStore(
         return total
     }
 
-    fun snapshotTokens(): List<OutboxToken> = locked {
-        val current = currentGeneration(false) ?: return@locked emptyList()
-        // Only ordering metadata survives each decode; never retain a decoded queue here.
-        committedFiles().map { file ->
-            val token = token(current, file)
-            token to decode(token, file).createdAt
-        }.sortedWith(compareBy<Pair<OutboxToken, Long>> { it.second }.thenBy { it.first.fileId }).map { it.first }
-    }
+    fun snapshotTokens(diagnostics: ReportDiagnostics.Handle? = null): List<OutboxToken> =
+        observingFailure(diagnostics, QueueOperation.READ_FAILED) { locked {
+            val current = currentGeneration(false)
+            val tokens = if (current == null) emptyList() else committedFiles().map { file ->
+                val token = token(current, file)
+                token to decode(token, file).createdAt
+            }.sortedWith(compareBy<Pair<OutboxToken, Long>> { it.second }.thenBy { it.first.fileId }).map { it.first }
+            // A revoked lease does not establish an empty durable queue.
+            if (!hasCurrentLease()) diagnostics?.queueObserved(null, QueueQuality.UNKNOWN)
+            else observeQueueSize(diagnostics, tokens.size)
+            tokens
+        } }
 
-    fun readIfPresent(token: OutboxToken): PendingEntry? = locked {
-        if (!presentLocked(token)) null else PendingEntry(token, decode(token, file(token)))
-    }
+    fun readIfPresent(token: OutboxToken, diagnostics: ReportDiagnostics.Handle? = null): PendingEntry? =
+        observingFailure(diagnostics, QueueOperation.READ_FAILED) { locked {
+            if (!presentLocked(token)) null else PendingEntry(token, decode(token, file(token)))
+        } }
 
     fun isPresent(token: OutboxToken): Boolean = locked { presentLocked(token) }
 
@@ -265,7 +299,14 @@ internal class OutboxStore(
         if (presentLocked(token)) action() else null
     }
 
-    fun removeIfPresent(token: OutboxToken): Unit = locked { removeLocked(token) }
+    fun removeIfPresent(token: OutboxToken, diagnostics: ReportDiagnostics.Handle? = null,
+                        reason: QueueOperation? = null): Unit = observingFailure(diagnostics, QueueOperation.REMOVAL_FAILED) {
+        locked {
+            val removed = removeLocked(token)
+            if (removed && reason != null) diagnostics?.queueOperation(reason)
+            if (removed) diagnostics?.queueObserved(null, QueueQuality.UNKNOWN)
+        }
+    }
 
     /** Atomic only: safe alongside Everframe's monotonic kill boundary under stateLock. */
     fun invalidateSync() { coordinator.epoch.incrementAndGet() }
@@ -340,19 +381,20 @@ internal class OutboxStore(
         }
     }
 
-    private fun removeLocked(token: OutboxToken) {
+    private fun removeLocked(token: OutboxToken): Boolean {
         if (!presentLocked(token)) {
             // Absence may follow a rename/deletion whose directory fsync failed in another
             // instance or process. Reconcile the namespace before claiming durable removal.
             if (active.isDirectory) ops.syncDirectory(active)
             ops.syncDirectory(root)
-            return
+            return false
         }
         val removed = File(active, "${token.fileId}.removed")
         ops.renameAtomic(file(token), removed)
         ops.syncDirectory(active)
         if (!removed.delete()) throw IOException("Cannot delete outbox tombstone")
         ops.syncDirectory(active)
+        return true
     }
 
     private fun presentLocked(token: OutboxToken): Boolean =
@@ -411,6 +453,23 @@ internal class OutboxStore(
         catch (io: IOException) { throw io }
         catch (failure: Exception) { throw OutboxWriteException(OutboxFailure.CORRUPT, failure) }
     }
+    private inline fun <T> observingFailure(owner: ReportDiagnostics.Handle?, operation: QueueOperation, work: () -> T): T {
+        try { return work() }
+        catch (failure: Exception) {
+            val code = when ((failure as? OutboxWriteException)?.failure) {
+                OutboxFailure.CAPACITY -> StorageFailure.CAPACITY
+                OutboxFailure.KEY_UNAVAILABLE -> StorageFailure.KEY_UNAVAILABLE
+                OutboxFailure.CORRUPT -> StorageFailure.CORRUPT
+                OutboxFailure.IO -> StorageFailure.IO
+                OutboxFailure.REVOKED -> StorageFailure.REVOKED
+                OutboxFailure.INVALID_ENTRY -> StorageFailure.INVALID_ENTRY
+                null -> StorageFailure.UNKNOWN
+            }
+            owner?.queueOperation(operation, failure = code)
+            throw failure
+        }
+    }
+
     private fun <T> keyOperation(action: () -> T): T = try { action() }
     catch (failure: Exception) { throw OutboxWriteException(OutboxFailure.KEY_UNAVAILABLE, failure) }
 

@@ -328,6 +328,8 @@ export interface Spec extends TurboModule {
    * state it already owns (crumb ring, device metadata, outbox).
    * Returns true when the report was persisted.
    */
+  /** Additive diagnostic bridge: bounded JSON of cached native observations; no I/O. */
+  getReportDeliveryStatusJson(): string;
   reportCrash(crashJson: string): boolean;
 
   // ---------------- Session Vitals (spec 2026-09-06) ----------------

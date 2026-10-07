@@ -29,19 +29,24 @@ const objectGetPrototypeOf = Object.getPrototypeOf;
 const reflectApply = Reflect.apply;
 const AmbientError = Error;
 
-function captureNativeStackGetter(): ((this: unknown) => unknown) | undefined {
+function captureNativeStackGetter(): { getter: (this: unknown) => unknown; prototype?: object } | undefined {
   try {
     const probe = new AmbientError();
-    const descriptor = objectGetOwnPropertyDescriptor(probe, 'stack');
-    return descriptor && !('value' in descriptor) && typeof descriptor.get === 'function'
-      ? descriptor.get
+    const own = objectGetOwnPropertyDescriptor(probe, 'stack');
+    if (own && !('value' in own) && typeof own.get === 'function') return { getter: own.get };
+    // Hermes exposes its intrinsic on Error.prototype instead of each instance.
+    // Capture that exact identity once; never evaluate an arbitrary host getter.
+    const inherited = objectGetOwnPropertyDescriptor(AmbientError.prototype, 'stack');
+    return inherited && !('value' in inherited) && typeof inherited.get === 'function'
+      ? { getter: inherited.get, prototype: AmbientError.prototype }
       : undefined;
   } catch {
     return undefined;
   }
 }
 
-const nativeStackGetter = captureNativeStackGetter();
+const nativeStack = captureNativeStackGetter();
+const nativeStackGetter = nativeStack?.getter;
 
 function safeOwned(stillOwned: () => boolean): boolean {
   try {
@@ -71,8 +76,30 @@ function ownData(value: object, key: PropertyKey, stillOwned: () => boolean): Ow
 function ownStack(value: object, stillOwned: () => boolean): StackRead {
   if (!safeOwned(stillOwned)) return { kind: 'cancelled' };
   try {
-    const descriptor = objectGetOwnPropertyDescriptor(value, 'stack');
+    let descriptor = objectGetOwnPropertyDescriptor(value, 'stack');
     if (!safeOwned(stillOwned)) return { kind: 'cancelled' };
+    if (!descriptor && nativeStack?.prototype) {
+      let current: object | null = value;
+      const seen = new Set<object>([value]);
+      for (let links = 0; links < 4; links += 1) {
+        const next = safePrototype(current, stillOwned);
+        if (next === undefined) return safeOwned(stillOwned) ? { kind: 'lost' } : { kind: 'cancelled' };
+        if (next === null) return { kind: 'absent' };
+        if (seen.has(next)) return { kind: 'lost' };
+        seen.add(next);
+        current = next;
+        const inherited = objectGetOwnPropertyDescriptor(current, 'stack');
+        if (!safeOwned(stillOwned)) return { kind: 'cancelled' };
+        if (!inherited && current === nativeStack.prototype) return { kind: 'lost' };
+        if (inherited) {
+          if (current !== nativeStack.prototype || 'value' in inherited || inherited.get !== nativeStackGetter)
+            return { kind: 'lost' };
+          descriptor = inherited;
+          break;
+        }
+      }
+      if (!descriptor) return { kind: 'lost' };
+    }
     if (!descriptor) return { kind: 'absent' };
     if ('value' in descriptor) {
       return typeof descriptor.value === 'string'

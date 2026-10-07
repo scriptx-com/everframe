@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { emptyReportDeliveryStatus, type ReportDeliveryStatus } from "./report-delivery-status.js";
+import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Module-level context seam. The top-level `open()` convenience MUST work
 // from non-React call sites (global error handlers, deep-link handlers,
@@ -13,11 +15,17 @@
 import { type ReporterResult, EverframeNotMountedError } from './reporter/types.js';
 import type { CaptureExceptionOptions, ExtraResolver } from '@everframe/sdk-core';
 import type { EverframeUserSpec } from './NativeEverframe.js';
+import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
 
 export { EverframeNotMountedError };
 
 /** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
 export interface EverframeContextValue {
+  /** Local admission only; optional for older context implementations. */
+  getReportDeliveryStatus?(): ReportDeliveryStatus;
+  getErrorCaptureStatus?(): ErrorCaptureStatus;
+  /** Optional for compatibility with existing context implementations. */
+  getPromiseRejectionStatus?(): PromiseRejectionStatus;
   /** Capture a handled exception without opening the reporter. No-op outside the owning mount. */
   captureException(error: unknown, options?: CaptureExceptionOptions): void;
   /**
@@ -99,9 +107,23 @@ export interface EverframeContextValue {
 }
 
 let __currentContext: EverframeContextValue | null = null;
+let __contextEpoch: object = {};
+
+/** Internal mount identity, including remounts of the same runtime object. */
+export function __getContextEpoch(): object { return __contextEpoch; }
+
+/** Bounded coverage status only; does not install an observer or report delivery. */
+export function getPromiseRejectionStatus(): PromiseRejectionStatus {
+  try {
+    return __currentContext?.getPromiseRejectionStatus?.() ?? emptyPromiseRejectionStatus('not-mounted', 'no-mount');
+  } catch {
+    return emptyPromiseRejectionStatus('install-failed', 'hook-install');
+  }
+}
 
 export function __setCurrentContext(ctx: EverframeContextValue | null): void {
   __currentContext = ctx;
+  __contextEpoch = {};
 }
 
 export function __getCurrentContext(): EverframeContextValue | null {
@@ -177,4 +199,19 @@ export function setUser(user?: EverframeUserSpec): void {
 /** Capture a handled exception from any call site. No-op without a mounted provider. */
 export function captureException(error: unknown, options?: CaptureExceptionOptions): void {
   __currentContext?.captureException(error, options);
+}
+
+/** Detached local admission snapshot. Does not query native delivery or install hooks. */
+export function getErrorCaptureStatus(): ErrorCaptureStatus {
+  try { return __currentContext?.getErrorCaptureStatus?.() ?? emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
+  catch { return emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
+}
+
+/** Cached native delivery observations, independent of JS admission. */
+export function getReportDeliveryStatus(): ReportDeliveryStatus {
+  const owner = __currentContext;
+  try {
+    const status = owner?.getReportDeliveryStatus?.();
+    return owner === __currentContext && status ? status : emptyReportDeliveryStatus('not-mounted', 'no-mount');
+  } catch { return emptyReportDeliveryStatus('unavailable', 'native-call-failed'); }
 }

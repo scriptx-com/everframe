@@ -21,6 +21,7 @@
 //   re-enqueues without double-counting. Idempotent across crashes.
 package dev.everframe.transport
 
+import dev.everframe.diagnostics.*
 import dev.everframe.Everframe
 import dev.everframe.TXCapturedSession
 import dev.everframe.outbox.OutboxAuthorization
@@ -71,6 +72,37 @@ class ReportSubmitter(
     private val endpointOverride: String? = null,
 ) {
     private val endpointUrl: String get() = endpointOverride ?: IngestEndpoint.url
+    private var diagnostics: ReportDiagnostics.Handle? = null
+
+    internal fun observing(owner: ReportDiagnostics.Handle?): ReportSubmitter =
+        ReportSubmitter(config, outbox, uploader, endpointOverride).also { it.diagnostics = owner }
+
+    /** Internal cross-module SDK wiring; independent customer submitters remain unobserved. */
+    @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)
+    fun __observingDelivery(epoch: Int): ReportSubmitter = observing(ReportDiagnostics.shared.handle(epoch))
+
+    private suspend fun uploadObserved(origin: TransportOrigin,
+        send: suspend () -> MultipartUploader.UploadResult): MultipartUploader.UploadResult {
+        try {
+            val result = send()
+            val outcome = when {
+                result.statusCode in 200..299 -> TransportOutcome.SERVER_ACCEPTED
+                RetryPolicy.classify(result.statusCode, result.headers, null) == RetryPolicy.Classification.Terminal -> TransportOutcome.TERMINAL_HTTP
+                else -> TransportOutcome.RETRYABLE_HTTP
+            }
+            diagnostics?.transport(origin, outcome, result.statusCode)
+            return result
+        } catch (failure: Throwable) {
+            val outcome = when (failure) {
+                is CancellationException -> TransportOutcome.CANCELLED
+                is ReportAuthorizationCancelled -> TransportOutcome.AUTHORIZATION_CANCELLED
+                is IOException -> TransportOutcome.NETWORK_FAILURE
+                else -> TransportOutcome.FAILED
+            }
+            diagnostics?.transport(origin, outcome)
+            throw failure
+        }
+    }
 
     /**
      * One outbound attachment. Mirrors `OutboxEntry.AttachmentRef` but stays
@@ -148,7 +180,10 @@ class ReportSubmitter(
         authorization: ReportAuthorization? = null,
     ): ReportResult {
         val capturedAuthorization = authorization ?: ReportAuthorizationFactory.forCapture(Everframe.captureSessionSnapshot(), null)
-        if (!Everframe.captureGate || !capturedAuthorization.evaluate().reportAllowed) return ReportResult.Cancelled("kill_switch")
+        if (!Everframe.captureGate || !capturedAuthorization.evaluate().reportAllowed) {
+            diagnostics?.transport(TransportOrigin.LIVE_SUBMIT, TransportOutcome.AUTHORIZATION_CANCELLED)
+            return ReportResult.Cancelled("kill_switch")
+        }
         // Bound before collection materialization, JSON parsing, or defensive copying.
         MultipartUploader.validateRawInput(envelopeBytes, attachments.size)
         val initialParts = attachments.map { MultipartUploader.Part(it.name, it.filename, it.data, it.contentType) }
@@ -162,8 +197,10 @@ class ReportSubmitter(
             require(it.length <= 16_384 && it.toByteArray(Charsets.UTF_8).size <= 16_384) { "Captured routing field exceeds limit" }
         }
         val result = try {
-            uploader.upload(candidate.endpoint, candidate.sdkKey, candidate.idempotencyKey, candidate.envelopeBytes,
-                candidate.parts(), companionAttribution, identityToken, capturedAuthorization)
+            uploadObserved(TransportOrigin.LIVE_SUBMIT) {
+                uploader.upload(candidate.endpoint, candidate.sdkKey, candidate.idempotencyKey, candidate.envelopeBytes,
+                    candidate.parts(), companionAttribution, identityToken, capturedAuthorization)
+            }
         } catch (_: ReportAuthorizationCancelled) {
             return ReportResult.Cancelled("kill_switch")
         } catch (failure: IOException) {
@@ -191,7 +228,7 @@ class ReportSubmitter(
                     override fun isAllowed(): Boolean = capturedAuthorization.evaluate().let {
                         it.reportAllowed && (!hasReplay || it.replayAllowed)
                     }
-                })
+                }, diagnostics)
                 return ReportResult.Queued(reportId)
             } catch (failure: OutboxWriteException) {
                 if (failure.failure != OutboxFailure.REVOKED) throw failure
@@ -312,7 +349,7 @@ class ReportSubmitter(
         endpointAtInitiation: String = endpointUrl,
     ) {
         if (drainSession.isRevoked || !drainSession.captureConsent) return
-        outbox.drainOwned { pending ->
+        outbox.drainOwned(diagnostics) { pending ->
             val entry = pending.entry
             try {
                 val authority = OutboxDrainAuthorization(outbox.store, pending.token,
@@ -401,7 +438,7 @@ class ReportSubmitter(
                 } else {
                     null
                 }
-                val r = uploader.upload(
+                val r = uploadObserved(TransportOrigin.OUTBOX_DRAIN) { uploader.upload(
                     // The entry's OWN credentials, not the live config's. A
                     // queued report belongs to the project that captured it;
                     // draining it under whatever key start() was last handed
@@ -413,7 +450,7 @@ class ReportSubmitter(
                     attachments = parts,
                     identityToken = identityToken,
                     authorization = authority,
-                )
+                ) }
                 // 2xx → drop from outbox. Anything else (transient or terminal)
                 // → keep entry; next drain pass will retry. Terminal status on
                 // a drained entry is a known oddity (server changed its mind);

@@ -45,14 +45,34 @@ export interface R8MappingManifestV3 {
   }];
 }
 
+export const DSYM_ASSET_URL = "dsym://apple/dwarf";
+export const DSYM_MAX_BYTES = 64 * 1024 * 1024;
+
+/** Raw DWARF file; image identity is derived from verified bytes by the server. */
+export interface DsymManifestV4 {
+  version: 4;
+  runtime: "apple";
+  platform: "apple";
+  buildId: string;
+  artifacts: [
+    {
+      url: typeof DSYM_ASSET_URL;
+      mapSha256: string;
+      mapBytes: number;
+      generatedSha256?: never;
+    }
+  ];
+}
+
 export type SourceMapManifest =
   | SourceMapManifestV1
   | SourceMapManifestV2
-  | R8MappingManifestV3;
-export type ArtifactKind = 'source_map' | 'r8';
+  | R8MappingManifestV3
+  | DsymManifestV4;
+export type ArtifactKind = 'source_map' | 'r8' | 'dsym';
 
 export function artifactKind(manifest: SourceMapManifest): ArtifactKind {
-  return manifest.version === 3 ? 'r8' : 'source_map';
+  return manifest.version === 4 ? 'dsym' : manifest.version === 3 ? 'r8' : 'source_map';
 }
 
 export interface BuildUploadStatus {
@@ -130,10 +150,31 @@ const ManifestV3Schema = z
   })
   .strict();
 
+const ManifestV4Schema = z
+  .object({
+    version: z.literal(4),
+    runtime: z.literal("apple"),
+    platform: z.literal("apple"),
+    buildId: z.string().length(69),
+    artifacts: z
+      .array(
+        z
+          .object({
+            url: z.literal(DSYM_ASSET_URL),
+            mapSha256: Sha256Schema,
+            mapBytes: z.number().int().positive().max(DSYM_MAX_BYTES),
+          })
+          .strict()
+      )
+      .length(1),
+  })
+  .strict();
+
 const ManifestSchema = z.discriminatedUnion('version', [
   ManifestV1Schema,
   ManifestV2Schema,
   ManifestV3Schema,
+  ManifestV4Schema,
 ]);
 
 type ManifestErrorCode =
@@ -237,6 +278,25 @@ export function parseManifest(input: unknown): SourceMapManifest {
   const result = ManifestSchema.safeParse(input);
   if (!result.success) {
     throw new SourceMapManifestError('invalid_manifest');
+  }
+
+  if (result.data.version === 4) {
+    const artifact = result.data.artifacts[0]!;
+    if (result.data.buildId !== "dsym:" + artifact.mapSha256)
+      throw new SourceMapManifestError("invalid_manifest");
+    return {
+      version: 4,
+      runtime: "apple",
+      platform: "apple",
+      buildId: result.data.buildId,
+      artifacts: [
+        {
+          url: DSYM_ASSET_URL,
+          mapSha256: artifact.mapSha256,
+          mapBytes: artifact.mapBytes,
+        },
+      ],
+    };
   }
 
   if (result.data.version === 3) {

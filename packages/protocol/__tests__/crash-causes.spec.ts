@@ -525,3 +525,14 @@ describe('whole-chain byte boundary', () => {
     expect(parseCrashCauseChain(over)).toBeUndefined();
   });
 });
+
+// Native adapters explicitly mark a present malformed root as lost enrichment.
+it('matches the shared mobile normalization fixtures', () => {
+  const fixtures = JSON.parse(readFileSync(join(__dirname, 'fixtures/crash-causes-native-parity.json'), 'utf8'));
+  for (const test of fixtures.cases) {
+    const result = normalizeCrashCauseChain(test.input, (text: string) => text)
+      ?? { causes: [], truncated: true };
+    expect(result, test.name).toEqual(test.expected);
+    expect(CrashCauseChain.safeParse(result).success, test.name).toBe(true);
+  }
+});

@@ -7,6 +7,21 @@ import XCTest
 /// no `Everframe.shared`, no stderr intercept, no UIKit — the criteria for
 /// joining the `swift.yml` companion filter.
 final class OutboxKeyBindingTests: XCTestCase {
+    func test_retryable_drain_preserves_entry_for_interrupted_native_recovery() async throws {
+        RecordingURLProtocol.reset(); defer { RecordingURLProtocol.reset() }
+        RecordingURLProtocol.responseStatus = 503
+        let box = makeOutbox()
+        let original = OutboxEntry(reportId: UUID(), createdAt: Date(timeIntervalSince1970: 1700000001),
+            envelopeBytes: Data("{\"original\":true}".utf8), idempotencyKey: "stable-native-id", attachmentRefs: [],
+            sdkKey: "key-A", endpoint: "https://a.example.com", identitySubject: "subject-A")
+        try box.enqueue(original)
+        let session = stubbedSession(); defer { session.invalidateAndCancel() }
+        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key-B"), outbox: box, session: session)
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 0 })
+        XCTAssertEqual(try box.hydrate().first, original,
+            "A failed drain must preserve the entire staged entry, including its original creation time")
+    }
     func test_drain_keeps_report_on_disk_until_server_accepts_it() async throws {
         RecordingURLProtocol.reset()
         defer { RecordingURLProtocol.reset() }

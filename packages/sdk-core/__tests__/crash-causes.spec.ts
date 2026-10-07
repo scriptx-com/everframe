@@ -575,3 +575,44 @@ describe('extractCrashCauseChain', () => {
       });
   });
 });
+
+it('reads the captured Hermes prototype stack intrinsic without invoking replacement getters', async () => {
+  const NativeError = Error;
+  const stacks = new WeakMap<object, string>();
+  const getter = vi.fn(function(this: object) { return stacks.get(this); });
+  class HermesError extends NativeError {
+    constructor(message = '') {
+      super(message);
+      delete this.stack;
+      stacks.set(this, `Error: ${message}\n    at hermesCause (address at index.android.bundle:1:42)`);
+    }
+  }
+  Object.defineProperty(HermesError.prototype, 'stack', { configurable: true, get: getter });
+  let hermes: typeof import('../src/crash/causes.js');
+  vi.stubGlobal('Error', HermesError);
+  try { vi.resetModules(); hermes = await import('../src/crash/causes.js'); }
+  finally { vi.unstubAllGlobals(); }
+  const inner = new HermesError('inner');
+  const outer = errorWithCause('outer', inner);
+  expect(hermes!.extractCrashCauseChain(outer, identity, () => true)).toMatchObject({
+    causes: [{ message: 'inner', frames: [{raw: 'at hermesCause (address at index.android.bundle:1:42)'}], framesTruncated: false }], truncated: false,
+  });
+  expect(getter).toHaveBeenCalledTimes(1);
+  let owned = true;
+  const proxy = new Proxy(inner, { getPrototypeOf(target) { owned = false; return Reflect.getPrototypeOf(target); } });
+  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', proxy), identity, () => owned)).toBeUndefined();
+  expect(getter).toHaveBeenCalledTimes(1);
+  let deep: object = HermesError.prototype;
+  for (let level = 0; level < 8; level += 1) deep = Object.create(deep);
+  Object.defineProperty(deep, 'message', { value: 'deep' });
+  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', deep), identity, () => true)).toMatchObject({
+    causes: [{ frames: [], framesTruncated: true }],
+  });
+  expect(getter).toHaveBeenCalledTimes(1);
+  const replacement = vi.fn(() => 'unsafe');
+  Object.defineProperty(HermesError.prototype, 'stack', { get: replacement });
+  expect(hermes!.extractCrashCauseChain(outer, identity, () => true)).toMatchObject({
+    causes: [{ frames: [], framesTruncated: true }],
+  });
+  expect(replacement).not.toHaveBeenCalled();
+});

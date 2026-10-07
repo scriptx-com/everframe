@@ -1,0 +1,103 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "01939c34-7b8f-7000-8000-000000000001",
+  "submittedAt": "2026-04-29T16:00:00.000Z",
+  "sdk": {
+    "name": "everframe-ios",
+    "version": "0.0.0",
+    "platform": "ios",
+    "formFactor": "desktop"
+  },
+  "source": "crash",
+  "reporter": {
+    "title": "java.lang.NullPointerException: boom",
+    "description": ""
+  },
+  "captures": {
+    "screenshot": false,
+    "uiTree": false,
+    "focus": false,
+    "logs": false,
+    "network": false
+  },
+  "payload": {
+    "crash": {
+      "exceptionType": "EXC_BAD_ACCESS",
+      "message": "synthetic native fault",
+      "frames": [
+        {
+          "raw": "App 0x20000000000011"
+        }
+      ],
+      "handled": false,
+      "fatal": true,
+      "mechanism": "native-mach",
+      "occurredAt": "2026-10-07T00:00:00Z",
+      "fingerprint": "aaaaaaaaaaaaaaaa",
+      "native": {
+        "platform": "apple",
+        "timestampMicros": "1791331200000000",
+        "crashedThreadIndex": 4,
+        "framesIncomplete": false,
+        "imagesIncomplete": false,
+        "images": [
+          {
+            "uuid": "11111111-1111-4111-8111-111111111111",
+            "name": "App",
+            "loadAddress": "0x20000000000001",
+            "vmAddress": "0x100000000",
+            "size": "0x1000",
+            "cpuType": 16777228,
+            "cpuSubtype": 0,
+            "architecture": "arm64"
+          }
+        ],
+        "frames": [
+          {
+            "instructionAddress": "0x20000000000011",
+            "imageIndex": 0,
+            "imageOffset": "0x10"
+          }
+        ],
+        "error": {
+          "signalNumber": 10,
+          "machException": 1,
+          "machCode": "0x2",
+          "faultAddress": "0x20000000000011"
+        }
+      }
+    },
+    "breadcrumbs": []
+  },
+  "captureControl": {
+    "included": [
+      "breadcrumbs"
+    ],
+    "excluded": [
+      "screenshot",
+      "uiTree",
+      "focus",
+      "logs",
+      "network"
+    ],
+    "degradedReason": "crash-capture"
+  },
+  "context": {
+    "app": {
+      "name": "test-app",
+      "version": "1.0.0"
+    },
+    "device": {
+      "os": "macos",
+      "osVersion": "14.4",
+      "screenSize": {
+        "width": 1920,
+        "height": 1080
+      },
+      "pixelRatio": 2,
+      "locale": "en-US",
+      "timezone": "America/New_York"
+    }
+  },
+  "attachments": []
+}

@@ -63,6 +63,42 @@ struct MyApp: App {
 
 ---
 
+## Automatic native crashes
+
+The source SDK connects native crash capture to `Everframe.shared.start` when
+`capture.crash` is enabled (the default). It records supported Swift traps,
+uncaught Objective-C exceptions and memory/signal faults in native code, then
+imports them into the encrypted delivery queue on the next enabled launch.
+The recorder is bundled with the SDK; hosts do not install it separately.
+
+Capture starts asynchronously after an encrypted context is durable. There is a
+capture gap during startup and user/configuration changes. A crash already
+admitted keeps its original context; later reports use the new context. Recovery
+preserves the original project routing, app/device details, self-declared user,
+and redaction policy, even after another user or project starts. Native reports
+currently omit verified identity and continuously refreshed breadcrumbs, logs,
+replay and resource samples. Symbolicated source locations require the separate
+native symbol-processing pipeline; raw addresses remain available.
+
+Set `CaptureConfig(crash: false)` to disable automatic capture, or call `kill()`
+to stop the running SDK. A disabled launch retains pending raw records without
+promoting them. Reports already in the delivery queue follow the existing retry
+policy; disabling capture does not retroactively delete queued reports.
+
+Closed runs expire after 14 days and may be retired earlier under storage
+pressure. The runtime keeps at most 16 runs, with bounded raw/context storage.
+It supports 256 distinct context snapshots per process; identical snapshots
+reuse their identifier. Unavailable encryption keys, unsafe storage, exhausted
+capacity or recorder failures leave capture disabled. Repeated `start` calls
+reuse the process recorder rather than installing competing handlers.
+
+The installed Release qualification host is in
+[`Tests/NativeCrashStartupProof`](Tests/NativeCrashStartupProof). It exercises
+normal startup, real faults and relaunch delivery on an owned iOS simulator.
+Physical-device lock-state and performance qualification remain separate checks.
+
+---
+
 ## Triggers are host-app concern
 
 > Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
@@ -353,6 +389,20 @@ n/a on iOS — Swift name preservation is the default. Component-path
 reflection on iOS uses `String(reflecting:)` against the SwiftUI view tree
 without any build-time munging. No keep rules or extra Xcode build settings
 required.
+
+---
+
+## Error cause chains
+
+`captureException` includes `NSUnderlyingErrorKey` chains from `NSError` and
+Swift errors that expose an underlying error through `CustomNSError.errorUserInfo`.
+Plain Swift errors without this metadata retain their normal outer error capture.
+Cause frames are empty because Foundation does not provide per-cause throw stacks.
+Multiple-underlying-error branches are marked truncated and are not flattened.
+
+Chains retain at most 8 causes, 32 frames per cause, and 65,536 serialized UTF-8
+bytes after redaction. Capture owns the retained values; later mutation does not
+change a queued report. Causes do not change the outer error's grouping key.
 
 ---
 

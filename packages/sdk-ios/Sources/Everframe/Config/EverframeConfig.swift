@@ -201,7 +201,7 @@ public struct VitalsConfig: Sendable, Equatable {
 
 // MARK: - EFUser
 
-public struct EFUser {
+public struct EFUser: Sendable {
     public let id: String?
     public let email: String?
     public let displayName: String?

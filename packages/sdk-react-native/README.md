@@ -96,6 +96,59 @@ provider context and attach any non-sensitive context needed for diagnosis.
 The source API requires matching rebuilt native components; published `0.7.0`
 artifacts are not evidence of support.
 
+## Promise rejection observation
+
+Automatic Hermes rejection observation is opt-in:
+
+```tsx
+import { EverframeProvider, getPromiseRejectionStatus } from '@everframe/react-native';
+
+<EverframeProvider config={{
+  apiKey: '…',
+  crashReporting: { promiseRejections: { enabled: true } },
+}}>
+  <App />
+</EverframeProvider>
+
+// Read after mount. This reports observer coverage, not delivery confirmation.
+const status = getPromiseRejectionStatus();
+```
+
+The verified runtime is Android/iOS `react-native-tvos@0.85.3-0` with Hermes
+release `250829098.0.10`, Release/Static Hermes and bytecode 98. Qualification
+uses optimized apps on an Android API 35 arm64 emulator and an iOS 26.5 arm64
+simulator with Debug/local native SDK transport, including suspension expiry,
+source mapping and encrypted retry after relaunch. Physical devices and
+production transport are not qualified by these checks. Matching the SDK's
+broader RN peer range does not establish rejection support. Other versions, JSC, browser execution, tvOS,
+unverified Promise replacements and incompatible hooks return `unsupported`.
+The adapter checks runtime identity and a fulfilled-only hook handshake; it
+does not generate a test rejection or replace the Promise constructor.
+
+Rejections still unhandled after 2 seconds enter the existing nonfatal capture
+path. A handler attached within that interval cancels capture; later handling
+does not retract an accepted report. Explicit capture and automatic reporting
+share accepted error identity, and automatic reports retain their existing
+10-distinct-key allowance per mount.
+
+The observer retains at most 16 detached snapshots, each at most 64 KiB of
+serialized UTF-8 data. It drops new arrivals when full and oversize snapshots
+rather than retaining arbitrary error graphs. Work older than 30 seconds is
+discarded when JavaScript resumes; cleanup cannot run while JS is suspended.
+Error facts and causes are snapshotted at rejection time. Native context and
+breadcrumbs are collected at notification time. A preserved external tracker
+may independently retain errors or generate its own reports.
+
+`getPromiseRejectionStatus()` returns `disabled`, `unsupported`, `observing`,
+`displaced`, `install-failed`, or `not-mounted`, with a reason and bounded
+counters for pending, accepted, cancelled, dropped, suppressed and refused
+captures. Counters saturate at 2,147,483,647 and reset on each mount; they contain
+no captured messages or stacks. Replacing either hook stops this observer until
+a new mount. `crashReporting.disabled: true` overrides the opt-in, and unmount
+discards pending work. Configuration changes take effect on a new mount.
+The browser export reports Hermes observation as unsupported and preserves the
+browser SDK's own error handling.
+
 ## Network body capture (client veto)
 
 ```tsx
@@ -546,12 +599,119 @@ compiled bridge with the new reporter can announce companion PIN capability
 before asynchronous reporter installation finishes, temporarily advertising no
 PIN support. Use the matching updated pair for the qualified behavior.
 
-Activity recreation is supported between reporter openings. Destruction while
-the dialog is already mounted remains a known limitation: the pending open may
-never settle, presenting state stays active, and the frozen replay capture is
-not released. Shake-to-report may remain disabled until process restart. This
-change does not fix that existing mounted-dialog lifecycle defect.
+Activity destruction while a reporter is open resolves the pending call with
+`{ status: "cancelled", reason: "activity_destroyed" }`, releases that report's
+frozen replay capture, and clears presenting state so the reporter can open
+again. Backgrounding alone does not cancel the dialog. Once Send is tapped,
+submission owns the result and continues independently of activity destruction;
+its normal delivery result is preserved. Unsaved drafts are not restored after
+activity recreation.
 
 ## License
 
 MIT
+
+### React error boundary callback
+
+An existing React class boundary can opt into handled capture after the
+`EverframeProvider` has mounted:
+
+```tsx
+import * as React from 'react';
+import { captureReactError } from '@everframe/react-native/integrations/react';
+
+class Boundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    captureReactError(error, info);
+  }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+```
+
+The application owns fallback and recovery UI. This callback reports caught
+component errors; it does not install global renderer hooks or capture arbitrary
+async/event-handler errors. An initial render failure before the provider mounts
+is inert and is not replayed. Disabled crash reporting and unmounted calls are
+also inert. Component-stack metadata is bounded and redacted by the existing
+capture pipeline, without replacing exception frames or cause data.
+
+The original error shares accepted identity with manual and nonfatal automatic
+capture within a mount. Native refusal permits recapture; equal fingerprint keys
+can also suppress distinct objects. A later fatal escalation may report separately.
+The adapter subpath is unavailable to browser-conditioned consumers.
+
+### Local capture admission diagnostics
+
+```ts
+import { getErrorCaptureStatus } from '@everframe/react-native';
+const status = getErrorCaptureStatus();
+const { attempted, accepted, duplicateSuppressed } = status.counters.handled;
+```
+
+Snapshots are detached, contain no captured content, reset on remount, and perform
+no native query or upload. Paths are `handled` (including the boundary callback),
+`errorUtils`, and `rejection` (submission only). Each active attempt has one outcome:
+`accepted`, `duplicateSuppressed`, `allowanceSuppressed`, `bridgeUnavailable`,
+`nativeRefused`, `captureFailed`, `reentrantSuppressed`, `inactiveAborted`, or
+`legacyAttempted`. Counters saturate at 2,147,483,647. Existing limits are ten
+handled and ten automatic distinct keys; fatal capture bypasses them.
+
+`accepted` requires exactly true from a current native capture method. It does
+not mean upload success, server processing or outbox removal. An automatic call
+to an older native fallback is only `legacyAttempted`, regardless of its return.
+Old-binary unavailable/throwing methods are covered by unit controls, not an
+installed old-binary qualification. Native queue and delivery diagnostics remain
+unavailable. Status is neutral `not-mounted` without a provider, `disabled` under
+the crash-reporting veto, and `unsupported` on the browser root entry.
+
+Installed boundary qualification passes on Android API 35 arm64 emulator and
+iOS 26.5 arm64 simulator for this exact phone-host row:
+React 19.2.5, `react-native-tvos` 0.85.3-0 aliased as `react-native`, Expo
+56.0.0-preview.7, Hermes 250829098.0.10 / bytecode 98. Other RN distributions,
+versions, TV, physical devices and production endpoints are not qualified by
+this matrix. Installed checks cover four genuine boundary capture cases,
+disabled/initial zero controls, mapped causes, and byte-identical encrypted retry
+after relaunch. The application/JS builds are optimized; native SDKs are
+Debug/local. Physical-device and production-endpoint qualification remains open.
+
+### Native report delivery diagnostics
+
+`getReportDeliveryStatus()` synchronously copies cached native observations. It
+performs no file reads, uploads, drains, or hook installation. Use
+`getErrorCaptureStatus()` separately for JavaScript admission decisions.
+
+```ts
+import { getReportDeliveryStatus } from '@everframe/react-native';
+const status = getReportDeliveryStatus();
+console.log(status.status, status.queue.observation, status.queue.pendingCount);
+```
+
+The schema separates native capture acceptance, queue operations and settled
+transport attempts (`live-submit` and `outbox-drain`). `server-accepted` means an
+HTTP 2xx response; it does not establish processing, symbolication, dashboard
+visibility or queue removal. Removal has its own operation counter. Counters are
+operations, not unique reports, and saturate at 2,147,483,647.
+
+The queue is the SDK's shared report outbox, including reporter submissions and
+entries from earlier configurations. Its count is last-observed, not a fresh
+measurement or a current-project/crash-only total. Missing counts mean unknown;
+`partial` means only readable entries were counted. Android rejects new entries
+at capacity and retains terminal HTTP responses during drain. iOS can evict older
+entries and attempts removal after terminal HTTP responses. Custom standalone
+outbox/submitter instances are not automatically included.
+
+Snapshots contain only fixed codes and counters, never report content, IDs,
+URLs, credentials or exception strings. Observations are process-local and reset
+on native start/reconfiguration or kill. They are best-effort: contention and
+termination may lose observations; a busy getter reports `snapshot-busy`.
+`bridge-handled` and `bridge-automatic` cover fact entry paths shared by framework
+bridges. iOS marks `jvm-uncaught` unsupported and implies no automatic iOS native
+crash collector.
+
+Without a mounted provider the result is `not-mounted`; the browser export is
+`unsupported`. Older native SDKs return `unavailable/native-method-missing`.
+Malformed native responses return `unavailable/invalid-native-snapshot`. These
+fallbacks have an unobserved queue and `unknown` platform policies. This API does
+not provide a per-report delivery guarantee or trigger a retry.

@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { open, realpath, unlink, lstat } from "node:fs/promises";
 import { isIP } from "node:net";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import type { BuildUploadStatus } from "@everframe/protocol";
+import { DSYM_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
 import { collectBuild, hashFile, type LocalBuild } from "./manifest.js";
 
 export interface UploadOptions {
@@ -226,12 +226,13 @@ async function readCheckedMapping(
   root: string,
   path: string,
   artifact: { mapBytes: number; mapSha256: string },
+  maxBytes = 32 * 1024 * 1024,
 ): Promise<Buffer> {
   const expected = artifact.mapBytes;
   if (
     !Number.isSafeInteger(expected) ||
     expected <= 0 ||
-    expected > 32 * 1024 * 1024
+    expected > maxBytes
   )
     throw new Error("source_map_changed");
   const resolved = await ensurePathInRoot(root, path);
@@ -281,8 +282,9 @@ async function verifyCollectedFiles(
     const mapPath = local.mapPaths.get(artifact.url);
     if (!mapPath) throw new Error("invalid_local_build");
     const roots = local.fileRoots?.get(artifact.url);
-    await readCheckedMapping(roots?.mapRoot ?? defaultRoot, mapPath, artifact);
-    if (local.manifest.version === 3) continue;
+    await readCheckedMapping(roots?.mapRoot ?? defaultRoot, mapPath, artifact,
+      local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined);
+    if (local.manifest.version === 3 || local.manifest.version === 4) continue;
     const generatedPath = local.generatedPaths?.get(artifact.url);
     if (!generatedPath) throw new Error("invalid_local_build");
     await ensurePathInRoot(roots?.generatedRoot ?? defaultRoot, generatedPath);
@@ -348,6 +350,7 @@ export async function uploadCollectedBuild(
         roots?.mapRoot ?? options.root,
         mapPath,
         artifact,
+        local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined,
       );
       const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
       const uploaded = await request(

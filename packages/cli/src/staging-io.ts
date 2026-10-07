@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, rename, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import {
   parseStagedBuild,
@@ -65,4 +66,17 @@ export async function readComplete(stagingDir: string, buildId: string): Promise
 export async function writeComplete(stagingDir: string, staged: StagedBuild): Promise<void> {
   const path = join(stagingDir, checkedBuildId(staged.buildId), 'manifest.json');
   await writeFile(path, `${JSON.stringify(staged, null, 2)}\n`);
+}
+
+/** Promote only a successfully collected build to the existing verify/upload pointer. */
+export async function writePointer(stagingDir: string, platform: 'android' | 'ios', buildId: string): Promise<void> {
+  const id = checkedBuildId(buildId);
+  const target = join(stagingDir, `latest-${platform}.json`);
+  const temporary = join(stagingDir, `.latest-${platform}-${randomUUID()}.tmp`);
+  try {
+    await writeFile(temporary, `${JSON.stringify({ buildId: id })}\n`, { flag: 'wx' });
+    await rename(temporary, target);
+  } finally {
+    await rm(temporary, { force: true });
+  }
 }

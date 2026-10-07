@@ -91,6 +91,141 @@ class ReportSubmitterTest {
         endpointOverride = server.url("/api/ingest").toString(),
     )
 
+    @Test fun `late live and drain uploads cannot publish into a replacement generation`() = runBlocking {
+        for (draining in listOf(false, true)) {
+            val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+            val entered = java.util.concurrent.CountDownLatch(1)
+            val release = java.util.concurrent.CountDownLatch(1)
+            server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+                override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                    entered.countDown()
+                    check(release.await(5, TimeUnit.SECONDS))
+                    return MockResponse().setResponseCode(202)
+                }
+            }
+            val submitter = makeSubmitter().observing(owner)
+            if (draining) outbox.enqueue(OutboxEntry("late-drain", 1L, "{}".toByteArray(), "late", emptyList(), "test-sdk-key", server.url("/api/ingest").toString()))
+            val task = async(kotlinx.coroutines.Dispatchers.IO) {
+                if (draining) submitter.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 })
+                else assertTrue(submitter.submit("{}".toByteArray(), "late-live", emptyList()) is ReportResult.Submitted)
+            }
+            try {
+                withTimeout(3000) { while (entered.count != 0L) delay(5) }
+                ledger.beginGeneration(1, true)
+            } finally { release.countDown() }
+            task.await()
+            assertTrue(outbox.hydrate().isEmpty())
+            assertEquals(0, ledger.snapshot().revision)
+        }
+    }
+
+    @Test fun `accepted upload followed by generation replacement during removal stays with its owner`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+        var removed = false
+        val ops = object : dev.everframe.outbox.OutboxFileOps by JvmOutboxFileOps() {
+            override fun renameAtomic(from: File, to: File) {
+                if (to.extension == "removed") {
+                    assertEquals(1, ledger.snapshot().transport.getValue("outbox-drain").outcomes.getValue("server-accepted"))
+                    ledger.beginGeneration(1, true); removed = true
+                }
+                JvmOutboxFileOps().renameAtomic(from, to)
+            }
+        }
+        val box = JSONLOutbox(File(tmp.newFolder(), "outbox.jsonl"), JceTestOutboxKeyProvider(), ops)
+        box.enqueue(OutboxEntry("late-remove", 1L, "{}".toByteArray(), "late", emptyList(), "test-sdk-key", server.url("/api/ingest").toString()))
+        server.enqueue(MockResponse().setResponseCode(202))
+        ReportSubmitter(makeConfig(), box, MultipartUploader(client), server.url("/api/ingest").toString()).observing(owner)
+            .drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 })
+        assertTrue(removed); assertTrue(box.hydrate().isEmpty())
+        assertEquals(0, ledger.snapshot().revision)
+    }
+
+    @Test fun `diagnostics keep server acceptance when durable removal fails`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+        val ops = object : dev.everframe.outbox.OutboxFileOps by JvmOutboxFileOps() {
+            override fun renameAtomic(from: File, to: File) {
+                if (to.extension == "removed") throw java.io.IOException("disk refused removal")
+                JvmOutboxFileOps().renameAtomic(from, to)
+            }
+        }
+        val box = JSONLOutbox(File(tmp.newFolder(), "outbox.jsonl"), JceTestOutboxKeyProvider(), ops)
+        val submitter = ReportSubmitter(makeConfig(), box, MultipartUploader(client), server.url("/api/ingest").toString()).observing(owner)
+        server.enqueue(MockResponse().setResponseCode(503))
+        submitter.submit("{}".toByteArray(), "removal-failure", emptyList())
+        server.enqueue(MockResponse().setResponseCode(202))
+        val failure = runCatching { submitter.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 }) }.exceptionOrNull()
+        assertTrue(failure is dev.everframe.outbox.OutboxWriteException)
+        val snapshot = ledger.snapshot()
+        assertEquals(1, snapshot.transport.getValue("outbox-drain").outcomes.getValue("server-accepted"))
+        assertEquals(0, snapshot.queue.operations.getValue("removed-after-acceptance"))
+        assertEquals(1, snapshot.queue.operations.getValue("removal-failed"))
+        assertEquals(1, box.hydrate().size)
+    }
+
+    @Test fun `diagnostics preserve cancellation and omit pending upload from settled totals`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+        server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE))
+        val task = async { makeSubmitter().observing(owner).submit("{}".toByteArray(), "cancel", emptyList()) }
+        withTimeout(2000) { while (server.requestCount == 0) delay(10) }
+        assertEquals(0, ledger.snapshot().transport.getValue("live-submit").settledAttempts)
+        task.cancel()
+        try { task.await() } catch (_: kotlinx.coroutines.CancellationException) {}
+        assertTrue(task.isCancelled)
+        assertEquals(1, ledger.snapshot().transport.getValue("live-submit").outcomes.getValue("cancelled"))
+        assertTrue(outbox.hydrate().isEmpty())
+    }
+
+    @Test fun `diagnostics label network failures and authorization cancellation without content`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics(); val owner = ledger.beginGeneration(0, true)
+        val dead = MockWebServer(); dead.start(); val closedUrl = dead.url("/api/ingest").toString(); dead.shutdown()
+        val offline = ReportSubmitter(makeConfig(), outbox, MultipartUploader(client), closedUrl).observing(owner)
+        assertTrue(offline.submit("{}".toByteArray(), "offline", emptyList()) is ReportResult.Queued)
+        assertEquals(1, ledger.snapshot().transport.getValue("live-submit").outcomes.getValue("network-failure"))
+        val denied = object : ReportAuthorization {
+            override fun evaluate() = ReportAuthorizationDecision(false, false)
+            override fun tryStart(expected: ReportAuthorizationDecision, start: () -> Unit) = false
+        }
+        val before = server.requestCount
+        assertTrue(makeSubmitter().observing(owner).submit("{}".toByteArray(), "denied", emptyList(), authorization = denied) is ReportResult.Cancelled)
+        assertEquals(before, server.requestCount)
+        assertEquals(1, ledger.snapshot().transport.getValue("live-submit").outcomes.getValue("authorization-cancelled"))
+    }
+
+    @Test fun `diagnostics distinguish retry terminal retention and server accepted removal`() = runBlocking {
+        val ledger = dev.everframe.diagnostics.ReportDiagnostics()
+        val owner = ledger.beginGeneration(0, true)
+        val submitter = makeSubmitter().observing(owner)
+        server.enqueue(MockResponse().setResponseCode(503))
+        assertTrue(submitter.submit("{}".toByteArray(), "same-id", emptyList()) is ReportResult.Queued)
+        assertEquals(1, ledger.snapshot().transport.getValue("live-submit").outcomes.getValue("retryable-http"))
+        assertEquals(1, ledger.snapshot().queue.operations.getValue("enqueue-committed"))
+        server.enqueue(MockResponse().setResponseCode(400))
+        submitter.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 })
+        assertEquals(1, outbox.hydrate().size)
+        assertEquals(1, ledger.snapshot().transport.getValue("outbox-drain").outcomes.getValue("terminal-http"))
+        assertEquals(0, ledger.snapshot().queue.operations.getValue("removed-after-terminal"))
+        server.enqueue(MockResponse().setResponseCode(202))
+        submitter.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 })
+        assertTrue(outbox.hydrate().isEmpty())
+        assertEquals(2, ledger.snapshot().transport.getValue("outbox-drain").settledAttempts)
+        assertEquals(1, ledger.snapshot().queue.operations.getValue("removed-after-acceptance"))
+    }
+
+    @Test fun `diagnostics observe terminal and retryable statuses without changing public submit results`() = runBlocking {
+        for (status in listOf(202, 400, 403, 408, 429, 503)) {
+            val ledger = dev.everframe.diagnostics.ReportDiagnostics()
+            val owner = ledger.beginGeneration(0, true)
+            server.enqueue(MockResponse().setResponseCode(status).setHeader("Retry-After", "120"))
+            val result = runCatching { makeSubmitter().observing(owner).submit("{}".toByteArray(), "status-$status", emptyList()) }
+            val want = when (status) { 202 -> "server-accepted"; 400,403 -> "terminal-http"; else -> "retryable-http" }
+            val actual = ledger.snapshot().transport.getValue("live-submit")
+            assertEquals(1, actual.settledAttempts)
+            assertEquals("HTTP $status", want, actual.lastOutcome)
+            assertEquals(status, actual.lastHttpStatus)
+            assertEquals(status == 400 || status == 403, result.isFailure)
+        }
+    }
+
     @Test
     fun `oversized captured routing are rejected without admission`() = runBlocking {
         val failure = runCatching { makeSubmitter().submit("{}".toByteArray(), "x".repeat(16_385), emptyList()) }.exceptionOrNull()

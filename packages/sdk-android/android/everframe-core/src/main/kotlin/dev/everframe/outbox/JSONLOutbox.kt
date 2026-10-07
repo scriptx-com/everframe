@@ -3,6 +3,7 @@
 package dev.everframe.outbox
 
 import android.content.Context
+import dev.everframe.diagnostics.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -132,17 +133,17 @@ class JSONLOutbox private constructor(
         gate: () -> Boolean = { true },
     ) : this(OutboxStore(encryptedRoot(file), keys, ops, maxEntries, maxTotalBytes, legacyFiles(file)), gate)
 
-    internal fun tryEnqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization? = null): OutboxToken? =
+    internal fun tryEnqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization? = null, diagnostics: ReportDiagnostics.Handle? = null): OutboxToken? =
         store.tryEnqueueSync(entry, authorization ?: object : OutboxAuthorization {
             override fun isAllowed() = gate()
-        })
+        }, diagnostics)
 
     suspend fun enqueue(entry: OutboxEntry) = enqueue(entry, object : OutboxAuthorization {
         override fun isAllowed() = gate()
     })
 
-    internal suspend fun enqueue(entry: OutboxEntry, authorization: OutboxAuthorization): Unit =
-        withContext(Dispatchers.IO) { LegacyOutboxMigration.migrate(this@JSONLOutbox); store.enqueueSync(entry, authorization); Unit }
+    internal suspend fun enqueue(entry: OutboxEntry, authorization: OutboxAuthorization, diagnostics: ReportDiagnostics.Handle? = null): Unit =
+        withContext(Dispatchers.IO) { LegacyOutboxMigration.migrate(this@JSONLOutbox); store.enqueueSync(entry, authorization, diagnostics); Unit }
 
     suspend fun hydrate(): List<OutboxEntry> = withContext(Dispatchers.IO) {
         LegacyOutboxMigration.migrate(this@JSONLOutbox)
@@ -161,15 +162,15 @@ class JSONLOutbox private constructor(
 
     suspend fun drain(predicate: suspend (OutboxEntry) -> Boolean) = drainOwned { predicate(it.entry) }
 
-    internal suspend fun drainOwned(predicate: suspend (PendingEntry) -> Boolean) {
+    internal suspend fun drainOwned(diagnostics: ReportDiagnostics.Handle? = null, predicate: suspend (PendingEntry) -> Boolean) {
         store.drainMutex.withLock {
-            val tokens = withContext(Dispatchers.IO) { LegacyOutboxMigration.migrate(this@JSONLOutbox); store.snapshotTokens() }
+            val tokens = withContext(Dispatchers.IO) { LegacyOutboxMigration.migrate(this@JSONLOutbox); store.snapshotTokens(diagnostics) }
             for (token in tokens) {
-                val pending = withContext(Dispatchers.IO) { store.readIfPresent(token) } ?: continue
+                val pending = withContext(Dispatchers.IO) { store.readIfPresent(token, diagnostics) } ?: continue
                 val consumed = try { predicate(pending) }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { false }
-                if (consumed) withContext(Dispatchers.IO) { store.removeIfPresent(token) }
+                if (consumed) withContext(Dispatchers.IO) { store.removeIfPresent(token, diagnostics, QueueOperation.REMOVED_AFTER_ACCEPTANCE) }
             }
         }
     }

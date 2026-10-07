@@ -23,7 +23,7 @@ let package = Package(
         .library(name: "EverframeReporterUI", targets: ["EverframeReporterUI"]),
         .library(name: "EverframeBench", targets: ["EverframeBench"]),
     ],
-    dependencies: [],
+    dependencies: [.package(path: "crash-recorder")],
     targets: [
         .target(
             name: "EverframeProtocol",
@@ -31,7 +31,7 @@ let package = Package(
         ),
         .target(
             name: "EverframeKit",
-            dependencies: ["EverframeProtocol"],
+            dependencies: ["EverframeProtocol", .product(name: "EverframeCrashRecorder", package: "crash-recorder")],
             path: "Sources/Everframe",
             resources: [
                 .copy("PrivacyInfo.xcprivacy"),

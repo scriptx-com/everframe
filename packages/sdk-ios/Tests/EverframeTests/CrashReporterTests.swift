@@ -35,6 +35,60 @@ final class CrashReporterTests: XCTestCase {
         try super.tearDownWithError()
     }
 
+    func testDiagnosticsSettleBridgeAndNativeAdmissionOnce() throws {
+        let outbox = JSONLOutbox(fileURL: tempDir.appendingPathComponent("sdk-owned"),
+            keyProvider: { Data(repeating: 0xA7, count: 32) }, observesSDKDiagnostics: true)
+        let config = EverframeConfig(appId: "fixture")
+        Everframe.__setConfigForTesting(config)
+        Everframe.captureGate = true
+        let ledger = ReportDiagnostics.shared
+        ledger.beginGeneration(epoch: Everframe.shared.currentStartEpoch, enabled: true)
+        defer { ledger.retireGeneration(epoch: Everframe.shared.currentStartEpoch) }
+        XCTAssertFalse(CrashReporter.captureHandledFacts(json: "invalid private input", outbox: outbox, config: config))
+        let json = #"{"exceptionType":"Error","message":"private report","fatal":true,"framesRaw":[]}"#
+        XCTAssertTrue(CrashReporter.captureFacts(json: json, outbox: outbox, config: config))
+        XCTAssertTrue(CrashReporter.captureHandledFacts(json: json, outbox: outbox, config: config))
+        let error = NSError(domain: "private-domain", code: 1)
+        XCTAssertTrue(CrashReporter.captureHandledError(error, outbox: outbox))
+        XCTAssertFalse(CrashReporter.captureHandledError(error, outbox: outbox))
+        var disabled = config; disabled.capture.crash = false
+        XCTAssertFalse(CrashReporter.captureHandledFacts(json: json, outbox: outbox, config: disabled))
+        let snapshot = ledger.snapshot()
+        XCTAssertEqual(snapshot.capture.paths["bridge-automatic"]?.settledAttempts, 1)
+        XCTAssertEqual(snapshot.capture.paths["bridge-handled"]?.settledAttempts, 3)
+        XCTAssertEqual(snapshot.capture.paths["bridge-handled"]?.outcomes["invalid-input"], 1)
+        XCTAssertEqual(snapshot.capture.paths["bridge-handled"]?.outcomes["disabled"], 1)
+        XCTAssertEqual(snapshot.capture.paths["native-handled"]?.settledAttempts, 2)
+        XCTAssertEqual(snapshot.capture.paths["native-handled"]?.outcomes["admission-suppressed"], 1)
+        XCTAssertEqual(snapshot.queue.operations["enqueue-committed"], 3)
+        XCTAssertFalse(try snapshot.toJSON().contains("private"))
+    }
+
+    func testStandaloneCaptureOutboxDoesNotPolluteDefaultQueueDiagnostics() throws {
+        let ledger = ReportDiagnostics.shared
+        ledger.beginGeneration(epoch: Everframe.shared.currentStartEpoch, enabled: true)
+        defer { ledger.retireGeneration(epoch: Everframe.shared.currentStartEpoch) }
+        let json = #"{"exceptionType":"Error","fatal":true}"#
+        XCTAssertTrue(CrashReporter.captureFacts(json: json, outbox: makeOutbox(), config: EverframeConfig(appId: "fixture")))
+        XCTAssertEqual(ledger.snapshot().capture.paths["bridge-automatic"]?.outcomes["persisted"], 1)
+        XCTAssertEqual(ledger.snapshot().queue.observation, "not-observed")
+        XCTAssertEqual(ledger.snapshot().queue.operations["enqueue-committed"], 0)
+    }
+
+    func testDiagnosticsCaptureStorageFailureDoesNotConsumeIdentity() throws {
+        Everframe.__setConfigForTesting(EverframeConfig(appId: "fixture"))
+        Everframe.captureGate = true
+        let ledger = ReportDiagnostics.shared
+        ledger.beginGeneration(epoch: Everframe.shared.currentStartEpoch, enabled: true)
+        defer { ledger.retireGeneration(epoch: Everframe.shared.currentStartEpoch) }
+        let bad = JSONLOutbox(testFileURL: tempDir.appendingPathComponent("refused"), maxEntries: 0)
+        let error = NSError(domain: "private", code: 2)
+        XCTAssertFalse(CrashReporter.captureHandledError(error, outbox: bad))
+        XCTAssertTrue(CrashReporter.captureHandledError(error, outbox: makeOutbox()))
+        XCTAssertEqual(ledger.snapshot().capture.paths["native-handled"]?.outcomes["storage-unavailable"], 1)
+        XCTAssertEqual(ledger.snapshot().capture.paths["native-handled"]?.outcomes["persisted"], 1)
+    }
+
     private func makeOutbox() -> JSONLOutbox {
         JSONLOutbox(testFileURL: tempDir.appendingPathComponent("outbox.jsonl"))
     }
@@ -54,6 +108,32 @@ final class CrashReporterTests: XCTestCase {
         let disk = try Data(contentsOf: outbox.resolvedFileURL)
         XCTAssertEqual(String(decoding: disk.prefix(8), as: UTF8.self), "EVRBOX01")
         XCTAssertNil(disk.range(of: Data("private handled message".utf8)))
+    }
+
+    func testCauseChainPersistsEncryptedAndDoesNotChangeOuterFingerprint() throws {
+        let chain = #"{"causes":[{"exceptionType":"TypeError","message":"underlying secret","frames":[],"framesTruncated":false}],"truncated":false}"#
+        let base = #""exceptionType":"Error","message":"outer","framesRaw":["at outer"],"occurredAt":"2026-10-05T00:00:00Z""#
+        var results: [[String: Any]] = []
+        for suffix in ["", ",\"causeChain\":\(chain)"] {
+            let outbox = JSONLOutbox(testFileURL: tempDir.appendingPathComponent(UUID().uuidString))
+            XCTAssertTrue(CrashReporter.captureHandledFacts(json: "{\(base)\(suffix)}", outbox: outbox, config: EverframeConfig(appId: "app")))
+            results.append(try decodedCrash(XCTUnwrap(try outbox.hydrate().first)))
+            XCTAssertNil(try Data(contentsOf: outbox.resolvedFileURL).range(of: Data("underlying secret".utf8)))
+        }
+        XCTAssertEqual(results[0]["fingerprint"] as? String, results[1]["fingerprint"] as? String)
+        let causes = try XCTUnwrap(results[1]["causeChain"] as? [String: Any])
+        XCTAssertEqual((causes["causes"] as? [[String: Any]])?.first?["message"] as? String, "underlying secret")
+    }
+
+    func testMalformedOptionalCausePreservesOuterCapture() throws {
+        for invalid in ["null", "42", "{}", #"{"causes":[{"message":"\ud800"}],"truncated":false}"#] {
+            let outbox = JSONLOutbox(testFileURL: tempDir.appendingPathComponent(UUID().uuidString))
+            let json = "{\"exceptionType\":\"Error\",\"framesRaw\":[\"at raw\"],\"causeChain\":\(invalid)}"
+            XCTAssertTrue(CrashReporter.captureHandledFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app")))
+            let crash = try decodedCrash(XCTUnwrap(try outbox.hydrate().first))
+            XCTAssertEqual(crash["causeChain"] as? NSDictionary, ["causes": [], "truncated": true] as NSDictionary)
+            XCTAssertEqual(crash["frames"] as? NSArray, [["raw": "at raw"]] as NSArray)
+        }
     }
 
     private func decode(_ entry: OutboxEntry) throws -> [String: Any] {

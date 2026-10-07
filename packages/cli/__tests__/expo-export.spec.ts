@@ -23,19 +23,20 @@ async function makeExpoProject(options: {
   const project = await mkdtemp(join(tmpdir(), 'everframe-expo-'));
   const staging = join(project, '.everframe');
   for (const platform of options.platforms) {
+    const platformBuildId = platform === 'android' ? buildId : '8f3ac21e-0000-4000-8000-000000000002';
     const dir = join(project, 'dist', '_expo', 'static', 'js', platform);
     await mkdir(dir, { recursive: true });
     const names = options.extraBundle ? ['index-abc.hbc', 'index-def.hbc'] : ['index-abc.hbc'];
     for (const name of names) {
-      await writeFile(join(dir, name), Buffer.concat([HERMES_MAGIC, Buffer.alloc(64)]));
-      await writeFile(join(dir, `${name}.map`), JSON.stringify({ version: 3, sources: [], mappings: '' }));
+      await writeFile(join(dir, name), Buffer.concat([HERMES_MAGIC, Buffer.from(platformBuildId), Buffer.alloc(64)]));
+      await writeFile(join(dir, `${name}.map`), JSON.stringify({ version: 3, sources: [`/.everframe/${platformBuildId}/identity.js`], mappings: '' }));
     }
     if (options.staged === false) continue;
-    await mkdir(join(staging, buildId), { recursive: true });
-    await writeFile(join(staging, `latest-${platform}.json`), JSON.stringify({ buildId }));
+    await mkdir(join(staging, platformBuildId), { recursive: true });
+    await writeFile(join(staging, `latest-${platform}.json`), JSON.stringify({ buildId: platformBuildId }));
     await writeFile(
-      join(staging, buildId, 'manifest.partial.json'),
-      JSON.stringify({ schema: 1, buildId, platform, bundleName: `index.${platform}.bundle`, dev: false }),
+      join(staging, platformBuildId, 'manifest.partial.json'),
+      JSON.stringify({ schema: 1, buildId: platformBuildId, platform, bundleName: platform === 'android' ? 'index.android.bundle' : 'main.jsbundle', dev: false }),
     );
   }
   return project;
@@ -68,9 +69,9 @@ const base = (project: string) => ({
 
 describe('uploadExpoExport', () => {
   it('uploads every exported platform in one call', async () => {
-    const project = await makeExpoProject({ platforms: ['android'] });
+    const project = await makeExpoProject({ platforms: ['android', 'ios'] });
     const results = await uploadExpoExport(base(project), { fetch: successfulUploadFetch(), wait: async () => {} });
-    expect(results).toEqual([{ platform: 'android', buildUuid: expect.any(String) }]);
+    expect(results).toEqual([{ platform: 'android', buildUuid: expect.any(String) }, { platform: 'ios', buildUuid: expect.any(String) }]);
   });
 
   it('fails clearly when nothing was exported', async () => {
