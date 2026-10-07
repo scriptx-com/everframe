@@ -27,6 +27,7 @@ function fixture(prepare?: (reason: unknown, occurredAt: string) => PreparedReje
       previousCallbacksPresent: false, ownsHooks: () => owned, dispose: () => { owned = false; } }; },
   });
   return { observer, hooks, snapshot, timers, delivered, displace: () => { owned = false; },
+    at(time: number) { now = time; },
     tick(time: number) { now = time; const jobs = [...timers.values()]; timers.clear(); jobs.forEach(({fn}) => fn()); } };
 }
 it('waits 2000 ms and owns at most one timer', () => {
@@ -57,6 +58,26 @@ it('drops overflow before touching reason data', () => {
   expect(f.snapshot).toHaveBeenCalledTimes(16);
   f.tick(2000); expect(f.delivered).toHaveLength(16);
   expect(f.observer.getStatus().counters.pending).toBe(0);
+});
+it('counts a rejection handled within the grace period as cancelled, not as a drop', () => {
+  const f = fixture();
+  for (let i = 0; i < 16; i++) f.hooks.onReject({}, `reason ${i}`);
+  const handled = {}, late = {};
+  f.hooks.onReject(handled, 'handled'); f.hooks.onHandle(handled);
+  f.hooks.onReject(late, 'late');
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 16, capacityDropped: 1, cancelled: 1 });
+  f.at(2500); f.hooks.onHandle(late);
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 16, capacityDropped: 1, cancelled: 1 });
+});
+it.each<[string, () => PreparedRejection | undefined]>([
+  ['sizeDropped', () => ({ payload: 'x'.repeat(70_000), key: 'oversize' })],
+  ['captureFailed', () => undefined],
+])('withdraws %s when the rejection is handled within the grace period', (counter, prepare) => {
+  const f = fixture(prepare), handled = {};
+  f.hooks.onReject(handled, 'handled');
+  expect(f.observer.getStatus().counters).toMatchObject({ [counter]: 1, cancelled: 0 });
+  f.hooks.onHandle(handled);
+  expect(f.observer.getStatus().counters).toMatchObject({ [counter]: 0, cancelled: 1 });
 });
 it.each(['ascii', 'emoji', 'escaped', 'surrogate'] as const)('counts serialized UTF-8 bytes for %s at the inclusive limit', (kind) => {
   const fragment = { ascii: 'a', emoji: '😀', escaped: '\\u0001', surrogate: '\\ud800' }[kind];
@@ -89,6 +110,41 @@ it('drops stale work instead of reporting it after a long suspension', () => {
   expect(f.delivered).toEqual([]);
   expect(f.observer.getStatus().counters).toMatchObject({ pending: 0, expired: 1 });
 });
+it('notifies overdue work from later Promise activity while timers are paused', () => {
+  const microtasks: (() => void)[] = [];
+  const f = fixture(undefined, { queueMicrotask: (fn) => { microtasks.push(fn); } });
+  f.hooks.onReject({}, 'background');
+  f.at(1500); f.hooks.onHandle({});
+  expect(microtasks).toEqual([]);
+  f.at(2500); f.hooks.onHandle({}); f.hooks.onReject({}, 'second');
+  expect(f.delivered).toEqual([]);
+  expect(microtasks).toHaveLength(1);
+  microtasks.splice(0).forEach((fn) => fn());
+  expect(f.delivered.map((value) => JSON.parse(value.payload).message)).toEqual(['background']);
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 1, accepted: 1, expired: 0 });
+});
+it('never flushes synchronously inside a Promise hook', () => {
+  const f = fixture(undefined, { queueMicrotask: (fn) => fn() });
+  f.hooks.onReject({}, 'held'); f.at(2500); f.hooks.onHandle({});
+  expect(f.delivered).toEqual([]);
+  f.tick(2500); expect(f.delivered).toHaveLength(1);
+});
+it('expires work held across device sleep by wall-clock age', () => {
+  let wall = 0;
+  const f = fixture(undefined, { wallNow: () => wall });
+  f.hooks.onReject({}, 'slept'); wall = 600_000;
+  f.tick(1999); expect(f.observer.getStatus().counters).toMatchObject({ pending: 1, expired: 0 });
+  f.tick(15_000);
+  expect(f.delivered).toEqual([]);
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 0, expired: 1, accepted: 0 });
+});
+it('ignores a wall clock that moves backwards', () => {
+  let wall = 0;
+  const f = fixture(undefined, { wallNow: () => wall });
+  f.hooks.onReject({}, 'adjusted'); wall = -1_000_000; f.tick(2000);
+  expect(f.delivered).toHaveLength(1);
+  expect(f.observer.getStatus()).toMatchObject({ status: 'observing', counters: { accepted: 1, expired: 0 } });
+});
 it('fails closed on an elapsed-clock rollback', () => {
   const f = fixture(); f.hooks.onReject({}, 'old'); f.tick(-1);
   expect(f.delivered).toEqual([]);
@@ -106,9 +162,11 @@ it('contains a synchronous reentrant timer without early delivery', () => {
   expect(f.delivered).toEqual([]);
   expect(f.observer.getStatus()).toMatchObject({ status: 'install-failed', counters: {pending: 0} });
 });
-it('detects displacement on status read and releases pending snapshots', () => {
-  const f = fixture(); f.hooks.onReject({}, 'owned'); f.displace();
-  expect(f.observer.getStatus()).toMatchObject({ status: 'displaced', reason: 'hook-displaced', counters: {pending: 0} });
+it('detects displacement on status read and counts released pending snapshots', () => {
+  const f = fixture(); for (const reason of ['first', 'second', 'third']) f.hooks.onReject({}, reason);
+  f.displace();
+  expect(f.observer.getStatus()).toMatchObject({ status: 'displaced', reason: 'hook-displaced',
+    counters: {pending: 0, discarded: 3, captureFailed: 0} });
   f.tick(2000); expect(f.delivered).toEqual([]); expect(f.timers.size).toBe(0);
 });
 it('disposal makes retained callbacks inert and status contains no captured content', () => {

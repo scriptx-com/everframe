@@ -21,6 +21,12 @@ of the sidecar NSFileProtectionNone policy with
 NSFileProtectionCompleteUntilFirstUserAuthentication in KSFileUtilsObjC.m.
 NSException metadata collection is also removed: the owned monitor neither reads
 nor formats `exception.userInfo`, and records NULL for that field.
+The Resource monitor in KSCrashMonitor_Resource.m no longer enables or disables
+UIDevice battery monitoring; it records battery state only while the host
+application enables monitoring. KSCrashReportC.c copies no raw stack contents into
+reports and writes register state for the crashed thread only. On arm64,
+KSStackCursor_Unwind.c reports the caller restored from the crashing function's frame
+record when the link register no longer holds it.
 The historical upstream helper name still says “NoFileProtection”; the modified
 implementation preserves the component's mobile protection policy.
 

@@ -259,7 +259,7 @@ describe('generic crash cause contract', () => {
     const normalized = normalizeCrashCauseChain({
       causes: [{
         exceptionType: 'Error',
-        message: 'x'.repeat(9_000),
+        message: `${'x'.repeat(8_191)}!${'x'.repeat(808)}`,
         frames: [],
         framesTruncated: false,
       }],
@@ -273,6 +273,28 @@ describe('generic crash cause contract', () => {
     expect(normalized?.causes[0]?.message).toBe('y'.repeat(4095));
     expect(normalized?.truncated).toBe(true);
     expect(CrashCauseChain.safeParse(normalized).success).toBe(true);
+  });
+
+  it('drops a secret cut by the scan window instead of keeping its unmatched prefix', () => {
+    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+    const token = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(9_000)}.${'S'.repeat(43)}`;
+    const normalized = normalizeCrashCauseChain({
+      causes: [{ exceptionType: 'Error', message: `${'x'.repeat(4_000)} ${token}`, frames: [], framesTruncated: false }],
+      truncated: false,
+    }, value => value.replace(jwt, '[REDACTED:JWT]'));
+
+    expect(normalized?.causes[0]?.message).toBe('x'.repeat(4_000));
+    expect(normalized?.truncated).toBe(true);
+  });
+
+  it('never shows the redactor a digit group cut by the scan window', () => {
+    const seen: string[] = [];
+    normalizeCrashCauseChain({
+      causes: [{ exceptionType: 'Error', message: `${'x'.repeat(8_178)} 4111 1111 1111 1111`, frames: [], framesTruncated: false }],
+      truncated: false,
+    }, value => { seen.push(value); return value; });
+
+    expect(seen).toEqual(['Error', 'x'.repeat(8_178)]);
   });
 
   it('keeps a valid frame prefix, omits malformed optional fields, and permits the next cause', () => {

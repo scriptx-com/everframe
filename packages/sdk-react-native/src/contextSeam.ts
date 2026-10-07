@@ -21,8 +21,9 @@ export { EverframeNotMountedError };
 
 /** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
 export interface EverframeContextValue {
-  /** Local admission only; optional for older context implementations. */
+  /** Cached native delivery observations, independent of JS admission; optional for older context implementations. */
   getReportDeliveryStatus?(): ReportDeliveryStatus;
+  /** Local admission only; optional for older context implementations. */
   getErrorCaptureStatus?(): ErrorCaptureStatus;
   /** Optional for compatibility with existing context implementations. */
   getPromiseRejectionStatus?(): PromiseRejectionStatus;

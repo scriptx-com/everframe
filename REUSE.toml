@@ -31,3 +31,22 @@ path = ["**/gradle/wrapper/gradle-wrapper.jar", "**/gradle/wrapper/gradle-wrappe
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2015-2021 the original authors"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/Resources/PrivacyInfo.xcprivacy",
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSCrashNamespace.h",
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemory+Private.h",
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemory.m",
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemoryTracker.m",
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Resources/PrivacyInfo.xcprivacy",
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCrashMonitorAPI.c",
+  "packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Resources/PrivacyInfo.xcprivacy",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2012 Karl Stenerud"
+
+[[annotations]]
+path = ["packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["2012 Karl Stenerud", "2026 ScriptX"]

@@ -4,6 +4,7 @@ import {
   MAX_CRASH_CAUSES,
   MAX_CRASH_CAUSE_STACK_SCAN_UNITS,
   createCrashCauseChainFitter,
+  dropCrashCauseCutToken,
   type CrashCauseChain,
   type CrashCauseChainFitter,
 } from '@everframe/protocol';
@@ -47,6 +48,9 @@ function captureNativeStackGetter(): { getter: (this: unknown) => unknown; proto
 
 const nativeStack = captureNativeStackGetter();
 const nativeStackGetter = nativeStack?.getter;
+// Babel's wrapped native super adds a prototype between compiled Error
+// subclasses and the intrinsic, so application hierarchies sit deeper.
+const MAX_INHERITED_STACK_LINKS = 16;
 
 function safeOwned(stillOwned: () => boolean): boolean {
   try {
@@ -81,7 +85,7 @@ function ownStack(value: object, stillOwned: () => boolean): StackRead {
     if (!descriptor && nativeStack?.prototype) {
       let current: object | null = value;
       const seen = new Set<object>([value]);
-      for (let links = 0; links < 4; links += 1) {
+      for (let links = 0; links < MAX_INHERITED_STACK_LINKS; links += 1) {
         const next = safePrototype(current, stillOwned);
         if (next === undefined) return safeOwned(stillOwned) ? { kind: 'lost' } : { kind: 'cancelled' };
         if (next === null) return { kind: 'absent' };
@@ -169,7 +173,10 @@ function feedStack(
   while (cursor < scanEnd) {
     let lineEnd = cursor;
     while (lineEnd < scanEnd && stack.charCodeAt(lineEnd) !== 10) lineEnd += 1;
-    const line = stack.slice(cursor, lineEnd).trim();
+    const text = stack.slice(cursor, lineEnd);
+    // A line cut by the scan limit can end inside a secret; drop the cut token.
+    const cut = lineEnd === scanEnd && lineEnd < stack.length && stack.charCodeAt(lineEnd) !== 10;
+    const line = (cut ? dropCrashCauseCutToken(text) : text).trim();
     cursor = lineEnd < scanEnd ? lineEnd + 1 : scanEnd;
     if (line.length === 0) continue;
 

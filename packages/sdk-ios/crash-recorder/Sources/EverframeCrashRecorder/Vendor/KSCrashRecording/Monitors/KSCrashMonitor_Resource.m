@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude.
+// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude; never change the host battery monitoring setting.
 // Original copyright and license notices retained below.
 #include "EverframeKSCrashNamespace.h"
 //
@@ -329,7 +329,7 @@ static void writeBattery(void)
 
 static void startBatteryObservers(void)
 {
-    UIDevice.currentDevice.batteryMonitoringEnabled = YES;
+    // Everframe: battery state is read only while the host enables monitoring; never change it.
 
     writeBattery();
 
@@ -361,7 +361,7 @@ static void stopBatteryObservers(void)
         [nc removeObserver:g_batteryStateObserver];
         g_batteryStateObserver = nil;
     }
-    UIDevice.currentDevice.batteryMonitoringEnabled = NO;
+    // Everframe: leave the host battery monitoring setting unchanged.
 }
 
 #endif  // KSCRASH_HOST_IOS
