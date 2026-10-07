@@ -122,6 +122,7 @@ KSCRASH_CHECKOUT=/path/to/KSCrash node --test scripts/vendor.test.mjs
 KSCRASH_CHECKOUT=/path/to/KSCrash node scripts/verify-vendor.mjs
 node scripts/prepare-vendor.mjs /path/to/KSCrash /path/to/empty-output
 swift build -c release --product EFCRProbe
+python3 -I -B -m unittest discover -s Tests -p 'test_*.py'
 ```
 
 Preparation refuses to overwrite existing vendor source. Verification without an
@@ -140,9 +141,12 @@ time: a closed report gate with enabled monitors, and an open gate with the moni
 still disabled by installation; both must leave no report. Each fatal process must end
 with its fault's signal, and each report must record the expected Mach, signal or
 NSException error with a crashed-thread backtrace. Swift, memory and frameless-leaf
-faults must name their real caller as frame 1 without a repeated frame, and a prologue
-stack overflow must keep its link-register caller. The checks are explicit, so they
-also run under `python3 -O`. Every persisted file is scanned for the exception userInfo
+faults must name their real caller as frame 1 without a repeated frame. On arm64 a
+prologue stack overflow must keep its link-register caller; x86_64 has no link
+register, so there the run records that check under `skippedChecks`, and `proof.json`
+names the host architecture. The checks are explicit, so they also run under
+`python3 -O`; `Tests/test_run_probes.py` covers the per-architecture frame checks with
+synthetic reports. Every persisted file is scanned for the exception userInfo
 sentinel and for a stack canary written in the faulting frame. Every output and raw
 report is retained. `Tests/DualProbe/main.m` supports full-object link and fatal-chain
 qualification alongside ordinary upstream recording objects.
