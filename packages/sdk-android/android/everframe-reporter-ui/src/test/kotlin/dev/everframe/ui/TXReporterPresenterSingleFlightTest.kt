@@ -17,11 +17,19 @@ import dev.everframe.config.EverframeConfig
 import dev.everframe.config.ReportResult
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -70,6 +78,52 @@ class TXReporterPresenterSingleFlightTest {
         val next = presenter().openReporter(activity)
         assertEquals(2, presented.get())
         assertSame(result, next)
+    }
+
+    @Test fun destroyedOwnerActivityDoesNotBlockTheNextOpen() = runBlocking {
+        val owner = Robolectric.buildActivity(Activity::class.java).setup()
+        startSdk(owner.get())
+        val presented = AtomicInteger(0)
+        // A dialog destroyed with its activity never settles its open. Its owner
+        // runs outside that activity's lifecycle, as SDK shake and bridge opens do.
+        val ownerScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        try {
+            ownerScope.launch { presenter(presented) { awaitCancellation() }.openReporter(owner.get()) }
+            assertEquals(1, presented.get())
+            val joined = async { presenter(presented) { error("a joining open must not present") }.openReporter(owner.get()) }
+            yield()
+            assertFalse(joined.isCompleted)
+
+            owner.pause().stop().destroy()
+            val next = Robolectric.buildActivity(Activity::class.java).setup().get()
+            val result = withTimeout(5_000) {
+                presenter(presented) { ReportResult.Cancelled("next") }.openReporter(next)
+            }
+
+            assertEquals("the next open presents its own reporter", ReportResult.Cancelled("next"), result)
+            assertEquals(2, presented.get())
+            assertEquals(ReportResult.Cancelled("activity_destroyed"), withTimeout(5_000) { joined.await() })
+        } finally {
+            ownerScope.cancel()
+        }
+    }
+
+    private fun presenter(presented: AtomicInteger, show: suspend () -> ReportResult) = TXReporterPresenter(
+        captureScreenshot = { _, _ ->
+            ScreenshotCapture.CaptureResult(Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888), 2, 2, byteArrayOf(1))
+        },
+        showDialog = { _, _, _, _ ->
+            presented.incrementAndGet()
+            show()
+        },
+    )
+
+    private fun startSdk(activity: Activity) {
+        Everframe.start(
+            activity,
+            EverframeConfig(appId = "a", sdkKey = "txx_live_test1234567890", capture = CaptureConfig(logs = false)),
+        )
+        awaitSession()
     }
 
     private fun awaitSession() {

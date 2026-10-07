@@ -24,6 +24,7 @@ import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.config.ReportResult
 import dev.everframe.envelope.txGuardSuspend
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.CompletableDeferred
 
 internal class TXReporterPresenter(
@@ -48,19 +49,23 @@ internal class TXReporterPresenter(
         // kept the recorder frozen until it closed. A caller arriving while a
         // report is open now joins it and receives the same result.
         val (mine, existing) = synchronized(lock) {
-            val running = inFlight?.takeIf { !it.isCompleted }
-            if (running != null) {
+            val running = inFlight?.takeIf { !it.result.isCompleted }
+            if (running != null && !running.abandoned) {
                 null to running
             } else {
-                CompletableDeferred<ReportResult>().also { inFlight = it } to null
+                // A dialog removed with its activity may never settle its
+                // open, so joining it could wait forever: release its joiners
+                // and present a new reporter instead.
+                running?.result?.complete(ReportResult.Cancelled("activity_destroyed"))
+                Flight(activity).also { inFlight = it } to null
             }
         }
-        if (existing != null) return existing.await()
+        if (existing != null) return existing.result.await()
         val owned = mine!!
         try {
-            return presentOnce(activity, isCurrent).also { owned.complete(it) }
+            return presentOnce(activity, isCurrent).also { owned.result.complete(it) }
         } catch (t: Throwable) {
-            owned.completeExceptionally(t)
+            owned.result.completeExceptionally(t)
             throw t
         } finally {
             synchronized(lock) { if (inFlight === owned) inFlight = null }
@@ -178,8 +183,18 @@ internal class TXReporterPresenter(
         }
     }
 
+    /** One presentation, shared by every open that arrives while it is in flight. */
+    private class Flight(activity: Activity) {
+        val result = CompletableDeferred<ReportResult>()
+        private val owner = WeakReference(activity)
+
+        /** Its activity is finishing, destroyed or collected, taking the dialog with it. */
+        val abandoned: Boolean
+            get() = owner.get().let { it == null || it.isFinishing || it.isDestroyed }
+    }
+
     internal companion object {
         private val lock = Any()
-        private var inFlight: CompletableDeferred<ReportResult>? = null
+        private var inFlight: Flight? = null
     }
 }
