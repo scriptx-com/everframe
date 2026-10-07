@@ -17,11 +17,12 @@ STACK_MARKER = bytes((0x5A + 37 * i) & 0xFF for i in range(16))
 X86 = platform.machine() == 'x86_64'
 # Terminating signals of each fault on this native host.
 SIGNALS = {'swift': {signal.SIGILL if X86 else signal.SIGTRAP}, 'objc': {signal.SIGABRT},
-           'memory': {signal.SIGBUS, signal.SIGSEGV}}
+           'memory': {signal.SIGBUS, signal.SIGSEGV}, 'signal': {signal.SIGABRT}}
 # Recorded error of each fault: (type, section, field, value).
 ERRORS = {'swift': ('mach', 'mach', 'exception_name', 'EXC_BAD_INSTRUCTION' if X86 else 'EXC_BREAKPOINT'),
           'objc': ('nsexception', 'nsexception', 'name', 'EFCRQualification'),
-          'memory': ('mach', 'mach', 'exception_name', 'EXC_BAD_ACCESS')}
+          'memory': ('mach', 'mach', 'exception_name', 'EXC_BAD_ACCESS'),
+          'signal': ('signal', 'signal', 'name', 'SIGABRT')}
 
 
 def require(condition, message):
@@ -102,7 +103,7 @@ def run_probes(binary, evidence):
     require(not list(second.iterdir()), 'second installation touched replacement directory')
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
     for mode in ['enabled', 'disabled', 'disabled-after', 'reenabled']:
-        for fault in ['swift', 'objc', 'memory']:
+        for fault in ['swift', 'objc', 'memory', 'signal']:
             name = f'{mode}-{fault}'
             run(name, mode, directory(name), fault, fatal=True, count=int(mode in ['enabled', 'reenabled']))
     rapid = [run(f'rapid-{i}', 'enabled', directory(str(uuid.uuid4())), 'swift', fatal=True, count=1) for i in range(3)]

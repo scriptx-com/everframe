@@ -83,9 +83,10 @@ the manifest alone is not a cryptographic attestation.
 `Tests/run-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
 runs25 fresh processes with25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, initial disabled state, repeated/failed
-installation, Swift/Objective-C/memory faults, disable/re-enable and rapid runs.
+installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
+monitor can record, disable/re-enable and rapid runs.
 Each fatal process must end with its fault's signal, and each report must record the
-expected Mach or NSException error with a crashed-thread backtrace. The checks are
+expected Mach, signal or NSException error with a crashed-thread backtrace. The checks are
 explicit, so they also run under `python3 -O`. Every persisted file is scanned for the exception userInfo sentinel and for a stack
 canary written in the faulting frame. Every output and raw report is retained. `Tests/DualProbe/main.m` supports full-object
 link and fatal-chain qualification alongside ordinary upstream recording objects.
