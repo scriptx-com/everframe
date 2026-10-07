@@ -130,12 +130,25 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         XCTAssertEqual(try decode(record(images: [overflow])).crash.native?.images[0].architecture, .arm64E)
     }
     func testSensitiveUnknownFieldsIgnoredAndExpandingRedactionRebounded() throws {
-        var input = record(); input["system"] = ["path": "NEVER_COPY"]; input["memory"] = ["token": "NEVER_COPY"]
-        let result = try decode(input, redact: { _ in "/redacted\\\u{0}" + String(repeating: "😀", count: 5000) })
+        let long = String(repeating: "x", count: 20_000)
+        var input = record(type: "nsexception", frames: [frame(symbol: "SYMBOL" + long)],
+                           images: [image(name: "/Applications/App.app/IMAGE" + long)])
+        input["system"] = ["path": "NEVER_COPY"]; input["memory"] = ["token": "NEVER_COPY"]
+        input = changeError(changeError(input, "reason", "REASON" + long), "nsexception", ["name": "NAME" + long])
+        var inputs: [String] = []
+        let result = try decode(input, redact: { inputs.append($0); return "/redacted\\\u{0}" + String(repeating: "😀", count: 5000) })
+        // Each field reaches the redactor already bounded, and is bounded again afterwards.
+        for (prefix, limit) in [("REASON", 8192), ("NAME", 512), ("SYMBOL", 1024), ("IMAGE", 512)] {
+            let seen = inputs.filter { $0.hasPrefix(prefix) }
+            XCTAssertFalse(seen.isEmpty, prefix)
+            XCTAssertTrue(seen.allSatisfy { $0.utf16.count <= limit }, prefix)
+        }
         let native = try XCTUnwrap(result.crash.native)
         XCTAssertLessThanOrEqual(result.crash.message.utf16.count, 4096)
         XCTAssertLessThanOrEqual(result.crash.exceptionType.utf16.count, 256)
         XCTAssertLessThanOrEqual(native.images[0].name.utf16.count, 256)
+        XCTAssertTrue(result.crash.frames.allSatisfy { ($0.function?.utf16.count ?? 0) <= 512 && $0.raw.utf16.count <= 1024 })
+        XCTAssertEqual(result.crash.frames[0].function?.utf16.count, 512)
         XCTAssertFalse(native.images[0].name.contains("/")); XCTAssertFalse(native.images[0].name.contains("\\"))
         XCTAssertFalse(native.images[0].name.contains("\u{0}"))
         let encoded = String(decoding: try JSONEncoder().encode(result.crash), as: UTF8.self)
