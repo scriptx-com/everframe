@@ -1,0 +1,21 @@
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_97602a0a2d8f20::t_3c402deffe9740 5,237-305,337,346,356-359,361,382,409
+packages/sdk-ios/Tests/EverframeTests/NativeRecoveryOutboxTests.swift
+  s_97602a0a2d8f20::t_2e0859c1441a37 1-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9cb16224ba80a1d4994d14399917a3e12027bfd2",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
