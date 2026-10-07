@@ -187,7 +187,7 @@ calls no UIKit or vendor code. It must never run in a crash or signal handler. A
 caller that publishes off the main thread still enables on the main thread, after
 publication returns true.
 
-There are256 immutable process-lifetime slots; repeated identifiers reuse a slot.
+There are 256 immutable process-lifetime slots; repeated identifiers reuse a slot.
 The first admitted fatal event freezes its slot, including the no-context sentinel,
 for that terminating process. The writer emits only that identifier under
 `user.everframe_context_id`. Later publication cannot reassign it. The admitted slot

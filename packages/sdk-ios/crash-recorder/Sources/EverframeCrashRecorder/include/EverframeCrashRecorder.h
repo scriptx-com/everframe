@@ -43,7 +43,7 @@ bool EFCRIsEnabled(void);
 // and only while disabled. Persist context bytes durably BEFORE publication, then
 // enable (on the main thread) only after this returns true.
 // Canonical lowercase UUID (36 chars); NULL clears. Invalid/capacity failure leaves
-// the previous owner unchanged.256 immutable lifetime slots; duplicates reuse one.
+// the previous owner unchanged. 256 immutable lifetime slots; duplicates reuse one.
 // A fatal event already admitted retains its original identifier across updates.
 bool EFCRSetContextIdentifier(const char *identifier);
 const char *EFCRVersion(void);
