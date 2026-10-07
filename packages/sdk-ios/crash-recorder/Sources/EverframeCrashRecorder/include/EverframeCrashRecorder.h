@@ -13,10 +13,11 @@ typedef enum {
     EFCRInstallVendorFailure = 3,
     EFCRInstallWrongThread = 4
 } EFCRInstallResult;
-// Install and set enabled on the main thread only, after UIApplicationMain has started:
+// Install and enable on the main thread only, after UIApplicationMain has started:
 // the vendor monitors call UIKit there, and the signal alternate stack is set for the
 // calling thread. Other threads get EFCRInstallWrongThread (recoverable) or false; hop
-// to the main thread asynchronously, since a synchronous hop can deadlock.
+// to the main thread asynchronously, since a synchronous hop can deadlock. Disabling
+// works on any healthy thread.
 // Healthy-process integration only. Supply an existing, empty, canonical absolute
 // directory of at most 449 bytes, owned by this user with mode 0700, reserved
 // exclusively for this run. Canonical means realpath(3) output, or that path without
@@ -25,10 +26,10 @@ typedef enum {
 // Do not rename/replace it concurrently. Validation failure permits correction;
 // entering the vendor installer is terminal even if it fails. Success is disabled.
 EFCRInstallResult EFCRInstall(const char *runDirectory);
-// Main thread only; calls are serialized. Disabling closes the report gate
-// before monitor mutation. A handler that already passed the gate may finish.
-// Returns false off the main thread, before successful installation or if enabling
-// monitors fails.
+// Enable on the main thread only; disable on any healthy thread. Calls are serialized.
+// Disabling closes the report gate before monitor mutation. A handler that already
+// passed the gate may finish. Returns false when enabling off the main thread, before
+// successful installation or if enabling monitors fails.
 bool EFCRSetEnabled(bool enabled);
 bool EFCRIsEnabled(void);
 const char *EFCRVersion(void);

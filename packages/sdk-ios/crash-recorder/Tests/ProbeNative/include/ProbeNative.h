@@ -9,4 +9,5 @@ int EFCRProbePoisonVendor(const char *directory);
 int EFCRProbeGate(void);
 void EFCRProbeSetGate(bool open);
 int EFCRProbeInstallOffMain(const char *directory);
+int EFCRProbeDisableOffMain(void);
 int EFCRProbeEnableOffMain(void);

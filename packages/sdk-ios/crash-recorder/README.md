@@ -23,13 +23,16 @@ reserved directory concurrently. Validation failures permit a corrected attempt;
 entering the vendor installer is terminal, even on failure. A successful install
 returns with recording disabled. Call `EFCRSetEnabled(true)` explicitly.
 
-Installation and enable/disable calls are serialized and must run on the main thread
-after UIApplicationMain has started, for example from
+Installation and enable/disable calls are serialized. Installing and enabling must run
+on the main thread after UIApplicationMain has started, for example from
 `application(_:didFinishLaunchingWithOptions:)`: installing and enabling reach UIKit
 through the vendor monitors, and the signal alternate stack is set for the calling
 thread. Other threads get a recoverable `EFCRInstallWrongThread`, or `false` from
-`EFCRSetEnabled`. Callers on another thread, such as the React Native JavaScript
-thread, must hop to the main thread asynchronously; a synchronous hop can deadlock. Disabling closes a lock-free report gate before changing monitors.
+`EFCRSetEnabled(true)`. Callers on another thread, such as the React Native JavaScript
+thread, must hop to the main thread asynchronously; a synchronous hop can deadlock.
+Disabling works on any healthy thread, so an opt-out takes effect where it is made: it
+closes a lock-free report gate before changing monitors, and the monitors then only
+flip flags, remove observers and unmap sidecars.
 A fatal handler that already passed the gate may finish writing. Underlying
 vendor tracker singletons can retain process-lifetime resources; disabled does
 not mean every infrastructure object is destroyed. After a successful install,
@@ -131,14 +134,16 @@ upstream checkout checks the packaged manifest and resource integrity. Supplying
 the manifest alone is not a cryptographic attestation.
 
 `Tests/run-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
-runs43 fresh processes with25-second deadlines and child-only core-dump disabling.
+runs 47 fresh processes with 25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, including real 449- and 450-byte run
 directories at the path bound and a Foundation-style `/tmp` alias, off-main-thread
 calls, initial disabled state, repeated/failed
 installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
 monitor can record, disable/re-enable and rapid runs. Two modes move one control at a
 time: a closed report gate with enabled monitors, and an open gate with the monitors
-still disabled by installation; both must leave no report. Each fatal process must end
+still disabled by installation; both must leave no report. A disable from a background
+thread must close the gate and turn the monitors off: its mode reopens only the gate
+before faulting and must leave no report. Each fatal process must end
 with its fault's signal, and each report must record the expected Mach, signal or
 NSException error with a crashed-thread backtrace. Swift, memory and frameless-leaf
 faults must name their real caller as frame 1 without a repeated frame. On arm64 a

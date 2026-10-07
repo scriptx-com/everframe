@@ -164,7 +164,7 @@ def run_probes(binary, evidence):
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
     for fault in ['leaf', 'overflow']:
         run(f'enabled-{fault}', 'enabled', directory(f'enabled-{fault}'), fault, fatal=True, count=1)
-    for mode in ['enabled', 'disabled', 'disabled-after', 'reenabled', 'gate-closed', 'monitors-off']:
+    for mode in ['enabled', 'disabled', 'disabled-after', 'disabled-off-main', 'reenabled', 'gate-closed', 'monitors-off']:
         for fault in ['swift', 'objc', 'memory', 'signal']:
             name = f'{mode}-{fault}'
             run(name, mode, directory(name), fault, fatal=True, count=int(mode in ['enabled', 'reenabled']))
