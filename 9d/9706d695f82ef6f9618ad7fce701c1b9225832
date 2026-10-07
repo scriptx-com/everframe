@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_97602a0a2d8f20::t_8383bf132958a7 23,47,76,79
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_97602a0a2d8f20::t_13486ac6d8d5fe 142-154
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRequests.kt
+  s_97602a0a2d8f20::t_c00a639c6c2cfb 5-7,12-16,18-20,26-27
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRevocation.kt
+  s_97602a0a2d8f20::t_d4dff6ff5b8c6c 7
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_97602a0a2d8f20::t_4ce037507c7070 19-26,46-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d9706d695f82ef6f9618ad7fce701c1b9225832",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
