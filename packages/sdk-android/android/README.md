@@ -87,6 +87,47 @@ identity and upload the matching mapping only from trusted CI.
 
 ---
 
+## Anonymous release exposures (opt in)
+
+Set `EverframeConfig.releaseHealth` to observe SDK exposure segments independently
+of replay, session vitals, users, and install identifiers:
+
+```kotlin
+releaseHealth = ReleaseHealthConfig(
+    nativeBuildId = BuildConfig.EXACT_NATIVE_ARTIFACT_ID,
+    loadedBundleStatus = ReleaseHealthBundleStatus.NOT_APPLICABLE,
+)
+```
+
+Supply the exact native artifact identity from your build pipeline. For a loaded
+JavaScript bundle, use `KNOWN` with its actual `loadedBuildId`, or `UNKNOWN` with
+no ID. A downloaded update that has not loaded is not the running build. Blank
+or contradictory identities do not become ready.
+
+Every `start()` creates a new exposure segment, including replacement in the
+same process. `Everframe.isReleaseHealthReady()` means its start was committed
+to encrypted storage; it does not mean delivery succeeded. Starts and explicit
+replacement ends use a dedicated journal bounded to 256 records, 1 MiB, and
+seven days. `requestReleaseHealthFlush()` requests a retry, using each record's
+original SDK key and destination. HTTP redirects are not followed. `kill()` or
+starting with absent/disabled release health revokes pending health records
+across destinations. Failed erasure must complete before later re-enable.
+This control governs the health journal and future pointers. An OS diagnostic
+already admitted with a pointer retains its immutable bytes under the separate
+diagnostic delivery and retention policy. Health opt-out does not erase records
+already delivered to the server; server exposure erasure removes their linkage
+even when an older diagnostic arrives later. `kill()` revokes both local paths.
+
+To associate OS exit diagnostics, wait for release-health readiness before
+calling `setProcessExitDiagnosticsEnabled(true)` (or native-only recovery).
+The encrypted OS context freezes the exact ready segment. Arming earlier leaves
+the association unavailable, even if health becomes ready later. Recovery never
+substitutes the relaunch segment or infers an association from process ID alone.
+
+These are anonymous observations with incomplete coverage and unknown queue
+loss counts. An end record is an SDK boundary, not proof of a healthy process.
+Missing records do not imply crashes, and no crash-free rate is calculated.
+
 ## Triggers are host-app concern
 
 > Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.

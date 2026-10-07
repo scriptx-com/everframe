@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.crash
 
+import dev.everframe.health.NativeExposurePointer
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
 import dev.everframe.outbox.OutboxStore
@@ -41,7 +42,7 @@ internal class AndroidNativeRecovery(
     }
 
     fun arm(template: OutboxEntry, pid: Int, processName: String, authorization: OutboxAuthorization,
-            diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, register: (ByteArray) -> Unit) {
+            diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, nativeExposure: NativeExposurePointer? = null, register: (ByteArray) -> Unit) {
         require(UUID.fromString(template.reportId).toString() == template.reportId)
         require(template.identitySubject == null && template.attachmentRefs.isEmpty())
         require(template.envelopeBytes.size <= MAX_CONTEXT_BYTES && pid > 0 && processName.length in 1..256)
@@ -50,11 +51,14 @@ internal class AndroidNativeRecovery(
         require(envelope["reporter"]?.jsonObject?.get("user") == null)
         require(envelope["sessionId"] == null)
         require(envelope["payload"]?.jsonObject?.isEmpty() == true)
+        require(nativeExposure == null || (nativeExposure.valid() && nativeExposure.processLaunchId == processLaunchId))
+        val enriched = diagnostics || nativeExposure != null
         val context = buildJsonObject {
-            put("version", if (diagnostics) 2 else 1); put("pid", pid); put("process", processName); put("envelope", envelope)
-            if (diagnostics) {
+            put("version", if (enriched) 2 else 1); put("pid", pid); put("process", processName); put("envelope", envelope)
+            if (enriched) {
                 require(apiLevel >= 30 && UUID.fromString(processLaunchId).toString() == processLaunchId)
                 put("processLaunchId", processLaunchId); put("apiLevel", apiLevel)
+                if (nativeExposure != null) put("nativeExposure", nativeExposure.toJson())
             }
         }.toString().toByteArray(Charsets.UTF_8)
         require(context.size <= MAX_CONTEXT_BYTES)
@@ -113,7 +117,12 @@ internal class AndroidNativeRecovery(
             } else if (exit.reason == 6) trace = AndroidExitDiagnostic.readAnr(exit.openTrace, exit.pid)
             if (!authorization.isAllowed()) break
             val envelope = state["envelope"]?.jsonObject ?: continue
-            val diagnostic = if (diagnostics) AndroidExitDiagnostic.evidence(context.reportId, launchId!!, apiLevel, exit, nowMs, trace) else null
+            val diagnostic = if (diagnostics) {
+                val evidence = AndroidExitDiagnostic.evidence(context.reportId, launchId!!, apiLevel, exit, nowMs, trace)
+                val frozen = (state["nativeExposure"] as? JsonObject)?.let(NativeExposurePointer::parse)
+                    ?.takeIf { it.processLaunchId == launchId }
+                if (frozen == null) evidence else JsonObject(evidence + ("nativeExposure" to frozen.toJson()))
+            } else null
             val report = recovered(context, envelope, exit, native, nowMs, diagnostic)
             try { prepared.enqueueSync(report, authorization) } catch (_: Exception) { continue }
             admitted += drainPrepared(authorization, admit, allowDiagnostics)

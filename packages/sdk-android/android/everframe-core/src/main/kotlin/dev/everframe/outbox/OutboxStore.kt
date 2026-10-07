@@ -24,6 +24,7 @@ internal class OutboxStore(
     private val maxEntries: Int = JSONLOutbox.DEFAULT_MAX_ENTRIES,
     private val maxTotalBytes: Long = JSONLOutbox.DEFAULT_MAX_TOTAL_BYTES,
     legacyFiles: List<File> = emptyList(),
+    private val maintenanceReserveBytes: Long = MAINTENANCE_RESERVE,
 ) {
     private val root = root.canonicalFile
     private val legacyFiles = legacyFiles.map { it.canonicalFile }.distinct()
@@ -34,7 +35,7 @@ internal class OutboxStore(
     private val cipher = OutboxCipher(keys)
     val drainMutex: Mutex get() = coordinator.drain
 
-    init { require(maxEntries >= 0); require(maxTotalBytes >= 0) }
+    init { require(maxEntries >= 0); require(maxTotalBytes >= 0); require(maintenanceReserveBytes >= 0) }
 
     fun enqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization,
                     diagnostics: ReportDiagnostics.Handle? = null): OutboxToken =
@@ -82,8 +83,8 @@ internal class OutboxStore(
             }
         }
         val used = physicalUsage()
-        if (committedFiles().size >= maxEntries || size > maxTotalBytes - MAINTENANCE_RESERVE ||
-            used > maxTotalBytes - MAINTENANCE_RESERVE - size) throw OutboxWriteException(OutboxFailure.CAPACITY)
+        if (committedFiles().size >= maxEntries || size > maxTotalBytes - maintenanceReserveBytes ||
+            used > maxTotalBytes - maintenanceReserveBytes - size) throw OutboxWriteException(OutboxFailure.CAPACITY)
         val token = candidate ?: OutboxToken(current, UUID.randomUUID().toString())
         val tmp = File(active, "${token.fileId}.tmp")
         val target = file(token)
@@ -219,7 +220,7 @@ internal class OutboxStore(
         val receiptBytes = cipher.encryptedSize(metadata)
         val candidateBytes = if (existing != null || alreadyDelivered) 0L else cipher.encryptedSize(record.entry)
         if ((!alreadyDelivered && existing == null && committedFiles().size >= maxEntries) ||
-            physicalUsage() > maxTotalBytes - MAINTENANCE_RESERVE - receiptBytes - candidateBytes) {
+            physicalUsage() > maxTotalBytes - maintenanceReserveBytes - receiptBytes - candidateBytes) {
             throw OutboxWriteException(OutboxFailure.CAPACITY)
         }
         checkAllowed(MIGRATION_ALLOWED)
