@@ -1,0 +1,244 @@
+// SPDX-License-Identifier: MIT
+// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude.
+// Original copyright and license notices retained below.
+#include "EverframeKSCrashNamespace.h"
+//
+//  KSZombie.m
+//
+//  Created by Karl Stenerud on 2012-09-15.
+//
+//  Copyright (c) 2012 Karl Stenerud. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall remain in place
+// in this source code.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+
+#include "KSCrashMonitor_Zombie.h"
+
+#include <objc/runtime.h>
+#include <stdatomic.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "KSCrashMonitorContext.h"
+#include "KSCrashMonitorHelper.h"
+#include "KSLogger.h"
+#include "KSObjC.h"
+
+#define CACHE_SIZE 0x8000
+
+// Compiler hints for "if" statements
+#define likely_if(x) if (__builtin_expect(x, 1))
+#define unlikely_if(x) if (__builtin_expect(x, 0))
+
+typedef struct {
+    const void *object;
+    const char *className;
+} Zombie;
+
+// g_zombieCacheBuffer is the owned allocation; it is allocated once and never freed.
+// g_zombieCache is the "active" pointer that handleDealloc reads — NULL when disabled.
+// Atomic with acquire/release: handleDealloc may run from a signal handler and on
+// arbitrary threads, while install/disable publish the pointer from the monitor's
+// enable thread. Plain `volatile` was insufficient — it gave no happens-before for
+// the buffer's calloc initialization vs. the publish, and no guarantee that the
+// disable's NULL store would be observed promptly. The buffer itself is never
+// freed, so a stale non-NULL load is harmless even under contention.
+static Zombie *g_zombieCacheBuffer;
+static _Atomic(Zombie *) g_zombieCache;
+static unsigned g_zombieHashMask;
+
+static atomic_bool g_isEnabled = false;
+
+static struct {
+    Class class;
+    const void *address;
+    char name[100];
+    char reason[900];
+} g_lastDeallocedException;
+
+static inline unsigned hashIndex(const void *object)
+{
+    uintptr_t objPtr = (uintptr_t)object;
+    objPtr >>= (sizeof(object) - 1);
+    return objPtr & g_zombieHashMask;
+}
+
+static bool copyStringIvar(const void *self, const char *ivarName, char *buffer, int bufferLength)
+{
+    Class class = object_getClass((id)self);
+    KSObjCIvar ivar = { 0 };
+    likely_if(ksobjc_ivarNamed(class, ivarName, &ivar))
+    {
+        void *pointer;
+        likely_if(ksobjc_ivarValue(self, ivar.index, &pointer))
+        {
+            likely_if(ksobjc_isValidObject(pointer))
+            {
+                likely_if(ksobjc_copyStringContents(pointer, buffer, bufferLength) > 0) { return true; }
+                else
+                {
+                    KSLOG_DEBUG("ksobjc_copyStringContents %s failed", ivarName);
+                }
+            }
+            else
+            {
+                KSLOG_DEBUG("ksobjc_isValidObject %s failed", ivarName);
+            }
+        }
+        else
+        {
+            KSLOG_DEBUG("ksobjc_ivarValue %s failed", ivarName);
+        }
+    }
+    else
+    {
+        KSLOG_DEBUG("ksobjc_ivarNamed %s failed", ivarName);
+    }
+    return false;
+}
+
+static void storeException(const void *exception)
+{
+    g_lastDeallocedException.address = exception;
+    copyStringIvar(exception, "name", g_lastDeallocedException.name, sizeof(g_lastDeallocedException.name));
+    copyStringIvar(exception, "reason", g_lastDeallocedException.reason, sizeof(g_lastDeallocedException.reason));
+}
+
+static inline void handleDealloc(const void *self)
+{
+    Zombie *cache = atomic_load_explicit(&g_zombieCache, memory_order_acquire);
+    likely_if(cache != NULL)
+    {
+        Zombie *zombie = cache + hashIndex(self);
+        zombie->object = self;
+        Class class = object_getClass((id)self);
+        zombie->className = class_getName(class);
+        for (; class != nil; class = class_getSuperclass(class)) {
+            unlikely_if(class == g_lastDeallocedException.class) { storeException(self); }
+        }
+    }
+}
+
+#define CREATE_ZOMBIE_HANDLER_INSTALLER(CLASS)                                                       \
+    static IMP g_originalDealloc_##CLASS;                                                            \
+    static void handleDealloc_##CLASS(id self, SEL _cmd)                                             \
+    {                                                                                                \
+        handleDealloc(self);                                                                         \
+        typedef void (*fn)(id, SEL);                                                                 \
+        fn f = (fn)g_originalDealloc_##CLASS;                                                        \
+        f(self, _cmd);                                                                               \
+    }                                                                                                \
+    static void installDealloc_##CLASS(void)                                                         \
+    {                                                                                                \
+        Method method = class_getInstanceMethod(objc_getClass(#CLASS), sel_registerName("dealloc")); \
+        IMP currentIMP = method_getImplementation(method);                                           \
+        /* Only save + swizzle on first install. On re-enable the swizzle is already in place        \
+         * and currentIMP == handleDealloc_##CLASS; overwriting g_originalDealloc would cause        \
+         * infinite recursion. */                                                                    \
+        if (currentIMP != (IMP)handleDealloc_##CLASS) {                                              \
+            g_originalDealloc_##CLASS = currentIMP;                                                  \
+            method_setImplementation(method, (IMP)handleDealloc_##CLASS);                            \
+        }                                                                                            \
+    }
+
+CREATE_ZOMBIE_HANDLER_INSTALLER(NSObject)
+CREATE_ZOMBIE_HANDLER_INSTALLER(NSProxy)
+
+static void install(void)
+{
+    unsigned cacheSize = CACHE_SIZE;
+    g_zombieHashMask = cacheSize - 1;
+
+    if (g_zombieCacheBuffer == NULL) {
+        g_zombieCacheBuffer = calloc(cacheSize, sizeof(*g_zombieCacheBuffer));
+        if (g_zombieCacheBuffer == NULL) {
+            KSLOG_ERROR("Error: Could not allocate %u bytes of memory. KSZombie NOT installed!",
+                        cacheSize * sizeof(*g_zombieCacheBuffer));
+            return;
+        }
+    }
+    atomic_store_explicit(&g_zombieCache, g_zombieCacheBuffer, memory_order_release);
+
+    g_lastDeallocedException.class = objc_getClass("NSException");
+    g_lastDeallocedException.address = NULL;
+    g_lastDeallocedException.name[0] = 0;
+    g_lastDeallocedException.reason[0] = 0;
+
+    installDealloc_NSObject();
+    installDealloc_NSProxy();
+}
+
+const char *kszombie_className(const void *object)
+{
+    Zombie *cache = atomic_load_explicit(&g_zombieCache, memory_order_acquire);
+    if (cache == NULL || object == NULL) {
+        return NULL;
+    }
+
+    Zombie *zombie = cache + hashIndex(object);
+    if (zombie->object == object) {
+        return zombie->className;
+    }
+    return NULL;
+}
+
+static const char *monitorId(__unused void *context) { return "Zombie"; }
+
+static void setEnabled(bool isEnabled, __unused void *context)
+{
+    bool expectEnabled = !isEnabled;
+    if (!atomic_compare_exchange_strong(&g_isEnabled, &expectEnabled, isEnabled)) {
+        // We were already in the expected state
+        return;
+    }
+
+    if (isEnabled) {
+        install();
+    } else {
+        // NULL out the cache pointer — handleDealloc checks this and becomes a no-op.
+        // The swizzle stays in place but is harmless: it just chains to original dealloc.
+        // We intentionally do NOT free the buffer here: a concurrent dealloc on another
+        // thread may have already loaded the old pointer. The buffer is reused on re-enable
+        // (install() checks g_zombieCacheBuffer == NULL before allocating).
+        atomic_store_explicit(&g_zombieCache, NULL, memory_order_release);
+    }
+}
+
+static bool isEnabled(__unused void *context) { return g_isEnabled; }
+
+static void addContextualInfoToEvent(KSCrash_MonitorContext *eventContext, __unused void *context)
+{
+    if (g_isEnabled) {
+        eventContext->ZombieException.address = (uintptr_t)g_lastDeallocedException.address;
+        eventContext->ZombieException.name = g_lastDeallocedException.name;
+        eventContext->ZombieException.reason = g_lastDeallocedException.reason;
+    }
+}
+
+KSCrashMonitorAPI *kscm_zombie_getAPI(void)
+{
+    static KSCrashMonitorAPI api = { 0 };
+    if (kscma_initAPI(&api)) {
+        api.monitorId = monitorId;
+        api.setEnabled = setEnabled;
+        api.isEnabled = isEnabled;
+        api.addContextualInfoToEvent = addContextualInfoToEvent;
+    }
+    return &api;
+}
