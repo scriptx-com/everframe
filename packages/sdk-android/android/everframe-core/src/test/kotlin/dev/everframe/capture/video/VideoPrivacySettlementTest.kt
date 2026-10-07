@@ -38,6 +38,7 @@ class VideoPrivacySettlementTest {
     private var captureFactory: () -> PixelCopyVideoCapture? = { null }
     private var body = ON
     private var fetch: () -> Unit = {}
+    private var inspectFrame: ((SafeVideoFrame) -> Unit)? = null
 
     @Before fun setup() { dev.everframe.shared.SharedData.init(context); Everframe.captureGate = true }
     @After fun cleanup() {
@@ -59,7 +60,7 @@ class VideoPrivacySettlementTest {
             NativeVideoRecorder(owner, scheduler, { task -> scheduler.worker(task); true }, { VideoSize(4, 4) }, { captureFactory() },
                 { _, _, duration -> durations.add(duration); object : RecordingVideoEncoder {
                     override fun prepare(size: VideoSize, fps: Int) = size
-                    override fun offer(frame: SafeVideoFrame): Boolean { frame.close(); return true }
+                    override fun offer(frame: SafeVideoFrame): Boolean { inspectFrame?.invoke(frame); frame.close(); return true }
                     override fun finish(deadline: Long) = emptyList<VideoSegment>()
                     override val isTerminal = false
                     override fun close() = Unit
@@ -205,6 +206,7 @@ class VideoPrivacySettlementTest {
         second.close(); scheduler.drain(); assertEquals(1, created.size); assertEquals(1, attempts.get())
     }
 
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
     @Test fun nativeConstructorAndOffMainMarkerFenceRealFreshFrameAdmissionUntilDetach() {
         val activity = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
         val root = android.widget.FrameLayout(activity)
@@ -215,7 +217,9 @@ class VideoPrivacySettlementTest {
             override fun observe() = gate.observe(root)
             override fun watch(onPreDraw: () -> Unit, onExtraCommit: () -> Unit): () -> Unit = {}
             override fun commit(callback: () -> Unit): () -> Unit { commits.add(callback); return { commits.remove(callback) } }
-            override fun copy(bitmap: android.graphics.Bitmap, callback: (Boolean) -> Unit) { callback(true) }
+            override fun copy(bitmap: android.graphics.Bitmap, callback: (Boolean) -> Unit) {
+                bitmap.eraseColor(android.graphics.Color.WHITE); callback(true)
+            }
         }
         captureFactory = { PixelCopyVideoCapture(platform, scheduler, { size ->
             android.graphics.Bitmap.createBitmap(size.width, size.height, android.graphics.Bitmap.Config.ARGB_8888)
@@ -224,7 +228,7 @@ class VideoPrivacySettlementTest {
         try {
             val native = dev.everframe.sensitive.TXSensitiveView(activity)
             assertEquals(true, native.getTag(dev.everframe.R.id.tx_sensitive))
-            root.addView(native)
+            root.addView(native); native.layout(10, 10, 60, 60)
             var preDraw = false
             native.viewTreeObserver.addOnPreDrawListener {
                 preDraw = true; assertEquals(true, native.getTag(dev.everframe.R.id.tx_sensitive)); true
@@ -232,8 +236,13 @@ class VideoPrivacySettlementTest {
             native.viewTreeObserver.dispatchOnPreDraw(); assertTrue(preDraw)
             scheduler.drain(); assertEquals(2, created.size)
             // A settled native sensitive view is masked: the frame commits with it painted black.
+            // The 100x100 window lands in a 4x4 frame, so its (9,9)-(61,61) mask covers (0,0)-(3,3).
+            val samples = mutableListOf<Pair<Int, Int>>()
+            inspectFrame = { frame -> frame.withPixels { samples.add(it.getPixel(1, 1) to it.getPixel(3, 3)) } }
             commits.removeFirst().invoke(); scheduler.drain()
             assertEquals(1L, created.last().second.acceptedFrames.get())
+            assertEquals(listOf(android.graphics.Color.BLACK to android.graphics.Color.WHITE), samples)
+            inspectFrame = null
             root.removeView(native); session.pause(); session.resume(); scheduler.drain()
             commits.removeFirst().invoke(); scheduler.drain()
             assertTrue(created.last().second.acceptedFrames.get() >= 1L)

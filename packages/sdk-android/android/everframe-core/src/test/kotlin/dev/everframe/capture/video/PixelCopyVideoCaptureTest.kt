@@ -374,6 +374,26 @@ class PixelCopyVideoCaptureTest {
         assertEquals(android.graphics.Color.BLACK, inside)
         assertEquals(android.graphics.Color.WHITE, outside)
     }
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun masksScaleWithTheDownscaledFrame() {
+        val h = Harness()
+        h.capture = PixelCopyVideoCapture(h.platform, h.scheduler, { size ->
+            Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.WHITE) }.also { h.bitmap = it }
+        })
+        // Production copies a larger window into a smaller frame: a 300x600 window at 100x200.
+        h.observation = PrivacyObservation(Any(), 300, 600, 0, true, listOf(android.graphics.Rect(30, 60, 90, 120)))
+        val pixels = IntArray(4)
+        assertTrue(h.capture.request(VideoOwner("session", "scaled"), VideoSize(100, 200)) { frame ->
+            frame.withPixels { pixels[0] = it.getPixel(20, 30); pixels[1] = it.getPixel(32, 30); pixels[2] = it.getPixel(20, 42); pixels[3] = it.getPixel(9, 30) }
+            h.accepted++; frame.close()
+        })
+        h.drain(); h.commit(); h.callback()
+        assertEquals(1, h.accepted)
+        assertEquals("inside the scaled mask (10,20)-(30,40)", android.graphics.Color.BLACK, pixels[0])
+        assertEquals("right of it", android.graphics.Color.WHITE, pixels[1])
+        assertEquals("below it", android.graphics.Color.WHITE, pixels[2])
+        assertEquals("left of it", android.graphics.Color.WHITE, pixels[3])
+    }
     @Test fun movedMaskBeforeCopyDropsFrameAsPrivacyExclusion() {
         val h = Harness()
         h.observation = h.observation.copy(masks = listOf(android.graphics.Rect(10, 10, 30, 30)))
