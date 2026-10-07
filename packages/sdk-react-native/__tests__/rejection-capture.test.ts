@@ -172,6 +172,18 @@ it('deduplicates non-Error reasons by their reported value', () => {
   expect(automatic.mock.calls.map(([raw]) => JSON.parse(raw).message))
     .toEqual(['Session expired', 'Network timeout', '[object]', 'undefined', '42']);
 });
+it.each([
+  ['string cause of an object reason', { code: 'UPLOAD_FAILED', cause: 'PUT https://bucket.example/u.jpg?X-Amz-Signature=sig-secret denied' }],
+  ['Error cause of an object reason', { code: 'E_UPLOAD', cause: new Error('sig-secret') }],
+  ['cause of an array reason', Object.assign(['upload'], { cause: 'sig-secret' })],
+  ['cause of a function reason', Object.assign(function upload() {}, { cause: 'sig-secret' })],
+])('does not report the %s', (_kind, reason) => {
+  const owner = controller();
+  expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('accepted');
+  const raw = automatic.mock.calls[0][0];
+  expect(JSON.parse(raw)).not.toHaveProperty('causeChain');
+  expect(raw).not.toContain('sig-secret');
+});
 it('contains bridge failure and leaves later explicit admission available', () => {
   const owner = controller(), reason = error();
   automatic.mockImplementationOnce(() => { throw new Error('bridge unavailable'); });

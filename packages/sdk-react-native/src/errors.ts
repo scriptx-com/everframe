@@ -57,10 +57,13 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     try {
       const identity = identityFor(reason);
       // Rejected non-Error values are often responses or request configs:
-      // report their type, never their headers, cookies or URLs.
-      const facts = extractFacts(reason, renderLabel);
+      // report their type, never their headers, cookies, URLs or cause.
+      let labelled = false;
+      const facts = extractFacts(reason, (value) => { labelled = true; return renderLabel(value); });
       if (!ownsCapture()) return undefined;
-      const causeChain = extractCrashCauseChain(reason, (value) => redactStringContent(value, {}), ownsCapture);
+      const causeChain = labelled
+        ? undefined
+        : extractCrashCauseChain(reason, (value) => redactStringContent(value, {}), ownsCapture);
       if (!ownsCapture()) return undefined;
       const payload = JSON.stringify({
         ...facts,
