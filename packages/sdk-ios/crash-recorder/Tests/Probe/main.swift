@@ -30,6 +30,8 @@ if mode == "background-install" {
     check(EFCRInstall(directory) == EFCRInstallSuccess, "install on the main thread")
     check(EFCRProbeEnableOffMain() == 0 && !EFCRIsEnabled(), "enable off the main thread")
     check(EFCRSetEnabled(true) && EFCRIsEnabled(), "enable on the main thread")
+    check(EFCRProbeDisableOffMain() == 1 && !EFCRIsEnabled(), "disable off the main thread")
+    check(EFCRSetEnabled(true) && EFCRIsEnabled(), "re-enable on the main thread")
     check(EFCRSetEnabled(false), "final disable")
     exit(0)
 }
@@ -94,6 +96,12 @@ if mode == "reenabled" { check(EFCRSetEnabled(true), "reenable fatal detector") 
 // Move the report gate alone, so the gate and the install-time monitor disable are each proven.
 if mode == "gate-closed" { EFCRProbeSetGate(false); check(!EFCRIsEnabled(), "gate closed while monitors run") }
 if mode == "monitors-off" { EFCRProbeSetGate(true); check(EFCRIsEnabled(), "gate open while monitors are off") }
+// An opt-out on another thread must close the gate and disable the monitors; reopening only
+// the gate afterwards shows the monitors stayed off.
+if mode == "disabled-off-main" {
+    check(EFCRProbeDisableOffMain() == 1 && !EFCRIsEnabled(), "disable off the main thread")
+    EFCRProbeSetGate(true); check(EFCRIsEnabled(), "gate reopened while monitors are off")
+}
 switch args[3] {
 case "swift": fatalError("EFCR synthetic Swift trap")
 case "objc": EFCRProbeObjCException()

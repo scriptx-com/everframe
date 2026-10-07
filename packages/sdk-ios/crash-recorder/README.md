@@ -24,15 +24,35 @@ reserved directory concurrently. Validation failures permit a corrected attempt;
 entering the vendor installer is terminal, even on failure. A successful install
 returns with recording disabled. Call `EFCRSetEnabled(true)` explicitly.
 
-Installation and enable/disable calls are serialized and must run on the main thread
-after UIApplicationMain has started, for example from
+Installation and enable/disable calls are serialized. Installing and enabling must run
+on the main thread after UIApplicationMain has started, for example from
 `application(_:didFinishLaunchingWithOptions:)`: installing and enabling reach UIKit
 through the vendor monitors, and the signal alternate stack is set for the calling
 thread. Other threads get a recoverable `EFCRInstallWrongThread`, or `false` from
-`EFCRSetEnabled`. Callers on another thread, such as the React Native JavaScript
-thread, must hop to the main thread asynchronously; a synchronous hop can deadlock. Disabling closes a lock-free report gate before changing monitors.
-A fatal handler that already passed the gate may finish writing. Underlying
-vendor tracker singletons can retain process-lifetime resources; disabled does
+`EFCRSetEnabled(true)`. Callers on another thread, such as the React Native JavaScript
+thread, must hop to the main thread asynchronously; a synchronous hop can deadlock.
+Disabling works on any healthy thread, so an opt-out takes effect when its call returns:
+it closes a lock-free report gate before changing monitors, and the monitors then only
+flip flags, cancel a heartbeat timer, remove observers and unmap sidecars.
+A fatal handler that already passed the gate may finish writing.
+
+Calls take effect in the order they run, and the last call wins: the recorder cannot
+tell when a caller asked for a state. An enable still queued for the main thread
+therefore runs after a disable made directly in the meantime, on any thread, and turns
+capture back on. The queued block must apply the caller's latest request instead of a
+captured `true`. For example, keep the requested state under the integration's own lock.
+An enable request stores `true` and queues the block; an opt-out stores `false` and
+calls `EFCRSetEnabled(false)` while holding that lock; the block calls
+`EFCRSetEnabled(true)` while holding it only if `true` is still stored. A check made
+without that lock, or one that releases the lock before calling `EFCRSetEnabled(true)`,
+can pass just before an opt-out and still enable after it. Disabling never hops to the
+main thread; because calls are serialized, it waits only for an install or enable call
+already running there, so a busy main thread delays an opt-out only while it runs
+`EFCRInstall` or that block. Alternatively, hop disables to the main queue as well: its
+first-in, first-out order then keeps the requests in order, but an opt-out waits for the
+main thread.
+
+Underlying vendor tracker singletons can retain process-lifetime resources; disabled does
 not mean every infrastructure object is destroyed. After a successful install,
 even while disabled, the fatal signal handlers, the Mach exception ports with their
 two handler threads and the uncaught NSException handler stay installed and pass
@@ -59,8 +79,14 @@ context.
 
 Raw reports remain local. A report holds the exception type, name and reason, the
 crashed thread's register values, every thread's backtrace addresses with on-device
-symbol names, thread names and run states, and binary image paths, UUIDs and load
-addresses. System, resource and lifecycle details live in run sidecars. No raw stack
+symbol names, thread names and run states, and the paths, UUIDs and load addresses of
+every loaded binary image. An image entry also carries any runtime crash-info strings
+that image holds (`crash_info_message`, `crash_info_message2`, `crash_info_signature`,
+`crash_info_backtrace`, up to 4096 bytes each), such as a Swift `fatalError`,
+`precondition` or `try!` message with its source file and line, or a system library
+diagnostic. They are application- or library-controlled free text; importers must
+redact and bound them like the exception reason. System, resource and lifecycle details
+live in run sidecars. No raw stack
 memory is copied, and register state is kept for the crashed thread only; those
 registers can still hold small fragments of application data, such as short strings.
 On arm64, once the crashing function has saved the link register and made a call, the
@@ -88,8 +114,9 @@ Linking the library runs two vendored initializers before `main`, whether or not
 
 - `KSCrashRecording/KSCrashAppStateTracker.m`: `+load` creates the process-lifetime
   app-state tracker. It registers an `atexit` block and six UIApplication lifecycle
-  observers in apps (four NSExtensionHost observers in extensions; on macOS it marks
-  the state active) and reads the `ActivePrewarm` environment variable.
+  observers on iOS and tvOS, app extensions included (the vendor's NSExtensionHost
+  observers are compiled only for watchOS, which this package does not target); on
+  macOS it marks the state active. It also reads the `ActivePrewarm` environment variable.
 - `KSCrashRecordingCore/KSThreadInit.m`: a library constructor records the main thread.
 
 Neither writes files, installs handlers or enables capture. An integration that needs
@@ -116,6 +143,7 @@ KSCRASH_CHECKOUT=/path/to/KSCrash node --test scripts/vendor.test.mjs
 KSCRASH_CHECKOUT=/path/to/KSCrash node scripts/verify-vendor.mjs
 node scripts/prepare-vendor.mjs /path/to/KSCrash /path/to/empty-output
 swift build -c release --product EFCRProbe
+python3 -I -B -m unittest discover -s Tests -p 'test_*.py'
 ```
 
 Preparation refuses to overwrite existing vendor source. Verification without an
@@ -124,19 +152,24 @@ upstream checkout checks the packaged manifest and resource integrity. Supplying
 the manifest alone is not a cryptographic attestation.
 
 `Tests/run-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
-runs43 fresh processes with25-second deadlines and child-only core-dump disabling.
+runs 47 fresh processes with 25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, including real 449- and 450-byte run
 directories at the path bound and a Foundation-style `/tmp` alias, off-main-thread
 calls, initial disabled state, repeated/failed
 installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
 monitor can record, disable/re-enable and rapid runs. Two modes move one control at a
 time: a closed report gate with enabled monitors, and an open gate with the monitors
-still disabled by installation; both must leave no report. Each fatal process must end
+still disabled by installation; both must leave no report. A disable from a background
+thread must close the gate and turn the monitors off: its mode reopens only the gate
+before faulting and must leave no report. Each fatal process must end
 with its fault's signal, and each report must record the expected Mach, signal or
 NSException error with a crashed-thread backtrace. Swift, memory and frameless-leaf
-faults must name their real caller as frame 1 without a repeated frame, and a prologue
-stack overflow must keep its link-register caller. The checks are explicit, so they
-also run under `python3 -O`. Every persisted file is scanned for the exception userInfo
+faults must name their real caller as frame 1 without a repeated frame. On arm64 a
+prologue stack overflow must keep its link-register caller; x86_64 has no link
+register, so there the run records that check under `skippedChecks`, and `proof.json`
+names the host architecture. The checks are explicit, so they also run under
+`python3 -O`; `Tests/test_run_probes.py` covers the per-architecture frame checks with
+synthetic reports. Every persisted file is scanned for the exception userInfo
 sentinel and for a stack canary written in the faulting frame. Every output and raw
 report is retained. `Tests/DualProbe/main.m` supports full-object link and fatal-chain
 qualification alongside ordinary upstream recording objects.
