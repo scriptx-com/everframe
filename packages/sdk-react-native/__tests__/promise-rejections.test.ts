@@ -59,6 +59,26 @@ it('drops overflow before touching reason data', () => {
   f.tick(2000); expect(f.delivered).toHaveLength(16);
   expect(f.observer.getStatus().counters.pending).toBe(0);
 });
+it('counts a rejection handled within the grace period as cancelled, not as a drop', () => {
+  const f = fixture();
+  for (let i = 0; i < 16; i++) f.hooks.onReject({}, `reason ${i}`);
+  const handled = {}, late = {};
+  f.hooks.onReject(handled, 'handled'); f.hooks.onHandle(handled);
+  f.hooks.onReject(late, 'late');
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 16, capacityDropped: 1, cancelled: 1 });
+  f.at(2500); f.hooks.onHandle(late);
+  expect(f.observer.getStatus().counters).toMatchObject({ pending: 16, capacityDropped: 1, cancelled: 1 });
+});
+it.each([
+  ['sizeDropped', () => ({ payload: 'x'.repeat(70_000), key: 'oversize' })],
+  ['captureFailed', () => undefined],
+] as const)('withdraws %s when the rejection is handled within the grace period', (counter, prepare) => {
+  const f = fixture(prepare), handled = {};
+  f.hooks.onReject(handled, 'handled');
+  expect(f.observer.getStatus().counters).toMatchObject({ [counter]: 1, cancelled: 0 });
+  f.hooks.onHandle(handled);
+  expect(f.observer.getStatus().counters).toMatchObject({ [counter]: 0, cancelled: 1 });
+});
 it.each(['ascii', 'emoji', 'escaped', 'surrogate'] as const)('counts serialized UTF-8 bytes for %s at the inclusive limit', (kind) => {
   const fragment = { ascii: 'a', emoji: '😀', escaped: '\\u0001', surrogate: '\\ud800' }[kind];
   const count = Math.floor((65536 - 2) / Buffer.byteLength(fragment));

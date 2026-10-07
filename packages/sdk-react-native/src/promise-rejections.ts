@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { utf8ByteLength } from '@everframe/protocol';
 import { installHermesRejectionAdapter, type AdapterOptions, type AdapterResult } from './hermes-rejection-adapter.js';
-import { emptyPromiseRejectionStatus, type PromiseRejectionStatus, type RejectionReason } from './promise-rejection-types.js';
+import { emptyPromiseRejectionStatus, type PromiseRejectionCounters, type PromiseRejectionStatus,
+  type RejectionReason } from './promise-rejection-types.js';
 import type { PreparedRejection, RejectionOutcome } from './rejection-capture.js';
 
 export interface RejectionScheduler {
@@ -32,6 +33,9 @@ interface Pending {
   done: boolean;
   snapshot: PreparedRejection | undefined;
 }
+type Counter = Exclude<keyof PromiseRejectionCounters, 'pending'>;
+/** A drop counted on arrival; a handler within the grace period withdraws it. */
+interface Dropped { start: number; done: boolean; counter: Counter }
 interface Timer { handle: unknown; assigned: boolean }
 
 function nativeMicrotask(): ((callback: () => void) => void) | undefined {
@@ -64,13 +68,12 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
   let scheduler: RejectionScheduler;
   let adapter: Extract<AdapterResult, { status: 'observing' }> | undefined;
   const pending = new Set<Pending>();
-  let identities = new WeakMap<object, Pending>();
+  let identities = new WeakMap<object, Pending | Dropped>();
   let timer: Timer | undefined;
   let scheduling = false;
   let deferred: object | undefined;
   let deferring = false;
   let lastTime = -Infinity;
-  type Counter = Exclude<keyof PromiseRejectionStatus['counters'], 'pending'>;
   const count = (key: Counter, amount = 1) => {
     state.counters[key] = Math.min(2_147_483_647, state.counters[key] + amount);
   };
@@ -189,27 +192,50 @@ export function createPromiseRejectionObserver(options: ObserverOptions): Reject
   }
   function track(promise: object, reason: unknown): void {
     if (!owns() || identities.has(promise)) return;
-    if (pending.size >= 16) { count('capacityDropped'); return; }
+    if (pending.size >= 16) {
+      count('capacityDropped');
+      try { identities.set(promise, { start: now(), done: false, counter: 'capacityDropped' }); }
+      catch { fail('runtime'); }
+      return;
+    }
     const record: Pending = { start: 0, wall: NaN, done: false, snapshot: undefined };
     identities.set(promise, record); pending.add(record);
     try {
       record.start = now();
     } catch { fail('runtime'); return; }
     record.wall = wallNow();
+    let counter: Counter = 'captureFailed';
     try {
       const snapshot = options.prepareRejection(reason, scheduler.occurredAt());
       if (record.done || !owns()) return;
-      if (!snapshot) { remove(record); count('captureFailed'); return; }
-      if (utf8ByteLength(snapshot.payload) > 65536) { remove(record); count('sizeDropped'); return; }
-      record.snapshot = snapshot;
-      schedule();
-    } catch { remove(record); count('captureFailed'); }
+      if (snapshot && utf8ByteLength(snapshot.payload) <= 65536) {
+        record.snapshot = snapshot;
+        schedule();
+        return;
+      }
+      if (snapshot) counter = 'sizeDropped';
+    } catch { /* Counted as a failed capture below. */ }
+    if (record.done) return;
+    remove(record); count(counter);
+    identities.set(promise, { start: record.start, done: false, counter });
   }
   function onHandle(promise: object): void {
     if (!owns()) return;
-    const record = identities.get(promise);
-    if (record && !record.done) { remove(record); count('cancelled'); }
+    const entry = identities.get(promise);
+    if (entry && !entry.done) {
+      if ('counter' in entry) withdraw(entry);
+      else { remove(entry); count('cancelled'); }
+    }
     flushOverdue();
+  }
+  /** Handled within the grace period, a dropped rejection would never have been reported. */
+  function withdraw(entry: Dropped): void {
+    entry.done = true;
+    let time: number;
+    try { time = now(); } catch { fail('runtime'); return; }
+    if (time - entry.start >= 2000) return;
+    if (state.counters[entry.counter] < 2_147_483_647) state.counters[entry.counter]--;
+    count('cancelled');
   }
   try {
     scheduler = options.scheduler ?? defaultScheduler();

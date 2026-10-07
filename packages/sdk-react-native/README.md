@@ -157,8 +157,10 @@ external tracker may independently retain errors or generate its own reports.
 `getPromiseRejectionStatus()` returns `disabled`, `unsupported`, `observing`,
 `displaced`, `install-failed`, or `not-mounted`, with a reason and bounded
 counters for pending, accepted, cancelled, dropped, suppressed and refused
-captures. Counters saturate at 2,147,483,647 and reset on each mount; they contain
-no captured messages or stacks. Replacing either hook stops this observer until
+captures. A rejection handled within the 2-second interval counts as cancelled,
+even if it was dropped or failed to snapshot on arrival. Counters saturate at
+2,147,483,647 and reset on each mount; they contain no captured messages or
+stacks. Replacing either hook stops this observer until
 a new mount. `crashReporting.disabled: true` overrides the opt-in, and unmount
 discards pending work. Configuration changes take effect on a new mount.
 The browser export reports Hermes observation as unsupported and preserves the
