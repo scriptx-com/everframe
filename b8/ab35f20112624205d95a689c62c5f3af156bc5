@@ -1,0 +1,27 @@
+scripts/verify-android-publication.test.mjs
+  s_360d9eb003c487::t_dc7450a8e63284 18-25
+  s_360d9eb003c487::t_197a57ff958203 61-68,72
+  s_360d9eb003c487::t_852de65e358325 178-206
+packages/sdk-android/android/everframe-core/consumer-rules.pro
+  s_360d9eb003c487::t_8269841fb0ac59 39-47
+packages/sdk-android/android/everframe-core/proguard-rules.pro
+  s_360d9eb003c487::t_81a0085586ca12 50-62
+scripts/verify-android-publication.sh
+  s_360d9eb003c487::t_3e6a039454fa8c 82-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8ab35f20112624205d95a689c62c5f3af156bc5",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
