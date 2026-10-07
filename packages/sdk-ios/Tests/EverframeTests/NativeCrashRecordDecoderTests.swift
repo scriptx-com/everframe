@@ -300,4 +300,16 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         XCTAssertEqual(try decode(malformed).crash.native?.frames[0].imageIndex, 0)
         XCTAssertEqual(try decode(malformed).crash.message, "EXC_BREAKPOINT")
     }
+    func testPreflightCostDoesNotGrowWithAncestorKeys() throws {
+        // Deep, long ancestor keys must not multiply the per-number structural path check.
+        let key = String(repeating: "k", count: 1024), numbers = Array(repeating: "0", count: 30_000).joined(separator: ",")
+        let nested = Data((String(repeating: "{\"" + key + "\":", count: 63) + "[" + numbers + "]" + String(repeating: "}", count: 63)).utf8)
+        let flat = Data(("{\"padding\":\"" + String(repeating: "x", count: 63 * 1030) + "\",\"values\":[" + numbers + "]}").utf8)
+        func seconds(_ data: Data) throws -> TimeInterval {
+            let start = Date(); try NativeCrashJSONPreflight.validate(data); return Date().timeIntervalSince(start)
+        }
+        _ = try seconds(flat)
+        let baseline = try seconds(flat), elapsed = try seconds(nested)
+        XCTAssertLessThan(elapsed, max(baseline, 0.01) * 20, "nested \(elapsed)s, flat \(baseline)s")
+    }
 }
