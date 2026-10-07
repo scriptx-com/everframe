@@ -4,6 +4,7 @@
 #if canImport(UIKit)
 import Testing
 import UIKit
+import SpriteKit
 @testable import EverframeKit
 import EverframeProtocol
 
@@ -111,5 +112,53 @@ struct PressCrumbTests {
             #expect(!crumbs.contains { $0.message.hasPrefix("press") })
         }
     }
+
+    /// A focused item that is not a view (a SpriteKit node, a custom
+    /// `UIFocusItem`) resolves to the view that contains it, as
+    /// `UIScreen.focusedView` did, so the crumb still names what had focus.
+    @Test @MainActor func nonViewFocusItemResolvesToContainingView() {
+        withCleanState {
+            let board = UIView()
+            board.accessibilityLabel = "Board"
+            let focused = WindowTapBreadcrumbAdapter.containingView(of: StubFocusItem(parent: board))
+            #expect(focused === board)
+            WindowTapBreadcrumbAdapter.recordEndedPress(
+                type: .select, focusedView: focused, eventTimestamp: 6.0)
+            let crumb = frozenCrumbs().first { $0.kind == .tap }
+            #expect(crumb?.message == "press select — Board")
+            #expect(crumb?.data?["control"]?.value as? String == "UIView")
+        }
+    }
+
+    @Test @MainActor func spriteKitNodeResolvesToItsView() {
+        let view = SKView(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
+        let scene = SKScene(size: view.bounds.size)
+        let node = SKNode()
+        scene.addChild(node)
+        view.presentScene(scene)
+        #expect(WindowTapBreadcrumbAdapter.containingView(of: node) === view)
+    }
+
+    @Test @MainActor func focusLookupKeepsViewsAndNothingFocused() {
+        let view = UIView()
+        #expect(WindowTapBreadcrumbAdapter.containingView(of: view) === view)
+        #expect(WindowTapBreadcrumbAdapter.containingView(of: nil) == nil)
+        #expect(WindowTapBreadcrumbAdapter.focusedView(in: UIWindow(frame: .zero)) == nil)
+    }
+}
+
+/// A focusable item that is not a view, like a SpriteKit node.
+private final class StubFocusItem: NSObject, UIFocusItem {
+    private let parent: UIView
+    init(parent: UIView) { self.parent = parent }
+    var parentFocusEnvironment: UIFocusEnvironment? { parent }
+    var preferredFocusEnvironments: [UIFocusEnvironment] { [] }
+    var focusItemContainer: UIFocusItemContainer? { nil }
+    var canBecomeFocused: Bool { true }
+    var frame: CGRect { .zero }
+    func setNeedsFocusUpdate() {}
+    func updateFocusIfNeeded() {}
+    func shouldUpdateFocus(in context: UIFocusUpdateContext) -> Bool { true }
+    func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {}
 }
 #endif

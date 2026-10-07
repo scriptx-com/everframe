@@ -57,6 +57,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -122,6 +123,139 @@ class CrashReporterTest {
         val entry = runBlocking { outbox.hydrate() }.single()
         runBlocking { outbox.drain { true } }
         Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject
+    }
+
+    @Test fun `diagnostics distinguish invalid bridge input disabled capture and reentrancy`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        assertFalse(CrashReporter.captureHandledFactsWithCauses("E", "", emptyList(), "2026-10-06T00:00:00Z", null, null, null, "invalid-sdk"))
+        assertEquals(1, Everframe.getReportDeliveryStatus().capture.paths.getValue("bridge-handled").outcomes.getValue("invalid-input"))
+        Everframe.__setConfigForTesting(config.copy(capture = dev.everframe.config.CaptureConfig(crash = false)))
+        assertFalse(CrashReporter.captureHandledThrowable(IllegalStateException("disabled")))
+        assertEquals(1, Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled").outcomes.getValue("disabled"))
+        Everframe.__setConfigForTesting(config)
+        var called = false
+        val outer = object : RuntimeException() {
+            override val message: String get() {
+                if (!called) { called = true; assertFalse(CrashReporter.captureHandledThrowable(IllegalArgumentException("nested"))) }
+                return "outer"
+            }
+        }
+        assertTrue(CrashReporter.captureHandledThrowable(outer))
+        val path = Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled")
+        assertEquals(1, path.outcomes.getValue("reentrant"))
+        assertEquals(1, path.outcomes.getValue("persisted"))
+    }
+
+    @Test fun `diagnostics expose native storage refusal without accepting identity`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        CrashReporter.sidecarFactory = { CrashSidecar(sidecarFile(), keys, JvmOutboxFileOps(), maxEntries = 0) }
+        val caught = IllegalStateException("refused")
+        assertFalse(CrashReporter.captureHandledThrowable(caught))
+        val rejected = Everframe.getReportDeliveryStatus()
+        assertEquals(1, rejected.capture.paths.getValue("native-handled").outcomes.getValue("storage-unavailable"))
+        assertEquals("capacity", rejected.queue.lastFailure)
+        CrashReporter.sidecarFactory = { CrashSidecar(sidecarFile(), keys, JvmOutboxFileOps()) }
+        assertTrue(CrashReporter.captureHandledThrowable(caught))
+        assertEquals(1, Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled").outcomes.getValue("persisted"))
+    }
+
+    @Test fun `diagnostics report real handled acceptance and duplicate suppression once`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        val caught = IllegalStateException("secret payload")
+        assertTrue(CrashReporter.captureHandledThrowable(caught))
+        assertFalse(CrashReporter.captureHandledThrowable(caught))
+        val status = Everframe.getReportDeliveryStatus()
+        val path = status.capture.paths.getValue("native-handled")
+        assertEquals(2, path.settledAttempts)
+        assertEquals(1, path.outcomes.getValue("persisted"))
+        assertEquals(1, path.outcomes.getValue("admission-suppressed"))
+        assertEquals(1, status.queue.operations.getValue("enqueue-committed"))
+        assertFalse(status.toJson().contains("secret payload"))
+    }
+
+    @Test fun `diagnostics classify automatic RN forwarding and native uncaught capture separately`() {
+        dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
+        assertTrue(CrashReporter.captureFactsAccepted("Automatic", "", emptyList(), "errorutils", false, "2026-10-06T00:00:00Z"))
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("native"))
+        val paths = Everframe.getReportDeliveryStatus().capture.paths
+        assertEquals(1, paths.getValue("bridge-automatic").outcomes.getValue("persisted"))
+        assertEquals(1, paths.getValue("jvm-uncaught").outcomes.getValue("persisted"))
+        assertEquals(0, paths.getValue("native-handled").settledAttempts)
+    }
+
+    @Test fun `RN cause enrichment is fitted before encrypted persistence without changing outer facts`() {
+        fun capture(causes: Any?) = CrashReporter.captureFactsAcceptedWithCauses(
+            "Error", "outer", listOf("at outer (a.js:1:2)"), "errorutils", false,
+            "2026-10-05T00:00:00Z", null, null, causes,
+        )
+        assertTrue(capture(null))
+        val control = persistedEnvelope("control")["payload"]!!.jsonObject["crash"]!!.jsonObject
+        val chain = org.json.JSONObject("""{"causes":[{"exceptionType":"TypeError","message":"inner","frames":[],"framesTruncated":false}],"truncated":false}""")
+        assertTrue(capture(chain))
+        chain.getJSONArray("causes").getJSONObject(0).put("message", "mutated")
+        val result = persistedEnvelope("causes")["payload"]!!.jsonObject["crash"]!!.jsonObject
+        assertEquals(control["fingerprint"], result["fingerprint"])
+        assertEquals("inner", result["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+        assertEquals(control, kotlinx.serialization.json.JsonObject(result.filterKeys { it != "causeChain" }))
+    }
+
+    @Test fun `malformed optional causes preserve accepted handled outer error`() {
+        assertTrue(CrashReporter.captureHandledFactsWithCauses("Error", "outer", emptyList(),
+            "2026-10-05T00:00:00Z", null, null, org.json.JSONObject.NULL, "everframe-react-native"))
+        val crash = persistedEnvelope("invalid-causes")["payload"]!!.jsonObject["crash"]!!.jsonObject
+        assertEquals(Json.parseToJsonElement("""{"causes":[],"truncated":true}"""), crash["causeChain"])
+        assertEquals("true", crash["handled"]!!.jsonPrimitive.content)
+        assertEquals("false", crash["fatal"]!!.jsonPrimitive.content)
+    }
+
+    @Test fun `native automatic and handled capture persist generic causes with stable JVM metadata`() {
+        for (handled in listOf(false, true)) {
+            val inner = IllegalArgumentException("inner").apply { stackTrace = arrayOf(StackTraceElement("Sample", "cause", "Sample.kt", 12)) }
+            val root = RuntimeException("outer", inner)
+            if (handled) assertTrue(CrashReporter.captureHandledThrowable(root))
+            else CrashReporter.captureThrowable(Thread.currentThread(), root)
+            val crash = persistedEnvelope("native-cause")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            assertEquals("inner", crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            assertEquals("inner", crash["jvm"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            if (handled) assertFalse(CrashReporter.captureHandledThrowable(root))
+        }
+    }
+
+    @Test fun `native cause text is redacted by the production redactor before persistence`() {
+        for (handled in listOf(false, true)) {
+            val inner = IllegalStateException("token Bearer abc.def-123 ssn 123-45-6789")
+                .apply { stackTrace = arrayOf(StackTraceElement("Sample", "cause", "Sample.kt", 12)) }
+            val root = RuntimeException("outer", inner)
+            if (handled) assertTrue(CrashReporter.captureHandledThrowable(root))
+            else CrashReporter.captureThrowable(Thread.currentThread(), root)
+            val crash = persistedEnvelope("redacted-native-cause")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            val cause = crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject
+            assertEquals("token [REDACTED] ssn [REDACTED:SSN]", cause["message"]!!.jsonPrimitive.content)
+            assertFalse(crash.toString().contains("abc.def-123") || crash.toString().contains("123-45-6789"))
+        }
+    }
+
+    @Test fun `bridged cause text is redacted by the production redactor before persistence`() {
+        for (handled in listOf(false, true)) {
+            val chain = org.json.JSONObject("""{"causes":[{"exceptionType":"TypeError","message":"inner Bearer abc.def-123","frames":[{"raw":"at inner ssn 123-45-6789"}],"framesTruncated":false}],"truncated":false}""")
+            assertTrue(if (handled) CrashReporter.captureHandledFactsWithCauses("Error", "outer", listOf("at outer (a.js:1:2)"),
+                "2026-10-05T00:00:00Z", null, null, chain, "everframe-react-native")
+            else CrashReporter.captureFactsAcceptedWithCauses("Error", "outer", listOf("at outer (a.js:1:2)"), "errorutils", false,
+                "2026-10-05T00:00:00Z", null, null, chain))
+            val crash = persistedEnvelope("redacted-bridge-cause")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            val cause = crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject
+            assertEquals("inner [REDACTED]", cause["message"]!!.jsonPrimitive.content)
+            assertEquals("at inner ssn [REDACTED:SSN]", cause["frames"]!!.jsonArray.single().jsonObject["raw"]!!.jsonPrimitive.content)
+            assertFalse(crash.toString().contains("abc.def-123") || crash.toString().contains("123-45-6789"))
+        }
+    }
+
+    @Test fun `native cause getter revocation cannot enqueue stale capture`() {
+        val inner = object : RuntimeException() {
+            override val message: String? get() { Everframe.kill(); return "revoked" }
+        }
+        assertFalse(CrashReporter.captureHandledThrowable(RuntimeException("outer", inner)))
+        assertEquals(0, runBlocking { encryptedOutbox().count() })
     }
 
     private fun failStorage() {
@@ -392,6 +526,65 @@ class CrashReporterTest {
             assertEquals("at f (address at index.bundle:1:0)", crash["frames"]!!.jsonArray[0].jsonObject["raw"]!!.jsonPrimitive.content)
             assertEquals(dev.everframe.capture.DeviceMetadata.collect(context)["appBuild"].toString(), env["context"]!!.jsonObject["app"]!!.jsonObject["build"]!!.jsonPrimitive.content)
         }
+    }
+
+    @Test
+    fun `automatic capture preserves outer event and causes when outer getters throw`() {
+        for (failStack in listOf(false, true)) {
+            val outer = object : RuntimeException("outer", IllegalArgumentException("inner")) {
+                override val message: String? get() = if (failStack) "outer" else error("unreadable message")
+                override fun getStackTrace(): Array<StackTraceElement> = if (failStack) error("unreadable stack") else emptyArray()
+            }
+            CrashReporter.captureThrowable(Thread.currentThread(), outer)
+            val crash = persistedEnvelope("throwing-outer-$failStack")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            assertEquals(outer.javaClass.name, crash["exceptionType"]!!.jsonPrimitive.content)
+            assertEquals(if (failStack) "outer" else outer.javaClass.name, crash["message"]!!.jsonPrimitive.content)
+            assertEquals("inner", crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            runBlocking { encryptedOutbox().drain { true } }
+        }
+    }
+
+    @Test
+    fun `uncaught adapter shares single-read outer facts and still chains previous handler`() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        var chained = 0
+        var messageReads = 0
+        var stackReads = 0
+        val outer = object : RuntimeException("outer", IllegalArgumentException("inner")) {
+            override val message: String? get() { check(++messageReads == 1); return "single-read outer" }
+            override fun getStackTrace(): Array<StackTraceElement> {
+                check(++stackReads == 1)
+                return arrayOf(StackTraceElement("Fixture", "entry", "Fixture.kt", 42))
+            }
+        }
+        try {
+            Thread.setDefaultUncaughtExceptionHandler { _, error -> assertSame(outer, error); chained++ }
+            dev.everframe.capture.ErrorBreadcrumbAdapter.__resetForTesting()
+            dev.everframe.capture.ErrorBreadcrumbAdapter.install()
+            dev.everframe.capture.ErrorBreadcrumbAdapter.handle(Thread.currentThread(), outer)
+            val crash = persistedEnvelope("stateful-outer")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            assertEquals("single-read outer", crash["message"]!!.jsonPrimitive.content)
+            assertEquals("Fixture.kt", crash["frames"]!!.jsonArray.single().jsonObject["file"]!!.jsonPrimitive.content)
+            assertEquals("inner", crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject["message"]!!.jsonPrimitive.content)
+            assertEquals(1, messageReads); assertEquals(1, stackReads); assertEquals(1, chained)
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+            dev.everframe.capture.ErrorBreadcrumbAdapter.__resetForTesting()
+        }
+    }
+
+    @Test
+    fun `automatic outer getter reentry persists only one report`() {
+        var reads = 0
+        val outer = object : RuntimeException("outer") {
+            override val message: String? get() {
+                if (++reads < 3) CrashReporter.captureThrowable(Thread.currentThread(), this)
+                return "outer"
+            }
+        }
+        CrashReporter.captureThrowable(Thread.currentThread(), outer)
+        persistedEnvelope("outer-getter-reentry")
+        assertEquals(1, reads)
     }
 
     @Test

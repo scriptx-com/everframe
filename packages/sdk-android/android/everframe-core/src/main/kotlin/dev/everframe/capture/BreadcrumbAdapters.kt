@@ -296,28 +296,24 @@ internal object ErrorBreadcrumbAdapter {
      * exception a host's own handler throws is not our concern to swallow.
      */
     fun handle(thread: Thread, throwable: Throwable) {
-        txGuardVoid("ErrorBreadcrumbAdapter.handle") {
-            val stackDigest = throwable.stackTrace.take(10).joinToString("\n")
-            val data = BreadcrumbRingBuffer.coerceHostData(
-                mapOf(
-                    "name" to throwable.javaClass.name,
-                    "stackDigest" to stackDigest,
-                ),
-            )
-            sharedBreadcrumbBuffer.add(
-                kind = BreadcrumbKind.Error,
-                message = throwable.message ?: throwable.javaClass.name,
-                level = Level.Error,
-                data = data,
-            )
-        }
-        // Task 10 — synchronous crash persist, its OWN txGuardVoid so a
-        // redaction/envelope/disk hiccup here can never prevent the chained
-        // handler below from running. Deliberately between the crumb block
-        // and the chain call, never inside either.
         txGuardVoid("ErrorBreadcrumbAdapter.crashReport") {
-            CrashReporter.captureThrowable(thread, throwable)
+            CrashReporter.captureThrowableWithBreadcrumb(thread, throwable) { facts ->
+                txGuardVoid("ErrorBreadcrumbAdapter.handle") {
+                    val stackDigest = facts.frames.take(10).joinToString("\n") { it.raw }
+                    val data = BreadcrumbRingBuffer.coerceHostData(
+                        mapOf("name" to facts.type, "stackDigest" to stackDigest),
+                    )
+                    sharedBreadcrumbBuffer.add(
+                        kind = BreadcrumbKind.Error,
+                        message = facts.message,
+                        level = Level.Error,
+                        data = data,
+                    )
+                }
+            }
         }
+        // The breadcrumb guard is separate from persistence, and neither can
+        // prevent the previous handler from receiving the original Throwable.
         previousHandler?.uncaughtException(thread, throwable)
     }
 }

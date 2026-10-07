@@ -30,8 +30,13 @@ import MetalKit
             guard !layer.isHidden, layer.opacity > 0 else { return }
             let view = layer.delegate as? UIView
             let sensitive = view.map { SensitiveRectRegistry.isSensitive($0) || isExcludedView($0) } ?? false
-            if sensitive || layer is AVPlayerLayer || layer is AVSampleBufferDisplayLayer || layer is CAMetalLayer || layer is CAEAGLLayer {
-                try coverSubtree(layer)
+            let videoSurface = layer is AVPlayerLayer || layer is AVSampleBufferDisplayLayer
+            if sensitive || videoSurface || layer is CAMetalLayer || layer is CAEAGLLayer {
+                // A video surface is drawn as an opaque black box in its own place in
+                // the layer order (excluded layers keep no contents or sublayers), so
+                // player controls above it stay visible. Everything else is also
+                // blacked out after rendering, overlays included.
+                if !videoSurface || sensitive { try coverSubtree(layer) }
                 result.excludedLayers.insert(ObjectIdentifier(layer))
                 var ancestor = layer.superlayer
                 while let parent = ancestor {

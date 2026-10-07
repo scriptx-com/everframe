@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import { CrashDetails } from './crash-details.js';
 import { CrashCauseChain } from './crash-causes.js';
+import { NativeCrashMetadata } from './native-crash.js';
 
 export const CrashFrame = z
   .object({
@@ -57,6 +58,7 @@ export const CrashPayload = z
     details: CrashDetails.optional(),
     jsBundle: JsBundleMetadata.optional(),
     jvm: JvmCrashMetadata.optional(),
+    native: NativeCrashMetadata.optional(),
     exceptionType: z.string().max(256),
     message: z.string().max(4096),
     /** Raw frames only — symbolication is v2. */
@@ -73,7 +75,12 @@ export const CrashPayload = z
     /** Client grouping heuristic — 16 lowercase hex chars (see spec). */
     fingerprint: z.string().regex(/^[0-9a-f]{16}$/),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((value, ctx) => {
+    if (value.native && value.native.frames.length !== value.frames.length) {
+      ctx.addIssue({ code: 'custom', path: ['native', 'frames'], message: 'Native and display frame counts must match' });
+    }
+  });
 
 export type CrashFrame = z.infer<typeof CrashFrame>;
 export type CrashPayload = z.infer<typeof CrashPayload>;

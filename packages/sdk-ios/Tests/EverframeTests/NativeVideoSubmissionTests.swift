@@ -46,6 +46,24 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: movie.url.path))
     }
 
+    @Test func replayLongerThanThirtySecondsIsExportedAndAttached() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recorder = try NativeVideoRecorder(directory: directory, framesPerSecond: 10,
+            durationNanos: NativeVideoLimits.maxDurationNanos)
+        var pixels = Data(repeating: 0, count: 64 * 64 * 4)
+        for i in stride(from: 3, to: pixels.count, by: 4) { pixels[i] = 255 }
+        for second in 0...45 {
+            pixels[0] = UInt8(second * 5)
+            #expect(try await recorder.append(.init(width: 64, height: 64, bytesPerRow: 256,
+                bgraBytes: pixels, timestampNanos: UInt64(second) * 1_000_000_000)))
+        }
+        let movie = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 10_000))
+        #expect(movie.durationMs > 40_000)
+        let part = try #require(await ReporterSubmission.buildReplayAttachment(artifact: movie, byteBudget: 25_000_000))
+        #expect((part.envelope.durationMS ?? 0) > 40_000)
+    }
+
     @Test func oversizedMovieIsOmittedAndOwnedFileRemoved() async throws {
         let movie = try await artifact()
         defer { try? FileManager.default.removeItem(at: movie.url.deletingLastPathComponent()) }

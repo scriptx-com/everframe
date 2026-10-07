@@ -229,6 +229,18 @@
       {
         "pathPattern": "(^|/)gradle/wrapper/gradle-wrapper\\.properties$",
         "spdx": "Apache-2.0"
+      },
+      {
+        "pathPattern": "^packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSObjCApple\\.h$",
+        "spdx": "APSL-2.0"
+      },
+      {
+        "pathPattern": "^packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMach-O\\.c$",
+        "spdx": "MIT AND APSL-2.0"
+      },
+      {
+        "pathPattern": "^packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCxaThrowSwapper\\.c$",
+        "spdx": "MIT AND BSD-3-Clause"
       }
     ],
     "exemptPathPatterns": [

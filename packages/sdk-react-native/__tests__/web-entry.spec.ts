@@ -10,6 +10,11 @@ import * as reactSdk from '@everframe/react';
 const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
 
 describe('React Native browser entry', () => {
+  it('reports Hermes observation as unsupported without altering browser exports', () => {
+    expect(webEntry.getErrorCaptureStatus()).toMatchObject({ status: 'unsupported', reason: 'platform', counters: { handled: { attempted: 0 } } });
+    expect(webEntry.getPromiseRejectionStatus()).toMatchObject({ status: 'unsupported', reason: 'platform', counters: {pending: 0} });
+    expect(typeof nativeEntry.getPromiseRejectionStatus).toBe('function');
+  });
   it('routes browser resolution to a dedicated web bundle and keeps native as the default', () => {
     expect(manifest.exports['.'].browser).toEqual({
       types: './dist/index.web.d.ts',
@@ -17,6 +22,12 @@ describe('React Native browser entry', () => {
     });
     expect(manifest.exports['.'].default).toBe('./dist/index.js');
     expect(manifest.dependencies['@everframe/react']).toBe('workspace:^');
+  });
+
+  it('lists types first and rejects browser consumers of the React adapter subpath', () => {
+    const adapter = manifest.exports['./integrations/react'];
+    expect(Object.keys(adapter)).toEqual(['types', 'browser', 'default']);
+    expect(adapter.browser).toBeNull();
   });
 
   it('reuses the React SDK provider, reporter, and capture API', () => {

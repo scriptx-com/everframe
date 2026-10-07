@@ -15,6 +15,7 @@ export default defineConfig({
     "src/index.web.ts",
     "src/NativeEverframe.ts",
     "src/integrations/console.ts",
+    "src/integrations/react.ts",
     "src/integrations/react-navigation.ts",
     "src/integrations/react-native-video.ts",
     "src/integrations/theoplayer.ts",

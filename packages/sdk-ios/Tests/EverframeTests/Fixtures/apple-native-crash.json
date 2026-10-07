@@ -1,0 +1,130 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "01939c34-7b8f-7000-8000-000000000001",
+  "submittedAt": "2026-04-29T16:00:00.000Z",
+  "sdk": {
+    "name": "everframe-ios",
+    "version": "0.0.0",
+    "platform": "ios",
+    "formFactor": "phone"
+  },
+  "source": "crash",
+  "reporter": {
+    "title": "EXC_BAD_ACCESS: synthetic native fault",
+    "description": ""
+  },
+  "captures": {
+    "screenshot": false,
+    "uiTree": false,
+    "focus": false,
+    "logs": false,
+    "network": false
+  },
+  "payload": {
+    "crash": {
+      "exceptionType": "EXC_BAD_ACCESS",
+      "message": "synthetic native fault",
+      "frames": [
+        {
+          "raw": "App fatalFunction 0x20000000000011",
+          "function": "fatalFunction"
+        },
+        {
+          "raw": "Kit kitFunction 0x20000000100021",
+          "function": "kitFunction"
+        },
+        {
+          "raw": "<unknown> <unknown> 0xfffffff000000001"
+        }
+      ],
+      "handled": false,
+      "fatal": true,
+      "mechanism": "native-mach",
+      "occurredAt": "2026-10-07T00:00:00Z",
+      "fingerprint": "aaaaaaaaaaaaaaaa",
+      "native": {
+        "platform": "apple",
+        "timestampMicros": "1791331200000000",
+        "crashedThreadIndex": 4,
+        "framesIncomplete": false,
+        "imagesIncomplete": true,
+        "images": [
+          {
+            "uuid": "11111111-1111-4111-8111-111111111111",
+            "name": "App",
+            "loadAddress": "0x20000000000001",
+            "vmAddress": "0x100000000",
+            "size": "0x1000",
+            "cpuType": 16777228,
+            "cpuSubtype": 0,
+            "architecture": "arm64"
+          },
+          {
+            "uuid": "22222222-2222-4222-8222-222222222222",
+            "name": "Kit",
+            "loadAddress": "0x20000000100001",
+            "size": "0x2000",
+            "cpuType": 16777228,
+            "cpuSubtype": -2147483646,
+            "architecture": "arm64e"
+          }
+        ],
+        "frames": [
+          {
+            "instructionAddress": "0x20000000000011",
+            "imageIndex": 0,
+            "imageOffset": "0x10"
+          },
+          {
+            "instructionAddress": "0x20000000100021",
+            "imageIndex": 1,
+            "imageOffset": "0x20"
+          },
+          {
+            "instructionAddress": "0xfffffff000000001"
+          }
+        ],
+        "error": {
+          "signalNumber": 10,
+          "signalCode": 0,
+          "machException": 1,
+          "machCode": "0x2",
+          "machSubcode": "0x20000000000011",
+          "faultAddress": "0x20000000000011"
+        }
+      }
+    },
+    "breadcrumbs": []
+  },
+  "captureControl": {
+    "included": [
+      "breadcrumbs"
+    ],
+    "excluded": [
+      "screenshot",
+      "uiTree",
+      "focus",
+      "logs",
+      "network"
+    ],
+    "degradedReason": "crash-capture"
+  },
+  "context": {
+    "app": {
+      "name": "test-app",
+      "version": "1.0.0"
+    },
+    "device": {
+      "os": "ios",
+      "osVersion": "18.0",
+      "screenSize": {
+        "width": 393,
+        "height": 852
+      },
+      "pixelRatio": 3,
+      "locale": "en-US",
+      "timezone": "America/New_York"
+    }
+  },
+  "attachments": []
+}

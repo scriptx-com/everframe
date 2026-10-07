@@ -276,11 +276,11 @@ describe("build commands", () => {
       const mapPath = join(root, "index.android.bundle.map");
       await writeFile(
         bundlePath,
-        Buffer.concat([HERMES_MAGIC, Buffer.alloc(64, 1)]),
+        Buffer.concat([HERMES_MAGIC, Buffer.from(buildId), Buffer.alloc(64, 1)]),
       );
       await writeFile(
         mapPath,
-        JSON.stringify({ version: 3, sources: [], mappings: "" }),
+        JSON.stringify({ version: 3, sources: [`/.everframe/${buildId}/identity.js`], mappings: "" }),
       );
       await collectStagedBuild({
         stagingDir: staging,

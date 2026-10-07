@@ -689,7 +689,7 @@ public enum ReporterSubmission {
             identityToken = nil
         }
 
-        let submitter = Self.__submitterFactoryForTesting?(cfg) ?? ReportSubmitter(config: cfg)
+        let submitter = Self.__submitterFactoryForTesting?(cfg) ?? ReportSubmitter(config: cfg).observing(ReportDiagnostics.shared.handle(epoch: inputs.capturedSession.user.startEpoch))
         // All asynchronous packing and identity resolution is now complete.
         // Config-off, lifecycle invalidation, restart and kill revoke a claim
         // even after the movie was consumed into multipart Data. Never revive
@@ -840,7 +840,7 @@ public enum ReporterSubmission {
             defer { artifact.removeOwnedFile() }
             guard artifact.byteCount > 0, artifact.byteCount <= min(8 * 1024 * 1024, byteBudget),
                   artifact.startEpochMs.isFinite, artifact.startEpochMs >= 0,
-                  artifact.durationMs.isFinite, artifact.durationMs > 0, artifact.durationMs <= 30_000,
+                  artifact.durationMs.isFinite, artifact.durationMs > 0, artifact.durationMs <= Double(NativeVideoLimits.maxDurationSec * 1000),
                   artifact.width > 0, artifact.height > 0,
                   let size = try? artifact.url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
                   size.isRegularFile == true, size.fileSize == artifact.byteCount,

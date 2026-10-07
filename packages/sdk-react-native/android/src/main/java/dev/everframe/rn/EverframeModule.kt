@@ -637,6 +637,10 @@ class EverframeModule(
 
     // ---------------- synchronous crash persistence ----------------
 
+    /** Copies cached native facts; never initializes storage or starts a drain. */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    override fun getReportDeliveryStatusJson(): String = Everframe.getReportDeliveryStatus().toJson()
+
     /** Automatic ErrorUtils capture; true acknowledges completed sidecar storage. */
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun reportCrash(crashJson: String): Boolean = captureCrashJson(crashJson, handled = false)
@@ -666,15 +670,16 @@ class EverframeModule(
                 }
             }.getOrNull()
             val details = if (obj.has("details")) obj.get("details") else null
+            val causeChain = if (obj.has("causeChain")) obj.get("causeChain") else null
             val fatal = !handled && obj.optBoolean("fatal", false)
             val accepted = if (handled) {
-                dev.everframe.crash.CrashReporter.captureHandledFactsWithDetails(
-                    exceptionType, message, frames, occurredAt, jsBundle, details,
+                dev.everframe.crash.CrashReporter.captureHandledFactsWithCauses(
+                    exceptionType, message, frames, occurredAt, jsBundle, details, causeChain, "everframe-android",
                 )
             } else {
-                dev.everframe.crash.CrashReporter.captureFactsAcceptedWithDetails(
+                dev.everframe.crash.CrashReporter.captureFactsAcceptedWithCauses(
                     exceptionType, message, frames, obj.optString("mechanism", "errorutils"),
-                    fatal, occurredAt, jsBundle, details,
+                    fatal, occurredAt, jsBundle, details, causeChain,
                 )
             }
             // Scheduling is best-effort after acceptance; a scheduler failure

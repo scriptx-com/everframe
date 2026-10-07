@@ -63,6 +63,16 @@ const groups = [
     ],
   },
   {
+    // Apple native crash sidecar. Decoded by json-schema.spec.ts (Ajv and Zod),
+    // CrashReportCrossSDKTest (Kotlin) and CrashReportCrossSDKTests (Swift).
+    name: 'apple-native-crash.json',
+    canonical: `${HERE}/fixtures/apple-native-crash.json`,
+    siblings: [
+      `${HERE}/../../sdk-ios/Tests/EverframeTests/Fixtures/apple-native-crash.json`,
+      `${HERE}/../../sdk-android/android/everframe-protocol/src/test/resources/apple-native-crash.json`,
+    ],
+  },
+  {
     // Network request/response body parity (spec 2026-08-01). Decoded by
     // network-body.spec.ts (TS), NetworkBodyEnvelopeTest (Kotlin), and
     // NetworkBodyEnvelopeTests (Swift). Note the Android copy lives under
