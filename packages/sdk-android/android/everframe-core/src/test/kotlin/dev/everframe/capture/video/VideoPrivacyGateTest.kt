@@ -349,7 +349,8 @@ class VideoPrivacyGateTest {
         val scroller = FrameLayout(a); root.addView(scroller); scroller.layout(0,0,400,400); scroller.scrollTo(0, 50)
         val holder = FrameLayout(a); scroller.addView(holder); holder.layout(100,100,300,300)
         val input = EditText(a); holder.addView(input); input.layout(10,20,110,60)
-        val inside = View(a)
+        // Refuses the frame if the walk ever classifies it: no adapter is registered.
+        val inside = com.facebook.react.VideoPrivacyFixtureView(a)
         val gate = VideoPrivacyGate({ a }, { 0L }, { true })
         try {
             val o = gate.observe(root)
@@ -365,10 +366,10 @@ class VideoPrivacyGateTest {
             holder.visibility = View.VISIBLE
             val group = FrameLayout(a); root.addView(group); group.layout(0,0,50,50)
             group.setTag(R.id.tx_sensitive, true)
-            group.addView(inside)
+            group.addView(inside); inside.layout(5,5,20,20)
             val withGroup = gate.observe(root)
-            assertTrue(masked(withGroup, group, root))
-            assertEquals("children of a masked view are covered, not walked", 2, withGroup.masks.size)
+            assertTrue("children of a masked view are covered, not walked", withGroup.allowed)
+            assertEquals(setOf(android.graphics.Rect(139, 69, 241, 111), android.graphics.Rect(0, 0, 51, 51)), withGroup.masks.toSet())
         } finally { a.finish() }
     }
 
@@ -574,6 +575,42 @@ class VideoPrivacyGateTest {
             assertEquals("moving entirely outside the frame is not a new privacy state", above.epoch, gate.observe(root).epoch)
             scroller.scrollTo(0, 50)
             assertEquals("scrolling back in is", listOf(android.graphics.Rect(0, 0, 100, 11)), gate.observe(root).masks)
+        } finally { a.finish() }
+    }
+
+    @Test fun removalTransitionChildIsMaskedFromHistoryAlone() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
+        val input = EditText(a); root.addView(input); input.layout(10,10,50,30)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            assertTrue(masked(gate.observe(root), input, root))
+            // Still attached and drawn, but no longer reachable through getChildAt.
+            root.startViewTransition(input); root.removeView(input)
+            try {
+                assertTrue(input.isAttachedToWindow); assertSame(root, input.parent); assertEquals(-1, root.indexOfChild(input))
+                val retained = gate.observe(root)
+                assertTrue(retained.allowed)
+                assertEquals(listOf(android.graphics.Rect(9, 9, 51, 31)), retained.masks)
+            } finally { root.endViewTransition(input) }
+            val clean = gate.observe(root)
+            assertTrue(clean.allowed); assertTrue(clean.masks.isEmpty())
+        } finally { a.finish() }
+    }
+
+    @Test fun scaledAndRotatedMasksCoverTheTransformedBounds() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        val input = EditText(a); root.addView(input); input.layout(100,100,200,150)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            input.pivotX = 0f; input.pivotY = 0f; input.scaleX = 2f
+            assertEquals(listOf(android.graphics.Rect(99, 99, 301, 151)), gate.observe(root).masks)
+            input.scaleX = 1f; input.pivotX = 50f; input.pivotY = 25f; input.rotation = 90f
+            // 100x50 turned about its centre (150,125) spans x 125..175 and y 75..175, padded by a pixel.
+            val turned = gate.observe(root).masks.single()
+            assertTrue("$turned", kotlin.math.abs(turned.left - 124) <= 1 && kotlin.math.abs(turned.top - 74) <= 1 &&
+                kotlin.math.abs(turned.right - 176) <= 1 && kotlin.math.abs(turned.bottom - 176) <= 1)
         } finally { a.finish() }
     }
 
