@@ -24,6 +24,12 @@ describe('React Native browser entry', () => {
     expect(manifest.dependencies['@everframe/react']).toBe('workspace:^');
   });
 
+  it('lists types first and rejects browser consumers of the React adapter subpath', () => {
+    const adapter = manifest.exports['./integrations/react'];
+    expect(Object.keys(adapter)).toEqual(['types', 'browser', 'default']);
+    expect(adapter.browser).toBeNull();
+  });
+
   it('reuses the React SDK provider, reporter, and capture API', () => {
     for (const name of Object.keys(reactSdk) as Array<keyof typeof reactSdk>) {
       expect(webEntry[name]).toBe(reactSdk[name]);

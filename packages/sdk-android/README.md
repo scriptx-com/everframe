@@ -54,10 +54,6 @@ contains real source and API-documentation artifacts.
 - [`examples/android-views`](../../examples/android-views) demonstrates the
   Android Views integration.
 
-## License
-
-MIT
-
 ## Error cause chains
 
 Native handled and uncaught `Throwable` capture includes a generic `causeChain`
@@ -68,3 +64,7 @@ identity. Suppressed-exception graphs are not traversed as linear causes.
 Chains retain at most 8 causes, 32 frames per cause, and 65,536 serialized UTF-8
 bytes after redaction. Cycles, unreadable fields and discarded data are marked
 with truncation flags. Causes do not change the outer error's grouping key.
+
+## License
+
+MIT

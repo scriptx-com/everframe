@@ -47,6 +47,19 @@ final class FoundationCrashCausesTests: XCTestCase {
         let over = try XCTUnwrap(capture(chain(9)))
         XCTAssertEqual(over.causes.count, 8); XCTAssertTrue(over.truncated)
     }
+    func testSecretCutByTheScanWindowIsDroppedRatherThanKeptUnredacted() throws {
+        let jwt = "eyJhbGciOiJIUzI1NiJ9." + String(repeating: "A", count: 9000) + "." + String(repeating: "S", count: 43)
+        let inner = NSError(domain: "inner", code: 1, userInfo: [NSLocalizedDescriptionKey: String(repeating: "x", count: 4000) + " " + jwt])
+        let root = NSError(domain: "outer", code: 1, userInfo: [NSUnderlyingErrorKey: inner])
+        let chain = try XCTUnwrap(captureFoundationCauseChain(root, redact: { RedactionEngine().redact($0) }, stillOwned: { true }))
+        XCTAssertEqual(chain.causes.first?.message, String(repeating: "x", count: 4000))
+        XCTAssertTrue(chain.truncated)
+    }
+    func testFreshUnderlyingErrorsPerReadAreNotMistakenForCycles() throws {
+        let chain = try XCTUnwrap(capture(ComputedUnderlyingError(depth: 0)))
+        XCTAssertEqual(chain.causes.map(\.exceptionType), (1...7).map { "computed:\($0)" })
+        XCTAssertFalse(chain.truncated)
+    }
     func testUnsupportedBranchesAreMarkedWithoutFlatteningOrHostDescriptions() throws {
         let inner = NSError(domain: "inner", code: 2)
         let root = NSError(domain: "outer", code: 1, userInfo: [NSUnderlyingErrorKey: inner, NSMultipleUnderlyingErrorsKey: [inner, inner]])
@@ -79,4 +92,17 @@ final class MutableUnderlyingError: NSError, @unchecked Sendable {
         return underlying.map { [NSUnderlyingErrorKey: $0] } ?? [:]
     }
     override var localizedDescription: String { onDescription?(); return "mutable cause" }
+}
+
+/// Builds a new underlying error on every `userInfo` read.
+final class ComputedUnderlyingError: NSError, @unchecked Sendable {
+    let depth: Int
+    init(depth: Int) {
+        self.depth = depth
+        super.init(domain: "computed", code: depth, userInfo: nil)
+    }
+    required init?(coder: NSCoder) { fatalError("unused") }
+    override var userInfo: [String: Any] {
+        depth < 7 ? [NSUnderlyingErrorKey: ComputedUnderlyingError(depth: depth + 1)] : [:]
+    }
 }
