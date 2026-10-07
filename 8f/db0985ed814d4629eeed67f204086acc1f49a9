@@ -1,0 +1,39 @@
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/ProbeNative.m
+  s_360d9eb003c487::t_665fef7064b57b 25-44
+packages/sdk-ios/crash-recorder/scripts/vendor.test.mjs
+  s_360d9eb003c487::t_00efe0dba22dcb 99-106
+packages/sdk-ios/crash-recorder/scripts/prepare-vendor.mjs
+  s_360d9eb003c487::t_b36cd89d8539eb 81-86,89-92,134,138
+  s_360d9eb003c487::t_19886a2f666868 73-80,87-88,93-111,120
+  s_360d9eb003c487::t_46107a30159259 112-119,121-133,135-137,139-145
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_a888eace442a6e 46-50,89,94-102
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c
+  s_360d9eb003c487::t_1524a5cf84b4d5 2,457-502,559-566,602-606
+packages/sdk-ios/crash-recorder/THIRD_PARTY_NOTICES.md
+  s_360d9eb003c487::t_e6f59fa5129c16 27-29
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_360d9eb003c487::t_c08d158fccf904 48-49
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/include/ProbeNative.h
+  s_360d9eb003c487::t_66576f90e79eb8 6-7
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_360d9eb003c487::t_fdbfe5e45fc54b 20-21,26-31,90-91,93-102,122-123
+packages/sdk-ios/crash-recorder/vendor-lock.json
+  s_360d9eb003c487::t_20bf1be60b2949 1055
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8fdb0985ed814d4629eeed67f204086acc1f49a9",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
