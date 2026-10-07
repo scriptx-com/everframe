@@ -553,13 +553,17 @@ drawn.
 `R.id.tx_sensitive` tag (any value except `false`), React Native `<EverframeSensitive>`, `EditText`s,
 editable or password `TextView`s, and `TextureView`s are painted black over their bounds, mapped
 through every ancestor's transform and scroll and padded by a pixel. A platform adapter's
-`VideoPrivacyAdapter.Classification.EXCLUDE` means the same. Their children are covered, not
-inspected: when the parent of such a view does not clip children (React Native views never do), the
-bounds of each descendant are painted too, so a child laid out or moved outside the view stays
-covered. Masks are clipped to the window. Only these views are masked: content that repeats a secret
-elsewhere, such as one-time-code digit cells, a card preview or a search echo, needs its own marker.
-Copies that other code draws are not covered either, such as a snapshot of a view drawn in a
-transition overlay.
+`VideoPrivacyAdapter.Classification.EXCLUDE` means the same. A view whose parent clips children
+confines its whole subtree to its own bounds, so that subtree is not inspected. Where parents do not
+clip children (React Native views never do), the masked view's descendants are inspected too, down
+to those confined that way: the part of a descendant's bounds outside the masked view is painted as
+well, so a child laid out or moved outside the view stays covered, and a descendant whose position
+cannot be proven refuses the frame (see below). Masks are clipped to the window. Only these views
+are masked: content that repeats a secret elsewhere, such as one-time-code digit cells, a card
+preview or a search echo, needs its own marker. Copies that other code draws are not covered either:
+a snapshot of a view drawn in a transition overlay, or a descendant of a masked view that a
+transition hides and draws elsewhere when the masked view's parent clips children or the descendant
+is only made transparent.
 
 **SurfaceViews.** A `SurfaceView` renders into its own surface, which a window copy never contains.
 Its area is left empty without a mask, and views drawn above it, such as subtitles and player
@@ -581,8 +585,15 @@ controls, are recorded.
   has transition alpha below one, because then only another drawing can show it (a shared-element
   ghost draws a hidden original from an overlay, and a container transform makes both containers
   transparent while it draws them elsewhere); or it is `GONE` while a removal transition still draws
-  it. A `GONE` ordinary child needs no mask, however transparent. This refuses frames while a React
-  Native `TextInput` is styled with `opacity: 0`, as one-time-code fields often are.
+  it. A `GONE` ordinary child needs no mask, however transparent. This refuses frames while an inline
+  `NumberPicker` (including spinner-mode date and time pickers) is shown after its first touch, which
+  hides its input as `INVISIBLE`, and while a React Native `TextInput` is hidden with
+  `display: 'none'` or styled with `opacity: 0`, as one-time-code fields often are.
+- an inspected descendant of a masked view (see above) is animated, `INVISIBLE` or
+  transition-hidden, or runs a layout transition, for the same reasons. React Native hides
+  `display: 'none'` content and the spinner of `<ActivityIndicator animating={false}>` as
+  `INVISIBLE`: inside `<EverframeSensitive>` they refuse frames for as long as they stay mounted, so
+  unmount hidden content instead.
 - the keyboard pans the window (`adjustPan`) and the frame needs masks: the panned window is drawn
   shifted, so the masks would miss the views they cover.
 - the window is `FLAG_SECURE`, wide-gamut or HDR, or unfocused, the 2,048-node / 2 ms budget runs

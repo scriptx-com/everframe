@@ -625,6 +625,29 @@ class VideoPrivacyGateTest {
         } finally { a.finish() }
     }
 
+    @Test fun hiddenDescendantOfANonClippedMaskedViewRefusesFrames() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        // React Native views never clip children, and hide display:'none' content and a stopped
+        // ActivityIndicator's spinner as INVISIBLE.
+        val container = FrameLayout(a).apply { clipChildren = false }; root.addView(container); container.layout(0,0,400,400)
+        val group = FrameLayout(a); container.addView(group); group.layout(10,10,60,60)
+        group.setTag(R.id.tx_sensitive, true)
+        val spinner = android.widget.ProgressBar(a); group.addView(spinner); spinner.layout(5,5,25,25)
+        spinner.visibility = View.INVISIBLE
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            assertFalse("a shared-element ghost could draw the INVISIBLE descendant elsewhere", gate.observe(root).allowed)
+            spinner.visibility = View.GONE
+            val gone = gate.observe(root)
+            assertTrue(gone.allowed); assertEquals(listOf(android.graphics.Rect(9, 9, 61, 61)), gone.masks)
+            spinner.visibility = View.INVISIBLE
+            container.clipChildren = true
+            assertTrue("a clipping parent confines the group's subtree, which is covered, not inspected",
+                masked(gate.observe(root), group, root))
+        } finally { a.finish() }
+    }
+
     @Test fun masksAreClippedToTheFrameSoMovementOutsideItKeepsThePrivacyState() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)

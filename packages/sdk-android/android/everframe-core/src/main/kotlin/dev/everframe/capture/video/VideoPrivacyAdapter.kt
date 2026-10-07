@@ -10,7 +10,10 @@ public fun interface VideoPrivacyAdapter {
     public fun classify(view: View): Classification
     public enum class Classification {
         ORDINARY_VIEW,
-        /** Sensitive: native video paints the view's drawn area black and does not inspect its subtree. */
+        /**
+         * Sensitive: native video paints the view's drawn area black. Its subtree is not inspected
+         * while the view's parent clips children; otherwise descendants are checked and painted too.
+         */
         EXCLUDE,
         UNKNOWN,
     }
