@@ -1,0 +1,22 @@
+packages/sdk-react-native/__tests__/react-adapter-packaging.test.ts
+  s_360d9eb003c487::t_9dcf223d1f6d4a 8,15-17,19-20
+  s_360d9eb003c487::t_a201a9e78e5e97 6-7,9,11,13-14,18,21-24,27-28
+  s_360d9eb003c487::t_c40f802a14da3f 10
+  s_360d9eb003c487::t_c4041331cb9398 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e118724146f328db2deeb850672c737d7080e21",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
