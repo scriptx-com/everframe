@@ -5,6 +5,7 @@ import { FocusedNode } from './focus.js';
 import { AttachmentRef } from './attachments.js';
 import { Breadcrumb } from './breadcrumb.js';
 import { DiagnosticEvidence } from './diagnostic.js';
+import { RecoveredStallEvidence } from './recovered-stall.js';
 import { CrashPayload } from './crash.js';
 import { NetworkBodyEntrySchema } from './network-body.js';
 import { VitalsEntry, MAX_ENVELOPE_VITALS_ENTRIES } from './vitals.js';
@@ -157,6 +158,7 @@ export const ReportEnvelope = z
         // source is 'crash' or 'error'.
         crash: CrashPayload.optional(),
         diagnostic: DiagnosticEvidence.optional(),
+        recoveredStall: RecoveredStallEvidence.optional(),
       })
       .passthrough(),
     context: z
@@ -195,6 +197,17 @@ export const ReportEnvelope = z
   .superRefine((envelope, ctx) => {
     const evidence = envelope.payload.diagnostic;
     const issue = (path: PropertyKey[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+    const recovered = envelope.payload.recoveredStall;
+    if (recovered) {
+      if (envelope.source !== 'diagnostic') issue(['source'], 'Recovered probe requires diagnostic source');
+      if (envelope.sdk.platform !== 'android' && envelope.sdk.platform !== 'androidtv') issue(['sdk', 'platform'], 'Recovered probe requires Android');
+      if (recovered.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+      if (Date.parse(envelope.submittedAt) !== Date.parse(recovered.recoveredAt)) issue(['submittedAt'], 'Submission must use the frozen recovery time');
+      if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'recoveredStall'], 'Recovered probes must be anonymous and attachment-free');
+      if (Object.keys(envelope.payload).some(key => key !== 'recoveredStall')) issue(['payload'], 'Recovered probes cannot include other captured content');
+      if (Object.values(envelope.captures).some(value => value === true) || envelope.context.route !== undefined) issue(['captures'], 'Recovered probes cannot claim private captures');
+      return;
+    }
     if (!evidence) {
       if (envelope.source === 'diagnostic') issue(['payload', 'diagnostic'], 'Diagnostic source requires evidence');
       return;

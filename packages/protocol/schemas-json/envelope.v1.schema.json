@@ -1058,6 +1058,9 @@
         },
         "diagnostic": {
           "$ref": "#/$defs/DiagnosticEvidence"
+        },
+        "recoveredStall": {
+          "$ref": "#/$defs/RecoveredStallEvidence"
         }
       },
       "additionalProperties": {}
@@ -2683,6 +2686,133 @@
       ],
       "additionalProperties": false,
       "title": "DiagnosticEvidence"
+    },
+    "RecoveredStallEvidence": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "evidenceId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "recovered_main_thread_stall"
+        },
+        "provenance": {
+          "type": "string",
+          "const": "android_main_looper_probe"
+        },
+        "outcome": {
+          "type": "string",
+          "const": "recovered"
+        },
+        "scope": {
+          "type": "string",
+          "const": "main_looper"
+        },
+        "queuedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "recoveredAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "probeDelayMs": {
+          "type": "integer",
+          "minimum": 5000,
+          "maximum": 60000
+        },
+        "thresholdMs": {
+          "type": "number",
+          "const": 5000
+        },
+        "sampleIntervalMs": {
+          "type": "number",
+          "const": 1000
+        },
+        "clock": {
+          "type": "string",
+          "const": "uptime"
+        },
+        "eligibility": {
+          "type": "string",
+          "const": "foreground-debugger-checked-v1"
+        },
+        "trace": {
+          "type": "string",
+          "const": "not_collected"
+        },
+        "attribution": {
+          "type": "object",
+          "properties": {
+            "release": {
+              "type": "string",
+              "const": "frozen"
+            },
+            "session": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "webExposure": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "nativeExposure": {
+              "type": "string",
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "release",
+            "session",
+            "webExposure",
+            "nativeExposure"
+          ],
+          "additionalProperties": false
+        },
+        "android": {
+          "type": "object",
+          "properties": {
+            "apiLevel": {
+              "type": "integer",
+              "minimum": 24,
+              "maximum": 1000
+            }
+          },
+          "required": [
+            "apiLevel"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "evidenceId",
+        "kind",
+        "provenance",
+        "outcome",
+        "scope",
+        "queuedAt",
+        "recoveredAt",
+        "probeDelayMs",
+        "thresholdMs",
+        "sampleIntervalMs",
+        "clock",
+        "eligibility",
+        "trace",
+        "attribution",
+        "android"
+      ],
+      "additionalProperties": false,
+      "title": "RecoveredStallEvidence"
     }
   }
 }

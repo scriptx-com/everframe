@@ -161,26 +161,28 @@ let rewritten = source.replace(
 const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const payloadMatch = rewritten.match(payloadPattern);
 if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
-const diagnosticProperty = '    val diagnostic: DiagnosticEvidence? = null,';
-const payloadProperties = payloadMatch[1].split('\n');
-const diagnosticIndex = payloadProperties.indexOf(diagnosticProperty);
-if (diagnosticIndex < 0) throw new Error('codegen-kotlin: Payload.diagnostic missing');
-payloadProperties.splice(diagnosticIndex, 1);
-const oldParameters = payloadProperties.map(line => line.replace('val ', '').replace(/,$/, ''));
-const names = oldParameters.map(line => line.trim().split(':')[0]);
-const constructorParameters = oldParameters.join(',\n');
-const copyParameters = oldParameters.map((line, index) => line.replace(/ = null$/, ` = this.${names[index]}`)).join(',\n');
-payloadProperties[payloadProperties.length - 1] += ',';
-payloadProperties.push('    val diagnostic: DiagnosticEvidence? = null');
-rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${payloadProperties.join('\n')}\n) {
-    constructor(
-${constructorParameters}
-    ) : this(${names.join(', ')}, null)
+const payloadProperties = payloadMatch[1].split('\n').filter(line =>
+  !/val (diagnostic|recoveredStall):/.test(line));
+const baseParameters = payloadProperties.map(line => line.replace('val ', '').replace(/,$/, ''));
+const baseNames = baseParameters.map(line => line.trim().split(':')[0]);
+const overload = (withDiagnostic) => {
+  const parameters = [...baseParameters, ...(withDiagnostic ? ['    diagnostic: DiagnosticEvidence? = null'] : [])];
+  const names = [...baseNames, ...(withDiagnostic ? ['diagnostic'] : [])];
+  const copy = parameters.map((line, i) => line.replace(/ = null$/, ` = this.${names[i]}`));
+  return `    constructor(\n${parameters.join(',\n')}\n    ) : this(${baseNames.join(', ')}, ${withDiagnostic ? 'diagnostic' : 'null'}, null)
 
-    fun copy(
-${copyParameters}
-    ): Payload = Payload(${names.join(', ')}, diagnostic)
-}`);
+    fun copy(\n${copy.join(',\n')}\n    ): Payload = Payload(${baseNames.join(', ')}, diagnostic, recoveredStall)`;
+};
+payloadProperties[payloadProperties.length - 1] += ',';
+payloadProperties.push('    val diagnostic: DiagnosticEvidence? = null,', '    val recoveredStall: RecoveredStallEvidence? = null');
+rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${payloadProperties.join('\n')}\n) {\n${overload(false)}\n\n${overload(true)}\n}`);
+// A second evidence shape changes quicktype's inferred sibling names. Keep the
+// original OS-evidence ABI names; new observer types remain explicitly distinct.
+for (const [generated, stable] of Object.entries({
+  DiagnosticAndroid: 'Android', DiagnosticAttribution: 'Attribution',
+  DiagnosticOutcome: 'Outcome', DiagnosticProvenance: 'Provenance', DiagnosticScope: 'Scope',
+  TraceClass: 'Trace', TraceEnum: 'RecoveredStallTrace', Clock: 'RecoveredStallClock', Eligibility: 'RecoveredStallEligibility',
+})) rewritten = rewritten.replace(new RegExp(`\\b${generated}\\b`, 'g'), stable);
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {
   throw new Error('codegen-kotlin: Format block shape changed');
