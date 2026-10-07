@@ -1,0 +1,37 @@
+packages/cli/README.md
+  s_97602a0a2d8f20::t_eafe0da9d67bc7 100-137
+packages/cli/__tests__/elf-build-fixtures.ts
+  s_97602a0a2d8f20::t_5da5d01a1342d1 3-33,35-58
+packages/cli/__tests__/elf-build.spec.ts
+  s_97602a0a2d8f20::t_603b4c5c8a22d3 15-22,26-60,63-87,89-161
+packages/cli/__tests__/elf-upload-build.spec.ts
+  s_97602a0a2d8f20::t_dcfe67b0c8146f 1-154
+packages/cli/examples/upload-android-symbols.gradle.kts
+  s_97602a0a2d8f20::t_98d6eb5273ebe7 1-25
+packages/cli/examples/upload-android-symbols.sh
+  s_97602a0a2d8f20::t_ee513a4a148e18 1-23
+packages/cli/src/elf-build.ts
+  s_97602a0a2d8f20::t_67c66779ac907f 10-19,21-26,30-64,66-67,70-130,132-153
+packages/cli/src/elf-identity.ts
+  s_97602a0a2d8f20::t_83611be1181f84 6-26,28-62,64-77,79-126
+packages/cli/src/elf-upload.ts
+  s_97602a0a2d8f20::t_bee42add4491c5 1-26
+packages/cli/src/index.ts
+  s_97602a0a2d8f20::t_5a7411ae4acb7a 12,25-27,51,74,88,277-296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25199cd00e070e60762a92a0c4b22f98bac8273b",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
