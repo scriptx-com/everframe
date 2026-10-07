@@ -157,18 +157,18 @@ enum NativeCrashRecordDecoder {
         guard isSystemImage(path) else { return .app }
         switch basename(path) { case "dyld": return .dyld; case "dyld_sim": return .dyldSim; default: return .system }
     }
-    /// Where the entry point (main, or $main and main) begins: the app run directly above the loader's start, the
-    /// stack's final OS frame. That is dyld's start on devices; on simulators the host's dyld start runs dyld_sim's
-    /// start_sim, the loader's start there. Either loader image can be unlisted, so unmatched frames below a loader
-    /// frame are skipped and an unmatched frame directly above dyld's start is start_sim. Without a final OS frame
-    /// there is no entry point, and the frame count is returned.
+    /// Where the entry point (main, or $main and main) begins: the app run directly above the loader's start. That is
+    /// dyld's start on devices; on simulators the host's dyld start runs dyld_sim's start_sim, the loader's start there.
+    /// Either loader image can be unlisted, so unmatched frames below a loader frame are skipped and an unmatched frame
+    /// directly above dyld's start is start_sim. A stack that no loader frame ends, such as a background thread's or a
+    /// Swift Task's that ends at the concurrency runtime's job runner, has no entry point, and the frame count is returned.
     private static func entryPoint(_ images: [FrameImage]) -> Int {
         var start = images.count
         while start > 0, images[start - 1] == .unmatched { start -= 1 }
         if start > 0, images[start - 1] == .dyld || images[start - 1] == .dyldSim {
             start -= 1
             if images[start] == .dyld, start > 0, images[start - 1] == .dyldSim || images[start - 1] == .unmatched { start -= 1 }
-        } else if images.last == .system { start = images.count - 1 } else { return images.count }
+        } else { return images.count }
         while start > 0, images[start - 1] == .app { start -= 1 }
         return start
     }

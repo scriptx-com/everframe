@@ -274,8 +274,11 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                       "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
                       "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
                       "/System/Library/Frameworks/SwiftUI.framework/SwiftUI", "/usr/lib/system/libdispatch.dylib",
-                      "/usr/lib/system/libsystem_pthread.dylib"]
-        let (objc, quartz, cf, uikit, swiftUI, dispatch, pthread, dyld, dyldSim, app, unknown) = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+                      "/usr/lib/system/libsystem_pthread.dylib", "/usr/lib/system/libsystem_kernel.dylib",
+                      "/usr/lib/system/libsystem_c.dylib", "/usr/lib/swift/libswiftCore.dylib",
+                      "/usr/lib/swift/libswift_Concurrency.dylib"]
+        let (objc, quartz, cf, uikit, swiftUI, dispatch, pthread, kernel, libc, swiftCore, concurrency) = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        let (dyld, dyldSim, app, unknown) = (11, 12, 13, 14)
         let layouts: [(name: String, simulator: Bool, unlisted: Set<Int>, start: [(Int, UInt64)])] = [
             ("device", false, [dyldSim], [(dyld, 0x700)]), ("simulator", true, [], [(dyldSim, 0x20), (dyld, 0x700)]),
             ("simulator without dyld_sim", true, [dyldSim], [(dyldSim, 0x20), (dyld, 0x700), (unknown, 0)]),
@@ -314,9 +317,22 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
             let direct: [(Int, UInt64)] = [(app, 0x100), (app, 0x600)] + layout.start
             let loader = layout.start[0].0
             let initializer: [(Int, UInt64)] = [(cf, 0x10), (objc, 0x50), (app, 0x100), (loader, 0x100), (loader, 0x200)] + layout.start
+            // A crash inside a Swift Task: the recorded stack can end at the concurrency runtime's job runner, with no
+            // loader frame, so the app's async function is not an entry point.
+            let task = { (fault: [(Int, UInt64)], site: UInt64) -> [(Int, UInt64)] in fault + [(app, site), (concurrency, 0x100)] }
             for (label, stack, type) in [("site", site(0x100), "nsexception"), ("background", background, "nsexception"),
-                                         ("direct", direct, "mach"), ("initializer", initializer, "nsexception")] {
+                                         ("direct", direct, "mach"), ("initializer", initializer, "nsexception"),
+                                         ("task", task([(swiftCore, 0x10), (swiftCore, 0x20)], 0x100), "mach")] {
                 XCTAssertEqual(try fingerprint(stack, type: type), try fingerprint(stack, type: type, osBuild: 2), layout.name + " " + label)
+            }
+            // Distinct Task call sites stay apart however deep the fault sits in OS code: a fault five OS frames down
+            // under a MainActor Task, and an abort-shaped runtime trap such as an exclusivity violation.
+            let uiFault: [(Int, UInt64)] = [(objc, 0x10), (uikit, 0x100), (uikit, 0x200), (uikit, 0x300), (quartz, 0x100)]
+            let trap: [(Int, UInt64)] = [(kernel, 0x10), (pthread, 0x20), (libc, 0x30), (swiftCore, 0x100), (swiftCore, 0x200),
+                                         (swiftCore, 0x300), (swiftCore, 0x400)]
+            for (label, fault, type) in [("task fault", uiFault, "mach"), ("task trap", trap, "signal")] {
+                XCTAssertNotEqual(try fingerprint(task(fault, 0x100), type: type), try fingerprint(task(fault, 0x200), type: type),
+                                  layout.name + " " + label)
             }
         }
     }
