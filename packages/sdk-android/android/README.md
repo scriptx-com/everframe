@@ -571,10 +571,11 @@ controls, are recorded.
 - a view cannot be classified, a React Native view appears without the platform adapter, or the
   adapter answers `UNKNOWN`.
 - a masked view's drawn position cannot be proven: it sits in an overlay or under a broken parent
-  chain; a legacy `Animation` or an animation matrix applies to it or an ancestor; a layout
-  transition is running above it; it or an ancestor is `INVISIBLE` or has transition alpha below one,
-  because a shared-element transition can draw it from an overlay ghost; or it is `GONE` while a
-  removal transition still draws it. A `GONE` ordinary child needs no mask.
+  chain; a legacy `Animation` or an animation matrix applies to it or an ancestor (an `Animation`
+  kept with `fillAfter` keeps refusing frames until `clearAnimation()`); a layout transition is
+  running above it; it or an ancestor is `INVISIBLE` or has transition alpha below one, because a
+  shared-element transition can draw it from an overlay ghost; or it is `GONE` while a removal
+  transition still draws it. A `GONE` ordinary child needs no mask.
 - the keyboard pans the window (`adjustPan`) and the frame needs masks: the panned window is drawn
   shifted, so the masks would miss the views they cover.
 - the window is `FLAG_SECURE`, wide-gamut or HDR, or unfocused, the 2,048-node / 2 ms budget runs
