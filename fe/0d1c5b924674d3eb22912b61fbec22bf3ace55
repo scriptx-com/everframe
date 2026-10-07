@@ -1,0 +1,27 @@
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryFiles.swift
+  s_97602a0a2d8f20::t_2db5eac0b98d31 1-100
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecovery.swift
+  s_97602a0a2d8f20::t_2db5eac0b98d31 1-140,144-248
+  s_97602a0a2d8f20::t_025b106d46257b 141-143
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecoveryTests.swift
+  s_97602a0a2d8f20::t_025b106d46257b 165-222
+  s_97602a0a2d8f20::t_c1cf8d2567d5af 1-164,223
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryJournal.swift
+  s_97602a0a2d8f20::t_2db5eac0b98d31 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fe0d1c5b924674d3eb22912b61fbec22bf3ace55",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
