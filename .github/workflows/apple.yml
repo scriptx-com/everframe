@@ -29,3 +29,5 @@ jobs:
         run: node packages/sdk-ios/crash-recorder/scripts/verify-vendor.mjs
       - name: Build crash recorder
         run: swift build --package-path packages/sdk-ios/crash-recorder --product EFCRProbe
+      - name: Crash recorder admission regression
+        run: packages/sdk-ios/crash-recorder/Tests/gate-admission.sh "$RUNNER_TEMP/gate-admission"

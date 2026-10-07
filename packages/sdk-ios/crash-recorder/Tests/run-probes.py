@@ -100,6 +100,7 @@ def run_probes(binary, evidence):
             for report in sorted((Path(path) / 'Reports').glob('*.json')):
                 raw = report.read_bytes()
                 parsed = json.loads(raw)
+                require('everframe_context_id' not in parsed.get('user', {}), f'{name}: legacy caller unexpectedly gained context')
                 reports.append({'path': str(report.relative_to(evidence)), 'sha256': hashlib.sha256(raw).hexdigest(),
                                 'id': parsed['report']['id'], 'error': parsed.get('crash', {}).get('error')})
         signals = sorted(SIGNALS[extra]) if fatal else []

@@ -7,8 +7,9 @@ An isolated recording foundation for future Everframe iOS/tvOS native crash
 integration. This standalone SwiftPM package is **not yet wired into the
 Everframe SDK's startup, recovery, upload or published XCFrameworks**.
 
-The `EverframeCrashRecorder` library exposes four C integration functions through
-`EverframeCrashRecorder.h`: install, set enabled, read enabled, and version.
+The `EverframeCrashRecorder` library exposes five C integration functions through
+`EverframeCrashRecorder.h`: install, set enabled, read enabled, set context
+identifier, and version.
 It builds for iOS 15/tvOS 15; macOS 14 is a qualification host. The vendor headers
 are private to the Clang target. The package uses no unsafe compiler flags.
 
@@ -173,3 +174,39 @@ sentinel and for a stack canary written in the faulting frame. Every output and 
 report is retained. `Tests/DualProbe/main.m` supports full-object link and fatal-chain
 qualification alongside ordinary upstream recording objects.
 Test helpers are not part of the library product.
+
+## Immutable context handoff
+
+`EFCRSetContextIdentifier` adds an integration-only ownership reference. After
+successful installation, persist the corresponding context durably, keep recording
+disabled, publish its canonical lowercase UUID, then enable only on success. NULL
+clears the current reference. Publishing or clearing while enabled fails. Invalid
+input and exhaustion leave the previous reference unchanged. Unlike installation and
+enable/disable, publication may run on any healthy thread: it takes the same lock but
+calls no UIKit or vendor code. It must never run in a crash or signal handler. A
+caller that publishes off the main thread still enables on the main thread, after
+publication returns true.
+
+There are 256 immutable process-lifetime slots; repeated identifiers reuse a slot.
+The first admitted fatal event freezes its slot, including the no-context sentinel,
+for that terminating process. The writer emits only that identifier under
+`user.everframe_context_id`. Later publication cannot reassign it. The admitted slot
+is never cleared, so a recrash report reuses it; this follows from the gate design
+and is not separately probed. Standard reports from callers that publish nothing
+keep their original shape. A recrash report, written if the crash handler itself
+faults, now always contains a `user` object, empty unless an identifier was admitted.
+No application context, configuration, identity object or arbitrary userInfo is
+read in either callback. The SDK's automatic startup/recovery integration is still pending.
+
+`Tests/context-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
+runs eight real fatal context cases. The admitted-A and empty-context cases
+explicitly invoke the admission callback before publishing B, then trigger a real
+fatal report; this exercises the boundary deterministically, not a scheduler race.
+The switched and admitted-A cases publish B from a background thread.
+The two capacity cases trap right after a rejected publication, so their reports
+show the owner each rejection kept: the last allocated slot, or a reused earlier one.
+
+`Tests/gate-admission.sh /path/to/new-output` compiles `Tests/GateAdmission/main.c`
+with the actual gate source and runs it. It disables recording and publishes another
+identifier between the report callback's first atomic load and its admission, and
+exits nonzero if that identifier is ever admitted. It needs no vendor build.
