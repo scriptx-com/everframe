@@ -283,7 +283,7 @@ struct NativeVideoCaptureTests {
         #expect(pixel(frame, frame.width * 3 / 4, frame.height / 4) == [0, 0, 0, 255])
         #expect(pixel(frame, frame.width * 16 / 64, frame.height * 48 / 64) == [255, 0, 0, 255])
     }
-    @Test func sensitiveVideoStillBlacksOutOverlays() async throws {
+    @Test func sensitivePlayerContainerStillBlacksOutOverlays() async throws {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
         window.backgroundColor = .white; window.isHidden = false
         defer { window.isHidden = true }
@@ -295,6 +295,31 @@ struct NativeVideoCaptureTests {
         SensitiveRectRegistry.mark(player)
         let frame = try #require(await NativeVideoCapture().capture(window: window, timestampNanos: 1))
         #expect(pixel(frame, frame.width * 16 / 64, frame.height * 48 / 64) == [0, 0, 0, 255])
+    }
+    // The player view's own layer is the video surface (`layerClass`), so the
+    // sensitive mark and the video surface meet on one layer.
+    @Test(arguments: [false, true])
+    func layerBackedPlayerBlacksOutControlsOnlyWhenSensitive(sensitive: Bool) async throws {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
+        window.backgroundColor = .white; window.isHidden = false
+        defer { window.isHidden = true }
+        let host = UIView(frame: window.bounds)
+        let player = LayerBackedPlayerView(frame: host.bounds)
+        let control = UIView(frame: CGRect(x: 8, y: 40, width: 16, height: 16)); control.backgroundColor = .blue
+        host.addSubview(player); host.addSubview(control); window.addSubview(host)
+        if sensitive { SensitiveRectRegistry.mark(player) }
+        #expect(player.layer is AVPlayerLayer)
+        let privacy = try NativeVideoPrivacy.collect(window: window)
+        #expect(privacy.excludedLayers.contains(ObjectIdentifier(player.layer)))
+        if sensitive {
+            #expect(privacy.rects.contains(player.convert(player.bounds, to: window)))
+        } else {
+            #expect(privacy.rects.isEmpty)
+        }
+        let frame = try #require(await NativeVideoCapture().capture(window: window, timestampNanos: 1))
+        #expect(pixel(frame, frame.width * 3 / 4, frame.height / 4) == [0, 0, 0, 255])
+        #expect(pixel(frame, frame.width * 16 / 64, frame.height * 48 / 64) ==
+            (sensitive ? [0, 0, 0, 255] : [255, 0, 0, 255]))
     }
     @Test func hiddenAncestorDoesNotDrawDescendants() async throws {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
@@ -322,5 +347,9 @@ private final class OversizedDrawingLayer: CALayer {
         context.setFillColor(UIColor.blue.cgColor)
         context.fill(CGRect(x: 0, y: bounds.minY + 4532, width: bounds.width, height: 1468))
     }
+}
+
+private final class LayerBackedPlayerView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
 }
 #endif
