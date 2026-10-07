@@ -1,0 +1,22 @@
+packages/sdk-react-native/__tests__/report-delivery-status.test.ts
+  s_360d9eb003c487::t_f44964e8d9210f 48-63,65
+  s_360d9eb003c487::t_537e4d1d7f7d62 64
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_cb1677ff9ef50a 152-193,707-710
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "673a8cb15f8d33080c3a81d4db3211c60903f20e",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
