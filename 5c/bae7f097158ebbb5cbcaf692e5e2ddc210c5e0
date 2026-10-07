@@ -1,0 +1,24 @@
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_67f013d954e5fd 92-102,105-109
+  s_360d9eb003c487::t_6ae5d43da72837 10-12
+packages/sdk-ios/crash-recorder/Tests/gate-admission.sh
+  s_360d9eb003c487::t_207796d68f4adb 1-23
+.github/workflows/apple.yml
+  s_360d9eb003c487::t_21167146c68b1f 26-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5cbae7f097158ebbb5cbcaf692e5e2ddc210c5e0",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
