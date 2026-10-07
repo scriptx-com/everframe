@@ -29,7 +29,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 let browser;
 try {
-  const result = await build({ stdin: { contents: 'export {init} from "./src/init.ts"; export * from "./src/release-health/journal.ts";', resolveDir: process.cwd() },
+  const result = await build({ stdin: { contents: 'export {init} from "./src/init.ts"; export * from "./src/release-health/journal.ts"; export {setupReleaseHealth} from "./src/release-health/runtime.ts";', resolveDir: process.cwd() },
     bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2022',
     alias: { '@everframe/sdk-core': resolve('../sdk-core/src/index.ts'), '@everframe/protocol': resolve('../protocol/src/index.ts') },
     define: { __EVERFRAME_INGEST_URL__: JSON.stringify(base), 'process.env.NODE_ENV': '"production"' } });
@@ -118,7 +118,38 @@ try {
     window.handle.kill(); await window.handle.releaseHealth.ready; await window.handle.releaseHealth.flush();
   });
   assert.equal(received.length, beforeImmediateKill);
+  // A failed purge remains a barrier for subsequent producers in this document.
+  const failedPurge = await page.evaluate(async () => {
+    const original = IDBDatabase.prototype.transaction;
+    const send = window.fetch;
+    const cases = [];
+    try {
+      for (const mode of ['kill', 'disabled']) {
+        const sent = []; let online = false;
+        window.fetch = async (_url, options) => {
+          if (online) sent.push(JSON.parse(options.body).exposure.loadedBuildId);
+          return new Response('{}', { status: online ? 201 : 503 });
+        };
+        const config = { apiKey: 'failed-purge-' + mode, releaseHealth: { enabled: true, loadedBuildId: 'erased-build' } };
+        const first = window.sdk.setupReleaseHealth(config, 'https://exposures.test', 'test');
+        await first.ready; await first.flush();
+        IDBDatabase.prototype.transaction = function () { throw new DOMException('Storage unavailable', 'UnknownError'); };
+        if (mode === 'kill') await first.revoke();
+        else await window.sdk.setupReleaseHealth({ ...config, releaseHealth: { enabled: false } }, 'https://exposures.test', 'test').ready;
+        const blocked = window.sdk.setupReleaseHealth(config, 'https://exposures.test', 'test');
+        await blocked.ready; await blocked.flush();
+        const blockedState = (await blocked.diagnostics()).state;
+        IDBDatabase.prototype.transaction = original; online = true;
+        const next = window.sdk.setupReleaseHealth({ ...config, releaseHealth: { enabled: true, loadedBuildId: 'new-build' } }, 'https://exposures.test', 'test');
+        await next.ready; await next.flush();
+        cases.push({ mode, blockedState, sent });
+        await first.stop(); await blocked.stop(); await next.stop();
+      }
+      return cases;
+    } finally { IDBDatabase.prototype.transaction = original; window.fetch = send; }
+  });
+  assert.deepEqual(failedPurge, ['kill', 'disabled'].map(mode => ({ mode, blockedState: 'unavailable', sent: ['new-build'] })));
   await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: await browser.version(), received,
-    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill'] }, null, 2));
+    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'failed-purge-reenable-barrier'] }, null, 2));
   console.log('PASS: actual init, real IndexedDB, offline reload, frozen build/route, privacy kill and disabled purge');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

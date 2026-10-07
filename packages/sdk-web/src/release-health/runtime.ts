@@ -17,6 +17,9 @@ export interface ReleaseHealthHandle {
   diagnostics(): Promise<ReleaseHealthDiagnostics>;
 }
 let pageLaunchId: string | undefined;
+// Retain failed erasure intent across producer instances in this document.
+// A token prevents an earlier purge from clearing a newer revocation request.
+const pendingRevocations = new Map<string, symbol>();
 const MAX_REQUEST_MS = 10_000;
 
 /** Init-owned producer. It collects no user or replay data and never assigns outcomes. */
@@ -27,6 +30,8 @@ export function setupReleaseHealth(config: {
   const explicitlyDisabled = config.disabled === true || config.releaseHealth?.enabled === false;
   // Snapshot caller-owned mutable objects before the first await.
   const apiKey = config.apiKey;
+  const routeIdentity = JSON.stringify([endpoint, apiKey]);
+  if (explicitlyDisabled) pendingRevocations.set(routeIdentity, Symbol());
   const loadedBuildId = config.releaseHealth?.loadedBuildId ?? null;
   let state: ReleaseHealthDiagnostics['state'] = enabled ? 'starting' : 'disabled';
   let exposure: ReleaseHealthExposure | null = null;
@@ -50,8 +55,16 @@ export function setupReleaseHealth(config: {
   const snapshot = (queued = 0): ReleaseHealthDiagnostics => ({ state, exposure: exposure ? structuredClone(exposure) : null,
     queued, priorQueueLosses: losses, ...(error === undefined ? {} : { error }) });
 
+  async function purgePending() {
+    if (!journal) return;
+    while (pendingRevocations.has(routeIdentity)) {
+      const token = pendingRevocations.get(routeIdentity);
+      await journal.revoke(route);
+      if (pendingRevocations.get(routeIdentity) === token) pendingRevocations.delete(routeIdentity);
+    }
+  }
   async function begin() {
-    if (!journal || stopped || revoked || hidden) return;
+    if (!journal || stopped || revoked || hidden || pendingRevocations.has(routeIdentity)) return;
     const current = await journal.list(route, generation);
     losses = current.losses;
     const next: ReleaseHealthExposure = {
@@ -63,7 +76,7 @@ export function setupReleaseHealth(config: {
     const mono = performance.now();
     await journal.append(route, generation, { schemaVersion: 1, recordId: crypto.randomUUID(),
       exposure: next, phase: 'start', sequence: 0, capturedAt: next.startedAt, elapsedMs: 0 });
-    if (revoked || stopped) return;
+    if (revoked || stopped || pendingRevocations.has(routeIdentity)) return;
     exposure = next; startedMono = mono; state = 'active';
   }
   async function end(reason: 'sdk_stop' | 'page_hide') {
@@ -81,14 +94,14 @@ export function setupReleaseHealth(config: {
     catch (reason) { failure(reason); return snapshot(); }
   }
   async function drain() {
-    if (!journal || stopped || revoked || hidden || state === 'unavailable') return;
+    if (!journal || stopped || revoked || hidden || pendingRevocations.has(routeIdentity) || state === 'unavailable') return;
     const rows = (await journal.list(route, generation)).rows;
     for (const row of rows) {
-      if (stopped || revoked || hidden) break;
+      if (stopped || revoked || hidden || pendingRevocations.has(routeIdentity)) break;
       // A new transaction observes another tab's revoke before each request.
       const current = await journal.list(route, generation);
       if (!current.rows.some(item => item.key === row.key)) continue;
-      if (stopped || revoked || hidden) break;
+      if (stopped || revoked || hidden || pendingRevocations.has(routeIdentity)) break;
       const controller = new AbortController(); inFlight = controller;
       const timer = setTimeout(() => controller.abort(), MAX_REQUEST_MS);
       try {
@@ -122,10 +135,11 @@ export function setupReleaseHealth(config: {
   function unlisten() { if (!listening) return; listening = false; window.removeEventListener('online', online); window.removeEventListener('pagehide', pagehide); window.removeEventListener('pageshow', pageshow); }
   const ready: Promise<ReleaseHealthDiagnostics> = (async () => {
     if (!enabled && !explicitlyDisabled) return snapshot();
-    const bytes = new TextEncoder().encode(JSON.stringify([endpoint, apiKey]));
+    const bytes = new TextEncoder().encode(routeIdentity);
     route = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
     journal = await openReleaseHealthJournal();
-    if (revoked) { await journal.revoke(route); state = 'disabled'; return snapshot(); }
+    await purgePending();
+    if (revoked) { state = 'disabled'; return snapshot(); }
     if (stopped) { state = 'stopped'; return snapshot(); }
     const activated = await journal.activate(route); generation = activated.generation; losses = activated.losses;
     await begin();
@@ -145,8 +159,9 @@ export function setupReleaseHealth(config: {
       return serialize(async () => { await ready; await end('sdk_stop'); if (!revoked) state = 'stopped'; }).catch(failure);
     },
     revoke() {
+      pendingRevocations.set(routeIdentity, Symbol());
       revoked = true; stopped = true; state = 'disabled'; inFlight?.abort(); unlisten();
-      return serialize(async () => { await ready; if (journal && route) await journal.revoke(route); exposure = null; }).catch(failure);
+      return serialize(async () => { await ready; if (journal && route) await purgePending(); exposure = null; }).catch(failure);
     },
   };
 }
