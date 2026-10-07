@@ -163,6 +163,35 @@ class CrashReporterTest {
         }
     }
 
+    @Test fun `native cause text is redacted by the production redactor before persistence`() {
+        for (handled in listOf(false, true)) {
+            val inner = IllegalStateException("token Bearer abc.def-123 ssn 123-45-6789")
+                .apply { stackTrace = arrayOf(StackTraceElement("Sample", "cause", "Sample.kt", 12)) }
+            val root = RuntimeException("outer", inner)
+            if (handled) assertTrue(CrashReporter.captureHandledThrowable(root))
+            else CrashReporter.captureThrowable(Thread.currentThread(), root)
+            val crash = persistedEnvelope("redacted-native-cause")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            val cause = crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject
+            assertEquals("token [REDACTED] ssn [REDACTED:SSN]", cause["message"]!!.jsonPrimitive.content)
+            assertFalse(crash.toString().contains("abc.def-123") || crash.toString().contains("123-45-6789"))
+        }
+    }
+
+    @Test fun `bridged cause text is redacted by the production redactor before persistence`() {
+        for (handled in listOf(false, true)) {
+            val chain = org.json.JSONObject("""{"causes":[{"exceptionType":"TypeError","message":"inner Bearer abc.def-123","frames":[{"raw":"at inner ssn 123-45-6789"}],"framesTruncated":false}],"truncated":false}""")
+            assertTrue(if (handled) CrashReporter.captureHandledFactsWithCauses("Error", "outer", listOf("at outer (a.js:1:2)"),
+                "2026-10-05T00:00:00Z", null, null, chain, "everframe-react-native")
+            else CrashReporter.captureFactsAcceptedWithCauses("Error", "outer", listOf("at outer (a.js:1:2)"), "errorutils", false,
+                "2026-10-05T00:00:00Z", null, null, chain))
+            val crash = persistedEnvelope("redacted-bridge-cause")["payload"]!!.jsonObject["crash"]!!.jsonObject
+            val cause = crash["causeChain"]!!.jsonObject["causes"]!!.jsonArray.single().jsonObject
+            assertEquals("inner [REDACTED]", cause["message"]!!.jsonPrimitive.content)
+            assertEquals("at inner ssn [REDACTED:SSN]", cause["frames"]!!.jsonArray.single().jsonObject["raw"]!!.jsonPrimitive.content)
+            assertFalse(crash.toString().contains("abc.def-123") || crash.toString().contains("123-45-6789"))
+        }
+    }
+
     @Test fun `native cause getter revocation cannot enqueue stale capture`() {
         val inner = object : RuntimeException() {
             override val message: String? get() { Everframe.kill(); return "revoked" }

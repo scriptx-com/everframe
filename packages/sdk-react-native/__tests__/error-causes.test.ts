@@ -60,6 +60,19 @@ it('does not submit after cause inspection disposes the capture owner', () => {
   controller.captureException(proxy);
   expect(handled).not.toHaveBeenCalled();
 });
+it('redacts cause messages and frames with the production redactor before bridging', () => {
+  controller = createCaptureController({});
+  const { error, cause } = makeError();
+  cause.message = 'ssn 123-45-6789 card 4111 1111 1111 1111 token aaaaaaaa.bbbbbbbb.cccccccc';
+  cause.stack = 'TypeError: inner\n    at inner (index.android.bundle:1:42) ssn 123-45-6789';
+  controller.captureException(error);
+  const json = handled.mock.calls[0]![0];
+  expect(JSON.parse(json).causeChain.causes[0]).toMatchObject({
+    message: 'ssn [REDACTED:SSN] card [REDACTED:CC] token [REDACTED:JWT]',
+    frames: [{ raw: 'at inner (index.android.bundle:1:42) ssn [REDACTED:SSN]' }],
+  });
+  expect(json).not.toMatch(/123-45-6789|4111 1111|aaaaaaaa\.bbbbbbbb/);
+});
 it('drops a cause token cut by the scan window before the JavaScript redactor runs', () => {
   controller = createCaptureController({});
   const { error, cause } = makeError();
