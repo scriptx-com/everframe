@@ -180,6 +180,25 @@ class ReporterDialogLifecycleTest {
         } finally { gate.countDown(); result.cancelAndJoin(); capture.cancel() }
     }
 
+    @Test fun cancellingTheCallerAfterSendLeavesEvidenceWithTheSubmission() = runBlocking {
+        val host = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        host.get().setContentView(android.widget.FrameLayout(host.get()))
+        startCapture(host.get())
+        val outbox = offlineSubmissions()
+        var send: Send? = null
+        ReporterDialog.__onMountedForTesting = { send = it }
+        val gate = CountDownLatch(1)
+        val presenter = TXReporterPresenter(captureScreenshot = { _, _ -> screenshot() })
+        val caller = async(Dispatchers.Main) { presenter.openReporter(host.get()) }
+        try {
+            send!!("Sent before the caller left", "", heldShots(gate), ReporterIncludes())
+            // A lifecycle-scoped caller, cancelled when the user leaves right after Send.
+            caller.cancelAndJoin()
+            gate.countDown()
+            assertEquals(listOf("owned-evidence"), queuedBreadcrumbs(outbox))
+        } finally { gate.countDown(); caller.cancelAndJoin(); host.pause().stop().destroy() }
+    }
+
     @Test fun destroyedHostCannotMountAReporter() = runBlocking {
         val host = Robolectric.buildActivity(ComponentActivity::class.java).setup()
         host.get().setContentView(android.widget.FrameLayout(host.get()))
