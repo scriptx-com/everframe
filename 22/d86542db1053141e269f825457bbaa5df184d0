@@ -1,0 +1,107 @@
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_97602a0a2d8f20::t_5fc2c0afe98663 84-102
+packages/protocol/__tests__/json-schema.spec.ts
+  s_97602a0a2d8f20::t_8e406f1fe0da10 224-247
+packages/protocol/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_2ee8fe543f4f12 40-78
+packages/protocol/compat/native-exposure/ConfigMain.kt
+  s_97602a0a2d8f20::t_fd79e326a014f1 1-16
+packages/protocol/compat/native-exposure/OldConfigCaller.kt
+  s_97602a0a2d8f20::t_a73a2bd9cc2cf4 1-8
+packages/protocol/compat/native-exposure/OldDiagnosticCaller.kt
+  s_97602a0a2d8f20::t_4812a1d01b2c50 1-18
+packages/protocol/compat/native-exposure/OldDiagnosticCaller.swift
+  s_97602a0a2d8f20::t_b74e72a945b152 1-32
+packages/protocol/compat/native-exposure/OldJavaConstructors.java
+  s_97602a0a2d8f20::t_56d47de0c2e80b 1-18
+packages/protocol/compat/native-exposure/README.md
+  s_97602a0a2d8f20::t_1b32f45d51c27a 1-22
+packages/protocol/compat/native-exposure/SwiftMain.swift
+  s_97602a0a2d8f20::t_3ed0c91e6d4466 1-10
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_64923b8ed22148 3030-3083
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_c1ae157c13d98b 196-228
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_22c450a307c1fd 55-107
+packages/protocol/src/diagnostic.ts
+  s_97602a0a2d8f20::t_768e462aa44633 4,32,53-55
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_6aa1ff71995bce 65-70
+packages/protocol/src/release-health.ts
+  s_97602a0a2d8f20::t_254a49f7178700 13-29,31-32,35,39-49,62-63,67-69
+packages/sdk-android/android/README.md
+  s_97602a0a2d8f20::t_92de5e788c341a 90-133
+packages/sdk-android/android/everframe-core/consumer-rules.pro
+  s_97602a0a2d8f20::t_2e8aa4ae189059 61-64
+packages/sdk-android/android/everframe-core/proguard-rules.pro
+  s_97602a0a2d8f20::t_eab67100b22d39 73-76
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_d9e47098a4a0a0 842,848-850,1012-1018,1359,1410-1412,1568-1574,1597-1613
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_97602a0a2d8f20::t_509ba959ce369f 98-142
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReleaseHealthConfig.kt
+  s_97602a0a2d8f20::t_daaada5ff547f9 1-14
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_97602a0a2d8f20::t_e647d1e0660554 37-38
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_97602a0a2d8f20::t_2becfe0f7ef507 5,45,54-55,57-58,61,120-125
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_97602a0a2d8f20::t_0c3d95258f4f2d 5-6,24-25,63-64
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/NativeExposurePointer.kt
+  s_97602a0a2d8f20::t_46719b088a3ae0 1-48
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/OkHttpHealthTransport.kt
+  s_97602a0a2d8f20::t_4dcdf884b0a417 1-39
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ProcessLaunchIdentity.kt
+  s_97602a0a2d8f20::t_b6e40c2c223619 1-8
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthController.kt
+  s_97602a0a2d8f20::t_f37e4695b0b0d1 1-101
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthProducer.kt
+  s_97602a0a2d8f20::t_f5645f087f0ec9 1-114
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_97602a0a2d8f20::t_d7e98395704c27 1-58
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_97602a0a2d8f20::t_7a5ca750ab56a7 27,38,86-87,224
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeExposureLinkTest.kt
+  s_97602a0a2d8f20::t_57f7b27e74286d 1-121
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthControllerTest.kt
+  s_97602a0a2d8f20::t_ad5e40c1360166 1-117
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthProducerTest.kt
+  s_97602a0a2d8f20::t_d90ab19a0bc2db 1-179
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthTransportTest.kt
+  s_97602a0a2d8f20::t_f1f262702cfe70 1-59
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_3b6cc1840b0090 688-722,760-786
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/DiagnosticExposureProtocolTest.kt
+  s_97602a0a2d8f20::t_166254fe053778 1-31
+packages/sdk-android/tests/native-crash-host/README.md
+  s_97602a0a2d8f20::t_0b33fb7bdd2579 16-19
+packages/sdk-android/tests/native-crash-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_e6f2531024327c 8,13-18
+packages/sdk-android/tests/native-crash-host/app/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_77eaeba2ede4c4 5,7
+packages/sdk-android/tests/native-crash-host/app/src/main/java/dev/everframe/nativeproof/MainActivity.kt
+  s_97602a0a2d8f20::t_b43070ee4d311f 16,43-46,49-50,55-56,116,139-181
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_dd4cac531a35af 2260,2272,2277,2284,2320,2336,2356-2379,2505-2593
+packages/sdk-ios/Tests/EverframeTests/DiagnosticExposureProtocolTests.swift
+  s_97602a0a2d8f20::t_5af1d30a7497ac 1-26
+packages/sdk-web/src/release-health/runtime.ts
+  s_97602a0a2d8f20::t_16bfe611853147 3,9,37,76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "22d86542db1053141e269f825457bbaa5df184d0",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
