@@ -24,12 +24,15 @@ import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.config.ReportResult
 import dev.everframe.envelope.txGuardSuspend
+import java.lang.ref.WeakReference
+import kotlinx.coroutines.CompletableDeferred
 
 internal class TXReporterPresenter(
     private val captureScreenshot: suspend (Activity, List<android.graphics.Rect>) -> ScreenshotCapture.CaptureResult? =
         { activity, rects -> ScreenshotCapture.captureBeforeReporter(activity, rects) },
-    private val showDialog: suspend (Activity, ScreenshotCapture.CaptureResult, dev.everframe.capture.video.FrozenReportCapture, String?) -> ReportResult =
-        { activity, screenshot, capture, extra -> ReporterDialog.show(activity, screenshot, capture, extra) },
+    // The last argument is called when the dialog leaves the screen (Send or cancel).
+    private val showDialog: suspend (Activity, ScreenshotCapture.CaptureResult, dev.everframe.capture.video.FrozenReportCapture, String?, () -> Unit) -> ReportResult =
+        { activity, screenshot, capture, extra, onDismissed -> ReporterDialog.show(activity, screenshot, capture, extra, onDismissed = onDismissed) },
 ) {
 
     /**
@@ -40,6 +43,47 @@ internal class TXReporterPresenter(
         openReporter(activity) { !activity.isFinishing && !activity.isDestroyed }
 
     internal suspend fun openReporter(activity: Activity, isCurrent: () -> Boolean): ReportResult {
+        // Single-flight: every open path (host `report.open()`, the React Native
+        // bridge, the SDK's own shake trigger) funnels through here. Two opens
+        // at once used to present two dialogs: the second froze an EMPTY replay
+        // capture (the first already owned the freeze), and the hidden first
+        // kept the recorder frozen until it closed. A caller arriving while a
+        // report is open now joins it and receives the same result.
+        val (mine, existing) = synchronized(lock) {
+            val running = inFlight?.takeIf { !it.result.isCompleted }
+            if (running != null && !running.abandoned) {
+                null to running
+            } else {
+                // A dialog removed with its activity may never settle its
+                // open, so joining it could wait forever: release its joiners
+                // and present a new reporter instead.
+                running?.result?.complete(ReportResult.Cancelled("activity_destroyed"))
+                Flight(activity).also { inFlight = it } to null
+            }
+        }
+        if (existing != null) {
+            // After Send the dialog is gone while the report uploads; joining
+            // then would hand this caller the result of a report it never saw.
+            val dismissed = existing.dismissed
+            // A joining open presents nothing, so drop its caller's pending
+            // extra here rather than let it ship with a later, unrelated
+            // report. The owner drains first: opens run on the main thread,
+            // and an extra resolver round trip is serialised.
+            Everframe.consumePendingAttachments()
+            return if (dismissed) ReportResult.Cancelled("already_presenting") else existing.result.await()
+        }
+        val owned = mine!!
+        try {
+            return presentOnce(activity, isCurrent) { owned.dismissed = true }.also { owned.result.complete(it) }
+        } catch (t: Throwable) {
+            owned.result.completeExceptionally(t)
+            throw t
+        } finally {
+            synchronized(lock) { if (inFlight === owned) inFlight = null }
+        }
+    }
+
+    private suspend fun presentOnce(activity: Activity, isCurrent: () -> Boolean, onDismissed: () -> Unit): ReportResult {
         // Plan 05.1-02: flip the observable presenting-state at entry, and
         // ensure we flip it back at every exit (success / cancel / failure /
         // throw). The try/finally outside txGuardSuspend keeps the flag
@@ -133,7 +177,7 @@ internal class TXReporterPresenter(
             // 3. Show the phone/tablet Compose Dialog. (Android TV used to
             //    hand off to a separate :everframe-tv Activity; that module
             //    was removed — TV reports go through the phone companion.)
-            return@txGuardSuspend showDialog(activity, capture, reportCapture, hostExtraNormalized)
+            return@txGuardSuspend showDialog(activity, capture, reportCapture, hostExtraNormalized, onDismissed)
         }
         // Send hands the capture to its submission, which releases it when the
         // upload ends. A caller cancelled after Send must not empty it mid-upload,
@@ -155,6 +199,32 @@ internal class TXReporterPresenter(
         } finally {
             if (submitted) frozenCapture?.finishConsumption() else frozenCapture?.cancel()
             Everframe.report.__setPresenting(false)
+        }
+    }
+
+    /** One presentation, shared by every open that arrives while it is in flight. */
+    private class Flight(activity: Activity) {
+        val result = CompletableDeferred<ReportResult>()
+        private val owner = WeakReference(activity)
+
+        /** The dialog has left the screen: at Send, before the upload, or at cancel. */
+        @Volatile var dismissed = false
+
+        /**
+         * Before Send, its activity is finishing, destroyed or collected, taking
+         * the dialog with it. After Send the upload settles the result regardless.
+         */
+        val abandoned: Boolean
+            get() = !dismissed && owner.get().let { it == null || it.isFinishing || it.isDestroyed }
+    }
+
+    internal companion object {
+        private val lock = Any()
+        private var inFlight: Flight? = null
+
+        /** Tests only: forget a flight that an earlier test left in this process. */
+        internal fun __resetSingleFlightForTesting() {
+            synchronized(lock) { inFlight = null }
         }
     }
 }

@@ -106,6 +106,9 @@ internal object ReporterDialog {
      * gesture: if title or description is non-empty, a Material 3 AlertDialog
      * confirms discard before resolving `Cancelled("user_cancelled")`;
      * otherwise the back press dismisses silently.
+     *
+     * [onDismissed] runs on the main thread when the dialog leaves the screen:
+     * at Send, before the upload this call still waits for, or at cancel.
      */
     suspend fun show(
         activity: Activity,
@@ -115,6 +118,7 @@ internal object ReporterDialog {
         allowAdditionalScreenshots: Boolean = true,
         hostReplayVTree: ByteArray? = null,
         sdkName: String = "everframe-android",
+        onDismissed: () -> Unit = {},
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
         var lifecycle: ReporterDialogLifecycle? = null
@@ -215,6 +219,7 @@ internal object ReporterDialog {
                 lifecycle = ReporterDialogLifecycle(activity, reportCapture, deferred) {
                     content.removeView(composeView)
                     composeView.disposeComposition()
+                    onDismissed()
                 }
                 content.addView(composeView)
                 __onMountedForTesting?.invoke(onSubmit)
