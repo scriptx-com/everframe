@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_360d9eb003c487::t_acb50ab80330ac 446-468
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyGate.kt
+  s_360d9eb003c487::t_0d3d8813af89f7 122-124
+  s_360d9eb003c487::t_7fb6998133cbb7 134-140
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/PixelCopyVideoCaptureTest.kt
+  s_360d9eb003c487::t_c2a84f854bf814 177-209
+  s_360d9eb003c487::t_73ebe5b52c8f60 210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c4b364d4385f5a0ca53bed52afa13fa3aa3a4237",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
