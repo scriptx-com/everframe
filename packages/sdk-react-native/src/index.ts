@@ -30,6 +30,7 @@ export {
   open,
   captureException,
   getPromiseRejectionStatus,
+  getErrorCaptureStatus,
   setExtra,
   setUser,
   addBreadcrumb,
@@ -83,3 +84,5 @@ export type { CaptureExceptionOptions, ReportDraft, DeviceMetadata } from '@ever
  * warning, from the next report.
  */
 export { EXTRA_MAX_CHARS } from '@everframe/sdk-core';
+
+export type { ErrorCaptureStatus, ErrorCaptureCounters, ErrorCapturePath, ErrorCaptureOutcome } from './error-capture-status.js';
