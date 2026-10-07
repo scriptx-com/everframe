@@ -473,6 +473,10 @@ release R8 config when you depend on the AAR. It preserves:
   `SourceFile`, `LineNumberTable` (KFunction.name walks).
 - kotlinx.serialization companion serializers (envelope JSON).
 - The OkHttp interceptor entry surface.
+- The class names of React Native views and of Flutter's host View
+  (`io.flutter.embedding.android.FlutterView`), by which native video recognises windows it must
+  not record. Flutter minifies release builds by default; without this rule a renamed Flutter host
+  would be recorded like an ordinary view.
 
 To verify your release APK preserves the names Everframe needs, run:
 
