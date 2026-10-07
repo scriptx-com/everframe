@@ -193,6 +193,39 @@ rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertie
 ${overload(oldParameters, oldNames, ['diagnostic', 'appleDiagnostic'])}
 ${overload(e8Parameters, e8Names, ['appleDiagnostic'])}
 }`);
+// Keep existing diagnostic positional arguments stable; append the optional exposure.
+const evidencePattern = /data class DiagnosticEvidence \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
+const evidenceMatch = rewritten.match(evidencePattern);
+if (!evidenceMatch) throw new Error('codegen-kotlin: DiagnosticEvidence block shape changed');
+const exposureProperty = '    val nativeExposure: NativeExposure? = null,';
+const evidenceProperties = evidenceMatch[1].split('\n');
+const exposureIndex = evidenceProperties.indexOf(exposureProperty);
+if (exposureIndex < 0) throw new Error('codegen-kotlin: DiagnosticEvidence.nativeExposure missing');
+evidenceProperties.splice(exposureIndex, 1);
+const evidenceParameters = evidenceProperties.filter(line => line.trim().startsWith('val '))
+  .map(line => line.replace('val ', '').replace(/,$/, ''));
+const evidenceNames = evidenceParameters.map(line => line.trim().split(':')[0]);
+const evidenceCopy = evidenceParameters.map((line, index) => `${line} = this.${evidenceNames[index]}`);
+evidenceProperties[evidenceProperties.length - 1] += ',';
+evidenceProperties.push('    val nativeExposure: NativeExposure? = null');
+rewritten = rewritten.replace(evidencePattern, `data class DiagnosticEvidence (\n${evidenceProperties.join('\n')}\n) {
+    constructor(
+${evidenceParameters.join(',\n')}
+    ) : this(${evidenceNames.join(', ')}, null)
+
+    fun copy(
+${evidenceCopy.join(',\n')}
+    ): DiagnosticEvidence = DiagnosticEvidence(${evidenceNames.join(', ')}, nativeExposure)
+}`);
+// This nullable field is required on the wire: omission changes the exact
+// frozen pointer and must not result from the default encoder configuration.
+const exposurePattern = /data class NativeExposure \(\n([\s\S]*?)\n\)/;
+const exposureMatch = rewritten.match(exposurePattern);
+if (!exposureMatch || !exposureMatch[1].includes('    val loadedBuildID: String? = null,')) {
+  throw new Error('codegen-kotlin: NativeExposure.loadedBuildID shape changed');
+}
+rewritten = rewritten.replace(exposurePattern, exposureMatch[0].replace(
+  '    val loadedBuildID: String? = null,', '    @Required\n    val loadedBuildID: String? = null,'));
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {
   throw new Error('codegen-kotlin: Format block shape changed');

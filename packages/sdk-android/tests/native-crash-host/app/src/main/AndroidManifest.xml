@@ -2,9 +2,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Qualification harness blocks this fixture UID on its owned emulator before launch. -->
+    <!-- Harness restricts this fixture UID to explicitly owned transport before launch. -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <application android:label="Everframe native crash proof" android:allowBackup="false">
+    <application android:label="Everframe native crash proof" android:allowBackup="false" android:usesCleartextTraffic="${proofAllowCleartext}">
         <activity android:name=".MainActivity" android:exported="true" />
     </application>
 </manifest>

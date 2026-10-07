@@ -52,6 +52,59 @@ for (const [generated, stable] of Object.entries({ DiagnosticAttribution: 'Attri
 // Additive optional evidence must not break existing source initializers.
 source = source.replace(/diagnostic: EverframeDiagnosticEvidence\?,/g, 'diagnostic: EverframeDiagnosticEvidence? = nil,');
 source = source.replace(/appleDiagnostic: EverframeAppleDiagnosticEvidence\?,/g, 'appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil,');
+source = source.replace(/nativeExposure: EverframeNativeExposure\?,/g, 'nativeExposure: EverframeNativeExposure? = nil,');
+// Keep the old initializer/with symbols for separately compiled callers.
+// A default argument on the new signature does not preserve the old symbol.
+const evidencePattern = /(\/\/ MARK: - EverframeDiagnosticEvidence[\s\S]*?)(?=\/\/ MARK: - )/;
+const evidenceMatch = source.match(evidencePattern);
+if (!evidenceMatch) throw new Error('codegen-swift: DiagnosticEvidence block missing');
+let evidence = evidenceMatch[1];
+const initMatch = evidence.match(/public init\(([^\n]+)\) \{/);
+const withMatch = evidence.match(/    func with\(\n([\s\S]*?)\n    \) -> EverframeDiagnosticEvidence \{/);
+if (!initMatch || !withMatch) throw new Error('codegen-swift: DiagnosticEvidence signatures changed');
+const initParameters = initMatch[1].split(', ');
+const oldInit = initParameters.filter(parameter => !parameter.startsWith('nativeExposure:'));
+const initArguments = initParameters.map(parameter => {
+  const name = parameter.split(':')[0];
+  return `${name}: ${name === 'nativeExposure' ? 'nil' : name}`;
+});
+const withParameters = withMatch[1].split('\n');
+const oldWith = withParameters.filter(parameter => !parameter.trim().startsWith('nativeExposure:'));
+const withArguments = withParameters.map(parameter => {
+  const name = parameter.trim().split(':')[0];
+  return `${name}: ${name === 'nativeExposure' ? '.some(self.nativeExposure)' : name}`;
+});
+evidence = evidence.replace('nativeExposure: EverframeNativeExposure? = nil,', 'nativeExposure: EverframeNativeExposure?,')
+  .replace('nativeExposure: EverframeNativeExposure?? = nil,', 'nativeExposure: EverframeNativeExposure??,');
+evidence += `public extension EverframeDiagnosticEvidence {
+    init(${oldInit.join(', ')}) {
+        self.init(${initArguments.join(', ')})
+    }
+
+    func with(
+${oldWith.join('\n')}
+    ) -> EverframeDiagnosticEvidence {
+        return self.with(${withArguments.join(', ')})
+    }
+}
+
+`;
+source = source.replace(evidencePattern, evidence);
+// Codable's synthesized optional encoder omits nil. The frozen pointer's
+// nullable build field is required, so preserve its explicit JSON null.
+const exposurePattern = /public struct EverframeNativeExposure: Codable \{[\s\S]*?\n\}/;
+if (!exposurePattern.test(source)) throw new Error('codegen-swift: NativeExposure block missing');
+source = source.replace(exposurePattern, block => block.slice(0, -1) + `
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(exposureID, forKey: .exposureID)
+        try container.encode(loadedBuildID, forKey: .loadedBuildID)
+        try container.encode(loadedBundleStatus, forKey: .loadedBundleStatus)
+        try container.encode(nativeBuildID, forKey: .nativeBuildID)
+        try container.encode(processLaunchID, forKey: .processLaunchID)
+        try container.encode(startedAt, forKey: .startedAt)
+    }
+}`);
 const formatPattern = /public enum EverframeFormat: String, Codable \{[\s\S]*?\n\}/u;
 if (!formatPattern.test(source)) {
   throw new Error('codegen-swift: EverframeFormat block shape changed');

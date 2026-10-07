@@ -685,8 +685,41 @@ data class DiagnosticEvidence (
     val provenance: Provenance,
     val scope: Scope,
     val trace: Trace,
-    val version: Double
-)
+    val version: Double,
+    val nativeExposure: NativeExposure? = null
+) {
+    constructor(
+    android: Android,
+    attribution: Attribution,
+    cause: DiagnosticCause,
+    collectedAt: String,
+    evidenceID: String,
+    kind: DiagnosticKind,
+    occurredAt: String,
+    outcome: Outcome,
+    processLaunchID: String,
+    provenance: Provenance,
+    scope: Scope,
+    trace: Trace,
+    version: Double
+    ) : this(android, attribution, cause, collectedAt, evidenceID, kind, occurredAt, outcome, processLaunchID, provenance, scope, trace, version, null)
+
+    fun copy(
+    android: Android = this.android,
+    attribution: Attribution = this.attribution,
+    cause: DiagnosticCause = this.cause,
+    collectedAt: String = this.collectedAt,
+    evidenceID: String = this.evidenceID,
+    kind: DiagnosticKind = this.kind,
+    occurredAt: String = this.occurredAt,
+    outcome: Outcome = this.outcome,
+    processLaunchID: String = this.processLaunchID,
+    provenance: Provenance = this.provenance,
+    scope: Scope = this.scope,
+    trace: Trace = this.trace,
+    version: Double = this.version
+    ): DiagnosticEvidence = DiagnosticEvidence(android, attribution, cause, collectedAt, evidenceID, kind, occurredAt, outcome, processLaunchID, provenance, scope, trace, version, nativeExposure)
+}
 
 @Serializable
 data class Android (
@@ -722,6 +755,33 @@ enum class DiagnosticCause(val value: String) {
 @Serializable
 enum class DiagnosticKind(val value: String) {
     @SerialName("process_exit") ProcessExit("process_exit");
+}
+
+@Serializable
+data class NativeExposure (
+    @SerialName("exposureId")
+    val exposureID: String,
+
+    @SerialName("loadedBuildId")
+    @Required
+    val loadedBuildID: String? = null,
+
+    val loadedBundleStatus: LoadedBundleStatus,
+
+    @SerialName("nativeBuildId")
+    val nativeBuildID: String,
+
+    @SerialName("processLaunchId")
+    val processLaunchID: String,
+
+    val startedAt: String
+)
+
+@Serializable
+enum class LoadedBundleStatus(val value: String) {
+    @SerialName("known") Known("known"),
+    @SerialName("not_applicable") NotApplicable("not_applicable"),
+    @SerialName("unknown") Unknown("unknown");
 }
 
 @Serializable

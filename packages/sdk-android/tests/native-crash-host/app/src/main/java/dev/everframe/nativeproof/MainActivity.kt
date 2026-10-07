@@ -13,6 +13,7 @@ import dev.everframe.Everframe
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.EverframeConfig
 import dev.everframe.config.VitalsConfig
+import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.outbox.JSONLOutbox
 import dev.everframe.transport.MultipartUploader
 import kotlinx.coroutines.*
@@ -39,14 +40,20 @@ class MainActivity : Activity() {
         val marker = intent.getStringExtra("marker") ?: "default"
         val diagnostics = intent.getBooleanExtra("diagnostics", false)
         require(Regex("[A-Za-z0-9_-]{1,80}").matches(marker))
+        if (mode.startsWith("health-")) {
+            healthCommand(mode, marker)
+            return
+        }
         val config = EverframeConfig(appId = "native-proof-app", sdkKey = intent.getStringExtra("key") ?: "native-proof-key",
             capture = CaptureConfig(crash = true, logs = false, network = false),
-            installIdentifierEnabled = false, vitals = VitalsConfig(enabled = false), shakeToReportEnabled = false)
+            installIdentifierEnabled = false, vitals = VitalsConfig(enabled = false), shakeToReportEnabled = false,
+            releaseHealth = if (intent.getBooleanExtra("health", false)) ReleaseHealthConfig(BuildConfig.PROOF_NATIVE_BUILD_ID) else null)
         Everframe.start(applicationContext, config, this)
-        if (diagnostics) Everframe.setProcessExitDiagnosticsEnabled(true) else Everframe.setNativeCrashRecoveryEnabled(true)
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
+                    if (config.releaseHealth != null) withTimeout(20000) { while (!Everframe.isReleaseHealthReady()) delay(50) }
+                    if (diagnostics) Everframe.setProcessExitDiagnosticsEnabled(true) else Everframe.setNativeCrashRecoveryEnabled(true)
                     withTimeout(20000) { while (!Everframe.isNativeCrashRecoveryReady()) delay(50) }
                     val root = File(filesDir, "proof").apply { mkdirs() }
                     val outbox = JSONLOutbox(applicationContext)
@@ -106,6 +113,7 @@ class MainActivity : Activity() {
                         check(!Everframe.isNativeCrashRecoveryReady())
                     }
                     File(root, "$marker.json").writeText(JSONObject().put("mode", mode).put("ready", Everframe.isNativeCrashRecoveryReady())
+                        .put("healthReady", Everframe.isReleaseHealthReady()).put("nativeBuildId", BuildConfig.PROOF_NATIVE_BUILD_ID)
                         .put("diagnosticsReady", Everframe.isProcessExitDiagnosticsReady())
                         .put("pid", android.os.Process.myPid()).put("reports", reports).put("attempts", attempts)
                         .put("queueAfter", outbox.count()).put("exits", exits).toString())
@@ -119,6 +127,49 @@ class MainActivity : Activity() {
                     "abort" -> NativeFaults.abortFault()
                     "segv", "disabled" -> NativeFaults.memoryFault(0)
                     "jvm" -> Handler(Looper.getMainLooper()).post { throw IllegalStateException("Native recovery JVM compatibility") }
+                }
+            } catch (failure: Throwable) {
+                withContext(Dispatchers.IO) {
+                    File(filesDir, "proof").mkdirs()
+                    File(filesDir, "proof/$marker.failure.txt").writeText(failure.stackTraceToString())
+                }
+            }
+        }
+    }
+    /** Exercises the public lifecycle and real transport; no journal or HTTP client overrides. */
+    private fun healthCommand(mode: String, marker: String) {
+        fun config(key: String, enabled: Boolean = true) = EverframeConfig(appId = "native-proof-app", sdkKey = key,
+            capture = CaptureConfig(screenshot = false, focus = false, crash = true, logs = false, network = false),
+            installIdentifierEnabled = false, vitals = VitalsConfig(enabled = false), shakeToReportEnabled = false,
+            releaseHealth = if (enabled) ReleaseHealthConfig(BuildConfig.PROOF_NATIVE_BUILD_ID) else null)
+        val key = intent.getStringExtra("key") ?: "native-proof-key"
+        when (mode) {
+            "health-start", "health-replace" -> Everframe.start(applicationContext, config(key), this)
+            "health-disable" -> Everframe.start(applicationContext, config(key, false), this)
+            "health-kill" -> Everframe.kill()
+            "health-flush" -> Everframe.requestOutboxDrain()
+            "health-report" -> Everframe.captureException(IllegalStateException("Health drain progress proof"))
+            else -> error("Unknown health proof command")
+        }
+        scope.launch {
+            try {
+                if (mode == "health-start" || mode == "health-replace") {
+                    withTimeout(20000) { while (!Everframe.isReleaseHealthReady()) delay(50) }
+                    if (mode == "health-replace") {
+                        Everframe.start(applicationContext, config(intent.getStringExtra("nextKey") ?: key), this@MainActivity)
+                        withTimeout(20000) { while (!Everframe.isReleaseHealthReady()) delay(50) }
+                    }
+                    Everframe.requestReleaseHealthFlush()
+                }
+                withContext(Dispatchers.IO) {
+                    val root = File(filesDir, "proof").apply { mkdirs() }
+                    if (mode == "health-report") {
+                        for (entry in JSONLOutbox(applicationContext).hydrate())
+                            File(root, "${entry.reportId}.json").writeBytes(entry.envelopeBytes)
+                    }
+                    File(root, "$marker.json").writeText(JSONObject().put("mode", mode)
+                        .put("healthReady", Everframe.isReleaseHealthReady()).put("nativeBuildId", BuildConfig.PROOF_NATIVE_BUILD_ID)
+                        .put("pid", android.os.Process.myPid()).toString())
                 }
             } catch (failure: Throwable) {
                 withContext(Dispatchers.IO) {
