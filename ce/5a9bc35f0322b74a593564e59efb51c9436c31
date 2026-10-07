@@ -1,0 +1,39 @@
+docs/release-health.md
+  s_97602a0a2d8f20::t_0a74d4a5269839 1-28
+packages/protocol/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_18db6f8975521b 1-39
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_925b65a5317c1c 69-73
+packages/protocol/src/release-health.ts
+  s_97602a0a2d8f20::t_1c491f47688acb 1-44
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_2ec1f2fbd3d340 1-23
+packages/sdk-web/src/index.ts
+  s_97602a0a2d8f20::t_47cb6eef13019a 204-205
+packages/sdk-web/src/init.ts
+  s_97602a0a2d8f20::t_5bebbdf6b0abd9 62,71-72,227-230,974,1016-1017
+packages/sdk-web/src/internal/types.ts
+  s_97602a0a2d8f20::t_ed7f631cfb7a37 8-10
+packages/sdk-web/src/release-health/journal.ts
+  s_97602a0a2d8f20::t_634ffaaf0a7896 1-142
+packages/sdk-web/src/release-health/runtime.ts
+  s_97602a0a2d8f20::t_4317c248797109 1-167
+packages/sdk-web/tests/release-health-browser.mjs
+  s_97602a0a2d8f20::t_9a07404d98667c 1-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ce5a9bc35f0322b74a593564e59efb51c9436c31",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
