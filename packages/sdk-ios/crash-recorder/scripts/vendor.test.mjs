@@ -118,3 +118,12 @@ test('README names every vendored initializer that runs before main', async () =
   assert.deepEqual(initializers.sort(),['KSCrashRecording/KSCrashAppStateTracker.m','KSCrashRecordingCore/KSThreadInit.m']);
   assert.deepEqual(initializers.filter(path=>!section.includes(`\`${path}\``)),[]);
 });
+test('namespace prelude keeps the aliases that full-object linking requires', async () => {
+  const prelude=await readFile(join(componentRoot,'Sources/EverframeCrashRecorder/EverframeKSCrashNamespace.h'),'utf8');
+  assert.match(prelude,/^#define KSCRASH_NAMESPACE _everframe$/m);
+  for (const name of ['kscrash_notifyObjCLoad','kscrash_notifyAppActive','kscrash_notifyAppInForeground',
+    'kscrash_notifyAppTerminate','kscrash_notifyAppCrash','kscrash_testcode_setMonitors','kscrash_testcode_setLastRunID',
+    'KSCrashReport','KSCrashMonitorPlugin','__cxa_throw']) {
+    assert.match(prelude,new RegExp(`^#define ${name} KSCRASH_NS\\(${name}\\)$`,'m'),`missing private alias ${name}`);
+  }
+});
