@@ -8,9 +8,12 @@ import Foundation
 enum NativeCrashRecorderAdapter {
     static func makeRuntime() -> NativeCrashRuntime? {
         // XCTest must not mutate process fatal handlers or persistent app state.
-        // Keep both predicates: CLI and simulator XCTest advertise differently.
+        // CLI XCTest, simulator XCTest and Swift Testing advertise differently.
+        // The Swift Testing helper loads the test bundle/XCTest classes but
+        // does not supply either XCTest host identifier.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
-              Bundle.main.bundleIdentifier != "com.apple.dt.xctest.tool" else { return nil }
+              Bundle.main.bundleIdentifier != "com.apple.dt.xctest.tool",
+              NSClassFromString("XCTestCase") == nil else { return nil }
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath()
         return NativeCrashRuntime(rootURL: caches.appendingPathComponent("dev.everframe.native-crash"),
             outbox: JSONLOutbox(), recorder: .init(

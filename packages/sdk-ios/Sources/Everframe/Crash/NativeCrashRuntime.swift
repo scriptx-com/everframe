@@ -42,7 +42,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
         }
     }
 
-    func refresh(ticket: UInt64, context: @escaping () throws -> NativeCrashRecoveryContext?) async -> Bool {
+    func refresh(ticket: UInt64, context: @escaping @Sendable () throws -> NativeCrashRecoveryContext?) async -> Bool {
         await withCheckedContinuation { continuation in
             worker.async { continuation.resume(returning: self.refreshOnWorker(ticket: ticket, context: context)) }
         }
@@ -50,7 +50,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
 
     private func isCurrent(_ ticket: UInt64) -> Bool { lock.withLock { generation == ticket } }
 
-    private func refreshOnWorker(ticket: UInt64, context: () throws -> NativeCrashRecoveryContext?) -> Bool {
+    private func refreshOnWorker(ticket: UInt64, context: @Sendable () throws -> NativeCrashRecoveryContext?) -> Bool {
         guard isCurrent(ticket) else { return false }
         // Also safe for a caller refreshing the same ticket after a failure.
         lock.withLock { if generation == ticket, installed { recorder.disable() } }

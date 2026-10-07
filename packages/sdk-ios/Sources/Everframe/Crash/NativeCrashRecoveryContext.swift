@@ -6,7 +6,7 @@ import EverframeProtocol
 
 /// Already-captured and redacted envelope facts plus routing and frozen policy.
 /// Callers persist this only through NativeCrashContextStore's authenticated encryption.
-struct NativeCrashRecoveryContext: Codable {
+struct NativeCrashRecoveryContext: Codable, Sendable {
     enum Failure: Error { case invalidContext, oversized, unsupported }
     let schemaVersion: Int
     let sdkKey: String

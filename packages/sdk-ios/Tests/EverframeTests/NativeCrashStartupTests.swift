@@ -99,3 +99,11 @@ private final class NativeStartupRecorderProbe: @unchecked Sendable {
             publish: { context in self.lock.withLock { self.state.context = context; self.state.enabled = true }; return true })
     }
 }
+
+import Testing
+@Suite(.serialized)
+struct NativeCrashStartupIsolationTests {
+    @Test func nativeRecorderIsNotCreatedBySwiftTestingRunner() {
+        #expect(NativeCrashRecorderAdapter.makeRuntime() == nil)
+    }
+}
