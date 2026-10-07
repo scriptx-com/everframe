@@ -31,8 +31,10 @@ EFCRInstallResult EFCRInstall(const char *runDirectory);
 // monitors fails.
 bool EFCRSetEnabled(bool enabled);
 bool EFCRIsEnabled(void);
-// Healthy threads, after installation and only while disabled. Persist context
-// bytes durably BEFORE publication, then enable only after this returns true.
+// Any healthy thread, not only the main thread: it shares the install lock but calls
+// no UIKit or vendor code. Never from a crash or signal handler. After installation
+// and only while disabled. Persist context bytes durably BEFORE publication, then
+// enable (on the main thread) only after this returns true.
 // Canonical lowercase UUID (36 chars); NULL clears. Invalid/capacity failure leaves
 // the previous owner unchanged.256 immutable lifetime slots; duplicates reuse one.
 // A fatal event already admitted retains its original identifier across updates.
