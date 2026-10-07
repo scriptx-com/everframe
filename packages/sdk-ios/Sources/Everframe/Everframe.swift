@@ -40,7 +40,29 @@ public final class Everframe: @unchecked Sendable {
     /// Single source of truth: edit the podspec, run the sync script — no
     /// other source files need to change at release time.
     public static let SDK_VERSION = EverframeSDKVersion
-    private init() {}
+    internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime()) {
+        self.nativeCrashRuntime = nativeCrashRuntime
+    }
+    private let nativeCrashRuntime: NativeCrashRuntime?
+    private var nativeCrashTicket: UInt64 = 0
+    private var nativeCrashPublishedEpoch: Int?
+
+    /// Capture ownership atomically, then do main-actor/device and disk work
+    /// outside stateLock. The runtime ticket fences every asynchronous boundary.
+    @discardableResult internal func refreshNativeCrashContext() async -> Bool {
+        guard let runtime = nativeCrashRuntime else { return false }
+        let captured: (UInt64, EverframeConfig, EFUser?)? = stateLock.withLock {
+            guard nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
+                  let config = _config, config.capture.crash else { return nil }
+            return (nativeCrashTicket, config, _user)
+        }
+        guard let (ticket, config, user) = captured else { return false }
+        let device = await DeviceMetadata.snapshot()
+        return await runtime.refresh(ticket: ticket) {
+            try NativeCrashStartupContext.make(config: config, user: user, device: device,
+                                               endpoint: IngestEndpoint.url.absoluteString)
+        }
+    }
 
     // MARK: - State (NSLock-protected)
 
@@ -784,6 +806,8 @@ public final class Everframe: @unchecked Sendable {
         // OWN lock, never `stateLock`, so calling it from inside this
         // critical section cannot deadlock or invert lock ordering.
         stateLock.lock()
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+        nativeCrashPublishedEpoch = nil
         let epoch = bumpStartEpoch()
         _user = nil
         _identityHolder.set(nil)
@@ -850,6 +874,7 @@ public final class Everframe: @unchecked Sendable {
         // while running customer teardown above publishes NOTHING and launches no tail.
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
+        nativeCrashPublishedEpoch = epoch
         // Follow-ups item 9, fourth round — bumped HERE, with the assignment
         // it describes, never in the epoch section above. That is the whole
         // point of it being a separate counter.
@@ -946,6 +971,9 @@ public final class Everframe: @unchecked Sendable {
         // pattern tripped a compiler region-checker corner case and forced
         // log/outbox work onto the main thread unnecessarily.
         let startTask = Task { [config, epoch] in
+            // Recover prior native records and arm a durable current context
+            // before any potentially slow launch upload. No fatal Swift work.
+            await self.refreshNativeCrashContext()
             // 04-04: log capture (gated on config.capture.logs).
             // LogCapture.install() is idempotent — safe across multiple start()
             // calls if a host re-configures.
@@ -1222,9 +1250,12 @@ public final class Everframe: @unchecked Sendable {
     /// Note this makes `gate closed ⟹ _user == nil` an invariant: `start()`
     /// and `kill()` both clear it, and nothing else can write while closed.
     public func setUser(_ user: EFUser?) {
-        stateLock.lock(); defer { stateLock.unlock() }
-        guard Self.captureGate else { return }
+        stateLock.lock()
+        guard Self.captureGate else { stateLock.unlock(); return }
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         _user = user
+        stateLock.unlock()
+        Task { await self.refreshNativeCrashContext() }
     }
 
     /// Install or clear the verified-identity token source (recognition spec
@@ -1862,6 +1893,8 @@ public final class Everframe: @unchecked Sendable {
         // reordering was needed. `start()` was the one that had
         // `reset()`/`clear()` running before the epoch bump.
         stateLock.lock()
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+        nativeCrashPublishedEpoch = nil
         let killEpoch = bumpStartEpoch()
         ReportDiagnostics.shared.retireGeneration(epoch: killEpoch)
         // Monotonic and never lowered — this is what makes a revocation
