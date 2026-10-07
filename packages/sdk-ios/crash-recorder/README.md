@@ -32,7 +32,7 @@ thread. Other threads get a recoverable `EFCRInstallWrongThread`, or `false` fro
 thread, must hop to the main thread asynchronously; a synchronous hop can deadlock.
 Disabling works on any healthy thread, so an opt-out takes effect where it is made: it
 closes a lock-free report gate before changing monitors, and the monitors then only
-flip flags, remove observers and unmap sidecars.
+flip flags, cancel a heartbeat timer, remove observers and unmap sidecars.
 A fatal handler that already passed the gate may finish writing. Underlying
 vendor tracker singletons can retain process-lifetime resources; disabled does
 not mean every infrastructure object is destroyed. After a successful install,

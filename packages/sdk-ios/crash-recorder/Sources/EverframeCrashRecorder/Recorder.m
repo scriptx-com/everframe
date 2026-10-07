@@ -97,8 +97,8 @@ EFCRInstallResult EFCRInstall(const char *runDirectory) {
 }
 
 bool EFCRSetEnabled(bool enabled) {
-    // Enabling reaches UIKit through the vendor monitors. Disabling only closes the gate,
-    // flips monitor flags, removes observers and unmaps sidecars, so it runs on any thread.
+    // Enabling reaches UIKit through the vendor monitors. Disabling only closes the gate, flips
+    // monitor flags, cancels a timer, removes observers and unmaps sidecars: any thread works.
     if (enabled && pthread_main_np() != 1) return false;
     pthread_mutex_lock(&installLock);
     bool success = installed;
