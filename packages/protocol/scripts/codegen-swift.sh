@@ -43,8 +43,15 @@ const path = process.argv[2];
 let source = readFileSync(path, 'utf8')
   .replace(/\bJSONNull\b/g, 'EverframeJSONNull')
   .replace(/\bJSONAny\b/g, 'EverframeJSONAny');
+// Preserve published Android diagnostic type identities after sibling-schema naming.
+for (const [generated, stable] of Object.entries({ DiagnosticAttribution: 'Attribution',
+  PurpleProcess: 'Process', SessionEnum: 'Session', DiagnosticOutcome: 'Outcome',
+  DiagnosticProvenance: 'Provenance', DiagnosticScope: 'Scope' })) {
+  source = source.replace(new RegExp(`\\bEverframe${generated}\\b`, 'g'), `Everframe${stable}`);
+}
 // Additive optional evidence must not break existing source initializers.
 source = source.replace(/diagnostic: EverframeDiagnosticEvidence\?,/g, 'diagnostic: EverframeDiagnosticEvidence? = nil,');
+source = source.replace(/appleDiagnostic: EverframeAppleDiagnosticEvidence\?,/g, 'appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil,');
 const formatPattern = /public enum EverframeFormat: String, Codable \{[\s\S]*?\n\}/u;
 if (!formatPattern.test(source)) {
   throw new Error('codegen-swift: EverframeFormat block shape changed');

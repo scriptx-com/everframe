@@ -41,10 +41,13 @@ public final class Everframe: @unchecked Sendable {
     /// other source files need to change at release time.
     public static let SDK_VERSION = EverframeSDKVersion
     internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime(),
+                  appleDiagnosticRuntime: AppleDiagnosticRuntime? = AppleDiagnosticPlatform.makeRuntime(),
                   nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() }) {
         self.nativeCrashRuntime = nativeCrashRuntime
+        self.appleDiagnosticRuntime = appleDiagnosticRuntime
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
     }
+    private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
     private let nativeCrashRuntime: NativeCrashRuntime?
     private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
     private var nativeCrashTicket: UInt64 = 0
@@ -72,6 +75,38 @@ public final class Everframe: @unchecked Sendable {
             if stateLock.withLock({ nativeCrashTicket == ticket }) { return armed }
         }
         return false
+    }
+
+    /// Opt in after start. Returns true only after the requested durable
+    /// transition completes. MetricKit periods crossing this opt-in window are
+    /// dropped; accepted anonymous receipts can retry after a later same-app opt-in.
+    /// Unsupported platforms return false. Disable closes admission immediately;
+    /// a false result means persistent cleanup must be retried.
+    @discardableResult public func setAppleDiagnosticsEnabled(_ enabled: Bool) async -> Bool {
+        guard let runtime = appleDiagnosticRuntime else { return false }
+        if !enabled {
+            let request = stateLock.withLock { runtime.revoke() }
+            return await runtime.finishRevocation(request)
+        }
+        let captured: (UInt64, Int, EverframeConfig)? = stateLock.withLock {
+            guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch,
+                  let config = _config, config.capture.crash else { return nil }
+            return (runtime.requestEnable(), _startEpoch, config)
+        }
+        guard let (ticket, epoch, config) = captured else { return false }
+        let device = await nativeDeviceSnapshot()
+        guard let version = device.appVersion, let build = device.appBuild else { return false }
+        do {
+            let frozen = try NativeCrashStartupContext.make(config: config, user: nil, device: device,
+                endpoint: IngestEndpoint.url.absoluteString)
+            let context = AppleDiagnosticContext(frozen: frozen, applicationVersion: version, applicationBuild: build)
+            return await runtime.enable(context: context, ticket: ticket) { [weak self, weak runtime] in
+                guard let self, let runtime else { return }
+                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox).restrictingOutboxToAppleDiagnostics()
+                await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+                    epochAtInitiation: epoch, currentEpoch: { [weak self] in self?.currentStartEpoch ?? -1 })
+            }
+        } catch { return false }
     }
 
     // MARK: - State (NSLock-protected)
@@ -816,6 +851,7 @@ public final class Everframe: @unchecked Sendable {
         // OWN lock, never `stateLock`, so calling it from inside this
         // critical section cannot deadlock or invert lock ordering.
         stateLock.lock()
+        appleDiagnosticRuntime?.boundary()
         nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         nativeCrashPublishedEpoch = nil
         let epoch = bumpStartEpoch()
@@ -1903,6 +1939,7 @@ public final class Everframe: @unchecked Sendable {
         // reordering was needed. `start()` was the one that had
         // `reset()`/`clear()` running before the epoch bump.
         stateLock.lock()
+        let appleErasure = appleDiagnosticRuntime?.revoke()
         nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         nativeCrashPublishedEpoch = nil
         let killEpoch = bumpStartEpoch()
@@ -1958,6 +1995,9 @@ public final class Everframe: @unchecked Sendable {
         // reading must not survive.
         _identityEnabledFlag.set(false)
         stateLock.unlock()
+        if let request = appleErasure, let runtime = appleDiagnosticRuntime {
+            Task { _ = await runtime.finishRevocation(request) }
+        }
         taskToCancel?.cancel()
 
         // Fix round 3 residual hygiene — unlike every other piece of session

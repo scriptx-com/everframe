@@ -71,3 +71,5 @@ export {
   RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
 } from './release-health.js';
 export type { ReleaseHealthRecord, ReleaseHealthExposure } from './release-health.js';
+
+export { AppleDiagnosticEvidence, AppleDiagnosticFrame, AppleHang, AppleExitCount } from './apple-diagnostic.js';

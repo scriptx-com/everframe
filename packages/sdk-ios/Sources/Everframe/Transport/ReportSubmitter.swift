@@ -19,6 +19,7 @@ public final class ReportSubmitter: Sendable {
     public let config: EverframeConfig
     public let outbox: JSONLOutbox
     private let diagnostics: ReportDiagnostics.Handle?
+    private let appleDiagnosticsOnly: Bool
     private let diagnosticOrigin: ReportTransportOrigin
     private let session: URLSession
     private let authorizeUpload: (@MainActor @Sendable () -> Bool)?
@@ -33,22 +34,31 @@ public final class ReportSubmitter: Sendable {
 
     private init(config: EverframeConfig, outbox: JSONLOutbox, session: URLSession,
                  authorizeUpload: (@MainActor @Sendable () -> Bool)?,
-                 diagnostics: ReportDiagnostics.Handle? = nil, diagnosticOrigin: ReportTransportOrigin = .liveSubmit) {
+                 diagnostics: ReportDiagnostics.Handle? = nil, diagnosticOrigin: ReportTransportOrigin = .liveSubmit,
+                 appleDiagnosticsOnly: Bool = false) {
         self.config = config
         self.outbox = outbox
         self.session = session
         self.authorizeUpload = authorizeUpload
         self.diagnostics = diagnostics
         self.diagnosticOrigin = diagnosticOrigin
+        self.appleDiagnosticsOnly = appleDiagnosticsOnly
     }
 
     internal func authorizing(_ check: @escaping @MainActor @Sendable () -> Bool) -> ReportSubmitter {
-        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: check, diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin)
+        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: check, diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin, appleDiagnosticsOnly: appleDiagnosticsOnly)
     }
 
     internal func observing(_ owner: ReportDiagnostics.Handle?, origin: ReportTransportOrigin = .liveSubmit) -> ReportSubmitter {
         ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: authorizeUpload,
-                        diagnostics: owner, diagnosticOrigin: origin)
+                        diagnostics: owner, diagnosticOrigin: origin, appleDiagnosticsOnly: appleDiagnosticsOnly)
+    }
+
+    /// The anonymous diagnostic timer must not take over retries for manual
+    /// reports, whose identity and live policy belong to their normal drain.
+    internal func restrictingOutboxToAppleDiagnostics() -> ReportSubmitter {
+        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: authorizeUpload,
+                        diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin, appleDiagnosticsOnly: true)
     }
 
     private func observeUpload(_ send: () async throws -> (Int, [AnyHashable: Any])) async throws -> (Int, [AnyHashable: Any]) {
@@ -306,6 +316,9 @@ public final class ReportSubmitter: Sendable {
     ) async {
         let entries = (try? outbox.hydrate(diagnostics: diagnostics)) ?? []
         for e in entries {
+            let appleDiagnostic = AppleDiagnosticDelivery.isApple(e)
+            if appleDiagnosticsOnly && !appleDiagnostic { continue }
+            if appleDiagnostic && !AppleDiagnosticDelivery.allows(e) { continue }
             // Keep the durable copy until acceptance. A crash, cancellation or
             // failed re-enqueue during the request must not lose the report.
 
@@ -416,7 +429,10 @@ public final class ReportSubmitter: Sendable {
                 #endif
                 // The entry remains durable throughout the attempt. Re-enqueuing
                 // on failure would change its age and could evict another entry.
-                let result = try await sender.observing(diagnostics, origin: .outboxDrain).performSubmit(
+                let authorizedSender = appleDiagnostic ? sender.authorizing {
+                    (sender.authorizeUpload?() ?? true) && AppleDiagnosticDelivery.allows(e)
+                } : sender
+                let result = try await authorizedSender.observing(diagnostics, origin: .outboxDrain).performSubmit(
                     envelopeBytes: envelopeBytes,
                     idempotencyKey: e.idempotencyKey,
                     attachments: attachments,
@@ -428,6 +444,7 @@ public final class ReportSubmitter: Sendable {
                     alreadyPersisted: true
                 )
                 if case .submitted = result {
+                    if appleDiagnostic { AppleDiagnosticDelivery.settle(e) }
                     try outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterAcceptance)
                 }
             } catch UploadAuthorizationError.revoked {
@@ -440,6 +457,7 @@ public final class ReportSubmitter: Sendable {
                 }
             } catch EverframeTransportError.serverError {
                 // submit throws serverError only for terminal HTTP statuses.
+                if appleDiagnostic { AppleDiagnosticDelivery.settle(e) }
                 try? outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterTerminal)
             } catch {
                 // Retain the original encrypted entry. Retrying a server-accepted
