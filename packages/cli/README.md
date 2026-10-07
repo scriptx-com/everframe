@@ -32,8 +32,10 @@ everframe dsym upload-build --app-id "$EVERFRAME_APP_ID" \
 ```
 
 The command checks every listed Mach-O UUID/CPU identity against the raw DWARF
-files in the directory's `.dSYM/Contents/Resources/DWARF` layout. Missing,
-ambiguous, malformed or unsupported symbols fail before any upload. It does not
+files in the directory's `.dSYM/Contents/Resources/DWARF` layout. Missing or
+ambiguous identities, unsupported headers and invalid segment/section ranges
+fail before any upload. Full DWARF validity is checked by the service and can
+still reject a later file after an earlier artifact is ready. The command does not
 infer coverage for unlisted modules or inspect compressed archives. Current native
 support covers little-endian64 arm64/arm64e/x86_64/x86_64h slices, including
 universal files. Limits:16 listed binaries,8 selected files,64 candidate bundles,
@@ -42,7 +44,8 @@ universal files. Limits:16 listed binaries,8 selected files,64 candidate bundles
 Each selected file uses its own immutable artifact upload. Success means all are
 ready; a later failure leaves earlier ready artifacts available and returns a
 nonzero exit status. Re-run the same command to resume. Original binaries and
-dSYMs are retained; changing selected inputs during upload prevents success.
+dSYMs are retained; changing selected symbol bytes or listed image identities
+during upload prevents success. Executable bodies are not hashed.
 Gate app promotion on this command's exit status. A ready upload establishes
 artifact availability; device compatibility and readable frames still require
 crash acceptance testing.
