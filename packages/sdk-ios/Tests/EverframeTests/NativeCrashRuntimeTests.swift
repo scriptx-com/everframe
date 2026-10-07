@@ -83,6 +83,54 @@ final class NativeCrashRuntimeTests: XCTestCase {
         _ = runtime.invalidate()
         XCTAssertFalse(recorder.enabled)
     }
+    func testInvalidationReturnsWhileContextPersistenceIsBlockedAndNeverPublishesThatOwner() async throws {
+        let recorder = Recorder(), key = key
+        let entered = expectation(description: "context encryption holds the store lock")
+        let gate = PersistenceKeyGate(key: key, entered: entered)
+        let runtime = NativeCrashRuntime(rootURL: root, outbox: outbox,
+            recorder: recorder.adapter, keyProvider: { gate.read() })
+        let original = try NativeRecoveryTestData.context(owner: "sdk-A")
+        let first = await runtime.refresh(ticket: runtime.invalidate(), context: { original })
+        XCTAssertTrue(first); XCTAssertTrue(recorder.enabled)
+        gate.blockNext()
+        let obsolete = try NativeRecoveryTestData.context(owner: "sdk-B")
+        let ticket = runtime.invalidate()
+        XCTAssertFalse(recorder.enabled, "an installed recorder closes synchronously")
+        let writing = Task { await runtime.refresh(ticket: ticket, context: { obsolete }) }
+        await fulfillment(of: [entered], timeout: 5)
+        let invalidated = expectation(description: "invalidation does not wait for persistence")
+        let invalidating = Task.detached { let next = runtime.invalidate(); invalidated.fulfill(); return next }
+        await fulfillment(of: [invalidated], timeout: 1)
+        gate.release.signal()
+        let next = await invalidating.value
+        let staleResult = await writing.value
+        XCTAssertFalse(staleResult); XCTAssertFalse(recorder.enabled)
+        XCTAssertEqual(recorder.identifiers.count, 1, "persisted obsolete context must never be published")
+        let current = try NativeRecoveryTestData.context(owner: "sdk-C")
+        let armed = await runtime.refresh(ticket: next, context: { current })
+        XCTAssertTrue(armed); XCTAssertEqual(recorder.installs, 1)
+        let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(recorder.path).deletingLastPathComponent().lastPathComponent))
+        let store = try NativeCrashContextStore(rootURL: root.appendingPathComponent("contexts"), keyProvider: { key })
+        XCTAssertEqual(try store.readContext(runID: runID, contextID: XCTUnwrap(recorder.identifiers.last)), try current.encoded())
+    }
+    private final class PersistenceKeyGate: @unchecked Sendable {
+        let key: Data, entered: XCTestExpectation
+        let release = DispatchSemaphore(value: 0)
+        private let lock = NSLock()
+        private var block = false
+        init(key: Data, entered: XCTestExpectation) { self.key = key; self.entered = entered }
+        func blockNext() { lock.withLock { block = true } }
+        func read() -> Data {
+            let shouldBlock = lock.withLock { let value = block; block = false; return value }
+            if shouldBlock {
+                // This is called from inside the actual context store's
+                // encryption/write operation while its persistence lock is held.
+                entered.fulfill()
+                XCTAssertEqual(release.wait(timeout: .now() + 5), .success)
+            }
+            return key
+        }
+    }
     func testStaleWorkDoesNotInvokeSnapshotAndNilContextDoesNotRecoverOrInstall() async throws {
         let (_, raw) = try priorRun(), recorder = Recorder()
         let runtime = runtime(recorder), stale = runtime.invalidate()
