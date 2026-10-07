@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test Swift package
         env:
           EVERFRAME_DEV_INGEST_URL: http://127.0.0.1:9
