@@ -1,0 +1,52 @@
+packages/sdk-core/__tests__/crash-causes.spec.ts
+  s_360d9eb003c487::t_a6c687be6094e9 397-398
+  s_360d9eb003c487::t_0e45d2c3e377ac 409-418
+  s_360d9eb003c487::t_3b7c779d89886b 345
+  s_360d9eb003c487::t_aa57595bff4fe5 419-420
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashCauseNormalizerTest.kt
+  s_360d9eb003c487::t_f2cd76e1b80f75 80-81
+packages/protocol/__tests__/crash-causes.spec.ts
+  s_360d9eb003c487::t_136ebbb8c9275a 262,278-298
+  s_360d9eb003c487::t_bdead61d832570 299
+packages/sdk-core/src/crash/causes.ts
+  s_360d9eb003c487::t_20316fa0fb275d 178-179
+  s_360d9eb003c487::t_6aece4eac30d75 7,176-177
+packages/sdk-react-native/__tests__/error-causes.test.ts
+  s_360d9eb003c487::t_6e4a1927cf9764 63-71
+packages/sdk-ios/Tests/EverframeTests/FoundationCrashCausesTests.swift
+  s_360d9eb003c487::t_2817be9fb252ff 50-57
+packages/protocol/src/crash-causes.ts
+  s_360d9eb003c487::t_f09b58b3dd2017 233
+  s_360d9eb003c487::t_7c2e7fe6b83261 143-168
+packages/sdk-ios/Tests/EverframeTests/RNCrashCausesTests.swift
+  s_360d9eb003c487::t_547aa975e5d166 31-32
+  s_360d9eb003c487::t_d367954f5da2a4 38-39
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/ThrowableCauseCaptureTest.kt
+  s_360d9eb003c487::t_5b6927b4db0f02 47-54
+packages/protocol/__tests__/fixtures/crash-causes-native-parity.json
+  s_360d9eb003c487::t_56510993c7d40a 220-252
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashCauseNormalizer.kt
+  s_360d9eb003c487::t_3cd3939232eacf 49-50,52,129-145
+packages/sdk-ios/Sources/Everframe/Crash/CrashCauseNormalizer.swift
+  s_360d9eb003c487::t_72e92ac33d17a1 10-37,51
+packages/sdk-ios/Sources/Everframe/Crash/FoundationCrashCauses.swift
+  s_360d9eb003c487::t_ae44e834173401 59-60
+packages/sdk-ios/Sources/Everframe/Crash/RNCrashCauses.swift
+  s_360d9eb003c487::t_10d3923074a29a 40-41,63,68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0ca9dbdecc86b664526a53dd3b10e33fd45936c",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
