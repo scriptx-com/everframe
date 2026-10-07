@@ -45,11 +45,13 @@ import {
 } from '@everframe/web/ui';
 import { PKG_VERSION } from './internal/version.js';
 import { __setCurrentContext } from './contextSeam.js';
+import { createProviderReleaseHealth } from './release-health.js';
 
 export interface InternalContext {
   client: EverframeClient;
   adapter: WebPlatformAdapter;
   config: WebEverframeConfig;
+  releaseHealth: ReturnType<typeof createProviderReleaseHealth>;
   /** Freeze-then-open helper — freezes the replay buffer before mounting the modal. */
   openModal: () => void;
 }
@@ -141,6 +143,12 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     });
     const client = createClient(adapter);
     client.init(config);
+    const releaseHealth = createProviderReleaseHealth(config, PKG_VERSION);
+    const originalOnKill = adapter.onKill?.bind(adapter);
+    adapter.onKill = () => {
+      try { originalOnKill?.(); }
+      finally { if (!releaseHealth.stoppedNormally) releaseHealth.revoke(); }
+    };
     // Bind the crumb sink to the client's buffer (one chain for auto + manual
     // crumbs; addBreadcrumb and the web adapters share redaction + lifecycle).
     adapter.__setBreadcrumbBuffer(() => __internalClientState.get(client)?.breadcrumbs);
@@ -190,7 +198,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // __openReporter's pending-promise lifecycle now; it calls this on every
     // open request).
     adapter.__registerShowModal(openModal);
-    return { client, adapter, config, openModal };
+    return { client, adapter, config, releaseHealth, openModal };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   };
   // Single-init by design — config swap requires Provider remount.
@@ -201,12 +209,19 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // irreversibly, which the unmount contract requires — so the remount found a
   // dead client: the thread client was shut down (startPolling() a no-op, so
   // replies never reached the reporter), network-body capture was killed, and
-  // so on. A mount that finds its client already killed can only be that
-  // remount; rebuild a fresh context instead of running on the dead one. A
-  // real unmount never remounts, so it still ends killed.
+  // so on. Repair only a normally stopped context. A child mount effect can
+  // explicitly kill the client before our effect runs; that consent decision
+  // must remain terminal instead of being mistaken for StrictMode cleanup.
   useEffect(() => {
-    if (__internalClientState.get(ctxValue.client)?.killed) setCtxValue(createCtx());
+    if (__internalClientState.get(ctxValue.client)?.killed && ctxValue.releaseHealth.stoppedNormally) {
+      setCtxValue(createCtx());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- createCtx is recreated each render; only the killed client matters
+  }, [ctxValue]);
+
+  useEffect(() => {
+    ctxValue.releaseHealth.start();
+    return () => ctxValue.releaseHealth.stop();
   }, [ctxValue]);
 
   // One screen recorder per provider instance: it holds the `previous`-screen
@@ -561,6 +576,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   useEffect(() => {
     return () => {
       // DEFE-03 cleanup on unmount
+      ctxValue.releaseHealth.stop();
       try {
         ctxValue.client.kill();
       } catch {

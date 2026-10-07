@@ -202,4 +202,6 @@ export {
 export { __filterNodeForTests } from './capture/screenshot.js';
 export { __resetDeviceIdForTests } from './companion/device-id.js';
 
+// Shared lifecycle seam used by the React Provider; the journal remains owned here.
+export { setupReleaseHealth } from './release-health/runtime.js';
 export type { ReleaseHealthHandle, ReleaseHealthDiagnostics, ReleaseHealthOptions } from './release-health/runtime.js';
