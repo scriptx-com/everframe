@@ -1,0 +1,28 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/io/flutter/embedding/android/FlutterView.kt
+  s_360d9eb003c487::t_8e8ab23e3a1956 1-7
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyGate.kt
+  s_360d9eb003c487::t_e2a265e210e634 88-91
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_360d9eb003c487::t_9bb1b0fd560c79 182-197
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyTypeCache.kt
+  s_360d9eb003c487::t_4b18f9458d8711 10
+  s_360d9eb003c487::t_3e4d85bc7d1126 21,27-28,31
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyTypeCacheTest.kt
+  s_360d9eb003c487::t_8d3ba3a3168ba7 50-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d05cdf596f52f57a4c3e71623fc5948f3eb46096",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
