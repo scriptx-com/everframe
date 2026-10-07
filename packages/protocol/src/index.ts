@@ -62,3 +62,5 @@ export {
 } from './render.js';
 // Zod-free, so the SDK's eager bundle can import it without pulling in schemas.
 export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';
+
+export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';

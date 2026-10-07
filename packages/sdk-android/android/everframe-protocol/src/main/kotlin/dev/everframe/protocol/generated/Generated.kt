@@ -209,15 +209,36 @@ data class Crash (
     val jvm: JVMCrashMetadata? = null,
     val details: CrashDetails? = null,
     val causeChain: CrashCauseChain? = null,
-    val native: NativeCrashMetadata? = null
+    val native: NativeCrashMetadata? = null,
+    val androidNative: AndroidNativeCrashMetadata? = null
 ) {
+    constructor(
+        exceptionType: String, fatal: Boolean? = null, fingerprint: String,
+        frames: List<Frame>, handled: Boolean, jsBundle: JSBundle? = null,
+        mechanism: String, message: String, occurredAt: String, threadName: String? = null,
+        jvm: JVMCrashMetadata? = null, details: CrashDetails? = null,
+        causeChain: CrashCauseChain? = null, native: NativeCrashMetadata? = null,
+    ) : this(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
+             message, occurredAt, threadName, jvm, details, causeChain, native, null)
+
+    fun copy(
+        exceptionType: String = this.exceptionType, fatal: Boolean? = this.fatal,
+        fingerprint: String = this.fingerprint, frames: List<Frame> = this.frames,
+        handled: Boolean = this.handled, jsBundle: JSBundle? = this.jsBundle,
+        mechanism: String = this.mechanism, message: String = this.message,
+        occurredAt: String = this.occurredAt, threadName: String? = this.threadName,
+        jvm: JVMCrashMetadata? = this.jvm, details: CrashDetails? = this.details,
+        causeChain: CrashCauseChain? = this.causeChain, native: NativeCrashMetadata? = this.native,
+    ): Crash = Crash(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
+                     message, occurredAt, threadName, jvm, details, causeChain, native, androidNative)
+
     constructor(
         exceptionType: String, fatal: Boolean? = null, fingerprint: String,
         frames: List<Frame>, handled: Boolean, jsBundle: JSBundle? = null,
         mechanism: String, message: String, occurredAt: String, threadName: String? = null,
         jvm: JVMCrashMetadata? = null, details: CrashDetails? = null, causeChain: CrashCauseChain? = null,
     ) : this(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-             message, occurredAt, threadName, jvm, details, causeChain, null)
+             message, occurredAt, threadName, jvm, details, causeChain, null, null)
 
     fun copy(
         exceptionType: String = this.exceptionType, fatal: Boolean? = this.fatal,
@@ -228,7 +249,7 @@ data class Crash (
         jvm: JVMCrashMetadata? = this.jvm, details: CrashDetails? = this.details,
         causeChain: CrashCauseChain? = this.causeChain,
     ): Crash = Crash(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-                     message, occurredAt, threadName, jvm, details, causeChain, native)
+                     message, occurredAt, threadName, jvm, details, causeChain, native, androidNative)
 
     constructor(
         exceptionType: String,
@@ -245,7 +266,7 @@ data class Crash (
         details: CrashDetails? = null,
     ) : this(
         exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, null, null,
+        message, occurredAt, threadName, jvm, details, null, null, null,
     )
 
     fun copy(
@@ -263,8 +284,48 @@ data class Crash (
         details: CrashDetails? = this.details,
     ): Crash = Crash(
         exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, causeChain, native,
+        message, occurredAt, threadName, jvm, details, causeChain, native, androidNative,
     )
+}
+
+@Serializable
+data class AndroidNativeCrashMetadata (
+    val abi: AndroidNativeABI,
+
+    @SerialName("crashedThreadId")
+    val crashedThreadID: Long,
+
+    val frames: List<AndroidNativeFrame>,
+    val framesIncomplete: Boolean,
+    val signalCode: Long? = null,
+    val signalNumber: Long? = null,
+    val source: AndroidNativeSource
+)
+
+@Serializable
+enum class AndroidNativeABI(val value: String) {
+    @SerialName("arm64-v8a") Arm64V8A("arm64-v8a"),
+    @SerialName("armeabi-v7a") ArmeabiV7A("armeabi-v7a"),
+    @SerialName("riscv64") Riscv64("riscv64"),
+    @SerialName("x86") X86("x86"),
+    @SerialName("x86_64") X8664("x86_64");
+}
+
+@Serializable
+data class AndroidNativeFrame (
+    @SerialName("buildId")
+    val buildID: String? = null,
+
+    val module: String? = null,
+    val pc: String,
+
+    @SerialName("relativePc")
+    val relativePC: String
+)
+
+@Serializable
+enum class AndroidNativeSource(val value: String) {
+    @SerialName("android-exit-info") AndroidExitInfo("android-exit-info");
 }
 
 @Serializable

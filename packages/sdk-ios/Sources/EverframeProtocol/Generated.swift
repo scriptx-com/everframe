@@ -739,6 +739,7 @@ public enum EverframeLevel: String, Codable {
 
 // MARK: - EverframeCrash
 public struct EverframeCrash: Codable {
+    public let androidNative: EverframeAndroidNativeCrashMetadata?
     public let causeChain: EverframeCrashCauseChain?
     public let details: EverframeCrashDetails?
     public let exceptionType: String
@@ -754,7 +755,8 @@ public struct EverframeCrash: Codable {
     public let occurredAt: Date
     public let threadName: String?
 
-    public init(causeChain: EverframeCrashCauseChain?, details: EverframeCrashDetails?, exceptionType: String, fatal: Bool?, fingerprint: String, frames: [EverframeFrame], handled: Bool, jsBundle: EverframeJSBundle?, jvm: EverframeJVMCrashMetadata?, mechanism: String, message: String, native: EverframeNativeCrashMetadata?, occurredAt: Date, threadName: String?) {
+    public init(androidNative: EverframeAndroidNativeCrashMetadata?, causeChain: EverframeCrashCauseChain?, details: EverframeCrashDetails?, exceptionType: String, fatal: Bool?, fingerprint: String, frames: [EverframeFrame], handled: Bool, jsBundle: EverframeJSBundle?, jvm: EverframeJVMCrashMetadata?, mechanism: String, message: String, native: EverframeNativeCrashMetadata?, occurredAt: Date, threadName: String?) {
+        self.androidNative = androidNative
         self.causeChain = causeChain
         self.details = details
         self.exceptionType = exceptionType
@@ -791,6 +793,7 @@ public extension EverframeCrash {
     }
 
     func with(
+        androidNative: EverframeAndroidNativeCrashMetadata?? = nil,
         causeChain: EverframeCrashCauseChain?? = nil,
         details: EverframeCrashDetails?? = nil,
         exceptionType: String? = nil,
@@ -807,6 +810,7 @@ public extension EverframeCrash {
         threadName: String?? = nil
     ) -> EverframeCrash {
         return EverframeCrash(
+            androidNative: androidNative ?? self.androidNative,
             causeChain: causeChain ?? self.causeChain,
             details: details ?? self.details,
             exceptionType: exceptionType ?? self.exceptionType,
@@ -831,6 +835,153 @@ public extension EverframeCrash {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
+}
+
+// MARK: - EverframeAndroidNativeCrashMetadata
+public struct EverframeAndroidNativeCrashMetadata: Codable {
+    public let abi: EverframeAndroidNativeABI
+    public let crashedThreadID: Int
+    public let frames: [EverframeAndroidNativeFrame]
+    public let framesIncomplete: Bool
+    public let signalCode: Int?
+    public let signalNumber: Int?
+    public let source: EverframeAndroidNativeSource
+
+    public enum CodingKeys: String, CodingKey {
+        case abi
+        case crashedThreadID = "crashedThreadId"
+        case frames, framesIncomplete, signalCode, signalNumber, source
+    }
+
+    public init(abi: EverframeAndroidNativeABI, crashedThreadID: Int, frames: [EverframeAndroidNativeFrame], framesIncomplete: Bool, signalCode: Int?, signalNumber: Int?, source: EverframeAndroidNativeSource) {
+        self.abi = abi
+        self.crashedThreadID = crashedThreadID
+        self.frames = frames
+        self.framesIncomplete = framesIncomplete
+        self.signalCode = signalCode
+        self.signalNumber = signalNumber
+        self.source = source
+    }
+}
+
+// MARK: EverframeAndroidNativeCrashMetadata convenience initializers and mutators
+
+public extension EverframeAndroidNativeCrashMetadata {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeAndroidNativeCrashMetadata.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        abi: EverframeAndroidNativeABI? = nil,
+        crashedThreadID: Int? = nil,
+        frames: [EverframeAndroidNativeFrame]? = nil,
+        framesIncomplete: Bool? = nil,
+        signalCode: Int?? = nil,
+        signalNumber: Int?? = nil,
+        source: EverframeAndroidNativeSource? = nil
+    ) -> EverframeAndroidNativeCrashMetadata {
+        return EverframeAndroidNativeCrashMetadata(
+            abi: abi ?? self.abi,
+            crashedThreadID: crashedThreadID ?? self.crashedThreadID,
+            frames: frames ?? self.frames,
+            framesIncomplete: framesIncomplete ?? self.framesIncomplete,
+            signalCode: signalCode ?? self.signalCode,
+            signalNumber: signalNumber ?? self.signalNumber,
+            source: source ?? self.source
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeAndroidNativeABI: String, Codable {
+    case arm64V8A = "arm64-v8a"
+    case armeabiV7A = "armeabi-v7a"
+    case riscv64 = "riscv64"
+    case x86 = "x86"
+    case x8664 = "x86_64"
+}
+
+// MARK: - EverframeAndroidNativeFrame
+public struct EverframeAndroidNativeFrame: Codable {
+    public let buildID: String?
+    public let module: String?
+    public let pc, relativePC: String
+
+    public enum CodingKeys: String, CodingKey {
+        case buildID = "buildId"
+        case module, pc
+        case relativePC = "relativePc"
+    }
+
+    public init(buildID: String?, module: String?, pc: String, relativePC: String) {
+        self.buildID = buildID
+        self.module = module
+        self.pc = pc
+        self.relativePC = relativePC
+    }
+}
+
+// MARK: EverframeAndroidNativeFrame convenience initializers and mutators
+
+public extension EverframeAndroidNativeFrame {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeAndroidNativeFrame.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        buildID: String?? = nil,
+        module: String?? = nil,
+        pc: String? = nil,
+        relativePC: String? = nil
+    ) -> EverframeAndroidNativeFrame {
+        return EverframeAndroidNativeFrame(
+            buildID: buildID ?? self.buildID,
+            module: module ?? self.module,
+            pc: pc ?? self.pc,
+            relativePC: relativePC ?? self.relativePC
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeAndroidNativeSource: String, Codable {
+    case androidExitInfo = "android-exit-info"
 }
 
 // MARK: - EverframeCrashCauseChain
