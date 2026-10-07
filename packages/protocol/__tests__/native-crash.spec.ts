@@ -17,6 +17,7 @@ const native = () => ({
   error: { signalNumber: 5, signalCode: 0, machException: 6, machCode: '0x1', faultAddress: '0x20000000000011' },
 });
 const crash = () => ({ ...legacy(), frames: [{ raw: 'App 0x20000000000011' }], native: native() });
+const escaped = (text: string) => text.replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
 describe('Apple native crash metadata', () => {
   it('leaves existing payloads unchanged', () => {
@@ -76,9 +77,14 @@ describe('Apple native crash metadata', () => {
   });
   it('rejects paths, controls, uppercase UUIDs and oversized names', () => {
     for (const patch of [{ name: '/private/App' }, { name: 'dir\\App' }, { name: 'App\0' },
-      { name: 'App\n' }, { name: '\ud800' }, { name: '😀'.repeat(129) }, { uuid: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' }]) {
+      { name: 'App\n' }, { name: 'App\u007f' }, { name: 'App\u0080' }, { name: 'App\u0085' }, { name: 'App\u009b' },
+      { name: 'App\u009f' }, { name: '\ud800' }, { name: '😀'.repeat(129) }, { uuid: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' }]) {
       const value = crash(); Object.assign(value.native.images[0]!, patch);
-      expect(CrashPayload.safeParse(value).success).toBe(false);
+      expect(CrashPayload.safeParse(value).success, escaped(Object.values(patch).join())).toBe(false);
+    }
+    for (const name of ['App~', 'App ', 'App Store']) {
+      const value = crash(); value.native.images[0]!.name = name;
+      expect(CrashPayload.safeParse(value).success, escaped(name)).toBe(true);
     }
   });
   it('rejects architecture labels that contradict CPU identity', () => {

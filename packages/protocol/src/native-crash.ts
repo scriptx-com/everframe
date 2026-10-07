@@ -25,7 +25,7 @@ export type NativeAddress = z.infer<typeof NativeAddress>;
 
 export const NativeCrashImage = z.object({
   uuid: z.string().regex(uuidPattern),
-  name: z.string().min(1).max(256).regex(/^[^/\\\u0000-\u001f\u007f]+$(?![\s\S])/)
+  name: z.string().min(1).max(256).regex(/^[^/\\\u0000-\u001f\u007f-\u009f]+$(?![\s\S])/)
     .regex(/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$(?![\s\S])/u),
   loadAddress: NativeAddress,
   vmAddress: NativeAddress.optional(),
