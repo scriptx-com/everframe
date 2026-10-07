@@ -43,6 +43,39 @@ class AndroidNativeRecoveryControllerTest {
         val id = UUID.randomUUID().toString()
         return OutboxEntry(id, 1000, """{"reportId":"$id","reporter":{},"payload":{}}""".toByteArray(), "template", emptyList(), "key", "https://example.test")
     }
+    @Test fun `diagnostic mode supports API30 but never queries unsupported APIs`() {
+        val unsupported = Platform(29)
+        assertFalse(AndroidNativeRecoveryController(::engine, unsupported).enableDiagnostics(1, allowed, 1000, ::template) { true })
+        assertEquals(0, unsupported.historyCalls)
+        val platform = Platform(30)
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enableDiagnostics(1, allowed, 1000, ::template) { true })
+        assertEquals(1, platform.historyCalls)
+        assertEquals(1, platform.registrations.filterNotNull().size)
+        controller.retire(1, true) { true }
+        assertNull(platform.registrations.last())
+        assertFalse(controller.ready(1))
+    }
+    @Test fun `mode change fences queued work and keeps exactly one active OS summary owner`() {
+        val requests = AndroidNativeRecoveryRequests()
+        val native = requests.request(1, true)
+        val diagnostics = requests.request(1, true, diagnostics = true)
+        assertFalse(requests.allows(native, 1, true))
+        assertTrue(requests.allows(diagnostics, 1, true))
+        assertTrue(requests.diagnosticsEnabled(1))
+        assertEquals(diagnostics, requests.request(1, true, diagnostics = true))
+        val platform = Platform()
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enable(1, allowed, 1000, ::template) { true })
+        assertTrue(controller.enableDiagnostics(1, allowed, 1000, ::template) { true })
+        assertEquals(2, platform.registrations.filterNotNull().size)
+        assertEquals(1, platform.registrations.count { it == null })
+        assertTrue(controller.enableDiagnostics(1, allowed, 1000, ::template) { true })
+        assertEquals(2, platform.historyCalls)
+        requests.request(1, false)
+        assertFalse(requests.diagnosticsEnabled(1))
+        assertFalse(requests.allows(diagnostics, 1, true))
+    }
     @Test fun `fresh owner disable failure fences both journals before a later enable`() {
         var oldToken = byteArrayOf()
         engine().arm(template(), 99, "app", allowed) { oldToken = it }

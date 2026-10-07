@@ -37,12 +37,13 @@ class MainActivity : Activity() {
         setContentView(TextView(this).apply { text = "Native crash qualification" })
         val mode = intent.getStringExtra("mode") ?: "recover"
         val marker = intent.getStringExtra("marker") ?: "default"
+        val diagnostics = intent.getBooleanExtra("diagnostics", false)
         require(Regex("[A-Za-z0-9_-]{1,80}").matches(marker))
         val config = EverframeConfig(appId = "native-proof-app", sdkKey = intent.getStringExtra("key") ?: "native-proof-key",
             capture = CaptureConfig(crash = true, logs = false, network = false),
             installIdentifierEnabled = false, vitals = VitalsConfig(enabled = false), shakeToReportEnabled = false)
         Everframe.start(applicationContext, config, this)
-        Everframe.setNativeCrashRecoveryEnabled(true)
+        if (diagnostics) Everframe.setProcessExitDiagnosticsEnabled(true) else Everframe.setNativeCrashRecoveryEnabled(true)
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
@@ -105,10 +106,16 @@ class MainActivity : Activity() {
                         check(!Everframe.isNativeCrashRecoveryReady())
                     }
                     File(root, "$marker.json").writeText(JSONObject().put("mode", mode).put("ready", Everframe.isNativeCrashRecoveryReady())
+                        .put("diagnosticsReady", Everframe.isProcessExitDiagnosticsReady())
                         .put("pid", android.os.Process.myPid()).put("reports", reports).put("attempts", attempts)
                         .put("queueAfter", outbox.count()).put("exits", exits).toString())
                 }
                 when (mode) {
+                    "stall", "anr" -> {
+                        // Real main-looper blockage. A recovered stall is not an ANR record.
+                        Thread.sleep(if (mode == "anr") 120000 else 1500)
+                        withContext(Dispatchers.IO) { File(filesDir, "proof/$marker.recovered").writeText("main looper recovered") }
+                    }
                     "abort" -> NativeFaults.abortFault()
                     "segv", "disabled" -> NativeFaults.memoryFault(0)
                     "jvm" -> Handler(Looper.getMainLooper()).post { throw IllegalStateException("Native recovery JVM compatibility") }
