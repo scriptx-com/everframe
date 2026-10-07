@@ -312,4 +312,18 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         let baseline = try seconds(flat), elapsed = try seconds(nested)
         XCTAssertLessThan(elapsed, max(baseline, 0.01) * 20, "nested \(elapsed)s, flat \(baseline)s")
     }
+    func testDistinctImagesAssociateDeduplicateAndRemapAfterInvalidEntries() throws {
+        let a = "aaaaaaaa-0000-4000-8000-00000000000a", b = "bbbbbbbb-0000-4000-8000-00000000000b"
+        let imageA = image(base: 0x1000, uuid: a, name: "/private/var/containers/Bundle/Application/X/App.app/App")
+        var imageB = image(base: 0x2000, uuid: b, name: "/private/var/containers/Bundle/Application/X/App.app/Frameworks/Kit.framework/Kit")
+        imageB.removeValue(forKey: "image_vmaddr"); imageB["cpu_subtype"] = 2
+        let native = try XCTUnwrap(decode(record(frames: [frame(pc: 0x1010), frame(pc: 0x2020), frame(pc: 0x1030)],
+                                                 images: [["name": "only-name"], imageA, imageB])).crash.native)
+        XCTAssertEqual(native.images.map(\.uuid), [a, b]); XCTAssertEqual(native.images.map(\.name), ["App", "Kit"])
+        XCTAssertEqual(native.images.map(\.loadAddress), ["0x1000", "0x2000"]); XCTAssertEqual(native.images.map(\.size), ["0x100", "0x100"])
+        XCTAssertEqual(native.images.map(\.vmAddress), ["0x100000000", nil]); XCTAssertEqual(native.images.map(\.cpuType), [16777228, 16777228])
+        XCTAssertEqual(native.images.map(\.cpuSubtype), [0, 2]); XCTAssertEqual(native.images.map(\.architecture), [.arm64, .arm64E])
+        XCTAssertEqual(native.frames.map(\.imageIndex), [0, 1, 0]); XCTAssertEqual(native.frames.map(\.imageOffset), ["0x10", "0x20", "0x30"])
+        XCTAssertTrue(native.imagesIncomplete)
+    }
 }
