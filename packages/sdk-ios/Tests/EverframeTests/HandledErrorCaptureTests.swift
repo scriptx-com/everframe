@@ -64,6 +64,16 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertNil(try Data(contentsOf: outbox.resolvedFileURL).range(of: Data("mutable cause".utf8)))
     }
 
+    func testNativeUnderlyingErrorTextIsRedactedBeforePersistence() throws {
+        let outbox = makeOutbox()
+        let inner = NSError(domain: "inner", code: 2, userInfo: [NSLocalizedDescriptionKey: "token aaaaaaaa.bbbbbbbb.cccccccc"])
+        XCTAssertTrue(CrashReporter.captureHandledError(NSError(domain: "outer", code: 1, userInfo: [NSUnderlyingErrorKey: inner]), outbox: outbox))
+        let entry = try XCTUnwrap(try outbox.hydrate().first)
+        let causes = try XCTUnwrap((try crash(entry)["causeChain"] as? [String: Any])?["causes"] as? [[String: Any]])
+        XCTAssertEqual(causes.first?["message"] as? String, "token [REDACTED:jwt]")
+        XCTAssertNil(String(decoding: entry.envelopeBytes, as: UTF8.self).range(of: "aaaaaaaa.bbbbbbbb"))
+    }
+
     func testCauseUserInfoReentryKeepsOnlyOuterAndConfigReplacementRefusesCapture() throws {
         let outbox = makeOutbox()
         let root = MutableUnderlyingError()

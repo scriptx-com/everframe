@@ -26,7 +26,7 @@ class CrashCauseNormalizerTest {
     private fun wire(value: CrashCauseChain) = EnvelopeBuilder.JSON.encodeToString(value)
 
     @Test fun `native normalization matches shared literal fixtures`() {
-        val fixtures = JSONObject(File("../../../protocol/__tests__/fixtures/crash-causes-native-parity.json").readText()).getJSONArray("cases")
+        val fixtures = JSONObject(File(requireNotNull(System.getProperty("everframeCrashCausesCorpus"))).readText()).getJSONArray("cases")
         for (i in 0 until fixtures.length()) {
             val case = fixtures.getJSONObject(i)
             assertEquals(case.getString("name"), Json.parseToJsonElement(case.get("expected").toString()),
@@ -77,7 +77,7 @@ class CrashCauseNormalizerTest {
         input.getJSONArray("causes").getJSONObject(0).put("message", "mutated")
         assertEquals("inner", fitted.causes.single().message)
         var maxSeen = 0
-        fit(chain(cause("x".repeat(100000))), redact = { text -> maxSeen = maxOf(maxSeen, text.length); text })
-        assertTrue(maxSeen <= 8192)
+        fit(chain(cause("x ".repeat(50000))), redact = { text -> maxSeen = maxOf(maxSeen, text.length); text })
+        assertTrue(maxSeen in 8000..8192)
     }
 }
