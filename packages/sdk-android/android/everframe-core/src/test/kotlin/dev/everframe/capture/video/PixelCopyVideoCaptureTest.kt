@@ -174,6 +174,40 @@ class PixelCopyVideoCaptureTest {
         }
     }
 
+    @Test fun keyboardPanAppliedWhileDrawingIsCaughtAfterTheDraw() {
+        for (boundary in listOf("commit", "copyCallback")) {
+            val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
+            val activity = controller.get()
+            val root = android.widget.FrameLayout(activity)
+            activity.setContentView(root); root.layout(0,0,100,100)
+            val input = android.widget.EditText(activity); root.addView(input); input.layout(0,0,50,20)
+            val decor = activity.window.decorView
+            val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
+            val h = Harness()
+            h.platform = object : VideoCapturePlatform by h.platform {
+                override fun observe() = gate.observe(decor)
+            }
+            h.capture = h.create()
+            try {
+                assertTrue(h.request())
+                h.preDraw!!.invoke(); h.drain()
+                if (boundary == "copyCallback") h.commit()
+                // ViewRootImpl updates its pan offset inside draw(), after the pre-draw observation.
+                org.robolectric.util.ReflectionHelpers.setField(decor.parent, "mCurScrollY", 40)
+                if (boundary == "commit") h.commit()
+                if (boundary == "copyCallback") h.callback()
+                assertTrue("pan at $boundary must stop the copy", h.copies.isEmpty())
+                assertEquals("pan at $boundary", 0, h.accepted)
+                assertTrue(h.bitmap!!.isRecycled)
+            } finally {
+                org.robolectric.util.ReflectionHelpers.setField(decor.parent, "mCurScrollY", 0)
+                h.capture.cancel(); h.drain()
+                if (h.copies.isNotEmpty()) h.callback()
+                controller.pause().stop().destroy()
+            }
+        }
+    }
+
     @Test fun mainPrivacyPhasesExcludeAsyncCommitAndCopyWaits() {
         val h = Harness(); h.observeCost = 7
         try {

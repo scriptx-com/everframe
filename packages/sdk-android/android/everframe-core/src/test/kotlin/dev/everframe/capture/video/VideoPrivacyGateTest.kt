@@ -443,6 +443,29 @@ class VideoPrivacyGateTest {
         val hidden = gate.observe(root); assertTrue(hidden.allowed); assertTrue(hidden.masks.isEmpty())
     }
 
+    @Test fun keyboardPannedWindowRefusesFramesThatNeedMasks() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,300,300)
+        val input = EditText(a); root.addView(input); input.layout(0,100,200,150)
+        val decor = a.window.decorView
+        val viewRoot = decor.parent
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        fun windowRect(view: View) = IntArray(2).also { view.getLocationInWindow(it) }
+            .let { android.graphics.Rect(it[0], it[1], it[0] + view.width, it[1] + view.height) }
+        try {
+            assertTrue(masked(gate.observe(decor), input, decor))
+            val before = windowRect(input)
+            // adjustPan: ViewRootImpl draws the whole decor shifted up by mCurScrollY, and PixelCopy copies that buffer.
+            org.robolectric.util.ReflectionHelpers.setField(viewRoot, "mCurScrollY", 60)
+            assertEquals("fixture must pan the window", before.top - 60, windowRect(input).top)
+            val panned = gate.observe(decor)
+            assertTrue("a decor-relative mask lands below the panned field",
+                !panned.allowed || panned.masks.any { it.contains(windowRect(input)) })
+            root.removeView(input)
+            assertTrue("a panned frame with nothing to mask is still recorded", gate.observe(decor).allowed)
+        } finally { org.robolectric.util.ReflectionHelpers.setField(viewRoot, "mCurScrollY", 0); a.finish() }
+    }
+
     @Test fun rememberedInputIsMaskedOnLaterFramesUntilDetached() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)

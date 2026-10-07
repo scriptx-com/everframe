@@ -119,6 +119,9 @@ internal class VideoPrivacyGate(
             }
         }
         if (nowNanos() - start > 2_000_000L) allowed = false
+        // While the keyboard pans the window (adjustPan), the decor is drawn shifted in the buffer
+        // PixelCopy copies, so root-relative masks would land below the views they should cover.
+        if (allowed && masks.isNotEmpty() && windowShifted(root)) allowed = false
         val old = previous
         val maskList = if (allowed) masks.toList() else emptyList()
         // A moved or new mask is a new privacy state: a pending copy made under the old masks is dropped.
@@ -126,6 +129,13 @@ internal class VideoPrivacyGate(
             old.height != root.height || old.allowed != allowed || !allowed || old.masks != maskList) epoch++
         rootRef = WeakReference(root)
         return PrivacyObservation(identity, root.width, root.height, epoch, allowed, maskList).also { previous = it }
+    }
+
+    // The decor's window location includes ViewRootImpl's pan offset (mCurScrollY).
+    private fun windowShifted(root: View): Boolean {
+        val decor = root.rootView
+        val origin = IntArray(2).also { decor.getLocationInWindow(it) }
+        return origin[0] != 0 || origin[1] != 0 || !decor.matrix.isIdentity
     }
 
     companion object {
