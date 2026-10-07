@@ -1,0 +1,25 @@
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_fb1f2f187a7416 18-19,90-92
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Recorder.m
+  s_360d9eb003c487::t_67f107bb27604a 9,19-21,27
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/include/EverframeCrashRecorder.h
+  s_360d9eb003c487::t_f56321de9f2338 16-17
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_360d9eb003c487::t_3f503bb9680216 55-67,120-122,136-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bff16cb9229f174c7bd40661ad51e6a1c406dd4b",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
