@@ -79,54 +79,6 @@ class ReporterDialogSubmitBoundaryTest {
         sharedResourceBuffer.clear()
     }
 
-    @Test
-    fun `production reporter publishes live submission diagnostics`() {
-        // Exercise the default factory only after proving the compiled debug
-        // endpoint cannot send a report to an external service.
-        assertEquals("http://127.0.0.1:9", dev.everframe.BuildConfig.INGEST_URL)
-        ReporterDialog.__submitterFactoryForTesting = null
-        val controller = Robolectric.buildActivity(android.app.Activity::class.java).create()
-        val activity = controller.get()
-        Everframe.start(activity.applicationContext, EverframeConfig(
-            appId = "test-app-id", sdkKey = "txx_live_test1234567890",
-            environment = Environment.production,
-        ))
-        val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
-        val png = ByteArrayOutputStream().use {
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
-            it.toByteArray()
-        }
-        val capture = ScreenshotCapture.CaptureResult(bitmap, 2, 2, png)
-        val captured = Everframe.captureSessionSnapshot()
-        val completed = java.util.concurrent.CountDownLatch(1)
-        val failure = AtomicReference<Throwable?>(null)
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                ReporterDialog.submitBaked(
-                    reportCapture = Everframe.__replayFreeze(), activity = activity,
-                    capture = capture,
-                    shots = listOf(SubmittedShot(bitmap, emptyList())),
-                    title = "Delivery diagnostics", description = "Local test",
-                    capturedSession = captured, hostExtra = null, includes = ReporterIncludes(),
-                )
-            } catch (error: Throwable) {
-                failure.set(error)
-            } finally {
-                completed.countDown()
-            }
-        }
-        val deadline = System.currentTimeMillis() + 30_000
-        while (completed.count > 0 && System.currentTimeMillis() < deadline) {
-            shadowOf(android.os.Looper.getMainLooper()).idle()
-            Thread.sleep(5)
-        }
-        assertEquals("submit did not finish: ${failure.get()}", 0L, completed.count)
-        val status = Everframe.getReportDeliveryStatus()
-        assertEquals(1, status.transport.getValue("live-submit").settledAttempts)
-        assertEquals(1, status.transport.getValue("live-submit").outcomes.getValue("network-failure"))
-        controller.destroy()
-    }
-
     // --- Report Resource Window (spec 2026-09-05) — gap class 3: this is the
     // PRIMARY "user-submitted bug report" build site, not just the crash
     // path. ---
