@@ -1,0 +1,33 @@
+packages/sdk-ios/Sources/Everframe/Crash/CrashCauseNormalizer.swift
+  s_360d9eb003c487::t_d7c81dc88e6842 23,26
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashCauseNormalizer.kt
+  s_360d9eb003c487::t_9afccdb58dc69f 140-141
+packages/sdk-core/__tests__/crash-causes.spec.ts
+  s_360d9eb003c487::t_cb415a10181ee5 421-432
+packages/sdk-web/__tests__/capture-exception.spec.ts
+  s_360d9eb003c487::t_8784deb4bd04e5 208-220
+.changeset/mobile-cause-chains.md
+  s_360d9eb003c487::t_917b9364a7afb8 13
+packages/protocol/__tests__/crash-causes.spec.ts
+  s_360d9eb003c487::t_050acdc2380113 300-320
+packages/protocol/src/crash-causes.ts
+  s_360d9eb003c487::t_dd3f6045b0376a 143,146-147
+packages/protocol/__tests__/fixtures/crash-causes-native-parity.json
+  s_360d9eb003c487::t_6fcc670ef905eb 253-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ee4a5521dbd76dc94fefd0ac7430eadd1bd986e",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
