@@ -9,6 +9,7 @@ import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
 import { uploadAppleBuild } from "./apple-upload.js";
+import { uploadAndroidElfBuild } from "./elf-upload.js";
 import { collectElfBuild } from "./elf.js";
 import { collectDsymBuild } from "./dsym.js";
 import { collectR8Build } from "./r8.js";
@@ -21,6 +22,9 @@ export type { LocalBuild } from "./manifest.js";
 export { collectBuild } from "./manifest.js";
 export type { CollectHermesBuildOptions } from "./hermes.js";
 export { collectHermesBuild } from "./hermes.js";
+export { uploadAndroidElfBuild } from "./elf-upload.js";
+export { collectAndroidElfBuild, inspectElfFile } from "./elf-build.js";
+export type { ElfBuildImage, CollectedAndroidElfBuild } from "./elf-build.js";
 export type { CollectElfBuildOptions } from "./elf.js";
 export { collectElfBuild } from "./elf.js";
 export type { CollectDsymBuildOptions } from "./dsym.js";
@@ -44,6 +48,7 @@ const HELP = `Usage:
   everframe setup react-native --app-id <uuid> [--project <dir>]
   everframe dsym upload-build --app-id <uuid> --binary <executable> [--binary <framework>] --dsym-dir <directory>
   everframe dsym upload --app-id <uuid> --dwarf <raw-file>
+  everframe elf upload-build --app-id <uuid> --binary <shipped.so> [--binary <library.so>] --symbols-dir <directory>
   everframe elf upload --app-id <uuid> --library <unstripped-elf>
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
@@ -66,6 +71,7 @@ export async function main(
     argv[0] === "sourcemaps" &&
     (argv[1] === "upload" || argv[1] === "upload-hermes");
   const isDsymBuildCommand = argv[0] === "dsym" && argv[1] === "upload-build";
+  const isElfBuildCommand = argv[0] === "elf" && argv[1] === "upload-build";
   const isElfCommand = argv[0] === "elf" && argv[1] === "upload";
   const isDsymCommand = argv[0] === "dsym" && argv[1] === "upload";
   const isR8Command = argv[0] === "r8" && argv[1] === "upload";
@@ -79,6 +85,7 @@ export async function main(
     !isR8Command &&
     !isDsymCommand &&
     !isElfCommand &&
+    !isElfBuildCommand &&
     !isDsymBuildCommand &&
     !isBuildCommand &&
     !isExpoExportCommand
@@ -264,6 +271,26 @@ export async function main(
         deleteAfterUpload: false,
       });
       console.log(`dSYM ${result.buildUuid} is ready.`);
+      return 0;
+    }
+
+    if (isElfBuildCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2), allowPositionals: false, strict: true,
+        options: {
+          "app-id": { type: "string" },
+          binary: { type: "string", multiple: true },
+          "symbols-dir": { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) { console.log(HELP); return 0; }
+      const appId = parsed.values["app-id"], binaries = parsed.values.binary,
+        symbolsDir = parsed.values["symbols-dir"], token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !binaries?.length || !symbolsDir || !token) throw new Error("missing_required_option");
+      const result = await uploadAndroidElfBuild({ appId, binaries, symbolsDir, token,
+        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1" });
+      console.log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`);
       return 0;
     }
 
