@@ -139,5 +139,17 @@ internal class AndroidNativeRecovery(
 
     /** Atomic invalidation can run alongside the SDK's epoch transition. Disk erasure runs outside stateLock. */
     fun invalidate() { contexts.invalidateSync(); prepared.invalidateSync() }
-    fun revoke() { contexts.revokeSync(); prepared.revokeSync() }
+    fun revoke() {
+        // Poison BOTH generations before any disk operation can fail. Attempt both
+        // physical erasures; the caller retains its obligation if either fails.
+        invalidate()
+        var failure: Exception? = null
+        for (store in listOf(contexts, prepared)) {
+            try { store.revokeSync() }
+            catch (error: Exception) {
+                if (failure == null) failure = error else failure.addSuppressed(error)
+            }
+        }
+        failure?.let { throw it }
+    }
 }

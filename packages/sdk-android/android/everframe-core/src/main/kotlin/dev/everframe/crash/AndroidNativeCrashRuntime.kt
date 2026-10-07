@@ -20,8 +20,7 @@ import java.util.UUID
 internal object AndroidNativeCrashRuntime {
     private val lock = Any()
     private val requests = AndroidNativeRecoveryRequests()
-    private val revocation = AndroidNativeRecoveryRevocation()
-    fun noteKill() { revocation.invalidate() }
+    fun noteKill() { requests.invalidate() }
     fun request(epoch: Int, enabled: Boolean): Long = requests.request(epoch, enabled)
     fun ready(epoch: Int): Boolean = requests.enabled(epoch) && synchronized(lock) { controller }?.ready(epoch) == true
     private var controller: AndroidNativeRecoveryController? = null
@@ -45,7 +44,7 @@ internal object AndroidNativeCrashRuntime {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch && requests.allows(request, epoch, true)
         }
         val owner = controller(context)
-        if (!revocation.finish {
+        if (!requests.finishRevocation {
             if (!gate.isAllowed()) false else {
                 owner.retire(epoch, true) { gate.isAllowed() }
                 gate.isAllowed()
@@ -74,10 +73,10 @@ internal object AndroidNativeCrashRuntime {
     /** Outside SDK stateLock. Pending OS reads cannot block this transition. */
     fun boundary(context: Context?, epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean, request: Long? = null) {
         if (Build.VERSION.SDK_INT < 31 || !isCurrent()) return
-        val command = request ?: requests.request(epoch, false)
+        val command = request ?: requests.boundary(epoch)
         val owns = { isCurrent() && requests.allows(command, epoch, false) }
         if (!owns()) return
-        if (context != null && !revocation.finish {
+        if (context != null && !requests.finishRevocation {
             if (!owns()) false else {
                 val existing = synchronized(lock) { controller }
                 val owner = existing ?: if (File(context.noBackupFilesDir, "dev.everframe/native-exit-v1").exists()) controller(context) else null

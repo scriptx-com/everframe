@@ -16,7 +16,14 @@ import java.util.concurrent.atomic.AtomicInteger
 class AndroidNativeRecoveryControllerTest {
     @get:Rule val folder = TemporaryFolder()
     private val keys = JceTestOutboxKeyProvider()
-    private val ops = JvmOutboxFileOps()
+    private var failContextRevoke = false
+    private val ops = object : OutboxFileOps by JvmOutboxFileOps() {
+        override fun syncFile(file: File) {
+            if (failContextRevoke && file.name == "kill.pending" && file.parentFile?.name == "contexts")
+                throw java.io.IOException("injected context revoke fsync failure")
+            JvmOutboxFileOps().syncFile(file)
+        }
+    }
     private val epoch = AtomicInteger(1)
     private var consent = true
     private val allowed = object : OutboxAuthorization { override fun isAllowed() = consent && epoch.get() == 1 }
@@ -35,6 +42,65 @@ class AndroidNativeRecoveryControllerTest {
     private fun template(): OutboxEntry {
         val id = UUID.randomUUID().toString()
         return OutboxEntry(id, 1000, """{"reportId":"$id","reporter":{},"payload":{}}""".toByteArray(), "template", emptyList(), "key", "https://example.test")
+    }
+    @Test fun `fresh owner disable failure fences both journals before a later enable`() {
+        var oldToken = byteArrayOf()
+        engine().arm(template(), 99, "app", allowed) { oldToken = it }
+        engine().recover(listOf(AndroidNativeExit(99, "app", 2000, 5, oldToken) { null }), 3000, allowed) { false }
+        val controller = AndroidNativeRecoveryController(::engine, Platform())
+        failContextRevoke = true
+        try { controller.retire(1, true) { true }; fail("injected failure") }
+        catch (_: OutboxWriteException) { }
+        failContextRevoke = false
+        var admitted = 0
+        controller.enable(1, allowed, 4000, ::template) { admitted++; true }
+        assertEquals("explicitly revoked prepared evidence must never be admitted", 0, admitted)
+        controller.retire(1, true) { true }
+        assertTrue(controller.enable(1, allowed, 5000, ::template) { admitted++; true })
+        assertEquals(0, admitted)
+    }
+    @Test fun `explicit disable intent survives a barrier controlled false to true displacement`() {
+        var oldToken = byteArrayOf()
+        engine().arm(template(), 99, "app", allowed) { oldToken = it }
+        engine().recover(listOf(AndroidNativeExit(99, "app", 2000, 5, oldToken) { null }), 3000, allowed) { false }
+        val requests = AndroidNativeRecoveryRequests()
+        val controller = AndroidNativeRecoveryController(::engine, Platform())
+        val falseRequested = CountDownLatch(1)
+        val trueRequested = CountDownLatch(1)
+        val oldTail = Thread {
+            val disabled = requests.request(1, false)
+            falseRequested.countDown()
+            check(trueRequested.await(5, TimeUnit.SECONDS))
+            controller.retire(1, true) { requests.allows(disabled, 1, false) }
+        }
+        oldTail.start()
+        assertTrue(falseRequested.await(5, TimeUnit.SECONDS))
+        val enabled = requests.request(1, true)
+        trueRequested.countDown()
+        oldTail.join(5000)
+        assertFalse(oldTail.isAlive)
+        var erased = false
+        val gate = object : OutboxAuthorization { override fun isAllowed() = requests.allows(enabled, 1, true) }
+        assertTrue(requests.finishRevocation {
+            erased = true
+            controller.retire(1, true) { gate.isAllowed() }
+            gate.isAllowed()
+        })
+        assertTrue("disable must survive its displaced physical cleanup", erased)
+        assertTrue(controller.enable(1, gate, 4000, ::template) { error("disabled prepared evidence resurrected") })
+    }
+    @Test fun `explicit erasure failure remains pending while ordinary start retains prior process evidence`() {
+        val requests = AndroidNativeRecoveryRequests()
+        requests.boundary(1)
+        assertTrue(requests.finishRevocation { error("ordinary start must not purge previous process") })
+        requests.request(1, false)
+        try { requests.finishRevocation { throw java.io.IOException("erase failed") }; fail() }
+        catch (_: java.io.IOException) { }
+        requests.request(2, true)
+        var retried = false
+        assertTrue(requests.finishRevocation { retried = true; true })
+        assertTrue(retried)
+        assertTrue(requests.finishRevocation { error("completed obligation should not erase fresh evidence") })
     }
     @Test fun `queued enable cannot survive explicit disable or a newer SDK start`() {
         val requests = AndroidNativeRecoveryRequests()

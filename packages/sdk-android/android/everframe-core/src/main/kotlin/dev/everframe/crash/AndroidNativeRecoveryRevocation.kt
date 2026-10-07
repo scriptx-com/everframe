@@ -4,7 +4,7 @@ package dev.everframe.crash
 
 import java.util.concurrent.atomic.AtomicLong
 
-/** Monotonic kill intent survives a tail displaced by a newer start in this process.
+/** Monotonic erasure intent survives a disable/kill tail displaced by a newer command.
  * invalidate is atomic-only and safe under SDK stateLock; finish does durable work outside it.
  */
 internal class AndroidNativeRecoveryRevocation {
