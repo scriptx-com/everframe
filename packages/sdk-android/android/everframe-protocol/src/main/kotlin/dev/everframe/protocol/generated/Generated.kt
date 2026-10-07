@@ -517,7 +517,8 @@ data class DiagnosticEvidence (
     val provenance: Provenance,
     val scope: Scope,
     val trace: Trace,
-    val version: Double
+    val version: Double,
+    val nativeExposure: NativeExposure? = null
 )
 
 @Serializable
@@ -564,6 +565,32 @@ enum class DiagnosticCause(val value: String) {
 @Serializable
 enum class DiagnosticKind(val value: String) {
     @SerialName("process_exit") ProcessExit("process_exit");
+}
+
+@Serializable
+data class NativeExposure (
+    @SerialName("exposureId")
+    val exposureID: String,
+
+    @SerialName("loadedBuildId")
+    val loadedBuildID: String? = null,
+
+    val loadedBundleStatus: LoadedBundleStatus,
+
+    @SerialName("nativeBuildId")
+    val nativeBuildID: String,
+
+    @SerialName("processLaunchId")
+    val processLaunchID: String,
+
+    val startedAt: String
+)
+
+@Serializable
+enum class LoadedBundleStatus(val value: String) {
+    @SerialName("known") Known("known"),
+    @SerialName("not_applicable") NotApplicable("not_applicable"),
+    @SerialName("unknown") Unknown("unknown");
 }
 
 @Serializable

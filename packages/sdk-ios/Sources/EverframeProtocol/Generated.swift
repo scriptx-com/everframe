@@ -1734,6 +1734,7 @@ public struct EverframeDiagnosticEvidence: Codable {
     public let collectedAt: Date
     public let evidenceID: String
     public let kind: EverframeDiagnosticKind
+    public let nativeExposure: EverframeNativeExposure?
     public let occurredAt: Date
     public let outcome: EverframeOutcome
     public let processLaunchID: String
@@ -1745,18 +1746,19 @@ public struct EverframeDiagnosticEvidence: Codable {
     public enum CodingKeys: String, CodingKey {
         case android, attribution, cause, collectedAt
         case evidenceID = "evidenceId"
-        case kind, occurredAt, outcome
+        case kind, nativeExposure, occurredAt, outcome
         case processLaunchID = "processLaunchId"
         case provenance, scope, trace, version
     }
 
-    public init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
+    public init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, nativeExposure: EverframeNativeExposure? = nil, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
         self.android = android
         self.attribution = attribution
         self.cause = cause
         self.collectedAt = collectedAt
         self.evidenceID = evidenceID
         self.kind = kind
+        self.nativeExposure = nativeExposure
         self.occurredAt = occurredAt
         self.outcome = outcome
         self.processLaunchID = processLaunchID
@@ -1792,6 +1794,7 @@ public extension EverframeDiagnosticEvidence {
         collectedAt: Date? = nil,
         evidenceID: String? = nil,
         kind: EverframeDiagnosticKind? = nil,
+        nativeExposure: EverframeNativeExposure?? = nil,
         occurredAt: Date? = nil,
         outcome: EverframeOutcome? = nil,
         processLaunchID: String? = nil,
@@ -1807,6 +1810,7 @@ public extension EverframeDiagnosticEvidence {
             collectedAt: collectedAt ?? self.collectedAt,
             evidenceID: evidenceID ?? self.evidenceID,
             kind: kind ?? self.kind,
+            nativeExposure: nativeExposure ?? self.nativeExposure,
             occurredAt: occurredAt ?? self.occurredAt,
             outcome: outcome ?? self.outcome,
             processLaunchID: processLaunchID ?? self.processLaunchID,
@@ -1957,6 +1961,85 @@ public enum EverframeDiagnosticCause: String, Codable {
 
 public enum EverframeDiagnosticKind: String, Codable {
     case processExit = "process_exit"
+}
+
+// MARK: - EverframeNativeExposure
+public struct EverframeNativeExposure: Codable {
+    public let exposureID: String
+    public let loadedBuildID: String?
+    public let loadedBundleStatus: EverframeLoadedBundleStatus
+    public let nativeBuildID: String
+    public let processLaunchID: String
+    public let startedAt: Date
+
+    public enum CodingKeys: String, CodingKey {
+        case exposureID = "exposureId"
+        case loadedBuildID = "loadedBuildId"
+        case loadedBundleStatus
+        case nativeBuildID = "nativeBuildId"
+        case processLaunchID = "processLaunchId"
+        case startedAt
+    }
+
+    public init(exposureID: String, loadedBuildID: String?, loadedBundleStatus: EverframeLoadedBundleStatus, nativeBuildID: String, processLaunchID: String, startedAt: Date) {
+        self.exposureID = exposureID
+        self.loadedBuildID = loadedBuildID
+        self.loadedBundleStatus = loadedBundleStatus
+        self.nativeBuildID = nativeBuildID
+        self.processLaunchID = processLaunchID
+        self.startedAt = startedAt
+    }
+}
+
+// MARK: EverframeNativeExposure convenience initializers and mutators
+
+public extension EverframeNativeExposure {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeNativeExposure.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        exposureID: String? = nil,
+        loadedBuildID: String?? = nil,
+        loadedBundleStatus: EverframeLoadedBundleStatus? = nil,
+        nativeBuildID: String? = nil,
+        processLaunchID: String? = nil,
+        startedAt: Date? = nil
+    ) -> EverframeNativeExposure {
+        return EverframeNativeExposure(
+            exposureID: exposureID ?? self.exposureID,
+            loadedBuildID: loadedBuildID ?? self.loadedBuildID,
+            loadedBundleStatus: loadedBundleStatus ?? self.loadedBundleStatus,
+            nativeBuildID: nativeBuildID ?? self.nativeBuildID,
+            processLaunchID: processLaunchID ?? self.processLaunchID,
+            startedAt: startedAt ?? self.startedAt
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeLoadedBundleStatus: String, Codable {
+    case known = "known"
+    case notApplicable = "not_applicable"
+    case unknown = "unknown"
 }
 
 public enum EverframeOutcome: String, Codable {

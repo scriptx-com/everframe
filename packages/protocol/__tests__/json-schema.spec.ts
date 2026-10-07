@@ -190,3 +190,28 @@ describe('Crash details exported schema', () => {
     expect(validate(envelope)).toBe(accepted);
   });
 });
+
+
+describe('native exposure pointer JSON schema', () => {
+  const ajv = new AjvCtor({ strict: false, allErrors: true });
+  addFormatsFn(ajv);
+  const validate = ajv.compile(jsonSchema);
+  it('retains the frozen pointer for independent schema consumers', () => {
+    const value = structuredClone(minimal) as any;
+    value.source = 'diagnostic'; value.sdk.platform = 'android';
+    value.payload = { diagnostic: {
+      version: 1, evidenceId: value.reportId, processLaunchId: '22222222-2222-4222-8222-222222222222',
+      kind: 'process_exit', provenance: 'android_application_exit_info', scope: 'os_process',
+      outcome: 'terminated', cause: 'anr', occurredAt: '2026-10-07T10:00:00.000Z', collectedAt: '2026-10-07T10:01:00.000Z',
+      attribution: { process: 'exact_os_token', release: 'frozen', session: 'unavailable', webExposure: 'unavailable' },
+      android: { apiLevel: 35, reason: 6, pid: 100 },
+      trace: { status: 'unavailable', format: 'none', truncated: false, frames: [] },
+      nativeExposure: { exposureId: '33333333-3333-4333-8333-333333333333',
+        processLaunchId: '22222222-2222-4222-8222-222222222222', startedAt: '2026-10-07T09:00:00.000Z',
+        nativeBuildId: 'native-artifact-a', loadedBuildId: null, loadedBundleStatus: 'not_applicable' },
+    } };
+    expect(validate(value)).toBe(true);
+    value.payload.diagnostic.nativeExposure.nativeBuildId = '';
+    expect(validate(value)).toBe(false);
+  });
+});

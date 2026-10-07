@@ -63,10 +63,11 @@ export {
 // Zod-free, so the SDK's eager bundle can import it without pulling in schemas.
 export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';
 export {
-  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema,
+  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema, NativeExposurePointerSchema,
+  WebReleaseHealthExposureSchema, AndroidReleaseHealthExposureSchema,
   RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
 } from './release-health.js';
-export type { ReleaseHealthRecord, ReleaseHealthExposure } from './release-health.js';
+export type { ReleaseHealthRecord, ReleaseHealthExposure, NativeExposurePointer, WebReleaseHealthExposure, AndroidReleaseHealthExposure } from './release-health.js';
 
 export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
 

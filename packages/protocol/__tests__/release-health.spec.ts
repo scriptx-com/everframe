@@ -37,3 +37,42 @@ describe('release exposure record', () => {
     expect(ReleaseHealthRecordSchema.safeParse({ ...start(), exposure: { ...exposure, ...patch } }).success).toBe(false);
   });
 });
+
+const androidExposure = () => ({
+  exposureId: '11111111-1111-4111-8111-111111111111', processLaunchId: '22222222-2222-4222-8222-222222222222',
+  startedAt: '2026-10-07T12:00:00.000Z', platform: 'android', sdkVersion: '1.0.0',
+  nativeRelease: { buildId: 'native-artifact-a' }, loadedBuildId: null, loadedBundleStatus: 'not_applicable',
+  subject: 'anonymous_exposure', coverage: { policy: 'android-sdk-segment-v1', sampleRate: 1,
+    priorQueueLosses: null, queueLossAccounting: 'unavailable' },
+});
+const androidStart = () => ({ ...start(), exposure: androidExposure() });
+describe('Android release exposure segments', () => {
+  it('accepts explicit native identity and truthful unavailable loss accounting', () => {
+    expect(ReleaseHealthRecordSchema.parse(androidStart())).toEqual(androidStart());
+  });
+  it('accepts the actually loaded bundle or explicitly unknown bundle identity', () => {
+    for (const patch of [{ loadedBundleStatus: 'known', loadedBuildId: 'bundle-a' },
+      { loadedBundleStatus: 'unknown', loadedBuildId: null }]) {
+      const value = { ...androidStart(), exposure: { ...androidExposure(), ...patch } };
+      expect(ReleaseHealthRecordSchema.parse(value)).toEqual(value);
+    }
+  });
+  it('accepts an explicit stop boundary without claiming process health', () => {
+    const value = { ...end(), exposure: androidExposure() };
+    expect(ReleaseHealthRecordSchema.parse(value)).toEqual(value);
+  });
+  it.each([
+    { pageLaunchId: exposure.pageLaunchId }, { processLaunchId: undefined },
+    { nativeRelease: { buildId: '' } }, { nativeRelease: { buildId: 'x'.repeat(201) } },
+    { nativeRelease: 'not_applicable' }, { loadedBundleStatus: 'known', loadedBuildId: null },
+    { loadedBundleStatus: 'unknown', loadedBuildId: 'downloaded-only' },
+    { loadedBundleStatus: 'not_applicable', loadedBuildId: 'bundle-a' },
+    { coverage: { policy: 'android-sdk-segment-v1', sampleRate: 1, priorQueueLosses: 0, queueLossAccounting: 'unavailable' } },
+    { userId: 'person' },
+  ])('rejects invented or contradictory native identity %j', patch => {
+    expect(ReleaseHealthRecordSchema.safeParse({ ...androidStart(), exposure: { ...androidExposure(), ...patch } }).success).toBe(false);
+  });
+  it('does not accept a web page boundary for a native SDK segment', () => {
+    expect(ReleaseHealthRecordSchema.safeParse({ ...end(), exposure: androidExposure(), endReason: 'page_hide' }).success).toBe(false);
+  });
+});

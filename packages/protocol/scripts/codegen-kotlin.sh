@@ -181,6 +181,18 @@ ${constructorParameters}
 ${copyParameters}
     ): Payload = Payload(${names.join(', ')}, diagnostic)
 }`);
+// Keep existing diagnostic positional arguments stable; append the optional exposure.
+const evidencePattern = /data class DiagnosticEvidence \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
+const evidenceMatch = rewritten.match(evidencePattern);
+if (!evidenceMatch) throw new Error('codegen-kotlin: DiagnosticEvidence block shape changed');
+const exposureProperty = '    val nativeExposure: NativeExposure? = null,';
+const evidenceProperties = evidenceMatch[1].split('\n');
+const exposureIndex = evidenceProperties.indexOf(exposureProperty);
+if (exposureIndex < 0) throw new Error('codegen-kotlin: DiagnosticEvidence.nativeExposure missing');
+evidenceProperties.splice(exposureIndex, 1);
+evidenceProperties[evidenceProperties.length - 1] += ',';
+evidenceProperties.push('    val nativeExposure: NativeExposure? = null');
+rewritten = rewritten.replace(evidencePattern, `data class DiagnosticEvidence (\n${evidenceProperties.join('\n')}\n)`);
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {
   throw new Error('codegen-kotlin: Format block shape changed');
