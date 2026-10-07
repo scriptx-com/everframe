@@ -1,0 +1,19 @@
+packages/protocol/__tests__/crash-reporting-extension.spec.ts
+  s_97602a0a2d8f20::t_f3315506646323 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "da2c30d4d3bfafb6bb0aa7f95531a068a33471a3",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
