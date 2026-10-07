@@ -9,6 +9,8 @@ export interface PromiseRejectionCounters {
   capacityDropped: number; sizeDropped: number; expired: number;
   duplicateSuppressed: number; allowanceSuppressed: number;
   nativeRefused: number; captureFailed: number;
+  /** Pending observations released when another owner replaced the hooks. */
+  discarded: number;
 }
 export interface PromiseRejectionStatus {
   status: 'disabled' | 'unsupported' | 'observing' | 'displaced' | 'install-failed' | 'not-mounted';
@@ -23,5 +25,6 @@ export function emptyPromiseRejectionStatus(
   return { status, reason, previousCallbacksPresent: false, counters: {
     pending: 0, accepted: 0, cancelled: 0, capacityDropped: 0, sizeDropped: 0,
     expired: 0, duplicateSuppressed: 0, allowanceSuppressed: 0, nativeRefused: 0, captureFailed: 0,
+    discarded: 0,
   } };
 }

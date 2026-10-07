@@ -75,8 +75,8 @@
       "default": "./dist/integrations/theoplayer.js"
     },
     "./integrations/react": {
-      "browser": null,
       "types": "./dist/integrations/react.d.ts",
+      "browser": null,
       "default": "./dist/integrations/react.js"
     }
   },

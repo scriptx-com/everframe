@@ -119,6 +119,9 @@ android {
                 val detailsCorpus = rootProject.file("../../protocol/__tests__/fixtures/crash-details-native-parity.json")
                 test.inputs.file(detailsCorpus)
                 test.systemProperty("everframeCrashDetailsCorpus", detailsCorpus.absolutePath)
+                val causesCorpus = rootProject.file("../../protocol/__tests__/fixtures/crash-causes-native-parity.json")
+                test.inputs.file(causesCorpus)
+                test.systemProperty("everframeCrashCausesCorpus", causesCorpus.absolutePath)
                 providers.gradleProperty("everframeCrashDetailsOutput").orNull?.let { output ->
                     val destination = File(output)
                     require(destination.isAbsolute) { "everframeCrashDetailsOutput must be absolute" }

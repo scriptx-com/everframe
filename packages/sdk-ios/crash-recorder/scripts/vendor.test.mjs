@@ -5,10 +5,17 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm, mkdir, cp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { prepareVendor } from './prepare-vendor.mjs';
+import { prepareVendor, transform, vendorRoot } from './prepare-vendor.mjs';
 import { verifyVendor } from './verify-vendor.mjs';
 const upstreamRoot = process.env.KSCRASH_CHECKOUT;
+const componentRoot = fileURLToPath(new URL('..', import.meta.url));
+// Checks the deterministic preparation output and the packaged component source alike.
+async function packaged(t, path) {
+  const root = await fixture(t);
+  return Promise.all([root, componentRoot].map(base => readFile(join(base, vendorRoot, path), 'utf8')));
+}
 assert.ok(upstreamRoot, 'KSCRASH_CHECKOUT must name the pinned upstream checkout');
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'efcr-vendor-test-'));
@@ -75,4 +82,48 @@ test('rejects altered component privacy declarations', async t => {
   const root=await fixture(t);
   await writeFile(join(root,'Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy'),'changed');
   await assert.rejects(verifyVendor(root),/resource integrity/);
+});
+test('resource monitor never changes the host battery monitoring setting', async t => {
+  const path='KSCrashRecording/Monitors/KSCrashMonitor_Resource.m';
+  for (const source of await packaged(t,path)) assert.doesNotMatch(source,/batteryMonitoringEnabled\s*=/);
+  assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/battery/);
+});
+test('reports copy no raw stack memory and keep registers for the crashed thread only', async t => {
+  const path='KSCrashRecording/KSCrashReportC.c';
+  for (const source of await packaged(t,path)) {
+    assert.doesNotMatch(source,/stackBuffer|KSCrashField_Contents, \(void \*\)/);
+    assert.match(source,/if \(isCrashedThread && ksmc_canHaveCPUState\(machineContext\)\) \{\n\s+writeRegisters\(/);
+  }
+  assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/report memory/);
+});
+test('arm unwinding reports the restored caller instead of a stale link register', async t => {
+  const path='KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c';
+  for (const source of await packaged(t,path)) {
+    assert.match(source,/const bool staleLR = frameRecordLiveAt\(crashPC\) &&/);
+    assert.match(source,/\} else if \(staleLR &&[^{]+\{\n[^\n]+\n\s+nextAddress = ctx->pc;/);
+  }
+  assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/link register/);
+});
+test('README names every vendored initializer that runs before main', async () => {
+  const readme=await readFile(join(componentRoot,'README.md'),'utf8');
+  const start=readme.indexOf('## Load-time behaviour');
+  assert.ok(start>=0,'README has a load-time behaviour section');
+  const section=readme.slice(start,readme.indexOf('\n## ',start+1)>0?readme.indexOf('\n## ',start+1):undefined);
+  const manifest=JSON.parse(await readFile(join(componentRoot,'vendor-lock.json'),'utf8'));
+  const initializers=[];
+  for (const entry of manifest.files) {
+    const source=await readFile(join(componentRoot,entry.path),'utf8');
+    if (/^\+ ?\(void\) ?load\b|__attribute__\(\(constructor/m.test(source)) initializers.push(entry.path.slice(vendorRoot.length+1));
+  }
+  assert.deepEqual(initializers.sort(),['KSCrashRecording/KSCrashAppStateTracker.m','KSCrashRecordingCore/KSThreadInit.m']);
+  assert.deepEqual(initializers.filter(path=>!section.includes(`\`${path}\``)),[]);
+});
+test('namespace prelude keeps the aliases that full-object linking requires', async () => {
+  const prelude=await readFile(join(componentRoot,'Sources/EverframeCrashRecorder/EverframeKSCrashNamespace.h'),'utf8');
+  assert.match(prelude,/^#define KSCRASH_NAMESPACE _everframe$/m);
+  for (const name of ['kscrash_notifyObjCLoad','kscrash_notifyAppActive','kscrash_notifyAppInForeground',
+    'kscrash_notifyAppTerminate','kscrash_notifyAppCrash','kscrash_testcode_setMonitors','kscrash_testcode_setLastRunID',
+    'KSCrashReport','KSCrashMonitorPlugin','__cxa_throw']) {
+    assert.match(prelude,new RegExp(`^#define ${name} KSCRASH_NS\\(${name}\\)$`,'m'),`missing private alias ${name}`);
+  }
 });

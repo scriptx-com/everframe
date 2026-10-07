@@ -28,14 +28,14 @@ final class RNCrashCausesTests: XCTestCase {
         XCTAssertFalse(chain.truncated)
     }
     func testDecodeRetainsOnlyBoundedPrefixes() throws {
-        let frame: [String: Any] = ["raw": String(repeating: "x", count: 100_000)]
-        let cause: [String: Any] = ["exceptionType": "Error", "message": String(repeating: "x", count: 100_000),
+        let frame: [String: Any] = ["raw": String(repeating: "x ", count: 50_000)]
+        let cause: [String: Any] = ["exceptionType": "Error", "message": String(repeating: "x ", count: 50_000),
                                   "frames": Array(repeating: frame, count: 40), "framesTruncated": false]
         let data = try JSONSerialization.data(withJSONObject: ["causes": Array(repeating: cause, count: 9), "truncated": false])
         let wire = try JSONDecoder().decode(RNCrashCausesWire.self, from: data)
         XCTAssertEqual(wire.causes.count, 8)
         XCTAssertTrue(wire.truncated)
-        XCTAssertTrue(wire.causes.allSatisfy { $0.message.utf16.count <= 8192 && $0.frames.count == 32 && $0.framesTruncated })
-        XCTAssertTrue(wire.causes.flatMap(\.frames).allSatisfy { $0.raw.utf16.count <= 8192 })
+        XCTAssertTrue(wire.causes.allSatisfy { (8000...8192).contains($0.message.utf16.count) && $0.frames.count == 32 && $0.framesTruncated })
+        XCTAssertTrue(wire.causes.flatMap(\.frames).allSatisfy { (8000...8192).contains($0.raw.utf16.count) })
     }
 }
