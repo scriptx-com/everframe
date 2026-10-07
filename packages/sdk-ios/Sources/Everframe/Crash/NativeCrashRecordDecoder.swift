@@ -53,7 +53,7 @@ enum NativeCrashRecordDecoder {
             rawType = signal.name ?? "Signal \(signal.signal)"
         default: rawType = fault.nsexception?.name ?? "NSException"
         }
-        let type = text(rawType, limit: 256, redact: redact, fallback: fault.type)
+        let type = text(rawType, limit: 256, redact: redact, fallback: fault.type, dropsCutToken: true)
         var images: [EverframeNativeCrashImage] = [], frames: [EverframeFrame] = [], crashInfo: [String] = []
         var nativeFrames: [EverframeNativeCrashFrame] = [], sourceToOutput: [Int: Int] = [:], appKeys: [String] = []
         var imagesIncomplete = vendor.binary_images?.skipped ?? true
@@ -95,7 +95,7 @@ enum NativeCrashRecordDecoder {
             nativeFrames.append(EverframeNativeCrashFrame(imageIndex: imageIndex, imageOffset: offset, instructionAddress: hex(pc)))
         }
         let message = text(fault.reason ?? (crashInfo.isEmpty ? rawType : crashInfo.joined(separator: "\n")),
-                           limit: 4096, redact: redact, fallback: type)
+                           limit: 4096, redact: redact, fallback: type, dropsCutToken: true)
         let error = EverframeNativeCrashError(faultAddress: fault.address.map(hex),
             machCode: fault.mach?.code.map { hex($0.value) }, machException: fault.mach.map { Int($0.exception) },
             machSubcode: fault.mach?.subcode.map { hex($0.value) },
@@ -151,11 +151,17 @@ enum NativeCrashRecordDecoder {
         let safe = redacted.replacingOccurrences(of: "/", with: "").replacingOccurrences(of: "\\", with: "")
         return safe.isEmpty ? "<unknown>" : safe
     }
-    private static func text(_ value: String, limit: Int, redact: (String) -> String, fallback: String) -> String {
+    private static func text(_ value: String, limit: Int, redact: (String) -> String, fallback: String,
+                             dropsCutToken: Bool = false) -> String {
         // The redactor sees a 2x window with controls as spaces, so separators keep word boundaries
-        // and secrets straddling the output cap stay whole; its output is then stripped and capped.
-        let result = bounded(redact(bounded(value, limit: 2 * limit, separator: " ")), limit: limit)
-            .trimmingCharacters(in: .whitespaces)
+        // and secrets straddling the output cap stay whole. Runtime text also drops a token the window
+        // cuts; symbol and image names come from binaries, and a cut mangled name would collapse.
+        // The redactor's output is then stripped and capped.
+        var window = bounded(value, limit: 2 * limit, separator: " ")
+        if dropsCutToken, value.utf16.prefix(2 * limit + 1).count > 2 * limit {
+            window = RedactionWindow.droppingCutToken(window)
+        }
+        let result = bounded(redact(window), limit: limit).trimmingCharacters(in: .whitespaces)
         return result.isEmpty ? fallback : result
     }
     private static func bounded(_ value: String, limit: Int, separator: Unicode.Scalar? = nil) -> String {
@@ -170,5 +176,33 @@ enum NativeCrashRecordDecoder {
             output.append(scalar); units += count
         }
         return String(output)
+    }
+}
+
+/// Redaction matches secrets such as JWTs and card numbers only whole, so text cut by a scan window
+/// drops the cut token and any digit group before it, exactly as the shared TypeScript normalizer
+/// does. Cause chains share this rule; it lives here because the decoder's sources also build on their own.
+enum RedactionWindow {
+    static func droppingCutToken(_ text: String) -> String {
+        let scalars = text.unicodeScalars
+        var end = scalars.endIndex
+        while end > scalars.startIndex, isTokenUnit(scalars[scalars.index(before: end)]) { end = scalars.index(before: end) }
+        while end > scalars.startIndex, isDigitGroupUnit(scalars[scalars.index(before: end)]) { end = scalars.index(before: end) }
+        return String(scalars[..<end])
+    }
+    /// Units of the tokens the shared redaction patterns match (JWT, bearer).
+    private static func isTokenUnit(_ unit: Unicode.Scalar) -> Bool {
+        switch unit.value {
+        case 0x30...0x39, 0x41...0x5A, 0x61...0x7A, 0x2B, 0x2D, 0x2E, 0x2F, 0x3D, 0x5F, 0x7E: return true
+        default: return false
+        }
+    }
+    /// Digits, dashes and JavaScript whitespace: the units of card and SSN numbers.
+    private static func isDigitGroupUnit(_ unit: Unicode.Scalar) -> Bool {
+        switch unit.value {
+        case 0x30...0x39, 0x2D, 0x09...0x0D, 0x20, 0xA0, 0x1680, 0x2000...0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF:
+            return true
+        default: return false
+        }
     }
 }

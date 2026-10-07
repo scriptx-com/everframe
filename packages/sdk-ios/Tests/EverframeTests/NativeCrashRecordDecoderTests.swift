@@ -130,11 +130,12 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         XCTAssertEqual(try decode(record(images: [overflow])).crash.native?.images[0].architecture, .arm64E)
     }
     func testSensitiveUnknownFieldsIgnoredAndExpandingRedactionRebounded() throws {
-        let long = String(repeating: "x", count: 20_000)
+        // Reason and name are words: their windows drop a cut token, which would be all of one long token.
+        let long = String(repeating: "x", count: 20_000), words = String(repeating: " x", count: 10_000)
         var input = record(type: "nsexception", frames: [frame(symbol: "SYMBOL" + long)],
                            images: [image(name: "/Applications/App.app/IMAGE" + long)])
         input["system"] = ["path": "NEVER_COPY"]; input["memory"] = ["token": "NEVER_COPY"]
-        input = changeError(changeError(input, "reason", "REASON" + long), "nsexception", ["name": "NAME" + long])
+        input = changeError(changeError(input, "reason", "REASON" + words), "nsexception", ["name": "NAME" + words])
         var inputs: [String] = []
         let result = try decode(input, redact: { inputs.append($0); return "/redacted\\\u{0}" + String(repeating: "😀", count: 5000) })
         // Each field reaches the redactor already bounded, and is bounded again afterwards.
@@ -274,6 +275,38 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
             XCTAssertLessThanOrEqual(message.utf16.count, 4096)
             XCTAssertFalse(message.unicodeScalars.contains { $0.value < 32 || (127...159).contains($0.value) }, secret)
         }
+    }
+    func testSecretsCutByTheRedactionWindowAreDropped() throws {
+        // Redaction matches JWTs and card numbers only whole, so a token the 2x window cuts must not survive.
+        let header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", claims = "eyJzdWIiOiJqYW5lQGV4YW1wbGUuY29tIn0"
+        let jwt = header + "." + claims + ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        let short = "eyJhbGciOiJIUzI1NiJ9." + String(repeating: "B", count: 240) + "." + String(repeating: "C", count: 43)
+        // Earlier redactions shrink the text, which moves a token cut at the window edge inside the output cap.
+        func cut(_ secret: String, keeping kept: Int, window: Int, shrinking count: Int) -> String {
+            let prefix = Array(repeating: short, count: count).joined(separator: " ")
+            return prefix + " " + String(repeating: "y", count: window - kept - prefix.utf16.count - 2) + " " + secret
+        }
+        func crash(reason: String, name: String = "CustomException") throws -> EverframeCrash {
+            let input = changeError(changeError(record(type: "nsexception"), "reason", reason), "nsexception", ["name": name])
+            return try decode(input, redact: { RedactionEngine().redact($0) }).crash
+        }
+        let lone = String(repeating: "x", count: 4000) + " eyJhbGciOiJIUzI1NiJ9." + String(repeating: "A", count: 9000)
+            + "." + String(repeating: "S", count: 43)
+        XCTAssertEqual(try crash(reason: lone).message, String(repeating: "x", count: 4000))
+        // Four signature characters, or fifteen card digits, fall inside the window.
+        let signed = header.utf16.count + claims.utf16.count + 6
+        let cases: [(String, [String], Int)] = try [
+            (crash(reason: cut(jwt, keeping: signed, window: 8192, shrinking: 20)).message, [header, claims], 4096),
+            (crash(reason: cut("4111111111111111", keeping: 15, window: 8192, shrinking: 20)).message, ["41111111"], 4096),
+            (crash(reason: "failure", name: cut(jwt, keeping: signed, window: 512, shrinking: 1)).exceptionType, [header, claims], 256)]
+        for (text, secrets, limit) in cases {
+            for secret in secrets { XCTAssertFalse(text.contains(secret), secret) }
+            XCTAssertLessThanOrEqual(text.utf16.count, limit)
+            XCTAssertFalse(text.unicodeScalars.contains { $0.value < 32 || (127...159).contains($0.value) })
+        }
+        // Text the window does not cut keeps its trailing token, even at exactly twice the limit.
+        XCTAssertEqual(try crash(reason: "Payment failed with code 51").message, "Payment failed with code 51")
+        XCTAssertTrue(try crash(reason: cut("51", keeping: 2, window: 8192, shrinking: 20)).message.hasSuffix("y 51"))
     }
     func testNSExceptionHandlerStackAtRecorderCapacityIsIncomplete() throws {
         // The pinned recorder writes at most 94 uncaught-handler frames, with no truncation marker.

@@ -14,26 +14,7 @@ internal enum CrashCauseText {
     static func scan(_ text: String) -> (text: String, lost: Bool) {
         let window = prefix(text, limit: 8192)
         guard window.lost else { return window }
-        let scalars = window.text.unicodeScalars
-        var end = scalars.endIndex
-        while end > scalars.startIndex, isTokenUnit(scalars[scalars.index(before: end)]) { end = scalars.index(before: end) }
-        while end > scalars.startIndex, isDigitGroupUnit(scalars[scalars.index(before: end)]) { end = scalars.index(before: end) }
-        return (String(scalars[..<end]), true)
-    }
-    /// Units of the tokens the shared redaction patterns match (JWT, bearer).
-    private static func isTokenUnit(_ unit: Unicode.Scalar) -> Bool {
-        switch unit.value {
-        case 0x30...0x39, 0x41...0x5A, 0x61...0x7A, 0x2B, 0x2D, 0x2E, 0x2F, 0x3D, 0x5F, 0x7E: return true
-        default: return false
-        }
-    }
-    /// Digits, dashes and JavaScript whitespace: the units of card and SSN numbers.
-    private static func isDigitGroupUnit(_ unit: Unicode.Scalar) -> Bool {
-        switch unit.value {
-        case 0x30...0x39, 0x2D, 0x09...0x0D, 0x20, 0xA0, 0x1680, 0x2000...0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF:
-            return true
-        default: return false
-        }
+        return (RedactionWindow.droppingCutToken(window.text), true)
     }
 }
 private enum CauseNormalizationError: Error { case cancelled }

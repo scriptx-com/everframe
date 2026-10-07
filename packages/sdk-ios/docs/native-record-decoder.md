@@ -25,6 +25,10 @@ image associations. Process/system/memory/register metadata and exception
 userInfo are not copied. Freeform text reaches the supplied redactor as a window of
 twice its output limit, with control characters replaced by spaces so separators
 keep word boundaries; the redacted text is then stripped of controls and capped.
+Redaction matches secrets such as JWTs and card numbers only whole, so when the
+window cuts the exception type or message, the cut token and any digit group before
+it are dropped first, as in cause chains. Symbol and image names come from binaries
+and keep their cut.
 Without a recorded reason, the message comes from runtime crash info (for example
 Swift fatalError text) in images the normalized frames reference, in frame order;
 otherwise it is the exception type.
