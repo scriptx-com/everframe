@@ -1,0 +1,31 @@
+packages/cli/README.md
+  s_97602a0a2d8f20::t_fe4144a7c0316f 1-20
+packages/cli/__tests__/dsym.spec.ts
+  s_97602a0a2d8f20::t_030f2c278d7935 1-182
+packages/cli/src/dsym.ts
+  s_97602a0a2d8f20::t_e2ab46ccafa2d2 1-66
+packages/cli/src/index.ts
+  s_97602a0a2d8f20::t_df2ff55b674729 11,22-23,41,62,72,208-239
+packages/cli/src/upload.ts
+  s_97602a0a2d8f20::t_ca9cf31b2a0708 8,229,235,285-287,353
+packages/protocol/__tests__/dsym-manifest.spec.ts
+  s_97602a0a2d8f20::t_960911e6dbe77b 1-71
+packages/protocol/src/build-artifacts.ts
+  s_97602a0a2d8f20::t_d1e3073d9bc096 48-66,70-72,75,153-172,177,283-301
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28a8a8673125b110940833e58db4d9520ca0494a",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
