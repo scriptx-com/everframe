@@ -1,0 +1,32 @@
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashVendorRecord.swift
+  s_360d9eb003c487::t_01701e1a93cf57 16-26
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecordDecoder.swift
+  s_360d9eb003c487::t_def7db924c24af 31-37
+  s_360d9eb003c487::t_9a003914752e8f 61,92-93
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecordDecoderTests.swift
+  s_360d9eb003c487::t_624ab4e9a0b9e7 165
+  s_360d9eb003c487::t_fe1c885649160c 49,197-217
+  s_360d9eb003c487::t_d2ce3faa33833d 12-14,16,19-20,23-24,35-36,46-48
+  s_360d9eb003c487::t_ece3e3dd989021 173
+  s_360d9eb003c487::t_951a69b5942326 166-172,218-223
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashJSONPreflight.swift
+  s_360d9eb003c487::t_def26b8db28073 18-19,25
+packages/sdk-ios/docs/native-record-decoder.md
+  s_360d9eb003c487::t_87e8c428e61012 5,10,13-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d7d5407ec6a1d329387a338ede1db12a7047d57b",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
