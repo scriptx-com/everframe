@@ -542,6 +542,24 @@ class VideoPrivacyGateTest {
         } finally { a.finish() }
     }
 
+    @Test fun descendantsOfATransformedMaskedGroupMapThroughItsTransform() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        root.clipChildren = false
+        val group = FrameLayout(a); root.addView(group); group.layout(10,10,60,60)
+        group.setTag(R.id.tx_sensitive, true)
+        val child = View(a); group.addView(child); child.layout(60,0,160,50)
+        group.pivotX = 0f; group.pivotY = 0f; group.scaleX = 2f
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            // The child spans x 60..160 inside the group, so 10 + 2*60 .. 10 + 2*160 in the root.
+            assertEquals(setOf(android.graphics.Rect(9, 9, 111, 61), android.graphics.Rect(129, 9, 331, 61)),
+                gate.observe(root).masks.toSet())
+            group.scrollTo(20, 0)
+            assertTrue("the group's scroll moves its children", gate.observe(root).masks.contains(android.graphics.Rect(89, 9, 291, 61)))
+        } finally { a.finish() }
+    }
+
     @Test fun unplaceableOrOversizedSubtreeOfNonClippedMaskRefuses() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)

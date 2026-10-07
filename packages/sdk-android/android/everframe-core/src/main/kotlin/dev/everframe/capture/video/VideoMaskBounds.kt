@@ -5,6 +5,7 @@ package dev.everframe.capture.video
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
@@ -45,7 +46,7 @@ internal object VideoMaskBounds {
             current = parent
         }
         if (hidden) return Rect()
-        return Rect(floor(r.left).toInt() - 1, floor(r.top).toInt() - 1, ceil(r.right).toInt() + 1, ceil(r.bottom).toInt() + 1)
+        return padded(r)
     }
 
     /**
@@ -55,25 +56,58 @@ internal object VideoMaskBounds {
      * be placed or the budget runs out.
      */
     fun cover(view: View, root: View, remaining: Int, deadlineNs: Long, now: () -> Long, into: MutableCollection<Rect>): Int? {
-        val pending = ArrayDeque<View>()
+        val bounds = of(view, root) ?: return null
+        if (bounds.isEmpty) return 0
+        add(bounds, root, into)
+        // A parent that clips children confines the view's whole subtree to its bounds.
+        if (view === root || view !is ViewGroup || (view.parent as? ViewGroup)?.clipChildren == true) return 0
+        // Each descendant is an ordinary child of a node already proven above it, so only its
+        // own state needs checking, and its parent's transform to the root maps its bounds.
+        val pending = ArrayDeque<Pair<View, Matrix>>()
         var visited = 0
-        var node = view
+        fun expand(group: ViewGroup, toRoot: Matrix): Boolean {
+            if (visited + pending.size + group.childCount > remaining) return false
+            for (i in 0 until group.childCount) pending.add(group.getChildAt(i) to toRoot)
+            return true
+        }
+        if (!expand(view, toRoot(view, root))) return null
         while (true) {
-            val bounds = of(node, root) ?: return null
-            if (!bounds.isEmpty) {
-                // A mask entirely outside the frame paints nothing; keeping it would make every
-                // scroll of off-screen content a new privacy state that drops the pending frame.
-                if (bounds.intersect(0, 0, root.width, root.height)) into.add(bounds)
-                // A parent that clips children confines this node's whole subtree to its bounds.
-                if (node is ViewGroup && node !== root && (node.parent as? ViewGroup)?.clipChildren != true) {
-                    if (visited + pending.size + node.childCount > remaining) return null
-                    for (i in 0 until node.childCount) pending.add(node.getChildAt(i))
-                }
-            }
-            node = pending.removeFirstOrNull() ?: return visited
+            val (node, parentToRoot) = pending.removeFirstOrNull() ?: return visited
             if (++visited > remaining || now() >= deadlineNs) return null
+            if (!provable(node)) return null
+            if (node.visibility == View.GONE) continue
+            val parent = node.parent as ViewGroup
+            val toRoot = Matrix(parentToRoot).apply {
+                preTranslate(node.left - parent.scrollX.toFloat(), node.top - parent.scrollY.toFloat())
+                preConcat(node.matrix)
+            }
+            val r = RectF(0f, 0f, node.width.toFloat(), node.height.toFloat()).also { toRoot.mapRect(it) }
+            add(padded(r), root, into)
+            if (node is ViewGroup && !parent.clipChildren && !expand(node, toRoot)) return null
         }
     }
+
+    /** [view]'s local coordinates to [root]'s, for a chain [of] has already proven. */
+    private fun toRoot(view: View, root: View): Matrix {
+        val m = Matrix()
+        var current = view
+        while (current !== root) {
+            val parent = current.parent as ViewGroup
+            m.postConcat(current.matrix)
+            m.postTranslate(current.left - parent.scrollX.toFloat(), current.top - parent.scrollY.toFloat())
+            current = parent
+        }
+        return m
+    }
+
+    // A mask entirely outside the frame paints nothing; keeping it would make every scroll of
+    // off-screen content a new privacy state that drops the pending frame.
+    private fun add(bounds: Rect, root: View, into: MutableCollection<Rect>) {
+        if (bounds.intersect(0, 0, root.width, root.height)) into.add(bounds)
+    }
+
+    private fun padded(r: RectF) =
+        Rect(floor(r.left).toInt() - 1, floor(r.top).toInt() - 1, ceil(r.right).toInt() + 1, ceil(r.bottom).toInt() + 1)
 
     // Tweens and animation matrices are applied while drawing, outside getMatrix(), and a layout
     // transition moves and fades children. A shared-element ghost draws an INVISIBLE original
