@@ -54,6 +54,20 @@ class RnErrorDetailsBridgeTest {
         storage.close()
     }
 
+    @Test fun deliverySnapshotIsSynchronousAndContentFree() {
+        assertTrue(module.captureHandledException(payload()))
+        val json = module.getReportDeliveryStatusJson()
+        val state = JSONObject(json)
+        assertEquals(1, state.getInt("schemaVersion"))
+        assertEquals("active", state.getString("status"))
+        assertEquals(1, state.getJSONObject("capture").getJSONObject("paths")
+            .getJSONObject("bridge-handled").getJSONObject("outcomes").getInt("persisted"))
+        assertFalse(json.contains("core facts"))
+        assertEquals(1, drains)
+        Everframe.kill()
+        assertEquals("disabled", JSONObject(module.getReportDeliveryStatusJson()).getString("status"))
+    }
+
     @Test fun generic_causes_cross_both_bridge_paths_before_acknowledgement() {
         for (handled in listOf(false, true)) {
             val wire = JSONObject(payload()).put("causeChain", JSONObject("""{"causes":[{"exceptionType":"TypeError","message":"cause-before","frames":[{"raw":"inner","line":1,"col":42}],"framesTruncated":false}],"truncated":false}""")).toString()

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { emptyReportDeliveryStatus, type ReportDeliveryStatus } from "./report-delivery-status.js";
 import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Module-level context seam. The top-level `open()` convenience MUST work
@@ -20,6 +21,8 @@ export { EverframeNotMountedError };
 
 /** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
 export interface EverframeContextValue {
+  /** Cached native delivery observations, independent of JS admission; optional for older context implementations. */
+  getReportDeliveryStatus?(): ReportDeliveryStatus;
   /** Local admission only; optional for older context implementations. */
   getErrorCaptureStatus?(): ErrorCaptureStatus;
   /** Optional for compatibility with existing context implementations. */
@@ -203,4 +206,13 @@ export function captureException(error: unknown, options?: CaptureExceptionOptio
 export function getErrorCaptureStatus(): ErrorCaptureStatus {
   try { return __currentContext?.getErrorCaptureStatus?.() ?? emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
   catch { return emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
+}
+
+/** Cached native delivery observations, independent of JS admission. */
+export function getReportDeliveryStatus(): ReportDeliveryStatus {
+  const owner = __currentContext;
+  try {
+    const status = owner?.getReportDeliveryStatus?.();
+    return owner === __currentContext && status ? status : emptyReportDeliveryStatus('not-mounted', 'no-mount');
+  } catch { return emptyReportDeliveryStatus('unavailable', 'native-call-failed'); }
 }

@@ -319,6 +319,9 @@ final class HandledErrorCaptureTests: XCTestCase {
     }
 
     func testReentrantDescriptionCapturesOnlyOuterError() throws {
+        let diagnostics = ReportDiagnostics.shared
+        diagnostics.beginGeneration(epoch: Everframe.shared.currentStartEpoch, enabled: true)
+        defer { diagnostics.retireGeneration(epoch: Everframe.shared.currentStartEpoch) }
         let outbox = makeOutbox()
         let error = CallbackLocalizedError {
             XCTAssertFalse(CrashReporter.captureHandledError(
@@ -328,6 +331,8 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertTrue(CrashReporter.captureHandledError(error, outbox: outbox))
         XCTAssertEqual(try outbox.hydrate().count, 1)
         XCTAssertEqual(try crash(XCTUnwrap(try outbox.hydrate().first))["message"] as? String, "callback message")
+        XCTAssertEqual(diagnostics.snapshot().capture.paths["native-handled"]?.outcomes["persisted"], 1)
+        XCTAssertEqual(diagnostics.snapshot().capture.paths["native-handled"]?.outcomes["reentrant"], 1)
     }
 
     func testConfigChangeInsideDescriptionDropsStaleAttemptWithoutSpendingAdmission() throws {

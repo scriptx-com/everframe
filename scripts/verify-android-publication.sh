@@ -79,6 +79,17 @@ if grep -Fq "${FORMER_ENDPOINT}" <<<"${CORE_STRINGS}"; then
     fail "${CORE_AAR} contains the former endpoint"
 fi
 
+# Everframe.getReportDeliveryStatus() returns these types, and the React Native
+# bridge (compiled separately against this AAR) calls toJson() on the result.
+# Without keep rules R8 renames them and strips toJson(), which nothing in core calls.
+CORE_ENTRIES="$(unzip -Z1 "${CORE_CLASSES}" 2>/dev/null || true)"
+for diagnostics_type in ReportDeliveryStatus CaptureStatus CapturePathStatus QueueStatus TransportStatus; do
+    grep -Fx "dev/everframe/diagnostics/${diagnostics_type}.class" <<<"${CORE_ENTRIES}" >/dev/null ||
+        fail "${CORE_AAR} is missing dev.everframe.diagnostics.${diagnostics_type} from its release classes"
+done
+unzip -p "${CORE_CLASSES}" dev/everframe/diagnostics/ReportDeliveryStatus.class | strings | grep -Fx toJson >/dev/null ||
+    fail "${CORE_AAR} release ReportDeliveryStatus has no toJson()"
+
 REPORTER_AAR="${GROUP_DIRECTORY}/reporter-ui/${VERSION}/reporter-ui-${VERSION}.aar"
 unzip -p "${REPORTER_AAR}" classes.jar >"${REPORTER_CLASSES}"
 unzip -Z1 "${REPORTER_CLASSES}" | grep -Fx 'dev/everframe/ui/EFReporterFromImage.class' >/dev/null ||

@@ -45,3 +45,13 @@ const captureOutcome: ErrorCaptureOutcome = 'accepted';
 const errorInfo: ErrorInfo = { componentStack: '\n at Boundary' };
 captureReactError(new Error('boundary'), errorInfo);
 void captureCounters[captureOutcome];
+
+import { getReportDeliveryStatus, type ReportDeliveryStatus, type ReportCapturePath,
+  type ReportQueueStatus, type ReportTransportOrigin } from '@everframe/react-native';
+const delivery: ReportDeliveryStatus = getReportDeliveryStatus();
+const nativePath: ReportCapturePath = 'bridge-handled';
+const queue: ReportQueueStatus = delivery.queue;
+const origin: ReportTransportOrigin = 'outbox-drain';
+void delivery.capture.paths[nativePath].outcomes.persisted;
+void delivery.transport[origin].settledAttempts;
+void queue.pendingCount;

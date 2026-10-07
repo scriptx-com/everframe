@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { emptyReportDeliveryStatus, parseReportDeliveryStatus, type ReportDeliveryStatus } from "./report-delivery-status.js";
 import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Pure orchestration runtime for the RN bridge. After the D-05/D-07 flip
@@ -36,6 +37,8 @@ import {
 import type { ReporterResult } from "./reporter/types.js";
 import { projectUserSpec } from "./user-projection.js";
 import type { EverframeIntegration } from "./integrations/types.js";
+
+const applyDeliveryMethod = Reflect.apply;
 
 /**
  * Runtime configuration — the host-facing `EverframeProvider config` shape.
@@ -226,6 +229,7 @@ export interface RuntimeConfig
 }
 
 export interface Runtime extends EverframeContextValue {
+  getReportDeliveryStatus(): ReportDeliveryStatus;
   getErrorCaptureStatus(): ErrorCaptureStatus;
   mount(): void;
   unmount(): void;
@@ -384,6 +388,23 @@ export function createRuntime(config: RuntimeConfig): Runtime {
 
   const runtime: Runtime = {
     open,
+    getReportDeliveryStatus() {
+      const owner = mounted;
+      const owned = () => owner !== null && owner !== undefined && mounted === owner && __getCurrentContext() === runtime;
+      if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+      try {
+        const method = NativeEverframe.getReportDeliveryStatusJson;
+        if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+        if (typeof method !== 'function') return emptyReportDeliveryStatus('unsupported', 'native-method-missing');
+        const json: unknown = applyDeliveryMethod(method, NativeEverframe, []);
+        if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+        const snapshot = parseReportDeliveryStatus(json);
+        if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+        return snapshot ?? emptyReportDeliveryStatus('unavailable', 'invalid-native-snapshot');
+      } catch {
+        return emptyReportDeliveryStatus(owned() ? 'unavailable' : 'not-mounted', owned() ? 'native-call-failed' : 'no-mount');
+      }
+    },
     getErrorCaptureStatus() {
       if (!mounted || __getCurrentContext() !== runtime) return emptyErrorCaptureStatus('not-mounted', 'no-mount');
       return mounted.controller?.getErrorCaptureStatus() ?? emptyErrorCaptureStatus('disabled', 'crash-reporting-disabled');

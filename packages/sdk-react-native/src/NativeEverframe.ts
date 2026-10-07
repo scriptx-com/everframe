@@ -319,6 +319,9 @@ export interface Spec extends TurboModule {
    */
   recordScreen(name: string, data?: UnsafeObject): void;
 
+  /** Additive diagnostic bridge: bounded JSON of cached native observations; no I/O. */
+  getReportDeliveryStatusJson(): string;
+
   /**
    * Crash/error reporting (spec 2026-07-18). SYNCHRONOUS by design (non-void
    * return forces a sync TurboModule method): the fatal path must complete

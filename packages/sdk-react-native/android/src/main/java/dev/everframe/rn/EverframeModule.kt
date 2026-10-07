@@ -637,6 +637,10 @@ class EverframeModule(
 
     // ---------------- synchronous crash persistence ----------------
 
+    /** Copies cached native facts; never initializes storage or starts a drain. */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    override fun getReportDeliveryStatusJson(): String = Everframe.getReportDeliveryStatus().toJson()
+
     /** Automatic ErrorUtils capture; true acknowledges completed sidecar storage. */
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun reportCrash(crashJson: String): Boolean = captureCrashJson(crashJson, handled = false)

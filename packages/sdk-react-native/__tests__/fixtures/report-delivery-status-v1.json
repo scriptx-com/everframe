@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "reason": "none",
+  "scope": "native-runtime-observations",
+  "coverage": "best-effort",
+  "revision": 4,
+  "capture": {
+    "enabled": true,
+    "paths": {
+      "native-handled": {
+        "supported": true,
+        "settledAttempts": 1,
+        "outcomes": {
+          "persisted": 1,
+          "disabled": 0,
+          "admission-suppressed": 0,
+          "reentrant": 0,
+          "invalid-input": 0,
+          "ownership-lost": 0,
+          "storage-unavailable": 0,
+          "failed": 0
+        },
+        "lastOutcome": "persisted"
+      },
+      "bridge-handled": {
+        "supported": true,
+        "settledAttempts": 0,
+        "outcomes": {
+          "persisted": 0,
+          "disabled": 0,
+          "admission-suppressed": 0,
+          "reentrant": 0,
+          "invalid-input": 0,
+          "ownership-lost": 0,
+          "storage-unavailable": 0,
+          "failed": 0
+        }
+      },
+      "bridge-automatic": {
+        "supported": true,
+        "settledAttempts": 0,
+        "outcomes": {
+          "persisted": 0,
+          "disabled": 0,
+          "admission-suppressed": 0,
+          "reentrant": 0,
+          "invalid-input": 0,
+          "ownership-lost": 0,
+          "storage-unavailable": 0,
+          "failed": 0
+        }
+      },
+      "jvm-uncaught": {
+        "supported": true,
+        "settledAttempts": 0,
+        "outcomes": {
+          "persisted": 0,
+          "disabled": 0,
+          "admission-suppressed": 0,
+          "reentrant": 0,
+          "invalid-input": 0,
+          "ownership-lost": 0,
+          "storage-unavailable": 0,
+          "failed": 0
+        }
+      }
+    }
+  },
+  "queue": {
+    "scope": "sdk-report-outbox",
+    "observation": "observed",
+    "quality": "complete",
+    "pendingCount": 1,
+    "capacityPolicy": "reject-new",
+    "terminalHttpPolicy": "retain",
+    "operations": {
+      "enqueue-committed": 1,
+      "enqueue-failed": 0,
+      "capacity-evicted": 0,
+      "removed-after-acceptance": 0,
+      "removed-after-terminal": 0,
+      "removal-failed": 0,
+      "read-failed": 0
+    },
+    "migration": "clear"
+  },
+  "transport": {
+    "live-submit": {
+      "settledAttempts": 1,
+      "outcomes": {
+        "server-accepted": 1,
+        "retryable-http": 0,
+        "terminal-http": 0,
+        "network-failure": 0,
+        "authorization-cancelled": 0,
+        "cancelled": 0,
+        "failed": 0
+      },
+      "lastOutcome": "server-accepted",
+      "lastHttpStatus": 202
+    },
+    "outbox-drain": {
+      "settledAttempts": 0,
+      "outcomes": {
+        "server-accepted": 0,
+        "retryable-http": 0,
+        "terminal-http": 0,
+        "network-failure": 0,
+        "authorization-cancelled": 0,
+        "cancelled": 0,
+        "failed": 0
+      }
+    }
+  }
+}
