@@ -150,6 +150,48 @@ final class NativeCrashContextStoreTests: XCTestCase {
         XCTAssertEqual(try store.runs(), [second])
         XCTAssertEqual(try store.readContext(runID: second.id, contextID: id), Data("retained".utf8))
     }
+    func testInterruptedRetirementIsFinishedWithoutBlockingOtherRuns() throws {
+        let store = try store(), healthy = try store.createRun(), victim = try store.createRun()
+        let kept = try store.writeContext(Data("healthy".utf8), runID: healthy.id)
+        // An undeletable context stops the real removal partway, like process death.
+        // This name follows run.json in APFS directory order, so deleting the run in
+        // place would already have unlinked its header.
+        let blocked = try store.writeContext(Data("blocked".utf8), runID: victim.id,
+                                             contextID: UUID(uuidString: "77777777-0000-4000-8000-000000000007")!)
+        _ = try store.writeContext(Data("victim".utf8), runID: victim.id)
+        let name = victim.id.uuidString.lowercased(), context = blocked.uuidString.lowercased() + ".evctx"
+        let paths = [name, ".removing-" + name].map { store.rootURL.appendingPathComponent($0).appendingPathComponent(context).path }
+        XCTAssertEqual(chflags(paths[0], UInt32(UF_IMMUTABLE)), 0)
+        defer { paths.forEach { _ = chflags($0, 0) } }
+        XCTAssertThrowsError(try store.removeRun(victim.id))
+        paths.forEach { _ = chflags($0, 0) }
+        XCTAssertEqual(try store.runs(), [healthy])
+        assertFailure(.missingRun) { try store.removeRun(victim.id) }
+        _ = try store.writeContext(Data("next".utf8), runID: healthy.id)
+        let created = try store.createRun()
+        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: store.rootURL.path)),
+                       Set([healthy.id, created.id].map { $0.uuidString.lowercased() }))
+        XCTAssertEqual(try store.readContext(runID: healthy.id, contextID: kept), Data("healthy".utf8))
+    }
+    func testRetirementTombstoneIsFinishedOnlyWithRecognizedContent() throws {
+        let store = try store(), run = try store.createRun()
+        let tombstone = store.rootURL.appendingPathComponent(".removing-\(UUID().uuidString.lowercased())")
+        try FileManager.default.createDirectory(at: tombstone, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        // Interrupted deletion can leave any subset of a run's files, without its header.
+        let partial = tombstone.appendingPathComponent("\(UUID().uuidString.lowercased()).evctx")
+        XCTAssertTrue(FileManager.default.createFile(atPath: partial.path, contents: Data([1]), attributes: [.posixPermissions: 0o600]))
+        XCTAssertEqual(try store.runs(), [run])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tombstone.path))
+        try FileManager.default.createDirectory(at: tombstone, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        let unknown = tombstone.appendingPathComponent("unexpected"); try Data("preserve".utf8).write(to: unknown)
+        assertFailure(.unknownEntry) { _ = try store.createRun() }
+        XCTAssertEqual(try Data(contentsOf: unknown), Data("preserve".utf8))
+        try FileManager.default.removeItem(at: unknown)
+        let outside = directory.appendingPathComponent("outside"); try Data("outside".utf8).write(to: outside)
+        try FileManager.default.createSymbolicLink(at: partial, withDestinationURL: outside)
+        assertFailure(.unsafePath) { _ = try store.runs() }
+        XCTAssertEqual(try Data(contentsOf: outside), Data("outside".utf8))
+    }
     func testTwoInstancesCannotRaceContextLimit() throws {
         var limits = NativeCrashContextStore.Limits.defaults; limits.maxContextsPerRun = 1
         let first = try store(limits), second = try store(limits), run = try first.createRun()
