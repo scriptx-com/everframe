@@ -81,6 +81,40 @@ it('shares automatic allowance while preserving independent explicit allowance',
   expect(explicit).toHaveBeenCalledTimes(1);
   expect(automatic).toHaveBeenCalledTimes(10);
 });
+function errorUtilsController() {
+  let handler: ((error: unknown, isFatal?: boolean) => void) | undefined;
+  const owner = createCaptureController({ jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' },
+    errorUtils: { getGlobalHandler: () => () => {}, setGlobalHandler: (installed) => { handler = installed; } } });
+  owners.push(owner);
+  return { owner, report: (value: unknown, fatal = false) => handler!(value, fatal) };
+}
+it('rejections share automatic keys with ErrorUtils reports', () => {
+  const { owner, report } = errorUtilsController();
+  report(error('sharedSite'));
+  expect(owner.submitRejection(owner.prepareRejection(error('sharedSite'), occurredAt)!)).toBe('duplicate');
+  expect(automatic).toHaveBeenCalledTimes(1);
+});
+it('ErrorUtils reports spend the automatic allowance that rejections share', () => {
+  const { owner, report } = errorUtilsController();
+  for (let i = 0; i < 10; i++) report(error(`site${String.fromCharCode(65 + i)}`));
+  expect(owner.submitRejection(owner.prepareRejection(error('eleventh'), occurredAt)!)).toBe('allowance');
+  expect(automatic).toHaveBeenCalledTimes(10);
+});
+it('an accepted rejection does not suppress a later fatal crash of the same error', () => {
+  const { owner, report } = errorUtilsController(), reason = error();
+  expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('accepted');
+  report(reason, true);
+  expect(automatic).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(automatic.mock.calls[1][0])).toMatchObject({ fatal: true, source: 'crash', mechanism: 'errorutils' });
+});
+it('refuses rejection capture on a bridge without handled-exception support', () => {
+  const owner = controller(), pending = owner.prepareRejection(error(), occurredAt)!;
+  const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
+  Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
+  try { expect(owner.submitRejection(pending)).toBe('native-refused'); }
+  finally { Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor); }
+  expect(automatic).not.toHaveBeenCalled();
+});
 it('refusal does not spend an automatic key', () => {
   const owner = controller();
   automatic.mockReturnValueOnce(false);
