@@ -326,6 +326,66 @@ class VideoPrivacyGateTest {
         } finally { a.finish() }
     }
 
+    /** root 400x400, holder at (0,0,400,400), input at (10,10,110,60) inside it. */
+    private fun placementFixture(test: (FrameLayout, FrameLayout, EditText, VideoPrivacyGate) -> Unit) {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,400,400)
+        val holder = FrameLayout(a); root.addView(holder); holder.layout(0,0,400,400)
+        val input = EditText(a); holder.addView(input); input.layout(10,10,110,60)
+        try { test(root, holder, input, VideoPrivacyGate({ a }, { 0L }, { true })) } finally { a.finish() }
+    }
+
+    @Test fun legacyAnimationsRefuseMaskedFrames() = placementFixture { root, holder, input, gate ->
+        assertTrue(masked(gate.observe(root), input, root))
+        // A tween is applied while drawing, outside View.getMatrix(): the field is drawn away from its mask.
+        holder.startAnimation(android.view.animation.TranslateAnimation(0f, 200f, 0f, 0f).apply { duration = 1000 })
+        assertFalse("tween on an ancestor", gate.observe(root).allowed)
+        holder.clearAnimation()
+        assertTrue(masked(gate.observe(root), input, root))
+        input.startAnimation(android.view.animation.TranslateAnimation(0f, 200f, 0f, 0f).apply { duration = 1000 })
+        assertFalse("tween on the masked view", gate.observe(root).allowed)
+        input.clearAnimation()
+        assertTrue(masked(gate.observe(root), input, root))
+    }
+
+    // The legacy RenderNode shadow drops animation matrices; native graphics keeps them.
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun animationMatrixRefusesMaskedFrames() = placementFixture { root, holder, input, gate ->
+        holder.animationMatrix = android.graphics.Matrix().apply { setTranslate(200f, 0f) }
+        assertNotNull("fixture must keep the animation matrix", holder.animationMatrix)
+        assertFalse("animation matrix on an ancestor", gate.observe(root).allowed)
+        holder.animationMatrix = null
+        assertTrue(masked(gate.observe(root), input, root))
+    }
+
+    @Test fun exitTweenOnRememberedRemovalTransitionChildRefusesFrames() = placementFixture { root, holder, input, gate ->
+        assertTrue(masked(gate.observe(root), input, root))
+        root.startViewTransition(holder); root.removeView(holder)
+        try {
+            assertTrue(input.isAttachedToWindow); assertEquals(-1, root.indexOfChild(holder))
+            assertTrue("history still masks the retained input", masked(gate.observe(root), input, root))
+            holder.startAnimation(android.view.animation.TranslateAnimation(0f, 200f, 0f, 0f).apply { duration = 1000 })
+            assertFalse("the exit tween moves the input away from its mask", gate.observe(root).allowed)
+        } finally { holder.clearAnimation(); root.endViewTransition(holder) }
+    }
+
+    /** Robolectric never reports the app window visible, and LayoutTransition skips hidden windows. */
+    private fun showWindow(view: View) {
+        val info = org.robolectric.util.ReflectionHelpers.getField<Any>(view, "mAttachInfo")
+        org.robolectric.util.ReflectionHelpers.setField(info, "mWindowVisibility", View.VISIBLE)
+    }
+
+    @Test fun runningLayoutTransitionRefusesMaskedFrames() = placementFixture { root, holder, input, gate ->
+        showWindow(root)
+        holder.layoutTransition = android.animation.LayoutTransition()
+        val sibling = View(root.context); holder.addView(sibling)
+        try {
+            assertTrue("fixture must run an appearing transition", holder.layoutTransition.isRunning)
+            assertFalse("children move while a layout transition runs", gate.observe(root).allowed)
+        } finally { holder.layoutTransition = null }
+        assertTrue(masked(gate.observe(root), input, root))
+    }
+
     @Test fun rememberedInputIsMaskedOnLaterFramesUntilDetached() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)

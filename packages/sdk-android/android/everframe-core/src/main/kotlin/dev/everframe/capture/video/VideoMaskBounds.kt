@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.view.View
+import android.view.ViewGroup
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -17,13 +18,20 @@ internal object VideoMaskBounds {
     /**
      * Bounds of [view] in [root] coordinates, through every ancestor's transform and scroll,
      * padded by a pixel. An empty rect when the view or an ancestor is not visible. Null when
-     * [view] is not under [root] (an overlay or a detached parent), so it cannot be placed.
+     * [view] is not under [root] (an overlay or a detached parent), or when a legacy Animation,
+     * an animation matrix or a running LayoutTransition on it or an ancestor can draw it away
+     * from these bounds, so it cannot be placed.
      */
     fun of(view: View, root: View): Rect? {
         val r = RectF(0f, 0f, view.width.toFloat(), view.height.toFloat())
         var shown = view.visibility == View.VISIBLE
         var current = view
-        while (current !== root) {
+        while (true) {
+            // Tweens and animation matrices are applied while drawing, outside getMatrix(), and
+            // a layout transition moves children between layouts: the position is not provable.
+            if (current.animation != null || current.animationMatrix != null ||
+                (current is ViewGroup && current.layoutTransition?.isRunning == true)) return null
+            if (current === root) break
             val matrix = current.matrix
             if (!matrix.isIdentity) matrix.mapRect(r)
             r.offset(current.left.toFloat(), current.top.toFloat())
