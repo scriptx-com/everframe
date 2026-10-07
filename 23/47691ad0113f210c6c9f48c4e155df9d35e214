@@ -1,0 +1,25 @@
+packages/sdk-react-native/__tests__/rejection-capture.test.ts
+  s_360d9eb003c487::t_6f6c0de0a329b1 132-140
+packages/sdk-react-native/src/rejection-capture.ts
+  s_360d9eb003c487::t_d63739bdc8be98 16-23
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_29a2ff92512590 137-140
+packages/sdk-react-native/src/errors.ts
+  s_360d9eb003c487::t_79cf953fea2b26 8,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2347691ad0113f210c6c9f48c4e155df9d35e214",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
