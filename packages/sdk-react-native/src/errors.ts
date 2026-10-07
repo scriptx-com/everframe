@@ -5,7 +5,14 @@ import NativeEverframe from './NativeEverframe.js';
 import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
 import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
-import { captureKey, rejectionKey, type CaptureIdentity, type PreparedRejection, type RejectionOutcome } from './rejection-capture.js';
+import {
+  captureKey,
+  exceedsValueShare,
+  rejectionKey,
+  type CaptureIdentity,
+  type PreparedRejection,
+  type RejectionOutcome,
+} from './rejection-capture.js';
 
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
 interface ErrorUtilsLike {
@@ -85,7 +92,7 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     capturing = true;
     try {
       if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) return 'duplicate';
-      if (automaticKeys.size >= 10) return 'allowance';
+      if (automaticKeys.size >= 10 || exceedsValueShare(automaticKeys, snapshot.key)) return 'allowance';
       // The new path requires the current acceptance-capable bridge. Existing
       // ErrorUtils callers alone retain old-binary attempt accounting below.
       const handledMethod = NativeEverframe.captureHandledException;

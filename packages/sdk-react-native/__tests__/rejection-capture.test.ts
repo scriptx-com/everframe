@@ -172,6 +172,30 @@ it('deduplicates non-Error reasons by their reported value', () => {
   expect(automatic.mock.calls.map(([raw]) => JSON.parse(raw).message))
     .toEqual(['Session expired', 'Network timeout', '[object]', 'undefined', '42']);
 });
+it('a non-Error message that varies only in digits spends one automatic key', () => {
+  const { owner, report } = errorUtilsController();
+  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  expect(submit({ code: 'E_UPLOAD' })).toBe('accepted');
+  expect(Array.from({ length: 12 }, (_, i) => submit(`Request ${1000 + i} failed after ${250 * i} ms`)))
+    .toEqual(['accepted', ...Array<string>(11).fill('duplicate')]);
+  expect(['Session expired', 'Network timeout'].map(submit)).toEqual(['accepted', 'accepted']);
+  report(error('unrelatedSite'));
+  expect(automatic).toHaveBeenCalledTimes(5);
+  expect(JSON.parse(automatic.mock.calls[4][0])).toMatchObject({ mechanism: 'errorutils' });
+});
+it('non-Error reasons spend at most half of the shared automatic keys', () => {
+  const { owner, report } = errorUtilsController();
+  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  // Hex identifiers vary in letters too, so ignoring digits cannot merge them.
+  expect(['3fa85f64', '9c2b1e7d', 'b7e4d0a1', '0d9f6c3e', 'e5a17b42', '6c0e9d8f']
+    .map((id) => submit(`Session ${id} expired`)))
+    .toEqual([...Array<string>(5).fill('accepted'), 'allowance']);
+  expect(submit('Session 3fa85f64 expired')).toBe('duplicate');
+  for (let i = 0; i < 5; i++) report(error(`site${String.fromCharCode(65 + i)}`));
+  expect(automatic.mock.calls.slice(5).map(([raw]) => JSON.parse(raw).mechanism))
+    .toEqual(Array<string>(5).fill('errorutils'));
+  expect(submit(error('eleventh'))).toBe('allowance');
+});
 it.each([
   ['string cause of an object reason', { code: 'UPLOAD_FAILED', cause: 'PUT https://bucket.example/u.jpg?X-Amz-Signature=sig-secret denied' }],
   ['Error cause of an object reason', { code: 'E_UPLOAD', cause: new Error('sig-secret') }],
