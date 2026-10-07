@@ -1,0 +1,847 @@
+packages/cli/README.md
+  s_97602a0a2d8f20::t_faeaace4c174d8 1-72
+packages/cli/__tests__/apple-build-fixture.ts
+  s_97602a0a2d8f20::t_702431d3bdcdc9 1-93
+packages/cli/__tests__/apple-build.spec.ts
+  s_97602a0a2d8f20::t_06e0bfda8a4fc2 1-400
+packages/cli/__tests__/apple-upload.spec.ts
+  s_97602a0a2d8f20::t_1ead4639914412 1-222
+packages/cli/__tests__/build-collect.spec.ts
+  s_97602a0a2d8f20::t_8479b8b62e09e0 3,8,35-36,41-63,114,117
+packages/cli/__tests__/bundle-identity.spec.ts
+  s_97602a0a2d8f20::t_7992eb6977163a 1-16
+packages/cli/__tests__/command.spec.ts
+  s_97602a0a2d8f20::t_cf89ecdce45ca3 279,283
+packages/cli/__tests__/dsym.spec.ts
+  s_97602a0a2d8f20::t_98063afe4ce8ff 1-182
+packages/cli/__tests__/expo-export.spec.ts
+  s_97602a0a2d8f20::t_d3cc2d201042d5 26,31-32,35-36,38-39,72,74
+packages/cli/examples/upload-apple-symbols.sh
+  s_97602a0a2d8f20::t_291e434a8f9cc0 1-23
+packages/cli/src/apple-build.ts
+  s_97602a0a2d8f20::t_d3fb4255cbda36 1-392
+packages/cli/src/apple-upload.ts
+  s_97602a0a2d8f20::t_dbcb65d662b223 1-65
+packages/cli/src/build-collect.ts
+  s_97602a0a2d8f20::t_ba19f1a9d71056 4,9-11,70-77,97
+packages/cli/src/build-verify.ts
+  s_97602a0a2d8f20::t_f38b97ab7cd524 20-29
+packages/cli/src/bundle-identity.ts
+  s_97602a0a2d8f20::t_e0849f7c3fa5d7 1-52
+packages/cli/src/dsym.ts
+  s_97602a0a2d8f20::t_11cf506d17b506 1-66
+packages/cli/src/index.ts
+  s_97602a0a2d8f20::t_356c42f58986b7 11-12,23-24,42-43,64-65,75-76,212-263,426-428
+packages/cli/src/staging-io.ts
+  s_97602a0a2d8f20::t_9c4f71a1209ee5 3-4,70-82
+packages/cli/src/upload.ts
+  s_97602a0a2d8f20::t_138d37d59a2bf0 8,229,235,285-287,353
+packages/expo/README.md
+  s_97602a0a2d8f20::t_6c76efa75bc4fb 1-65
+packages/metro/README.md
+  s_97602a0a2d8f20::t_d7e66cb6b02c8f 1-36
+packages/protocol/__tests__/android-native-crash.spec.ts
+  s_97602a0a2d8f20::t_11090fa4909c62 1-54
+packages/protocol/__tests__/crash-causes.spec.ts
+  s_97602a0a2d8f20::t_ea5bf130d99237 528-538
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_97602a0a2d8f20::t_150e2aaca65435 1-83
+packages/protocol/__tests__/dsym-manifest.spec.ts
+  s_97602a0a2d8f20::t_54f169e7e767a1 1-71
+packages/protocol/__tests__/fixtures/apple-native-crash.json
+  s_97602a0a2d8f20::t_bca2e70bdb402a 1-103
+packages/protocol/__tests__/fixtures/crash-causes-native-parity.json
+  s_97602a0a2d8f20::t_6b7eded1a798b4 1-222
+packages/protocol/__tests__/native-crash.spec.ts
+  s_97602a0a2d8f20::t_fd1602188117a9 1-101
+packages/protocol/compat/diagnostic/OldPayloadCaller.kt
+  s_97602a0a2d8f20::t_8917f75e280ff0 1-15
+packages/protocol/compat/diagnostic/OldPayloadCaller.swift
+  s_97602a0a2d8f20::t_6dbf5916f28f60 1-17
+packages/protocol/compat/diagnostic/README.md
+  s_97602a0a2d8f20::t_edb6f39d14dcd3 1-7
+packages/protocol/compat/diagnostic/SwiftMain.swift
+  s_97602a0a2d8f20::t_2cb65a3d1a85b6 1-10
+packages/protocol/compat/native-crash/OldCrashCaller.kt
+  s_97602a0a2d8f20::t_5ed1fe76a3320a 1-21
+packages/protocol/compat/native-crash/OldCrashCaller.swift
+  s_97602a0a2d8f20::t_480e6eb5f50b20 1-20
+packages/protocol/compat/native-crash/OldCrashLegacyCaller.swift
+  s_97602a0a2d8f20::t_ddaa00fa2105ce 1-13
+packages/protocol/compat/native-crash/README.md
+  s_97602a0a2d8f20::t_9a31228dfdd959 1-22
+packages/protocol/compat/native-crash/SwiftMain.swift
+  s_97602a0a2d8f20::t_bcc266cc858711 1-14
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_d87e25c8592965 24-25,1003-1008,1058-1060,2213-2685
+packages/protocol/scripts/check-crash-model-compat.mjs
+  s_97602a0a2d8f20::t_fff44ec17581ac 28-31,36,54,86,91
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_3ee9f7fcd14fa7 36,52-53,64-69,76,79-117,133,151,159-183
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_977c53fa41bc0a 46-47
+packages/protocol/src/android-native-crash.ts
+  s_97602a0a2d8f20::t_9bc5834019926a 1-29
+packages/protocol/src/build-artifacts.ts
+  s_97602a0a2d8f20::t_130dd477fe7c40 48-66,70-72,75,153-172,177,283-301
+packages/protocol/src/crash.ts
+  s_97602a0a2d8f20::t_f1ac89f5b11d3c 13-14,62-63,80-88
+packages/protocol/src/diagnostic.ts
+  s_97602a0a2d8f20::t_5f5b432bf8402d 1-63
+packages/protocol/src/envelope.ts
+  s_97602a0a2d8f20::t_4328e0c2761db8 7,27,159,195-214
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_ec20cda02d0c57 41,70-73
+packages/protocol/src/native-crash.ts
+  s_97602a0a2d8f20::t_420ec6845ef2a5 1-100
+packages/sdk-android/README.md
+  s_97602a0a2d8f20::t_000c03fe424018 60-78
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_86695177bfe91e 600-654,847-850,951,1142,1348-1349,1398-1400,1563,1575-1579
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbAdapters.kt
+  s_97602a0a2d8f20::t_353cbf9191bd3f 300-313,315-316
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_97602a0a2d8f20::t_2267e0aa761639 378
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidExitDiagnostic.kt
+  s_97602a0a2d8f20::t_4eecc6f8a9158a 1-94
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_97602a0a2d8f20::t_38fc9ad5842e77 1-111
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_97602a0a2d8f20::t_b6894a9d29a706 1-195
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_97602a0a2d8f20::t_124290e15aa3b9 1-97
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRequests.kt
+  s_97602a0a2d8f20::t_6a1b6bb10c04da 1-34
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRevocation.kt
+  s_97602a0a2d8f20::t_07d0c503bd771c 1-22
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_97602a0a2d8f20::t_ca776a584f96a3 1-201
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashCauseNormalizer.kt
+  s_97602a0a2d8f20::t_5b1fbf8631e8d2 1-143
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_97602a0a2d8f20::t_fe667b01115f14 20,96-112,119-157,176,178-214,251-256,260,274-275,278,326-330,332-336,338-339,352,356,358,361-365,392,404,407,411,413,417-419,424-425,453,455-457,505,554-555,559-561
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/JvmCrashContext.kt
+  s_97602a0a2d8f20::t_92c328a05449e8 16-28,30,34-39,41-53,55-64,66-68,70-75
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/CaptureObservation.kt
+  s_97602a0a2d8f20::t_102163ab4f6b0d 1-14
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDeliveryStatus.kt
+  s_97602a0a2d8f20::t_48cc8adfaf191e 1-86
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDiagnostics.kt
+  s_97602a0a2d8f20::t_8722e9b50bc433 1-90
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/CrashSidecar.kt
+  s_97602a0a2d8f20::t_e365d4d6a0e047 6,30-31,37-38
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/JSONLOutbox.kt
+  s_97602a0a2d8f20::t_0aa2c2434b660c 6,136,139,145-146,165,167,169,173
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_97602a0a2d8f20::t_3c296a4dca50be 5,39-44,47-55,58,64-66,69,76-80,97-98,106-117,121,277-288,290-293,302-309,384,390,397,456-472
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_97602a0a2d8f20::t_a06d6dbb657290 24,75-105,183-186,200-203,231,352,441,453
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_97602a0a2d8f20::t_ee0130636b486b 134-149
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidExitDiagnosticTest.kt
+  s_97602a0a2d8f20::t_d0297b345b76cc 1-149
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_97602a0a2d8f20::t_83297972e0da7d 1-221
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_97602a0a2d8f20::t_5c38157bb504e4 1-146
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidTombstoneReaderTest.kt
+  s_97602a0a2d8f20::t_cb7db50ce06a2b 1-117
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashCauseNormalizerTest.kt
+  s_97602a0a2d8f20::t_1ed2848b1870de 1-83
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_97602a0a2d8f20::t_6c78cd93773c28 60,128-231,502-560
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/ThrowableCauseCaptureTest.kt
+  s_97602a0a2d8f20::t_e2c5da7aa605a3 1-85
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsPipelineTest.kt
+  s_97602a0a2d8f20::t_851ca12d8b6158 1-200
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsTest.kt
+  s_97602a0a2d8f20::t_140cdf5352fb82 1-125
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/transport/ReportSubmitterTest.kt
+  s_97602a0a2d8f20::t_efc57b66eb2a69 94-228
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_b88818d6eb48b1 164-194,240-242,244-282,298,316,320-359,445-614,783
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_97602a0a2d8f20::t_d748cf2a3af371 54,113,115-120,123-203,206-210,213-218,618
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialogLifecycle.kt
+  s_97602a0a2d8f20::t_d8d69237204776 1-54
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogLifecycleTest.kt
+  s_97602a0a2d8f20::t_ee3735e908234a 1-174
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogSubmitBoundaryTest.kt
+  s_97602a0a2d8f20::t_94ee0a31cee500 82-129
+packages/sdk-android/tests/native-crash-host/.gitignore
+  s_97602a0a2d8f20::t_47f3d47ea9768e 1-3
+packages/sdk-android/tests/native-crash-host/README.md
+  s_97602a0a2d8f20::t_2d3dc62a1929f6 1-15
+packages/sdk-android/tests/native-crash-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_ee3064acce3697 1-31
+packages/sdk-android/tests/native-crash-host/app/proguard-rules.pro
+  s_97602a0a2d8f20::t_ce591f9842ee72 1-4
+packages/sdk-android/tests/native-crash-host/app/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_fa128c609e57dd 1-10
+packages/sdk-android/tests/native-crash-host/app/src/main/cpp/CMakeLists.txt
+  s_97602a0a2d8f20::t_b2fffccadf170e 1-6
+packages/sdk-android/tests/native-crash-host/app/src/main/cpp/NativeFaults.cpp
+  s_97602a0a2d8f20::t_5e92cf940ca022 1-19
+packages/sdk-android/tests/native-crash-host/app/src/main/java/dev/everframe/nativeproof/MainActivity.kt
+  s_97602a0a2d8f20::t_4faf2f194b1ca7 1-133
+packages/sdk-android/tests/native-crash-host/build.gradle.kts
+  s_97602a0a2d8f20::t_dbf42db4995d6d 1-6
+packages/sdk-android/tests/native-crash-host/gradle.properties
+  s_97602a0a2d8f20::t_b84d80eb5562a4 1-5
+packages/sdk-android/tests/native-crash-host/settings.gradle.kts
+  s_97602a0a2d8f20::t_f3f18f2bd15b00 1-11
+packages/sdk-core/__tests__/crash-causes.spec.ts
+  s_97602a0a2d8f20::t_d899c8f318a083 578-618
+packages/sdk-core/src/crash/causes.ts
+  s_97602a0a2d8f20::t_d83a2c3b51f6d1 32,35-41,48-49,79,81-102
+packages/sdk-ios/Package.swift
+  s_97602a0a2d8f20::t_006517e30a914b 26,34
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_9f15f1382d284a 66-101,395-408
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbAdapters.swift
+  s_97602a0a2d8f20::t_e9b53cee296a97 290-292
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_97602a0a2d8f20::t_40ffc12182b31f 204
+packages/sdk-ios/Sources/Everframe/Crash/CrashCauseNormalizer.swift
+  s_97602a0a2d8f20::t_27639b1b5b3050 1-69
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_97602a0a2d8f20::t_46e05ffb910615 69,72,91-93,111,166-167,174,190-192,196,217-220,230-232,241-242,245,295,300,309-310,323-325,327-328,363-365,367,481,512-513,516,558
+packages/sdk-ios/Sources/Everframe/Crash/FoundationCrashCauses.swift
+  s_97602a0a2d8f20::t_5e5fe36ad68a6f 1-61
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashContextFiles.swift
+  s_97602a0a2d8f20::t_4e58333309efb5 1-130
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashContextStore.swift
+  s_97602a0a2d8f20::t_842795bd7403e1 1-203
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashJSONPreflight.swift
+  s_97602a0a2d8f20::t_e22240e57ac2ea 1-84
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecord.swift
+  s_97602a0a2d8f20::t_19bbc9a7789744 1-12
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecordDecoder.swift
+  s_97602a0a2d8f20::t_3807dc871208e4 1-142
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecorderAdapter.swift
+  s_97602a0a2d8f20::t_dba3ee4903116e 1-27
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecovery.swift
+  s_97602a0a2d8f20::t_c58ce60e4ae275 1-293
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryContext.swift
+  s_97602a0a2d8f20::t_b6f4a7ec5817c6 1-73
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryFiles.swift
+  s_97602a0a2d8f20::t_2ca91beb685882 1-100
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryJournal.swift
+  s_97602a0a2d8f20::t_9ff2dea0819026 1-46
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRedactionSnapshot.swift
+  s_97602a0a2d8f20::t_975e40005aa4f1 1-79
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_97602a0a2d8f20::t_aab61a5b4ffc41 1-109
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashStartupContext.swift
+  s_97602a0a2d8f20::t_c4aa9490c05d1b 1-38
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashVendorRecord.swift
+  s_97602a0a2d8f20::t_e57c54a16aac6a 1-124
+packages/sdk-ios/Sources/Everframe/Crash/RNCrashCauses.swift
+  s_97602a0a2d8f20::t_8474ed150e9b99 1-83
+packages/sdk-ios/Sources/Everframe/Diagnostics/CaptureObservation.swift
+  s_97602a0a2d8f20::t_146fd595e82436 1-16
+packages/sdk-ios/Sources/Everframe/Diagnostics/ReportDeliveryStatus.swift
+  s_97602a0a2d8f20::t_941dbd06687a68 1-58
+packages/sdk-ios/Sources/Everframe/Diagnostics/ReportDiagnostics.swift
+  s_97602a0a2d8f20::t_f22b4cbbb353d1 1-112
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_97602a0a2d8f20::t_cb2537138d2442 43-75,266-268,819-820,887,925,984-986,998,1263-1265,1267-1268,1906-1907,1909
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_97602a0a2d8f20::t_f07cda81c74814 5,96,121,123,138-139,200-203,205-206,220-246,248-291,293-307,311-314,319-323,325-335,341-378,381-383,386,413
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_97602a0a2d8f20::t_f2a92a1bc68691 692
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_97602a0a2d8f20::t_2563187ca5ed98 21-22,35-36,41-42,46-75,136-146,162,168,174-184,193-203,213,307,335,417-419,427-428,431,439,443,504
+packages/sdk-ios/Sources/EverframeProtocol/CrashCompat.swift
+  s_97602a0a2d8f20::t_fb2091c4cbd098 6-59,119,124
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_d0a385869d4a52 577,586,590,624,638,746,758,762-763,775,800,812,817,829,844-990,1460-2095,2663
+packages/sdk-ios/Sources/EverframeProtocol/PayloadCompat.swift
+  s_97602a0a2d8f20::t_3352873b91cca1 1-27
+packages/sdk-ios/Tests/EverframeTests/CrashCauseNormalizerTests.swift
+  s_97602a0a2d8f20::t_3f755578436bdd 1-50
+packages/sdk-ios/Tests/EverframeTests/CrashReportCrossSDKTests.swift
+  s_97602a0a2d8f20::t_21d0c14096a803 163-172
+packages/sdk-ios/Tests/EverframeTests/CrashReporterTests.swift
+  s_97602a0a2d8f20::t_bbcbbf05c9b17d 38-91,113-138
+packages/sdk-ios/Tests/EverframeTests/FoundationCrashCausesTests.swift
+  s_97602a0a2d8f20::t_42c95902f5b960 1-82
+packages/sdk-ios/Tests/EverframeTests/HandledErrorCaptureTests.swift
+  s_97602a0a2d8f20::t_d8357c1157ce47 51-79,312-314,324-325
+packages/sdk-ios/Tests/EverframeTests/NativeCrashContextStoreTests.swift
+  s_97602a0a2d8f20::t_7b23405f9282c9 1-165
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecordDecoderTests.swift
+  s_97602a0a2d8f20::t_c1fc598b5f22df 1-180
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecoveryContextTests.swift
+  s_97602a0a2d8f20::t_12efc32a944621 1-96
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecoveryTests.swift
+  s_97602a0a2d8f20::t_bf8d0a4763411d 1-271
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_97602a0a2d8f20::t_7f9279a63362d1 1-203
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_97602a0a2d8f20::t_d9201725bf602e 1-179
+packages/sdk-ios/Tests/EverframeTests/NativeRecoveryOutboxTests.swift
+  s_97602a0a2d8f20::t_a071f0edfa0b7a 1-100
+packages/sdk-ios/Tests/EverframeTests/OutboxKeyBindingTests.swift
+  s_97602a0a2d8f20::t_62a0ef52cd9e54 10-24
+packages/sdk-ios/Tests/EverframeTests/RNCrashCausesTests.swift
+  s_97602a0a2d8f20::t_41636fb80c566f 1-41
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsPipelineTests.swift
+  s_97602a0a2d8f20::t_6d51d91b2d8c37 1-242
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsTests.swift
+  s_97602a0a2d8f20::t_c6fe6457bbabbb 1-92
+packages/sdk-ios/Tests/EverframeTests/ReporterSubmitKeyBindingTests.swift
+  s_97602a0a2d8f20::t_48d04eb7c3927a 143-156
+packages/sdk-ios/Tests/NativeCrashContextProof/main.swift
+  s_97602a0a2d8f20::t_61dfb169bd9010 1-55
+packages/sdk-ios/Tests/NativeCrashRecordProof/main.swift
+  s_97602a0a2d8f20::t_7bb08f9ccbbab3 1-24
+packages/sdk-ios/Tests/NativeCrashRecoveryProof/main.swift
+  s_97602a0a2d8f20::t_d982a3f46cfbd6 1-52
+packages/sdk-ios/Tests/NativeCrashStartupProof/.gitignore
+  s_97602a0a2d8f20::t_4b82ca4095c003 1
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_97602a0a2d8f20::t_d39a6818f4a1c1 1-136
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.h
+  s_97602a0a2d8f20::t_a2fe46f82a445a 1-8
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.m
+  s_97602a0a2d8f20::t_698f8c0196b885 1-44
+packages/sdk-ios/Tests/NativeCrashStartupProof/Proof.entitlements
+  s_97602a0a2d8f20::t_59343d1b160efc 1-7
+packages/sdk-ios/Tests/NativeCrashStartupProof/README.md
+  s_97602a0a2d8f20::t_7eef05abf6a569 1-33
+packages/sdk-ios/Tests/NativeCrashStartupProof/project.yml
+  s_97602a0a2d8f20::t_c0a06b8ba89798 1-42
+packages/sdk-ios/crash-recorder/LICENSES/APSL-2.0.txt
+  s_97602a0a2d8f20::t_2794af51c8ffc7 1-367
+packages/sdk-ios/crash-recorder/LICENSES/BSD-3-Clause.txt
+  s_97602a0a2d8f20::t_b2acbec2bf1793 1-22
+packages/sdk-ios/crash-recorder/LICENSES/MIT.txt
+  s_97602a0a2d8f20::t_c7b80c3f1d8554 1-21
+packages/sdk-ios/crash-recorder/Package.swift
+  s_97602a0a2d8f20::t_29173c9b66a372 1-28
+packages/sdk-ios/crash-recorder/README.md
+  s_97602a0a2d8f20::t_2e34b0c3cc9bac 1-99
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/EverframeKSCrashNamespace.h
+  s_97602a0a2d8f20::t_8315c7b756323d 1-24
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Recorder.m
+  s_97602a0a2d8f20::t_4a943bca11b000 1-114
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/RecorderGate.c
+  s_97602a0a2d8f20::t_edab1778c5c4e5 1-74
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/RecorderGate.h
+  s_97602a0a2d8f20::t_b93803fe4f1b6f 1-16
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy
+  s_97602a0a2d8f20::t_f7c7868d5d2dd3 1-5
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/KSNSErrorHelper.m
+  s_97602a0a2d8f20::t_6b88c345fd3028 1-75
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/KSSpinLock.c
+  s_97602a0a2d8f20::t_269d258b09de7f 1-114
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/KSUnfairLock.m
+  s_97602a0a2d8f20::t_b5cff710ef716a 1-64
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/Resources/PrivacyInfo.xcprivacy
+  s_97602a0a2d8f20::t_cd1e826e835a97 1-16
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSCompilerDefines.h
+  s_97602a0a2d8f20::t_fae34c291c2aac 1-49
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSCrashNamespace.h
+  s_97602a0a2d8f20::t_1f8739b26423e4 1-576
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSNSErrorHelper.h
+  s_97602a0a2d8f20::t_c81593f2b3ac6c 1-69
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSSpinLock.h
+  s_97602a0a2d8f20::t_7f20d269760b4d 1-115
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSSystemCapabilities.h
+  s_97602a0a2d8f20::t_bdfb8f4b9081f4 1-216
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashCore/include/KSUnfairLock.h
+  s_97602a0a2d8f20::t_984dd890e31d00 1-43
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Backtrace.m
+  s_97602a0a2d8f20::t_68ddd5edbd3bd7 1-89
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Hang.m
+  s_97602a0a2d8f20::t_59c3167deb7482 1-81
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Namespace.m
+  s_97602a0a2d8f20::t_44aadbeb4ae5f5 1-60
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+Private.h
+  s_97602a0a2d8f20::t_602c43414b77a3 1-62
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash+UserInfo.m
+  s_97602a0a2d8f20::t_ad4c53cd134351 1-73
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrash.m
+  s_97602a0a2d8f20::t_c428b335ad5292 1-442
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemory+Private.h
+  s_97602a0a2d8f20::t_97a2c9ada1156f 1-21
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemory.m
+  s_97602a0a2d8f20::t_3ad7a5fd563694 1-105
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppMemoryTracker.m
+  s_97602a0a2d8f20::t_cbfca311d51cc3 1-386
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashAppStateTracker.m
+  s_97602a0a2d8f20::t_a6c3fd15e5e561 1-297
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashBasicMonitorPlugin.m
+  s_97602a0a2d8f20::t_9a5fe0cf234f4f 1-48
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashC.c
+  s_97602a0a2d8f20::t_9b111f69a97ccf 1-612
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashCPUTracker.m
+  s_97602a0a2d8f20::t_6933f6345e7d70 1-383
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashConfiguration+Private.h
+  s_97602a0a2d8f20::t_2ecb706d6ea8c2 1-48
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashConfiguration.m
+  s_97602a0a2d8f20::t_8a0dfdf2d12172 1-291
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReport.m
+  s_97602a0a2d8f20::t_28009f6d739f3b 1-73
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportC.c
+  s_97602a0a2d8f20::t_ad8a0e4dccf7e4 1-1853
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportC.h
+  s_97602a0a2d8f20::t_6daa2606eb84d5 1-126
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportFixer.h
+  s_97602a0a2d8f20::t_22e86307eb5c67 1-47
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportFixer.m
+  s_97602a0a2d8f20::t_405b57ca60e5a6 1-170
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportRunId.h
+  s_97602a0a2d8f20::t_58e61ec7a6b201 1-59
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportRunId.m
+  s_97602a0a2d8f20::t_fa5594c779fbd1 1-217
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportStore.m
+  s_97602a0a2d8f20::t_67417a283ae934 1-315
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportStoreC+Private.h
+  s_97602a0a2d8f20::t_0bdc4befee3189 1-154
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportStoreC.m
+  s_97602a0a2d8f20::t_5dcf92c9f274ff 1-853
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportVersion.h
+  s_97602a0a2d8f20::t_41e07bae6d38e9 1-35
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashRunContext.h
+  s_97602a0a2d8f20::t_d60073456503d8 1-113
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashRunContext.m
+  s_97602a0a2d8f20::t_4d24ec98320e10 1-285
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashThreadcrumb.m
+  s_97602a0a2d8f20::t_6ad2e56c1fbb9c 1-298
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSHang.h
+  s_97602a0a2d8f20::t_e471de1f34c4d9 1-98
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSTaskRole.c
+  s_97602a0a2d8f20::t_02a6204d631355 1-86
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSTaskRole.h
+  s_97602a0a2d8f20::t_33e62051a7bd07 1-57
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSTerminationReason.c
+  s_97602a0a2d8f20::t_ddb758f7d40623 1-84
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSThreadCache.c
+  s_97602a0a2d8f20::t_39bc79d6881bf4 1-319
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_CPPException+Private.h
+  s_97602a0a2d8f20::t_ce5f048856da0d 1-138
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_CPPException.cpp
+  s_97602a0a2d8f20::t_04ff4bd71c527f 1-331
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_CPPException.h
+  s_97602a0a2d8f20::t_39449956e94046 1-50
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Deadlock.h
+  s_97602a0a2d8f20::t_e12cc759921ccb 1-75
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Deadlock.m
+  s_97602a0a2d8f20::t_c723d27456be82 1-219
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Lifecycle.h
+  s_97602a0a2d8f20::t_6b8d4caf92046a 1-202
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Lifecycle.m
+  s_97602a0a2d8f20::t_a5a0b98f9f9b73 1-522
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_LifecycleStitch.m
+  s_97602a0a2d8f20::t_7efdc72ba8465c 1-89
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_MachException.c
+  s_97602a0a2d8f20::t_7d0704bdce414a 1-628
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_MachException.h
+  s_97602a0a2d8f20::t_c5d7b0f8b69ca2 1-52
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException+Private.h
+  s_97602a0a2d8f20::t_fe68cc27060101 1-39
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException.h
+  s_97602a0a2d8f20::t_28be8809b42f52 1-51
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_NSException.m
+  s_97602a0a2d8f20::t_bc73c5de8e71a8 1-246
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Resource.h
+  s_97602a0a2d8f20::t_105d52bb808761 1-170
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Resource.m
+  s_97602a0a2d8f20::t_38acd00614f6b1 1-641
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_ResourceStitch.m
+  s_97602a0a2d8f20::t_f492ce778d3782 1-129
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Signal.c
+  s_97602a0a2d8f20::t_023e2f1646e724 1-290
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Signal.h
+  s_97602a0a2d8f20::t_43a14588fc22e2 1-52
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_System.h
+  s_97602a0a2d8f20::t_5715c52c8057ff 1-149
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_System.m
+  s_97602a0a2d8f20::t_2ce27e13afcd78 1-654
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_SystemStitch.m
+  s_97602a0a2d8f20::t_9fc4705109c66c 1-147
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Termination.h
+  s_97602a0a2d8f20::t_15e19910e3f299 1-60
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Termination.m
+  s_97602a0a2d8f20::t_0e59a2b691fdd4 1-173
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_User.c
+  s_97602a0a2d8f20::t_15731ee4fe3861 1-120
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_User.h
+  s_97602a0a2d8f20::t_90f3a1d0678516 1-71
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_UserInfo.c
+  s_97602a0a2d8f20::t_89eebda8145433 1-214
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_UserInfo.h
+  s_97602a0a2d8f20::t_f18b655dd3ac80 1-101
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_UserInfoStitch.m
+  s_97602a0a2d8f20::t_74891af89e891d 1-170
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Watchdog.c
+  s_97602a0a2d8f20::t_d543f64856fcc7 1-855
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Watchdog.h
+  s_97602a0a2d8f20::t_cd3fcfdbf310a0 1-99
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_WatchdogSidecar.h
+  s_97602a0a2d8f20::t_548c40384186db 1-92
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_WatchdogStitch.m
+  s_97602a0a2d8f20::t_b6a9bd0cdd6dd5 1-141
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Zombie.c
+  s_97602a0a2d8f20::t_f539ac77229af9 1-244
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Zombie.h
+  s_97602a0a2d8f20::t_dce33aa84edff5 1-71
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Resources/PrivacyInfo.xcprivacy
+  s_97602a0a2d8f20::t_cd920396e0f126 1-74
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+Backtrace.h
+  s_97602a0a2d8f20::t_da16ab9a8fd802 1-126
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+Hang.h
+  s_97602a0a2d8f20::t_60f68116ad95e3 1-67
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+Namespace.h
+  s_97602a0a2d8f20::t_5ecfa8c397b1e2 1-50
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash+UserInfo.h
+  s_97602a0a2d8f20::t_6736a2562c9975 1-62
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrash.h
+  s_97602a0a2d8f20::t_c82c304acf22c2 1-193
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppMemory.h
+  s_97602a0a2d8f20::t_ceb281d9a60b09 1-147
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppMemoryTracker.h
+  s_97602a0a2d8f20::t_441c0e0e5c2925 1-108
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppStateTracker.h
+  s_97602a0a2d8f20::t_5480e9f00071d4 1-109
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashAppTransitionState.h
+  s_97602a0a2d8f20::t_16e3c09651447d 1-87
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashC.h
+  s_97602a0a2d8f20::t_9bf23197360c63 1-273
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashCConfiguration.h
+  s_97602a0a2d8f20::t_176169f4ffea35 1-424
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashCPUTracker.h
+  s_97602a0a2d8f20::t_39a84738e8b4f4 1-132
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashConfiguration.h
+  s_97602a0a2d8f20::t_d9e569a93f8c17 1-332
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashError.h
+  s_97602a0a2d8f20::t_e91c9436ac45d3 1-72
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashHang.h
+  s_97602a0a2d8f20::t_f6b065e0a337e2 1-128
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashMonitorPlugin.h
+  s_97602a0a2d8f20::t_3e7385d9697d3c 1-75
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashMonitorType.h
+  s_97602a0a2d8f20::t_2b839a0e80f180 1-201
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReport.h
+  s_97602a0a2d8f20::t_de75c1a2dbd6ef 1-102
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportFields.h
+  s_97602a0a2d8f20::t_0cdce3da764848 1-303
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportFilter.h
+  s_97602a0a2d8f20::t_851bce8fdfdb42 1-80
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportStore.h
+  s_97602a0a2d8f20::t_80396d57ba09ca 1-190
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashReportStoreC.h
+  s_97602a0a2d8f20::t_695dcf14ccde2c 1-150
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSCrashThreadcrumb.h
+  s_97602a0a2d8f20::t_57e5eac500fb53 1-83
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSTerminationReason.h
+  s_97602a0a2d8f20::t_3d1fc17430e1dd 1-113
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/include/KSThreadCache.h
+  s_97602a0a2d8f20::t_3115ba65fc5a04 1-103
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSBacktrace.c
+  s_97602a0a2d8f20::t_692be206a0cc94 1-345
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSBinaryImageCache.c
+  s_97602a0a2d8f20::t_c8013a632ba329 1-873
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU.c
+  s_97602a0a2d8f20::t_2dcfe2e63d43f3 1-111
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPURingBuffer.c
+  s_97602a0a2d8f20::t_ff24855df5fee1 1-103
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_arm.c
+  s_97602a0a2d8f20::t_e34d40347cde8d 1-130
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_arm64.c
+  s_97602a0a2d8f20::t_fcdd87eda52699 1-174
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_x86_32.c
+  s_97602a0a2d8f20::t_44843fb4567be8 1-155
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCPU_x86_64.c
+  s_97602a0a2d8f20::t_b824bcca0e1bdf 1-164
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCrashMonitor.c
+  s_97602a0a2d8f20::t_ba18bf3ca4e184 1-438
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCrashMonitorAPI.c
+  s_97602a0a2d8f20::t_1013e64682cee4 1-44
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCrashMonitorRegistry.c
+  s_97602a0a2d8f20::t_fc866c4836d782 1-206
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSCxaThrowSwapper.c
+  s_97602a0a2d8f20::t_dfb0cdf506945d 1-530
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSDate.c
+  s_97602a0a2d8f20::t_cbbb429054cbc3 1-94
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSDebug.c
+  s_97602a0a2d8f20::t_b9e9d98c878072 1-57
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSDynamicLinker.c
+  s_97602a0a2d8f20::t_a80ce02c17dc7b 1-429
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSFileUtils.c
+  s_97602a0a2d8f20::t_c35085633dbe4f 1-618
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSFileUtilsObjC.m
+  s_97602a0a2d8f20::t_11282ff258cd9a 1-49
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSID.c
+  s_97602a0a2d8f20::t_d32ddfd27c4862 1-66
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSJSONCodec.c
+  s_97602a0a2d8f20::t_83314dd0048265 1-1284
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSJSONCodecObjC.m
+  s_97602a0a2d8f20::t_78acb9695d39a9 1-439
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSKeyValueStore.c
+  s_97602a0a2d8f20::t_e7542d7ebb2b6d 1-635
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSLogger.c
+  s_97602a0a2d8f20::t_9b6de88af60a0d 1-475
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMach-O.c
+  s_97602a0a2d8f20::t_b24a777f945dc6 1-239
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMach.c
+  s_97602a0a2d8f20::t_2a5107ed63903c 1-180
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMachineContext.c
+  s_97602a0a2d8f20::t_b2ad95cc69c6f7 1-294
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSMemory.c
+  s_97602a0a2d8f20::t_f73707b6017301 1-135
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSObjC.c
+  s_97602a0a2d8f20::t_0873ee61f11a1c 1-1676
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSObjCApple.h
+  s_97602a0a2d8f20::t_e80a706fc50acb 1-1118
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSSignalInfo.c
+  s_97602a0a2d8f20::t_47c7f93200505c 1-133
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor.c
+  s_97602a0a2d8f20::t_1e449fafe6b51d 1-65
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor_Backtrace.c
+  s_97602a0a2d8f20::t_4de8ff16d215f0 1-63
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor_MachineContext.c
+  s_97602a0a2d8f20::t_21ae6fd24b93d2 1-39
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSStackCursor_SelfThread.c
+  s_97602a0a2d8f20::t_8ecb7c70a47ee5 1-74
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSString.c
+  s_97602a0a2d8f20::t_c19a5731238d6b 1-506
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSSymbolicator.c
+  s_97602a0a2d8f20::t_416fa21b725461 1-78
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSSysCtl.c
+  s_97602a0a2d8f20::t_6b9a95bc1a40e0 1-229
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSThread.c
+  s_97602a0a2d8f20::t_a31f2d7f022aa3 1-177
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/KSThreadInit.m
+  s_97602a0a2d8f20::t_cfd6019c29b823 1-60
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Resources/PrivacyInfo.xcprivacy
+  s_97602a0a2d8f20::t_246ec4c517e313 1-74
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind.c
+  s_97602a0a2d8f20::t_06cf37fccf3c9f 1-455
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_arm.c
+  s_97602a0a2d8f20::t_5e685925f6f0ee 1-129
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_arm64.c
+  s_97602a0a2d8f20::t_a120513616d8cc 1-239
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_x86.c
+  s_97602a0a2d8f20::t_98aada03faf395 1-183
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSCompactUnwind_x86_64.c
+  s_97602a0a2d8f20::t_a7198ef31f6bde 1-211
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSDwarfUnwind.c
+  s_97602a0a2d8f20::t_7b9853f5f1764b 1-1415
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c
+  s_97602a0a2d8f20::t_7d762426ebd9a9 1-718
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSBacktrace.h
+  s_97602a0a2d8f20::t_413dac5852df57 1-271
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSBinaryImageCache.h
+  s_97602a0a2d8f20::t_193ffe329a639f 1-216
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCPU.h
+  s_97602a0a2d8f20::t_e146df7370b1f1 1-170
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCPURingBuffer.h
+  s_97602a0a2d8f20::t_d39378c66ba966 1-87
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCPU_Apple.h
+  s_97602a0a2d8f20::t_1c57f9c33a6351 1-60
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashExceptionHandlingPlan+Private.h
+  s_97602a0a2d8f20::t_7b0f1da4c4f935 1-55
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashExceptionHandlingPlan.h
+  s_97602a0a2d8f20::t_921f81266ac1e2 1-103
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashExceptionHandlingRequirements.h
+  s_97602a0a2d8f20::t_70d0e9f37fdb27 1-130
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitor.h
+  s_97602a0a2d8f20::t_a3f86725b9e73b 1-191
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorAPI.h
+  s_97602a0a2d8f20::t_bf322137275e6d 1-159
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorContext.h
+  s_97602a0a2d8f20::t_3566de955784ea 1-320
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorFlag.h
+  s_97602a0a2d8f20::t_4194d4d904bbcf 1-61
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorHelper.h
+  s_97602a0a2d8f20::t_d4bae25a9ec10a 1-70
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashMonitorRegistry.h
+  s_97602a0a2d8f20::t_641d422b7306e4 1-152
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashReportWriter.h
+  s_97602a0a2d8f20::t_dd8c3fc8e158c4 1-263
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCrashReportWriterCallbacks.h
+  s_97602a0a2d8f20::t_aa48805fd794b2 1-88
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSCxaThrowSwapper.h
+  s_97602a0a2d8f20::t_d1def0cef832ca 1-51
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSDate.h
+  s_97602a0a2d8f20::t_55919865e15824 1-94
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSDebug.h
+  s_97602a0a2d8f20::t_ccd198fe193311 1-54
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSDynamicLinker.h
+  s_97602a0a2d8f20::t_69ac92665d0653 1-104
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSExcResource.h
+  s_97602a0a2d8f20::t_19d9712ac63359 1-69
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSFileUtils.h
+  s_97602a0a2d8f20::t_7897ef049bab17 1-313
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSID.h
+  s_97602a0a2d8f20::t_a6f86d43037d5d 1-47
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSJSONCodec.h
+  s_97602a0a2d8f20::t_562f103fbc57e4 1-517
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSJSONCodecObjC.h
+  s_97602a0a2d8f20::t_82184c18b4b194 1-106
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSJailbreak.h
+  s_97602a0a2d8f20::t_c2dcc91463e51a 1-239
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSKeyValueStore.h
+  s_97602a0a2d8f20::t_2364f1569e682f 1-122
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSLogger.h
+  s_97602a0a2d8f20::t_6fb80abf2bf7e7 1-389
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMach-O.h
+  s_97602a0a2d8f20::t_c407c91470538c 1-122
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMach.h
+  s_97602a0a2d8f20::t_0c1bc0461ebdf9 1-77
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMachineContext.h
+  s_97602a0a2d8f20::t_8be43e77c401b1 1-147
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMachineContext_Apple.h
+  s_97602a0a2d8f20::t_ccd376109d07d1 1-65
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSMemory.h
+  s_97602a0a2d8f20::t_76cf09042de77f 1-92
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSObjC.h
+  s_97602a0a2d8f20::t_4543208f0c2392 1-397
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSPlatformSpecificDefines.h
+  s_97602a0a2d8f20::t_4729b4ff363609 1-54
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSSignalInfo.h
+  s_97602a0a2d8f20::t_3983ac9bfb5008 1-78
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor.h
+  s_97602a0a2d8f20::t_e7c2ad69e4fc0b 1-116
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor_Backtrace.h
+  s_97602a0a2d8f20::t_e76316e36254df 1-62
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor_MachineContext.h
+  s_97602a0a2d8f20::t_fd097b3fee656b 1-58
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSStackCursor_SelfThread.h
+  s_97602a0a2d8f20::t_b85a2d8ad76a42 1-62
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSString.h
+  s_97602a0a2d8f20::t_2657ea4d05a515 1-146
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSSymbolicator.h
+  s_97602a0a2d8f20::t_f1056e8105f138 1-60
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSSysCtl.h
+  s_97602a0a2d8f20::t_5a7602b991f60d 1-191
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/KSThread.h
+  s_97602a0a2d8f20::t_e3b63c30fb66cc 1-109
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/Unwind/KSCompactUnwind.h
+  s_97602a0a2d8f20::t_b44f84df6f8070 1-266
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/Unwind/KSDwarfUnwind.h
+  s_97602a0a2d8f20::t_2a73459748fdf4 1-198
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/include/Unwind/KSStackCursor_Unwind.h
+  s_97602a0a2d8f20::t_8f0affa50efa9a 1-116
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/include/EverframeCrashRecorder.h
+  s_97602a0a2d8f20::t_f4b9fcfdd0140c 1-35
+packages/sdk-ios/crash-recorder/THIRD_PARTY_NOTICES.md
+  s_97602a0a2d8f20::t_0eb786733185fc 1-30
+packages/sdk-ios/crash-recorder/Tests/DualProbe/main.m
+  s_97602a0a2d8f20::t_6b9848cb5fc7bf 1-26
+packages/sdk-ios/crash-recorder/Tests/GateAdmission/main.c
+  s_97602a0a2d8f20::t_403a4c9599b84f 1-41
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_97602a0a2d8f20::t_03e4fc03bd9ade 1-97
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/ProbeNative.m
+  s_97602a0a2d8f20::t_37c69bbd89a2cd 1-48
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/include/ProbeNative.h
+  s_97602a0a2d8f20::t_c0d40fb78a0092 1-7
+packages/sdk-ios/crash-recorder/Tests/context-probes.py
+  s_97602a0a2d8f20::t_4d328914b9f5de 1-51
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_97602a0a2d8f20::t_2138cf0e581005 1-94
+packages/sdk-ios/crash-recorder/scripts/prepare-vendor.mjs
+  s_97602a0a2d8f20::t_f9d02b5be39295 1-110
+packages/sdk-ios/crash-recorder/scripts/vendor.test.mjs
+  s_97602a0a2d8f20::t_5b7f5e5167bcd4 1-78
+packages/sdk-ios/crash-recorder/scripts/verify-vendor.mjs
+  s_97602a0a2d8f20::t_793cce138d77fd 1-43
+packages/sdk-ios/crash-recorder/vendor-lock.json
+  s_97602a0a2d8f20::t_f405116d7081d3 1-1387
+packages/sdk-ios/docs/native-record-decoder.md
+  s_97602a0a2d8f20::t_0f34a1d9e61125 1-34
+packages/sdk-ios/project.yml
+  s_97602a0a2d8f20::t_4343725d072aa9 93-96,128-132,134-135,138-145
+packages/sdk-react-native/README.md
+  s_97602a0a2d8f20::t_4cd11f62471f89 99-151,602-608,613-717
+packages/sdk-react-native/__tests__/error-capture-runtime.test.ts
+  s_97602a0a2d8f20::t_9b05d85c64d4d6 1-27
+packages/sdk-react-native/__tests__/error-capture-status.test.ts
+  s_97602a0a2d8f20::t_106b4e1522387e 1-132
+packages/sdk-react-native/__tests__/error-causes.test.ts
+  s_97602a0a2d8f20::t_568414ccbfe66f 1-71
+packages/sdk-react-native/__tests__/fixtures/error-details-public-consumer.ts
+  s_97602a0a2d8f20::t_6729663db1dd2f 5,7-8,12-17,36-57
+packages/sdk-react-native/__tests__/fixtures/report-delivery-status-v1.json
+  s_97602a0a2d8f20::t_d3aed54429e7ff 1-116
+packages/sdk-react-native/__tests__/hermes-rejection-adapter.test.ts
+  s_97602a0a2d8f20::t_27e812e1f82b41 1-185
+packages/sdk-react-native/__tests__/promise-rejection-runtime.test.ts
+  s_97602a0a2d8f20::t_8cd318261f2aa2 1-72
+packages/sdk-react-native/__tests__/promise-rejections.test.ts
+  s_97602a0a2d8f20::t_436f573befe258 1-122
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_97602a0a2d8f20::t_48b8f51ffb066b 75,106-107
+packages/sdk-react-native/__tests__/react-adapter-packaging.test.ts
+  s_97602a0a2d8f20::t_ad568abe55ea6d 1-24
+packages/sdk-react-native/__tests__/react-error-adapter.test.tsx
+  s_97602a0a2d8f20::t_c8e0569c07ee88 1-105
+packages/sdk-react-native/__tests__/rejection-capture.test.ts
+  s_97602a0a2d8f20::t_24a1ae08bf7ff4 1-118
+packages/sdk-react-native/__tests__/report-delivery-status.test.ts
+  s_97602a0a2d8f20::t_b39d4c099b54df 1-119
+packages/sdk-react-native/__tests__/web-entry.spec.ts
+  s_97602a0a2d8f20::t_8b9994d66a7b9b 13-17
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_97602a0a2d8f20::t_875d5338595b05 640-643,673,676-677,680,682
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnErrorDetailsBridgeTest.kt
+  s_97602a0a2d8f20::t_4de55cff117d64 57-89
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_97602a0a2d8f20::t_ceb8d2268cddd2 595-599
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_97602a0a2d8f20::t_cd6bb7a0b4d03b 422-425
+packages/sdk-react-native/package.json
+  s_97602a0a2d8f20::t_ccb14606194c1e 4,76-80
+packages/sdk-react-native/scripts/verify-error-details-public.mjs
+  s_97602a0a2d8f20::t_0860516945768e 141-156
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_97602a0a2d8f20::t_c036bac4425973 331-332
+packages/sdk-react-native/src/contextSeam.ts
+  s_97602a0a2d8f20::t_d3f1c62dcd7dde 3-4,18,24-28,110-122,126,203-217
+packages/sdk-react-native/src/error-capture-status.ts
+  s_97602a0a2d8f20::t_0e23e667337d97 1-54
+packages/sdk-react-native/src/errors.ts
+  s_97602a0a2d8f20::t_7f88e8e1fa074d 7-10,31,33-34,43-45,51-102,109-111,113,120-124,127-130,134-135,140,147,153-154,156,159,165,198-200
+packages/sdk-react-native/src/hermes-rejection-adapter.ts
+  s_97602a0a2d8f20::t_ee4ff2b9d58dce 1-158
+packages/sdk-react-native/src/index.ts
+  s_97602a0a2d8f20::t_a97973e8ce563e 32-34,42,88-91
+packages/sdk-react-native/src/index.web.ts
+  s_97602a0a2d8f20::t_668c447b366c74 3,6-19
+packages/sdk-react-native/src/integrations/react.ts
+  s_97602a0a2d8f20::t_d25b74ad036c66 1-30
+packages/sdk-react-native/src/promise-rejection-types.ts
+  s_97602a0a2d8f20::t_669837246069f6 1-27
+packages/sdk-react-native/src/promise-rejections.ts
+  s_97602a0a2d8f20::t_93cbbb6c1a1e29 1-188
+packages/sdk-react-native/src/rejection-capture.ts
+  s_97602a0a2d8f20::t_907e8f7a2b13a8 1-15
+packages/sdk-react-native/src/report-delivery-status.ts
+  s_97602a0a2d8f20::t_804aa28567b950 1-172
+packages/sdk-react-native/src/runtime.ts
+  s_97602a0a2d8f20::t_4199aeeddcdcf5 3-4,29-30,41-42,124-125,232-233,377-378,391-417,586-588,601-611,652
+packages/sdk-react-native/tsup.config.ts
+  s_97602a0a2d8f20::t_483f269e802553 18
+public-boundary.json
+  s_97602a0a2d8f20::t_7e20d285d64443 232-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "694da7fe992f309a69360cacd565fc18d9c1c632",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
