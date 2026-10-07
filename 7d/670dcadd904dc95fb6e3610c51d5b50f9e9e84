@@ -1,0 +1,75 @@
+.changeset/android-reporter-lifecycle.md
+  s_360d9eb003c487::t_0bacbb8deee503 8
+.changeset/mobile-cause-chains.md
+  s_360d9eb003c487::t_eaf10ffcedc2e7 2,4-5,13
+.changeset/react-boundary-capture-status.md
+  s_360d9eb003c487::t_ce31f11bb2f290 8
+.changeset/react-native-promise-rejections.md
+  s_360d9eb003c487::t_35886532b1782c 8
+packages/protocol/__tests__/crash-causes.spec.ts
+  s_360d9eb003c487::t_915cc447ac09bb 300-320
+packages/protocol/__tests__/fixtures/crash-causes-native-parity.json
+  s_360d9eb003c487::t_254cea6714f665 253-285
+packages/protocol/src/crash-causes.ts
+  s_360d9eb003c487::t_bed6cf2ef7be03 143,146-147
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashCauseNormalizer.kt
+  s_360d9eb003c487::t_d971d85e010368 140-141
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialogLifecycle.kt
+  s_360d9eb003c487::t_53decd8014566e 12,38,61-62,65,67-69
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_360d9eb003c487::t_288023dba564cb 139-146
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogLifecycleTest.kt
+  s_360d9eb003c487::t_109b49fe27c691 197,200,204-231
+packages/sdk-core/__tests__/crash-causes.spec.ts
+  s_360d9eb003c487::t_206dfc425599df 421-432
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_1242fc06d43950 13,17,27-28,32-55,82-89,117-119,127,146,155,162-164,167-172,190
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Recorder.m
+  s_360d9eb003c487::t_be3c8f51e4c52b 101-103
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/include/EverframeCrashRecorder.h
+  s_360d9eb003c487::t_5850e8c42e83ae 16,19-20,29-38,46
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_360d9eb003c487::t_5d727092555d12 33-34,108-113
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/ProbeNative.m
+  s_360d9eb003c487::t_b6d731f27a54fc 79,89
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/include/ProbeNative.h
+  s_360d9eb003c487::t_7bc29097f8b5da 13
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_360d9eb003c487::t_ab3751d763784d 19-20,32-33,47-67,131-134,168,174-175
+packages/sdk-ios/crash-recorder/Tests/test_run_probes.py
+  s_360d9eb003c487::t_3172da3432ccab 1-61
+packages/sdk-ios/crash-recorder/scripts/vendor.test.mjs
+  s_360d9eb003c487::t_b57664b4d70c9b 121-133
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_a426a4a9ec937c 139-143,154-157,206-214
+packages/sdk-react-native/__tests__/react-error-adapter.test.tsx
+  s_360d9eb003c487::t_2a92ac016fdb13 92-103
+packages/sdk-react-native/__tests__/rejection-capture.test.ts
+  s_360d9eb003c487::t_d598f904e747f8 175-219
+packages/sdk-react-native/src/errors.ts
+  s_360d9eb003c487::t_206893162182e8 8-15,71-73,75-77,101
+packages/sdk-react-native/src/integrations/react.ts
+  s_360d9eb003c487::t_3002828e4b5168 11-15
+packages/sdk-react-native/src/rejection-capture.ts
+  s_360d9eb003c487::t_22cdf50c6ec740 13-16,21-25,28,30-39
+packages/sdk-react-native/tsconfig.test.json
+  s_360d9eb003c487::t_80ad07d9e0a852 36-40,43-44
+packages/sdk-web/__tests__/capture-exception.spec.ts
+  s_360d9eb003c487::t_c028cd29cbdab6 208-220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d670dcadd904dc95fb6e3610c51d5b50f9e9e84",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
