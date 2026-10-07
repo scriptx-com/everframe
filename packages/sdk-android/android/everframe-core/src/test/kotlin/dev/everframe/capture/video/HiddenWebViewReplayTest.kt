@@ -93,7 +93,13 @@ class HiddenWebViewReplayTest {
         assertFalse(gate.observe(root).allowed)
         parent.alpha = 0f
         Everframe.markSensitive(web)
+        // A marked WebView is a masked view, and under a transparent container only another
+        // drawing could show it.
         assertFalse("explicit sensitivity takes precedence over automatic WebView classification", gate.observe(root).allowed)
+        parent.alpha = 1f
+        val marked = gate.observe(root)
+        val bounds = VideoMaskBounds.of(web, root)!!.apply { intersect(0, 0, root.width, root.height) }
+        assertTrue("a marked WebView is painted black", marked.allowed && marked.masks.any { it.contains(bounds) })
     }
 
     @Test fun animationOnHiddenAncestorRemainsUncertain() = fixture { root, parent, _, gate ->

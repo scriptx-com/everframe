@@ -174,6 +174,102 @@ class PixelCopyVideoCaptureTest {
         }
     }
 
+    @Test fun keyboardPanAppliedWhileDrawingIsCaughtAfterTheDraw() {
+        for (boundary in listOf("commit", "copyCallback")) {
+            val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
+            val activity = controller.get()
+            val root = android.widget.FrameLayout(activity)
+            activity.setContentView(root); root.layout(0,0,100,100)
+            val input = android.widget.EditText(activity); root.addView(input); input.layout(0,0,50,20)
+            val decor = activity.window.decorView
+            val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
+            val h = Harness()
+            h.platform = object : VideoCapturePlatform by h.platform {
+                override fun observe() = gate.observe(decor)
+            }
+            h.capture = h.create()
+            try {
+                assertTrue(h.request())
+                h.preDraw!!.invoke(); h.drain()
+                if (boundary == "copyCallback") h.commit()
+                // ViewRootImpl updates its pan offset inside draw(), after the pre-draw observation.
+                org.robolectric.util.ReflectionHelpers.setField(decor.parent, "mCurScrollY", 40)
+                if (boundary == "commit") h.commit()
+                if (boundary == "copyCallback") h.callback()
+                assertTrue("pan at $boundary must stop the copy", h.copies.isEmpty())
+                assertEquals("pan at $boundary", 0, h.accepted)
+                assertTrue(h.bitmap!!.isRecycled)
+            } finally {
+                org.robolectric.util.ReflectionHelpers.setField(decor.parent, "mCurScrollY", 0)
+                h.capture.cancel(); h.drain()
+                if (h.copies.isNotEmpty()) h.callback()
+                controller.pause().stop().destroy()
+            }
+        }
+    }
+
+    @Test fun scrollingAMaskedViewThatStaysOutsideTheFrameKeepsTheFrame() {
+        val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
+        val activity = controller.get()
+        val root = android.widget.FrameLayout(activity)
+        activity.setContentView(root); root.layout(0,0,100,100)
+        val scroller = android.widget.FrameLayout(activity); root.addView(scroller); scroller.layout(0,0,100,100)
+        val input = android.widget.EditText(activity); scroller.addView(input); input.layout(0,40,100,60)
+        scroller.scrollTo(0, 200)
+        val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
+        val h = Harness()
+        h.platform = object : VideoCapturePlatform by h.platform {
+            override fun observe() = gate.observe(root)
+        }
+        h.capture = h.create()
+        try {
+            assertTrue(h.request())
+            h.preDraw!!.invoke(); h.drain()
+            scroller.scrollBy(0, 10)
+            h.preDraw!!.invoke(); h.drain()
+            assertEquals("the scroll must not discard the pending frame", 1, h.commits.size)
+            h.commit(); h.callback()
+            assertEquals(1, h.accepted)
+            assertEquals(0L, h.capture.privacyExclusions.get())
+        } finally {
+            h.capture.cancel(); h.drain()
+            if (h.copies.isNotEmpty()) h.callback()
+            controller.pause().stop().destroy()
+        }
+    }
+
+    @Test fun movementInsideANonClippedMaskedGroupKeepsThePendingFrame() {
+        val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
+        val activity = controller.get()
+        val root = android.widget.FrameLayout(activity)
+        activity.setContentView(root); root.layout(0,0,100,100)
+        root.clipChildren = false
+        val group = android.widget.FrameLayout(activity); root.addView(group); group.layout(10,10,90,90)
+        group.setTag(dev.everframe.R.id.tx_sensitive, true)
+        val dot = android.view.View(activity); group.addView(dot); dot.layout(20,20,40,40)
+        val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
+        val h = Harness()
+        h.platform = object : VideoCapturePlatform by h.platform {
+            override fun observe() = gate.observe(root)
+        }
+        h.capture = h.create()
+        try {
+            assertTrue(h.request())
+            h.preDraw!!.invoke(); h.drain()
+            // A pulse that stays inside the painted group.
+            dot.scaleX = 1.2f; dot.scaleY = 1.2f
+            h.preDraw!!.invoke(); h.drain()
+            assertEquals("the pulse must not discard the pending frame", 1, h.commits.size)
+            h.commit(); h.callback()
+            assertEquals(1, h.accepted)
+            assertEquals(0L, h.capture.privacyExclusions.get())
+        } finally {
+            h.capture.cancel(); h.drain()
+            if (h.copies.isNotEmpty()) h.callback()
+            controller.pause().stop().destroy()
+        }
+    }
+
     @Test fun mainPrivacyPhasesExcludeAsyncCommitAndCopyWaits() {
         val h = Harness(); h.observeCost = 7
         try {
@@ -254,10 +350,10 @@ class PixelCopyVideoCaptureTest {
         val h = Harness(); h.request(); h.commit(); h.extraCommit!!(); h.callback()
         assertEquals(0,h.accepted)
     }
-    @Test fun nativeAdapterRejectsSecondTraversalBeforeDelayedPrimaryDelivery() {
+    private fun nativeTraversal(sensitiveOnSecond: Boolean): Pair<Int, Int> {
         val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
         val activity = controller.get()
-        val root = activity.window.decorView
+        val root = activity.window.decorView as android.view.ViewGroup
         root.layout(0,0,100,100)
         val registrations = mutableListOf<Runnable>()
         val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
@@ -274,16 +370,70 @@ class PixelCopyVideoCaptureTest {
             assertTrue(h.request())
             val delayedPrimary = registrations.single()
             root.viewTreeObserver.dispatchOnPreDraw()
+            if (sensitiveOnSecond) root.addView(android.widget.EditText(activity))
             root.viewTreeObserver.dispatchOnPreDraw()
             delayedPrimary.run(); h.drain()
-            assertTrue("second traversal must prevent native copy submission", h.copies.isEmpty())
-            assertEquals(0,h.accepted)
+            val submitted = h.copies.size
+            if (h.copies.isNotEmpty()) h.callback()
             assertTrue(registrations.isEmpty())
+            return submitted to h.accepted
         } finally {
             h.capture.cancel(); h.drain()
             if (h.copies.isNotEmpty()) h.callback()
             controller.pause().stop().destroy()
         }
+    }
+    @Test fun nativeAdapterKeepsFrameAcrossCleanExtraTraversal() {
+        // Animations redraw continuously; each traversal is re-observed, so the frame stays valid.
+        assertEquals(1 to 1, nativeTraversal(sensitiveOnSecond = false))
+    }
+    @Test fun nativeAdapterDropsFrameWhenExtraTraversalBringsSensitiveView() {
+        val (submitted, accepted) = nativeTraversal(sensitiveOnSecond = true)
+        assertEquals("a traversal that fails the gate must prevent native copy submission", 0, submitted)
+        assertEquals(0, accepted)
+    }
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun admittedFramePaintsMasksBlackAndLeavesTheRest() {
+        val h = Harness()
+        h.capture = PixelCopyVideoCapture(h.platform, h.scheduler, { size ->
+            Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.WHITE) }.also { h.bitmap = it }
+        })
+        h.observation = h.observation.copy(masks = listOf(android.graphics.Rect(10, 10, 30, 30)))
+        var inside = 0; var outside = 0
+        h.request(consume = { frame -> frame.withPixels { inside = it.getPixel(20, 20); outside = it.getPixel(60, 60) }; h.accepted++; frame.close() })
+        h.commit(); h.callback()
+        assertEquals(1, h.accepted)
+        assertEquals(android.graphics.Color.BLACK, inside)
+        assertEquals(android.graphics.Color.WHITE, outside)
+    }
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun masksScaleWithTheDownscaledFrame() {
+        val h = Harness()
+        h.capture = PixelCopyVideoCapture(h.platform, h.scheduler, { size ->
+            Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.WHITE) }.also { h.bitmap = it }
+        })
+        // Production copies a larger window into a smaller frame: a 300x600 window at 100x200.
+        h.observation = PrivacyObservation(Any(), 300, 600, 0, true, listOf(android.graphics.Rect(30, 60, 90, 120)))
+        val pixels = IntArray(4)
+        assertTrue(h.capture.request(VideoOwner("session", "scaled"), VideoSize(100, 200)) { frame ->
+            frame.withPixels { pixels[0] = it.getPixel(20, 30); pixels[1] = it.getPixel(32, 30); pixels[2] = it.getPixel(20, 42); pixels[3] = it.getPixel(9, 30) }
+            h.accepted++; frame.close()
+        })
+        h.drain(); h.commit(); h.callback()
+        assertEquals(1, h.accepted)
+        assertEquals("inside the scaled mask (10,20)-(30,40)", android.graphics.Color.BLACK, pixels[0])
+        assertEquals("right of it", android.graphics.Color.WHITE, pixels[1])
+        assertEquals("below it", android.graphics.Color.WHITE, pixels[2])
+        assertEquals("left of it", android.graphics.Color.WHITE, pixels[3])
+    }
+    @Test fun movedMaskBeforeCopyDropsFrameAsPrivacyExclusion() {
+        val h = Harness()
+        h.observation = h.observation.copy(masks = listOf(android.graphics.Rect(10, 10, 30, 30)))
+        h.request(); h.commit()
+        h.observation = h.observation.copy(epoch = h.observation.epoch + 1, masks = listOf(android.graphics.Rect(40, 10, 60, 30)))
+        h.callback()
+        assertEquals(0, h.accepted)
+        assertEquals(1L, h.capture.privacyExclusions.get())
     }
     @Test fun failedObservationAfterCopyReleasesWithoutAdmission() {
         val h = Harness(); h.request(); h.commit(); h.observationThrows = true
