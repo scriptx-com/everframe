@@ -1,0 +1,36 @@
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/ProbeNative.m
+  s_360d9eb003c487::t_fc29a99d01513a 16-19
+  s_360d9eb003c487::t_579ca5e469d7a1 14
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_360d9eb003c487::t_361d15e475f724 13-15
+  s_360d9eb003c487::t_ae7f38e6d0fe62 54-57
+packages/sdk-ios/crash-recorder/scripts/prepare-vendor.mjs
+  s_360d9eb003c487::t_c1bb3c69e43486 57-70
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_48625a39bfcb5f 40-46
+  s_360d9eb003c487::t_a28c78104a86b1 87-88
+packages/sdk-ios/crash-recorder/scripts/vendor.test.mjs
+  s_360d9eb003c487::t_5a687702a0c7a2 91-98
+packages/sdk-ios/crash-recorder/THIRD_PARTY_NOTICES.md
+  s_360d9eb003c487::t_5a96d6b26b3faf 26-27
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/KSCrashReportC.c
+  s_360d9eb003c487::t_d742a7a80e3658 2,970,1176-1177
+packages/sdk-ios/crash-recorder/vendor-lock.json
+  s_360d9eb003c487::t_055febd4f864c8 194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5929a9a338e38f41199f2aa5fc9af56f223a2474",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
