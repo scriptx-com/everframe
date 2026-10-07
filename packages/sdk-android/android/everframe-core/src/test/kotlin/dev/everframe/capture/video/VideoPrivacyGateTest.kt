@@ -314,8 +314,10 @@ class VideoPrivacyGateTest {
             holder.translationX = 30f
             assertEquals(android.graphics.Rect(139, 69, 241, 111), gate.observe(root).masks.single())
             holder.visibility = View.INVISIBLE
+            assertFalse("an overlay ghost may draw an invisible original", gate.observe(root).allowed)
+            holder.visibility = View.GONE
             val hidden = gate.observe(root)
-            assertTrue(hidden.allowed); assertTrue("hidden input needs no mask", hidden.masks.isEmpty())
+            assertTrue(hidden.allowed); assertTrue("a GONE ordinary child is not drawn", hidden.masks.isEmpty())
             holder.visibility = View.VISIBLE
             val group = FrameLayout(a); root.addView(group); group.layout(0,0,50,50)
             group.setTag(R.id.tx_sensitive, true)
@@ -384,6 +386,61 @@ class VideoPrivacyGateTest {
             assertFalse("children move while a layout transition runs", gate.observe(root).allowed)
         } finally { holder.layoutTransition = null }
         assertTrue(masked(gate.observe(root), input, root))
+    }
+
+    @Test fun ghostedOrTransitionHiddenInputRefusesFrames() = placementFixture { root, holder, input, gate ->
+        assertTrue(masked(gate.observe(root), input, root))
+        holder.transitionAlpha = 0f
+        assertFalse("a transition can hide the original while drawing a copy", gate.observe(root).allowed)
+        holder.transitionAlpha = 1f
+        input.setTransitionVisibility(View.INVISIBLE)
+        assertFalse("transition visibility hides the original, not its pixels", gate.observe(root).allowed)
+        input.setTransitionVisibility(View.VISIBLE)
+        assertTrue(masked(gate.observe(root), input, root))
+        // The platform's actual shared-element ghost: it hides the original and draws it from the decor overlay.
+        val ghostType = Class.forName("android.view.GhostView")
+        try {
+            ghostType.getDeclaredMethod("addGhost", View::class.java, android.view.ViewGroup::class.java, android.graphics.Matrix::class.java)
+                .invoke(null, holder, root.rootView, android.graphics.Matrix())
+            assertEquals(View.INVISIBLE, holder.visibility)
+            assertNull(holder.animation)
+            assertFalse("the ghost draws the input where no mask is", gate.observe(root).allowed)
+        } finally {
+            ghostType.getDeclaredMethod("removeGhost", View::class.java).invoke(null, holder)
+        }
+        assertTrue(masked(gate.observe(root), input, root))
+    }
+
+    @Test fun goneInputIsUnmaskedOnlyWhileNothingCanStillDrawIt() = placementFixture { root, holder, input, gate ->
+        assertTrue(masked(gate.observe(root), input, root))
+        holder.visibility = View.GONE
+        val gone = gate.observe(root)
+        assertTrue("an ordinary GONE child is not drawn", gone.allowed); assertTrue(gone.masks.isEmpty())
+        holder.visibility = View.VISIBLE
+        // A removal transition keeps drawing the removed child, GONE or not.
+        root.startViewTransition(holder); holder.visibility = View.GONE; root.removeView(holder)
+        try {
+            assertTrue(input.isAttachedToWindow); assertSame(root, holder.parent); assertEquals(-1, root.indexOfChild(holder))
+            assertNull(holder.animation)
+            assertFalse("a disappearing child can draw despite GONE", gate.observe(root).allowed)
+        } finally { root.endViewTransition(holder) }
+    }
+
+    @Test fun goneInputThatIsStillAnimatingOutRefusesFrames() = placementFixture { root, holder, input, gate ->
+        input.startAnimation(android.view.animation.AlphaAnimation(1f, 0f).apply { duration = 300 })
+        input.visibility = View.GONE
+        assertFalse("ViewGroup draws a GONE child while its animation runs", gate.observe(root).allowed)
+        input.clearAnimation()
+        val gone = gate.observe(root); assertTrue(gone.allowed); assertTrue(gone.masks.isEmpty())
+        input.visibility = View.VISIBLE
+        showWindow(root)
+        holder.layoutTransition = android.animation.LayoutTransition()
+        input.visibility = View.GONE
+        try {
+            assertTrue("fixture must run a disappearing transition", holder.layoutTransition.isRunning)
+            assertFalse("the layout transition fades the GONE input out on screen", gate.observe(root).allowed)
+        } finally { holder.layoutTransition = null }
+        val hidden = gate.observe(root); assertTrue(hidden.allowed); assertTrue(hidden.masks.isEmpty())
     }
 
     @Test fun rememberedInputIsMaskedOnLaterFramesUntilDetached() {
