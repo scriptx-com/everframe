@@ -65,6 +65,15 @@ if mode.hasPrefix("ctx-") {
     default: exit(93)
     }
     check(EFCRSetEnabled(true), "enable context probe")
+    // Existing context probes default to Swift; record decoding also exercises ObjC and memory faults.
+    if args.count > 3 {
+        switch args[3] {
+        case "objc": EFCRProbeObjCException()
+        case "memory": EFCRProbeMemoryFault()
+        case "swift": break
+        default: exit(91)
+        }
+    }
     fatalError("EFCR synthetic context trap")
 }
 if mode == "state" {
