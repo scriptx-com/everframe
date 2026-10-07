@@ -51,8 +51,8 @@ internal object VideoMaskBounds {
     /**
      * Adds the rects covering [view]'s drawn subtree to [into]: its own bounds and, below any
      * node whose parent does not clip children (React Native views never do), each child's
-     * bounds too. Returns the descendants visited, or null when one cannot be placed or the
-     * budget runs out.
+     * bounds too, clipped to [root]. Returns the descendants visited, or null when one cannot
+     * be placed or the budget runs out.
      */
     fun cover(view: View, root: View, remaining: Int, deadlineNs: Long, now: () -> Long, into: MutableCollection<Rect>): Int? {
         val pending = ArrayDeque<View>()
@@ -61,7 +61,9 @@ internal object VideoMaskBounds {
         while (true) {
             val bounds = of(node, root) ?: return null
             if (!bounds.isEmpty) {
-                into.add(bounds)
+                // A mask entirely outside the frame paints nothing; keeping it would make every
+                // scroll of off-screen content a new privacy state that drops the pending frame.
+                if (bounds.intersect(0, 0, root.width, root.height)) into.add(bounds)
                 // A parent that clips children confines this node's whole subtree to its bounds.
                 if (node is ViewGroup && node !== root && (node.parent as? ViewGroup)?.clipChildren != true) {
                     if (visited + pending.size + node.childCount > remaining) return null

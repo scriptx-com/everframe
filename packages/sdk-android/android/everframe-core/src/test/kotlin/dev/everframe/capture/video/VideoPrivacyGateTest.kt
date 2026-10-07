@@ -27,6 +27,8 @@ class VideoPrivacyGateTest {
 
     private fun masked(o: PrivacyObservation, view: View, root: View): Boolean {
         val bounds = VideoMaskBounds.of(view, root) ?: return false
+        // Masks are clipped to the frame: nothing needs covering when the view is entirely outside it.
+        if (!bounds.intersect(0, 0, root.width, root.height)) return o.allowed
         return o.allowed && o.masks.any { it.contains(bounds) }
     }
 
@@ -320,11 +322,14 @@ class VideoPrivacyGateTest {
         val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
         root.layout(0,0,100,100)
         assertTrue(gate.observe(root).allowed)
-        val child = View(activity); child.translationX = 10000f; child.setTag(R.id.tx_sensitive,true); root.addView(child)
+        val child = View(activity); child.setTag(R.id.tx_sensitive,true); root.addView(child)
         val sensitive = gate.observe(root); assertTrue(masked(sensitive, child, root))
         root.removeAllViews(); assertTrue(gate.observe(root).epoch > sensitive.epoch)
         child.setTag(R.id.tx_sensitive,"unknown"); root.addView(child); assertTrue(masked(gate.observe(root), child, root))
         root.removeAllViews(); val input = EditText(activity); root.addView(input); assertTrue(masked(gate.observe(root), input, root))
+        // Entirely outside the frame there is nothing to paint.
+        root.removeAllViews(); child.translationX = 10000f; root.addView(child)
+        val offscreen = gate.observe(root); assertTrue(offscreen.allowed); assertTrue(offscreen.masks.isEmpty())
         activity.finish()
     }
     @Test fun countAndTimeBudgetFailClosed() {
@@ -551,6 +556,24 @@ class VideoPrivacyGateTest {
             child.clearAnimation()
             repeat(2048) { group.addView(View(a)) }
             assertFalse("covering a subtree shares the node budget", gate.observe(root).allowed)
+        } finally { a.finish() }
+    }
+
+    @Test fun masksAreClippedToTheFrameSoMovementOutsideItKeepsThePrivacyState() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
+        val scroller = FrameLayout(a); root.addView(scroller); scroller.layout(0,0,100,100)
+        val input = EditText(a); scroller.addView(input); input.layout(0,40,100,60)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            assertEquals(listOf(android.graphics.Rect(0, 39, 100, 61)), gate.observe(root).masks)
+            scroller.scrollTo(0, 100)
+            val above = gate.observe(root)
+            assertTrue(above.allowed); assertTrue("nothing of the input is inside the frame", above.masks.isEmpty())
+            scroller.scrollTo(0, 110)
+            assertEquals("moving entirely outside the frame is not a new privacy state", above.epoch, gate.observe(root).epoch)
+            scroller.scrollTo(0, 50)
+            assertEquals("scrolling back in is", listOf(android.graphics.Rect(0, 0, 100, 11)), gate.observe(root).masks)
         } finally { a.finish() }
     }
 

@@ -94,7 +94,7 @@ class HiddenWebViewReplayTest {
         parent.alpha = 0f
         Everframe.markSensitive(web)
         val marked = gate.observe(root)
-        val bounds = VideoMaskBounds.of(web, root)!!
+        val bounds = VideoMaskBounds.of(web, root)!!.apply { intersect(0, 0, root.width, root.height) }
         assertTrue("explicit sensitivity takes precedence over automatic WebView classification: masked",
             !marked.allowed || marked.masks.any { it.contains(bounds) })
     }

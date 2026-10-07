@@ -208,6 +208,36 @@ class PixelCopyVideoCaptureTest {
         }
     }
 
+    @Test fun scrollingAMaskedViewThatStaysOutsideTheFrameKeepsTheFrame() {
+        val controller = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup()
+        val activity = controller.get()
+        val root = android.widget.FrameLayout(activity)
+        activity.setContentView(root); root.layout(0,0,100,100)
+        val scroller = android.widget.FrameLayout(activity); root.addView(scroller); scroller.layout(0,0,100,100)
+        val input = android.widget.EditText(activity); scroller.addView(input); input.layout(0,40,100,60)
+        scroller.scrollTo(0, 200)
+        val gate = VideoPrivacyGate({ activity }, { 0L }, { true })
+        val h = Harness()
+        h.platform = object : VideoCapturePlatform by h.platform {
+            override fun observe() = gate.observe(root)
+        }
+        h.capture = h.create()
+        try {
+            assertTrue(h.request())
+            h.preDraw!!.invoke(); h.drain()
+            scroller.scrollBy(0, 10)
+            h.preDraw!!.invoke(); h.drain()
+            assertEquals("the scroll must not discard the pending frame", 1, h.commits.size)
+            h.commit(); h.callback()
+            assertEquals(1, h.accepted)
+            assertEquals(0L, h.capture.privacyExclusions.get())
+        } finally {
+            h.capture.cancel(); h.drain()
+            if (h.copies.isNotEmpty()) h.callback()
+            controller.pause().stop().destroy()
+        }
+    }
+
     @Test fun mainPrivacyPhasesExcludeAsyncCommitAndCopyWaits() {
         val h = Harness(); h.observeCost = 7
         try {
