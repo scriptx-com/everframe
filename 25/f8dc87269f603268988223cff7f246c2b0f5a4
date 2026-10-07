@@ -1,0 +1,27 @@
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_e49f79d0a376e0 150
+  s_360d9eb003c487::t_54555a79f50d39 147-149
+packages/sdk-react-native/src/error-facts.ts
+  s_360d9eb003c487::t_88f130c8824e4f 84-103,106
+packages/sdk-react-native/src/errors.ts
+  s_360d9eb003c487::t_62cbdebfd0a31a 59-61
+  s_360d9eb003c487::t_d59c95e2d06105 5
+packages/sdk-react-native/__tests__/rejection-capture.test.ts
+  s_360d9eb003c487::t_45e33a45f4325a 112-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25f8dc87269f603268988223cff7f246c2b0f5a4",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
