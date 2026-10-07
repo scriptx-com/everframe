@@ -194,10 +194,39 @@ class ReporterDialogLifecycleTest {
         try {
             send!!("Sent before the caller left", "", heldShots(gate), ReporterIncludes())
             // A lifecycle-scoped caller, cancelled when the user leaves right after Send.
-            caller.cancelAndJoin()
+            caller.cancel()
             gate.countDown()
             assertEquals(listOf("owned-evidence"), queuedBreadcrumbs(outbox))
+            awaitIdling(caller)
         } finally { gate.countDown(); caller.cancelAndJoin(); host.pause().stop().destroy() }
+    }
+
+    @Test fun cancelledCallerStaysPresentingUntilItsSentReportSettles() = runBlocking {
+        val host = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        host.get().setContentView(android.widget.FrameLayout(host.get()))
+        startCapture(host.get())
+        val outbox = offlineSubmissions()
+        var send: Send? = null
+        ReporterDialog.__onMountedForTesting = { send = it }
+        val gate = CountDownLatch(1)
+        val presenter = TXReporterPresenter(captureScreenshot = { _, _ -> screenshot() })
+        val caller = async(Dispatchers.Main) { presenter.openReporter(host.get()) }
+        var next: FrozenReportCapture? = null
+        try {
+            send!!("Sent before the caller left", "", heldShots(gate), ReporterIncludes())
+            caller.cancel()
+            shadowOf(Looper.getMainLooper()).idle()
+            // Shake-to-report and host triggers open only while nothing is presenting.
+            assertTrue("A cancelled caller must stay presenting while its sent report holds the capture",
+                Everframe.report.isPresenting.value)
+            gate.countDown()
+            assertEquals(listOf("owned-evidence"), queuedBreadcrumbs(outbox))
+            awaitIdling(caller)
+            assertFalse(Everframe.report.isPresenting.value)
+            next = Everframe.__replayFreeze()
+            assertEquals("The next report must freeze its own evidence",
+                listOf("owned-evidence"), next.takeBreadcrumbs()?.map { it.message })
+        } finally { gate.countDown(); caller.cancelAndJoin(); next?.cancel(); host.pause().stop().destroy() }
     }
 
     @Test fun destroyedHostCannotMountAReporter() = runBlocking {

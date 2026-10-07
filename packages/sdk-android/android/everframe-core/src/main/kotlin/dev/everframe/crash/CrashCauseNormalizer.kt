@@ -137,8 +137,8 @@ private fun dropCutToken(value: String): String {
     while (end > 0 && isDigitGroupUnit(value[end - 1])) end--
     return value.substring(0, end)
 }
-// Units of the tokens the shared redaction patterns match (JWT, bearer).
-private fun isTokenUnit(unit: Char) = unit in 'A'..'Z' || unit in 'a'..'z' || unit in '0'..'9' || unit in "+-./=_~"
+// Units of the tokens redaction only matches whole: JWT, bearer and email.
+private fun isTokenUnit(unit: Char) = unit in 'A'..'Z' || unit in 'a'..'z' || unit in '0'..'9' || unit in "%+-./=@_~"
 // Digits, dashes and JavaScript whitespace: the units of card and SSN numbers.
 private fun isDigitGroupUnit(unit: Char) = unit in '0'..'9' || unit == '-' || unit in '\u0009'..'\u000D' ||
     unit == ' ' || unit == '\u00A0' || unit == '\u1680' || unit in '\u2000'..'\u200A' || unit == '\u2028' ||
