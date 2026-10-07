@@ -1,0 +1,41 @@
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterActivityOwnershipTest.kt
+  s_360d9eb003c487::t_72edfb1ee0bd84 45
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_360d9eb003c487::t_9f7eb64b821111 86
+  s_360d9eb003c487::t_991b934e3439a2 67,73
+  s_360d9eb003c487::t_70fd5d33b94e7a 202-208,210
+  s_360d9eb003c487::t_79679666ec055d 33-35
+  s_360d9eb003c487::t_fcf5723721db1f 65-66,77
+  s_360d9eb003c487::t_14485b41faca71 180
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_360d9eb003c487::t_545b0c9d3ffbd7 101-103,113
+  s_360d9eb003c487::t_17f2312f57118c 146
+  s_360d9eb003c487::t_8951e053d00314 154
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterOwnershipTest.kt
+  s_360d9eb003c487::t_a225d4b6907c5c 42
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/TXReporterPresenterSingleFlightTest.kt
+  s_360d9eb003c487::t_b4296aad43159a 18
+  s_360d9eb003c487::t_d74a05f90029da 36
+  s_360d9eb003c487::t_a3cf886b3fcce0 134-173,179,181
+  s_360d9eb003c487::t_6b3c17c2c5111a 61
+.changeset/android-reporter-single-flight.md
+  s_360d9eb003c487::t_2b8b364a160a43 8
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/EFReporterFromImage.kt
+  s_360d9eb003c487::t_343d42f30f5d87 42,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a6bff8d502e99e8bce1b379e307304b9ac5eac1",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
