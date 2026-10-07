@@ -20,10 +20,10 @@ internal enum CrashCauseText {
         while end > scalars.startIndex, isDigitGroupUnit(scalars[scalars.index(before: end)]) { end = scalars.index(before: end) }
         return (String(scalars[..<end]), true)
     }
-    /// Units of the tokens the shared redaction patterns match (JWT, bearer).
+    /// Units of the tokens redaction only matches whole: JWT, bearer and email.
     private static func isTokenUnit(_ unit: Unicode.Scalar) -> Bool {
         switch unit.value {
-        case 0x30...0x39, 0x41...0x5A, 0x61...0x7A, 0x2B, 0x2D, 0x2E, 0x2F, 0x3D, 0x5F, 0x7E: return true
+        case 0x30...0x39, 0x41...0x5A, 0x61...0x7A, 0x25, 0x2B, 0x2D, 0x2E, 0x2F, 0x3D, 0x40, 0x5F, 0x7E: return true
         default: return false
         }
     }
