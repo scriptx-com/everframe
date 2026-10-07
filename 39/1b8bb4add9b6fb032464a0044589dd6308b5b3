@@ -1,0 +1,25 @@
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_a5c74fd2059811 202-210
+packages/sdk-react-native/src/integrations/react.ts
+  s_360d9eb003c487::t_0b3dff483b7c51 11-15
+.changeset/react-boundary-capture-status.md
+  s_360d9eb003c487::t_3fff2d6e03f595 8
+packages/sdk-react-native/__tests__/react-error-adapter.test.tsx
+  s_360d9eb003c487::t_b237e0d31f1b84 92-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "391b8bb4add9b6fb032464a0044589dd6308b5b3",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
