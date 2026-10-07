@@ -10,12 +10,14 @@ internal func captureFoundationCauseChain(
     guard stillOwned() else { return nil }
     var causes: [EverframeCrashCause] = []
     var truncated = false
-    var visited = Set<ObjectIdentifier>()
-    func identity(_ value: any Error) -> ObjectIdentifier? {
-        guard type(of: value) is AnyClass else { return nil }
-        return ObjectIdentifier(value as AnyObject)
+    // Hold each visited class-backed error. An identifier alone does not retain,
+    // so an error that `userInfo` built on demand and then freed could lend its
+    // address to a later link and look like a cycle.
+    var visited: [AnyObject] = []
+    func object(_ value: any Error) -> AnyObject? {
+        type(of: value) is AnyClass ? value as AnyObject : nil
     }
-    if let outer = identity(error) { visited.insert(outer) }
+    if let outer = object(error) { visited.append(outer) }
 
     func underlying(_ value: any Error) -> (next: (any Error)?, lost: Bool) {
         let info: [String: Any]
@@ -34,7 +36,10 @@ internal func captureFoundationCauseChain(
     while let current = link.next {
         guard stillOwned() else { return nil }
         if causes.count == 8 { truncated = true; break }
-        if let id = identity(current), !visited.insert(id).inserted { truncated = true; break }
+        if let node = object(current) {
+            if visited.contains(where: { $0 === node }) { truncated = true; break }
+            visited.append(node)
+        }
         // Read the next link before descriptions; every host step is followed by
         // an ownership check. Never describe arbitrary non-Error metadata.
         link = underlying(current)
