@@ -196,6 +196,15 @@ it('non-Error reasons spend at most half of the shared automatic keys', () => {
     .toEqual(Array<string>(5).fill('errorutils'));
   expect(submit(error('eleventh'))).toBe('allowance');
 });
+it('a burst of distinct non-Error values still leaves 5 keys for Error rejections', () => {
+  const owner = controller();
+  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  // Ten values that differ in letters would fill all 10 keys if values were not capped at 5.
+  const values = Array.from({ length: 10 }, (_, i) => submit(`Session ${String.fromCharCode(97 + i)}4f2 expired`));
+  expect(Array.from({ length: 6 }, (_, i) => submit(error(`site${String.fromCharCode(65 + i)}`))))
+    .toEqual([...Array<string>(5).fill('accepted'), 'allowance']);
+  expect(values).toEqual([...Array<string>(5).fill('accepted'), ...Array<string>(5).fill('allowance')]);
+});
 it.each([
   ['string cause of an object reason', { code: 'UPLOAD_FAILED', cause: 'PUT https://bucket.example/u.jpg?X-Amz-Signature=sig-secret denied' }],
   ['Error cause of an object reason', { code: 'E_UPLOAD', cause: new Error('sig-secret') }],
