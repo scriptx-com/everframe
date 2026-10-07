@@ -39,12 +39,12 @@ object EFReporterFromImage {
         )
         return TXReporterPresenter(
             captureScreenshot = { _, _ -> capture },
-            showDialog = { host, screenshot, frozen, extra ->
+            showDialog = { host, screenshot, frozen, extra, onDismissed ->
                 // Host-rendered reports never fall back to unmasked native video.
                 // An empty value keeps that policy when Flutter has no safe frames.
                 ReporterDialog.show(host, screenshot, frozen, extra,
                     allowAdditionalScreenshots = false, hostReplayVTree = replayVTree ?: ByteArray(0),
-                    sdkName = sdkName)
+                    sdkName = sdkName, onDismissed = onDismissed)
             },
         ).openReporter(activity)
     }

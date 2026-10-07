@@ -98,6 +98,9 @@ internal object ReporterDialog {
      * gesture: if title or description is non-empty, a Material 3 AlertDialog
      * confirms discard before resolving `Cancelled("user_cancelled")`;
      * otherwise the back press dismisses silently.
+     *
+     * [onDismissed] runs on the main thread when the dialog leaves the screen:
+     * at Send, before the upload this call still waits for, or at cancel.
      */
     suspend fun show(
         activity: Activity,
@@ -107,6 +110,7 @@ internal object ReporterDialog {
         allowAdditionalScreenshots: Boolean = true,
         hostReplayVTree: ByteArray? = null,
         sdkName: String = "everframe-android",
+        onDismissed: () -> Unit = {},
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
 
@@ -139,6 +143,7 @@ internal object ReporterDialog {
                             allowAdditionalScreenshots = allowAdditionalScreenshots,
                             onCancel = {
                                 content.removeView(this)
+                                onDismissed()
                                 // Discard the frozen replay window and resume
                                 // buffering for the next report (no-op when OFF).
                                 reportCapture.cancel()
@@ -146,6 +151,7 @@ internal object ReporterDialog {
                             },
                             onSubmit = { title, description, shots, includes ->
                                 content.removeView(this)
+                                onDismissed()
                                 // External review, finding 3 (Serious) — THE
                                 // SUBMIT BOUNDARY. Read synchronously here, on
                                 // the Send tap, BEFORE the coroutine launch

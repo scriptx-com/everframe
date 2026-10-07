@@ -15,6 +15,7 @@ import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.EverframeConfig
 import dev.everframe.config.ReportResult
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -56,7 +58,7 @@ class TXReporterPresenterSingleFlightTest {
         val userSends = CompletableDeferred<ReportResult>()
         fun presenter() = TXReporterPresenter(
             captureScreenshot = { _, _ -> ScreenshotCapture.CaptureResult(bitmap, 2, 2, byteArrayOf(1)) },
-            showDialog = { _, _, _, _ ->
+            showDialog = { _, _, _, _, _ ->
                 presented.incrementAndGet()
                 userSends.await()
             },
@@ -129,16 +131,54 @@ class TXReporterPresenterSingleFlightTest {
         assertEquals("a later, unrelated report must not inherit the joining caller's extra", listOf(null, null), extras)
     }
 
-    /** What a fake dialog is opened with. */
-    private class Shown(val extra: String?)
+    @Test fun openAfterSendDoesNotJoinTheUploadingReport() = runBlocking {
+        val owner = Robolectric.buildActivity(Activity::class.java).setup()
+        startSdk(owner.get())
+        val presented = AtomicInteger(0)
+        val sendTapped = CompletableDeferred<Unit>()
+        val uploadDone = CompletableDeferred<Unit>()
+        val submitted = ReportResult.Submitted(UUID.randomUUID())
+        val first = async {
+            presenter(presented) {
+                sendTapped.await()
+                dismiss()
+                uploadDone.await()
+                submitted
+            }.openReporter(owner.get())
+        }
+        awaitPresented(presented, 1)
+        val joined = async { presenter(presented) { error("a joining open must not present") }.openReporter(owner.get()) }
+        yield()
+        sendTapped.complete(Unit)
+        yield()
+
+        // The dialog is gone and the report uploads, which outlives its
+        // activity. A new open must neither inherit that report's result nor
+        // present a second reporter while the first still holds the replay.
+        owner.pause().stop().destroy()
+        val next = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val late = async { presenter(presented) { error("an open during the upload must not present") }.openReporter(next) }
+        yield()
+        assertTrue("an open after Send must resolve without waiting for the upload", late.isCompleted)
+        assertEquals(ReportResult.Cancelled("already_presenting"), late.await())
+        assertFalse(first.isCompleted)
+
+        uploadDone.complete(Unit)
+        assertSame(submitted, first.await())
+        assertSame("a caller that joined before Send receives the report's outcome", submitted, joined.await())
+        assertEquals(1, presented.get())
+    }
+
+    /** What a fake dialog is opened with, and how it leaves the screen. */
+    private class Shown(val extra: String?, val dismiss: () -> Unit)
 
     private fun presenter(presented: AtomicInteger, show: suspend Shown.() -> ReportResult) = TXReporterPresenter(
         captureScreenshot = { _, _ ->
             ScreenshotCapture.CaptureResult(Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888), 2, 2, byteArrayOf(1))
         },
-        showDialog = { _, _, _, extra ->
+        showDialog = { _, _, _, extra, onDismissed ->
             presented.incrementAndGet()
-            Shown(extra).show()
+            Shown(extra, onDismissed).show()
         },
     )
 
