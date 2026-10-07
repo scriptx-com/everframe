@@ -1,0 +1,29 @@
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/include/ProbeNative.h
+  s_360d9eb003c487::t_259e4037cb9cad 14
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_360d9eb003c487::t_3a93cfdf4f086f 56
+packages/sdk-ios/crash-recorder/Tests/ProbeNative/ProbeNative.m
+  s_360d9eb003c487::t_9234e697a795da 89
+  s_360d9eb003c487::t_11dc093f9a72b4 80
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_f27ae50fa5dd1b 151-155
+  s_360d9eb003c487::t_4d925c713448e4 172
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/include/EverframeCrashRecorder.h
+  s_360d9eb003c487::t_884d845215d5e9 34-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6cbe6457e600c91c6b437b83d8ffc500cff3808d",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
