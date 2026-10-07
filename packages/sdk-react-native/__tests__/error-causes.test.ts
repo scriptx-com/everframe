@@ -60,6 +60,15 @@ it('does not submit after cause inspection disposes the capture owner', () => {
   controller.captureException(proxy);
   expect(handled).not.toHaveBeenCalled();
 });
+it('drops a cause token cut by the scan window before the JavaScript redactor runs', () => {
+  controller = createCaptureController({});
+  const { error, cause } = makeError();
+  cause.message = `${'x'.repeat(4_000)} eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(9_000)}.${'S'.repeat(43)}`;
+  controller.captureException(error);
+  const sent = JSON.parse(handled.mock.calls[0]![0]).causeChain;
+  expect(sent.causes[0].message).toBe('x'.repeat(4_000));
+  expect(sent.truncated).toBe(true);
+});
 it('retries refused enqueue and deduplicates accepted causes by the outer error', () => {
   controller = createCaptureController({});
   const { error, cause } = makeError();

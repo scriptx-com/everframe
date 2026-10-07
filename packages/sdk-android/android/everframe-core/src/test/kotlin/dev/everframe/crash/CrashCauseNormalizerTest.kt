@@ -77,7 +77,7 @@ class CrashCauseNormalizerTest {
         input.getJSONArray("causes").getJSONObject(0).put("message", "mutated")
         assertEquals("inner", fitted.causes.single().message)
         var maxSeen = 0
-        fit(chain(cause("x".repeat(100000))), redact = { text -> maxSeen = maxOf(maxSeen, text.length); text })
-        assertTrue(maxSeen <= 8192)
+        fit(chain(cause("x ".repeat(50000))), redact = { text -> maxSeen = maxOf(maxSeen, text.length); text })
+        assertTrue(maxSeen in 8000..8192)
     }
 }

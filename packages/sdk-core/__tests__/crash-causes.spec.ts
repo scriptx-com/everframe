@@ -342,7 +342,7 @@ describe('extractCrashCauseChain', () => {
 
   it('continues after clipped header text while room remains for the next cause', () => {
     const deepest = new RangeError('deepest');
-    const clipped = new Error('x'.repeat(9_000));
+    const clipped = new Error('x '.repeat(4_500));
     dataCause(clipped, deepest);
     const outer = errorWithCause('outer', clipped);
 
@@ -394,8 +394,8 @@ describe('extractCrashCauseChain', () => {
   });
 
   it('repairs Unicode, bounds stack scanning, and marks frame loss', () => {
-    const inner = new Error(`broken-\uD800-${'m'.repeat(9_000)}`);
-    dataStack(inner, `Error: ignored\n${'s'.repeat(MAX_CRASH_CAUSE_STACK_SCAN_UNITS + 2_000)}`);
+    const inner = new Error(`broken-\uD800-${'m '.repeat(4_500)}`);
+    dataStack(inner, `Error: ignored\n${'s '.repeat((MAX_CRASH_CAUSE_STACK_SCAN_UNITS + 2_000) / 2)}`);
     const chain = extractCrashCauseChain(errorWithCause('outer', inner), identity, () => true);
 
     expect(chain?.causes[0]?.message).toContain('\uFFFD');
@@ -404,6 +404,18 @@ describe('extractCrashCauseChain', () => {
     expect(chain?.causes[0]?.frames[0]?.raw).toHaveLength(1_024);
     expect(chain?.causes[0]?.framesTruncated).toBe(true);
     expect(chain?.truncated).toBe(true);
+  });
+
+  it('drops a secret cut by the stack scan limit instead of keeping its unmatched prefix', () => {
+    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+    const inner = new Error('inner');
+    const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
+    dataStack(inner, `Error: inner\n${filler}\ntoken eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(3_000)}.${'S'.repeat(43)}`);
+    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => value.replace(jwt, '[REDACTED:JWT]'), () => true);
+
+    expect(chain?.causes[0]?.frames).toHaveLength(32);
+    expect(chain?.causes[0]?.frames[31]?.raw).toBe('token');
+    expect(chain?.causes[0]?.framesTruncated).toBe(true);
   });
 
   it('stops every later source read and redactor callback after byte exhaustion', () => {

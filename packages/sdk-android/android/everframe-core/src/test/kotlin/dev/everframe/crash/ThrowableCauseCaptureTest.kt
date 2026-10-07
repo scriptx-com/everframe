@@ -44,6 +44,14 @@ class ThrowableCauseCaptureTest {
         assertFalse(value.jvm.causesTruncated)
         assertEquals("r8-map", value.jvm.mappingID)
     }
+    @Test fun `a secret cut by the generic scan window is dropped rather than kept unredacted`() {
+        val jwt = "eyJhbGciOiJIUzI1NiJ9." + "A".repeat(9000) + "." + "S".repeat(43)
+        val value = captureThrowableContext(RuntimeException("outer", IllegalStateException("x".repeat(4000) + " " + jwt)), null) { true }
+        val generic = requireNotNull(value.causeChain)
+        assertEquals("x".repeat(4000), generic.causes.single().message)
+        assertTrue(generic.truncated)
+        assertEquals("x".repeat(4000) + " [REDACTED:JWT]", value.jvm.causes.single().message)
+    }
     @Test fun `absent causes stay absent and root getter failure marks loss`() {
         assertNull(captureThrowableContext(RuntimeException(), null) { true }.causeChain)
         val root = object : RuntimeException() { override val cause: Throwable? get() = error("host") }

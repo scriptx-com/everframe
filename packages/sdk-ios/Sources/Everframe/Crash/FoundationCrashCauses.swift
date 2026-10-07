@@ -56,8 +56,8 @@ internal func captureFoundationCauseChain(
         } else { exceptionType = String(reflecting: type(of: current)) }
         let message = current.localizedDescription
         guard stillOwned() else { return nil }
-        let typePrefix = CrashCauseText.prefix(exceptionType, limit: 8192)
-        let messagePrefix = CrashCauseText.prefix(message, limit: 8192)
+        let typePrefix = CrashCauseText.scan(exceptionType)
+        let messagePrefix = CrashCauseText.scan(message)
         truncated = truncated || typePrefix.lost || messagePrefix.lost
         causes.append(EverframeCrashCause(exceptionType: typePrefix.text, frames: [], framesTruncated: false, message: messagePrefix.text))
     }

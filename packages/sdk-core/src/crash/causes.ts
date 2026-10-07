@@ -4,6 +4,7 @@ import {
   MAX_CRASH_CAUSES,
   MAX_CRASH_CAUSE_STACK_SCAN_UNITS,
   createCrashCauseChainFitter,
+  dropCrashCauseCutToken,
   type CrashCauseChain,
   type CrashCauseChainFitter,
 } from '@everframe/protocol';
@@ -172,7 +173,10 @@ function feedStack(
   while (cursor < scanEnd) {
     let lineEnd = cursor;
     while (lineEnd < scanEnd && stack.charCodeAt(lineEnd) !== 10) lineEnd += 1;
-    const line = stack.slice(cursor, lineEnd).trim();
+    const text = stack.slice(cursor, lineEnd);
+    // A line cut by the scan limit can end inside a secret; drop the cut token.
+    const cut = lineEnd === scanEnd && lineEnd < stack.length && stack.charCodeAt(lineEnd) !== 10;
+    const line = (cut ? dropCrashCauseCutToken(text) : text).trim();
     cursor = lineEnd < scanEnd ? lineEnd + 1 : scanEnd;
     if (line.length === 0) continue;
 
