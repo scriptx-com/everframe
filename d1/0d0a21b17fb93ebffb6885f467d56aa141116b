@@ -1,0 +1,30 @@
+packages/protocol/__tests__/fixture-sync.spec.ts
+  s_360d9eb003c487::t_0dff73b1657b78 66-74
+  s_360d9eb003c487::t_850f302f911a27 65
+packages/protocol/__tests__/fixtures/apple-native-crash.json
+  s_360d9eb003c487::t_15936503176c34 9,13,29-37,50,61-69,77-84,89,92,118-119,121-122,124
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/CrashReportCrossSDKTest.kt
+  s_360d9eb003c487::t_4020cef870e3ff 23-24,202-243
+packages/sdk-android/android/everframe-protocol/src/test/resources/apple-native-crash.json
+  s_360d9eb003c487::t_87e0478e83ebd6 1-130
+packages/sdk-ios/Tests/EverframeTests/CrashReportCrossSDKTests.swift
+  s_360d9eb003c487::t_0b611305f2b167 21-63
+packages/sdk-ios/Tests/EverframeTests/Fixtures/apple-native-crash.json
+  s_360d9eb003c487::t_4f55994b679517 1-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d10d0a21b17fb93ebffb6885f467d56aa141116b",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
