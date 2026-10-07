@@ -122,6 +122,8 @@ android {
                 // VideoPrivacyKeepRulesTest minifies stand-in host Views with consumer-rules.pro,
                 // the R8 this Android Gradle plugin runs for apps, and the compile SDK.
                 test.inputs.file("consumer-rules.pro")
+                // It also checks the Gradle plugin's copy of those rules.
+                test.inputs.file("../everframe-gradle-plugin/src/main/resources/everframe-keep.pro")
                 val r8 = Class.forName("com.android.tools.r8.R8", false, com.android.build.gradle.LibraryExtension::class.java.classLoader)
                 test.systemProperty("everframeR8Classpath", File(r8.protectionDomain.codeSource.location.toURI()).absolutePath)
                 test.systemProperty("everframeAndroidJar", android.bootClasspath.first().absolutePath)

@@ -27,22 +27,51 @@ object VideoPrivacyHostApp {
 class VideoPrivacyKeepRulesTest {
     private val flutterView = "io.flutter.embedding.android.FlutterView"
     private val reactNativeView = "com.facebook.react.VideoPrivacyFixtureView"
+    private val consumerRules = File("consumer-rules.pro")
+    // The Gradle plugin's copy, for hosts that drop library consumer rules in stricter R8 setups.
+    private val pluginKeepRules = File("../everframe-gradle-plugin/src/main/resources/everframe-keep.pro")
 
     @Test fun hostsRecognisedByNameKeepTheirNamesThroughAnAppR8Pass() {
-        val renamed = minifiedHostTypes(consumerRules = false)
+        val renamed = minifiedHostTypes(rules = null)
         assertNotEquals("fixture: R8 renames a host nothing keeps", flutterView, renamed.first.name)
         assertNotEquals("fixture: R8 renames a host nothing keeps", reactNativeView, renamed.second.name)
         assertFalse("a renamed Flutter host passes as an ordinary FrameLayout", VideoPrivacyTypeCache().classify(renamed.first)!!.flutterHost)
 
-        val kept = minifiedHostTypes(consumerRules = true)
+        assertHostsKept(minifiedHostTypes(consumerRules))
+    }
+
+    @Test fun hostsKeepTheirNamesThroughTheGradlePluginKeepFile() = assertHostsKept(minifiedHostTypes(pluginKeepRules))
+
+    /** everframe-keep.pro is documented as identical to consumer-rules.pro, so it needs every video privacy rule. */
+    @Test fun gradlePluginKeepFileCarriesEveryVideoPrivacyRule() {
+        val consumer = consumerRules.readLines()
+        val title = consumer.indexOfFirst { it.startsWith("# Native video privacy") }
+        assertTrue("consumer-rules.pro marks its native video privacy section", title >= 0)
+        // From the line closing that banner to the next banner or the end of the file.
+        val video = statements(consumer.drop(title).dropWhile { !it.startsWith("# ---") }.drop(1).takeWhile { !it.startsWith("# ---") })
+        assertTrue("fixture: the section keeps the Flutter host name", "-keepnames class $flutterView" in video)
+        assertEquals("video privacy rules missing from everframe-keep.pro", emptyList<String>(),
+            video - statements(pluginKeepRules.readLines()).toSet())
+    }
+
+    private fun assertHostsKept(kept: Pair<Class<*>, Class<*>>) {
         assertEquals(flutterView, kept.first.name)
         assertTrue("Flutter host in a minified app", VideoPrivacyTypeCache().classify(kept.first)!!.flutterHost)
         assertEquals(reactNativeView, kept.second.name)
         assertTrue("React Native view in a minified app", VideoPrivacyTypeCache().classify(kept.second)!!.reactNative)
     }
 
-    /** The Flutter and React Native host classes in R8's output, with or without this module's consumer rules. */
-    private fun minifiedHostTypes(consumerRules: Boolean): Pair<Class<*>, Class<*>> {
+    /** ProGuard rules without comments, each rule's lines joined and whitespace collapsed. */
+    private fun statements(lines: List<String>): List<String> {
+        val rules = mutableListOf<String>()
+        for (line in lines.map { it.substringBefore('#').trim() }.filter { it.isNotEmpty() }) {
+            if (line.startsWith("-") || rules.isEmpty()) rules += line else rules[rules.lastIndex] += " $line"
+        }
+        return rules.map { it.replace(Regex("\\s+"), " ") }
+    }
+
+    /** The Flutter and React Native host classes in R8's output, minified with [rules] or with none of the SDK's rules. */
+    private fun minifiedHostTypes(rules: File?): Pair<Class<*>, Class<*>> {
         val r8 = requireNotNull(System.getProperty("everframeR8Classpath")) { "Run through Gradle, which supplies its R8" }
         val androidJar = requireNotNull(System.getProperty("everframeAndroidJar")) { "Run through Gradle, which supplies the compile SDK" }
         val work = java.nio.file.Files.createTempDirectory("everframe-keep-rules").toFile()
@@ -74,7 +103,7 @@ class VideoPrivacyKeepRulesTest {
             val stdlib = File(Unit::class.java.protectionDomain.codeSource.location.toURI())
             val command = mutableListOf(File(System.getProperty("java.home"), "bin/java").path, "-cp", r8, "com.android.tools.r8.R8",
                 "--release", "--classfile", "--output", output.path, "--lib", androidJar, "--lib", stdlib.path, "--pg-conf", appRules.path)
-            if (consumerRules) command += listOf("--pg-conf", File("consumer-rules.pro").absolutePath)
+            if (rules != null) command += listOf("--pg-conf", rules.absolutePath)
             command += program.path
             val process = ProcessBuilder(command).redirectErrorStream(true).start()
             val log = process.inputStream.bufferedReader().use { it.readText() }

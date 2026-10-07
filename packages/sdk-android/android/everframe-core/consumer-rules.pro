@@ -337,6 +337,10 @@
 -dontwarn com.google.errorprone.annotations.CheckReturnValue
 -dontwarn com.google.errorprone.annotations.Immutable
 
+# ---------------------------------------------------------------------------
+# Native video privacy. The Gradle plugin's everframe-keep.pro carries every
+# rule of this section too (VideoPrivacyKeepRulesTest checks it).
+# ---------------------------------------------------------------------------
 # Cross-module native video privacy facade types.
 -keep public interface dev.everframe.capture.video.VideoPrivacyAdapter { *; }
 -keep public enum dev.everframe.capture.video.VideoPrivacyAdapter$Classification { *; }
