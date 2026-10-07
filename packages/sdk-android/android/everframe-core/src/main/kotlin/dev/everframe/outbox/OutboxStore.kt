@@ -99,14 +99,13 @@ internal class OutboxStore(
         return token
     }
 
-    /** Bounded, nonsensitive upgrade-debt diagnostic. Originals remain plaintext until imported. */
-    @Volatile internal var migrationBlocked: String? = null
-        private set
-
-    private var migrationObserved = false
+    /** Bounded, nonsensitive upgrade-debt diagnostic. Originals remain plaintext until imported.
+     * Held per canonical root: every capture builds a fresh facade, which must report the debt
+     * that the drain's migration observed. */
+    internal val migrationBlocked: String? get() = coordinator.migrationBlocked
 
     private fun migrationDiagnostic() =
-        if (!migrationObserved) "not-observed" else if (migrationBlocked == null) "clear" else "blocked"
+        if (!coordinator.migrationObserved) "not-observed" else if (migrationBlocked == null) "clear" else "blocked"
 
     private fun observeQueueSize(diagnostics: ReportDiagnostics.Handle?, count: Int) {
         diagnostics?.queueObserved(count,
@@ -115,11 +114,13 @@ internal class OutboxStore(
     }
 
 
-    fun migrateLegacy(): Int {
+    // The root lock also spans the catch, so no facade reads the reset state between a
+    // failed pass releasing the store lock and recording why it stopped.
+    fun migrateLegacy(): Int = coordinator.lock.withLock {
         var imported = 0
-        return try { locked {
-            migrationObserved = true
-            migrationBlocked = null
+        try { locked {
+            coordinator.migrationObserved = true
+            coordinator.migrationBlocked = null
             if (File(root, "kill.history").exists() || File(root, "kill.pending").exists()) return@locked 0
             checkAllowed(MIGRATION_ALLOWED)
             for ((index, source) in legacyFiles.withIndex()) {
@@ -137,7 +138,7 @@ internal class OutboxStore(
                         when (val next = reader.next()) {
                             LegacyEntryResult.End -> break
                             is LegacyEntryResult.Blocked -> {
-                                migrationBlocked = next.reason.name
+                                coordinator.migrationBlocked = next.reason.name
                                 return@locked imported
                             }
                             is LegacyEntryResult.Record -> {
@@ -156,7 +157,7 @@ internal class OutboxStore(
             legacyFiles.indices.forEach { removeReceiptsForSource(it) }
             imported
         } } catch (failure: OutboxWriteException) {
-            migrationBlocked = failure.failure.name
+            coordinator.migrationBlocked = failure.failure.name
             imported
         }
     }
@@ -362,6 +363,9 @@ internal class OutboxStore(
         if (!history.exists() && !history.createNewFile()) throw IOException("Cannot record kill history")
         ops.syncFile(history)
         ops.syncDirectory(root)
+        // Kill history permanently suppresses legacy import; earlier debt is no longer current.
+        coordinator.migrationObserved = false
+        coordinator.migrationBlocked = null
         val old = diskGeneration()
         if (old != null) keyOperation { keys.deleteGeneration(old) }
         if (active.exists()) ops.renameAtomic(active, File(root, "${UUID.randomUUID()}.revoked"))
@@ -527,6 +531,9 @@ internal class OutboxStore(
         val drain = Mutex()
         val epoch = AtomicLong(0)
         val completedEpoch = AtomicLong(0)
+        // Last legacy migration outcome for this root; written only while holding [lock].
+        @Volatile var migrationObserved = false
+        @Volatile var migrationBlocked: String? = null
     }
     private companion object {
         val MIGRATION_ALLOWED = object : OutboxAuthorization { override fun isAllowed() = true }
