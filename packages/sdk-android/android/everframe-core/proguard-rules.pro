@@ -57,6 +57,10 @@
 -keep class dev.everframe.config.Environment { *; }
 -keep class dev.everframe.config.TXUser { *; }
 
+# Release-health opt-in types are constructed by consumers of the minified AAR.
+-keep class dev.everframe.config.ReleaseHealthConfig { *; }
+-keep enum dev.everframe.config.ReleaseHealthBundleStatus { *; }
+
 # Branding (spec 2026-08-26): cross-module types read by everframe-reporter-ui
 # at runtime — EverframeConfig.theme's ReporterThemeOptions payload; the
 # BrandingServerConfigSignal / BrandingInlineTheme StateFlow-holding singletons

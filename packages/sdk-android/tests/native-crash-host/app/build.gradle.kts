@@ -5,10 +5,17 @@ android {
     namespace = "dev.everframe.nativeproof"
     compileSdk = 35
     ndkVersion = "29.0.14033849"
+    buildFeatures { buildConfig = true }
     defaultConfig {
         applicationId = providers.gradleProperty("proofApplicationId").getOrElse("dev.everframe.nativeproof")
         minSdk = 24; targetSdk = 35
         versionCode = 1; versionName = "native-proof-1"
+        val proofBuildId = providers.gradleProperty("proofNativeBuildId").getOrElse("native-proof-1")
+        require(Regex("[A-Za-z0-9._-]{1,100}").matches(proofBuildId))
+        buildConfigField("String", "PROOF_NATIVE_BUILD_ID", "\"$proofBuildId\"")
+        val proofCleartext = providers.gradleProperty("proofAllowCleartext").getOrElse("false")
+        require(proofCleartext == "true" || proofCleartext == "false")
+        manifestPlaceholders["proofAllowCleartext"] = proofCleartext
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
         externalNativeBuild { cmake { cppFlags += listOf("-O2", "-g", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls") } }
     }
