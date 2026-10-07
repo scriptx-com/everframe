@@ -52,16 +52,19 @@ if mode.hasPrefix("ctx-") {
         check(EFCRProbeAdmitContext() == 0, "synthetic empty admission")
         check(EFCRSetEnabled(false), "disable after empty admission")
         check(EFCRSetContextIdentifier(contextB), "publish B after empty admission")
-    case "ctx-capacity":
+    case "ctx-capacity", "ctx-capacity-last":
         // A occupies the first slot;255 other immutable identifiers fill the budget.
         for index in 0..<255 {
             let identifier = String(format: "00000000-0000-0000-0000-%012x", index)
             check(EFCRSetContextIdentifier(identifier), "slot within budget")
             check(EFCRSetContextIdentifier(identifier), "duplicate consumes no slot")
         }
-        check(!EFCRSetContextIdentifier(contextB), "exhaustion preserves last owner")
-        check(EFCRSetContextIdentifier(contextA), "existing slot reusable after exhaustion")
-        check(EFCRSetContextIdentifier("00000000-0000-0000-0000-0000000000fe"), "restore final slot")
+        // The fatal report, not a republication, shows which owner each rejection kept.
+        check(!EFCRSetContextIdentifier(contextB), "capacity rejects a new identifier")
+        if mode == "ctx-capacity" {
+            check(EFCRSetContextIdentifier(contextA), "existing slot reusable after exhaustion")
+            check(!EFCRSetContextIdentifier(contextB), "capacity still rejects a new identifier")
+        }
     default: exit(93)
     }
     check(EFCRSetEnabled(true), "enable context probe")

@@ -99,9 +99,11 @@ No application context, configuration, identity object or arbitrary userInfo is
 read in either callback. The SDK's automatic startup/recovery integration is still pending.
 
 `Tests/context-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
-runs seven real fatal context cases. The admitted-A and empty-context cases
+runs eight real fatal context cases. The admitted-A and empty-context cases
 explicitly invoke the admission callback before publishing B, then trigger a real
 fatal report; this exercises the boundary deterministically, not a scheduler race.
+The two capacity cases trap right after a rejected publication, so their reports
+show the owner each rejection kept: the last allocated slot, or a reused earlier one.
 
 `Tests/gate-admission.sh /path/to/new-output` compiles `Tests/GateAdmission/main.c`
 with the actual gate source and runs it. It disables recording and publishes another

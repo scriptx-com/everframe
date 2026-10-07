@@ -19,7 +19,9 @@ def run(binary, evidence):
               'ctx-current':'11111111-1111-4111-8111-111111111111',
               'ctx-switched':'22222222-2222-4222-8222-222222222222',
               'ctx-admitted':'11111111-1111-4111-8111-111111111111',
-              'ctx-cleared':None,'ctx-admitted-empty':None,'ctx-capacity':'00000000-0000-0000-0000-0000000000fe'}
+              'ctx-cleared':None,'ctx-admitted-empty':None,
+              'ctx-capacity':'11111111-1111-4111-8111-111111111111',
+              'ctx-capacity-last':'00000000-0000-0000-0000-0000000000fe'}
     rows=[]
     for mode,identifier in expected.items():
         directory=evidence/mode;directory.mkdir(mode=0o700)
@@ -42,7 +44,7 @@ def run(binary, evidence):
         row.update(reportPath=str(reports[0].relative_to(evidence)),reportSha256=hashlib.sha256(raw).hexdigest(),reportID=report['report']['id'])
     proof={'schemaVersion':1,'binarySha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'processes':rows}
     (evidence/'proof.json').write_text(json.dumps(proof,indent=2)+'\n')
-    print('7 real fatal context probes passed; admitted-A row uses explicit synthetic prior admission')
+    print(f'{len(rows)} real fatal context probes passed; admitted-A row uses explicit synthetic prior admission')
     return proof
 
 
