@@ -29,8 +29,10 @@ EFCRInstallResult EFCRInstall(const char *runDirectory);
 // Enable on the main thread only; disable on any healthy thread. Calls are serialized
 // and take effect in the order they run; the last call wins. An enable still queued
 // for the main thread runs after a disable made directly in the meantime and turns
-// capture back on, so the queued block must enable only if enabling is still the
-// latest request, checked under a lock the caller's opt-out holds while it disables.
+// capture back on. The queued block must take a lock that the caller's opt-out holds
+// while it disables, and call EFCRSetEnabled(true) under that same lock only if
+// enabling is still the latest request; releasing the lock between the check and the
+// call leaves the race open.
 // Disabling closes the report gate before monitor mutation. A handler that already
 // passed the gate may finish. Returns false when enabling off the main thread, before
 // successful installation or if enabling monitors fails.

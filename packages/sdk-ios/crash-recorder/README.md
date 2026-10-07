@@ -39,15 +39,17 @@ Calls take effect in the order they run, and the last call wins: the recorder ca
 tell when a caller asked for a state. An enable still queued for the main thread
 therefore runs after a disable made directly in the meantime, on any thread, and turns
 capture back on. The queued block must apply the caller's latest request instead of a
-captured `true`. For example, keep the requested state under the integration's own
-lock. An enable request stores `true` and queues the block; an opt-out stores `false`
-and calls `EFCRSetEnabled(false)` while holding that lock; the block calls
+captured `true`. For example, keep the requested state under the integration's own lock.
+An enable request stores `true` and queues the block; an opt-out stores `false` and
+calls `EFCRSetEnabled(false)` while holding that lock; the block calls
 `EFCRSetEnabled(true)` while holding it only if `true` is still stored. A check made
-without that lock can pass just before an opt-out and still enable after it. Disabling
-never waits for the main thread, so a busy main thread delays an opt-out only while it
-runs that block. Alternatively, hop disables to the main queue as well: its first-in,
-first-out order then keeps the requests in order, but an opt-out waits for the main
-thread.
+without that lock, or one that releases the lock before calling `EFCRSetEnabled(true)`,
+can pass just before an opt-out and still enable after it. Disabling never hops to the
+main thread; because calls are serialized, it waits only for an install or enable call
+already running there, so a busy main thread delays an opt-out only while it runs
+`EFCRInstall` or that block. Alternatively, hop disables to the main queue as well: its
+first-in, first-out order then keeps the requests in order, but an opt-out waits for the
+main thread.
 
 Underlying vendor tracker singletons can retain process-lifetime resources; disabled does
 not mean every infrastructure object is destroyed. After a successful install,
