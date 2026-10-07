@@ -139,6 +139,69 @@ async function inspect(
           bytes = commands.readUInt32LE(offset + 4);
         if (bytes < 8 || bytes % 8 || bytes > commands.length - offset)
           throw invalid();
+        if (command === 0x19) {
+          // LC_SEGMENT_64 and section_64 are still bounded header metadata.
+          // Reject detectable truncation before any selected artifact uploads;
+          // DWARF semantics remain the server processor's responsibility.
+          if (bytes < 72) throw invalid();
+          const sections = commands.readUInt32LE(offset + 64);
+          if (bytes !== 72 + sections * 80) throw invalid();
+          const vmAddress = commands.readBigUInt64LE(offset + 24),
+            vmSize = commands.readBigUInt64LE(offset + 32),
+            fileOffset = commands.readBigUInt64LE(offset + 40),
+            fileSize = commands.readBigUInt64LE(offset + 48),
+            sliceSize = BigInt(length);
+          if (
+            vmSize > (1n << 64n) - vmAddress ||
+            fileOffset > sliceSize ||
+            fileSize > sliceSize - fileOffset ||
+            fileSize > vmSize
+          )
+            throw invalid();
+          const segmentName = commands
+            .subarray(offset + 8, offset + 24)
+            .toString("ascii")
+            .replace(/\0.*$/, "");
+          for (let j = 0; j < sections; j++) {
+            const section = offset + 72 + j * 80,
+              address = commands.readBigUInt64LE(section + 32),
+              size = commands.readBigUInt64LE(section + 40),
+              position = BigInt(commands.readUInt32LE(section + 48)),
+              relocationOffset = BigInt(commands.readUInt32LE(section + 56)),
+              relocationBytes =
+                BigInt(commands.readUInt32LE(section + 60)) * 8n,
+              flags = commands.readUInt32LE(section + 64);
+            if (
+              address < vmAddress ||
+              address > vmAddress + vmSize ||
+              size > vmAddress + vmSize - address
+            )
+              throw invalid();
+            const zeroFill = [1, 0xc, 0x12].includes(flags & 0xff);
+            // dSYMs retain original code/data virtual ranges without their
+            // bytes, even alongside a file-backed __eh_frame in __TEXT.
+            const virtualOnly =
+              kind === 10 &&
+              position === 0n &&
+              segmentName !== "__DWARF" &&
+              !(flags & 0x02000000);
+            if (
+              !zeroFill &&
+              !virtualOnly &&
+              size > 0n &&
+              (position < fileOffset ||
+                position > fileOffset + fileSize ||
+                size > fileOffset + fileSize - position)
+            )
+              throw invalid();
+            if (
+              relocationBytes > 0n &&
+              (relocationOffset > sliceSize ||
+                relocationBytes > sliceSize - relocationOffset)
+            )
+              throw invalid();
+          }
+        }
         if (command === 0x1b) {
           if (uuid !== undefined || bytes !== 24) throw invalid();
           const hex = commands

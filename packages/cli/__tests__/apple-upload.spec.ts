@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { uploadAppleBuild } from "../src/apple-upload.js";
 import { main } from "../src/index.js";
-import { dsym, macho, UUID_B } from "./apple-build-fixture.js";
+import { dsym, macho, segmented, UUID_B } from "./apple-build-fixture.js";
 const roots: string[] = [];
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "everframe-apple-upload-"));
@@ -134,6 +134,15 @@ it("fails a partially uploaded build and resumes its immutable first artifact on
   });
   expect(result.artifacts.every((a) => a.status === "ready")).toBe(true);
   expect(api.puts()).toBe(2);
+});
+it("makes zero requests when a later matching dSYM is truncated after intact load commands", async () => {
+  const f = await fixture(),
+    api = server();
+  await writeFile(f.files[1]!, segmented({ uuid: UUID_B }).subarray(0, 208));
+  await expect(
+    uploadAppleBuild(f.options, { fetch: api.fetcher })
+  ).rejects.toThrow(/invalid_apple_binary/);
+  expect(api.fetcher).not.toHaveBeenCalled();
 });
 it.each(["binary", "earlier-dsym"])(
   "refuses success if %s changes while later artifacts upload",

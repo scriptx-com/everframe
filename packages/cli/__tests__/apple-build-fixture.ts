@@ -70,3 +70,24 @@ export async function dsym(
   await writeFile(path, bytes);
   return path;
 }
+// One segment and section with real file-range metadata; payload is synthetic.
+export function segmented({ uuid = UUID_A, kind = 10 } = {}) {
+  const b = Buffer.alloc(512);
+  macho({ uuid, kind }).copy(b);
+  b.writeUInt32LE(2, 16);
+  b.writeUInt32LE(176, 20);
+  b.writeUInt32LE(0x19, 56);
+  b.writeUInt32LE(152, 60);
+  b.write("__DWARF", 64);
+  b.writeBigUInt64LE(0x100000000n, 80);
+  b.writeBigUInt64LE(8192n, 88);
+  b.writeBigUInt64LE(256n, 96);
+  b.writeBigUInt64LE(128n, 104);
+  b.writeUInt32LE(1, 120);
+  b.write("__debug_info", 128);
+  b.write("__DWARF", 144);
+  b.writeBigUInt64LE(0x100000000n, 160);
+  b.writeBigUInt64LE(128n, 168);
+  b.writeUInt32LE(256, 176);
+  return b;
+}

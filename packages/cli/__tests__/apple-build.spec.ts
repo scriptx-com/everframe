@@ -19,6 +19,7 @@ import {
 } from "../src/apple-build.js";
 import {
   macho,
+  segmented,
   universal,
   dsym,
   UUID_A,
@@ -49,7 +50,7 @@ vi.mock("node:fs/promises", async () => {
   };
 });
 const roots: string[] = [];
-async function fixture(bytes = macho()) {
+async function fixture(bytes: Buffer = macho()) {
   const root = await mkdtemp(join(tmpdir(), "everframe-apple-build-"));
   roots.push(root);
   const binary = join(root, "App");
@@ -62,6 +63,114 @@ afterEach(async () => {
     roots.splice(0).map((path) => rm(path, { recursive: true, force: true }))
   );
 });
+it.each([
+  ["truncated file", (b: Buffer) => b.subarray(0, 208)],
+  [
+    "short segment command",
+    (b: Buffer) => {
+      b.writeUInt32LE(64, 60);
+      return b;
+    },
+  ],
+  [
+    "section count",
+    (b: Buffer) => {
+      b.writeUInt32LE(0xffffffff, 120);
+      return b;
+    },
+  ],
+  [
+    "segment range overflow",
+    (b: Buffer) => {
+      b.writeBigUInt64LE(0xffffffffffffffffn, 96);
+      return b;
+    },
+  ],
+  [
+    "segment virtual overflow",
+    (b: Buffer) => {
+      b.writeBigUInt64LE(0xffffffffffffffffn, 80);
+      return b;
+    },
+  ],
+  [
+    "section beyond segment",
+    (b: Buffer) => {
+      b.writeBigUInt64LE(129n, 168);
+      return b;
+    },
+  ],
+  [
+    "section before segment",
+    (b: Buffer) => {
+      b.writeUInt32LE(255, 176);
+      return b;
+    },
+  ],
+  [
+    "section virtual overflow",
+    (b: Buffer) => {
+      b.writeBigUInt64LE(0xffffffffffffffffn, 160);
+      return b;
+    },
+  ],
+  [
+    "relocations beyond slice",
+    (b: Buffer) => {
+      b.writeUInt32LE(508, 184);
+      b.writeUInt32LE(1, 188);
+      return b;
+    },
+  ],
+  [
+    "missing DWARF bytes",
+    (b: Buffer) => {
+      b.writeBigUInt64LE(0n, 104);
+      b.writeUInt32LE(0, 176);
+      return b;
+    },
+  ],
+] as const)(
+  "rejects locally observable malformed segment/section: %s",
+  async (_name, mutate) => {
+    const f = await fixture(mutate(segmented()));
+    await expect(
+      readAppleBinaryImages(f.binary, { kind: "dsym" })
+    ).rejects.toThrow(/invalid_apple_binary/);
+  }
+);
+it("bounds segment ranges to the fat slice even when trailing container bytes exist", async () => {
+  const f = await fixture(universal([segmented().subarray(0, 208)]));
+  await expect(
+    readAppleBinaryImages(f.binary, { kind: "dsym" })
+  ).rejects.toThrow(/invalid_apple_binary/);
+});
+it("accepts file-backed segments and virtual-only dSYM sections in a partly file-backed segment", async () => {
+  const b = segmented(),
+    f = await fixture(b);
+  expect(await readAppleBinaryImages(f.binary, { kind: "dsym" })).toHaveLength(
+    1
+  );
+  b.fill(0, 64, 80);
+  b.write("__TEXT", 64);
+  b.writeBigUInt64LE(4096n, 168);
+  b.writeUInt32LE(0, 176);
+  await writeFile(f.binary, b);
+  expect(await readAppleBinaryImages(f.binary, { kind: "dsym" })).toHaveLength(
+    1
+  );
+});
+it.each([1, 0xc, 0x12])(
+  "accepts executable zero-fill section type %s without file bytes",
+  async (flags) => {
+    const b = segmented({ kind: 2 });
+    b.writeBigUInt64LE(4096n, 168);
+    b.writeUInt32LE(0, 176);
+    b.writeUInt32LE(flags, 192);
+    const f = await fixture(b);
+    expect(await readAppleBinaryImages(f.binary)).toHaveLength(1);
+  }
+);
 it.each([
   [0x100000c, 0, "arm64"],
   [0x100000c, 1, "arm64"],
