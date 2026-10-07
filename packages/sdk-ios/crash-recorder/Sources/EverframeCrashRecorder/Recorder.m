@@ -23,11 +23,13 @@ static pthread_mutex_t installLock = PTHREAD_MUTEX_INITIALIZER;
 static bool attempted = false;
 static bool installed = false;
 
-static bool validDirectory(const char *path) {
+static bool validDirectory(const char *path, char canonical[PATH_MAX]) {
     if (!path || path[0] != '/' || strnlen(path, PATH_MAX) > EFCR_MAX_RUN_PATH) return false;
-    char canonical[PATH_MAX];
-    if (!realpath(path, canonical) || strcmp(path, canonical) != 0) return false;
-    int fd = open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (!realpath(path, canonical) || strlen(canonical) > EFCR_MAX_RUN_PATH) return false;
+    // Foundation reports /var and /tmp locations without the /private prefix realpath(3) adds.
+    if (strcmp(path, canonical) != 0 &&
+        (strncmp(canonical, "/private/", 9) != 0 || strcmp(path, canonical + 8) != 0)) return false;
+    int fd = open(canonical, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0) return false;
     struct stat st;
     if (fstat(fd, &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != geteuid() || (st.st_mode & 07777) != 0700) {
@@ -61,11 +63,12 @@ static bool protectDirectory(const char *path) {
 EFCRInstallResult EFCRInstall(const char *runDirectory) {
     pthread_mutex_lock(&installLock);
     EFCRInstallResult result;
+    char canonical[PATH_MAX];
     if (attempted) result = installed ? EFCRInstallAlreadyInstalled : EFCRInstallVendorFailure;
-    else if (!validDirectory(runDirectory)) result = EFCRInstallInvalidDirectory;
+    else if (!validDirectory(runDirectory, canonical)) result = EFCRInstallInvalidDirectory;
     else {
         @autoreleasepool {
-            if (!protectDirectory(runDirectory)) result = EFCRInstallInvalidDirectory;
+            if (!protectDirectory(canonical)) result = EFCRInstallInvalidDirectory;
             else {
                 attempted = true;
                 efcr_gateSet(false);
@@ -81,7 +84,7 @@ EFCRInstallResult EFCRInstall(const char *runDirectory) {
                 configuration.printPreviousLogOnStartup = false;
                 configuration.userInfoJSON = NULL;
                 configuration.willWriteReportCallback = efcr_willWriteReport;
-                installed = kscrash_install("Everframe", runDirectory, &configuration) == KSCrashInstallErrorNone;
+                installed = kscrash_install("Everframe", canonical, &configuration) == KSCrashInstallErrorNone;
                 kscm_disableAllMonitors();
                 result = installed ? EFCRInstallSuccess : EFCRInstallVendorFailure;
             }

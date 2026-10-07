@@ -14,7 +14,9 @@ typedef enum {
 } EFCRInstallResult;
 // Healthy-process integration only. Supply an existing, empty, canonical absolute
 // directory of at most 449 bytes, owned by this user with mode 0700, reserved
-// exclusively for this run.
+// exclusively for this run. Canonical means realpath(3) output, or that path without
+// the /private prefix, as Foundation reports /var and /tmp locations; the recorder
+// installs with the realpath(3) form.
 // Do not rename/replace it concurrently. Validation failure permits correction;
 // entering the vendor installer is terminal even if it fails. Success is disabled.
 EFCRInstallResult EFCRInstall(const char *runDirectory);

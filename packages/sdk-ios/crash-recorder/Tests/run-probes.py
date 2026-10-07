@@ -8,8 +8,10 @@ import os
 from pathlib import Path
 import platform
 import resource
+import shutil
 import signal
 import subprocess
+import tempfile
 import uuid
 
 # Stack canary written by EFCRProbeMemoryFault; neither its bytes nor their hex form may persist.
@@ -136,6 +138,12 @@ def run_probes(binary, evidence):
     at_bound = bounded('at-bound', 449)
     run('at-bound', 'state', at_bound, directory('at-bound-replacement'))
     require(list(at_bound.glob('RunSidecars/*/System.ksscr')), 'System sidecar missing at the path bound')
+    # Foundation reports /var and /tmp locations without the /private prefix realpath(3) adds.
+    alias_root = Path(tempfile.mkdtemp(prefix='efcr-alias-', dir='/tmp')).resolve()
+    require(str(alias_root).startswith('/private/'), f'{alias_root} has no /private alias')
+    run('private-alias', 'state', str(alias_root)[len('/private'):], directory('private-alias-replacement'))
+    require(list(alias_root.glob('RunSidecars/*/System.ksscr')), 'alias install did not use the canonical directory')
+    shutil.move(str(alias_root), str(evidence / 'private-alias'))
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
     for fault in ['leaf', 'overflow']:
         run(f'enabled-{fault}', 'enabled', directory(f'enabled-{fault}'), fault, fatal=True, count=1)

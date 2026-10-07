@@ -14,7 +14,9 @@ are private to the Clang target. The package uses no unsafe compiler flags.
 
 A healthy caller creates a fresh UUID run directory in its private application
 storage, mode0700, resolves its canonical absolute path, and reserves it for this
-process. `EFCRInstall(path)` rejects missing, relative, symlinked, noncanonical,
+process. Canonical means realpath(3) output, or the same path without the `/private`
+prefix, which is how Foundation reports `/var` and `/tmp` locations such as device
+app containers; installation uses the realpath(3) form. `EFCRInstall(path)` rejects missing, relative, symlinked, noncanonical,
 nonempty and permissive directories, and paths longer than 449 bytes, the most the
 vendor's 512-byte System sidecar path allows. Do not replace or rename the
 reserved directory concurrently. Validation failures permit a corrected attempt;
@@ -87,9 +89,10 @@ upstream checkout checks the packaged manifest and resource integrity. Supplying
 the manifest alone is not a cryptographic attestation.
 
 `Tests/run-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
-runs41 fresh processes with25-second deadlines and child-only core-dump disabling.
+runs42 fresh processes with25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, including real 449- and 450-byte run
-directories at the path bound, initial disabled state, repeated/failed
+directories at the path bound and a Foundation-style `/tmp` alias, initial disabled
+state, repeated/failed
 installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
 monitor can record, disable/re-enable and rapid runs. Two modes move one control at a
 time: a closed report gate with enabled monitors, and an open gate with the monitors
