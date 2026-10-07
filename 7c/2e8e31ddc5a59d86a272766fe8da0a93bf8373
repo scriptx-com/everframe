@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_360d9eb003c487::t_9138a2a246e730 216-220
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterTestState.kt
+  s_360d9eb003c487::t_97a38f7aacbb5a 22
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/TXReporterPresenterSingleFlightTest.kt
+  s_360d9eb003c487::t_6e169a4ba59073 37
+  s_360d9eb003c487::t_bee21d5df5e56f 71-72,81
+  s_360d9eb003c487::t_de9178b84d79a0 47-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c2e8e31ddc5a59d86a272766fe8da0a93bf8373",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
