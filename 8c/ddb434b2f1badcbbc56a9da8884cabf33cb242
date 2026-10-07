@@ -1,0 +1,57 @@
+packages/protocol/compat/native-exposure/OldDiagnosticCaller.swift
+  s_97602a0a2d8f20::t_7f72f4f2a025f8 1-8,19-24,30-32
+  s_97602a0a2d8f20::t_588eb6171fd016 9-18,25-29
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_354abede142929 49-85
+  s_97602a0a2d8f20::t_1d2a994153a85e 86-100
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/DiagnosticExposureProtocolTest.kt
+  s_97602a0a2d8f20::t_342331649f5906 7-9,14-20
+packages/sdk-android/android/README.md
+  s_97602a0a2d8f20::t_ce8856eacca75d 120-122
+packages/protocol/compat/native-exposure/ConfigMain.kt
+  s_97602a0a2d8f20::t_dfcb8c49663832 1-16
+packages/protocol/compat/native-exposure/OldJavaConstructors.java
+  s_97602a0a2d8f20::t_7f72f4f2a025f8 1-18
+packages/protocol/compat/native-exposure/OldConfigCaller.kt
+  s_97602a0a2d8f20::t_7f72f4f2a025f8 1-8
+packages/protocol/compat/native-exposure/OldDiagnosticCaller.kt
+  s_97602a0a2d8f20::t_7f72f4f2a025f8 1-18
+packages/sdk-ios/Tests/EverframeTests/DiagnosticExposureProtocolTests.swift
+  s_97602a0a2d8f20::t_342331649f5906 7-13
+packages/protocol/compat/native-exposure/SwiftMain.swift
+  s_97602a0a2d8f20::t_7f72f4f2a025f8 1-10
+packages/sdk-android/tests/native-crash-host/README.md
+  s_97602a0a2d8f20::t_ce8856eacca75d 17
+packages/sdk-android/tests/native-crash-host/app/src/main/java/dev/everframe/nativeproof/MainActivity.kt
+  s_97602a0a2d8f20::t_1ce624e45fcc5d 166-169
+  s_97602a0a2d8f20::t_119cebf85d0605 151
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_97602a0a2d8f20::t_c42502b6cafa69 100-142
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_1d2a994153a85e 208-216
+  s_97602a0a2d8f20::t_c42502b6cafa69 193-196,199-207
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_e264913192d3b0 1572-1575
+packages/protocol/compat/native-exposure/README.md
+  s_97602a0a2d8f20::t_cf9440726a9006 1-22
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_2aa58963805620 522-554,608
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_287fff38e1d588 1754,1797,1833-1856,2016-2025
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8cddb434b2f1badcbbc56a9da8884cabf33cb242",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
