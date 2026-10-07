@@ -521,7 +521,7 @@ enum WindowTapBreadcrumbAdapter {
                 MainActor.assumeIsolated {
                     WindowTapBreadcrumbAdapter.recordEndedPress(
                         type: ended.type,
-                        focusedView: window.screen.focusedView,
+                        focusedView: WindowTapBreadcrumbAdapter.focusedView(in: window),
                         eventTimestamp: event.timestamp)
                 }
                 return
@@ -603,6 +603,27 @@ enum WindowTapBreadcrumbAdapter {
         case .pageDown: return "pageDown"
         @unknown default: return "button"
         }
+    }
+
+    /// The view holding focus in `window`'s focus system. Never asks
+    /// `UIScreen.focusedView`: UIKit aborts with "screen-based focus
+    /// unsupported" when the host app uses scene-based focus (the UIScene
+    /// lifecycle), which made every remote press crash the app.
+    @MainActor
+    static func focusedView(in window: UIWindow) -> UIView? {
+        containingView(of: UIFocusSystem.focusSystem(for: window)?.focusedItem)
+    }
+
+    /// The focused item when it is a view, otherwise the nearest view that
+    /// contains it (the SKView of a focused SpriteKit node, for example),
+    /// which is what `UIScreen.focusedView` reported.
+    @MainActor
+    static func containingView(of item: UIFocusEnvironment?) -> UIView? {
+        var environment = item
+        while let current = environment, !(current is UIView) {
+            environment = current.parentFocusEnvironment
+        }
+        return environment as? UIView
     }
 
     /// tvOS remote-press crumb: same `.tap` kind as touch crumbs, tagged
