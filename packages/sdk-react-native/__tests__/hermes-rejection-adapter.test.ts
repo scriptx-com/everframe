@@ -170,15 +170,15 @@ it('treats a later global Promise reassignment as displacement', () => {
   const { C, environment } = engine();
   let current: unknown = C;
   environment.currentPromise = () => current;
-  const prior = vi.fn(); C._C = prior;
-  const { result, options } = install(environment, { onDisplaced: vi.fn() });
+  const prior = vi.fn(), onDisplaced = vi.fn(); C._C = prior;
+  const { result, options } = install(environment, { onDisplaced });
   expect(result.status).toBe('observing');
   current = function Promise() {};
   C._C!.call(C, {}, new Error('after'));
   expect(options.onReject).not.toHaveBeenCalled();
   expect(prior).toHaveBeenCalledTimes(1);
   expect(result.status === 'observing' && result.ownsHooks()).toBe(false);
-  expect(options.onDisplaced).toHaveBeenCalledTimes(1);
+  expect(onDisplaced).toHaveBeenCalledTimes(1);
 });
 it('releases pending observer work when the global Promise is reassigned', () => {
   const { C, environment } = engine();
