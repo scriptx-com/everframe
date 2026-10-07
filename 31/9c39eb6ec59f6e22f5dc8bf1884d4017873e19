@@ -1,0 +1,25 @@
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashVendorRecord.swift
+  s_360d9eb003c487::t_23e082085d8b89 119-136
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecordDecoder.swift
+  s_360d9eb003c487::t_2489de7e3c591b 57,86-87,97-98
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecordDecoderTests.swift
+  s_360d9eb003c487::t_3dd59104226ec0 285-302
+packages/sdk-ios/docs/native-record-decoder.md
+  s_360d9eb003c487::t_199be10a796153 28-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "319c39eb6ec59f6e22f5dc8bf1884d4017873e19",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
