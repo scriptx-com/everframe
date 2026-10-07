@@ -1999,9 +1999,13 @@ object Everframe {
      * its bounds. Native video refuses the frame instead while the view's
      * drawn position cannot be proven, for example during a legacy view
      * animation or a shared-element transition, or while it sits in an
-     * overlay.
+     * overlay. This also tracks the view, so native video checks it on its
+     * own even inside another masked view, such as a container that a
+     * container transform draws elsewhere. Native video ignores a bare
+     * `R.id.tx_sensitive` tag on a view inside a masked view.
      *
-     * Implementation tags the View with `R.id.tx_sensitive = true`; both
+     * Implementation tags the View with `R.id.tx_sensitive = true` and
+     * remembers it in `VideoSensitiveViews`; both
      * `SensitiveRectRegistry.isSensitive` (screenshot redactor) and
      * `VideoPrivacyGate` (video masking) check this tag. Mirrors
      * the Compose-side `Modifier.txSensitive()`

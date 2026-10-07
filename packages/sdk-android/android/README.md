@@ -563,8 +563,12 @@ are masked: content that repeats a secret elsewhere, such as one-time-code digit
 preview or a search echo, needs its own marker. Copies that other code draws are not covered either:
 a snapshot of a view drawn in a transition overlay, a view drawn after it was removed from the
 window (a container transform still draws a container the app removed instead of hiding), or a
-descendant of a masked view that a transition hides and draws elsewhere when the masked view's
-parent clips children or the descendant is only made transparent.
+container that a transition or container transform draws elsewhere while it sits inside a masked
+view. Such a container is not evaluated on its own, whether it is `GONE` or not, so frames are
+recorded with only the outer mask unless a descendant check below refuses them. Mark the container
+itself with `Everframe.markSensitive` (`TXSensitiveView` and `<EverframeSensitive>` call it), which
+tracks it (see below) so that it is evaluated on its own: native video ignores a bare
+`R.id.tx_sensitive` tag on a view inside another masked view.
 
 **SurfaceViews.** A `SurfaceView` renders into its own surface, which a window copy never contains.
 Its area is left empty without a mask, and views drawn above it, such as subtitles and player
@@ -579,8 +583,9 @@ controls, are recorded.
   plugin's masked Dart replay. Screenshot handling is unchanged.
 - a view cannot be classified, a React Native view appears without the platform adapter, or the
   adapter answers `UNKNOWN`.
-- a masked view's drawn position cannot be proven: it or an ancestor sits in an overlay or under a
-  broken parent chain; a legacy `Animation` or an animation matrix applies to it or an ancestor (an
+- the drawn position of a masked view that is not inside another masked view, or of a tracked one
+  (see below), cannot be proven: it or an ancestor sits in an overlay or under a broken parent
+  chain; a legacy `Animation` or an animation matrix applies to it or an ancestor (an
   `Animation` kept with `fillAfter` keeps refusing frames until `clearAnimation()`); a layout
   transition is running above it; it or an ancestor is `INVISIBLE`, has transition alpha below one,
   or is fully transparent (alpha 0) even while `GONE`, because then only another drawing can show
@@ -591,7 +596,7 @@ controls, are recorded.
   inline `NumberPicker` (including spinner-mode date and time pickers) is shown after its first
   touch, which hides its input as `INVISIBLE`; while a React Native `TextInput` is hidden with
   `display: 'none'` or styled with `opacity: 0`, as one-time-code fields often are; and for as long
-  as a container faded to alpha 0 and then set `GONE` holds a masked view. Restore such a
+  as a container faded to alpha 0 and then set `GONE` holds such a masked view. Restore such a
   container's alpha once it is hidden, or remove it.
 - an inspected descendant of a masked view (see above) is animated, `INVISIBLE` or
   transition-hidden, or runs a layout transition, for the same reasons. React Native hides
