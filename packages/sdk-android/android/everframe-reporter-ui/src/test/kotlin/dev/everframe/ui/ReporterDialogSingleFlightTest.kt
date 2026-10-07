@@ -30,9 +30,12 @@ import dev.everframe.transport.ReportSubmitter
 import java.util.Base64
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.After
@@ -75,30 +78,34 @@ class ReporterDialogSingleFlightTest {
         startSdk(host.get())
         val upload = CountDownLatch(1)
         holdUploads(upload)
-        val first = async(Dispatchers.Main.immediate) { open(host.get()) }
+        // Not children of runBlocking, which would wait for them on this
+        // thread: they resume on the main looper, which only this thread idles.
+        val callers = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val first = callers.async { open(host.get()) }
         var joined: Deferred<ReportResult>? = null
         try {
             compose.waitUntil(5_000) { compose.onAllNodesWithText("Title *").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
-            joined = async(Dispatchers.Main.immediate) { openElsewhere(host.get()) }
+            joined = callers.async { openElsewhere(host.get()) }
             assertFalse("an open while the reporter is on screen joins it", joined.isCompleted)
 
             compose.onNodeWithText("Title *").performTextInput("Checkout froze")
             // The button's own click action, as a tap or TalkBack runs it.
             compose.onNodeWithText("Send report").performSemanticsAction(SemanticsActions.OnClick)
-            assertTurnedAway(async(Dispatchers.Main.immediate) { openElsewhere(host.get()) })
+            assertTurnedAway(callers.async { openElsewhere(host.get()) })
             // The report uploads, which outlives its activity.
             host.pause().stop().destroy()
             val next = Robolectric.buildActivity(Activity::class.java).setup().get()
-            assertTurnedAway(async(Dispatchers.Main.immediate) { openElsewhere(next) })
+            assertTurnedAway(callers.async { openElsewhere(next) })
             assertFalse("the first report is still uploading", first.isCompleted)
 
             upload.countDown()
-            awaitIdling(first, joined)
+            assertTrue("the upload did not settle the reporter result", idleUntilDone(listOf(first, joined)))
             assertTrue(first.await() is ReportResult.Queued)
             assertEquals("a caller that joined before Send receives the report's outcome", first.await(), joined.await())
         } finally {
             upload.countDown()
-            first.cancel(); joined?.cancel()
+            callers.cancel()
+            idleUntilDone(listOfNotNull(first, joined))
         }
     }
 
@@ -134,13 +141,14 @@ class ReporterDialogSingleFlightTest {
         ReporterDialog.__submitterFactoryForTesting = { cfg, _ -> ReportSubmitter(cfg, outbox, uploader = MultipartUploader(held)) }
     }
 
-    private fun awaitIdling(vararg results: Deferred<*>) {
+    /** Idles the main looper, where callers resume, until they finish or 30 s pass. */
+    private fun idleUntilDone(results: List<Deferred<*>>): Boolean {
         val deadline = System.nanoTime() + 30_000_000_000L
         while (results.any { !it.isCompleted } && System.nanoTime() < deadline) {
             shadowOf(Looper.getMainLooper()).idle()
             Thread.sleep(5)
         }
-        assertTrue("the upload did not settle the reporter result", results.all { it.isCompleted })
+        return results.all { it.isCompleted }
     }
 
     private fun startSdk(activity: Activity) {
