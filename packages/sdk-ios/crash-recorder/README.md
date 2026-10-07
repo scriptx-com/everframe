@@ -65,6 +65,20 @@ nor deletes records. It limits the per-run store to one report; cross-run byte a
 retention limits, interrupted-record recovery, original-run attribution, encrypted
 outbox promotion and native symbolication belong to subsequent SDK integration.
 
+## Load-time behaviour
+
+Linking the library runs two vendored initializers before `main`, whether or not
+`EFCRInstall` is ever called:
+
+- `KSCrashRecording/KSCrashAppStateTracker.m`: `+load` creates the process-lifetime
+  app-state tracker. It registers an `atexit` block and six UIApplication lifecycle
+  observers in apps (four NSExtensionHost observers in extensions; on macOS it marks
+  the state active) and reads the `ActivePrewarm` environment variable.
+- `KSCrashRecordingCore/KSThreadInit.m`: a library constructor records the main thread.
+
+Neither writes files, installs handlers or enables capture. An integration that needs
+no footprint before opt-in has to keep the component unlinked until then.
+
 ## Source provenance
 
 [KSCrash2.6.0](https://github.com/kstenerud/KSCrash/releases/tag/2.6.0) is pinned

@@ -104,3 +104,17 @@ test('arm unwinding reports the restored caller instead of a stale link register
   }
   assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/link register/);
 });
+test('README names every vendored initializer that runs before main', async () => {
+  const readme=await readFile(join(componentRoot,'README.md'),'utf8');
+  const start=readme.indexOf('## Load-time behaviour');
+  assert.ok(start>=0,'README has a load-time behaviour section');
+  const section=readme.slice(start,readme.indexOf('\n## ',start+1)>0?readme.indexOf('\n## ',start+1):undefined);
+  const manifest=JSON.parse(await readFile(join(componentRoot,'vendor-lock.json'),'utf8'));
+  const initializers=[];
+  for (const entry of manifest.files) {
+    const source=await readFile(join(componentRoot,entry.path),'utf8');
+    if (/^\+ ?\(void\) ?load\b|__attribute__\(\(constructor/m.test(source)) initializers.push(entry.path.slice(vendorRoot.length+1));
+  }
+  assert.deepEqual(initializers.sort(),['KSCrashRecording/KSCrashAppStateTracker.m','KSCrashRecordingCore/KSThreadInit.m']);
+  assert.deepEqual(initializers.filter(path=>!section.includes(`\`${path}\``)),[]);
+});
