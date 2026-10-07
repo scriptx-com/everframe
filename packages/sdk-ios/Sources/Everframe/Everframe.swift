@@ -230,10 +230,10 @@ public final class Everframe: @unchecked Sendable {
         Self.captureGate
     }
 
-    /// Record a caught Swift Error or NSError through the encrypted error outbox.
     /// Cached native observations. This getter performs no storage or network work.
     public func getReportDeliveryStatus() -> ReportDeliveryStatus { ReportDiagnostics.shared.snapshot() }
 
+    /// Record a caught Swift Error or NSError through the encrypted error outbox.
     public func captureException(_ error: any Error) {
         captureException(error, options: nil)
     }
