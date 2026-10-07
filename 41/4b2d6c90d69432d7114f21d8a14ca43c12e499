@@ -1,0 +1,28 @@
+packages/sdk-android/android/everframe-core/consumer-rules.pro
+  s_360d9eb003c487::t_971218621d22cb 340-343
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyKeepRulesTest.kt
+  s_360d9eb003c487::t_abe44be0a41daf 106
+  s_360d9eb003c487::t_d5d1758d6edd35 30-32,35,40-57,64-74
+packages/sdk-android/android/everframe-core/build.gradle.kts
+  s_360d9eb003c487::t_c6e60e08bafd93 125-126
+.changeset/android-replay-mask.md
+  s_360d9eb003c487::t_6d1cef37ed3bfd 8
+packages/sdk-android/android/everframe-gradle-plugin/src/main/resources/everframe-keep.pro
+  s_360d9eb003c487::t_14d06c1ebd488a 129-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "414b2d6c90d69432d7114f21d8a14ca43c12e499",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
