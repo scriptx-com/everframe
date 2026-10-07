@@ -40,10 +40,21 @@ setting; battery state is recorded only while the host enables monitoring.
 No custom allocation, Foundation, locking, envelope construction or network work
 runs in the report gate.
 
-The selected detectors cover Mach faults, fatal signals and uncaught Objective-C
-exceptions, including tested Swift traps. Watchdog/termination/CPU reporting,
-C++ interception, memory introspection, queue-name lookup, exception userInfo and console attachments
-are not enabled. Required upstream infrastructure can still write sidecar context.
+The selected detectors are Mach exceptions, fatal signals and uncaught Objective-C
+exceptions. Coverage differs by platform:
+
+- iOS and macOS: a Mach handler thread records traps and memory faults, including
+  stack overflows; fatal signals such as `abort()` are recorded by signal handlers, and
+  the installing main thread has an alternate signal stack.
+- tvOS: `KSSystemCapabilities.h` sets `KSCRASH_HAS_MACH` and `KSCRASH_HAS_SIGNAL_STACK`
+  to 0. The Mach detector is inert, so traps and memory faults are recorded only by
+  signal handlers running on the faulting thread's own stack, and stack overflows are
+  not recorded. tvOS evidence is compile-only.
+
+Runtime probes run on the macOS host. Watchdog/termination/CPU reporting, C++
+interception, memory introspection, queue-name lookup, exception userInfo and console
+attachments are not enabled. Required upstream infrastructure can still write sidecar
+context.
 
 Raw reports remain local. A report holds the exception type, name and reason, the
 crashed thread's register values, every thread's backtrace addresses with on-device
@@ -61,9 +72,13 @@ complete-until-first-user-authentication protection on the run root; the patched
 sidecar writer preserves that protection class. Children remain inside the0700
 parent, without changing process-wide umask. Actual before-first-unlock and locked
 physical-device behavior still needs qualification. The component neither uploads
-nor deletes records. It limits the per-run store to one report; cross-run byte and
-retention limits, interrupted-record recovery, original-run attribution, encrypted
-outbox promotion and native symbolication belong to subsequent SDK integration.
+nor deletes records. A run normally ends with at most one report because the fatal
+event ends the process, but nothing enforces that: `maxReportCount` is 1, yet the vendor
+prunes only at install, into an empty directory, and a rare second fatal event that
+races the first can still write another report. Importers must accept any number of
+`Reports/*.json` files. Cross-run byte and retention limits, interrupted-record
+recovery, original-run attribution, encrypted outbox promotion and native symbolication
+belong to subsequent SDK integration.
 
 ## Load-time behaviour
 
