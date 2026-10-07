@@ -13,10 +13,21 @@ import dev.everframe.config.EverframeConfig
 import dev.everframe.config.CaptureConfig
 import dev.everframe.capture.sharedBreadcrumbBuffer
 import dev.everframe.capture.video.FrozenReportCapture
+import dev.everframe.outbox.JSONLOutbox
+import dev.everframe.transport.MultipartUploader
+import dev.everframe.transport.ReportSubmitter
+import dev.everframe.ui.details.ReporterIncludes
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -28,13 +39,19 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
 
+private typealias Send = (String, String, List<SubmittedShot>, ReporterIncludes) -> Unit
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
 @LooperMode(LooperMode.Mode.PAUSED)
 class ReporterDialogLifecycleTest {
     @Before fun setup() { Dispatchers.setMain(UnconfinedTestDispatcher()) }
-    @After fun cleanup() { Everframe.kill(); resetReporterTestState(); Dispatchers.resetMain() }
+    @After fun cleanup() {
+        ReporterDialog.__onMountedForTesting = null
+        ReporterDialog.__submitterFactoryForTesting = null
+        Everframe.kill(); resetReporterTestState(); Dispatchers.resetMain()
+    }
 
     @Test fun destroyingMountedHostSettlesResultAndRemovesReporter() = runBlocking {
         val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
@@ -134,10 +151,33 @@ class ReporterDialogLifecycleTest {
             assertEquals(1, dismissed)
             assertFalse("Destruction cannot replace an in-flight submission result", result.isCompleted)
             assertEquals(listOf("owned-evidence"), capture.takeBreadcrumbs()!!.map { it.message })
-            // Submission, rather than lifecycle teardown, settles its result.
-            result.complete(ReportResult.Cancelled("submission_result"))
-            assertEquals(ReportResult.Cancelled("submission_result"), result.await())
         } finally { capture.finishConsumption() }
+    }
+
+    @Test fun sendFromMountedDialogKeepsItsResultAndEvidenceAcrossHostDestruction() = runBlocking {
+        val host = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val activity = host.get()
+        activity.setContentView(android.widget.FrameLayout(activity))
+        val content = activity.findViewById<ViewGroup>(android.R.id.content)
+        val originalChildren = content.childCount
+        startCapture(activity)
+        val outbox = offlineSubmissions()
+        var send: Send? = null
+        ReporterDialog.__onMountedForTesting = { send = it }
+        val gate = CountDownLatch(1)
+        val capture = Everframe.__replayFreeze()
+        val result = async(Dispatchers.Main) { ReporterDialog.show(activity, screenshot(), capture) }
+        try {
+            send!!("Sent before destruction", "", heldShots(gate), ReporterIncludes())
+            assertEquals(originalChildren, content.childCount)
+            host.pause().stop().destroy()
+            shadowOf(Looper.getMainLooper()).idle()
+            assertFalse("Destruction cannot replace an in-flight submission result", result.isCompleted)
+            gate.countDown()
+            awaitIdling(result)
+            assertTrue("Submission must settle its own result", result.await() is ReportResult.Queued)
+            assertEquals(listOf("owned-evidence"), queuedBreadcrumbs(outbox))
+        } finally { gate.countDown(); result.cancelAndJoin(); capture.cancel() }
     }
 
     @Test fun destroyedHostCannotMountAReporter() = runBlocking {
@@ -171,4 +211,40 @@ class ReporterDialogLifecycleTest {
         Everframe.addBreadcrumb("owned-evidence")
     }
 
+    /** Sends reports through an offline uploader, so each one is queued into the returned outbox. */
+    private fun offlineSubmissions(): JSONLOutbox {
+        val outbox = testOutbox()
+        val offline = OkHttpClient.Builder().addInterceptor { throw java.io.IOException("offline test") }.build()
+        ReporterDialog.__submitterFactoryForTesting = { cfg, _ -> ReportSubmitter(cfg, outbox, uploader = MultipartUploader(offline)) }
+        return outbox
+    }
+
+    /** One shot that holds the submission at its first step, before it reads any evidence. */
+    private fun heldShots(gate: CountDownLatch): List<SubmittedShot> = object : AbstractList<SubmittedShot>() {
+        private val shot = SubmittedShot(screenshot().bitmap, emptyList())
+        override val size: Int get() = 1
+        override fun get(index: Int): SubmittedShot = shot.also { gate.await(30, TimeUnit.SECONDS) }
+    }
+
+    private fun awaitIdling(result: Deferred<*>) {
+        val deadline = System.nanoTime() + 30_000_000_000L
+        while (!result.isCompleted && System.nanoTime() < deadline) {
+            shadowOf(Looper.getMainLooper()).idle()
+            Thread.sleep(5)
+        }
+        assertTrue("Submission did not settle the reporter result", result.isCompleted)
+    }
+
+    private suspend fun queuedBreadcrumbs(outbox: JSONLOutbox): List<String> {
+        val deadline = System.nanoTime() + 30_000_000_000L
+        while (outbox.count() == 0 && System.nanoTime() < deadline) {
+            shadowOf(Looper.getMainLooper()).idle()
+            Thread.sleep(5)
+        }
+        val entries = outbox.hydrate()
+        assertEquals("Expected the sent report in the outbox", 1, entries.size)
+        val envelope = Json.parseToJsonElement(String(entries.single().envelopeBytes)).jsonObject
+        return (envelope["payload"]!!.jsonObject["breadcrumbs"] as? JsonArray).orEmpty()
+            .map { it.jsonObject["message"]!!.jsonPrimitive.content }
+    }
 }
