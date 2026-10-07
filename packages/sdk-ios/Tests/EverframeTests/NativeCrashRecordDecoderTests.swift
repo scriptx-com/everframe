@@ -265,4 +265,14 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
             XCTAssertFalse(message.unicodeScalars.contains { $0.value < 32 || (127...159).contains($0.value) }, secret)
         }
     }
+    func testNSExceptionHandlerStackAtRecorderCapacityIsIncomplete() throws {
+        // The pinned recorder writes at most 94 uncaught-handler frames, with no truncation marker.
+        for (type, count, expected) in [("nsexception", 94, true), ("nsexception", 93, false), ("mach", 94, false)] {
+            let native = try XCTUnwrap(decode(record(type: type, frames: Array(repeating: frame(), count: count))).crash.native)
+            XCTAssertEqual(native.framesIncomplete, expected, "\(type) \(count)")
+        }
+        let origin = try decode(record(type: "nsexception", frames: Array(repeating: frame(), count: 94),
+                                       exceptionFrames: Array(repeating: frame(), count: 94)))
+        XCTAssertEqual(origin.crash.native?.framesIncomplete, false)
+    }
 }

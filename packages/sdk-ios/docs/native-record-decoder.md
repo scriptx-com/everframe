@@ -13,8 +13,10 @@ conversion can round them. Ignored vendor metadata may contain fractional number
 Only the unique crashed thread is used, except that NSException records normalize the
 exception's own backtrace (last_exception_backtrace) when it has frames: the uncaught
 handler's stack can already be unwound past the throw site. A malformed exception
-backtrace falls back to the handler stack and marks frames incomplete. The first 256
-input frames are considered.
+backtrace falls back to the handler stack and marks frames incomplete. The pinned
+recorder writes at most 94 handler frames with no truncation marker, so a handler
+stack of that size is also marked incomplete. The first 256 input frames are
+considered.
 Malformed frames/images and missing or ambiguous image matches remain explicitly
 incomplete. Unmatched instruction addresses remain available without guessed
 image associations. Process/system/memory/register metadata and exception

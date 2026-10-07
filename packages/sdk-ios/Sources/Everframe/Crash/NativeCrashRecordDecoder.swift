@@ -9,6 +9,11 @@ enum NativeCrashRecordDecoder {
         case inputLimit, collectionLimit, duplicateKey, malformed, unsupported, invalidIdentity, invalidTimestamp, crashedThread
     }
 
+    /// The pinned 3.9.0 recorder captures the uncaught-exception handler stack with backtrace() into
+    /// 97 slots (KSSC_CONTEXT_SIZE 100, less a two-word cursor header and one spare) and skips 3
+    /// recorder frames, so a full buffer yields 94 frames with no truncation marker.
+    private static let pinnedHandlerFrameCapacity = 94
+
     static func decode(_ data: Data, redact: (String) -> String) throws -> NativeCrashRecord {
         try NativeCrashJSONPreflight.validate(data)
         let vendor: NativeCrashVendorRecord
@@ -35,6 +40,9 @@ enum NativeCrashRecordDecoder {
         let backtrace = usesOrigin ? origin : thread.backtrace
         let originLost = fault.type == "nsexception" && !usesOrigin
             && (origin != nil || vendor.crash.lastExceptionBacktraceMalformed)
+        // A handler stack that filled the recorder's buffer may have lost its outer frames.
+        let handlerCapped = fault.type == "nsexception" && !usesOrigin
+            && (thread.backtrace?.contents.values.count ?? 0) >= pinnedHandlerFrameCapacity
         let rawType: String
         switch fault.type {
         case "mach":
@@ -90,7 +98,7 @@ enum NativeCrashRecordDecoder {
             machSubcode: fault.mach?.subcode.map { hex($0.value) },
             signalCode: fault.signal?.code.map(Int.init), signalNumber: fault.signal.map { Int($0.signal) })
         let native = EverframeNativeCrashMetadata(crashedThreadIndex: thread.index, error: error,
-            frames: nativeFrames, framesIncomplete: backtrace == nil || originLost
+            frames: nativeFrames, framesIncomplete: backtrace == nil || originLost || handlerCapped
                 || backtrace?.contents.incomplete == true || (backtrace?.skipped ?? 0) != 0,
             images: images, imagesIncomplete: imagesIncomplete, platform: .apple,
             timestampMicros: String(header.timestamp))
