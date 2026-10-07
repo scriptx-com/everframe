@@ -1,0 +1,28 @@
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_97602a0a2d8f20::t_74eda1569da74a 31
+packages/sdk-ios/Tests/NativeCrashRecoveryProof/main.swift
+  s_97602a0a2d8f20::t_e45b5436ddaf52 1-15,17-52
+  s_97602a0a2d8f20::t_cd08c3a7c6e66c 16
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_97602a0a2d8f20::t_49d421215914f7 136-146,174-184,193-203,213,417-419,427-428
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsPipelineTests.swift
+  s_97602a0a2d8f20::t_f6cc9db9a87b03 152-153
+packages/sdk-ios/Tests/EverframeTests/OutboxKeyBindingTests.swift
+  s_97602a0a2d8f20::t_74eda1569da74a 10-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c4abe67b3e2784944db915b55a59739eab9d3b00",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
