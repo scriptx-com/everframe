@@ -23,6 +23,15 @@ if mode == "terminal" {
     check(!EFCRSetEnabled(true), "failed install cannot enable")
     exit(0)
 }
+if mode == "background-install" {
+    check(EFCRProbeInstallOffMain(directory) == Int32(EFCRInstallWrongThread.rawValue), "install off the main thread")
+    check((try? FileManager.default.contentsOfDirectory(atPath: directory))?.isEmpty == true, "off-main install left no files")
+    check(EFCRInstall(directory) == EFCRInstallSuccess, "install on the main thread")
+    check(EFCRProbeEnableOffMain() == 0 && !EFCRIsEnabled(), "enable off the main thread")
+    check(EFCRSetEnabled(true) && EFCRIsEnabled(), "enable on the main thread")
+    check(EFCRSetEnabled(false), "final disable")
+    exit(0)
+}
 check(EFCRInstall(nil) == EFCRInstallInvalidDirectory, "nil path is recoverable validation failure")
 check(EFCRInstall(directory) == EFCRInstallSuccess, "install")
 check(!EFCRIsEnabled(), "installation returns disabled")

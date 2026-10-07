@@ -8,3 +8,5 @@ void EFCRProbeStackOverflow(void);
 int EFCRProbePoisonVendor(const char *directory);
 int EFCRProbeGate(void);
 void EFCRProbeSetGate(bool open);
+int EFCRProbeInstallOffMain(const char *directory);
+int EFCRProbeEnableOffMain(void);

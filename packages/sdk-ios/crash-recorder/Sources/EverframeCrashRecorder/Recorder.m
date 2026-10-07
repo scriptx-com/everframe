@@ -61,6 +61,8 @@ static bool protectDirectory(const char *path) {
 }
 
 EFCRInstallResult EFCRInstall(const char *runDirectory) {
+    // Vendor monitors call UIKit while installing; the signal stack is the caller's own.
+    if (pthread_main_np() != 1) return EFCRInstallWrongThread;
     pthread_mutex_lock(&installLock);
     EFCRInstallResult result;
     char canonical[PATH_MAX];
@@ -95,6 +97,7 @@ EFCRInstallResult EFCRInstall(const char *runDirectory) {
 }
 
 bool EFCRSetEnabled(bool enabled) {
+    if (pthread_main_np() != 1) return false;
     pthread_mutex_lock(&installLock);
     bool success = installed;
     if (installed && enabled != efcr_gateGet()) {

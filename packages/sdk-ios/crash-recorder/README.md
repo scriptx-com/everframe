@@ -23,8 +23,13 @@ reserved directory concurrently. Validation failures permit a corrected attempt;
 entering the vendor installer is terminal, even on failure. A successful install
 returns with recording disabled. Call `EFCRSetEnabled(true)` explicitly.
 
-Installation and enable/disable calls are serialized and run only on healthy
-threads. Disabling closes a lock-free report gate before changing monitors.
+Installation and enable/disable calls are serialized and must run on the main thread
+after UIApplicationMain has started, for example from
+`application(_:didFinishLaunchingWithOptions:)`: installing and enabling reach UIKit
+through the vendor monitors, and the signal alternate stack is set for the calling
+thread. Other threads get a recoverable `EFCRInstallWrongThread`, or `false` from
+`EFCRSetEnabled`. Callers on another thread, such as the React Native JavaScript
+thread, must hop to the main thread asynchronously; a synchronous hop can deadlock. Disabling closes a lock-free report gate before changing monitors.
 A fatal handler that already passed the gate may finish writing. Underlying
 vendor tracker singletons can retain process-lifetime resources; disabled does
 not mean every infrastructure object is destroyed. After a successful install,
@@ -89,10 +94,10 @@ upstream checkout checks the packaged manifest and resource integrity. Supplying
 the manifest alone is not a cryptographic attestation.
 
 `Tests/run-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
-runs42 fresh processes with25-second deadlines and child-only core-dump disabling.
+runs43 fresh processes with25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, including real 449- and 450-byte run
-directories at the path bound and a Foundation-style `/tmp` alias, initial disabled
-state, repeated/failed
+directories at the path bound and a Foundation-style `/tmp` alias, off-main-thread
+calls, initial disabled state, repeated/failed
 installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
 monitor can record, disable/re-enable and rapid runs. Two modes move one control at a
 time: a closed report gate with enabled monitors, and an open gate with the monitors

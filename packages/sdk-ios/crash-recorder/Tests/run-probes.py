@@ -144,6 +144,7 @@ def run_probes(binary, evidence):
     run('private-alias', 'state', str(alias_root)[len('/private'):], directory('private-alias-replacement'))
     require(list(alias_root.glob('RunSidecars/*/System.ksscr')), 'alias install did not use the canonical directory')
     shutil.move(str(alias_root), str(evidence / 'private-alias'))
+    run('background-install', 'background-install', directory('background-install'))
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
     for fault in ['leaf', 'overflow']:
         run(f'enabled-{fault}', 'enabled', directory(f'enabled-{fault}'), fault, fatal=True, count=1)

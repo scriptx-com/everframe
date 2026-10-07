@@ -5,7 +5,9 @@
 #include "KSCrashCConfiguration.h"
 #include "KSCrashMonitor.h"
 #include "RecorderGate.h"
+#include "EverframeCrashRecorder.h"
 #import <Foundation/Foundation.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
 void EFCRProbeObjCException(void) {
@@ -66,3 +68,13 @@ int EFCRProbeGate(void) {
 }
 // Moves only the report gate, leaving the vendor monitors as they are.
 void EFCRProbeSetGate(bool open) { efcr_gateSet(open); }
+static void *installOffMain(void *directory) { return (void *)(intptr_t)EFCRInstall(directory); }
+static void *enableOffMain(void *unused) { (void)unused; return (void *)(intptr_t)EFCRSetEnabled(true); }
+static int onBackgroundThread(void *(*body)(void *), void *argument) {
+    pthread_t thread;
+    void *result = NULL;
+    if (pthread_create(&thread, NULL, body, argument) != 0 || pthread_join(thread, &result) != 0) return -1;
+    return (int)(intptr_t)result;
+}
+int EFCRProbeInstallOffMain(const char *directory) { return onBackgroundThread(installOffMain, (void *)directory); }
+int EFCRProbeEnableOffMain(void) { return onBackgroundThread(enableOffMain, NULL); }
