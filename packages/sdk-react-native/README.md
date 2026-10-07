@@ -153,11 +153,12 @@ browser SDK's own error handling.
 
 ### React error boundary callback
 
-An existing React class boundary can opt into handled capture after the
-`EverframeProvider` has mounted:
+An existing React class boundary can opt into handled capture. Render the
+boundary inside `EverframeProvider`:
 
 ```tsx
 import * as React from 'react';
+import { EverframeProvider } from '@everframe/react-native';
 import { captureReactError } from '@everframe/react-native/integrations/react';
 
 class Boundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
@@ -168,14 +169,31 @@ class Boundary extends React.Component<React.PropsWithChildren, { failed: boolea
   }
   render() { return this.state.failed ? null : this.props.children; }
 }
+
+export default function App() {
+  return (
+    <EverframeProvider config={{ apiKey: '…' }}>
+      <Boundary>
+        <RootNavigator />
+      </Boundary>
+    </EverframeProvider>
+  );
+}
 ```
+
+A boundary that wraps `EverframeProvider` never reports: when it switches to its
+fallback, React unmounts the provider in the same commit, before
+`componentDidCatch` runs. Errors caught during the provider's first commit (the
+initial render that also mounts the provider) are not captured either, even when
+the boundary is inside it, and they are not replayed. Disabled crash reporting
+and calls after unmount are also inert. In development builds, a call that finds
+no mounted provider logs a warning, at most once until a provider mounts or
+unmounts.
 
 The application owns fallback and recovery UI. This callback reports caught
 component errors; it does not install global renderer hooks or capture arbitrary
-async/event-handler errors. An initial render failure before the provider mounts
-is inert and is not replayed. Disabled crash reporting and unmounted calls are
-also inert. Component-stack metadata is bounded and redacted by the existing
-capture pipeline, without replacing exception frames or cause data.
+async/event-handler errors. Component-stack metadata is bounded and redacted by
+the existing capture pipeline, without replacing exception frames or cause data.
 
 The original error shares accepted identity with manual and nonfatal automatic
 capture within a mount. Native refusal permits recapture; equal fingerprint keys
