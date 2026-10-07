@@ -54,6 +54,20 @@ export function transform(path, original) {
       '    // Everframe: leave the host battery monitoring setting unchanged.\n', 'unexpected battery monitoring patch input');
     changes.push('never change the host battery monitoring setting');
   }
+  if (path.endsWith('/KSCrashReportC.c')) {
+    original = replaceOnce(original, '        uint8_t stackBuffer[kStackContentsTotalDistance * sizeof(sp)];\n' +
+      '        int copyLength = (int)(highAddress - lowAddress);\n' +
+      '        if (ksmem_copySafely((void *)lowAddress, stackBuffer, copyLength)) {\n' +
+      '            writer->addDataElement(writer, KSCrashField_Contents, (void *)stackBuffer, copyLength);\n' +
+      '        } else {\n' +
+      '            writer->addStringElement(writer, KSCrashField_Error, "Stack contents not accessible");\n' +
+      '        }\n',
+      '        // Everframe: never copy raw stack memory into reports.\n', 'unexpected report memory patch input');
+    original = replaceOnce(original, '        if (ksmc_canHaveCPUState(machineContext)) {\n            writeRegisters(',
+      '        // Everframe: keep register state for the crashed thread only.\n' +
+      '        if (isCrashedThread && ksmc_canHaveCPUState(machineContext)) {\n            writeRegisters(', 'unexpected report memory patch input');
+    changes.push('omit raw stack contents and registers of threads that did not crash');
+  }
   if (path.endsWith('.xcprivacy')) {
     return original.replace(/(<\?xml[^>]+\?>\s*)/, `$1<!-- SPDX-License-Identifier: ${license}\nModified by ScriptX on 2026-10-07: ${changes.join('; ')}. Original notices retained. -->\n`);
   }

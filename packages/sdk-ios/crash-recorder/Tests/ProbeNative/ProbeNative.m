@@ -11,7 +11,12 @@
 void EFCRProbeObjCException(void) {
     @throw [NSException exceptionWithName:@"EFCRQualification" reason:@"synthetic fatal exception" userInfo:@{@"sensitive":@"EFCR_USERINFO_SECRET_91a73f"}];
 }
+__attribute__((noinline)) static void EFCRProbeKeep(volatile uint8_t *bytes) { __asm__ volatile("" : : "r"(bytes) : "memory"); }
 void EFCRProbeMemoryFault(void) {
+    // Stack canary in the faulting frame; run-probes.py requires it absent from persisted files.
+    volatile uint8_t marker[16];
+    for (int i = 0; i < 16; i++) marker[i] = (uint8_t)(0x5A + 37 * i);
+    EFCRProbeKeep(marker);
     void *page = mmap(NULL, (size_t)getpagesize(), PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
     if (page == MAP_FAILED) _exit(77);
     *(volatile char *)page = 1;

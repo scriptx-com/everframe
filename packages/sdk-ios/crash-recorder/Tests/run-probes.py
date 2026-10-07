@@ -10,6 +10,9 @@ import resource
 import subprocess
 import uuid
 
+# Stack canary written by EFCRProbeMemoryFault; neither its bytes nor their hex form may persist.
+STACK_MARKER = bytes((0x5A + 37 * i) & 0xFF for i in range(16))
+
 
 def child_limits():
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -48,7 +51,10 @@ def run_probes(binary, evidence):
         if mode != 'invalid' and Path(path).is_dir():
             for persisted in Path(path).rglob('*'):
                 if persisted.is_file():
-                    assert b'EFCR_USERINFO_SECRET_91a73f' not in persisted.read_bytes(), f'userInfo leaked into {persisted}'
+                    data = persisted.read_bytes()
+                    assert b'EFCR_USERINFO_SECRET_91a73f' not in data, f'userInfo leaked into {persisted}'
+                    assert STACK_MARKER not in data and STACK_MARKER.hex().upper().encode() not in data, \
+                        f'raw stack memory leaked into {persisted}'
         if extra == 'objc' and count:
             parsed = json.loads((evidence / reports[0]['path']).read_bytes())
             assert parsed['crash']['error']['nsexception']['name'] == 'EFCRQualification'

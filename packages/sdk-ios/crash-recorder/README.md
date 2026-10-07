@@ -37,8 +37,13 @@ exceptions, including tested Swift traps. Watchdog/termination/CPU reporting,
 C++ interception, memory introspection, queue-name lookup, exception userInfo and console attachments
 are not enabled. Required upstream infrastructure can still write sidecar context.
 
-Raw reports remain local and can contain exception messages, stack/image addresses
-and system details. The wrapper sets backup exclusion and mobile
+Raw reports remain local. A report holds the exception type, name and reason, the
+crashed thread's register values, every thread's backtrace addresses with on-device
+symbol names, thread names and run states, and binary image paths, UUIDs and load
+addresses. System, resource and lifecycle details live in run sidecars. No raw stack
+memory is copied, and register state is kept for the crashed thread only; those
+registers can still hold small fragments of application data, such as short strings.
+The wrapper sets backup exclusion and mobile
 complete-until-first-user-authentication protection on the run root; the patched
 sidecar writer preserves that protection class. Children remain inside the0700
 parent, without changing process-wide umask. Actual before-first-unlock and locked
@@ -79,6 +84,7 @@ the manifest alone is not a cryptographic attestation.
 runs25 fresh processes with25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, initial disabled state, repeated/failed
 installation, Swift/Objective-C/memory faults, disable/re-enable and rapid runs.
-Every output and raw report is retained. `Tests/DualProbe/main.m` supports full-object
+Every persisted file is scanned for the exception userInfo sentinel and for a stack
+canary written in the faulting frame. Every output and raw report is retained. `Tests/DualProbe/main.m` supports full-object
 link and fatal-chain qualification alongside ordinary upstream recording objects.
 Test helpers are not part of the library product.

@@ -88,3 +88,11 @@ test('resource monitor never changes the host battery monitoring setting', async
   for (const source of await packaged(t,path)) assert.doesNotMatch(source,/batteryMonitoringEnabled\s*=/);
   assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/battery/);
 });
+test('reports copy no raw stack memory and keep registers for the crashed thread only', async t => {
+  const path='KSCrashRecording/KSCrashReportC.c';
+  for (const source of await packaged(t,path)) {
+    assert.doesNotMatch(source,/stackBuffer|KSCrashField_Contents, \(void \*\)/);
+    assert.match(source,/if \(isCrashedThread && ksmc_canHaveCPUState\(machineContext\)\) \{\n\s+writeRegisters\(/);
+  }
+  assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/report memory/);
+});

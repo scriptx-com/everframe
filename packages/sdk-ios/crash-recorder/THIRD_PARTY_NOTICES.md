@@ -23,7 +23,8 @@ NSException metadata collection is also removed: the owned monitor neither reads
 nor formats `exception.userInfo`, and records NULL for that field.
 The Resource monitor in KSCrashMonitor_Resource.m no longer enables or disables
 UIDevice battery monitoring; it records battery state only while the host
-application enables monitoring.
+application enables monitoring. KSCrashReportC.c copies no raw stack contents into
+reports and writes register state for the crashed thread only.
 The historical upstream helper name still says “NoFileProtection”; the modified
 implementation preserves the component's mobile protection policy.
 
