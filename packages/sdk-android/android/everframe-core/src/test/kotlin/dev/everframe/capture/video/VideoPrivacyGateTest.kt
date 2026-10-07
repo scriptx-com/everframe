@@ -156,6 +156,29 @@ class VideoPrivacyGateTest {
         } finally { a.finish() }
     }
 
+    private fun historyEntries(view: View): Int {
+        val views = VideoSensitiveViews::class.java.getDeclaredField("views").apply { isAccessible = true }.get(null) as List<*>
+        return views.count { entry ->
+            val reference = entry!!.javaClass.getDeclaredField("reference").apply { isAccessible = true }.get(entry)
+            (reference as java.lang.ref.WeakReference<*>).get() === view
+        }
+    }
+
+    @Test fun refusedComposeHostIsRememberedOnceAcrossFrames() {
+        val a = Robolectric.buildActivity(androidx.activity.ComponentActivity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
+        val compose = Class.forName("androidx.compose.ui.platform.AndroidComposeView")
+            .getConstructor(android.content.Context::class.java, kotlin.coroutines.CoroutineContext::class.java)
+            .newInstance(a, kotlin.coroutines.EmptyCoroutineContext) as View
+        root.addView(compose, FrameLayout.LayoutParams(100,100)); compose.layout(0,0,100,100)
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            repeat(50) { assertFalse(gate.observe(root).allowed) }
+            // An entry per refused frame would fill the 2,048-entry history, which disables video until restart.
+            assertEquals(1, historyEntries(compose))
+        } finally { root.removeView(compose); a.finish() }
+    }
+
     @Test fun unknownTypeAncestryFailsClosedAndCanBeRetried() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)

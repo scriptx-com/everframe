@@ -103,7 +103,8 @@ internal class VideoPrivacyGate(
             if (types.composeHost) {
                 val inspection = composeInspector?.invoke(view, start + 2_000_000L, 2048 - visited - queue.size)
                 if (inspection?.first != VideoPrivacyAdapter.Classification.ORDINARY_VIEW) {
-                    VideoSensitiveViews.rememberObserved(view)
+                    // History masks it and the walk reaches it again on every frame: deduplicate.
+                    VideoSensitiveViews.remember(view)
                     allowed = false; break
                 }
                 visited += inspection.second
