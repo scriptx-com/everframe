@@ -3,17 +3,24 @@
 
 package dev.everframe.capture.video
 
+import android.animation.LayoutTransition
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.SurfaceTexture
 import android.os.Build
 import android.os.SystemClock
 import android.text.InputType
+import android.view.Gravity
+import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.TranslateAnimation
 import android.webkit.WebView
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -22,6 +29,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.everframe.R
@@ -36,7 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class VideoPrivacyFixtureActivity : ComponentActivity()
 
-/** Runs real PixelCopy and native Views. No encoder receives excluded pixels. */
+/** Runs real PixelCopy and native Views. No encoder receives refused frames or unmasked sensitive pixels. */
 class VideoPrivacyInstrumentedTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private fun fixture(block: (ActivityScenario<VideoPrivacyFixtureActivity>, VideoPrivacyFixtureActivity, FrameLayout) -> Unit) {
@@ -74,34 +83,164 @@ class VideoPrivacyInstrumentedTest {
         }
         fail("capture lease was not released: ${diagnostics()}")
     }
-    private fun excluded(install: (VideoPrivacyFixtureActivity, FrameLayout) -> Unit) = fixture { scenario, activity, root ->
+    private fun refused(install: (VideoPrivacyFixtureActivity, FrameLayout) -> Unit) = fixture { scenario, activity, root ->
         scenario.onActivity { install(it,root) }
         val admissions = AtomicInteger()
         val recorder = capture(activity)
-        assertTrue(recorder.request(VideoOwner("device","excluded"),VideoSize(480,854)) {
+        assertTrue(recorder.request(VideoOwner("device","refused"),VideoSize(480,854)) {
             admissions.incrementAndGet(); it.close()
         })
         waitReleased()
         assertEquals("unsafe pixels reached encoder spy",0,admissions.get())
         recorder.cancel()
     }
-    @Test fun markedOverlayAndDisappearingViewsRemainExcluded() {
-        excluded { a, root ->
-            val child = Shapes(a); root.addView(child)
-            dev.everframe.Everframe.markSensitive(child)
-            root.overlay.add(child)
-            assertTrue("overlay view stays attached", child.isAttachedToWindow)
-        }
-        excluded { a, root ->
-            val child = Shapes(a); root.addView(child)
-            dev.everframe.Everframe.markSensitive(child)
-            root.startViewTransition(child); root.removeView(child)
-            assertTrue("transition view stays attached", child.isAttachedToWindow)
-        }
+    /** Sensitive fixtures draw this; it never appears in the base Shapes canvas. */
+    private val secret = Color.MAGENTA
+    // Matches magenta also where scaling or a fade blends it with white.
+    private fun isSecret(pixel: Int) = Color.red(pixel) > 150 && Color.blue(pixel) > 150 &&
+        Color.green(pixel) < minOf(Color.red(pixel), Color.blue(pixel)) - 60
+    private fun swatch(context: android.content.Context) = View(context).apply { setBackgroundColor(secret) }
+    /** Bottom-left, clear of the base Shapes' red rectangle, blue circle and text. */
+    private fun bottomLeft() = FrameLayout.LayoutParams(400, 200, Gravity.BOTTOM or Gravity.START)
+
+    /** Runs [inspect] on the worker with the first admitted frame, within bounded attempts at most 5 fps. */
+    private fun firstAdmittedFrame(
+        scenario: ActivityScenario<VideoPrivacyFixtureActivity>, activity: VideoPrivacyFixtureActivity, inspect: (Bitmap) -> Unit,
+    ) {
+        val native = AndroidVideoCapturePlatform({ activity })
+        val readiness = awaitNativeReadiness(scenario,native)
+        val diagnostics = CaptureDiagnostics(native)
+        val recorder = PixelCopyVideoCapture(diagnostics, AndroidVideoCaptureScheduler)
+        val attempts = mutableListOf<String>()
+        val entered = java.util.concurrent.atomic.AtomicBoolean(false)
+        val done = CountDownLatch(1)
+        val workerFailure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val deadline = SystemClock.uptimeMillis() + 6000
+        try {
+            for (attempt in 1..6) {
+                if (SystemClock.uptimeMillis() >= deadline) break
+                val started = SystemClock.uptimeMillis()
+                assertTrue("attempt $attempt could not reserve released lease: ${diagnostics.summary()}",
+                    recorder.request(VideoOwner("device","admitted-$attempt"),VideoSize(480,854)) { frame ->
+                        entered.set(true)
+                        try { assertTrue("admitted frame lost authorization", frame.withPixels(inspect)) }
+                        catch (failure: Throwable) { workerFailure.set(failure) }
+                        finally { frame.close(); done.countDown() }
+                    })
+                waitReleased({ "attempt=$attempt ${diagnostics.summary()}; readiness=$readiness" },
+                    (deadline-SystemClock.uptimeMillis()).coerceIn(1,2500))
+                attempts.add("attempt=$attempt ${diagnostics.summary()}")
+                if (entered.get()) {
+                    assertTrue("admitted worker did not finish",done.await(250,TimeUnit.MILLISECONDS))
+                    workerFailure.get()?.let { throw AssertionError("admitted frame check failed",it) }
+                    return
+                }
+                val pause = (200-(SystemClock.uptimeMillis()-started)).coerceAtLeast(0)
+                if (pause > 0) SystemClock.sleep(pause)
+            }
+            fail("no admitted native frame after bounded attempts: ${attempts.joinToString("; ")}; readiness=$readiness")
+        } finally { recorder.cancel() }
     }
-    @Test fun previouslyObservedInputMovedToOverlayRemainsExcluded() = excluded { a, root ->
+
+    /**
+     * The frame is recorded with the sensitive view painted black: no admitted pixel shows
+     * [secret], its window region is black in the downscaled frame, and the base Shapes
+     * elsewhere are still recorded.
+     */
+    private fun masked(ready: () -> Unit = {}, install: (VideoPrivacyFixtureActivity, FrameLayout) -> View) = fixture { scenario, activity, root ->
+        lateinit var sensitive: View
+        scenario.onActivity {
+            // A software keyboard would pan the window, which refuses masked frames.
+            it.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            sensitive = install(it,root)
+        }
+        ready()
+        val region = Rect()
+        var window = 0 to 0
+        val laidOut = SystemClock.uptimeMillis() + 3000
+        while (region.isEmpty && SystemClock.uptimeMillis() < laidOut) {
+            scenario.onActivity {
+                val origin = IntArray(2).also { sensitive.getLocationInWindow(it) }
+                region.set(origin[0], origin[1], origin[0] + sensitive.width, origin[1] + sensitive.height)
+                window = it.window.decorView.width to it.window.decorView.height
+            }
+            if (region.isEmpty) SystemClock.sleep(20)
+        }
+        assertFalse("sensitive fixture must be laid out", region.isEmpty)
+        val counts = IntArray(4)
+        firstAdmittedFrame(scenario, activity) { bitmap ->
+            val pixels = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+            for (pixel in pixels) {
+                if (isSecret(pixel)) counts[0]++
+                if (pixel == Color.RED) counts[1]++
+                if (pixel == Color.BLUE) counts[2]++
+            }
+            // Masks are padded and rounded outwards, so the scaled interior is black throughout.
+            val sx = bitmap.width.toFloat() / window.first
+            val sy = bitmap.height.toFloat() / window.second
+            for (y in kotlin.math.ceil(region.top * sy).toInt() + 1 until kotlin.math.floor(region.bottom * sy).toInt() - 1) {
+                for (x in kotlin.math.ceil(region.left * sx).toInt() + 1 until kotlin.math.floor(region.right * sx).toInt() - 1) {
+                    if (x in 0 until bitmap.width && y in 0 until bitmap.height && bitmap.getPixel(x, y) != Color.BLACK) counts[3]++
+                }
+            }
+        }
+        assertEquals("sensitive pixels reached the encoder", 0, counts[0])
+        assertEquals("sensitive region is not black", 0, counts[3])
+        assertTrue("red rectangle elsewhere missing", counts[1] > 100)
+        assertTrue("blue circle elsewhere missing", counts[2] > 100)
+    }
+
+    /** Requests frames at about 5 fps for [durationMs]; fails if an admitted frame shows [secret]. */
+    private fun neverShowsSecret(activity: VideoPrivacyFixtureActivity, durationMs: Long): Int {
+        val recorder = capture(activity)
+        val admitted = AtomicInteger()
+        val leaked = AtomicInteger()
+        val deadline = SystemClock.uptimeMillis() + durationMs
+        var attempt = 0
+        try {
+            while (SystemClock.uptimeMillis() < deadline) {
+                val started = SystemClock.uptimeMillis()
+                attempt++
+                val requested = recorder.request(VideoOwner("device","watch-$attempt"),VideoSize(480,854)) { frame ->
+                    try {
+                        frame.withPixels { bitmap ->
+                            admitted.incrementAndGet()
+                            val pixels = IntArray(bitmap.width * bitmap.height)
+                            bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+                            if (pixels.any { isSecret(it) }) leaked.incrementAndGet()
+                        }
+                    } finally { frame.close() }
+                }
+                if (requested) waitReleased({ "attempt=$attempt" })
+                val pause = (200-(SystemClock.uptimeMillis()-started)).coerceAtLeast(0)
+                if (pause > 0) SystemClock.sleep(pause)
+            }
+        } finally { recorder.cancel() }
+        assertEquals("sensitive pixels reached the encoder in ${admitted.get()} admitted frames", 0, leaked.get())
+        return admitted.get()
+    }
+    @Test fun markedOverlayViewRemainsExcluded() = refused { a, root ->
+        val child = Shapes(a); root.addView(child)
+        dev.everframe.Everframe.markSensitive(child)
+        root.overlay.add(child)
+        assertTrue("overlay view stays attached", child.isAttachedToWindow)
+    }
+    @Test fun markedRemovalTransitionViewIsMaskedFromHistory() = masked { a, root ->
+        val child = swatch(a); root.addView(child, bottomLeft())
+        dev.everframe.Everframe.markSensitive(child)
+        // Removed before any traversal lays it out: give the retained view its drawn bounds.
+        child.layout(0, root.height - 200, 400, root.height)
+        root.startViewTransition(child); root.removeView(child)
+        assertTrue("transition view stays attached", child.isAttachedToWindow)
+        assertEquals(-1, root.indexOfChild(child))
+        child
+    }
+    @Test fun previouslyObservedInputMovedToOverlayRemainsExcluded() = refused { a, root ->
         val input = EditText(a); root.addView(input)
-        assertFalse(VideoPrivacyGate({ a }, { 0L }, { true }).observe(root).allowed)
+        val seen = VideoPrivacyGate({ a }, { 0L }, { true }).observe(root)
+        assertTrue("an input in the tree is masked, not refused", seen.allowed && seen.masks.isNotEmpty())
         root.overlay.add(input)
         assertTrue(input.isAttachedToWindow)
     }
@@ -116,26 +255,126 @@ class VideoPrivacyInstrumentedTest {
             root.overlay.remove(input)
         }
     }
-    @Test fun nativeTagsIncludingPreAttachmentCustomViewExcludePixels() = excluded { a,r ->
-        r.addView(Shapes(a).apply { setTag(R.id.tx_sensitive,true) })
+    @Test fun nativeTagsIncludingPreAttachmentCustomViewMaskPixels() = masked { a,r ->
+        swatch(a).apply { setTag(R.id.tx_sensitive,true) }.also { r.addView(it, bottomLeft()) }
     }
-    @Test fun sensitiveContainerExcludesPixels() = excluded { a,r -> r.addView(TXSensitiveView(a)) }
-    @Test fun textInputExcludesPixels() = excluded { a,r -> r.addView(EditText(a).apply { setText("private") }) }
-    @Test fun passwordInputExcludesPixels() = excluded { a,r ->
-        r.addView(EditText(a).apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setText("secret") })
+    @Test fun sensitiveContainerMasksPixels() = masked { a,r ->
+        TXSensitiveView(a).apply { setBackgroundColor(secret) }.also { r.addView(it, bottomLeft()) }
     }
-    @Test fun secureWindowExcludesPixels() = excluded { a,_ -> a.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) }
-    @Test fun unknownNativeMarkerExcludesPixels() = excluded { a,r -> r.addView(View(a).apply { setTag(R.id.tx_sensitive,"unknown") }) }
-    @Test fun movingOffscreenSensitiveChildExcludesPixels() = excluded { a,r ->
-        r.addView(Shapes(a).apply {
-            setTag(R.id.tx_sensitive,true); translationX = 10000f
-            animate().translationX(0f).setDuration(500).start()
-        })
+    @Test fun textInputMasksPixels() = masked { a,r ->
+        EditText(a).apply { setBackgroundColor(secret); setTextColor(secret); setText("private") }.also { r.addView(it, bottomLeft()) }
     }
-    @Test fun webViewExcludesPixels() = excluded { a,r -> r.addView(WebView(a), FrameLayout.LayoutParams(100,100)) }
-    @Test fun textureViewExcludesPixels() = excluded { a,r -> r.addView(TextureView(a)) }
-    @Test fun surfaceViewExcludesPixels() = excluded { a,r -> r.addView(SurfaceView(a)) }
-    @Test fun composePasswordSemanticsFailClosed() = excluded { a,r ->
+    @Test fun passwordInputMasksPixels() = masked { a,r ->
+        EditText(a).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setBackgroundColor(secret); setTextColor(secret); setText("secret")
+        }.also { r.addView(it, bottomLeft()) }
+    }
+    @Test fun secureWindowExcludesPixels() = refused { a,_ -> a.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+    @Test fun unknownNativeMarkerMasksPixels() = masked { a,r ->
+        swatch(a).apply { setTag(R.id.tx_sensitive,"unknown") }.also { r.addView(it, bottomLeft()) }
+    }
+    @Test fun sensitiveChildSlidingOnScreenIsNeverRecordedUnmasked() = fixture { scenario, activity, root ->
+        scenario.onActivity { a ->
+            root.addView(swatch(a).apply {
+                setTag(R.id.tx_sensitive,true); translationX = 10000f
+                animate().translationX(0f).setDuration(500).start()
+            }, bottomLeft())
+        }
+        neverShowsSecret(activity, 1500)
+    }
+    @Test fun tweenOnAncestorOfMaskedViewIsNeverRecordedUnmasked() = fixture { scenario, activity, root ->
+        scenario.onActivity { a ->
+            val holder = FrameLayout(a)
+            holder.addView(swatch(a).apply { setTag(R.id.tx_sensitive,true) }, FrameLayout.LayoutParams(400, 200))
+            root.addView(holder, bottomLeft())
+            // Applied while drawing, so the view's layout and getMatrix() never move.
+            holder.startAnimation(TranslateAnimation(0f, 300f, 0f, 0f).apply { duration = 1000 })
+        }
+        neverShowsSecret(activity, 1500)
+    }
+    @Test fun layoutTransitionFadingOutMaskedViewIsNeverRecordedUnmasked() = fixture { scenario, activity, root ->
+        lateinit var row: View
+        scenario.onActivity { a ->
+            val container = FrameLayout(a).apply { layoutTransition = LayoutTransition() }
+            row = swatch(a).apply { setTag(R.id.tx_sensitive,true) }
+            container.addView(row, FrameLayout.LayoutParams(400, 200))
+            root.addView(container, bottomLeft())
+        }
+        SystemClock.sleep(800) // Let the appearing transition finish.
+        // GONE under a running layout transition still fades out on screen.
+        scenario.onActivity { row.visibility = View.GONE }
+        neverShowsSecret(activity, 1000)
+    }
+    @Test fun keyboardPannedWindowNeverRecordsTheFocusedFieldUnmasked() = fixture { scenario, activity, root ->
+        lateinit var input: EditText
+        scenario.onActivity { a ->
+            a.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
+            input = EditText(a).apply { setBackgroundColor(secret); setTextColor(secret); setText("4111 1111 1111 1111") }
+            root.addView(input, FrameLayout.LayoutParams(-1, 200, Gravity.BOTTOM))
+        }
+        scenario.onActivity { a ->
+            input.requestFocus()
+            WindowCompat.getInsetsController(a.window, input).show(WindowInsetsCompat.Type.ime())
+        }
+        var panned = false
+        val deadline = SystemClock.uptimeMillis() + 3000
+        while (!panned && SystemClock.uptimeMillis() < deadline) {
+            scenario.onActivity { a ->
+                val origin = IntArray(2).also { a.window.decorView.getLocationInWindow(it) }
+                panned = origin[1] != 0
+            }
+            if (!panned) SystemClock.sleep(50)
+        }
+        assumeTrue("no software keyboard panned the window", panned)
+        try { neverShowsSecret(activity, 1000) }
+        finally { scenario.onActivity { a -> WindowCompat.getInsetsController(a.window, input).hide(WindowInsetsCompat.Type.ime()) } }
+    }
+    @Test fun webViewExcludesPixels() = refused { a,r -> r.addView(WebView(a), FrameLayout.LayoutParams(100,100)) }
+    @Test fun textureViewMasksPixels() {
+        val drawn = CountDownLatch(1)
+        masked({ assertTrue("texture never drawn", drawn.await(3, TimeUnit.SECONDS)) }) { a,r ->
+            TextureView(a).apply {
+                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                    override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
+                        lockCanvas()?.let { it.drawColor(secret); unlockCanvasAndPost(it); drawn.countDown() }
+                    }
+                    override fun onSurfaceTextureSizeChanged(texture: SurfaceTexture, width: Int, height: Int) = Unit
+                    override fun onSurfaceTextureDestroyed(texture: SurfaceTexture) = true
+                    override fun onSurfaceTextureUpdated(texture: SurfaceTexture) = Unit
+                }
+            }.also { r.addView(it, bottomLeft()) }
+        }
+    }
+    @Test fun surfaceViewContentIsAbsentButViewsAboveItAreRecorded() = fixture { scenario, activity, root ->
+        val drawn = CountDownLatch(1)
+        scenario.onActivity { a ->
+            val surface = SurfaceView(a)
+            surface.holder.addCallback(object : SurfaceHolder.Callback {
+                override fun surfaceCreated(holder: SurfaceHolder) {
+                    holder.lockCanvas()?.let { it.drawColor(secret); holder.unlockCanvasAndPost(it); drawn.countDown() }
+                }
+                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+                override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+            })
+            root.addView(surface, bottomLeft())
+            // Subtitles or player controls drawn above the video live in the window itself.
+            root.addView(View(a).apply { setBackgroundColor(Color.CYAN) }, FrameLayout.LayoutParams(100, 50, Gravity.BOTTOM or Gravity.START))
+        }
+        assertTrue("surface never drawn", drawn.await(3, TimeUnit.SECONDS))
+        val counts = IntArray(2)
+        firstAdmittedFrame(scenario, activity) { bitmap ->
+            val pixels = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+            for (pixel in pixels) {
+                if (isSecret(pixel)) counts[0]++
+                if (pixel == Color.CYAN) counts[1]++
+            }
+        }
+        assertEquals("SurfaceView content is never part of a window copy", 0, counts[0])
+        assertTrue("a view drawn above the surface is recorded", counts[1] > 20)
+    }
+    @Test fun composePasswordSemanticsFailClosed() = refused { a,r ->
         r.addView(ComposeView(a).apply { setContent {
             val value = mutableStateOf("private")
             BasicTextField(value.value, { value.value = it }, visualTransformation = PasswordVisualTransformation())
@@ -193,7 +432,8 @@ class VideoPrivacyInstrumentedTest {
     /** Test-only counters contain no pixels or window tokens and retain one observation. */
     private class CaptureDiagnostics(private val native: VideoCapturePlatform) : VideoCapturePlatform by native {
         val observations = AtomicInteger()
-        val sawUnsafe = java.util.concurrent.atomic.AtomicBoolean(false)
+        // A refusal or a mask: the frame needed privacy handling.
+        val sawSensitive = java.util.concurrent.atomic.AtomicBoolean(false)
         val primaryCommits = AtomicInteger()
         val extraTraversals = AtomicInteger()
         val submissions = AtomicInteger()
@@ -204,7 +444,7 @@ class VideoPrivacyInstrumentedTest {
             val start = SystemClock.elapsedRealtimeNanos()
             return native.observe().also {
                 observations.incrementAndGet()
-                if (!it.allowed) sawUnsafe.set(true)
+                if (!it.allowed || it.masks.isNotEmpty()) sawSensitive.set(true)
                 lastObservation.set("allowed=${it.allowed} epoch=${it.epoch} size=${it.width}x${it.height} ns=${SystemClock.elapsedRealtimeNanos()-start}")
             }
         }
@@ -244,7 +484,7 @@ class VideoPrivacyInstrumentedTest {
             assertTrue("setup never reached native callback: ${diagnostics.summary()}; readiness=$readiness",received)
             assertTrue("native PixelCopy failed before the sensitive transition",success.get())
             assertEquals("fixture encountered an extra traversal before installing sensitivity",0,diagnostics.extraTraversals.get())
-            assertFalse("fixture was already unsafe before installing sensitivity",diagnostics.sawUnsafe.get())
+            assertFalse("fixture was already sensitive before installing sensitivity",diagnostics.sawSensitive.get())
             lateinit var child: View
             val drawn = CountDownLatch(1)
             scenario.onActivity {
@@ -258,7 +498,7 @@ class VideoPrivacyInstrumentedTest {
                 observer.addOnPreDrawListener(listener); root.invalidate()
             }
             assertTrue("sensitive child never reached a pre-draw",drawn.await(3,TimeUnit.SECONDS))
-            assertTrue("capture did not observe the sensitive pre-draw (it may have timed out)",diagnostics.sawUnsafe.get())
+            assertTrue("capture did not observe the sensitive pre-draw (it may have timed out)",diagnostics.sawSensitive.get())
             scenario.onActivity { root.removeView(child) }
             held.getAndSet(null)!!.invoke()
             waitReleased(); assertEquals(0,admissions.get())
@@ -324,7 +564,7 @@ class VideoPrivacyInstrumentedTest {
                 observer.addOnPreDrawListener(listener); root.invalidate()
             }
             assertTrue(drawn.await(3,TimeUnit.SECONDS))
-            assertTrue("visible WebView must revoke pending frame",diagnostics.sawUnsafe.get())
+            assertTrue("visible WebView must revoke pending frame",diagnostics.sawSensitive.get())
             scenario.onActivity { container.alpha = 0f }
             held.getAndSet(null)!!.invoke()
             waitReleased()
