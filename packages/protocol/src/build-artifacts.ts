@@ -64,15 +64,35 @@ export interface DsymManifestV4 {
   ];
 }
 
+export const ELF_ASSET_URL = "elf://android/library";
+export const ELF_MAX_BYTES = 64 * 1024 * 1024;
+
+/** Raw unstripped ELF file; image identity is derived from verified bytes by the server. */
+export interface ElfManifestV5 {
+  version: 5;
+  runtime: "android-native";
+  platform: "android";
+  buildId: string;
+  artifacts: [
+    {
+      url: typeof ELF_ASSET_URL;
+      mapSha256: string;
+      mapBytes: number;
+      generatedSha256?: never;
+    }
+  ];
+}
+
 export type SourceMapManifest =
   | SourceMapManifestV1
   | SourceMapManifestV2
   | R8MappingManifestV3
-  | DsymManifestV4;
-export type ArtifactKind = 'source_map' | 'r8' | 'dsym';
+  | DsymManifestV4
+  | ElfManifestV5;
+export type ArtifactKind = 'source_map' | 'r8' | 'dsym' | 'elf';
 
 export function artifactKind(manifest: SourceMapManifest): ArtifactKind {
-  return manifest.version === 4 ? 'dsym' : manifest.version === 3 ? 'r8' : 'source_map';
+  return manifest.version === 5 ? 'elf' : manifest.version === 4 ? 'dsym' : manifest.version === 3 ? 'r8' : 'source_map';
 }
 
 export interface BuildUploadStatus {
@@ -170,11 +190,32 @@ const ManifestV4Schema = z
   })
   .strict();
 
+const ManifestV5Schema = z
+  .object({
+    version: z.literal(5),
+    runtime: z.literal("android-native"),
+    platform: z.literal("android"),
+    buildId: z.string().length(68),
+    artifacts: z
+      .array(
+        z
+          .object({
+            url: z.literal(ELF_ASSET_URL),
+            mapSha256: Sha256Schema,
+            mapBytes: z.number().int().positive().max(ELF_MAX_BYTES),
+          })
+          .strict()
+      )
+      .length(1),
+  })
+  .strict();
+
 const ManifestSchema = z.discriminatedUnion('version', [
   ManifestV1Schema,
   ManifestV2Schema,
   ManifestV3Schema,
   ManifestV4Schema,
+  ManifestV5Schema,
 ]);
 
 type ManifestErrorCode =
@@ -278,6 +319,25 @@ export function parseManifest(input: unknown): SourceMapManifest {
   const result = ManifestSchema.safeParse(input);
   if (!result.success) {
     throw new SourceMapManifestError('invalid_manifest');
+  }
+
+  if (result.data.version === 5) {
+    const artifact = result.data.artifacts[0]!;
+    if (result.data.buildId !== "elf:" + artifact.mapSha256)
+      throw new SourceMapManifestError("invalid_manifest");
+    return {
+      version: 5,
+      runtime: "android-native",
+      platform: "android",
+      buildId: result.data.buildId,
+      artifacts: [
+        {
+          url: ELF_ASSET_URL,
+          mapSha256: artifact.mapSha256,
+          mapBytes: artifact.mapBytes,
+        },
+      ],
+    };
   }
 
   if (result.data.version === 4) {
