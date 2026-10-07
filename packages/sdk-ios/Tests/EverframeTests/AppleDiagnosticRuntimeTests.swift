@@ -144,19 +144,23 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
             hangs: [.init(durationMs: 2000, stack: .init(status: "unavailable", truncated: false, frames: []))], exits: [], truncated: false)
         expect(await live.accept(accepted))
         let original = try XCTUnwrap(outbox().hydrate().first)
+        let manual = OutboxEntry(reportId: UUID(), createdAt: original.createdAt, envelopeBytes: Data("{}".utf8),
+            idempotencyKey: "manual", attachmentRefs: [], sdkKey: "manual-owner", endpoint: original.endpoint,
+            identitySubject: "manual-user")
+        _ = try outbox().enqueueRecovered(manual)
         AppleRetryProtocol.reset()
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [AppleRetryProtocol.self]
         let session = URLSession(configuration: config); defer { session.invalidateAndCancel() }
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "sdk-A"), outbox: outbox(), session: session)
+        let submitter = ReportSubmitter(config: EverframeConfig(appId: "sdk-A"), outbox: outbox(), session: session).restrictingOutboxToAppleDiagnostics()
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
-        XCTAssertEqual(try outbox().hydrate(), [original]); live.boundary()
+        XCTAssertEqual(try outbox().hydrate(), [original, manual]); live.boundary()
         let next = runtime(at: Date()); expect(await next.enable(context: try context()))
-        XCTAssertEqual(try outbox().hydrate(), [original])
+        XCTAssertEqual(try outbox().hydrate(), [original, manual])
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
         // A worker barrier places the journal settlement before the simulated restart.
-        expect(await next.enable(context: try context())); XCTAssertTrue(try outbox().hydrate().isEmpty); next.boundary()
+        expect(await next.enable(context: try context())); XCTAssertEqual(try outbox().hydrate(), [manual]); next.boundary()
         let final = runtime(at: Date()); expect(await final.enable(context: try context()))
-        XCTAssertTrue(try outbox().hydrate().isEmpty); final.boundary()
+        XCTAssertEqual(try outbox().hydrate(), [manual]); final.boundary()
         let requests = AppleRetryProtocol.requests
         XCTAssertEqual(requests.count, 2)
         for request in requests {

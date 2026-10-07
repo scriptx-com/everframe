@@ -102,7 +102,7 @@ public final class Everframe: @unchecked Sendable {
             let context = AppleDiagnosticContext(frozen: frozen, applicationVersion: version, applicationBuild: build)
             return await runtime.enable(context: context, ticket: ticket) { [weak self, weak runtime] in
                 guard let self, let runtime else { return }
-                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox)
+                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox).restrictingOutboxToAppleDiagnostics()
                 await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
                     epochAtInitiation: epoch, currentEpoch: { [weak self] in self?.currentStartEpoch ?? -1 })
             }

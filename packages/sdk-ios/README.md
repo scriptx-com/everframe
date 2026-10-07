@@ -109,7 +109,9 @@ let enabled = await Everframe.shared.setAppleDiagnosticsEnabled(true)
 let erased = await Everframe.shared.setAppleDiagnosticsEnabled(false)
 ```
 
-A `false` result means the requested persistent transition did not finish. Disabling
+Enabling requires a started SDK with `capture.crash` enabled. Unsupported platforms
+or unmet preconditions return `false`; a storage failure also returns `false` because
+the requested persistent transition did not finish. Disabling
 immediately closes network admission; a failed erase remains pending and prevents
 a later enable from restoring the old records. Retry disabling when storage is
 available. `kill()` also closes admission and schedules erasure. A new `start`
