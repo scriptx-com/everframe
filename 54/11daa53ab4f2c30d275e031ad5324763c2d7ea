@@ -1,0 +1,26 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsPipelineTest.kt
+  s_360d9eb003c487::t_60d95a72126fca 68-103
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_360d9eb003c487::t_4a0c40cf280f0f 117-119,121-123
+  s_360d9eb003c487::t_29ae099248bfe2 102-105,108
+  s_360d9eb003c487::t_6be691d9cddefc 141
+  s_360d9eb003c487::t_3f2c9a20599152 366-368
+  s_360d9eb003c487::t_166e5bbf867656 534-536
+  s_360d9eb003c487::t_fa52e78c0981fa 160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5411daa53ab4f2c30d275e031ad5324763c2d7ea",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
