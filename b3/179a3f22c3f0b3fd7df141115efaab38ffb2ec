@@ -1,0 +1,71 @@
+packages/protocol/__tests__/apple-diagnostic.spec.ts
+  s_97602a0a2d8f20::t_6f75d099a1e42b 1-76
+packages/protocol/compat/apple-diagnostic/OldE8PayloadCaller.kt
+  s_97602a0a2d8f20::t_9b000bd4878a84 1-15
+packages/protocol/compat/apple-diagnostic/OldE8PayloadCaller.swift
+  s_97602a0a2d8f20::t_4499631c4e86db 1-19
+packages/protocol/compat/apple-diagnostic/README.md
+  s_97602a0a2d8f20::t_fbc783d34a7c76 1-7
+packages/protocol/compat/apple-diagnostic/SwiftMain.swift
+  s_97602a0a2d8f20::t_6e459fccf8577d 1-10
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_52fac81f63ce53 1061-1063,2689-2952
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_cca61dfc9e4561 44-50,171-176,178-181,183-184,187-194
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_e3246aab0e6a9b 46-51,54
+packages/protocol/src/apple-diagnostic.ts
+  s_97602a0a2d8f20::t_a845e50e68bc97 1-60
+packages/protocol/src/envelope.ts
+  s_97602a0a2d8f20::t_75f618291cc9d9 8,161,200-208
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_70127ed39e6091 69-70
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_3e2ecdce93cb90 165-166,168,181,195-361
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_509c60ea3f4265 102-141
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticContext.swift
+  s_97602a0a2d8f20::t_e8174e2dc4c901 1-78
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticDelivery.swift
+  s_97602a0a2d8f20::t_7847c6ff4aca8b 1-44
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticModels.swift
+  s_97602a0a2d8f20::t_09f0f7ac081bd5 1-36
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticProjection.swift
+  s_97602a0a2d8f20::t_87c6cb75329a31 1-59
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticRuntime.swift
+  s_97602a0a2d8f20::t_28d0375fb03ced 1-193
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticStore.swift
+  s_97602a0a2d8f20::t_12466893415a2d 1-118
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleMetricKitAdapter.swift
+  s_97602a0a2d8f20::t_1248766e312cd9 1-95
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_97602a0a2d8f20::t_00e53d87f38edc 44,47,50,80-111,854,1942,1998-2000
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_97602a0a2d8f20::t_02e7448555e624 309-310,421-424,436,449
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_31357fd9b12f84 575,587,589,624,639,663-1181
+packages/sdk-ios/Sources/EverframeProtocol/PayloadCompat.swift
+  s_97602a0a2d8f20::t_f40283137dccfb 21,28-52
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticProjectionTests.swift
+  s_97602a0a2d8f20::t_46ad6ff7c12de3 1-40
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticRuntimeTests.swift
+  s_97602a0a2d8f20::t_ecb82691793aa0 1-301
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticStoreTests.swift
+  s_97602a0a2d8f20::t_d0ad046c9f7cfa 1-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3179a3f22c3f0b3fd7df141115efaab38ffb2ec",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
