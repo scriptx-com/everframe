@@ -1,0 +1,35 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacyGateTest.kt
+  s_360d9eb003c487::t_255022ed188560 649,651-679,681-687
+  s_360d9eb003c487::t_ffff0c98cad047 680
+  s_360d9eb003c487::t_552e5be3e8f0dc 650
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/PixelCopyVideoCaptureTest.kt
+  s_360d9eb003c487::t_902f86325a89b7 238,241-266
+  s_360d9eb003c487::t_0fe06993e6995a 235-237,239-240
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoMaskBounds.kt
+  s_360d9eb003c487::t_11a777c055f61f 92
+  s_360d9eb003c487::t_9c9cd04d0aa81c 111-116
+  s_360d9eb003c487::t_077f1fe64e8e17 59-61,66-68
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyGate.kt
+  s_360d9eb003c487::t_45fa7a2e53c7f5 87
+  s_360d9eb003c487::t_bfaf0c8241fbfc 57-61
+.changeset/android-replay-mask.md
+  s_360d9eb003c487::t_50301b9256f1d5 8
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_b09aadda4ba6fa 603-604
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b99081560c49dc41f524b8cd717cb9bfa7b61d83",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
