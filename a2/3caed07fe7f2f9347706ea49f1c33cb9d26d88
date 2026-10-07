@@ -1,0 +1,35 @@
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_8c67201dc75646 120-123
+  s_360d9eb003c487::t_df9d513c38388b 131-135
+  s_360d9eb003c487::t_ab777e215f03d9 141-146
+  s_360d9eb003c487::t_a62c4e12143048 124,136-137,147-148
+packages/sdk-react-native/src/promise-rejections.ts
+  s_360d9eb003c487::t_634cf937f4a6ba 10-11,15-16
+  s_360d9eb003c487::t_1d583889de7df0 70-71
+  s_360d9eb003c487::t_488d0afde27a27 110-112
+  s_360d9eb003c487::t_b3e7bc7ea923d7 139-159,164,170-172
+  s_360d9eb003c487::t_2cdae6ec03de04 187-190,193,198
+  s_360d9eb003c487::t_0f7cf549f05046 212
+  s_360d9eb003c487::t_2d8497f2ce29e1 31,37-46,51,53,56
+packages/sdk-react-native/__tests__/promise-rejection-runtime.test.ts
+  s_360d9eb003c487::t_94b2ea667f6f9d 47-58
+packages/sdk-react-native/__tests__/promise-rejections.test.ts
+  s_360d9eb003c487::t_f97cc594cd2def 30
+  s_360d9eb003c487::t_9b896c8b5d41db 93-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a23caed07fe7f2f9347706ea49f1c33cb9d26d88",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
