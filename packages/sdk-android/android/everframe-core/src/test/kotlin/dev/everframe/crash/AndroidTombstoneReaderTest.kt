@@ -42,6 +42,10 @@ class AndroidTombstoneReaderTest {
         assertFalse(value.toString().contains("sensitive"))
         assertFalse(value.toString().contains("/data"))
     }
+    @Test fun `OS record PID must agree with the tombstone before attaching frames`() {
+        assertNotNull(AndroidTombstoneReader.read(ByteArrayInputStream(trace()), expectedPid = 99))
+        assertNull(AndroidTombstoneReader.read(ByteArrayInputStream(trace()), expectedPid = 100))
+    }
     @Test fun `protobuf ARM32 and zero pc defaults are valid`() {
         val minimal = n(6, 42u) + b(16, n(1, 42u) + b(2, n(1, 42u) + b(4, byteArrayOf())))
         val value = requireNotNull(read(minimal))

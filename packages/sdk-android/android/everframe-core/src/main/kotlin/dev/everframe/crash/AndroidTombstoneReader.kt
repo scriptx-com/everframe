@@ -21,7 +21,7 @@ internal object AndroidTombstoneReader {
     private const val MAX_THREADS = 1024
     private const val MAX_FRAMES = 256
 
-    fun read(input: InputStream): AndroidNativeCrashMetadata? = try {
+    fun read(input: InputStream, expectedPid: Int? = null): AndroidNativeCrashMetadata? = try {
         input.use { stream ->
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(8192)
@@ -33,7 +33,7 @@ internal object AndroidTombstoneReader {
                 output.write(buffer, 0, count)
                 require(output.size() <= MAX_BYTES)
             }
-            decode(output.toByteArray())
+            decode(output.toByteArray(), expectedPid)
         }
     } catch (_: Exception) { null }
 
@@ -102,10 +102,11 @@ internal object AndroidTombstoneReader {
         require(signed in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong())
         return signed
     }
-    private fun decode(bytes: ByteArray): AndroidNativeCrashMetadata {
+    private fun decode(bytes: ByteArray, expectedPid: Int?): AndroidNativeCrashMetadata {
         val wire = Wire(bytes, Budget())
         var arch = 0L
         var tid = 0L
+        var pid = 0L
         var signal: Long? = null
         var signalCode: Long? = null
         val threads = ArrayList<Slice>()
@@ -113,6 +114,7 @@ internal object AndroidTombstoneReader {
         wire.fields { field ->
             when (field) {
                 1 -> { unique(seen, field); arch = uint32(wire.number()) }
+                5 -> { unique(seen, field); pid = uint32(wire.number()) }
                 6 -> { unique(seen, field); tid = uint32(wire.number()) }
                 10 -> {
                     unique(seen, field)
@@ -131,6 +133,7 @@ internal object AndroidTombstoneReader {
             }
         }
         require(tid > 0)
+        require(expectedPid == null || pid == expectedPid.toLong())
         val abi = AndroidNativeABI.values().firstOrNull { it.value == when (arch) {
             0L -> "armeabi-v7a"; 1L -> "arm64-v8a"; 2L -> "x86"; 3L -> "x86_64"; 4L -> "riscv64"; else -> ""
         } } ?: error("Unsupported architecture")
