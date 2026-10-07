@@ -369,6 +369,76 @@ class VideoPrivacyInstrumentedTest {
         scenario.onActivity { root.overlay.remove(redraw); holder.alpha = 1f }
         assertMaskedFrame(scenario, activity, input)
     }
+    @Test fun goneTransparentContainerRedrawnFromTheOverlayIsNeverRecorded() = fixture { scenario, activity, root ->
+        lateinit var holder: FrameLayout
+        lateinit var input: EditText
+        lateinit var redraw: android.graphics.drawable.Drawable
+        val redraws = AtomicInteger()
+        scenario.onActivity { a ->
+            a.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            holder = FrameLayout(a)
+            input = EditText(a).apply { setBackgroundColor(secret); setTextColor(secret); setText("draft") }
+            holder.addView(input, FrameLayout.LayoutParams(400, 200))
+            root.addView(holder, bottomLeft())
+        }
+        // The container is laid out before it closes, and a GONE child keeps those bounds.
+        var laidOut = false
+        val layoutDeadline = SystemClock.uptimeMillis() + 3000
+        while (!laidOut && SystemClock.uptimeMillis() < layoutDeadline) {
+            scenario.onActivity { laidOut = holder.isLaidOut && input.width > 0 }
+            if (!laidOut) SystemClock.sleep(20)
+        }
+        assertTrue("the container must be laid out before it closes", laidOut)
+        scenario.onActivity {
+            // Material's reverse container transform: the app sets the container it closes GONE,
+            // and the transform sets it to alpha 0 and draws it from an overlay drawable (here in
+            // the top-left corner) through View.draw, which never checks visibility.
+            redraw = object : android.graphics.drawable.Drawable() {
+                override fun draw(canvas: Canvas) { redraws.incrementAndGet(); holder.draw(canvas) }
+                override fun setAlpha(alpha: Int) = Unit
+                override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) = Unit
+                @Deprecated("Deprecated in Java")
+                override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+            }
+            redraw.setBounds(0, 0, 400, 200)
+            holder.visibility = View.GONE
+            holder.alpha = 0f
+            root.overlay.add(redraw)
+        }
+        var onScreen = false
+        val drawDeadline = SystemClock.uptimeMillis() + 3000
+        while (!onScreen && SystemClock.uptimeMillis() < drawDeadline) {
+            onScreen = windowShowsSecret(scenario)
+            if (!onScreen) SystemClock.sleep(50)
+        }
+        assertTrue("the overlay never drew the GONE container's input on screen", onScreen)
+        neverShowsSecret(activity, 1000, settledAtMs = null)
+        assertTrue("the overlay never drew the container", redraws.get() > 0)
+        // Positive controls: once the transform ends and restores alpha, nothing draws the GONE
+        // container and frames are recorded; shown again, its input is masked in place.
+        scenario.onActivity { root.overlay.remove(redraw); holder.alpha = 1f }
+        neverShowsSecret(activity, 1500, settledAtMs = 0)
+        scenario.onActivity { holder.visibility = View.VISIBLE }
+        assertMaskedFrame(scenario, activity, input)
+    }
+    /** Whether a direct copy of the window, outside capture, shows [secret]: proves a fixture draws it on screen. */
+    private fun windowShowsSecret(scenario: ActivityScenario<VideoPrivacyFixtureActivity>): Boolean {
+        val copied = CountDownLatch(1)
+        val result = AtomicInteger(-1)
+        lateinit var bitmap: Bitmap
+        scenario.onActivity { a ->
+            bitmap = Bitmap.createBitmap(a.window.decorView.width, a.window.decorView.height, Bitmap.Config.ARGB_8888)
+            android.view.PixelCopy.request(a.window, bitmap, { result.set(it); copied.countDown() },
+                android.os.Handler(android.os.Looper.getMainLooper()))
+        }
+        assertTrue("window copy timed out", copied.await(3, TimeUnit.SECONDS))
+        assertEquals("window copy failed", android.view.PixelCopy.SUCCESS, result.get())
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+        bitmap.recycle()
+        return pixels.any { isSecret(it) }
+    }
     @Test fun keyboardPannedWindowNeverRecordsTheFocusedFieldUnmasked() = fixture { scenario, activity, root ->
         lateinit var input: EditText
         scenario.onActivity { a ->

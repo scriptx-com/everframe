@@ -19,22 +19,23 @@ internal object VideoMaskBounds {
     /**
      * Bounds of [view] in [root] coordinates, through every ancestor's transform and scroll,
      * padded by a pixel. An empty rect only when the view or an ancestor is GONE as an ordinary
-     * child, so nothing draws it. Null when its drawn position cannot be proven, which refuses
-     * the frame: [view] is not under [root] (an overlay or a detached parent), a legacy
-     * Animation, an animation matrix or a running LayoutTransition on it or an ancestor can draw
-     * it away from these bounds, or it or an ancestor is INVISIBLE, fully transparent,
-     * transition-hidden, or GONE while a removal transition still draws it.
+     * child and none of them is fully transparent: no parent draws a GONE child. Null when its
+     * drawn position cannot be proven, which refuses the frame: [view] is not under [root] (an
+     * overlay or a detached parent), a legacy Animation, an animation matrix or a running
+     * LayoutTransition on it or an ancestor can draw it away from these bounds, or it or an
+     * ancestor (the root included) is INVISIBLE, transition-hidden, fully transparent even when
+     * GONE, or GONE while a removal transition still draws it.
      */
     fun of(view: View, root: View): Rect? {
         val r = RectF(0f, 0f, view.width.toFloat(), view.height.toFloat())
         var hidden = false
-        var transparent = false
         var current = view
         while (true) {
             if (!provable(current)) return null
-            // A transparent view draws nothing itself, so only another drawing can show it: a
-            // container transform makes both containers transparent while it draws them elsewhere.
-            if (current.alpha == 0f) transparent = true
+            // A transparent view draws nothing itself, so only another drawing can show it, even
+            // when it is GONE: a container transform sets the GONE container it closes to alpha 0
+            // and draws it from an overlay through View.draw, which never checks visibility.
+            if (current.alpha == 0f) return null
             if (current === root) { if (current.visibility == View.GONE) hidden = true; break }
             val parent = current.parent as? ViewGroup ?: return null
             if (current.visibility == View.GONE) {
@@ -50,7 +51,6 @@ internal object VideoMaskBounds {
             current = parent
         }
         if (hidden) return Rect()
-        if (transparent) return null
         return padded(r)
     }
 

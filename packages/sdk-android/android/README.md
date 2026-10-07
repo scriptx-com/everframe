@@ -561,9 +561,10 @@ well, so a child laid out or moved outside the view stays covered, and a descend
 cannot be proven refuses the frame (see below). Masks are clipped to the window. Only these views
 are masked: content that repeats a secret elsewhere, such as one-time-code digit cells, a card
 preview or a search echo, needs its own marker. Copies that other code draws are not covered either:
-a snapshot of a view drawn in a transition overlay, or a descendant of a masked view that a
-transition hides and draws elsewhere when the masked view's parent clips children or the descendant
-is only made transparent.
+a snapshot of a view drawn in a transition overlay, a view drawn after it was removed from the
+window (a container transform still draws a container the app removed instead of hiding), or a
+descendant of a masked view that a transition hides and draws elsewhere when the masked view's
+parent clips children or the descendant is only made transparent.
 
 **SurfaceViews.** A `SurfaceView` renders into its own surface, which a window copy never contains.
 Its area is left empty without a mask, and views drawn above it, such as subtitles and player
@@ -581,14 +582,17 @@ controls, are recorded.
 - a masked view's drawn position cannot be proven: it or an ancestor sits in an overlay or under a
   broken parent chain; a legacy `Animation` or an animation matrix applies to it or an ancestor (an
   `Animation` kept with `fillAfter` keeps refusing frames until `clearAnimation()`); a layout
-  transition is running above it; it or an ancestor is `INVISIBLE`, fully transparent (alpha 0) or
-  has transition alpha below one, because then only another drawing can show it (a shared-element
-  ghost draws a hidden original from an overlay, and a container transform makes both containers
-  transparent while it draws them elsewhere); or it is `GONE` while a removal transition still draws
-  it. A `GONE` ordinary child needs no mask, however transparent. This refuses frames while an inline
-  `NumberPicker` (including spinner-mode date and time pickers) is shown after its first touch, which
-  hides its input as `INVISIBLE`, and while a React Native `TextInput` is hidden with
-  `display: 'none'` or styled with `opacity: 0`, as one-time-code fields often are.
+  transition is running above it; it or an ancestor is `INVISIBLE`, has transition alpha below one,
+  or is fully transparent (alpha 0) even while `GONE`, because then only another drawing can show
+  it (a shared-element ghost draws a hidden original from an overlay, and a container transform
+  makes both containers transparent, the closing one usually also `GONE`, while it draws them from
+  an overlay with `View.draw`, which ignores visibility); or it is `GONE` while a removal transition
+  still draws it. Otherwise a `GONE` ordinary child needs no mask. This refuses frames while an
+  inline `NumberPicker` (including spinner-mode date and time pickers) is shown after its first
+  touch, which hides its input as `INVISIBLE`; while a React Native `TextInput` is hidden with
+  `display: 'none'` or styled with `opacity: 0`, as one-time-code fields often are; and for as long
+  as a container faded to alpha 0 and then set `GONE` holds a masked view. Restore such a
+  container's alpha once it is hidden, or remove it.
 - an inspected descendant of a masked view (see above) is animated, `INVISIBLE` or
   transition-hidden, or runs a layout transition, for the same reasons. React Native hides
   `display: 'none'` content and the spinner of `<ActivityIndicator animating={false}>` as
@@ -614,7 +618,9 @@ or capacity exhaustion excludes video.
 
 Automatically detected WebViews are an exception: an attached background WebView does not block
 replay when its ordinary child ancestry proves it `GONE`, fully transparent, or fully clipped in a
-hierarchy that clips children. Nearly transparent and partially visible WebViews remain excluded.
+hierarchy that clips children. That proof also accepts a WebView whose container a container
+transform has made transparent while drawing it from an overlay, so mark a WebView in such a
+container sensitive. Nearly transparent and partially visible WebViews remain excluded.
 `INVISIBLE` ancestors and non-default transition alpha remain excluded: transitions can draw an
 overlay ghost while hiding the original. Removal-transition children that retain a parent without
 normal child membership are also excluded. Legacy animations, animation matrices, running layout

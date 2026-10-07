@@ -470,11 +470,22 @@ class VideoPrivacyGateTest {
         root.alpha = 0f
         assertFalse("the root is an ancestor too", gate.observe(root).allowed)
         root.alpha = 1f
-        // Nothing draws a GONE ordinary child, however transparent: a field faded out and then hidden.
-        holder.alpha = 0f; holder.visibility = View.GONE
+        // A parent draws no GONE ordinary child.
+        holder.visibility = View.GONE
         val gone = gate.observe(root)
-        assertTrue(gone.allowed); assertTrue(gone.masks.isEmpty())
-        holder.visibility = View.VISIBLE; holder.alpha = 1f
+        assertTrue("GONE at alpha 1", gone.allowed); assertTrue(gone.masks.isEmpty())
+        // Transparency wins over GONE: in Material's reverse container transform the app sets the
+        // container it closes GONE, and the transform sets it to alpha 0 and draws it from an
+        // overlay through View.draw, which never checks visibility.
+        holder.alpha = 0f
+        assertFalse("a GONE container drawn from an overlay", gate.observe(root).allowed)
+        holder.alpha = 1f; input.alpha = 0f
+        assertFalse("a transparent input under a GONE container", gate.observe(root).allowed)
+        holder.visibility = View.VISIBLE; input.visibility = View.GONE
+        assertFalse("a GONE, transparent input", gate.observe(root).allowed)
+        input.alpha = 1f; root.alpha = 0f
+        assertFalse("a GONE input under a transparent root", gate.observe(root).allowed)
+        root.alpha = 1f; input.visibility = View.VISIBLE
         val group = FrameLayout(root.context); root.addView(group); group.layout(200,200,300,300)
         group.setTag(R.id.tx_sensitive, true); group.addView(View(root.context))
         assertTrue(masked(gate.observe(root), group, root))
