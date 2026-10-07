@@ -91,14 +91,18 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                       changeError(record(), "is_clean_exit", true)] { XCTAssertThrowsError(try decode(input)) }
     }
     func testCrashedThreadMustBeUniqueAndBounded() throws {
-        for threads: [[String: Any]] in [[], [["index": 0, "crashed": false]],
-            [["index": 0, "crashed": true], ["index": 1, "crashed": true]],
-            Array(repeating: ["index": 0, "crashed": false], count: 257),
-            [["index": 65536, "crashed": true]]] {
+        // Over the limit, the record is otherwise valid: exactly one thread crashed.
+        let overLimit = Array(repeating: ["index": 0, "crashed": false], count: 256) + [["index": 256, "crashed": true]]
+        for (threads, expected): ([[String: Any]], NativeCrashRecordDecoder.Failure) in [
+            ([], .crashedThread), ([["index": 0, "crashed": false]], .crashedThread),
+            ([["index": 0, "crashed": true], ["index": 1, "crashed": true]], .crashedThread),
+            (overLimit, .collectionLimit), ([["index": 65536, "crashed": true]], .crashedThread)] {
             var input = record(), crash = input["crash"] as! [String: Any]; crash["threads"] = threads; input["crash"] = crash
-            XCTAssertThrowsError(try decode(input))
+            XCTAssertThrowsError(try decode(input)) { XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, expected) }
         }
-        XCTAssertThrowsError(try decode(record(images: Array(repeating: image(), count: 1025))))
+        XCTAssertThrowsError(try decode(record(images: Array(repeating: image(), count: 1025)))) {
+            XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, .collectionLimit)
+        }
     }
     func testMalformedCappedAndAbsentStacksStayAlignedAndHonest() throws {
         let result = try decode(record(frames: [frame(), ["instruction_addr": "bad"], frame(pc: 0x20000000000012)]))
@@ -178,16 +182,18 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
     func testByteDepthKeyAndEscapedDuplicateBoundsBeforeDecode() throws {
         let original = String(decoding: try data(record()), as: UTF8.self)
         let suffix = String(original.dropFirst())
-        let invalid = [
-            Data(repeating: 32, count: 2 * 1024 * 1024 + 1),
-            Data(("{\"unknown\":" + String(repeating: "[", count: 65) + "0" + String(repeating: "]", count: 65) + "," + suffix).utf8),
-            Data(("{\"duplicate\":1,\"dupli\\u0063ate\":2," + suffix).utf8),
-            Data(("{\"" + String(repeating: "x", count: 1025) + "\":0," + suffix).utf8),
-            Data(#"{"secret":"#.utf8),
+        // Each input would decode if only its own bound were missing.
+        var padded = record(); padded["padding"] = String(repeating: "x", count: 2 * 1024 * 1024)
+        let invalid: [(Data, NativeCrashRecordDecoder.Failure)] = [
+            (try data(padded), .inputLimit),
+            (Data(("{\"unknown\":" + String(repeating: "[", count: 65) + "0" + String(repeating: "]", count: 65) + "," + suffix).utf8), .inputLimit),
+            (Data(("{\"duplicate\":1,\"dupli\\u0063ate\":2," + suffix).utf8), .duplicateKey),
+            (Data(("{\"" + String(repeating: "x", count: 1025) + "\":0," + suffix).utf8), .inputLimit),
+            (Data(#"{"secret":"#.utf8), .malformed),
         ]
-        for bytes in invalid {
+        for (bytes, expected) in invalid {
             XCTAssertThrowsError(try NativeCrashRecordDecoder.decode(bytes, redact: { $0 })) {
-                XCTAssertTrue($0 is NativeCrashRecordDecoder.Failure)
+                XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, expected)
                 XCTAssertFalse(String(describing: $0).contains("secret"))
             }
         }
