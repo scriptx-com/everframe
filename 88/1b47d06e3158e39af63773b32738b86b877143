@@ -1,0 +1,37 @@
+packages/protocol/__tests__/recovered-stall.spec.ts
+  s_97602a0a2d8f20::t_e3b46e6d1f0f35 1-70
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_8ffb6ed7e7dcf9 1061-1063,2689-2815
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_a85e26b5fee1f1 164-175,177-185
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_3637c7460430b9 48-53
+packages/protocol/src/envelope.ts
+  s_97602a0a2d8f20::t_a408fd82e1eab0 8,161,200-210
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_92040d2f9ff1ba 69-70
+packages/protocol/src/recovered-stall.ts
+  s_97602a0a2d8f20::t_876c8856669e47 1-25
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_aafaa9683ccc9a 165-166,180,194-224,692-771
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_c79fb99fe17934 582,587,597,632,647,2305-2546
+packages/sdk-ios/Sources/EverframeProtocol/PayloadCompat.swift
+  s_97602a0a2d8f20::t_615fb0949bb994 24-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "881b47d06e3158e39af63773b32738b86b877143",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
