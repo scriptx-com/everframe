@@ -58,6 +58,18 @@ final class NativeCrashRecovery: @unchecked Sendable {
         }
     }
 
+    /// Oldest first, excluding every active/in-flight run. Orphan context-only
+    /// reservations have no raw record and are left to bounded maintenance.
+    func closedRunIDs() throws -> [UUID] {
+        try locked {
+            _ = try resumeRetirements()
+            let inventory = try scan()
+            return inventory.contexts.map(\.id).filter {
+                !excluded($0) && inventory.runs[$0] != nil && !inventory.retiring.contains($0)
+            }
+        }
+    }
+
     func prepareRun(now: Date = Date()) throws -> Run {
         try locked {
             guard now.timeIntervalSince1970.isFinite else { throw Failure.invalidLimits }
