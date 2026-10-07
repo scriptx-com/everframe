@@ -41,9 +41,13 @@ authored source location. The fingerprint hashes the exception type with the
 UUID/relative-offset keys of the first five frames in app images. OS images (paths
 under /System, /usr/lib, /Library/Apple, /private/preboot or a simulator
 RuntimeRoot) are skipped: they hold terminate/abort machinery and change with OS
-updates. Without any app frame, the first five frames are used; faults whose only
-app frame is the entry point share one group per exception type. Keys are stable
-across ASLR within one app build; mapped cross-build grouping is a later layer.
+updates. Without any app frame, the first five frames are used. They are also used
+when the crashing frame is in an OS image and every app frame belongs to the entry
+point: the app frames directly above the stack's final OS frame, the loader's start
+(main, or $main and main, plus any app code main calls directly). Faults inside OS
+code, such as over-releases in a Core Animation commit, then stay apart instead of
+sharing main's key, but their keys change with OS updates. Keys are stable across
+ASLR within one app build; mapped cross-build grouping is a later layer.
 
 The runtime protocol validator additionally checks image ranges, CPU/architecture
 consistency and frame associations. Generated JSON Schema expresses structural

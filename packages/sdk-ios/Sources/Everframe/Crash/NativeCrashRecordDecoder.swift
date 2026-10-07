@@ -13,6 +13,8 @@ enum NativeCrashRecordDecoder {
     /// 97 slots (KSSC_CONTEXT_SIZE 100, less a two-word cursor header and one spare) and skips 3
     /// recorder frames, so a full buffer yields 94 frames with no truncation marker.
     private static let pinnedHandlerFrameCapacity = 94
+    /// The image a normalized frame resolved to.
+    private enum FrameImage { case app, system, unmatched }
 
     static func decode(_ data: Data, redact: (String) -> String) throws -> NativeCrashRecord {
         try NativeCrashJSONPreflight.validate(data)
@@ -56,6 +58,7 @@ enum NativeCrashRecordDecoder {
         let type = text(rawType, limit: 256, redact: redact, fallback: fault.type, dropsCutToken: true)
         var images: [EverframeNativeCrashImage] = [], frames: [EverframeFrame] = [], crashInfo: [String] = []
         var nativeFrames: [EverframeNativeCrashFrame] = [], sourceToOutput: [Int: Int] = [:], appKeys: [String] = []
+        var frameImages: [FrameImage] = []
         var imagesIncomplete = vendor.binary_images?.skipped ?? true
         var candidates: [(Int, NativeCrashVendorRecord.Image, String)] = []
         for (index, entry) in vendor.binary_images?.values ?? [] {
@@ -87,8 +90,10 @@ enum NativeCrashRecordDecoder {
                     crashInfo += [image.crash_info_message, image.crash_info_message2].compactMap { $0 }
                 }
                 offset = hex(pc - image.image_addr)
-                if !isSystemImage(image.name) { appKeys.append("\(uuid):\(hex(pc - image.image_addr))") }
-            } else { imagesIncomplete = true }
+                let app = !isSystemImage(image.name)
+                if app { appKeys.append("\(uuid):\(hex(pc - image.image_addr))") }
+                frameImages.append(app ? .app : .system)
+            } else { imagesIncomplete = true; frameImages.append(.unmatched) }
             let symbol = entry.symbol_name.map { text($0, limit: 512, redact: redact, fallback: "<unknown>") }
             let raw = bounded("\(name) \(symbol ?? "<unknown>") \(hex(pc))", limit: 1024)
             frames.append(EverframeFrame(col: nil, file: nil, function: symbol, line: nil, raw: raw))
@@ -106,8 +111,14 @@ enum NativeCrashRecordDecoder {
             images: images, imagesIncomplete: imagesIncomplete, platform: .apple,
             timestampMicros: String(header.timestamp))
         // Key app frames: OS images hold terminate/abort machinery and change with every OS update.
-        // Without any app frame, the leading frames key the group.
-        let keys = appKeys.isEmpty ? nativeFrames.prefix(5).enumerated().map { index, frame in
+        // The entry point (main, or $main and main) is the app run directly above the final OS frame,
+        // the loader's start. When it holds every app frame and the crashing frame is outside it, the
+        // fault is in OS code and main alone would merge distinct faults, so the leading frames key the
+        // group, as they do without any app frame.
+        var entry = frameImages.count
+        if frameImages.last == .system { entry -= 1; while entry > 0, frameImages[entry - 1] == .app { entry -= 1 } }
+        let leading = appKeys.isEmpty || (entry > 0 && !frameImages[..<entry].contains(.app))
+        let keys = leading ? nativeFrames.prefix(5).enumerated().map { index, frame in
             if let image = frame.imageIndex, let offset = frame.imageOffset { return "\(images[image].uuid):\(offset)" }
             return frames[index].function ?? "<unknown>"
         } : Array(appKeys.prefix(5))

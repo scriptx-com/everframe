@@ -264,6 +264,44 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         XCTAssertNotEqual(try decode(record(frames: machinery, images: images(build: 1))).crash.fingerprint,
                           try decode(record(frames: Array(machinery.reversed()), images: images(build: 1))).crash.fingerprint)
     }
+    func testEntryPointAloneDoesNotMergeSystemOnlyFaults() throws {
+        // OS images, then the app, whose entry point (main, or $main and main) sits directly above dyld's start.
+        let paths = ["/usr/lib/libobjc.A.dylib", "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+                     "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+                     "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore", "/usr/lib/dyld",
+                     "/System/Library/Frameworks/SwiftUI.framework/SwiftUI", "/usr/lib/system/libdispatch.dylib",
+                     "/usr/lib/system/libsystem_pthread.dylib", "/private/var/containers/Bundle/Application/X/App.app/App"]
+        let (objc, quartz, cf, uikit, dyld, swiftUI, dispatch, pthread, app) = (0, 1, 2, 3, 4, 5, 6, 7, 8)
+        func fingerprint(_ stack: [(Int, UInt64)], type: String = "mach", osBuild: Int = 1, slide: UInt64 = 0) throws -> String {
+            func base(_ index: Int) -> UInt64 { 0x180000000 + UInt64(index) * 0x1000000 + slide }
+            let images = paths.indices.map { index in
+                image(base: base(index), size: 0x400000,
+                      uuid: index == app ? nil : String(format: "%08lx-0000-4000-8000-%012lx", osBuild, index), name: paths[index])
+            }
+            let frames = stack.map { frame(pc: base($0.0) + $0.1) }
+            return try decode(type == "nsexception" ? record(type: type, images: images, exceptionFrames: frames)
+                              : record(type: type, frames: frames, images: images)).crash.fingerprint
+        }
+        // Over-releases in a Core Animation commit and in an autorelease-pool pop, both under UIApplicationMain.
+        let tail: [(Int, UInt64)] = [(cf, 0x400), (uikit, 0x500), (app, 0x600), (dyld, 0x700)]
+        let commit: [(Int, UInt64)] = [(objc, 0x10), (quartz, 0x100), (cf, 0x200)] + tail
+        let pop: [(Int, UInt64)] = [(objc, 0x20), (objc, 0x120), (cf, 0x300)] + tail
+        XCTAssertNotEqual(try fingerprint(commit), try fingerprint(pop))
+        let swiftUITail: [(Int, UInt64)] = [(uikit, 0x500), (swiftUI, 0x100), (app, 0x700), (app, 0x600), (dyld, 0x700)]
+        XCTAssertNotEqual(try fingerprint([(objc, 0x10), (quartz, 0x100)] + swiftUITail),
+                          try fingerprint([(objc, 0x20), (cf, 0x300)] + swiftUITail))
+        // The same fault still converges across ASLR slides.
+        XCTAssertEqual(try fingerprint(commit), try fingerprint(commit, slide: 0x4000))
+        // App frames above the entry point, on the main or a background thread, still key the group alone, as
+        // does app code that main calls directly, so an OS update neither merges their call sites nor splits them.
+        let site = { (offset: UInt64) -> [(Int, UInt64)] in [(cf, 0x10), (objc, 0x50), (app, offset), (uikit, 0x100)] + tail }
+        XCTAssertNotEqual(try fingerprint(site(0x100), type: "nsexception"), try fingerprint(site(0x200), type: "nsexception"))
+        let background: [(Int, UInt64)] = [(cf, 0x10), (objc, 0x50), (app, 0x100), (dispatch, 0x100), (dispatch, 0x200), (pthread, 0x100)]
+        let direct: [(Int, UInt64)] = [(app, 0x100), (app, 0x600), (dyld, 0x700)]
+        for (stack, type) in [(site(0x100), "nsexception"), (background, "nsexception"), (direct, "mach")] {
+            XCTAssertEqual(try fingerprint(stack, type: type), try fingerprint(stack, type: type, osBuild: 2), type)
+        }
+    }
     func testDefaultRedactionSeesSeparatorsAndSecretsStraddlingTheCap() throws {
         let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqYW5lQGV4YW1wbGUuY29tIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
         for (reason, secret) in [("Payment declined\n4111111111111111\nCode 51", "4111111111111111"),
