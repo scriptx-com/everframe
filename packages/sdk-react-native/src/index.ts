@@ -29,6 +29,7 @@ export { EverframeSensitive as Sensitive } from './Sensitive.js';
 export {
   open,
   captureException,
+  getPromiseRejectionStatus,
   setExtra,
   setUser,
   addBreadcrumb,
@@ -36,6 +37,7 @@ export {
   EverframeNotMountedError,
 } from './contextSeam.js';
 export type { EverframeContextValue } from './contextSeam.js';
+export type { PromiseRejectionStatus, PromiseRejectionCounters, RejectionReason } from './promise-rejection-types.js';
 export type { EverframeIntegration } from './integrations/types.js';
 
 // Reporter result type.

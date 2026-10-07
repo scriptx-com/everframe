@@ -2,9 +2,17 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { captureJsBundleMetadata, type JsBundleConfig } from './js-bundle.js';
 import NativeEverframe from './NativeEverframe.js';
-import { extractFacts } from './error-facts.js';
+import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
 import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
+import {
+  captureKey,
+  exceedsValueShare,
+  rejectionKey,
+  type CaptureIdentity,
+  type PreparedRejection,
+  type RejectionOutcome,
+} from './rejection-capture.js';
 
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
 interface ErrorUtilsLike {
@@ -26,6 +34,8 @@ export interface InstallErrorHandlerOptions {
 }
 export interface CaptureController {
   captureException(error: unknown, options?: CaptureExceptionOptions): void;
+  prepareRejection(reason: unknown, occurredAt: string): PreparedRejection | undefined;
+  submitRejection(snapshot: PreparedRejection): RejectionOutcome;
   dispose(): void;
 }
 
@@ -34,11 +44,68 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
   const jsBundle = captureJsBundleMetadata(opts.jsBundle);
   const handledKeys = new Set<string>();
   const automaticKeys = new Set<string>();
-  const acceptedObjects = new WeakSet<object>();
+  const identities = new WeakMap<object, CaptureIdentity>();
+  const prepared = new WeakSet<PreparedRejection>();
   let active = true;
   let capturing = false;
   let restore: (() => void) | undefined;
   const ownsCapture = () => active && (opts.isActive?.() ?? true);
+
+  function identityFor(error: unknown): CaptureIdentity | undefined {
+    if ((typeof error !== 'object' || error === null) && typeof error !== 'function') return undefined;
+    let identity = identities.get(error);
+    if (!identity) { identity = { accepted: false }; identities.set(error, identity); }
+    return identity;
+  }
+
+  function prepareRejection(reason: unknown, occurredAt: string): PreparedRejection | undefined {
+    if (!ownsCapture() || capturing) return undefined;
+    capturing = true;
+    try {
+      const identity = identityFor(reason);
+      // Rejected non-Error values are often responses or request configs:
+      // report their type, never their headers, cookies, URLs or cause.
+      let labelled = false;
+      const facts = extractFacts(reason, (value) => { labelled = true; return renderLabel(value); });
+      if (!ownsCapture()) return undefined;
+      const causeChain = labelled
+        ? undefined
+        : extractCrashCauseChain(reason, (value) => redactStringContent(value, {}), ownsCapture);
+      if (!ownsCapture()) return undefined;
+      const payload = JSON.stringify({
+        ...facts,
+        ...(jsBundle ? { jsBundle } : {}),
+        ...(causeChain ? { causeChain } : {}),
+        source: 'error', mechanism: 'unhandledrejection', handled: false, fatal: false, occurredAt,
+      });
+      if (!ownsCapture()) return undefined;
+      const snapshot: PreparedRejection = { payload, key: rejectionKey(facts), ...(identity ? { identity } : {}) };
+      prepared.add(snapshot);
+      return snapshot;
+    } catch { return undefined; }
+    finally { capturing = false; }
+  }
+
+  function submitRejection(snapshot: PreparedRejection): RejectionOutcome {
+    if (!ownsCapture() || !prepared.has(snapshot)) return 'inactive';
+    if (capturing) return 'capture-failed';
+    capturing = true;
+    try {
+      if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) return 'duplicate';
+      if (automaticKeys.size >= 10 || exceedsValueShare(automaticKeys, snapshot.key)) return 'allowance';
+      // The new path requires the current acceptance-capable bridge. Existing
+      // ErrorUtils callers alone retain old-binary attempt accounting below.
+      const handledMethod = NativeEverframe.captureHandledException;
+      const method = NativeEverframe.reportCrash;
+      if (!ownsCapture()) return 'inactive';
+      if (typeof handledMethod !== 'function' || typeof method !== 'function') return 'native-refused';
+      if (applyFunction(method, NativeEverframe, [snapshot.payload]) !== true) return 'native-refused';
+      automaticKeys.add(snapshot.key);
+      if (snapshot.identity) snapshot.identity.accepted = true;
+      return 'accepted';
+    } catch { return 'capture-failed'; }
+    finally { capturing = false; }
+  }
 
   function capture(
     error: unknown,
@@ -56,12 +123,11 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         if (typeof method === 'function') handledMethod = method;
       } catch { /* automatic capture keeps its legacy path */ }
       if (explicit && !handledMethod) return;
-      const identity = (typeof error === 'object' && error !== null) || typeof error === 'function'
-        ? error as object : undefined;
-      if (!fatal && handledMethod && identity && acceptedObjects.has(identity)) return;
+      const identity = identityFor(error);
+      if (!fatal && handledMethod && identity?.accepted) return;
       const facts = extractFacts(error);
       const keys = explicit ? handledKeys : automaticKeys;
-      const key = `${facts.exceptionType}:${(facts.framesRaw[0] ?? '').replace(/\d+/g, '#')}`;
+      const key = captureKey(facts);
       if (!fatal && (keys.size >= 10 || keys.has(key))) return;
       const details = explicit
         ? normalizeCrashDetails(options, (value) => redactStringContent(value, {}), 'error')
@@ -89,7 +155,7 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       const accepted = applyFunction(method, NativeEverframe, [payload]) === true;
       if (!fatal && !legacyAttempt && accepted) {
         keys.add(key);
-        if (identity) acceptedObjects.add(identity);
+        if (identity) identity.accepted = true;
       }
     } catch {
       // Neither hostile thrown values nor a failed bridge may escape capture.
@@ -127,6 +193,8 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     console.warn('[everframe] crash handler install threw');
   }
   return {
+    prepareRejection,
+    submitRejection,
     captureException(error, options) { capture(error, true, false, options); },
     dispose() {
       if (!active) return;

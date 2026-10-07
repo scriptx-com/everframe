@@ -24,6 +24,8 @@ import type { ExtraResolver } from "@everframe/sdk-core";
 import { getEmitter } from "./events.js";
 import type { JsBundleConfig } from "./js-bundle.js";
 import { createCaptureController, type CaptureController } from "./errors.js";
+import { createPromiseRejectionObserver, type RejectionObserver } from './promise-rejections.js';
+import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
 import {
   __setCurrentContext,
   __getCurrentContext,
@@ -115,6 +117,8 @@ export interface RuntimeConfig
    */
   crashReporting?: {
     disabled?: boolean;
+    /** Opt-in automatic observation on qualified RN/Hermes runtimes. */
+    promiseRejections?: { enabled?: boolean };
   };
   /**
    * Network request/response body capture (spec 2026-08-12). CLIENT VETO
@@ -364,6 +368,8 @@ export function createRuntime(config: RuntimeConfig): Runtime {
   type Mount = {
     teardowns: Array<{ name: string; teardown: () => void }>;
     controller?: CaptureController;
+    rejections?: RejectionObserver;
+    rejectionStatus: PromiseRejectionStatus;
   };
   let mounted: Mount | undefined;
 
@@ -376,6 +382,12 @@ export function createRuntime(config: RuntimeConfig): Runtime {
 
   const runtime: Runtime = {
     open,
+    getPromiseRejectionStatus() {
+      if (!mounted || __getCurrentContext() !== runtime)
+        return emptyPromiseRejectionStatus('not-mounted', 'no-mount');
+      const status = mounted.rejections?.getStatus() ?? mounted.rejectionStatus;
+      return { ...status, counters: { ...status.counters } };
+    },
     captureException(error, options) {
       if (__getCurrentContext() === runtime)
         mounted?.controller?.captureException(error, options);
@@ -544,7 +556,9 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         const msg = (e as { message?: string })?.message ?? String(e);
         console.warn(`[everframe] configure threw: ${msg}`);
       }
-      const owner: Mount = { teardowns: [] };
+      const owner: Mount = { teardowns: [], rejectionStatus: emptyPromiseRejectionStatus(
+        'disabled', config.crashReporting?.disabled === true ? 'crash-reporting-disabled' : 'opt-in-required',
+      ) };
       mounted = owner;
       __setCurrentContext(runtime);
       if (config.crashReporting?.disabled !== true) {
@@ -556,6 +570,17 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         if (mounted !== owner) {
           owner.controller.dispose();
           return;
+        }
+        if (config.crashReporting?.promiseRejections?.enabled === true) {
+          owner.rejections = createPromiseRejectionObserver({
+            prepareRejection: owner.controller.prepareRejection,
+            submitRejection: owner.controller.submitRejection,
+            isActive: () => mounted === owner && __getCurrentContext() === runtime,
+          });
+          if (mounted !== owner) {
+            owner.rejections.dispose();
+            return;
+          }
         }
       }
       for (const integration of config.integrations ?? []) {
@@ -597,6 +622,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
           // Older native SDK without this method — harmless.
         }
       }
+      owner.rejections?.dispose();
       owner.controller?.dispose();
       for (const { name, teardown } of owner.teardowns) {
         try {

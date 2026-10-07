@@ -96,6 +96,81 @@ provider context and attach any non-sensitive context needed for diagnosis.
 The source API requires matching rebuilt native components; published `0.7.0`
 artifacts are not evidence of support.
 
+## Promise rejection observation
+
+Automatic Hermes rejection observation is opt-in:
+
+```tsx
+import { EverframeProvider, getPromiseRejectionStatus } from '@everframe/react-native';
+
+<EverframeProvider config={{
+  apiKey: '…',
+  crashReporting: { promiseRejections: { enabled: true } },
+}}>
+  <App />
+</EverframeProvider>
+
+// Read after mount. This reports observer coverage, not delivery confirmation.
+const status = getPromiseRejectionStatus();
+```
+
+The verified runtime is Android/iOS `react-native-tvos@0.85.3-0` with Hermes
+release `250829098.0.10`, Release/Static Hermes and bytecode 98. Qualification
+uses optimized apps on an Android API 35 arm64 emulator and an iOS 26.5 arm64
+simulator with Debug/local native SDK transport, including expiry after the app
+process is suspended, source mapping and encrypted retry after relaunch.
+Physical devices, device sleep and production transport are not qualified by
+these checks. Matching the SDK's broader RN peer range does not establish
+rejection support. Other versions, JSC, browser execution, tvOS,
+unverified Promise replacements and incompatible hooks return `unsupported`.
+The adapter checks runtime identity and a fulfilled-only hook handshake; it
+does not generate a test rejection or replace the Promise constructor.
+
+Rejections still unhandled after 2 seconds enter the existing nonfatal capture
+path. A handler attached within that interval cancels capture; later handling
+does not retract an accepted report. The notification uses a JavaScript timer.
+Android pauses JavaScript timers while the app's activity is paused (in the
+background, behind another activity or in picture-in-picture), although
+JavaScript can keep running. Rejections observed then are notified on later
+Promise activity or when the activity resumes. Explicit capture and automatic
+reporting share accepted error identity, and automatic reports retain their
+existing 10-distinct-key allowance per mount. Automatic reports are
+deduplicated by exception type and top stack frame. Non-Error reasons have no
+stack and are deduplicated by their reported value with digit runs ignored, so
+`Request 1001 failed` repeats `Request 1000 failed` and all object reasons
+share one report per mount. They spend at most 5 of the 10 keys, so values that
+differ in other ways, such as hex identifiers, still leave 5 keys for `Error`
+rejections and other automatic reports.
+
+The observer retains at most 16 detached snapshots, each at most 64 KiB of
+serialized UTF-8 data. It drops new arrivals when full and oversize snapshots
+rather than retaining arbitrary error graphs. Work is counted as expired
+instead of reported when it is notified more than 30 seconds after the
+rejection. Age is measured on the platform's elapsed clock and bounded by
+wall-clock time, which keeps advancing while an Android device sleeps. Cleanup
+cannot run while JavaScript is suspended, so stale work expires when
+JavaScript resumes. Error facts and causes are snapshotted at rejection time.
+Rejection reasons that are not `Error` objects are reported as `UnhandledValue`
+without a stack or cause chain, even when they carry a `cause`. Strings,
+numbers, booleans, `null` and `undefined` keep their bounded value; objects,
+arrays, functions, symbols and bigints are reported only as a type label such
+as `[object]` rather than serialized.
+Native context and breadcrumbs are collected at notification time. A preserved
+external tracker may independently retain errors or generate its own reports.
+
+`getPromiseRejectionStatus()` returns `disabled`, `unsupported`, `observing`,
+`displaced`, `install-failed`, or `not-mounted`, with a reason and bounded
+counters for pending, accepted, cancelled, dropped, expired, suppressed,
+refused, failed and discarded captures. A rejection handled within the 2-second interval counts as cancelled,
+even if it was dropped or failed to snapshot on arrival. Counters saturate at
+2,147,483,647 and reset on each mount; they contain no captured messages or
+stacks. Replacing either hook stops this observer until a new mount and
+releases its pending work, counted as `discarded`.
+`crashReporting.disabled: true` overrides the opt-in, and unmount discards
+pending work. Configuration changes take effect on a new mount.
+The browser export reports Hermes observation as unsupported and preserves the
+browser SDK's own error handling.
+
 ## Network body capture (client veto)
 
 ```tsx
