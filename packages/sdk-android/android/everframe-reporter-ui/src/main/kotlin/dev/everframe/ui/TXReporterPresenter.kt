@@ -136,9 +136,14 @@ internal class TXReporterPresenter(
             return@txGuardSuspend showDialog(activity, capture, reportCapture, hostExtraNormalized)
         }
         // Send hands the capture to its submission, which releases it when the
-        // upload ends. A caller cancelled after Send must not empty it mid-upload.
-        if (result == null && frozenCapture?.let { it in SubmittedCaptures } == true) frozenCapture = null
-        val final = result ?: ReportResult.Cancelled("presenter_failed")
+        // upload ends. A caller cancelled after Send must not empty it mid-upload,
+        // and stays presenting until the upload settles, so that no other report
+        // freezes an empty capture meanwhile. The upload's outcome is the result.
+        val submission = if (result == null) frozenCapture?.let { SubmittedCaptures.submissionOf(it) } else null
+        if (submission != null) frozenCapture = null
+        val final = result
+            ?: submission?.let { sent -> kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { sent.await() } }
+            ?: ReportResult.Cancelled("presenter_failed")
         // Parity with iOS resolveResult (TXReporterPresenter.swift:161-163):
         // a cancelled reporter must not leave a frozen snapshot pinned under
         // the next report. Submit paths consume and release their explicit handle.
