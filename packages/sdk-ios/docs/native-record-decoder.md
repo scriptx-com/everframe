@@ -8,6 +8,8 @@ recover configuration, or enqueue events. A future recovery coordinator must
 resolve the original context and supply its redaction policy.
 
 Input is limited to2MiB, depth64,256 threads and1024 images. Duplicate keys reject.
+Structural integer fields reject decimal/exponent token spellings before Foundation
+conversion can round them. Ignored vendor metadata may contain fractional numbers.
 Only the unique crashed thread is used; its first256 input frames are considered.
 Malformed frames/images and missing or ambiguous image matches remain explicitly
 incomplete. Unmatched instruction addresses remain available without guessed

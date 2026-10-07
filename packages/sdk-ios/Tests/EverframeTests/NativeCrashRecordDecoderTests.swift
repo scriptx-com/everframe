@@ -132,6 +132,32 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         let encoded = String(decoding: try JSONEncoder().encode(result.crash), as: UTF8.self)
         XCTAssertFalse(encoded.contains("NEVER_COPY")); XCTAssertFalse(encoded.contains("Applications"))
     }
+    func testNonIntegerStructuralTokensRejectBeforeFoundationCanRoundThem() throws {
+        var associated = frame(); associated["object_addr"] = UInt64(0x20000000000001)
+        let original = String(decoding: try data(record(frames: [associated])), as: UTF8.self)
+        let cases = [
+            ("instruction_addr", "9007199254740993.1"), ("image_addr", "9007199254740993.1"),
+            ("image_size", "256.0000000000000001"), ("image_vmaddr", "4294967296.0000000001"),
+            ("object_addr", "9007199254740993.1"), ("timestamp", "1791331200000001.1"),
+            ("cpu_type", "16777228.0000000001"), ("cpu_subtype", "0.00000000000000000001"),
+            ("index", "7.0000000000000001"), ("exception", "6.0000000000000001"),
+            ("code", "-9223372036854775808.1"), ("subcode", "9007199254740993.1"),
+            ("address", "9007199254740993.1"), ("signal", "5.0000000000000001"),
+            // Even mathematically integral alternate spellings fail closed for structural fields.
+            ("instruction_addr", "9007199254740993.0"), ("instruction_addr", "9.007199254740993e15")
+        ]
+        for (key, token) in cases {
+            let pattern = #"""# + key + #"":-?[0-9]+"#
+            let range = try XCTUnwrap(original.range(of: pattern, options: .regularExpression))
+            let altered = original.replacingCharacters(in: range, with: #"""# + key + #"":"# + token)
+            XCTAssertThrowsError(try NativeCrashRecordDecoder.decode(Data(altered.utf8), redact: { $0 }), key + ":" + token) {
+                XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, .malformed, key + ":" + token)
+            }
+        }
+        // Unknown metadata must not inherit the structural integer-only spelling rule.
+        let ignored = #"{"system":{"timestamp":1791331200000001.1,"code":1.5,"uptime":1e-3},"# + original.dropFirst()
+        XCTAssertNoThrow(try NativeCrashRecordDecoder.decode(Data(ignored.utf8), redact: { $0 }))
+    }
     func testByteDepthKeyAndEscapedDuplicateBoundsBeforeDecode() throws {
         let original = String(decoding: try data(record()), as: UTF8.self)
         let suffix = String(original.dropFirst())
