@@ -13,8 +13,9 @@ enum NativeCrashRecordDecoder {
     /// 97 slots (KSSC_CONTEXT_SIZE 100, less a two-word cursor header and one spare) and skips 3
     /// recorder frames, so a full buffer yields 94 frames with no truncation marker.
     private static let pinnedHandlerFrameCapacity = 94
-    /// The image a normalized frame resolved to.
-    private enum FrameImage { case app, system, unmatched }
+    /// The image a normalized frame resolved to. dyld, and dyld_sim on simulators, are the OS images that start the
+    /// main thread.
+    private enum FrameImage { case app, system, dyld, dyldSim, unmatched }
 
     static func decode(_ data: Data, redact: (String) -> String) throws -> NativeCrashRecord {
         try NativeCrashJSONPreflight.validate(data)
@@ -90,9 +91,9 @@ enum NativeCrashRecordDecoder {
                     crashInfo += [image.crash_info_message, image.crash_info_message2].compactMap { $0 }
                 }
                 offset = hex(pc - image.image_addr)
-                let app = !isSystemImage(image.name)
-                if app { appKeys.append("\(uuid):\(hex(pc - image.image_addr))") }
-                frameImages.append(app ? .app : .system)
+                let kind = frameImage(image.name)
+                if kind == .app { appKeys.append("\(uuid):\(hex(pc - image.image_addr))") }
+                frameImages.append(kind)
             } else { imagesIncomplete = true; frameImages.append(.unmatched) }
             let symbol = entry.symbol_name.map { text($0, limit: 512, redact: redact, fallback: "<unknown>") }
             let raw = bounded("\(name) \(symbol ?? "<unknown>") \(hex(pc))", limit: 1024)
@@ -111,12 +112,10 @@ enum NativeCrashRecordDecoder {
             images: images, imagesIncomplete: imagesIncomplete, platform: .apple,
             timestampMicros: String(header.timestamp))
         // Key app frames: OS images hold terminate/abort machinery and change with every OS update.
-        // The entry point (main, or $main and main) is the app run directly above the final OS frame,
-        // the loader's start. When it holds every app frame and the crashing frame is outside it, the
-        // fault is in OS code and main alone would merge distinct faults, so the leading frames key the
-        // group, as they do without any app frame.
-        var entry = frameImages.count
-        if frameImages.last == .system { entry -= 1; while entry > 0, frameImages[entry - 1] == .app { entry -= 1 } }
+        // When the entry point holds every app frame and the crashing frame is outside it, the fault is in
+        // OS code and main alone would merge distinct faults, so the leading frames key the group, as they
+        // do without any app frame.
+        let entry = entryPoint(frameImages)
         let leading = appKeys.isEmpty || (entry > 0 && !frameImages[..<entry].contains(.app))
         let keys = leading ? nativeFrames.prefix(5).enumerated().map { index, frame in
             if let image = frame.imageIndex, let offset = frame.imageOffset { return "\(images[image].uuid):\(offset)" }
@@ -153,6 +152,25 @@ enum NativeCrashRecordDecoder {
     private static func isSystemImage(_ path: String) -> Bool {
         ["/System/", "/usr/lib/", "/Library/Apple/", "/private/preboot/"].contains { path.hasPrefix($0) }
             || path.contains("/RuntimeRoot/")
+    }
+    private static func frameImage(_ path: String) -> FrameImage {
+        guard isSystemImage(path) else { return .app }
+        switch basename(path) { case "dyld": return .dyld; case "dyld_sim": return .dyldSim; default: return .system }
+    }
+    /// Where the entry point (main, or $main and main) begins: the app run directly above the loader's start, the
+    /// stack's final OS frame. That is dyld's start on devices; on simulators the host's dyld start runs dyld_sim's
+    /// start_sim, the loader's start there. Either loader image can be unlisted, so unmatched frames below a loader
+    /// frame are skipped and an unmatched frame directly above dyld's start is start_sim. Without a final OS frame
+    /// there is no entry point, and the frame count is returned.
+    private static func entryPoint(_ images: [FrameImage]) -> Int {
+        var start = images.count
+        while start > 0, images[start - 1] == .unmatched { start -= 1 }
+        if start > 0, images[start - 1] == .dyld || images[start - 1] == .dyldSim {
+            start -= 1
+            if images[start] == .dyld, start > 0, images[start - 1] == .dyldSim || images[start - 1] == .unmatched { start -= 1 }
+        } else if images.last == .system { start = images.count - 1 } else { return images.count }
+        while start > 0, images[start - 1] == .app { start -= 1 }
+        return start
     }
     private static func basename(_ value: String) -> String {
         String(value.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last ?? "")

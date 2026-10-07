@@ -43,11 +43,15 @@ under /System, /usr/lib, /Library/Apple, /private/preboot or a simulator
 RuntimeRoot) are skipped: they hold terminate/abort machinery and change with OS
 updates. Without any app frame, the first five frames are used. They are also used
 when the crashing frame is outside app images and every app frame belongs to the entry
-point: the app frames directly above the stack's final OS frame, the loader's start
-(main, or $main and main, plus any app code main calls directly). Faults inside OS
-code, such as over-releases in a Core Animation commit, then stay apart instead of
-sharing main's key, but their keys change with OS updates. Keys are stable across
-ASLR within one app build; mapped cross-build grouping is a later layer.
+point: the app frames directly above the loader's start (main, or $main and main, plus
+any app code main calls directly). The loader's start is the stack's final OS frame,
+dyld's start on devices. On simulators the host's dyld start runs dyld_sim's start_sim,
+which is the loader's start there. Either loader image can be missing from the image
+list: unmatched frames below a dyld or dyld_sim frame are skipped, and an unmatched
+frame directly above dyld's start is taken as start_sim. Faults inside OS code, such as
+over-releases in a Core Animation commit, then stay apart instead of sharing main's
+key, on devices and simulators alike, but their keys change with OS updates. Keys are
+stable across ASLR within one app build; mapped cross-build grouping is a later layer.
 
 The runtime protocol validator additionally checks image ranges, CPU/architecture
 consistency and frame associations. Generated JSON Schema expresses structural

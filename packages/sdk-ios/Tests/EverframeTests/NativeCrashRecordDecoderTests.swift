@@ -265,41 +265,59 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                           try decode(record(frames: Array(machinery.reversed()), images: images(build: 1))).crash.fingerprint)
     }
     func testEntryPointAloneDoesNotMergeSystemOnlyFaults() throws {
-        // OS images, then the app, whose entry point (main, or $main and main) sits directly above dyld's start.
-        let paths = ["/usr/lib/libobjc.A.dylib", "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
-                     "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
-                     "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore", "/usr/lib/dyld",
-                     "/System/Library/Frameworks/SwiftUI.framework/SwiftUI", "/usr/lib/system/libdispatch.dylib",
-                     "/usr/lib/system/libsystem_pthread.dylib", "/private/var/containers/Bundle/Application/X/App.app/App"]
-        let (objc, quartz, cf, uikit, dyld, swiftUI, dispatch, pthread, app) = (0, 1, 2, 3, 4, 5, 6, 7, 8)
-        func fingerprint(_ stack: [(Int, UInt64)], type: String = "mach", osBuild: Int = 1, slide: UInt64 = 0) throws -> String {
-            func base(_ index: Int) -> UInt64 { 0x180000000 + UInt64(index) * 0x1000000 + slide }
-            let images = paths.indices.map { index in
-                image(base: base(index), size: 0x400000,
-                      uuid: index == app ? nil : String(format: "%08lx-0000-4000-8000-%012lx", osBuild, index), name: paths[index])
+        // OS images, then the app, whose entry point (main, or $main and main) sits directly above the loader's start:
+        // dyld's start on devices; on simulators dyld_sim's start_sim, which the host's dyld start runs. Either loader
+        // image can be unlisted, and an exception's own backtrace can end in an unknown frame.
+        let runtime = "/Library/Developer/CoreSimulator/Volumes/iOS/Library/Developer/CoreSimulator/Profiles/Runtimes/"
+            + "iOS.simruntime/Contents/Resources/RuntimeRoot"
+        let system = ["/usr/lib/libobjc.A.dylib", "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+                      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+                      "/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore",
+                      "/System/Library/Frameworks/SwiftUI.framework/SwiftUI", "/usr/lib/system/libdispatch.dylib",
+                      "/usr/lib/system/libsystem_pthread.dylib"]
+        let (objc, quartz, cf, uikit, swiftUI, dispatch, pthread, dyld, dyldSim, app, unknown) = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        let layouts: [(name: String, simulator: Bool, unlisted: Set<Int>, start: [(Int, UInt64)])] = [
+            ("device", false, [dyldSim], [(dyld, 0x700)]), ("simulator", true, [], [(dyldSim, 0x20), (dyld, 0x700)]),
+            ("simulator without dyld_sim", true, [dyldSim], [(dyldSim, 0x20), (dyld, 0x700), (unknown, 0)]),
+            ("simulator without the host's dyld", true, [dyld], [(dyldSim, 0x20), (dyld, 0x700), (unknown, 0)])]
+        for layout in layouts {
+            let paths = system.map { (layout.simulator ? runtime : "") + $0 } + ["/usr/lib/dyld", runtime + "/usr/lib/dyld_sim",
+                (layout.simulator ? "/Users/me/Library/Developer/CoreSimulator/Devices/D/data/Containers" : "/private/var/containers")
+                + "/Bundle/Application/X/App.app/App"]
+            func fingerprint(_ stack: [(Int, UInt64)], type: String = "mach", osBuild: Int = 1, slide: UInt64 = 0) throws -> String {
+                func base(_ index: Int) -> UInt64 { 0x180000000 + UInt64(index) * 0x1000000 + slide }
+                let images = paths.indices.filter { !layout.unlisted.contains($0) }.map { index in
+                    image(base: base(index), size: 0x400000,
+                          uuid: index == app ? nil : String(format: "%08lx-0000-4000-8000-%012lx", osBuild, index), name: paths[index])
+                }
+                let frames = stack.map { frame(pc: base($0.0) + $0.1) }
+                return try decode(type == "nsexception" ? record(type: type, images: images, exceptionFrames: frames)
+                                  : record(type: type, frames: frames, images: images)).crash.fingerprint
             }
-            let frames = stack.map { frame(pc: base($0.0) + $0.1) }
-            return try decode(type == "nsexception" ? record(type: type, images: images, exceptionFrames: frames)
-                              : record(type: type, frames: frames, images: images)).crash.fingerprint
-        }
-        // Over-releases in a Core Animation commit and in an autorelease-pool pop, both under UIApplicationMain.
-        let tail: [(Int, UInt64)] = [(cf, 0x400), (uikit, 0x500), (app, 0x600), (dyld, 0x700)]
-        let commit: [(Int, UInt64)] = [(objc, 0x10), (quartz, 0x100), (cf, 0x200)] + tail
-        let pop: [(Int, UInt64)] = [(objc, 0x20), (objc, 0x120), (cf, 0x300)] + tail
-        XCTAssertNotEqual(try fingerprint(commit), try fingerprint(pop))
-        let swiftUITail: [(Int, UInt64)] = [(uikit, 0x500), (swiftUI, 0x100), (app, 0x700), (app, 0x600), (dyld, 0x700)]
-        XCTAssertNotEqual(try fingerprint([(objc, 0x10), (quartz, 0x100)] + swiftUITail),
-                          try fingerprint([(objc, 0x20), (cf, 0x300)] + swiftUITail))
-        // The same fault still converges across ASLR slides.
-        XCTAssertEqual(try fingerprint(commit), try fingerprint(commit, slide: 0x4000))
-        // App frames above the entry point, on the main or a background thread, still key the group alone, as
-        // does app code that main calls directly, so an OS update neither merges their call sites nor splits them.
-        let site = { (offset: UInt64) -> [(Int, UInt64)] in [(cf, 0x10), (objc, 0x50), (app, offset), (uikit, 0x100)] + tail }
-        XCTAssertNotEqual(try fingerprint(site(0x100), type: "nsexception"), try fingerprint(site(0x200), type: "nsexception"))
-        let background: [(Int, UInt64)] = [(cf, 0x10), (objc, 0x50), (app, 0x100), (dispatch, 0x100), (dispatch, 0x200), (pthread, 0x100)]
-        let direct: [(Int, UInt64)] = [(app, 0x100), (app, 0x600), (dyld, 0x700)]
-        for (stack, type) in [(site(0x100), "nsexception"), (background, "nsexception"), (direct, "mach")] {
-            XCTAssertEqual(try fingerprint(stack, type: type), try fingerprint(stack, type: type, osBuild: 2), type)
+            // Over-releases in a Core Animation commit and in an autorelease-pool pop, both under UIApplicationMain.
+            let tail: [(Int, UInt64)] = [(cf, 0x400), (uikit, 0x500), (app, 0x600)] + layout.start
+            let commit: [(Int, UInt64)] = [(objc, 0x10), (quartz, 0x100), (cf, 0x200)] + tail
+            let pop: [(Int, UInt64)] = [(objc, 0x20), (objc, 0x120), (cf, 0x300)] + tail
+            XCTAssertNotEqual(try fingerprint(commit), try fingerprint(pop), layout.name)
+            let swiftUITail: [(Int, UInt64)] = [(uikit, 0x500), (swiftUI, 0x100), (app, 0x700), (app, 0x600)] + layout.start
+            XCTAssertNotEqual(try fingerprint([(objc, 0x10), (quartz, 0x100)] + swiftUITail),
+                              try fingerprint([(objc, 0x20), (cf, 0x300)] + swiftUITail), layout.name)
+            // The same fault still converges across ASLR slides.
+            XCTAssertEqual(try fingerprint(commit), try fingerprint(commit, slide: 0x4000), layout.name)
+            // App frames above the entry point, on the main or a background thread, still key the group alone, as do
+            // app code that main calls directly and an initializer that the loader's own frames run, so an OS update
+            // neither merges their call sites nor splits them.
+            let site = { (offset: UInt64) -> [(Int, UInt64)] in [(cf, 0x10), (objc, 0x50), (app, offset), (uikit, 0x100)] + tail }
+            XCTAssertNotEqual(try fingerprint(site(0x100), type: "nsexception"), try fingerprint(site(0x200), type: "nsexception"),
+                              layout.name)
+            let background: [(Int, UInt64)] = [(cf, 0x10), (objc, 0x50), (app, 0x100), (dispatch, 0x100), (dispatch, 0x200), (pthread, 0x100)]
+            let direct: [(Int, UInt64)] = [(app, 0x100), (app, 0x600)] + layout.start
+            let loader = layout.start[0].0
+            let initializer: [(Int, UInt64)] = [(cf, 0x10), (objc, 0x50), (app, 0x100), (loader, 0x100), (loader, 0x200)] + layout.start
+            for (label, stack, type) in [("site", site(0x100), "nsexception"), ("background", background, "nsexception"),
+                                         ("direct", direct, "mach"), ("initializer", initializer, "nsexception")] {
+                XCTAssertEqual(try fingerprint(stack, type: type), try fingerprint(stack, type: type, osBuild: 2), layout.name + " " + label)
+            }
         }
     }
     func testDefaultRedactionSeesSeparatorsAndSecretsStraddlingTheCap() throws {
