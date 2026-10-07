@@ -1,0 +1,23 @@
+packages/sdk-ios/Tests/EverframeTests/FoundationCrashCausesTests.swift
+  s_360d9eb003c487::t_ffcf3fa12e4d96 88-99
+  s_360d9eb003c487::t_38f098ba3dda50 50-54
+  s_360d9eb003c487::t_7dba4d9564f892 100
+packages/sdk-ios/Sources/Everframe/Crash/FoundationCrashCauses.swift
+  s_360d9eb003c487::t_ca73a182550e0e 13-18,20,39-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c46a5ad008731b549bab6eafddab2e4880aa7d10",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
