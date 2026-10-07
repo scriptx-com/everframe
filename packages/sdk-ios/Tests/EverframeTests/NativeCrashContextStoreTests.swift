@@ -69,10 +69,19 @@ final class NativeCrashContextStoreTests: XCTestCase {
         let store = try store(), run = try store.createRun(), id = try store.writeContext(Data("owner".utf8), runID: run.id)
         let before = try Data(contentsOf: file(store, run.id, id))
         let unavailable = try NativeCrashContextStore(rootURL: store.rootURL, keyProvider: { throw NSError(domain: "locked", code: 1) })
-        XCTAssertThrowsError(try unavailable.writeContext(Data("next".utf8), runID: run.id))
-        XCTAssertThrowsError(try unavailable.readContext(runID: run.id, contextID: id))
+        // A locked keychain must surface as itself, never as corruption a caller may retire.
+        func assertLocked(_ operation: () throws -> Void, line: UInt = #line) {
+            XCTAssertThrowsError(try operation(), line: line) { error in
+                XCTAssertNil(error as? NativeCrashContextStore.Failure, line: line)
+                XCTAssertEqual((error as NSError).domain, "locked", line: line)
+                XCTAssertEqual((error as NSError).code, 1, line: line)
+            }
+        }
+        assertLocked { _ = try unavailable.writeContext(Data("next".utf8), runID: run.id) }
+        assertLocked { _ = try unavailable.readContext(runID: run.id, contextID: id) }
         XCTAssertEqual(try Data(contentsOf: file(store, run.id, id)), before)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.rootURL.appendingPathComponent(run.id.uuidString.lowercased()).path).count, 2)
+        XCTAssertEqual(try store.readContext(runID: run.id, contextID: id), Data("owner".utf8))
     }
     func testInvalidKeyCannotPersistContext() throws {
         let store = try NativeCrashContextStore(rootURL: directory.appendingPathComponent("short-key"), keyProvider: { Data(repeating: 1, count: 31) })
@@ -96,9 +105,21 @@ final class NativeCrashContextStoreTests: XCTestCase {
     }
     func testTotalPersistedByteBudgetIncludesEncryptionOverhead() throws {
         var limits = NativeCrashContextStore.Limits.defaults; limits.maxTotalBytes = 1024; limits.maxPayloadBytes = 1024
-        let store = try store(limits), run = try store.createRun()
-        _ = try store.writeContext(Data(repeating: 2, count: 700), runID: run.id)
-        assertFailure(.capacity) { _ = try store.writeContext(Data(repeating: 3, count: 300), runID: run.id) }
+        let store = try store(limits), run = try store.createRun(now: Date(timeIntervalSince1970: 100))
+        let first = try store.writeContext(Data(repeating: 2, count: 700), runID: run.id)
+        func size(_ url: URL) throws -> Int {
+            try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber).intValue
+        }
+        let header = try size(store.rootURL.appendingPathComponent(run.id.uuidString.lowercased()).appendingPathComponent("run.json"))
+        let sealed = try size(file(store, run.id, first))
+        XCTAssertEqual(sealed, 700 + 8 + 12 + 16) // magic, nonce and tag
+        let remaining = limits.maxTotalBytes - header - sealed
+        // Fits only if the new record's own encryption overhead were ignored.
+        assertFailure(.capacity) { _ = try store.writeContext(Data(repeating: 3, count: remaining - 35), runID: run.id) }
+        let exact = try store.writeContext(Data(repeating: 4, count: remaining - 36), runID: run.id)
+        XCTAssertEqual(try store.runs(), [run])
+        XCTAssertEqual(try store.readContext(runID: run.id, contextID: exact), Data(repeating: 4, count: remaining - 36))
+        assertFailure(.capacity) { _ = try store.writeContext(Data(), runID: run.id) }
     }
     func testOversizedStoredFileIsRejectedBeforeDecode() throws {
         let store = try store(), run = try store.createRun(), id = try store.writeContext(Data([1]), runID: run.id)
