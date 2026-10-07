@@ -558,8 +558,8 @@ inspected: when the parent of such a view does not clip children (React Native v
 bounds of each descendant are painted too, so a child laid out or moved outside the view stays
 covered. Masks are clipped to the window. Only these views are masked: content that repeats a secret
 elsewhere, such as one-time-code digit cells, a card preview or a search echo, needs its own marker.
-Content that other code redraws elsewhere is not covered either, for example a container-transform
-animation that draws a view into an overlay while the original is transparent.
+Copies that other code draws are not covered either, such as a snapshot of a view drawn in a
+transition overlay.
 
 **SurfaceViews.** A `SurfaceView` renders into its own surface, which a window copy never contains.
 Its area is left empty without a mask, and views drawn above it, such as subtitles and player
@@ -574,12 +574,15 @@ controls, are recorded.
   plugin's masked Dart replay. Screenshot handling is unchanged.
 - a view cannot be classified, a React Native view appears without the platform adapter, or the
   adapter answers `UNKNOWN`.
-- a masked view's drawn position cannot be proven: it sits in an overlay or under a broken parent
-  chain; a legacy `Animation` or an animation matrix applies to it or an ancestor (an `Animation`
-  kept with `fillAfter` keeps refusing frames until `clearAnimation()`); a layout transition is
-  running above it; it or an ancestor is `INVISIBLE` or has transition alpha below one, because a
-  shared-element transition can draw it from an overlay ghost; or it is `GONE` while a removal
-  transition still draws it. A `GONE` ordinary child needs no mask.
+- a masked view's drawn position cannot be proven: it or an ancestor sits in an overlay or under a
+  broken parent chain; a legacy `Animation` or an animation matrix applies to it or an ancestor (an
+  `Animation` kept with `fillAfter` keeps refusing frames until `clearAnimation()`); a layout
+  transition is running above it; it or an ancestor is `INVISIBLE`, fully transparent (alpha 0) or
+  has transition alpha below one, because then only another drawing can show it (a shared-element
+  ghost draws a hidden original from an overlay, and a container transform makes both containers
+  transparent while it draws them elsewhere); or it is `GONE` while a removal transition still draws
+  it. A `GONE` ordinary child needs no mask, however transparent. This refuses frames while a React
+  Native `TextInput` is styled with `opacity: 0`, as one-time-code fields often are.
 - the keyboard pans the window (`adjustPan`) and the frame needs masks: the panned window is drawn
   shifted, so the masks would miss the views they cover.
 - the window is `FLAG_SECURE`, wide-gamut or HDR, or unfocused, the 2,048-node / 2 ms budget runs
@@ -593,8 +596,9 @@ Mark sensitive overlay content **before attachment**, for example
 View child traversal cannot enumerate views inserted directly into an overlay. An input that was
 never observed in the normal child tree therefore requires this explicit marker. The SDK retains
 bounded weak tracking for explicitly marked and previously observed sensitive Views until they
-detach: one retained by a removal transition stays masked, and one moved into an overlay refuses
-its window's frames. Tracking uncertainty or capacity exhaustion excludes video.
+detach: one retained by a removal transition stays masked, and one moved into an overlay, directly or
+with a container (as a fade-out transition does), refuses its window's frames. Tracking uncertainty
+or capacity exhaustion excludes video.
 
 Automatically detected WebViews are an exception: an attached background WebView does not block
 replay when its ordinary child ancestry proves it `GONE`, fully transparent, or fully clipped in a

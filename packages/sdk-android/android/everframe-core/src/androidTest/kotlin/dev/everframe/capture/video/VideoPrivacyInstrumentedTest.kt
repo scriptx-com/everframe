@@ -338,6 +338,37 @@ class VideoPrivacyInstrumentedTest {
         // After the 300 ms fade the row is hidden and frames are recorded.
         neverShowsSecret(activity, 1800, settledAtMs = 700)
     }
+    @Test fun transparentContainerRedrawnFromTheOverlayIsNeverRecorded() = fixture { scenario, activity, root ->
+        lateinit var holder: FrameLayout
+        lateinit var input: EditText
+        lateinit var redraw: android.graphics.drawable.Drawable
+        val redraws = AtomicInteger()
+        scenario.onActivity { a ->
+            a.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            holder = FrameLayout(a)
+            input = EditText(a).apply { setBackgroundColor(secret); setTextColor(secret); setText("draft") }
+            holder.addView(input, FrameLayout.LayoutParams(400, 200))
+            root.addView(holder, bottomLeft())
+            // How a container transform works: the container turns transparent while an overlay
+            // drawable draws it, input included, somewhere else (here the top-left corner).
+            redraw = object : android.graphics.drawable.Drawable() {
+                override fun draw(canvas: Canvas) { redraws.incrementAndGet(); holder.draw(canvas) }
+                override fun setAlpha(alpha: Int) = Unit
+                override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) = Unit
+                @Deprecated("Deprecated in Java")
+                override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+            }
+            redraw.setBounds(0, 0, 400, 200)
+            holder.alpha = 0f
+            root.overlay.add(redraw)
+        }
+        neverShowsSecret(activity, 1000, settledAtMs = null)
+        assertTrue("the overlay never drew the container", redraws.get() > 0)
+        // Positive control: once the transform ends the input is drawn in place and masked.
+        scenario.onActivity { root.overlay.remove(redraw); holder.alpha = 1f }
+        assertMaskedFrame(scenario, activity, input)
+    }
     @Test fun keyboardPannedWindowNeverRecordsTheFocusedFieldUnmasked() = fixture { scenario, activity, root ->
         lateinit var input: EditText
         scenario.onActivity { a ->

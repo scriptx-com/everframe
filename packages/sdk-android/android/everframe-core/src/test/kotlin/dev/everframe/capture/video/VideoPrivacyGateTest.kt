@@ -456,6 +456,53 @@ class VideoPrivacyGateTest {
         assertTrue(masked(gate.observe(root), input, root))
     }
 
+    @Test fun transparentMaskedViewOrAncestorRefusesFrames() = placementFixture { root, holder, input, gate ->
+        assertTrue(masked(gate.observe(root), input, root))
+        // A container transform sets both containers to alpha 0 and draws them, inputs included, from an overlay.
+        holder.alpha = 0f
+        assertFalse("a container transform redraws a transparent container from an overlay", gate.observe(root).allowed)
+        holder.alpha = 0.5f
+        assertTrue("a translucent container draws its input in place", masked(gate.observe(root), input, root))
+        holder.alpha = 1f
+        input.alpha = 0f
+        assertFalse("a transparent input draws nothing itself, so only a redraw can show it", gate.observe(root).allowed)
+        input.alpha = 1f
+        root.alpha = 0f
+        assertFalse("the root is an ancestor too", gate.observe(root).allowed)
+        root.alpha = 1f
+        // Nothing draws a GONE ordinary child, however transparent: a field faded out and then hidden.
+        holder.alpha = 0f; holder.visibility = View.GONE
+        val gone = gate.observe(root)
+        assertTrue(gone.allowed); assertTrue(gone.masks.isEmpty())
+        holder.visibility = View.VISIBLE; holder.alpha = 1f
+        val group = FrameLayout(root.context); root.addView(group); group.layout(200,200,300,300)
+        group.setTag(R.id.tx_sensitive, true); group.addView(View(root.context))
+        assertTrue(masked(gate.observe(root), group, root))
+        group.alpha = 0f
+        assertFalse("a marked container used as a transform target", gate.observe(root).allowed)
+        root.removeView(group)
+        assertTrue(masked(gate.observe(root), input, root))
+        // History: the removal transition keeps drawing the remembered input's container.
+        root.startViewTransition(holder); root.removeView(holder)
+        try {
+            assertTrue(masked(gate.observe(root), input, root))
+            holder.alpha = 0f
+            assertFalse("history refuses a transparent ancestor too", gate.observe(root).allowed)
+        } finally { holder.alpha = 1f; root.endViewTransition(holder) }
+    }
+
+    @Test fun maskedViewWhoseContainerIsDrawnFromTheOverlayRefusesFrames() = placementFixture { root, holder, input, gate ->
+        assertTrue(masked(gate.observe(root), input, root))
+        // A fade-out transition draws a removed container from the scene root's overlay.
+        root.overlay.add(holder)
+        try {
+            assertTrue(input.isAttachedToWindow); assertEquals(-1, root.indexOfChild(holder))
+            assertFalse("the overlay draws the remembered input where no walk can place it", gate.observe(root).allowed)
+        } finally { root.overlay.remove(holder) }
+        val clean = gate.observe(root)
+        assertTrue(clean.allowed); assertTrue(clean.masks.isEmpty())
+    }
+
     @Test fun goneInputIsUnmaskedOnlyWhileNothingCanStillDrawIt() = placementFixture { root, holder, input, gate ->
         assertTrue(masked(gate.observe(root), input, root))
         holder.visibility = View.GONE

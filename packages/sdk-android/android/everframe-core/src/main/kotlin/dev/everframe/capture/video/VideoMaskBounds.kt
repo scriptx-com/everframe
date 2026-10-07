@@ -22,15 +22,19 @@ internal object VideoMaskBounds {
      * child, so nothing draws it. Null when its drawn position cannot be proven, which refuses
      * the frame: [view] is not under [root] (an overlay or a detached parent), a legacy
      * Animation, an animation matrix or a running LayoutTransition on it or an ancestor can draw
-     * it away from these bounds, or it or an ancestor is INVISIBLE, transition-hidden, or GONE
-     * while a removal transition still draws it.
+     * it away from these bounds, or it or an ancestor is INVISIBLE, fully transparent,
+     * transition-hidden, or GONE while a removal transition still draws it.
      */
     fun of(view: View, root: View): Rect? {
         val r = RectF(0f, 0f, view.width.toFloat(), view.height.toFloat())
         var hidden = false
+        var transparent = false
         var current = view
         while (true) {
             if (!provable(current)) return null
+            // A transparent view draws nothing itself, so only another drawing can show it: a
+            // container transform makes both containers transparent while it draws them elsewhere.
+            if (current.alpha == 0f) transparent = true
             if (current === root) { if (current.visibility == View.GONE) hidden = true; break }
             val parent = current.parent as? ViewGroup ?: return null
             if (current.visibility == View.GONE) {
@@ -46,6 +50,7 @@ internal object VideoMaskBounds {
             current = parent
         }
         if (hidden) return Rect()
+        if (transparent) return null
         return padded(r)
     }
 
