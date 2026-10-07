@@ -117,6 +117,9 @@ already admitted with a pointer retains its immutable bytes under the separate
 diagnostic delivery and retention policy. Health opt-out does not erase records
 already delivered to the server; server exposure erasure removes their linkage
 even when an older diagnostic arrives later. `kill()` revokes both local paths.
+Ordinary report uploads progress independently while a health destination is
+unavailable. Rapid replacement before a pending segment activates can omit a
+prior segment's explicit end; coverage remains incomplete.
 
 To associate OS exit diagnostics, wait for release-health readiness before
 calling `setProcessExitDiagnosticsEnabled(true)` (or native-only recovery).

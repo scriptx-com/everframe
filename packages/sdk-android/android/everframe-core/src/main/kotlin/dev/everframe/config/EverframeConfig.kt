@@ -97,7 +97,49 @@ data class EverframeConfig(
     val r8MappingId: String? = null,
     /** Anonymous, durable SDK exposure segments. Explicit opt-in; independent of replay/vitals. */
     val releaseHealth: ReleaseHealthConfig? = null,
-)
+) {
+    /** Preserve the previous Java constructor and Kotlin default-argument descriptor. */
+    constructor(
+        appId: String,
+        sdkKey: String,
+        environment: Environment = Environment.production,
+        release: String? = null,
+        capture: CaptureConfig = CaptureConfig(),
+        bubble: Boolean = true,
+        useDynamicColor: Boolean = false,
+        companionDeviceId: String? = null,
+        companionBadgeEnabled: Boolean = true,
+        shakeToReportEnabled: Boolean = true,
+        companionBadgePosition: String? = null,
+        theme: ReporterThemeOptions? = null,
+        installIdentifierEnabled: Boolean = true,
+        vitals: VitalsConfig = VitalsConfig(),
+        r8MappingId: String? = null,
+    ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
+        companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
+        theme, installIdentifierEnabled, vitals, r8MappingId, null)
+
+    /** Old compiled copy calls must retain the new opt-in on an existing configuration. */
+    fun copy(
+        appId: String = this.appId,
+        sdkKey: String = this.sdkKey,
+        environment: Environment = this.environment,
+        release: String? = this.release,
+        capture: CaptureConfig = this.capture,
+        bubble: Boolean = this.bubble,
+        useDynamicColor: Boolean = this.useDynamicColor,
+        companionDeviceId: String? = this.companionDeviceId,
+        companionBadgeEnabled: Boolean = this.companionBadgeEnabled,
+        shakeToReportEnabled: Boolean = this.shakeToReportEnabled,
+        companionBadgePosition: String? = this.companionBadgePosition,
+        theme: ReporterThemeOptions? = this.theme,
+        installIdentifierEnabled: Boolean = this.installIdentifierEnabled,
+        vitals: VitalsConfig = this.vitals,
+        r8MappingId: String? = this.r8MappingId,
+    ): EverframeConfig = EverframeConfig(appId, sdkKey, environment, release, capture,
+        bubble, useDynamicColor, companionDeviceId, companionBadgeEnabled, shakeToReportEnabled,
+        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth)
+}
 
 /**
  * The 8 semantic theme roles (branding spec 2026-08-26). Names mirror the

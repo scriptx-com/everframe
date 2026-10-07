@@ -1569,6 +1569,10 @@ object Everframe {
             txGuardSuspend("requestOutboxDrain.releaseHealth") {
                 dev.everframe.health.ReleaseHealthRuntime.flush(epochAtInitiation)
             }
+        }
+        // Health may be waiting on a different captured destination or its own
+        // drain mutex. Ordinary reports retain their independent progress.
+        launchCapturedWork(captured) {
             txGuardSuspend("requestOutboxDrain") {
                 val outbox = sharedOutboxFor(ctx)
                 CrashSidecar(ctx).hydrateInto(outbox)

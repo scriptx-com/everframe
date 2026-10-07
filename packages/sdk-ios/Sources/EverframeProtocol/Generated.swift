@@ -1751,7 +1751,7 @@ public struct EverframeDiagnosticEvidence: Codable {
         case provenance, scope, trace, version
     }
 
-    public init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, nativeExposure: EverframeNativeExposure? = nil, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
+    public init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, nativeExposure: EverframeNativeExposure?, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
         self.android = android
         self.attribution = attribution
         self.cause = cause
@@ -1794,7 +1794,7 @@ public extension EverframeDiagnosticEvidence {
         collectedAt: Date? = nil,
         evidenceID: String? = nil,
         kind: EverframeDiagnosticKind? = nil,
-        nativeExposure: EverframeNativeExposure?? = nil,
+        nativeExposure: EverframeNativeExposure??,
         occurredAt: Date? = nil,
         outcome: EverframeOutcome? = nil,
         processLaunchID: String? = nil,
@@ -1827,6 +1827,30 @@ public extension EverframeDiagnosticEvidence {
 
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public extension EverframeDiagnosticEvidence {
+    init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
+        self.init(android: android, attribution: attribution, cause: cause, collectedAt: collectedAt, evidenceID: evidenceID, kind: kind, nativeExposure: nil, occurredAt: occurredAt, outcome: outcome, processLaunchID: processLaunchID, provenance: provenance, scope: scope, trace: trace, version: version)
+    }
+
+    func with(
+        android: EverframeAndroid? = nil,
+        attribution: EverframeAttribution? = nil,
+        cause: EverframeDiagnosticCause? = nil,
+        collectedAt: Date? = nil,
+        evidenceID: String? = nil,
+        kind: EverframeDiagnosticKind? = nil,
+        occurredAt: Date? = nil,
+        outcome: EverframeOutcome? = nil,
+        processLaunchID: String? = nil,
+        provenance: EverframeProvenance? = nil,
+        scope: EverframeScope? = nil,
+        trace: EverframeTrace? = nil,
+        version: Double? = nil
+    ) -> EverframeDiagnosticEvidence {
+        return self.with(android: android, attribution: attribution, cause: cause, collectedAt: collectedAt, evidenceID: evidenceID, kind: kind, nativeExposure: .some(self.nativeExposure), occurredAt: occurredAt, outcome: outcome, processLaunchID: processLaunchID, provenance: provenance, scope: scope, trace: trace, version: version)
     }
 }
 
@@ -1988,6 +2012,16 @@ public struct EverframeNativeExposure: Codable {
         self.nativeBuildID = nativeBuildID
         self.processLaunchID = processLaunchID
         self.startedAt = startedAt
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(exposureID, forKey: .exposureID)
+        try container.encode(loadedBuildID, forKey: .loadedBuildID)
+        try container.encode(loadedBundleStatus, forKey: .loadedBundleStatus)
+        try container.encode(nativeBuildID, forKey: .nativeBuildID)
+        try container.encode(processLaunchID, forKey: .processLaunchID)
+        try container.encode(startedAt, forKey: .startedAt)
     }
 }
 

@@ -148,6 +148,7 @@ class MainActivity : Activity() {
             "health-disable" -> Everframe.start(applicationContext, config(key, false), this)
             "health-kill" -> Everframe.kill()
             "health-flush" -> Everframe.requestOutboxDrain()
+            "health-report" -> Everframe.captureException(IllegalStateException("Health drain progress proof"))
             else -> error("Unknown health proof command")
         }
         scope.launch {
@@ -162,6 +163,10 @@ class MainActivity : Activity() {
                 }
                 withContext(Dispatchers.IO) {
                     val root = File(filesDir, "proof").apply { mkdirs() }
+                    if (mode == "health-report") {
+                        for (entry in JSONLOutbox(applicationContext).hydrate())
+                            File(root, "${entry.reportId}.json").writeBytes(entry.envelopeBytes)
+                    }
                     File(root, "$marker.json").writeText(JSONObject().put("mode", mode)
                         .put("healthReady", Everframe.isReleaseHealthReady()).put("nativeBuildId", BuildConfig.PROOF_NATIVE_BUILD_ID)
                         .put("pid", android.os.Process.myPid()).toString())
