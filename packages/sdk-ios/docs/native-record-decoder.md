@@ -42,7 +42,7 @@ UUID/relative-offset keys of the first five frames in app images. OS images (pat
 under /System, /usr/lib, /Library/Apple, /private/preboot or a simulator
 RuntimeRoot) are skipped: they hold terminate/abort machinery and change with OS
 updates. Without any app frame, the first five frames are used. They are also used
-when the crashing frame is in an OS image and every app frame belongs to the entry
+when the crashing frame is outside app images and every app frame belongs to the entry
 point: the app frames directly above the stack's final OS frame, the loader's start
 (main, or $main and main, plus any app code main calls directly). Faults inside OS
 code, such as over-releases in a Core Animation commit, then stay apart instead of
