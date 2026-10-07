@@ -1,0 +1,26 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_c8c2541ca82cd6 2004-2005
+  s_360d9eb003c487::t_381b4a6ad6f429 2002-2003,2007-2008
+.changeset/android-replay-mask.md
+  s_360d9eb003c487::t_9ffd1eb3788f15 8
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_d51b4df3d6f73a 566-571
+  s_360d9eb003c487::t_ec231d8e46a6a6 586-588
+  s_360d9eb003c487::t_340df55172e912 599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "05ba14b553c61dcb2f2c33dde8e53e23b7d4b7bb",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
