@@ -69,10 +69,10 @@ it('counts a rejection handled within the grace period as cancelled, not as a dr
   f.at(2500); f.hooks.onHandle(late);
   expect(f.observer.getStatus().counters).toMatchObject({ pending: 16, capacityDropped: 1, cancelled: 1 });
 });
-it.each([
+it.each<[string, () => PreparedRejection | undefined]>([
   ['sizeDropped', () => ({ payload: 'x'.repeat(70_000), key: 'oversize' })],
   ['captureFailed', () => undefined],
-] as const)('withdraws %s when the rejection is handled within the grace period', (counter, prepare) => {
+])('withdraws %s when the rejection is handled within the grace period', (counter, prepare) => {
   const f = fixture(prepare), handled = {};
   f.hooks.onReject(handled, 'handled');
   expect(f.observer.getStatus().counters).toMatchObject({ [counter]: 1, cancelled: 0 });
