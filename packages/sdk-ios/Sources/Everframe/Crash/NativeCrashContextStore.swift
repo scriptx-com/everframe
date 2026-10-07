@@ -45,13 +45,17 @@ final class NativeCrashContextStore: @unchecked Sendable {
         }
     }
 
-    func createRun(now: Date = Date()) throws -> Run {
+    /// Admission can leave room for an initial context. This is a capacity check,
+    /// not a persistent reservation against other active runs' later writes.
+    func createRun(now: Date = Date(), reservingPayloadBytes: Int = 0) throws -> Run {
         try Self.lock.withLock {
+            guard reservingPayloadBytes >= 0, reservingPayloadBytes <= limits.maxPayloadBytes else { throw Failure.invalidLimits }
             let inventory = try scan()
             guard inventory.runs.count < limits.maxRuns, now.timeIntervalSince1970.isFinite else { throw Failure.capacity }
             let run = Run(id: UUID(), createdAt: now)
             let encoded = try JSONEncoder().encode(Header(schemaVersion: 1, run: run))
-            guard encoded.count <= 1024, inventory.bytes <= limits.maxTotalBytes - encoded.count else { throw Failure.capacity }
+            let reserved = reservingPayloadBytes == 0 ? 0 : reservingPayloadBytes + Self.overhead
+            guard encoded.count <= 1024, inventory.bytes <= limits.maxTotalBytes - encoded.count - reserved else { throw Failure.capacity }
             let staging = rootURL.appendingPathComponent(".creating-" + name(run.id), isDirectory: true)
             try Files.makeDirectory(staging)
             defer { try? FileManager.default.removeItem(at: staging) }

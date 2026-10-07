@@ -68,7 +68,20 @@ final class NativeCrashRecovery: @unchecked Sendable {
                 try retire(candidate.id, inventory: inventory)
                 inventory = try scan()
             }
-            let contextRun = try contextStore.createRun(now: now)
+            let contextRun: NativeCrashContextStore.Run
+            while true {
+                do {
+                    contextRun = try contextStore.createRun(now: now,
+                        reservingPayloadBytes: NativeCrashContextStore.Limits.defaults.maxPayloadBytes)
+                    break
+                } catch NativeCrashContextStore.Failure.capacity {
+                    // Context ciphertext has an independent byte budget. Reclaim
+                    // eligible old runs even when raw bytes/run count still fit.
+                    guard let candidate = inventory.contexts.first(where: { !excluded($0.id) }) else { throw Failure.capacity }
+                    try retire(candidate.id, inventory: inventory)
+                    inventory = try scan()
+                }
+            }
             // A crash here leaves an identifiable orphan context, never another run's owner.
             let path = runURL(contextRun.id)
             try Files.makeDirectory(path)
@@ -83,6 +96,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
     func writeContext(_ context: NativeCrashRecoveryContext, runID: UUID) throws -> UUID {
         try locked {
             guard activeRunIDs.contains(runID) else { throw Failure.activeRun }
+            _ = try resumeRetirements()
             try Files.directory(runURL(runID)); try Files.directory(runURL(runID).appendingPathComponent("recorder"))
             return try contextStore.writeContext(context.encoded(), runID: runID)
         }
@@ -120,6 +134,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
     }
 
     private func stage(_ runID: UUID) throws -> (Journal.Stage?, Outcome?) {
+        _ = try resumeRetirements()
         let inventory = try scan()
         guard let run = inventory.runs[runID], !inventory.retiring.contains(runID) else { throw Failure.missingRun }
         guard run.reports.count <= 1 else { return (nil, .quarantined(.multipleReports)) }
@@ -176,29 +191,47 @@ final class NativeCrashRecovery: @unchecked Sendable {
         guard let run = inventory.runs[runID], run.bytes <= limits.maxRunBytes - bytes,
               inventory.bytes <= limits.maxTotalBytes - bytes else { throw Failure.capacity }
     }
-    private func scan() throws -> Inventory {
+    private func rawInventory() throws -> (runs: [UUID: Tree.Inventory], retiring: [UUID]) {
         for name in try Files.entries(rootURL, maximum: 2) {
             guard name == "contexts" || name == "runs" else { throw Failure.unsafePath }
         }
-        let contexts = try contextStore.runs()
-        let ids = Set(contexts.map(\.id))
         var runs: [UUID: Tree.Inventory] = [:], retiring: [UUID] = []
         for name in try Files.entries(runsURL, maximum: 32) {
             let tombstone = name.hasPrefix(".retiring-")
             guard let id = Tree.uuid(tombstone ? String(name.dropFirst(10)) : name),
-                  runs[id] == nil, tombstone || ids.contains(id) else { throw Failure.unsafePath }
+                  runs[id] == nil else { throw Failure.unsafePath }
             runs[id] = try Tree.scan(runsURL.appendingPathComponent(name), maximum: limits.maxRunBytes)
             if tombstone { retiring.append(id) }
         }
-        return Inventory(contexts: contexts, runs: runs, retiring: retiring)
+        return (runs, retiring)
+    }
+    private func scan() throws -> Inventory {
+        let raw = try rawInventory()
+        let contexts = try contextStore.runs(), ids = Set(contexts.map(\.id))
+        guard raw.runs.keys.allSatisfy({ ids.contains($0) || raw.retiring.contains($0) }) else { throw Failure.unsafePath }
+        return Inventory(contexts: contexts, runs: raw.runs, retiring: raw.retiring)
+    }
+    /// A durable raw tombstone is the retirement authority even when recursive
+    /// context removal already deleted its run header. Validate raw trees first;
+    /// removeRun independently checks every remaining context entry without
+    /// requiring the header. Unknown content and active/in-flight IDs still block.
+    private func resumeRetirements() throws -> Int {
+        let raw = try rawInventory()
+        var count = 0
+        for id in raw.retiring where !excluded(id) {
+            let context = rootURL.appendingPathComponent("contexts/" + id.uuidString.lowercased())
+            if try Files.info(context) != nil { try contextStore.removeRun(id) }
+            let tombstone = runsURL.appendingPathComponent(".retiring-" + id.uuidString.lowercased())
+            try FileManager.default.removeItem(at: tombstone)
+            try Files.syncDirectory(runsURL)
+            count += 1
+        }
+        return count
     }
     private func maintainLocked(now: Date) throws -> Int {
         guard now.timeIntervalSince1970.isFinite else { throw Failure.invalidLimits }
-        var inventory = try scan(), count = 0
-        for id in inventory.retiring where !excluded(id) {
-            try retire(id, inventory: inventory); count += 1
-        }
-        inventory = try scan()
+        var count = try resumeRetirements()
+        var inventory = try scan()
         for run in inventory.contexts where !excluded(run.id) && now.timeIntervalSince(run.createdAt) >= limits.maxAge {
             try retire(run.id, inventory: inventory); count += 1
         }

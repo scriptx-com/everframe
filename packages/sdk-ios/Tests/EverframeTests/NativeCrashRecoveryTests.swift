@@ -220,4 +220,52 @@ final class NativeCrashRecoveryTests: XCTestCase {
         XCTAssertEqual(try recovery().maintain(), 1)
         XCTAssertFalse(FileManager.default.fileExists(atPath: tombstone.path))
     }
+    func testRetirementResumesDuringContextDeletionBeforeInspectingUnrelatedRuns() throws {
+        let (retiring, _) = try prepared(), (pending, reportID) = try prepared()
+        let tombstone = root.appendingPathComponent("runs/.retiring-" + retiring.id.uuidString.lowercased())
+        try FileManager.default.moveItem(at: runPath(retiring.id), to: tombstone)
+        // Recursive context removal can delete the header before its ciphertext.
+        try FileManager.default.removeItem(at: contextPath(retiring.id).appendingPathComponent("run.json"))
+        XCTAssertEqual(try recovery().recover(runID: pending.id, outbox: box()), .queued(reportID))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: contextPath(retiring.id).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tombstone.path))
+        XCTAssertNoThrow(try recovery().prepareRun())
+    }
+    func testPartialContextRetirementStillRejectsActiveAndUnsafeContent() throws {
+        let (run, _) = try prepared()
+        let tombstone = root.appendingPathComponent("runs/.retiring-" + run.id.uuidString.lowercased())
+        try FileManager.default.moveItem(at: runPath(run.id), to: tombstone)
+        try FileManager.default.removeItem(at: contextPath(run.id).appendingPathComponent("run.json"))
+        XCTAssertThrowsError(try recovery(active: [run.id]).prepareRun())
+        XCTAssertTrue(FileManager.default.fileExists(atPath: tombstone.path))
+        let unknown = contextPath(run.id).appendingPathComponent("unknown")
+        try Data().write(to: unknown)
+        XCTAssertThrowsError(try recovery().prepareRun())
+        XCTAssertTrue(FileManager.default.fileExists(atPath: unknown.path))
+        try FileManager.default.removeItem(at: unknown)
+        XCTAssertEqual(try recovery().maintain(), 1)
+        XCTAssertNoThrow(try recovery().prepareRun())
+    }
+    func testAdmissionRetiresClosedContextBudgetAndReservesAnInitialContext() throws {
+        // Both a completely full store and one with enough room for a header
+        // but too little for the first context must reclaim a closed run.
+        for spare in [0, 1024] {
+            let live = try recovery(); let run = try live.prepareRun()
+            let key = key
+            let store = try NativeCrashContextStore(rootURL: root.appendingPathComponent("contexts"), keyProvider: { key })
+            for _ in 0..<255 { _ = try store.writeContext(Data(repeating: 0x47, count: 65536), runID: run.id) }
+            let used = try FileManager.default.contentsOfDirectory(at: contextPath(run.id), includingPropertiesForKeys: [.fileSizeKey]).reduce(0) {
+                $0 + (try $1.resourceValues(forKeys: [.fileSizeKey]).fileSize!)
+            }
+            _ = try store.writeContext(Data(repeating: 0x47, count: 16 * 1024 * 1024 - used - 36 - spare), runID: run.id)
+            XCTAssertThrowsError(try live.prepareRun(), "Cannot reclaim an active run for context capacity")
+            let relaunched = try recovery()
+            let next = try relaunched.prepareRun()
+            XCTAssertFalse(FileManager.default.fileExists(atPath: contextPath(run.id).path))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: runPath(run.id).path))
+            XCTAssertNoThrow(try relaunched.writeContext(NativeRecoveryTestData.context(), runID: next.id))
+            // Keep this subcase independent without bypassing production retention.
+            _ = try recovery().maintain(now: Date().addingTimeInterval(15 * 86400))
+        }
+    }
 }
