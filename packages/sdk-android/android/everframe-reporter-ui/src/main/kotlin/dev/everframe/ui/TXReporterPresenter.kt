@@ -135,6 +135,9 @@ internal class TXReporterPresenter(
             //    was removed — TV reports go through the phone companion.)
             return@txGuardSuspend showDialog(activity, capture, reportCapture, hostExtraNormalized)
         }
+        // Send hands the capture to its submission, which releases it when the
+        // upload ends. A caller cancelled after Send must not empty it mid-upload.
+        if (result == null && frozenCapture?.let { it in SubmittedCaptures } == true) frozenCapture = null
         val final = result ?: ReportResult.Cancelled("presenter_failed")
         // Parity with iOS resolveResult (TXReporterPresenter.swift:161-163):
         // a cancelled reporter must not leave a frozen snapshot pinned under
