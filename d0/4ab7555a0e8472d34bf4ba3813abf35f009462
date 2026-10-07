@@ -1,0 +1,25 @@
+packages/cli/__tests__/elf-build-fixtures.ts
+  s_97602a0a2d8f20::t_4be94987eac028 1-31
+packages/cli/__tests__/elf-build.spec.ts
+  s_97602a0a2d8f20::t_b5ee2f92fa9a94 1-127
+packages/cli/src/elf-build.ts
+  s_97602a0a2d8f20::t_f5cfd1c21d0236 1-88
+packages/cli/src/elf-identity.ts
+  s_97602a0a2d8f20::t_0cd191bde310d3 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d04ab7555a0e8472d34bf4ba3813abf35f009462",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
