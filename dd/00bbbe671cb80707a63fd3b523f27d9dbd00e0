@@ -1,0 +1,21 @@
+.github/workflows/apple.yml
+  s_360d9eb003c487::t_8110c5b3a24b04 26-31
+scripts/public-ci.test.mjs
+  s_360d9eb003c487::t_0e91a80bb2faa8 59,64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dd00bbbe671cb80707a63fd3b523f27d9dbd00e0",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
