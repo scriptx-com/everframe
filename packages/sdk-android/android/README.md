@@ -583,21 +583,21 @@ controls, are recorded.
   plugin's masked Dart replay. Screenshot handling is unchanged.
 - a view cannot be classified, a React Native view appears without the platform adapter, or the
   adapter answers `UNKNOWN`.
-- the drawn position of a masked view that is not inside another masked view, or of a tracked one
-  (see below), cannot be proven: it or an ancestor sits in an overlay or under a broken parent
-  chain; a legacy `Animation` or an animation matrix applies to it or an ancestor (an
-  `Animation` kept with `fillAfter` keeps refusing frames until `clearAnimation()`); a layout
-  transition is running above it; it or an ancestor is `INVISIBLE`, has transition alpha below one,
-  or is fully transparent (alpha 0) even while `GONE`, because then only another drawing can show
-  it (a shared-element ghost draws a hidden original from an overlay, and a container transform
-  makes both containers transparent, the closing one usually also `GONE`, while it draws them from
-  an overlay with `View.draw`, which ignores visibility); or it is `GONE` while a removal transition
-  still draws it. Otherwise a `GONE` ordinary child needs no mask. This refuses frames while an
-  inline `NumberPicker` (including spinner-mode date and time pickers) is shown after its first
-  touch, which hides its input as `INVISIBLE`; while a React Native `TextInput` is hidden with
-  `display: 'none'` or styled with `opacity: 0`, as one-time-code fields often are; and for as long
-  as a container faded to alpha 0 and then set `GONE` holds such a masked view. Restore such a
-  container's alpha once it is hidden, or remove it.
+- the drawn position of a masked view the walk reaches (in the window's child tree and not inside
+  another masked view), or of a tracked one (see below), cannot be proven: it or an ancestor sits in
+  an overlay or under a broken parent chain; a legacy `Animation` or an animation matrix applies to
+  it or an ancestor (an `Animation` kept with `fillAfter` keeps refusing frames until
+  `clearAnimation()`); a layout transition is running above it; it or an ancestor is `INVISIBLE`,
+  has transition alpha below one, or is fully transparent (alpha 0) even while `GONE`, because then
+  only another drawing can show it (a shared-element ghost draws a hidden original from an overlay,
+  and a container transform makes both containers transparent, the closing one usually also `GONE`,
+  while it draws them from an overlay with `View.draw`, which ignores visibility); or it is `GONE`
+  while a removal transition still draws it. Otherwise a `GONE` ordinary child needs no mask. This
+  refuses frames while an inline `NumberPicker` (including spinner-mode date and time pickers) is
+  shown after its first touch, which hides its input as `INVISIBLE`; while a React Native
+  `TextInput` is hidden with `display: 'none'` or styled with `opacity: 0`, as one-time-code fields
+  often are; and for as long as a container faded to alpha 0 and then set `GONE` holds such a masked
+  view. Restore such a container's alpha once it is hidden, or remove it.
 - an inspected descendant of a masked view (see above) is animated, `INVISIBLE` or
   transition-hidden, or runs a layout transition, for the same reasons. React Native hides
   `display: 'none'` content and the spinner of `<ActivityIndicator animating={false}>` as
@@ -612,14 +612,16 @@ A masked area that moves on screen while a copy is pending, for example while a 
 that frame too. Masked areas that stay still or move entirely outside the window do not, and neither
 does a descendant moving within its masked ancestor's bounds, such as a pulsing indicator.
 
-Mark sensitive overlay content **before attachment**, for example
+Mark sensitive overlay content **before attachment** with `Everframe.markSensitive`
+(`TXSensitiveView` and `<EverframeSensitive>` call it), for example
 `Everframe.markSensitive(overlayView)` before `container.overlay.add(overlayView)`. Android's public
 View child traversal cannot enumerate views inserted directly into an overlay. An input that was
-never observed in the normal child tree therefore requires this explicit marker. The SDK retains
-bounded weak tracking for explicitly marked and previously observed sensitive Views until they
-detach: one retained by a removal transition stays masked, and one moved into an overlay, directly or
-with a container (as a fade-out transition does), refuses its window's frames. Tracking uncertainty
-or capacity exhaustion excludes video.
+never observed in the normal child tree therefore requires this marker; a bare `R.id.tx_sensitive`
+tag, or an unmarked input, on a view added straight to an overlay is never tracked and is recorded
+unmasked. The SDK retains bounded weak tracking for views marked with `Everframe.markSensitive` and
+previously observed sensitive Views until they detach: one retained by a removal transition stays
+masked, and one moved into an overlay, directly or with a container (as a fade-out transition does),
+refuses its window's frames. Tracking uncertainty or capacity exhaustion excludes video.
 
 Automatically detected WebViews are an exception: an attached background WebView does not block
 replay when its ordinary child ancestry proves it `GONE`, fully transparent, or fully clipped in a
