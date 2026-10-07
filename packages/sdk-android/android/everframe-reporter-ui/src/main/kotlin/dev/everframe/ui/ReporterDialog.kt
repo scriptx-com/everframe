@@ -51,6 +51,7 @@ import dev.everframe.ui.annotation.BakeRenderer
 import dev.everframe.ui.annotation.toJsonArrayOrNull
 import dev.everframe.ui.theme.ProvideReporterTheme
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -88,6 +89,13 @@ internal object ReporterDialog {
     internal var __submitterFactoryForTesting: ((dev.everframe.config.EverframeConfig, JSONLOutbox) -> ReportSubmitter)? = null
 
     /**
+     * Test seam — when non-null, [show] hands it the exact Send callback of
+     * the dialog it just mounted, so a unit test can tap Send without
+     * rendering Compose. Production leaves it null.
+     */
+    internal var __onMountedForTesting: ((onSubmit: (String, String, List<SubmittedShot>, dev.everframe.ui.details.ReporterIncludes) -> Unit) -> Unit)? = null
+
+    /**
      * Show the reporter dialog and suspend until the user submits or cancels.
      *
      * Implementation: attach a transient ComposeView to the Activity's
@@ -109,99 +117,115 @@ internal object ReporterDialog {
         sdkName: String = "everframe-android",
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
+        var lifecycle: ReporterDialogLifecycle? = null
 
-        // Attach the ComposeView on the main thread.
-        withContext(Dispatchers.Main) {
-            val content = activity.findViewById<ViewGroup>(android.R.id.content)
-                ?: run {
-                    deferred.complete(ReportResult.Cancelled("no_content_view"))
+        try {
+            // Attach the ComposeView on the main thread.
+            withContext(Dispatchers.Main) {
+                if (activity.isFinishing || activity.isDestroyed) {
+                    reportCapture.cancel()
+                    deferred.complete(ReportResult.Cancelled("activity_destroyed"))
                     return@withContext
                 }
-            val composeView = ComposeView(activity).apply {
-                // DisposeOnDetachedFromWindow — when we removeView() this host,
-                // the Composition (and its child Compose Dialog window) disposes
-                // synchronously. The previous strategy
-                // (DisposeOnViewTreeLifecycleDestroyed) waited for Activity
-                // DESTROYED, which never fires during normal submit, leaving the
-                // Dialog window open and the host app looking "frozen" behind it.
-                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
-                setContent {
-                    MaterialTheme {
-                        ReporterDialogContent(
-                            activity = activity,
-                            capture = capture,
-                            reportCapture = reportCapture,
-                            hostExtra = hostExtra,
-                            allowAdditionalScreenshots = allowAdditionalScreenshots,
-                            onCancel = {
-                                content.removeView(this)
-                                // Discard the frozen replay window and resume
-                                // buffering for the next report (no-op when OFF).
-                                reportCapture.cancel()
-                                deferred.complete(ReportResult.Cancelled("user_cancelled"))
-                            },
-                            onSubmit = { title, description, shots, includes ->
-                                content.removeView(this)
-                                // External review, finding 3 (Serious) — THE
-                                // SUBMIT BOUNDARY. Read synchronously here, on
-                                // the Send tap, BEFORE the coroutine launch
-                                // below: `submitBaked` bakes every shot,
-                                // encodes to WebP/JPEG/PNG, hashes, serializes
-                                // the replay timeline and builds the envelope,
-                                // which can span hundreds of milliseconds to
-                                // seconds. A `setUser` landing anywhere in that
-                                // window used to repoint the finished report at
-                                // the new account. `TXUser` is an immutable
-                                // data class, so this is a snapshot by
-                                // construction — the native counterpart of
-                                // web's `captureUserSnapshot`.
-                                //
-                                // External review, finding 1 (Serious) —
-                                // `captureUserSnapshot()`, not `currentUser`:
-                                // it reads the user and the SESSION EPOCH in
-                                // one `stateLock` critical section, so the
-                                // snapshot knows which session (and therefore
-                                // which project's SDK key) it belongs to.
-                                // `submitBaked` reads the config on the other
-                                // side of the launch below; a `start(projectB)`
-                                // in that window would otherwise have uploaded
-                                // this user under B's key. See
-                                // `TXCapturedUser.kt`.
-                                val capturedSession = Everframe.captureSessionSnapshot()
-                                // Default dispatcher for the CPU-bound stages
-                                // (per-shot bake + PNG/WebP/JPEG encode, SHA-256,
-                                // EnvelopeBuilder.buildEncoded JSON serialization).
-                                // The MultipartUploader inside ReportSubmitter
-                                // already hops to Dispatchers.IO for the network leg.
-                                MainScope().launch(Dispatchers.Default) {
-                                    val r = submitBaked(
-                                        activity = activity,
-                                        capture = capture,
-                                        reportCapture = reportCapture,
-                                        shots = shots,
-                                        title = title,
-                                        description = description,
-                                        capturedSession = capturedSession,
-                                        hostExtra = hostExtra,
-                                        includes = includes,
-                                        hostReplayVTree = hostReplayVTree,
-                                        sdkName = sdkName,
-                                    )
-                                    deferred.complete(r)
-                                }
-                            },
-                        )
+                val content = activity.findViewById<ViewGroup>(android.R.id.content)
+                    ?: run {
+                        reportCapture.cancel()
+                        deferred.complete(ReportResult.Cancelled("no_content_view"))
+                        return@withContext
+                    }
+                val onSubmit: (String, String, List<SubmittedShot>, dev.everframe.ui.details.ReporterIncludes) -> Unit =
+                    submit@{ title, description, shots, includes ->
+                        if (lifecycle?.beginSubmit() != true) return@submit
+                        // External review, finding 3 (Serious) — THE
+                        // SUBMIT BOUNDARY. Read synchronously here, on
+                        // the Send tap, BEFORE the coroutine launch
+                        // below: `submitBaked` bakes every shot,
+                        // encodes to WebP/JPEG/PNG, hashes, serializes
+                        // the replay timeline and builds the envelope,
+                        // which can span hundreds of milliseconds to
+                        // seconds. A `setUser` landing anywhere in that
+                        // window used to repoint the finished report at
+                        // the new account. `TXUser` is an immutable
+                        // data class, so this is a snapshot by
+                        // construction — the native counterpart of
+                        // web's `captureUserSnapshot`.
+                        //
+                        // External review, finding 1 (Serious) —
+                        // `captureUserSnapshot()`, not `currentUser`:
+                        // it reads the user and the SESSION EPOCH in
+                        // one `stateLock` critical section, so the
+                        // snapshot knows which session (and therefore
+                        // which project's SDK key) it belongs to.
+                        // `submitBaked` reads the config on the other
+                        // side of the launch below; a `start(projectB)`
+                        // in that window would otherwise have uploaded
+                        // this user under B's key. See
+                        // `TXCapturedUser.kt`.
+                        val capturedSession = Everframe.captureSessionSnapshot()
+                        // Default dispatcher for the CPU-bound stages
+                        // (per-shot bake + PNG/WebP/JPEG encode, SHA-256,
+                        // EnvelopeBuilder.buildEncoded JSON serialization).
+                        // The MultipartUploader inside ReportSubmitter
+                        // already hops to Dispatchers.IO for the network leg.
+                        MainScope().launch(Dispatchers.Default) {
+                            val r = submitBaked(
+                                activity = activity,
+                                capture = capture,
+                                reportCapture = reportCapture,
+                                shots = shots,
+                                title = title,
+                                description = description,
+                                capturedSession = capturedSession,
+                                hostExtra = hostExtra,
+                                includes = includes,
+                                hostReplayVTree = hostReplayVTree,
+                                sdkName = sdkName,
+                            )
+                            deferred.complete(r)
+                        }
+                    }
+                val composeView = ComposeView(activity).apply {
+                    // DisposeOnDetachedFromWindow — when we removeView() this host,
+                    // the Composition (and its child Compose Dialog window) disposes
+                    // synchronously. The previous strategy
+                    // (DisposeOnViewTreeLifecycleDestroyed) waited for Activity
+                    // DESTROYED, which never fires during normal submit, leaving the
+                    // Dialog window open and the host app looking "frozen" behind it.
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                    setContent {
+                        MaterialTheme {
+                            ReporterDialogContent(
+                                activity = activity,
+                                capture = capture,
+                                reportCapture = reportCapture,
+                                hostExtra = hostExtra,
+                                allowAdditionalScreenshots = allowAdditionalScreenshots,
+                                onCancel = {
+                                    lifecycle?.cancel("user_cancelled")
+                                },
+                                onSubmit = onSubmit,
+                            )
+                        }
                     }
                 }
+                lifecycle = ReporterDialogLifecycle(activity, reportCapture, deferred) {
+                    content.removeView(composeView)
+                    composeView.disposeComposition()
+                }
+                content.addView(composeView)
+                __onMountedForTesting?.invoke(onSubmit)
             }
-            content.addView(composeView)
-        }
 
-        return deferred.await()
+            return deferred.await()
+        } finally {
+            withContext(NonCancellable + Dispatchers.Main.immediate) {
+                lifecycle?.cancel("caller_cancelled")
+            }
+        }
     }
 
     /**
@@ -601,7 +625,7 @@ internal object ReporterDialog {
             // 4. Ship via ReportSubmitter (isolated client).
             val outbox = JSONLOutbox(activity.applicationContext)
             val submitter = __submitterFactoryForTesting?.invoke(cfg, outbox)
-                ?: ReportSubmitter(cfg, outbox)
+                ?: ReportSubmitter(cfg, outbox).__observingDelivery(capturedSession.user.startEpoch)
 
             // FOLLOW-UPS ITEM 9, FIFTH ROUND (external review 2026-08-13,
             // codex). THIS is the authoritative revocation check — immediately

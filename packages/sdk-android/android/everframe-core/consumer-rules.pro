@@ -36,6 +36,15 @@
 -keep class dev.everframe.CaptureExceptionOptions { *; }
 -keep enum dev.everframe.ErrorSeverity { *; }
 
+# Report delivery diagnostics: the same keep as proguard-rules.pro. Host apps
+# and the React Native bridge read the snapshot that
+# `Everframe.getReportDeliveryStatus()` returns, including `toJson()`.
+-keep class dev.everframe.diagnostics.ReportDeliveryStatus { *; }
+-keep class dev.everframe.diagnostics.CaptureStatus { *; }
+-keep class dev.everframe.diagnostics.CapturePathStatus { *; }
+-keep class dev.everframe.diagnostics.QueueStatus { *; }
+-keep class dev.everframe.diagnostics.TransportStatus { *; }
+
 # TXScreen() navigation-marker composable (TXScreen.kt -> TXScreenKt facade).
 -keep class dev.everframe.TXScreenKt { *; }
 

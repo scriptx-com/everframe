@@ -17,6 +17,18 @@ export interface VerifyResult {
 }
 
 const ADVICE: Record<string, string> = {
+  missing_bundle_identity:
+    'missing_bundle_identity: the composed map has no generated Everframe identity. Apply withEverframe() and rebuild; manual identities require explicit upload-hermes options.',
+  ambiguous_bundle_identity:
+    'ambiguous_bundle_identity: multiple generated Everframe identity modules are present. Apply withEverframe() once and rebuild in an isolated workspace.',
+  invalid_bundle_identity:
+    'invalid_bundle_identity: the generated identity in the source map is malformed or mismatched. Rebuild the bytecode and composed map together.',
+  staged_identity_mismatch:
+    'staged_identity_mismatch: the artifact identity and staged partial disagree. Use the matching platform and preserve its .everframe directory.',
+  staged_partial_missing:
+    'staged_partial_missing: the composed map names a build that has no staged manifest in --staging. Point --staging at the .everframe directory of the Metro projectRoot that bundled it, and keep that directory until upload.',
+  compiled_build_identity_missing:
+    'compiled_build_identity_missing: bytecode does not contain the build ID selected by the composed map. Rebuild and collect the matching bundle/map pair.',
   no_staged_build:
     'no_staged_build: metro never staged this platform. Is withEverframe() applied in metro.config.js, and is it enabled for this build?',
   manifest_not_collected:

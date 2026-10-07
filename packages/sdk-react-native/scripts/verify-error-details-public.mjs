@@ -138,7 +138,22 @@ writeFileSync(
 );
 cpSync(FIXTURE, join(CONSUMER_ROOT, "consumer.ts"));
 
-linkPackage("@everframe/react-native", RN_ROOT);
+// Model an installed package: a workspace symlink resolves declarations back
+// through the SDK's own node_modules and can mix its development RN peer with
+// the consumer's different RN version. Published consumers resolve their peer
+// from this node_modules tree instead.
+const installedSdk = join(CONSUMER_ROOT, "node_modules", "@everframe", "react-native");
+mkdirSync(installedSdk, { recursive: true });
+cpSync(join(RN_ROOT, "package.json"), join(installedSdk, "package.json"));
+cpSync(DIST_ROOT, join(installedSdk, "dist"), { recursive: true });
+const adapterResolution = "console.log(import.meta.resolve('@everframe/react-native/integrations/react'))";
+const nativeAdapter = spawnSync(process.execPath, ['--input-type=module', '-e', adapterResolution], { cwd: CONSUMER_ROOT, encoding: 'utf8' });
+assert.equal(nativeAdapter.status, 0, nativeAdapter.stderr);
+assert.ok(nativeAdapter.stdout.includes('/dist/integrations/react.js'));
+const browserAdapter = spawnSync(process.execPath, ['--conditions=browser', '--input-type=module', '-e', adapterResolution], { cwd: CONSUMER_ROOT, encoding: 'utf8' });
+assert.notEqual(browserAdapter.status, 0);
+assert.ok(browserAdapter.stderr.includes('ERR_PACKAGE_PATH_NOT_EXPORTED'));
+
 for (const name of ["react", "react-native", "zod", "bippy", "@types/react"]) {
   linkPackage(name, resolve(REPO_ROOT, "node_modules", name));
 }

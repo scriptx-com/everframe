@@ -20,6 +20,8 @@ import dev.everframe.protocol.generated.Crash
 import dev.everframe.protocol.generated.Frame
 import dev.everframe.protocol.generated.ErrorSeverity
 import dev.everframe.protocol.generated.JVMCrashMetadata
+import dev.everframe.protocol.generated.NativeCrashArchitecture
+import dev.everframe.protocol.generated.NativeCrashPlatform
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -195,6 +197,48 @@ class CrashReportCrossSDKTest {
             buildJsonArray { add(JsonPrimitive(true)); add(kotlinx.serialization.json.JsonNull) },
             encoded["details"]?.jsonObject?.get("metadata")?.jsonObject?.get("flags"),
         )
+    }
+
+    @Test
+    fun appleNativeFixtureRoundTripsExactNativeMetadata() {
+        val raw = javaClass.getResourceAsStream("/apple-native-crash.json")!!.bufferedReader().use { it.readText() }
+        val crash = json.decodeFromString<ReportEnvelope>(raw).payload.crash!!
+        val native = crash.native!!
+        assertEquals(NativeCrashPlatform.Apple, native.platform)
+        assertEquals("1791331200000000", native.timestampMicros)
+        assertEquals(4L, native.crashedThreadIndex)
+        assertEquals(false, native.framesIncomplete)
+        assertEquals(true, native.imagesIncomplete)
+        assertEquals(listOf("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"), native.images.map { it.uuid })
+        assertEquals(listOf("App", "Kit"), native.images.map { it.name })
+        assertEquals(listOf("0x20000000000001", "0x20000000100001"), native.images.map { it.loadAddress })
+        assertEquals(listOf("0x1000", "0x2000"), native.images.map { it.size })
+        assertEquals(listOf("0x100000000", null), native.images.map { it.vmAddress })
+        assertEquals(listOf(16777228L, 16777228L), native.images.map { it.cpuType })
+        assertEquals(listOf(0L, -2147483646L), native.images.map { it.cpuSubtype })
+        assertEquals(listOf(NativeCrashArchitecture.Arm64, NativeCrashArchitecture.Arm64E), native.images.map { it.architecture })
+        assertEquals(listOf("0x20000000000011", "0x20000000100021", "0xfffffff000000001"), native.frames.map { it.instructionAddress })
+        assertEquals(listOf(0L, 1L, null), native.frames.map { it.imageIndex })
+        assertEquals(listOf("0x10", "0x20", null), native.frames.map { it.imageOffset })
+        assertEquals(10L, native.error.signalNumber)
+        assertEquals(0L, native.error.signalCode)
+        assertEquals(1L, native.error.machException)
+        assertEquals("0x2", native.error.machCode)
+        assertEquals("0x20000000000011", native.error.machSubcode)
+        assertEquals("0x20000000000011", native.error.faultAddress)
+
+        // Absent optional fields stay absent, so the sidecar re-encodes to the fixture's exact JSON.
+        val wire = Json { }
+        val original = json.parseToJsonElement(raw).jsonObject.getValue("payload").jsonObject.getValue("crash").jsonObject.getValue("native")
+        val encoded = wire.encodeToJsonElement(Crash.serializer(), crash).jsonObject.getValue("native")
+        assertEquals(canonicalize(original), canonicalize(encoded))
+
+        // Pre-native constructors omit the sidecar; every copy overload keeps it.
+        val legacy = Crash(crash.exceptionType, crash.fatal, crash.fingerprint, crash.frames, crash.handled, crash.jsBundle,
+            crash.mechanism, crash.message, crash.occurredAt, crash.threadName, crash.jvm, crash.details, crash.causeChain)
+        assertEquals(null, legacy.native)
+        assertEquals(native, crash.copy(causeChain = crash.causeChain, message = "copied").native)
+        assertEquals(native, crash.copy(message = "older copy").native)
     }
 
     @Test

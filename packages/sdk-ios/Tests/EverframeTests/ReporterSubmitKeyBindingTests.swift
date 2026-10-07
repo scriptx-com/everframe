@@ -140,6 +140,20 @@ final class ReporterSubmitKeyBindingTests: XCTestCase {
         )
     }
 
+    @MainActor func testProductionReporterPublishesLiveSubmissionDiagnostics() async throws {
+        // This test exercises the default factory. Fail before SDK startup if
+        // the runner has not isolated networking to the local closed port.
+        try XCTUnwrap(IngestEndpoint.url.absoluteString == "http://127.0.0.1:9" ? true : nil,
+                      "Run with EVERFRAME_DEV_INGEST_URL=http://127.0.0.1:9")
+        ReporterSubmission.__resetSubmitterFactoryForTesting()
+        try Everframe.shared.start(config: config(appA))
+        let captured = Everframe.shared.captureSessionSnapshot()
+        _ = try? await ReporterSubmission.submit(inputs(session: captured))
+        let status = Everframe.shared.getReportDeliveryStatus()
+        XCTAssertEqual(status.transport["live-submit"]?.outcomes["network-failure"], 1)
+        XCTAssertEqual(status.transport["live-submit"]?.settledAttempts, 1)
+    }
+
     /// THE DEFECT. The session is snapshotted as project A (the Send tap),
     /// project B starts while the report is being assembled, and the report
     /// must still go out under A's key.

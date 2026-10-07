@@ -56,11 +56,13 @@ test('CI runs public boundary, license, secret, JavaScript, and Android gates', 
   assert.match(workflow, /verify-android-publication\.sh/);
 });
 
-test('Apple CI runs serialized SwiftPM unit tests only', () => {
+test('Apple CI runs serialized SwiftPM unit tests and crash-recorder integrity checks', () => {
   const workflow = read('.github/workflows/apple.yml');
 
   assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
   assert.match(workflow, /swift test --package-path packages\/sdk-ios --no-parallel/);
+  assert.match(workflow, /node packages\/sdk-ios\/crash-recorder\/scripts\/verify-vendor\.mjs/);
+  assert.match(workflow, /swift build --package-path packages\/sdk-ios\/crash-recorder --product EFCRProbe/);
   assert.match(workflow, /EVERFRAME_DEV_INGEST_URL: http:\/\/127\.0\.0\.1:9/);
   assert.doesNotMatch(workflow, /xcodegen|xcodebuild|ReplayTV/);
   assert.doesNotMatch(workflow, /admin|EVERFRAME_ADMIN|drive-xctest|benchmark-runner|dashboard/i);

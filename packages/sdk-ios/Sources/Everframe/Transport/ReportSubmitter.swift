@@ -18,6 +18,8 @@ public final class ReportSubmitter: Sendable {
 
     public let config: EverframeConfig
     public let outbox: JSONLOutbox
+    private let diagnostics: ReportDiagnostics.Handle?
+    private let diagnosticOrigin: ReportTransportOrigin
     private let session: URLSession
     private let authorizeUpload: (@MainActor @Sendable () -> Bool)?
 
@@ -30,15 +32,47 @@ public final class ReportSubmitter: Sendable {
     }
 
     private init(config: EverframeConfig, outbox: JSONLOutbox, session: URLSession,
-                 authorizeUpload: (@MainActor @Sendable () -> Bool)?) {
+                 authorizeUpload: (@MainActor @Sendable () -> Bool)?,
+                 diagnostics: ReportDiagnostics.Handle? = nil, diagnosticOrigin: ReportTransportOrigin = .liveSubmit) {
         self.config = config
         self.outbox = outbox
         self.session = session
         self.authorizeUpload = authorizeUpload
+        self.diagnostics = diagnostics
+        self.diagnosticOrigin = diagnosticOrigin
     }
 
     internal func authorizing(_ check: @escaping @MainActor @Sendable () -> Bool) -> ReportSubmitter {
-        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: check)
+        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: check, diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin)
+    }
+
+    internal func observing(_ owner: ReportDiagnostics.Handle?, origin: ReportTransportOrigin = .liveSubmit) -> ReportSubmitter {
+        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: authorizeUpload,
+                        diagnostics: owner, diagnosticOrigin: origin)
+    }
+
+    private func observeUpload(_ send: () async throws -> (Int, [AnyHashable: Any])) async throws -> (Int, [AnyHashable: Any]) {
+        do {
+            let result = try await send()
+            let outcome: ReportTransportOutcome
+            if (200...299).contains(result.0) { outcome = .serverAccepted }
+            else {
+                switch RetryPolicy.classify(statusCode: result.0, headers: result.1, error: nil) {
+                case .retryable, .retryAfter: outcome = .retryableHTTP
+                case .terminal: outcome = .terminalHTTP
+                }
+            }
+            diagnostics?.transport(diagnosticOrigin, outcome, httpStatus: result.0)
+            return result
+        } catch {
+            let outcome: ReportTransportOutcome
+            if error is UploadAuthorizationError { outcome = .authorizationCancelled }
+            else if error is CancellationError || (error as? URLError)?.code == .cancelled { outcome = .cancelled }
+            else if error is URLError { outcome = .networkFailure }
+            else { outcome = .failed }
+            diagnostics?.transport(diagnosticOrigin, outcome)
+            throw error
+        }
     }
 
     /// One outbound attachment. Mirrors `OutboxEntry.AttachmentRef` but stays
@@ -114,13 +148,13 @@ public final class ReportSubmitter: Sendable {
         }
 
         do {
-            let (status, headers) = try await uploader.upload(
+            let (status, headers) = try await observeUpload { try await uploader.upload(
                 parts: parts,
                 idempotencyKey: idempotencyKey,
                 companionAttribution: companionAttribution,
                 identityToken: identityToken,
                 urlSession: session
-            )
+            ) }
             if (200...299).contains(status) {
                 return .submitted(reportId: reportId)
             }
@@ -256,7 +290,7 @@ public final class ReportSubmitter: Sendable {
         epochAtInitiation: Int,
         currentEpoch: @escaping @Sendable () -> Int
     ) async {
-        let entries = (try? outbox.hydrate()) ?? []
+        let entries = (try? outbox.hydrate(diagnostics: diagnostics)) ?? []
         for e in entries {
             // Keep the durable copy until acceptance. A crash, cancellation or
             // failed re-enqueue during the request must not lose the report.
@@ -284,7 +318,7 @@ public final class ReportSubmitter: Sendable {
                     guard let stripped = Self.removingReplay(from: e) else {
                         continue // Keep the durable entry; do not upload inconsistent metadata.
                     }
-                    do { try outbox.enqueue(stripped) } catch { continue }
+                    do { try outbox.enqueue(stripped, diagnostics: diagnostics) } catch { continue }
                     envelopeBytes = stripped.envelopeBytes
                     attachments.removeAll { $0.name == "replay" }
                 }
@@ -366,7 +400,7 @@ public final class ReportSubmitter: Sendable {
                 #else
                 let sender = self
                 #endif
-                let result = try await sender.submit(
+                let result = try await sender.observing(diagnostics, origin: .outboxDrain).submit(
                     envelopeBytes: envelopeBytes,
                     idempotencyKey: e.idempotencyKey,
                     attachments: attachments,
@@ -377,7 +411,7 @@ public final class ReportSubmitter: Sendable {
                     identityToken: identityToken
                 )
                 if case .submitted = result {
-                    try outbox.drain(where: { $0.reportId == e.reportId })
+                    try outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterAcceptance)
                 }
             } catch UploadAuthorizationError.revoked {
                 // Consent or project changed after the async config read.
@@ -385,11 +419,11 @@ public final class ReportSubmitter: Sendable {
                 // these queued replay bytes.
                 if attachments.contains(where: { $0.name == "replay" }),
                    let stripped = Self.removingReplay(from: e) {
-                    try? outbox.enqueue(stripped)
+                    try? outbox.enqueue(stripped, diagnostics: diagnostics)
                 }
             } catch EverframeTransportError.serverError {
                 // submit throws serverError only for terminal HTTP statuses.
-                try? outbox.drain(where: { $0.reportId == e.reportId })
+                try? outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterTerminal)
             } catch {
                 // Retain the original encrypted entry. Retrying a server-accepted
                 // request is safe because its idempotency key stays unchanged.
@@ -450,7 +484,7 @@ public final class ReportSubmitter: Sendable {
             endpoint: endpoint,
             identitySubject: identitySubject
         )
-        try outbox.enqueue(entry)
+        try outbox.enqueue(entry, diagnostics: diagnostics)
     }
 
     /// The isolated session every `ReportSubmitter` uses by default. Returns

@@ -230,6 +230,9 @@ public final class Everframe: @unchecked Sendable {
         Self.captureGate
     }
 
+    /// Cached native observations. This getter performs no storage or network work.
+    public func getReportDeliveryStatus() -> ReportDeliveryStatus { ReportDiagnostics.shared.snapshot() }
+
     /// Record a caught Swift Error or NSError through the encrypted error outbox.
     public func captureException(_ error: any Error) {
         captureException(error, options: nil)
@@ -884,6 +887,7 @@ public final class Everframe: @unchecked Sendable {
         // `Self.captureGate = true` stays HERE, deliberately: it ARMS capture,
         // and F23 requires it to flip true only after A's gate/buffer state is
         // gone. Only the user clear moved earlier.
+        ReportDiagnostics.shared.beginGeneration(epoch: epoch, enabled: config.capture.crash)
         Self.captureGate = true
         stateLock.unlock()
 
@@ -953,7 +957,7 @@ public final class Everframe: @unchecked Sendable {
             // envelopes from previous sessions. ReportSubmitter constructs its
             // own URLSession that excludes our own URLProtocol-based capture
             // interceptor (so submission requests don't recurse).
-            let submitter = ReportSubmitter(config: config)
+            let submitter = ReportSubmitter(config: config).observing(ReportDiagnostics.shared.handle(epoch: epoch))
             // Native identity Task 8b — the real singleton holder + the live
             // `ReplayConfig`, not the inert defaults `drainOutbox` used to
             // fall back to.
@@ -1859,6 +1863,7 @@ public final class Everframe: @unchecked Sendable {
         // `reset()`/`clear()` running before the epoch bump.
         stateLock.lock()
         let killEpoch = bumpStartEpoch()
+        ReportDiagnostics.shared.retireGeneration(epoch: killEpoch)
         // Monotonic and never lowered — this is what makes a revocation
         // survive a later start() that re-opens `captureGate`.
         _killGeneration &+= 1

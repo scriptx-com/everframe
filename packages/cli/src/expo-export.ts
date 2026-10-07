@@ -57,12 +57,7 @@ export async function uploadExpoExport(
     try {
       await collectStagedBuild({ stagingDir: options.stagingDir, platform, bundlePath, mapPath: `${bundlePath}.map` });
     } catch (error) {
-      const code = error instanceof Error ? error.message : 'collect_failed';
-      throw new Error(
-        code === 'no_staged_build'
-          ? `no_staged_build:${platform}: wrap metro.config.js with withEverframe from @everframe/metro`
-          : adviceFor(code),
-      );
+      throw new Error(adviceFor(error instanceof Error ? error.message : 'collect_failed'));
     }
     const verified = await verifyStagedBuild({
       stagingDir: options.stagingDir,

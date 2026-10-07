@@ -29,6 +29,9 @@ export { EverframeSensitive as Sensitive } from './Sensitive.js';
 export {
   open,
   captureException,
+  getPromiseRejectionStatus,
+  getErrorCaptureStatus,
+  getReportDeliveryStatus,
   setExtra,
   setUser,
   addBreadcrumb,
@@ -36,6 +39,7 @@ export {
   EverframeNotMountedError,
 } from './contextSeam.js';
 export type { EverframeContextValue } from './contextSeam.js';
+export type { PromiseRejectionStatus, PromiseRejectionCounters, RejectionReason } from './promise-rejection-types.js';
 export type { EverframeIntegration } from './integrations/types.js';
 
 // Reporter result type.
@@ -81,3 +85,7 @@ export type { CaptureExceptionOptions, ReportDraft, DeviceMetadata } from '@ever
  * warning, from the next report.
  */
 export { EXTRA_MAX_CHARS } from '@everframe/sdk-core';
+
+export type { ErrorCaptureStatus, ErrorCaptureCounters, ErrorCapturePath, ErrorCaptureOutcome } from './error-capture-status.js';
+
+export type { ReportDeliveryStatus, ReportDeliveryReason, ReportCapturePath, ReportCaptureOutcome, ReportCapturePathStatus, ReportQueueOperation, ReportQueueStatus, ReportStorageFailure, ReportTransportOrigin, ReportTransportOutcome, ReportTransportStatus } from "./report-delivery-status.js";

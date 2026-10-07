@@ -33,9 +33,15 @@
     // (vitest.config.ts's resolve.alias) that points the SAME specifier at
     // SOURCE for the test runner, so `tsc -p tsconfig.test.json` can resolve
     // it too.
+    //
+    // The public consumer fixture also imports the './integrations/react'
+    // subpath. Map it to source like the package root, so this check needs no
+    // built (or stale) dist; scripts/verify-error-details-public.mjs still
+    // compiles that fixture against the built declarations.
     "paths": {
       "@everframe/sdk-core/conformance": ["../sdk-core/src/conformance/host-surface.ts"],
-      "@everframe/react-native": ["./src/index.ts"]
+      "@everframe/react-native": ["./src/index.ts"],
+      "@everframe/react-native/integrations/react": ["./src/integrations/react.ts"]
     }
   }
 }

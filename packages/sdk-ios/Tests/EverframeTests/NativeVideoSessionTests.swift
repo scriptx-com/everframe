@@ -95,6 +95,20 @@ import Testing
         return (session, scheduler)
     }
 
+    @Test(arguments: [(30, 30), (60, 60), (90, 60)])
+    func recorderKeepsTheConfiguredReplayWindowUpToSixtySeconds(requested: Int, kept: Int) throws {
+        let scheduler = VideoTestScheduler()
+        var durations: [UInt64] = []
+        let session = NativeVideoSession(scheduler: scheduler, capture: { _ in nil }, clearCapture: {},
+            makeRecorder: { _, duration in
+                durations.append(duration)
+                throw CocoaError(.fileWriteUnknown)
+            })
+        defer { session.stop() }
+        session.apply(settings: try settings(5), durationSec: requested)
+        #expect(durations == [UInt64(kept) * 1_000_000_000])
+    }
+
     @Test func transferredClaimRemainsRevocableAndCarriesOmissionReason() async throws {
         let scheduler = VideoTestScheduler()
         let session = NativeVideoSession(scheduler: scheduler, capture: { _ in nil }, clearCapture: {},

@@ -132,6 +132,22 @@ class EverframeTest {
     }
 
     @Test
+    fun `report diagnostics follows actual start reconfigure and kill`() {
+        Everframe.start(context, validConfig())
+        val handle = dev.everframe.diagnostics.ReportDiagnostics.shared.handle(Everframe.currentStartEpoch())!!
+        handle.capture(dev.everframe.diagnostics.CapturePath.NATIVE_HANDLED,
+            dev.everframe.diagnostics.CaptureOutcome.PERSISTED)
+        assertEquals(1, Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled").settledAttempts)
+        Everframe.start(context, validConfig().copy(capture = CaptureConfig(logs = false, crash = false)))
+        handle.capture(dev.everframe.diagnostics.CapturePath.NATIVE_HANDLED,
+            dev.everframe.diagnostics.CaptureOutcome.PERSISTED)
+        assertFalse(Everframe.getReportDeliveryStatus().capture.enabled)
+        assertEquals(0, Everframe.getReportDeliveryStatus().capture.paths.getValue("native-handled").settledAttempts)
+        Everframe.kill()
+        assertEquals("disabled", Everframe.getReportDeliveryStatus().status)
+    }
+
+    @Test
     fun `start flips captureGate to true and stores config`() {
         val cfg = validConfig()
         Everframe.start(context, cfg)

@@ -55,7 +55,7 @@ actor NativeVideoExporter {
         guard !cancelled, !Task.isCancelled else { throw CancellationError() }
         guard let first = segments.first, let last = segments.last else { return nil }
         guard first.startNanos >= anchorNanos, last.endNanos > first.startNanos,
-              last.endNanos - first.startNanos <= 30_000_000_000,
+              last.endNanos - first.startNanos <= NativeVideoLimits.maxDurationNanos,
               anchorEpochMs.isFinite, anchorEpochMs >= 0 else { throw NativeVideoExportError.invalidSegments }
         let epoch = anchorEpochMs + Double(first.startNanos - anchorNanos) / 1_000_000
         guard epoch.isFinite else { throw NativeVideoExportError.invalidSegments }
@@ -108,7 +108,7 @@ actor NativeVideoExporter {
         let byteCount = try output.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard byteCount > 0, byteCount <= 8 * 1024 * 1024 else { throw NativeVideoExportError.oversized }
         let duration = AVURLAsset(url: output).duration.seconds * 1000
-        guard duration.isFinite, duration > 0, duration <= 30_000 else { throw NativeVideoExportError.exportFailed }
+        guard duration.isFinite, duration > 0, duration <= Double(NativeVideoLimits.maxDurationSec * 1000) else { throw NativeVideoExportError.exportFailed }
         transferred = true
         return .init(url: output, byteCount: byteCount, startEpochMs: epoch, durationMs: duration,
             width: dimensions.width, height: dimensions.height, ownedDirectory: directory)

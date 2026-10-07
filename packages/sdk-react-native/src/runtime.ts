@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { emptyReportDeliveryStatus, parseReportDeliveryStatus, type ReportDeliveryStatus } from "./report-delivery-status.js";
+import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Pure orchestration runtime for the RN bridge. After the D-05/D-07 flip
 // (2026-05-11) the report UI is owned entirely by native; this module's
@@ -24,6 +26,8 @@ import type { ExtraResolver } from "@everframe/sdk-core";
 import { getEmitter } from "./events.js";
 import type { JsBundleConfig } from "./js-bundle.js";
 import { createCaptureController, type CaptureController } from "./errors.js";
+import { createPromiseRejectionObserver, type RejectionObserver } from './promise-rejections.js';
+import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
 import {
   __setCurrentContext,
   __getCurrentContext,
@@ -33,6 +37,8 @@ import {
 import type { ReporterResult } from "./reporter/types.js";
 import { projectUserSpec } from "./user-projection.js";
 import type { EverframeIntegration } from "./integrations/types.js";
+
+const applyDeliveryMethod = Reflect.apply;
 
 /**
  * Runtime configuration — the host-facing `EverframeProvider config` shape.
@@ -115,6 +121,8 @@ export interface RuntimeConfig
    */
   crashReporting?: {
     disabled?: boolean;
+    /** Opt-in automatic observation on qualified RN/Hermes runtimes. */
+    promiseRejections?: { enabled?: boolean };
   };
   /**
    * Network request/response body capture (spec 2026-08-12). CLIENT VETO
@@ -221,6 +229,8 @@ export interface RuntimeConfig
 }
 
 export interface Runtime extends EverframeContextValue {
+  getReportDeliveryStatus(): ReportDeliveryStatus;
+  getErrorCaptureStatus(): ErrorCaptureStatus;
   mount(): void;
   unmount(): void;
 }
@@ -364,6 +374,8 @@ export function createRuntime(config: RuntimeConfig): Runtime {
   type Mount = {
     teardowns: Array<{ name: string; teardown: () => void }>;
     controller?: CaptureController;
+    rejections?: RejectionObserver;
+    rejectionStatus: PromiseRejectionStatus;
   };
   let mounted: Mount | undefined;
 
@@ -376,6 +388,33 @@ export function createRuntime(config: RuntimeConfig): Runtime {
 
   const runtime: Runtime = {
     open,
+    getReportDeliveryStatus() {
+      const owner = mounted;
+      const owned = () => owner !== null && owner !== undefined && mounted === owner && __getCurrentContext() === runtime;
+      if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+      try {
+        const method = NativeEverframe.getReportDeliveryStatusJson;
+        if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+        if (typeof method !== 'function') return emptyReportDeliveryStatus('unsupported', 'native-method-missing');
+        const json: unknown = applyDeliveryMethod(method, NativeEverframe, []);
+        if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+        const snapshot = parseReportDeliveryStatus(json);
+        if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
+        return snapshot ?? emptyReportDeliveryStatus('unavailable', 'invalid-native-snapshot');
+      } catch {
+        return emptyReportDeliveryStatus(owned() ? 'unavailable' : 'not-mounted', owned() ? 'native-call-failed' : 'no-mount');
+      }
+    },
+    getErrorCaptureStatus() {
+      if (!mounted || __getCurrentContext() !== runtime) return emptyErrorCaptureStatus('not-mounted', 'no-mount');
+      return mounted.controller?.getErrorCaptureStatus() ?? emptyErrorCaptureStatus('disabled', 'crash-reporting-disabled');
+    },
+    getPromiseRejectionStatus() {
+      if (!mounted || __getCurrentContext() !== runtime)
+        return emptyPromiseRejectionStatus('not-mounted', 'no-mount');
+      const status = mounted.rejections?.getStatus() ?? mounted.rejectionStatus;
+      return { ...status, counters: { ...status.counters } };
+    },
     captureException(error, options) {
       if (__getCurrentContext() === runtime)
         mounted?.controller?.captureException(error, options);
@@ -544,7 +583,9 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         const msg = (e as { message?: string })?.message ?? String(e);
         console.warn(`[everframe] configure threw: ${msg}`);
       }
-      const owner: Mount = { teardowns: [] };
+      const owner: Mount = { teardowns: [], rejectionStatus: emptyPromiseRejectionStatus(
+        'disabled', config.crashReporting?.disabled === true ? 'crash-reporting-disabled' : 'opt-in-required',
+      ) };
       mounted = owner;
       __setCurrentContext(runtime);
       if (config.crashReporting?.disabled !== true) {
@@ -556,6 +597,17 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         if (mounted !== owner) {
           owner.controller.dispose();
           return;
+        }
+        if (config.crashReporting?.promiseRejections?.enabled === true) {
+          owner.rejections = createPromiseRejectionObserver({
+            prepareRejection: owner.controller.prepareRejection,
+            submitRejection: owner.controller.submitRejection,
+            isActive: () => mounted === owner && __getCurrentContext() === runtime,
+          });
+          if (mounted !== owner) {
+            owner.rejections.dispose();
+            return;
+          }
         }
       }
       for (const integration of config.integrations ?? []) {
@@ -597,6 +649,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
           // Older native SDK without this method — harmless.
         }
       }
+      owner.rejections?.dispose();
       owner.controller?.dispose();
       for (const { name, teardown } of owner.teardowns) {
         try {

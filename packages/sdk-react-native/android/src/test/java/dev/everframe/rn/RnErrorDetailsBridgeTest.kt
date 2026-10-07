@@ -54,6 +54,39 @@ class RnErrorDetailsBridgeTest {
         storage.close()
     }
 
+    @Test fun deliverySnapshotIsSynchronousAndContentFree() {
+        assertTrue(module.captureHandledException(payload()))
+        val json = module.getReportDeliveryStatusJson()
+        val state = JSONObject(json)
+        assertEquals(1, state.getInt("schemaVersion"))
+        assertEquals("active", state.getString("status"))
+        assertEquals(1, state.getJSONObject("capture").getJSONObject("paths")
+            .getJSONObject("bridge-handled").getJSONObject("outcomes").getInt("persisted"))
+        assertFalse(json.contains("core facts"))
+        assertEquals(1, drains)
+        Everframe.kill()
+        assertEquals("disabled", JSONObject(module.getReportDeliveryStatusJson()).getString("status"))
+    }
+
+    @Test fun generic_causes_cross_both_bridge_paths_before_acknowledgement() {
+        for (handled in listOf(false, true)) {
+            val wire = JSONObject(payload()).put("causeChain", JSONObject("""{"causes":[{"exceptionType":"TypeError","message":"cause-before","frames":[{"raw":"inner","line":1,"col":42}],"framesTruncated":false}],"truncated":false}""")).toString()
+            assertTrue(if (handled) module.captureHandledException(wire) else module.reportCrash(wire))
+            val decoded = crash()
+            assertEquals("cause-before", decoded.getJSONObject("causeChain").getJSONArray("causes").getJSONObject(0).getString("message"))
+            assertFalse(storage.persistedBytes().any { String(it).contains("cause-before") })
+            assertEquals(handled, decoded.getBoolean("handled"))
+            clearStored()
+        }
+    }
+
+    @Test fun malformed_causes_keep_outer_bridge_acceptance() {
+        val wire = JSONObject(payload()).put("causeChain", JSONObject.NULL).toString()
+        assertTrue(module.captureHandledException(wire))
+        assertEquals("core facts", crash().getString("message"))
+        assertTrue(crash().getJSONObject("causeChain").getBoolean("truncated"))
+    }
+
     @Test fun handled_details_are_in_encrypted_bytes_before_acknowledgement() {
         var persistedBeforeDrain = false
         module.__drainRequester = {
