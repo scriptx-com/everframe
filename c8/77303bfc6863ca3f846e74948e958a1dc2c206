@@ -1,0 +1,29 @@
+packages/sdk-ios/crash-recorder/Tests/run-probes.py
+  s_360d9eb003c487::t_c191954a03d3f5 55-64
+  s_360d9eb003c487::t_1ea4d890c0d1f4 32-33
+  s_360d9eb003c487::t_fd3225bbd25cfe 173-174
+  s_360d9eb003c487::t_74072db2fc538d 19-20
+  s_360d9eb003c487::t_53eae9728b0008 47-54,65-67
+  s_360d9eb003c487::t_af20f44ae5dc1c 130-133
+packages/sdk-ios/crash-recorder/Tests/test_run_probes.py
+  s_360d9eb003c487::t_466e869afece4a 1-61
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_3a7683a5d7a525 144-149
+  s_360d9eb003c487::t_10a189b57430e1 125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c877303bfc6863ca3f846e74948e958a1dc2c206",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
