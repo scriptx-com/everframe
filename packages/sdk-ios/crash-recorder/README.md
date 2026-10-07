@@ -10,11 +10,11 @@ Everframe SDK's startup, recovery, upload or published XCFrameworks**.
 The `EverframeCrashRecorder` library exposes five C integration functions through
 `EverframeCrashRecorder.h`: install, set enabled, read enabled, set context
 identifier, and version.
-It builds for iOS15/tvOS15; macOS14 is a qualification host. The vendor headers
+It builds for iOS 15/tvOS 15; macOS 14 is a qualification host. The vendor headers
 are private to the Clang target. The package uses no unsafe compiler flags.
 
 A healthy caller creates a fresh UUID run directory in its private application
-storage, mode0700, resolves its canonical absolute path, and reserves it for this
+storage, mode 0700, resolves its canonical absolute path, and reserves it for this
 process. Canonical means realpath(3) output, or the same path without the `/private`
 prefix, which is how Foundation reports `/var` and `/tmp` locations such as device
 app containers; installation uses the realpath(3) form. `EFCRInstall(path)` rejects missing, relative, symlinked, noncanonical,
@@ -124,7 +124,7 @@ no footprint before opt-in has to keep the component unlinked until then.
 
 ## Source provenance
 
-[KSCrash2.6.0](https://github.com/kstenerud/KSCrash/releases/tag/2.6.0) is pinned
+[KSCrash 2.6.0](https://github.com/kstenerud/KSCrash/releases/tag/2.6.0) is pinned
 at`3f77f379c2db001e0c261c2a51b7e2b115d31f91`. See THIRD_PARTY_NOTICES.md and LICENSES
 for MIT, BSD3 and APSL terms. Original notices and dated modifications are retained. The three original privacy
 manifests remain in the vendor source; a deterministic union is processed into the
