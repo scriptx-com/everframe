@@ -166,6 +166,41 @@ it('old disposal cannot disconnect a successor installed during a prior handle c
   expect(C._C).toBe(next);
   expect(second?.result.status === 'observing' && second.result.ownsHooks()).toBe(true);
 });
+it('treats a later global Promise reassignment as displacement', () => {
+  const { C, environment } = engine();
+  let current: unknown = C;
+  environment.currentPromise = () => current;
+  const prior = vi.fn(); C._C = prior;
+  const { result, options } = install(environment, { onDisplaced: vi.fn() });
+  expect(result.status).toBe('observing');
+  current = function Promise() {};
+  C._C!.call(C, {}, new Error('after'));
+  expect(options.onReject).not.toHaveBeenCalled();
+  expect(prior).toHaveBeenCalledTimes(1);
+  expect(result.status === 'observing' && result.ownsHooks()).toBe(false);
+  expect(options.onDisplaced).toHaveBeenCalledTimes(1);
+});
+it('releases pending observer work when the global Promise is reassigned', () => {
+  const { C, environment } = engine();
+  let current: unknown = C;
+  environment.currentPromise = () => current;
+  const timers = new Set<() => void>();
+  const delivered = vi.fn(() => 'accepted' as const);
+  const observer = createPromiseRejectionObserver({
+    prepareRejection: () => ({ payload: '{}', key: 'pending' }), submitRejection: delivered, isActive: () => true,
+    scheduler: { now: () => 2000, occurredAt: () => '2026-10-05T12:00:00.000Z',
+      setTimer: (fn) => { timers.add(fn); return fn; }, clearTimer: (handle) => { timers.delete(handle as () => void); } },
+    installAdapter: (options) => installHermesRejectionAdapter({ ...options, environment }),
+  });
+  disposals.push(observer.dispose);
+  C._C!.call(C, {}, 'pending');
+  expect(observer.getStatus().counters.pending).toBe(1);
+  current = function Promise() {};
+  expect(observer.getStatus()).toMatchObject({ status: 'displaced', reason: 'hook-displaced',
+    counters: { pending: 0, discarded: 1 } });
+  timers.forEach((fn) => fn());
+  expect(delivered).not.toHaveBeenCalled();
+});
 it('rejects a different Hermes release even with matching hooks', () => {
   const { environment } = engine();
   const inspect = environment.hermes!.getRuntimeProperties;
