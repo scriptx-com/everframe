@@ -4,6 +4,7 @@
 package dev.everframe.capture.video
 
 import android.animation.LayoutTransition
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -156,6 +157,13 @@ class VideoPrivacyInstrumentedTest {
             sensitive = install(it,root)
         }
         ready()
+        assertMaskedFrame(scenario, activity, sensitive)
+    }
+
+    /** The first admitted frame shows no [secret], is black over [sensitive], and still shows the base Shapes. */
+    private fun assertMaskedFrame(
+        scenario: ActivityScenario<VideoPrivacyFixtureActivity>, activity: VideoPrivacyFixtureActivity, sensitive: View,
+    ) {
         val region = Rect()
         var window = 0 to 0
         val laidOut = SystemClock.uptimeMillis() + 3000
@@ -192,16 +200,24 @@ class VideoPrivacyInstrumentedTest {
         assertTrue("blue circle elsewhere missing", counts[2] > 100)
     }
 
-    /** Requests frames at about 5 fps for [durationMs]; fails if an admitted frame shows [secret]. */
-    private fun neverShowsSecret(activity: VideoPrivacyFixtureActivity, durationMs: Long): Int {
+    /**
+     * Requests frames at about 5 fps for [durationMs]; fails if an admitted frame shows [secret].
+     * With [settledAtMs], a frame requested after that point must also be admitted and show the
+     * base Shapes, so a capture that refuses everything cannot pass.
+     */
+    private fun neverShowsSecret(activity: VideoPrivacyFixtureActivity, durationMs: Long, settledAtMs: Long?) {
         val recorder = capture(activity)
         val admitted = AtomicInteger()
+        val settled = AtomicInteger()
         val leaked = AtomicInteger()
-        val deadline = SystemClock.uptimeMillis() + durationMs
+        val began = SystemClock.uptimeMillis()
+        val deadline = began + durationMs
         var attempt = 0
+        var accepted = 0
         try {
             while (SystemClock.uptimeMillis() < deadline) {
                 val started = SystemClock.uptimeMillis()
+                val afterSettling = settledAtMs != null && started - began >= settledAtMs
                 attempt++
                 val requested = recorder.request(VideoOwner("device","watch-$attempt"),VideoSize(480,854)) { frame ->
                     try {
@@ -210,16 +226,22 @@ class VideoPrivacyInstrumentedTest {
                             val pixels = IntArray(bitmap.width * bitmap.height)
                             bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
                             if (pixels.any { isSecret(it) }) leaked.incrementAndGet()
+                            if (afterSettling && pixels.count { it == Color.RED } > 100 && pixels.count { it == Color.BLUE } > 100) {
+                                settled.incrementAndGet()
+                            }
                         }
                     } finally { frame.close() }
                 }
-                if (requested) waitReleased({ "attempt=$attempt" })
+                if (requested) { accepted++; waitReleased({ "attempt=$attempt" }) }
                 val pause = (200-(SystemClock.uptimeMillis()-started)).coerceAtLeast(0)
                 if (pause > 0) SystemClock.sleep(pause)
             }
         } finally { recorder.cancel() }
         assertEquals("sensitive pixels reached the encoder in ${admitted.get()} admitted frames", 0, leaked.get())
-        return admitted.get()
+        assertTrue("no frame request was accepted in $attempt attempts", accepted > 0)
+        if (settledAtMs != null) {
+            assertTrue("no admitted frame showed the base Shapes after $settledAtMs ms (${admitted.get()} admitted)", settled.get() > 0)
+        }
     }
     @Test fun markedOverlayViewRemainsExcluded() = refused { a, root ->
         val child = Shapes(a); root.addView(child)
@@ -275,13 +297,16 @@ class VideoPrivacyInstrumentedTest {
         swatch(a).apply { setTag(R.id.tx_sensitive,"unknown") }.also { r.addView(it, bottomLeft()) }
     }
     @Test fun sensitiveChildSlidingOnScreenIsNeverRecordedUnmasked() = fixture { scenario, activity, root ->
+        // With animations off the slide ends at once and there is nothing to catch.
+        assumeTrue("animator duration scale is 0", ValueAnimator.areAnimatorsEnabled())
         scenario.onActivity { a ->
             root.addView(swatch(a).apply {
                 setTag(R.id.tx_sensitive,true); translationX = 10000f
                 animate().translationX(0f).setDuration(500).start()
             }, bottomLeft())
         }
-        neverShowsSecret(activity, 1500)
+        // Once the 500 ms slide ends the swatch is masked in place and frames are recorded.
+        neverShowsSecret(activity, 2000, settledAtMs = 800)
     }
     @Test fun tweenOnAncestorOfMaskedViewIsNeverRecordedUnmasked() = fixture { scenario, activity, root ->
         scenario.onActivity { a ->
@@ -291,20 +316,27 @@ class VideoPrivacyInstrumentedTest {
             // Applied while drawing, so the view's layout and getMatrix() never move.
             holder.startAnimation(TranslateAnimation(0f, 300f, 0f, 0f).apply { duration = 1000 })
         }
-        neverShowsSecret(activity, 1500)
+        // Without fillAfter the 1 s tween is cleared when it ends, and the swatch is masked in place.
+        neverShowsSecret(activity, 2500, settledAtMs = 1300)
     }
     @Test fun layoutTransitionFadingOutMaskedViewIsNeverRecordedUnmasked() = fixture { scenario, activity, root ->
+        assumeTrue("animator duration scale is 0", ValueAnimator.areAnimatorsEnabled())
+        lateinit var container: FrameLayout
         lateinit var row: View
         scenario.onActivity { a ->
-            val container = FrameLayout(a).apply { layoutTransition = LayoutTransition() }
+            container = FrameLayout(a).apply { layoutTransition = LayoutTransition() }
             row = swatch(a).apply { setTag(R.id.tx_sensitive,true) }
             container.addView(row, FrameLayout.LayoutParams(400, 200))
             root.addView(container, bottomLeft())
         }
         SystemClock.sleep(800) // Let the appearing transition finish.
         // GONE under a running layout transition still fades out on screen.
-        scenario.onActivity { row.visibility = View.GONE }
-        neverShowsSecret(activity, 1000)
+        scenario.onActivity {
+            row.visibility = View.GONE
+            assertTrue("the fixture must fade the row out", container.layoutTransition.isRunning)
+        }
+        // After the 300 ms fade the row is hidden and frames are recorded.
+        neverShowsSecret(activity, 1800, settledAtMs = 700)
     }
     @Test fun keyboardPannedWindowNeverRecordsTheFocusedFieldUnmasked() = fixture { scenario, activity, root ->
         lateinit var input: EditText
@@ -327,8 +359,20 @@ class VideoPrivacyInstrumentedTest {
             if (!panned) SystemClock.sleep(50)
         }
         assumeTrue("no software keyboard panned the window", panned)
-        try { neverShowsSecret(activity, 1000) }
+        try { neverShowsSecret(activity, 1000, settledAtMs = null) }
         finally { scenario.onActivity { a -> WindowCompat.getInsetsController(a.window, input).hide(WindowInsetsCompat.Type.ime()) } }
+        // Positive control: without the keyboard the window is drawn unshifted and the field is masked in place.
+        var restored = false
+        val unpanned = SystemClock.uptimeMillis() + 3000
+        while (!restored && SystemClock.uptimeMillis() < unpanned) {
+            scenario.onActivity { a ->
+                val origin = IntArray(2).also { a.window.decorView.getLocationInWindow(it) }
+                restored = origin[1] == 0
+            }
+            if (!restored) SystemClock.sleep(50)
+        }
+        assertTrue("the window stayed panned after the keyboard was hidden", restored)
+        assertMaskedFrame(scenario, activity, input)
     }
     @Test fun webViewExcludesPixels() = refused { a,r -> r.addView(WebView(a), FrameLayout.LayoutParams(100,100)) }
     @Test fun textureViewMasksPixels() {
