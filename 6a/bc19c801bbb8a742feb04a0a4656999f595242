@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogLifecycleTest.kt
+  s_360d9eb003c487::t_22d87d30bfb975 157-182
+  s_360d9eb003c487::t_7cad84768b2bfb 214-249
+  s_360d9eb003c487::t_654d265a51aae8 16-21,26-30
+  s_360d9eb003c487::t_702a954946291c 42-43,50-54
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_360d9eb003c487::t_14d9eabe3eaea3 92-97
+  s_360d9eb003c487::t_6dc2fa47a05868 91,136-186,210,220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6abc19c801bbb8a742feb04a0a4656999f595242",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
