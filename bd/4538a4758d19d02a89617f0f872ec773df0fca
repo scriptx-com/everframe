@@ -1,0 +1,25 @@
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_bb55c7bc70e040 112-114
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_97602a0a2d8f20::t_d6ff5e91d87277 105
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_97602a0a2d8f20::t_86d6e94ef18549 22,37-38,45,49,54-61,320
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticRuntimeTests.swift
+  s_97602a0a2d8f20::t_fa79c71b06801a 147-150,154,156,158,161,163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bd4538a4758d19d02a89617f0f872ec773df0fca",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
