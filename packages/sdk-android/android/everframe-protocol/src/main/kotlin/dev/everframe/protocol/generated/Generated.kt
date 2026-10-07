@@ -208,8 +208,28 @@ data class Crash (
     val threadName: String? = null,
     val jvm: JVMCrashMetadata? = null,
     val details: CrashDetails? = null,
-    val causeChain: CrashCauseChain? = null
+    val causeChain: CrashCauseChain? = null,
+    val native: NativeCrashMetadata? = null
 ) {
+    constructor(
+        exceptionType: String, fatal: Boolean? = null, fingerprint: String,
+        frames: List<Frame>, handled: Boolean, jsBundle: JSBundle? = null,
+        mechanism: String, message: String, occurredAt: String, threadName: String? = null,
+        jvm: JVMCrashMetadata? = null, details: CrashDetails? = null, causeChain: CrashCauseChain? = null,
+    ) : this(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
+             message, occurredAt, threadName, jvm, details, causeChain, null)
+
+    fun copy(
+        exceptionType: String = this.exceptionType, fatal: Boolean? = this.fatal,
+        fingerprint: String = this.fingerprint, frames: List<Frame> = this.frames,
+        handled: Boolean = this.handled, jsBundle: JSBundle? = this.jsBundle,
+        mechanism: String = this.mechanism, message: String = this.message,
+        occurredAt: String = this.occurredAt, threadName: String? = this.threadName,
+        jvm: JVMCrashMetadata? = this.jvm, details: CrashDetails? = this.details,
+        causeChain: CrashCauseChain? = this.causeChain,
+    ): Crash = Crash(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
+                     message, occurredAt, threadName, jvm, details, causeChain, native)
+
     constructor(
         exceptionType: String,
         fatal: Boolean? = null,
@@ -225,7 +245,7 @@ data class Crash (
         details: CrashDetails? = null,
     ) : this(
         exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, null,
+        message, occurredAt, threadName, jvm, details, null, null,
     )
 
     fun copy(
@@ -243,7 +263,7 @@ data class Crash (
         details: CrashDetails? = this.details,
     ): Crash = Crash(
         exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, causeChain,
+        message, occurredAt, threadName, jvm, details, causeChain, native,
     )
 }
 
@@ -331,6 +351,61 @@ data class JVMCause (
     val framesTruncated: Boolean,
     val message: String
 )
+
+@Serializable
+data class NativeCrashMetadata (
+    val crashedThreadIndex: Long,
+    val error: NativeCrashError,
+    val frames: List<NativeCrashFrame>,
+    val framesIncomplete: Boolean,
+    val images: List<NativeCrashImage>,
+    val imagesIncomplete: Boolean,
+    val platform: NativeCrashPlatform,
+    val timestampMicros: String
+)
+
+@Serializable
+data class NativeCrashError (
+    val faultAddress: String? = null,
+    val machCode: String? = null,
+    val machException: Long? = null,
+    val machSubcode: String? = null,
+    val signalCode: Long? = null,
+    val signalNumber: Long? = null
+)
+
+@Serializable
+data class NativeCrashFrame (
+    val imageIndex: Long? = null,
+    val imageOffset: String? = null,
+    val instructionAddress: String
+)
+
+@Serializable
+data class NativeCrashImage (
+    val architecture: NativeCrashArchitecture,
+    val cpuSubtype: Long,
+    val cpuType: Long,
+    val loadAddress: String,
+    val name: String,
+    val size: String,
+    val uuid: String,
+    val vmAddress: String? = null
+)
+
+@Serializable
+enum class NativeCrashArchitecture(val value: String) {
+    @SerialName("arm64") Arm64("arm64"),
+    @SerialName("arm64e") Arm64E("arm64e"),
+    @SerialName("unknown") Unknown("unknown"),
+    @SerialName("x86_64") X8664("x86_64"),
+    @SerialName("x86_64h") X8664H("x86_64h");
+}
+
+@Serializable
+enum class NativeCrashPlatform(val value: String) {
+    @SerialName("apple") Apple("apple");
+}
 
 @Serializable
 data class Focus (

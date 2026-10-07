@@ -999,6 +999,9 @@
             "jvm": {
               "$ref": "#/$defs/JvmCrashMetadata"
             },
+            "native": {
+              "$ref": "#/$defs/NativeCrashMetadata"
+            },
             "exceptionType": {
               "type": "string",
               "maxLength": 256
@@ -2200,6 +2203,709 @@
       ],
       "additionalProperties": {},
       "title": "Frame"
+    },
+    "NativeCrashMetadata": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "const": "apple",
+          "title": "NativeCrashPlatform"
+        },
+        "timestampMicros": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,17})$(?![\\s\\S])"
+        },
+        "crashedThreadIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "framesIncomplete": {
+          "type": "boolean"
+        },
+        "imagesIncomplete": {
+          "type": "boolean"
+        },
+        "images": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeCrashImage"
+          }
+        },
+        "frames": {
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeCrashFrame"
+          }
+        },
+        "error": {
+          "$ref": "#/$defs/NativeCrashError"
+        }
+      },
+      "required": [
+        "platform",
+        "timestampMicros",
+        "crashedThreadIndex",
+        "framesIncomplete",
+        "imagesIncomplete",
+        "images",
+        "frames",
+        "error"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashMetadata"
+    },
+    "NativeCrashImage": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "allOf": [
+            {
+              "pattern": "^[^/\\\\\\u0000-\\u001f\\u007f-\\u009f]+$(?![\\s\\S])"
+            },
+            {
+              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])+$(?![\\s\\S])"
+            }
+          ],
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,0}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 255,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,1}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 254,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,2}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 253,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,3}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 252,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,4}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 251,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,5}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 250,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,6}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 249,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,7}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 248,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,8}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 247,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,9}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 246,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,10}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 245,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,11}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 244,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,12}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 243,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,13}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 242,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,14}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 241,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,15}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 240,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,16}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 239,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,17}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 238,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,18}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 237,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,19}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 236,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,20}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 235,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,21}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 234,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,22}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 233,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,23}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 232,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,24}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 231,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,25}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 230,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,26}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 229,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,27}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 228,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,28}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 227,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,29}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 226,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,30}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 225,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,31}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 224,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,32}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 223,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,33}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 222,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,34}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 221,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,35}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 220,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,36}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 219,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,37}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 218,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,38}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 217,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,39}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 216,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,40}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 215,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,41}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 214,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,42}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 213,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,43}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 212,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,44}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 211,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,45}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 210,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,46}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 209,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,47}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 208,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,48}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 207,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,49}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 206,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,50}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 205,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,51}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 204,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,52}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 203,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,53}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 202,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,54}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 201,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,55}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 200,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,56}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 199,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,57}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 198,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,58}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 197,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,59}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 196,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,60}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 195,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,61}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 194,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,62}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 193,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,63}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 192,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,64}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 191,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,65}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 190,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,66}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 189,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,67}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 188,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,68}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 187,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,69}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 186,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,70}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 185,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,71}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 184,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,72}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 183,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,73}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 182,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,74}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 181,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,75}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 180,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,76}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 179,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,77}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 178,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,78}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 177,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,79}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 176,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,80}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 175,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,81}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 174,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,82}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 173,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,83}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 172,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,84}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 171,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,85}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 170,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,86}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 169,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,87}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 168,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,88}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 167,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,89}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 166,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,90}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 165,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,91}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 164,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,92}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 163,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,93}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 162,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,94}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 161,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,95}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 160,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,96}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 159,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,97}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 158,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,98}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 157,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,99}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 156,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,100}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 155,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,101}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 154,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,102}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 153,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,103}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 152,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,104}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 151,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,105}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 150,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,106}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 149,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,107}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 148,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,108}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 147,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,109}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 146,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,110}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 145,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,111}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 144,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,112}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 143,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,113}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 142,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,114}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 141,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,115}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 140,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,116}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 139,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,117}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 138,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,118}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 137,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,119}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 136,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,120}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 135,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,121}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 134,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,122}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 133,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,123}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 132,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,124}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 131,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,125}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 130,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,126}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 129,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,127}[\\u0000-\\uFFFF]*$"
+            },
+            {
+              "maxLength": 128,
+              "pattern": "^(?:[\\u0000-\\uFFFF]*[^\\u0000-\\uFFFF]){0,128}[\\u0000-\\uFFFF]*$"
+            }
+          ]
+        },
+        "loadAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "vmAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "size": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "cpuType": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "cpuSubtype": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "architecture": {
+          "type": "string",
+          "enum": [
+            "arm64",
+            "arm64e",
+            "x86_64",
+            "x86_64h",
+            "unknown"
+          ],
+          "title": "NativeCrashArchitecture"
+        }
+      },
+      "required": [
+        "uuid",
+        "name",
+        "loadAddress",
+        "size",
+        "cpuType",
+        "cpuSubtype",
+        "architecture"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashImage"
+    },
+    "NativeCrashFrame": {
+      "type": "object",
+      "properties": {
+        "instructionAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "imageIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "imageOffset": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "instructionAddress"
+      ],
+      "additionalProperties": false,
+      "title": "NativeCrashFrame"
+    },
+    "NativeCrashError": {
+      "type": "object",
+      "properties": {
+        "signalNumber": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "signalCode": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "machException": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "machCode": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "machSubcode": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        },
+        "faultAddress": {
+          "type": "string",
+          "maxLength": 18,
+          "pattern": "^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\\s\\S])"
+        }
+      },
+      "additionalProperties": false,
+      "title": "NativeCrashError"
     }
   }
 }
