@@ -201,3 +201,5 @@ export {
 // off the published surface too.
 export { __filterNodeForTests } from './capture/screenshot.js';
 export { __resetDeviceIdForTests } from './companion/device-id.js';
+
+export type { ReleaseHealthHandle, ReleaseHealthDiagnostics, ReleaseHealthOptions } from './release-health/runtime.js';
