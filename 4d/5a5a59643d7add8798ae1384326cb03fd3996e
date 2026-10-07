@@ -1,0 +1,29 @@
+.changeset/android-replay-mask.md
+  s_360d9eb003c487::t_69a7f5f82f2277 8
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_1e30b4002c7dc4 543-584,590-592,604
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_39acda37874348 1997-2002,2006
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoModels.kt
+  s_360d9eb003c487::t_11eafcb5e76261 14
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyAdapter.kt
+  s_360d9eb003c487::t_99de3129a7b689 11-16
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoPrivacyGate.kt
+  s_360d9eb003c487::t_58277ae0fa47ac 23-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4d5a5a59643d7add8798ae1384326cb03fd3996e",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
