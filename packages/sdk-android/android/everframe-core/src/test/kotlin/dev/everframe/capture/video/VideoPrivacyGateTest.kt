@@ -179,6 +179,22 @@ class VideoPrivacyGateTest {
         } finally { root.removeView(compose); a.finish() }
     }
 
+    @Test fun flutterHostRefusesFramesAlthoughItsSurfaceIsSkipped() {
+        val a = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)
+        val flutter = object : io.flutter.embedding.android.FlutterView(a) {}
+        root.addView(flutter); flutter.layout(0,0,100,100)
+        // With hybrid composition the paused surface stays attached while an image view draws the UI.
+        flutter.addView(android.view.SurfaceView(a)); flutter.addView(View(a))
+        val gate = VideoPrivacyGate({ a }, { 0L }, { true })
+        try {
+            repeat(3) { assertFalse("Flutter pixels are recorded only through the masked Dart replay", gate.observe(root).allowed) }
+            assertEquals(1, historyEntries(flutter))
+            root.removeView(flutter)
+            assertTrue(gate.observe(root).allowed)
+        } finally { a.finish() }
+    }
+
     @Test fun unknownTypeAncestryFailsClosedAndCanBeRetried() {
         val a = Robolectric.buildActivity(Activity::class.java).setup().get()
         val root = FrameLayout(a); a.setContentView(root); root.layout(0,0,100,100)

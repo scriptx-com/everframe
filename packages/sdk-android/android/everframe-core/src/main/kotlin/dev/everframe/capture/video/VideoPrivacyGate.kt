@@ -85,6 +85,10 @@ internal class VideoPrivacyGate(
                 visited += covered
                 continue
             }
+            // Flutter draws its UI into the window (an image view under hybrid composition) where
+            // this walk cannot see Dart widgets: Flutter pixels are recorded only through the
+            // plugin's masked Dart replay.
+            if (types.flutterHost) { VideoSensitiveViews.remember(view); allowed = false; break }
             // A SurfaceView renders into its own surface, which a window PixelCopy never contains:
             // its area comes out empty without a mask, and overlays drawn above it (subtitles,
             // player controls) stay visible. A TextureView draws into the window and is masked.
