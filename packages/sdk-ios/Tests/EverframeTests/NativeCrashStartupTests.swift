@@ -39,6 +39,44 @@ final class NativeCrashStartupTests: XCTestCase {
         BreadcrumbAdapters.install()
         XCTAssertNil(NSGetUncaughtExceptionHandler())
     }
+    func testLaunchWaitsForRecoveryWhenUserChangesDuringDeviceSnapshot() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        let key = Data(repeating: 0x47, count: 32)
+        let native = root.appendingPathComponent("native")
+        let store = try NativeCrashRecovery(rootURL: native, activeRunIDs: [], keyProvider: { key })
+        let old = try store.prepareRun()
+        let context = try store.writeContext(NativeRecoveryTestData.context(), runID: old.id)
+        let reports = old.recorderURL.appendingPathComponent("Reports")
+        try FileManager.default.createDirectory(at: reports, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        let reportID = UUID(), raw = reports.appendingPathComponent("Everframe-report-0000000000000001.json")
+        try NativeRecoveryTestData.raw(context: context, report: reportID).write(to: raw)
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: raw.path)
+        let box = JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key })
+        let probe = NativeStartupRecorderProbe()
+        let runtime = NativeCrashRuntime(rootURL: native, outbox: box, recorder: probe.adapter, keyProvider: { key })
+        let first = expectation(description: "launch snapshot"), second = expectation(description: "user snapshot")
+        let gate = NativeStartupSnapshotGate(device: device, entered: [first, second])
+        let sdk = Everframe(nativeCrashRuntime: runtime, nativeDeviceSnapshot: { await gate.snapshot() })
+        defer {
+            sdk.kill(); gate.releaseAll(); Everframe.__resetStartTailDelayHookForTesting()
+            try? FileManager.default.removeItem(at: root)
+        }
+        let tail = expectation(description: "launch drain finished")
+        Everframe.__startTailDelayHookForTesting = {
+            XCTAssertEqual(try? box.hydrate().map(\.reportId), [reportID], "recovery must finish before the launch drain")
+            XCTAssertTrue(probe.snapshot().enabled)
+            tail.fulfill()
+        }
+        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        await fulfillment(of: [first], timeout: 5)
+        sdk.setUser(.init(id: "user-B"))
+        await fulfillment(of: [second], timeout: 5)
+        // Only release the obsolete launch snapshot. The independent setUser
+        // refresh stays parked, so the launch must itself retry current state.
+        gate.release(0)
+        await fulfillment(of: [tail], timeout: 5)
+    }
     func testNormalLifecyclePublishesMatchingOwnerAndDisablesImmediately() async throws {
         let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -98,6 +136,28 @@ private final class NativeStartupRecorderProbe: @unchecked Sendable {
             disable: { self.lock.withLock { self.state.enabled = false } },
             publish: { context in self.lock.withLock { self.state.context = context; self.state.enabled = true }; return true })
     }
+}
+
+private final class NativeStartupSnapshotGate: @unchecked Sendable {
+    let device: DeviceMetadata
+    let entered: [XCTestExpectation]
+    private let lock = NSLock()
+    private var calls = 0
+    private var waiting: [Int: CheckedContinuation<DeviceMetadata, Never>] = [:]
+    init(device: DeviceMetadata, entered: [XCTestExpectation]) { self.device = device; self.entered = entered }
+    func snapshot() async -> DeviceMetadata {
+        await withCheckedContinuation { continuation in
+            let index = lock.withLock { () -> Int in
+                let index = calls; calls += 1
+                if index < entered.count { waiting[index] = continuation }
+                return index
+            }
+            if index < entered.count { entered[index].fulfill() }
+            else { continuation.resume(returning: device) }
+        }
+    }
+    func release(_ index: Int) { lock.withLock { waiting.removeValue(forKey: index) }?.resume(returning: device) }
+    func releaseAll() { for index in entered.indices { release(index) } }
 }
 
 import Testing

@@ -15,6 +15,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var installed = false
+    private var publishedTicket: UInt64?
     private let worker = DispatchQueue(label: "dev.everframe.native-crash", qos: .utility)
     private let rootURL: URL
     private let outbox: JSONLOutbox
@@ -37,6 +38,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
     @discardableResult func invalidate() -> UInt64 {
         lock.withLock {
             generation &+= 1
+            publishedTicket = nil
             if installed { recorder.disable() }
             return generation
         }
@@ -52,6 +54,9 @@ final class NativeCrashRuntime: @unchecked Sendable {
 
     private func refreshOnWorker(ticket: UInt64, context: @Sendable () throws -> NativeCrashRecoveryContext?) -> Bool {
         guard isCurrent(ticket) else { return false }
+        // A ticket names immutable ownership. Duplicate startup/setUser tails
+        // must not close a healthy gate while rebuilding the same snapshot.
+        if lock.withLock({ generation == ticket && publishedTicket == ticket }) { return true }
         // Also safe for a caller refreshing the same ticket after a failure.
         lock.withLock { if generation == ticket, installed { recorder.disable() } }
         do {
@@ -92,6 +97,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
             return lock.withLock {
                 guard generation == ticket, installed else { return false }
                 guard recorder.publish(identifier) else { recorder.disable(); return false }
+                publishedTicket = ticket
                 return true
             }
         } catch {

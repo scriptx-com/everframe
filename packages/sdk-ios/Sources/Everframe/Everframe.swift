@@ -40,10 +40,13 @@ public final class Everframe: @unchecked Sendable {
     /// Single source of truth: edit the podspec, run the sync script — no
     /// other source files need to change at release time.
     public static let SDK_VERSION = EverframeSDKVersion
-    internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime()) {
+    internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime(),
+                  nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() }) {
         self.nativeCrashRuntime = nativeCrashRuntime
+        self.nativeDeviceSnapshot = nativeDeviceSnapshot
     }
     private let nativeCrashRuntime: NativeCrashRuntime?
+    private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
     private var nativeCrashTicket: UInt64 = 0
     private var nativeCrashPublishedEpoch: Int?
 
@@ -51,17 +54,24 @@ public final class Everframe: @unchecked Sendable {
     /// outside stateLock. The runtime ticket fences every asynchronous boundary.
     @discardableResult internal func refreshNativeCrashContext() async -> Bool {
         guard let runtime = nativeCrashRuntime else { return false }
-        let captured: (UInt64, EverframeConfig, EFUser?)? = stateLock.withLock {
-            guard nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
-                  let config = _config, config.capture.crash else { return nil }
-            return (nativeCrashTicket, config, _user)
+        while !Task.isCancelled {
+            let captured: (UInt64, EverframeConfig, EFUser?)? = stateLock.withLock {
+                guard nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
+                      let config = _config, config.capture.crash else { return nil }
+                return (nativeCrashTicket, config, _user)
+            }
+            guard let (ticket, config, user) = captured else { return false }
+            let device = await nativeDeviceSnapshot()
+            let armed = await runtime.refresh(ticket: ticket) {
+                try NativeCrashStartupContext.make(config: config, user: user, device: device,
+                                                   endpoint: IngestEndpoint.url.absoluteString)
+            }
+            // A user/config change may obsolete this snapshot before recovery
+            // starts. The launch tail must await a current attempt rather than
+            // drain an empty queue while another refresh is still suspended.
+            if stateLock.withLock({ nativeCrashTicket == ticket }) { return armed }
         }
-        guard let (ticket, config, user) = captured else { return false }
-        let device = await DeviceMetadata.snapshot()
-        return await runtime.refresh(ticket: ticket) {
-            try NativeCrashStartupContext.make(config: config, user: user, device: device,
-                                               endpoint: IngestEndpoint.url.absoluteString)
-        }
+        return false
     }
 
     // MARK: - State (NSLock-protected)

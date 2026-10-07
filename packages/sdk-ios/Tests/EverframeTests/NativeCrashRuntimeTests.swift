@@ -127,6 +127,19 @@ final class NativeCrashRuntimeTests: XCTestCase {
         XCTAssertTrue(armed); XCTAssertEqual(try outbox.hydrate().map(\.reportId), [valid])
         XCTAssertEqual(try Data(contentsOf: raw), Data("invalid".utf8))
     }
+    func testAlreadyPublishedRevisionDoesNotCloseGateOrRebuildContext() async throws {
+        let recorder = Recorder(), context = try NativeRecoveryTestData.context()
+        let runtime = runtime(recorder), ticket = runtime.invalidate()
+        let first = await runtime.refresh(ticket: ticket, context: { context })
+        XCTAssertTrue(first)
+        let duplicate = await runtime.refresh(ticket: ticket, context: {
+            XCTAssertTrue(recorder.enabled, "unchanged ownership must not open a capture gap")
+            XCTFail("a published revision must not rebuild its context")
+            return context
+        })
+        XCTAssertTrue(duplicate); XCTAssertEqual(recorder.identifiers.count, 1)
+    }
+
     func testContextLifetimeCapacityFailsClosedWithoutReplacingActiveRun() async throws {
         let recorder = Recorder()
         let current = self.runtime(recorder)
