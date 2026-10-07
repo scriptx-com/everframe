@@ -96,3 +96,11 @@ test('reports copy no raw stack memory and keep registers for the crashed thread
   }
   assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/report memory/);
 });
+test('arm unwinding reports the restored caller instead of a stale link register', async t => {
+  const path='KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c';
+  for (const source of await packaged(t,path)) {
+    assert.match(source,/const bool staleLR = frameRecordLiveAt\(crashPC\) &&/);
+    assert.match(source,/\} else if \(staleLR &&[^{]+\{\n[^\n]+\n\s+nextAddress = ctx->pc;/);
+  }
+  assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/link register/);
+});

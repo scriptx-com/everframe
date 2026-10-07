@@ -22,6 +22,26 @@ void EFCRProbeMemoryFault(void) {
     *(volatile char *)page = 1;
     _exit(78);
 }
+// The faulting store is a frameless leaf, so the link register still names its caller.
+void EFCRProbeLeafStore(volatile char *address);
+__attribute__((noinline)) void EFCRProbeLeafStore(volatile char *address) { *address = 1; }
+void EFCRProbeLeafFault(void) {
+    void *page = mmap(NULL, (size_t)getpagesize(), PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (page == MAP_FAILED) _exit(77);
+    EFCRProbeLeafStore(page);
+    _exit(78);
+}
+// Mutual recursion whose only stack writes are frame records: the stack guard faults on a
+// function's first instruction, before its frame record exists, while lr names the caller.
+static volatile int recursionDepth;
+void EFCRProbeRecurseA(void);
+void EFCRProbeRecurseB(void);
+__attribute__((noinline)) void EFCRProbeRecurseA(void) { EFCRProbeRecurseB(); recursionDepth++; }
+__attribute__((noinline)) void EFCRProbeRecurseB(void) { EFCRProbeRecurseA(); recursionDepth++; }
+void EFCRProbeStackOverflow(void) {
+    EFCRProbeRecurseA();
+    _exit(78);
+}
 int EFCRProbePoisonVendor(const char *directory) {
     KSCrashCConfiguration configuration = KSCrashCConfiguration_Default();
     configuration.enableSwapCxaThrow = false;

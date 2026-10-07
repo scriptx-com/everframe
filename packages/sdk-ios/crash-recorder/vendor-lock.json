@@ -1052,7 +1052,7 @@
       "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecordingCore/Unwind/KSStackCursor_Unwind.c",
       "license": "MIT",
       "originalSha256": "2f3eb9d67c2b628065a179350f80b7b824bd182db623bd63e32594ca64ca6cd8",
-      "packagedSha256": "56bfe672e90d9092acc4d8dbecdd0e1c04c3e227658cf592fc146c907aea12fb"
+      "packagedSha256": "42acbce9139bef5ce561195d1fcbd65bf7c4b29b305f34452893374d3b7acc57"
     },
     {
       "source": "Sources/KSCrashRecordingCore/include/KSBacktrace.h",

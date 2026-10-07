@@ -3,6 +3,8 @@
 #include <stdbool.h>
 void EFCRProbeObjCException(void);
 void EFCRProbeMemoryFault(void);
+void EFCRProbeLeafFault(void);
+void EFCRProbeStackOverflow(void);
 int EFCRProbePoisonVendor(const char *directory);
 int EFCRProbeGate(void);
 void EFCRProbeSetGate(bool open);

@@ -45,6 +45,8 @@ switch args[3] {
 case "swift": fatalError("EFCR synthetic Swift trap")
 case "objc": EFCRProbeObjCException()
 case "memory": EFCRProbeMemoryFault()
+case "leaf": EFCRProbeLeafFault()
+case "overflow": EFCRProbeStackOverflow()
 // abort() is outside the Mach exception mask, so only the signal monitor can record it.
 case "signal": abort()
 default: exit(91)

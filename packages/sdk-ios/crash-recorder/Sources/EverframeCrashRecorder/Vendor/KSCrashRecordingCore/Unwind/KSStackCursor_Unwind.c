@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude.
+// Modified by ScriptX on 2026-10-07: license metadata; private namespace prelude; report the restored caller instead of a stale link register.
 // Original copyright and license notices retained below.
 #include "EverframeKSCrashNamespace.h"
 //
@@ -454,6 +454,52 @@ static bool tryUpdateStateAfterLR(UnwindCursorContext *ctx, uintptr_t consumedLR
 }
 #endif  // __arm64__ || __arm__
 
+#if defined(__arm64__)
+// Everframe: whether the straight-line code from pc still runs with this function's frame
+// record live. A prologue before x29 is set up, or code after the epilogue restored x29/x30,
+// holds the caller in lr; an unconditional branch or unreadable code is treated as unknown.
+static bool frameRecordLiveAt(uintptr_t pc)
+{
+    for (uintptr_t offset = 0; offset < 48; offset += 4) {
+        uint32_t insn;
+        if (!ksmem_copySafely((const void *)(pc + offset), &insn, sizeof(insn))) {
+            return false;
+        }
+        if ((insn & 0xFF8003FFu) == 0x910003FDu || (insn & 0xFFE00000u) == 0xD6400000u) {
+            return false;  // add x29, sp, #imm (prologue) or ret/retaa/retab (after the restore)
+        }
+        if ((insn & 0xFE407FFFu) == 0xA8407BFDu || (insn & 0xFFE0001Fu) == 0xD4200000u || (insn >> 16) == 0) {
+            return true;  // ldp x29, x30, [sp...] still ahead, brk or udf
+        }
+        if ((insn & 0x7C000000u) == 0x14000000u) {
+            return (insn & 0x80000000u) != 0;  // bl in the body; b may be a tail call
+        }
+        if ((insn & 0xFE000000u) == 0xD6000000u) {
+            return (insn & 0x00200000u) != 0;  // blr in the body; br may be a tail call
+        }
+    }
+    return true;
+}
+
+// Everframe: true when lr returns into the compact-unwind range containing pc. The linker
+// merges adjacent functions with equal encodings, so this alone does not prove one function.
+static bool linkRegisterReturnsIntoFunction(uintptr_t pc, uintptr_t lr)
+{
+    KSBinaryImageUnwindInfo image;
+    KSBinaryImageUnwindInfo returnImage;
+    KSCompactUnwindEntry crashing;
+    KSCompactUnwindEntry returning;
+    if (lr <= 1 || !ksbic_getUnwindInfoForAddress(pc, &image) || !image.hasCompactUnwind ||
+        !ksbic_getUnwindInfoForAddress(lr - 1, &returnImage) || returnImage.header != image.header) {
+        return false;
+    }
+    uintptr_t imageBase = (uintptr_t)image.header;
+    return kscu_findEntry(image.unwindInfo, image.unwindInfoSize, pc, imageBase, image.slide, &crashing) &&
+           kscu_findEntry(image.unwindInfo, image.unwindInfoSize, lr - 1, imageBase, image.slide, &returning) &&
+           crashing.functionStart == returning.functionStart;
+}
+#endif
+
 static bool advanceCursor(KSStackCursor *cursor)
 {
     UnwindCursorContext *ctx = (UnwindCursorContext *)cursor->context;
@@ -510,6 +556,14 @@ static bool advanceCursor(KSStackCursor *cursor)
         // The value itself is still needed: the frame-pointer fallbacks below set PC to it,
         // so keep it in a local rather than reading the (now zero) register back.
         const uintptr_t consumedLR = ctx->lr;
+#if defined(__arm64__)
+        // Everframe: lr is stale once the crashing function saved it and made a call.
+        const uintptr_t crashPC = kscpu_normaliseInstructionPointer(ctx->pc);
+        const bool staleLR = frameRecordLiveAt(crashPC) &&
+                             linkRegisterReturnsIntoFunction(crashPC, kscpu_normaliseInstructionPointer(consumedLR));
+#else
+        const bool staleLR = false;
+#endif
         ctx->lr = 0;
 
         // After using LR, we need to unwind to get the next return address
@@ -545,6 +599,11 @@ static bool advanceCursor(KSStackCursor *cursor)
             // Always update PC to the LR we consumed, even if FP read failed. This ensures the
             // next unwind step starts from the correct address rather than a stale PC.
             ctx->pc = consumedLR;
+        } else if (staleLR &&
+                   (ctx->lastMethod == KSUnwindMethod_CompactUnwind || ctx->lastMethod == KSUnwindMethod_Dwarf) &&
+                   ctx->pc != consumedLR && isValidCodeAddress(ctx->pc)) {
+            // Everframe: report the caller restored from the crashing frame, not the stale LR.
+            nextAddress = ctx->pc;
         }
 
         // The LR frame itself wasn't unwound - we just read the register.

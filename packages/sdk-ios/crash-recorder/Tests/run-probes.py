@@ -17,12 +17,18 @@ STACK_MARKER = bytes((0x5A + 37 * i) & 0xFF for i in range(16))
 X86 = platform.machine() == 'x86_64'
 # Terminating signals of each fault on this native host.
 SIGNALS = {'swift': {signal.SIGILL if X86 else signal.SIGTRAP}, 'objc': {signal.SIGABRT},
-           'memory': {signal.SIGBUS, signal.SIGSEGV}, 'signal': {signal.SIGABRT}}
+           'memory': {signal.SIGBUS, signal.SIGSEGV}, 'signal': {signal.SIGABRT},
+           'leaf': {signal.SIGBUS, signal.SIGSEGV}, 'overflow': {signal.SIGBUS, signal.SIGSEGV}}
 # Recorded error of each fault: (type, section, field, value).
 ERRORS = {'swift': ('mach', 'mach', 'exception_name', 'EXC_BAD_INSTRUCTION' if X86 else 'EXC_BREAKPOINT'),
           'objc': ('nsexception', 'nsexception', 'name', 'EFCRQualification'),
           'memory': ('mach', 'mach', 'exception_name', 'EXC_BAD_ACCESS'),
-          'signal': ('signal', 'signal', 'name', 'SIGABRT')}
+          'signal': ('signal', 'signal', 'name', 'SIGABRT'),
+          'leaf': ('mach', 'mach', 'exception_name', 'EXC_BAD_ACCESS'),
+          'overflow': ('mach', 'mach', 'exception_name', 'EXC_BAD_ACCESS')}
+# Frame 1 of each native fault is its real caller. The stack overflow faults on a function's
+# first instruction, so there frame 1 must be the link register itself.
+CALLERS = {'swift': 'main', 'memory': 'main', 'leaf': 'EFCRProbeLeafFault'}
 
 
 def require(condition, message):
@@ -81,8 +87,19 @@ def run_probes(binary, evidence):
             require(error.get('type') == kind and error.get(section, {}).get(field) == value,
                     f'{name}: recorded error {error}, expected {kind} {value}')
             require(extra != 'objc' or error.get('reason') == 'synthetic fatal exception', f'{name}: exception reason')
-            require(any(t.get('crashed') and t.get('backtrace', {}).get('contents') for t in parsed['crash']['threads']),
+            crashed = [t for t in parsed['crash']['threads'] if t.get('crashed')]
+            require(len(crashed) == 1 and crashed[0].get('backtrace', {}).get('contents'),
                     f'{name}: crashed-thread backtrace missing')
+            frames = crashed[0]['backtrace']['contents']
+            symbols = [frame.get('symbol_name') for frame in frames]
+            addresses = [frame['instruction_addr'] for frame in frames]
+            if extra in CALLERS:
+                require(len(symbols) > 1 and symbols[1] == CALLERS[extra] and all(a != b for a, b in zip(addresses, addresses[1:])),
+                        f'{name}: caller missing or frame duplicated: {symbols[:4]}')
+            if extra == 'overflow':
+                lr = crashed[0].get('registers', {}).get('basic', {}).get('lr')
+                require(len(addresses) > 1 and addresses[1] == lr,
+                        f'{name}: link-register caller {lr} missing: {addresses[:4]}')
         return row
 
     run('missing', 'invalid', evidence / 'absent')
@@ -102,6 +119,8 @@ def run_probes(binary, evidence):
     run('state', 'state', directory('state'), second)
     require(not list(second.iterdir()), 'second installation touched replacement directory')
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
+    for fault in ['leaf', 'overflow']:
+        run(f'enabled-{fault}', 'enabled', directory(f'enabled-{fault}'), fault, fatal=True, count=1)
     for mode in ['enabled', 'disabled', 'disabled-after', 'reenabled', 'gate-closed', 'monitors-off']:
         for fault in ['swift', 'objc', 'memory', 'signal']:
             name = f'{mode}-{fault}'

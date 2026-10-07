@@ -43,6 +43,11 @@ symbol names, thread names and run states, and binary image paths, UUIDs and loa
 addresses. System, resource and lifecycle details live in run sidecars. No raw stack
 memory is copied, and register state is kept for the crashed thread only; those
 registers can still hold small fragments of application data, such as short strings.
+On arm64, once the crashing function has saved the link register and made a call, the
+patched unwinder reports the caller restored from its frame record as frame 1 instead
+of the stale register. The choice reads up to 12 instructions at the crash address and
+the compact unwind ranges. A fault in a prologue or after an epilogue keeps the link
+register as frame 1; there the next frame can still be skipped, as in upstream KSCrash.
 The wrapper sets backup exclusion and mobile
 complete-until-first-user-authentication protection on the run root; the patched
 sidecar writer preserves that protection class. Children remain inside the0700
@@ -81,15 +86,18 @@ upstream checkout checks the packaged manifest and resource integrity. Supplying
 the manifest alone is not a cryptographic attestation.
 
 `Tests/run-probes.py --binary /path/to/EFCRProbe --evidence /path/to/new-evidence`
-runs25 fresh processes with25-second deadlines and child-only core-dump disabling.
+runs39 fresh processes with25-second deadlines and child-only core-dump disabling.
 The probes cover directory validation, initial disabled state, repeated/failed
 installation, Swift/Objective-C/memory faults, an `abort()` that only the signal
 monitor can record, disable/re-enable and rapid runs. Two modes move one control at a
 time: a closed report gate with enabled monitors, and an open gate with the monitors
-still disabled by installation; both must leave no report.
-Each fatal process must end with its fault's signal, and each report must record the
-expected Mach, signal or NSException error with a crashed-thread backtrace. The checks are
-explicit, so they also run under `python3 -O`. Every persisted file is scanned for the exception userInfo sentinel and for a stack
-canary written in the faulting frame. Every output and raw report is retained. `Tests/DualProbe/main.m` supports full-object
-link and fatal-chain qualification alongside ordinary upstream recording objects.
+still disabled by installation; both must leave no report. Each fatal process must end
+with its fault's signal, and each report must record the expected Mach, signal or
+NSException error with a crashed-thread backtrace. Swift, memory and frameless-leaf
+faults must name their real caller as frame 1 without a repeated frame, and a prologue
+stack overflow must keep its link-register caller. The checks are explicit, so they
+also run under `python3 -O`. Every persisted file is scanned for the exception userInfo
+sentinel and for a stack canary written in the faulting frame. Every output and raw
+report is retained. `Tests/DualProbe/main.m` supports full-object link and fatal-chain
+qualification alongside ordinary upstream recording objects.
 Test helpers are not part of the library product.
