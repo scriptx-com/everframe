@@ -5,7 +5,7 @@ import NativeEverframe from './NativeEverframe.js';
 import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
 import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
-import { captureKey, type CaptureIdentity, type PreparedRejection, type RejectionOutcome } from './rejection-capture.js';
+import { captureKey, rejectionKey, type CaptureIdentity, type PreparedRejection, type RejectionOutcome } from './rejection-capture.js';
 
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
 interface ErrorUtilsLike {
@@ -69,7 +69,7 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         source: 'error', mechanism: 'unhandledrejection', handled: false, fatal: false, occurredAt,
       });
       if (!ownsCapture()) return undefined;
-      const snapshot: PreparedRejection = { payload, key: captureKey(facts), ...(identity ? { identity } : {}) };
+      const snapshot: PreparedRejection = { payload, key: rejectionKey(facts), ...(identity ? { identity } : {}) };
       prepared.add(snapshot);
       return snapshot;
     } catch { return undefined; }

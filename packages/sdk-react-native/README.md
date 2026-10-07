@@ -134,7 +134,10 @@ background, behind another activity or in picture-in-picture), although
 JavaScript can keep running. Rejections observed then are notified on later
 Promise activity or when the activity resumes. Explicit capture and automatic
 reporting share accepted error identity, and automatic reports retain their
-existing 10-distinct-key allowance per mount.
+existing 10-distinct-key allowance per mount. Automatic reports are
+deduplicated by exception type and top stack frame. Non-Error reasons have no
+stack and are deduplicated by their reported value, so all object reasons share
+one report per mount.
 
 The observer retains at most 16 detached snapshots, each at most 64 KiB of
 serialized UTF-8 data. It drops new arrivals when full and oversize snapshots

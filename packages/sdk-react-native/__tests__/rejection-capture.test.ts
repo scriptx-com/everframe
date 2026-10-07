@@ -129,6 +129,15 @@ it.each([
     mechanism: 'unhandledrejection' });
   for (const secret of ['secret-cookie', 'sk_live_secret', 'abc123']) expect(raw).not.toContain(secret);
 });
+it('deduplicates non-Error reasons by their reported value', () => {
+  const owner = controller();
+  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  expect(['Session expired', 'Network timeout', 'Session expired', { code: 'E_AUTH' }, undefined, 42,
+    { code: 'E_PAYMENT' }, '42'].map(submit))
+    .toEqual(['accepted', 'accepted', 'duplicate', 'accepted', 'accepted', 'accepted', 'duplicate', 'duplicate']);
+  expect(automatic.mock.calls.map(([raw]) => JSON.parse(raw).message))
+    .toEqual(['Session expired', 'Network timeout', '[object]', 'undefined', '42']);
+});
 it('contains bridge failure and leaves later explicit admission available', () => {
   const owner = controller(), reason = error();
   automatic.mockImplementationOnce(() => { throw new Error('bridge unavailable'); });
