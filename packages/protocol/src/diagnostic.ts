@@ -3,6 +3,8 @@
 import { z } from 'zod';
 
 /** The OS reason is authoritative; traces and SIGKILL alone cannot establish ANR/OOM. */
+// OS reason categories: reason10 before API34 can also mean a package/component change.
+// user_requested is not proof of a human action; consumers retain API level and reason.
 export function androidExitCause(reason: number): DiagnosticCause {
   if (reason === 6) return 'anr';
   if (reason === 5) return 'native_crash';
