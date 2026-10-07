@@ -136,8 +136,11 @@ Promise activity or when the activity resumes. Explicit capture and automatic
 reporting share accepted error identity, and automatic reports retain their
 existing 10-distinct-key allowance per mount. Automatic reports are
 deduplicated by exception type and top stack frame. Non-Error reasons have no
-stack and are deduplicated by their reported value, so all object reasons share
-one report per mount.
+stack and are deduplicated by their reported value with digit runs ignored, so
+`Request 1001 failed` repeats `Request 1000 failed` and all object reasons
+share one report per mount. They spend at most 5 of the 10 keys, so values that
+differ in other ways, such as hex identifiers, still leave 5 keys for `Error`
+rejections and other automatic reports.
 
 The observer retains at most 16 detached snapshots, each at most 64 KiB of
 serialized UTF-8 data. It drops new arrivals when full and oversize snapshots
@@ -148,9 +151,10 @@ wall-clock time, which keeps advancing while an Android device sleeps. Cleanup
 cannot run while JavaScript is suspended, so stale work expires when
 JavaScript resumes. Error facts and causes are snapshotted at rejection time.
 Rejection reasons that are not `Error` objects are reported as `UnhandledValue`
-without a stack. Strings, numbers, booleans, `null` and `undefined` keep their
-bounded value; objects, arrays, functions, symbols and bigints are reported
-only as a type label such as `[object]` rather than serialized.
+without a stack or cause chain, even when they carry a `cause`. Strings,
+numbers, booleans, `null` and `undefined` keep their bounded value; objects,
+arrays, functions, symbols and bigints are reported only as a type label such
+as `[object]` rather than serialized.
 Native context and breadcrumbs are collected at notification time. A preserved
 external tracker may independently retain errors or generate its own reports.
 

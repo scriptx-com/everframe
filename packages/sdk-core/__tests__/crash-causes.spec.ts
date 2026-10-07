@@ -418,6 +418,18 @@ describe('extractCrashCauseChain', () => {
     expect(chain?.causes[0]?.framesTruncated).toBe(true);
   });
 
+  it('drops an email address cut by the stack scan limit before an email rule can miss it', () => {
+    const email = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const inner = new Error('inner');
+    const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
+    dataStack(inner, `Error: inner\n${filler}\nmail john.doe@${'d'.repeat(3_000)}.com`);
+    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => value.replace(email, '[REDACTED:EMAIL]'), () => true);
+
+    expect(chain?.causes[0]?.frames).toHaveLength(32);
+    expect(chain?.causes[0]?.frames[31]?.raw).toBe('mail');
+    expect(chain?.causes[0]?.framesTruncated).toBe(true);
+  });
+
   it('stops every later source read and redactor callback after byte exhaustion', () => {
     let nextCauseDescriptorReads = 0;
     const next = new Proxy(new Error('unreachable'), {
