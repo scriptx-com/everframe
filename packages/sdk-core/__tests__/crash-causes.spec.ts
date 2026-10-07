@@ -603,12 +603,21 @@ it('reads the captured Hermes prototype stack intrinsic without invoking replace
   expect(hermes!.extractCrashCauseChain(errorWithCause('outer', proxy), identity, () => owned)).toBeUndefined();
   expect(getter).toHaveBeenCalledTimes(1);
   let deep: object = HermesError.prototype;
-  for (let level = 0; level < 8; level += 1) deep = Object.create(deep);
+  for (let level = 0; level < 20; level += 1) deep = Object.create(deep);
   Object.defineProperty(deep, 'message', { value: 'deep' });
   expect(hermes!.extractCrashCauseChain(errorWithCause('outer', deep), identity, () => true)).toMatchObject({
     causes: [{ frames: [], framesTruncated: true }],
   });
   expect(getter).toHaveBeenCalledTimes(1);
+  // Babel's wrapped native super adds a prototype below each compiled Error
+  // hierarchy, so a third-level subclass instance is five links from the intrinsic.
+  const compiled = new HermesError('compiled');
+  const wrapper = Object.create(HermesError.prototype);
+  Object.setPrototypeOf(compiled, Object.create(Object.create(Object.create(wrapper))));
+  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', compiled), identity, () => true)).toMatchObject({
+    causes: [{ message: 'compiled', frames: [{raw: 'at hermesCause (address at index.android.bundle:1:42)'}], framesTruncated: false }], truncated: false,
+  });
+  expect(getter).toHaveBeenCalledTimes(2);
   const replacement = vi.fn(() => 'unsafe');
   Object.defineProperty(HermesError.prototype, 'stack', { get: replacement });
   expect(hermes!.extractCrashCauseChain(outer, identity, () => true)).toMatchObject({

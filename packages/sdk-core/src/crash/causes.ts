@@ -47,6 +47,9 @@ function captureNativeStackGetter(): { getter: (this: unknown) => unknown; proto
 
 const nativeStack = captureNativeStackGetter();
 const nativeStackGetter = nativeStack?.getter;
+// Babel's wrapped native super adds a prototype between compiled Error
+// subclasses and the intrinsic, so application hierarchies sit deeper.
+const MAX_INHERITED_STACK_LINKS = 16;
 
 function safeOwned(stillOwned: () => boolean): boolean {
   try {
@@ -81,7 +84,7 @@ function ownStack(value: object, stillOwned: () => boolean): StackRead {
     if (!descriptor && nativeStack?.prototype) {
       let current: object | null = value;
       const seen = new Set<object>([value]);
-      for (let links = 0; links < 4; links += 1) {
+      for (let links = 0; links < MAX_INHERITED_STACK_LINKS; links += 1) {
         const next = safePrototype(current, stillOwned);
         if (next === undefined) return safeOwned(stillOwned) ? { kind: 'lost' } : { kind: 'cancelled' };
         if (next === null) return { kind: 'absent' };
