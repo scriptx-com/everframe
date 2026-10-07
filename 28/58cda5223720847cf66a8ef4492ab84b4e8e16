@@ -1,0 +1,32 @@
+packages/sdk-android/android/everframe-core/consumer-rules.pro
+  s_97602a0a2d8f20::t_a526b25864f261 52-55
+packages/sdk-android/tests/native-crash-host/README.md
+  s_97602a0a2d8f20::t_1ae6084c1ddd6e 16-19
+packages/sdk-android/android/everframe-core/proguard-rules.pro
+  s_97602a0a2d8f20::t_a526b25864f261 60-63
+packages/sdk-android/tests/native-crash-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_1c36ac58d44f27 16-18
+  s_97602a0a2d8f20::t_a63ae57e493e1b 8,13-15
+packages/sdk-android/tests/native-crash-host/app/src/main/java/dev/everframe/nativeproof/MainActivity.kt
+  s_97602a0a2d8f20::t_1cf4d31179409e 150
+  s_97602a0a2d8f20::t_a63ae57e493e1b 16,43-46,49-50,55-56,116,139-149,151-168,170,173,175
+  s_97602a0a2d8f20::t_0546c375a1cbd2 169,171-172,174,176
+packages/sdk-android/tests/native-crash-host/app/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_1c36ac58d44f27 5,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2858cda5223720847cf66a8ef4492ab84b4e8e16",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
