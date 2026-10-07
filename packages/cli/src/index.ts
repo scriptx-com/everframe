@@ -8,6 +8,7 @@ import { collectStagedBuild } from "./build-collect.js";
 import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
+import { collectDsymBuild } from "./dsym.js";
 import { collectR8Build } from "./r8.js";
 import { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
 import { setupReactNative } from "./setup-react-native.js";
@@ -18,6 +19,8 @@ export type { LocalBuild } from "./manifest.js";
 export { collectBuild } from "./manifest.js";
 export type { CollectHermesBuildOptions } from "./hermes.js";
 export { collectHermesBuild } from "./hermes.js";
+export type { CollectDsymBuildOptions } from "./dsym.js";
+export { collectDsymBuild } from "./dsym.js";
 export type { CollectR8BuildOptions } from "./r8.js";
 export { collectR8Build } from "./r8.js";
 export type {
@@ -35,6 +38,7 @@ const HELP = `Usage:
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe setup react-native --app-id <uuid> [--project <dir>]
+  everframe dsym upload --app-id <uuid> --dwarf <raw-file>
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
@@ -55,6 +59,7 @@ export async function main(
   const isSourceMapCommand =
     argv[0] === "sourcemaps" &&
     (argv[1] === "upload" || argv[1] === "upload-hermes");
+  const isDsymCommand = argv[0] === "dsym" && argv[1] === "upload";
   const isR8Command = argv[0] === "r8" && argv[1] === "upload";
   const isBuildCommand =
     argv[0] === "build" && (argv[1] === "collect" || argv[1] === "verify");
@@ -64,6 +69,7 @@ export async function main(
     !isSetupCommand &&
     !isSourceMapCommand &&
     !isR8Command &&
+    !isDsymCommand &&
     !isBuildCommand &&
     !isExpoExportCommand
   ) {
@@ -197,6 +203,38 @@ export async function main(
       for (const warning of result.warnings) console.warn(warning);
       for (const failure of result.failures) console.error(failure);
       return result.ok ? 0 : 1;
+    }
+
+    if (isDsymCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          dwarf: { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"],
+        dwarfPath = parsed.values.dwarf,
+        token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !dwarfPath || !token)
+        throw new Error("missing_required_option");
+      const local = await collectDsymBuild({ dwarfPath });
+      const result = await uploadCollectedBuild(local, {
+        appId,
+        root: dirname(resolve(dwarfPath)),
+        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        token,
+        deleteAfterUpload: false,
+      });
+      console.log(`dSYM ${result.buildUuid} is ready.`);
+      return 0;
     }
 
     if (isR8Command) {
