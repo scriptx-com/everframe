@@ -415,7 +415,7 @@
       "path": "Sources/EverframeCrashRecorder/Vendor/KSCrashRecording/Monitors/KSCrashMonitor_Resource.m",
       "license": "MIT",
       "originalSha256": "5679ee1d6b37399590e7f2d234e3fc1ac3d36fda12fdbfdf1eaaacba0d00b68e",
-      "packagedSha256": "bc08518c55f61ff94cbd098e2005aa8bb826a6a7c80f98277a506b149226bd52"
+      "packagedSha256": "fb3f5cf9fb97addf4f6720d211c6d5b38b487e79102229433a0177d048d51ac9"
     },
     {
       "source": "Sources/KSCrashRecording/Monitors/KSCrashMonitor_ResourceStitch.m",

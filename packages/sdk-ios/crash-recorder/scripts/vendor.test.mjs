@@ -5,10 +5,17 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm, mkdir, cp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { prepareVendor } from './prepare-vendor.mjs';
+import { prepareVendor, transform, vendorRoot } from './prepare-vendor.mjs';
 import { verifyVendor } from './verify-vendor.mjs';
 const upstreamRoot = process.env.KSCRASH_CHECKOUT;
+const componentRoot = fileURLToPath(new URL('..', import.meta.url));
+// Checks the deterministic preparation output and the packaged component source alike.
+async function packaged(t, path) {
+  const root = await fixture(t);
+  return Promise.all([root, componentRoot].map(base => readFile(join(base, vendorRoot, path), 'utf8')));
+}
 assert.ok(upstreamRoot, 'KSCRASH_CHECKOUT must name the pinned upstream checkout');
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'efcr-vendor-test-'));
@@ -75,4 +82,9 @@ test('rejects altered component privacy declarations', async t => {
   const root=await fixture(t);
   await writeFile(join(root,'Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy'),'changed');
   await assert.rejects(verifyVendor(root),/resource integrity/);
+});
+test('resource monitor never changes the host battery monitoring setting', async t => {
+  const path='KSCrashRecording/Monitors/KSCrashMonitor_Resource.m';
+  for (const source of await packaged(t,path)) assert.doesNotMatch(source,/batteryMonitoringEnabled\s*=/);
+  assert.throws(()=>transform(`Sources/${path}`,'unexpected'),/battery/);
 });

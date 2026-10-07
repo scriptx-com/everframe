@@ -23,6 +23,11 @@ const appleNotice = `// The Original Code and all software distributed under the
 // Please see the License for the specific language governing rights and
 // limitations under the License.
 `;
+// Owned patches apply only to the exact pinned input text, exactly once.
+function replaceOnce(source, before, after, error) {
+  if (source.split(before).length !== 2) throw new Error(error);
+  return source.replace(before, () => after);
+}
 export function transform(path, original) {
   const license = licenseFor(path);
   const changes = ['license metadata'];
@@ -40,6 +45,14 @@ export function transform(path, original) {
     if (!original.includes(before)) throw new Error('unexpected NSException privacy patch input');
     original = original.replace(before, '        // Everframe: never read or format arbitrary exception metadata.\n        const char *userInfo = NULL;');
     changes.push('omit NSException userInfo without reading or formatting it');
+  }
+  if (path.endsWith('/KSCrashMonitor_Resource.m')) {
+    if ((original.match(/batteryMonitoringEnabled/g) ?? []).length !== 2) throw new Error('unexpected battery monitoring patch input');
+    original = replaceOnce(original, '    UIDevice.currentDevice.batteryMonitoringEnabled = YES;\n',
+      '    // Everframe: battery state is read only while the host enables monitoring; never change it.\n', 'unexpected battery monitoring patch input');
+    original = replaceOnce(original, '    UIDevice.currentDevice.batteryMonitoringEnabled = NO;\n',
+      '    // Everframe: leave the host battery monitoring setting unchanged.\n', 'unexpected battery monitoring patch input');
+    changes.push('never change the host battery monitoring setting');
   }
   if (path.endsWith('.xcprivacy')) {
     return original.replace(/(<\?xml[^>]+\?>\s*)/, `$1<!-- SPDX-License-Identifier: ${license}\nModified by ScriptX on 2026-10-07: ${changes.join('; ')}. Original notices retained. -->\n`);

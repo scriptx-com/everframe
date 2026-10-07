@@ -24,8 +24,13 @@ Installation and enable/disable calls are serialized and run only on healthy
 threads. Disabling closes a lock-free report gate before changing monitors.
 A fatal handler that already passed the gate may finish writing. Underlying
 vendor tracker singletons can retain process-lifetime resources; disabled does
-not mean every infrastructure object is destroyed. No custom allocation,
-Foundation, locking, envelope construction or network work runs in the report gate.
+not mean every infrastructure object is destroyed. After a successful install,
+even while disabled, the fatal signal handlers, the Mach exception ports with their
+two handler threads and the uncaught NSException handler stay installed and pass
+events on. The recorder never changes the host's UIDevice battery monitoring
+setting; battery state is recorded only while the host enables monitoring.
+No custom allocation, Foundation, locking, envelope construction or network work
+runs in the report gate.
 
 The selected detectors cover Mach faults, fatal signals and uncaught Objective-C
 exceptions, including tested Swift traps. Watchdog/termination/CPU reporting,
