@@ -103,6 +103,7 @@ class ReporterDialogLifecycleTest {
                 assertTrue(Everframe.report.isPresenting.value)
                 assertFalse(reopened.isCompleted)
                 next.pause().stop().destroy()
+                assertTrue(reopened.isCompleted)
                 assertEquals(ReportResult.Cancelled("activity_destroyed"), reopened.await())
                 assertFalse(Everframe.report.isPresenting.value)
             } finally { reopened.cancelAndJoin() }
@@ -206,10 +207,13 @@ class ReporterDialogLifecycleTest {
         val originalChildren = content.childCount
         host.pause().stop().destroy()
         val capture = Everframe.__replayFreeze()
+        val result = async(Dispatchers.Main) { ReporterDialog.show(host.get(), screenshot(), capture) }
         try {
-            assertEquals(ReportResult.Cancelled("activity_destroyed"), ReporterDialog.show(host.get(), screenshot(), capture))
+            shadowOf(Looper.getMainLooper()).idle()
+            assertTrue("A destroyed host must settle the reporter result", result.isCompleted)
+            assertEquals(ReportResult.Cancelled("activity_destroyed"), result.await())
             assertEquals(originalChildren, content.childCount)
-        } finally { capture.cancel() }
+        } finally { result.cancelAndJoin(); capture.cancel() }
     }
 
     private fun screenshot(): ScreenshotCapture.CaptureResult {
