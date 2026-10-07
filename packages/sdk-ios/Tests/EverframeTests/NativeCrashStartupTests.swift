@@ -107,3 +107,13 @@ struct NativeCrashStartupIsolationTests {
         #expect(NativeCrashRecorderAdapter.makeRuntime() == nil)
     }
 }
+
+extension NativeCrashStartupIsolationTests {
+    @Test func defaultOutboxCannotDrainApplicationStorageFromSwiftTesting() throws {
+        // Observe the real default instance without adding a product API or
+        // writing a test record into what may be an application's queue.
+        let box = JSONLOutbox()
+        let destination = try #require(Mirror(reflecting: box).children.first(where: { $0.label == "fileURL" })?.value as? URL)
+        #expect(destination.standardizedFileURL.path.hasPrefix(FileManager.default.temporaryDirectory.standardizedFileURL.path + "/"))
+    }
+}
