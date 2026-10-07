@@ -109,7 +109,9 @@ try {
   await tab.waitForTimeout(200);
   const remaining = await tab.evaluate(() => window.host.records());
   assert(remaining.every(row => row.exposure.loadedBuildId === 'route-B'));
-  await routes.close(); checks.push('key-isolation-and-disabled-purge');
+  await tab.evaluate(() => { window.host.unmount(); window.host.mount({ apiKey: 'pk_route_b' }); window.host.kill(); });
+  await waitRecords(tab, 0);
+  await routes.close(); checks.push('key-isolation-and-disabled-purge', 'kill-without-opt-in-purges-prior-route');
   assert.equal(browserErrors.length, 0, browserErrors.join('\n'));
   for (const { record } of attempts) {
     assert.equal(record.exposure.subject, 'anonymous_exposure');
