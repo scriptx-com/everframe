@@ -57,10 +57,10 @@ enum NativeCrashRecordDecoder {
         let message = text(fault.reason ?? rawType, limit: 4096, redact: redact, fallback: type)
         var images: [EverframeNativeCrashImage] = [], frames: [EverframeFrame] = []
         var nativeFrames: [EverframeNativeCrashFrame] = [], sourceToOutput: [Int: Int] = [:], appKeys: [String] = []
-        var imagesIncomplete = vendor.binary_images == nil
+        var imagesIncomplete = vendor.binary_images?.skipped ?? true
         var candidates: [(Int, NativeCrashVendorRecord.Image, String)] = []
-        for (index, entry) in (vendor.binary_images?.values ?? []).enumerated() {
-            guard let entry, let uuid = identifier(entry.uuid)?.uuidString.lowercased(),
+        for (index, entry) in vendor.binary_images?.values ?? [] {
+            guard let uuid = identifier(entry.uuid)?.uuidString.lowercased(),
                   validRange(entry.image_addr, entry.image_size),
                   entry.image_vmaddr.map({ validRange($0, entry.image_size) }) ?? true,
                   !basename(entry.name).isEmpty else { imagesIncomplete = true; continue }

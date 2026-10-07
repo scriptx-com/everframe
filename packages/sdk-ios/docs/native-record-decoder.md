@@ -7,7 +7,9 @@ records in a healthy process. It does not start recording, delete raw files,
 recover configuration, or enqueue events. A future recovery coordinator must
 resolve the original context and supply its redaction policy.
 
-Input is limited to 2 MiB, depth 64, 256 threads and 1024 images. Duplicate keys reject.
+Input is limited to 2 MiB, depth 64 and 1000 threads (the pinned recorder's own
+maximum). Every image entry within that input is scanned, and only images referenced
+by normalized frames are emitted. Duplicate keys reject.
 Structural integer fields reject decimal/exponent token spellings before Foundation
 conversion can round them. Ignored vendor metadata may contain fractional numbers.
 Only the unique crashed thread is used, except that NSException records normalize the

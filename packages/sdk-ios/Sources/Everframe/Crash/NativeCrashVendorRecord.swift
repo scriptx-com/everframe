@@ -67,10 +67,11 @@ struct NativeCrashVendorRecord: Decodable {
         let values: [Thread]
         init(from decoder: Decoder) throws {
             var c = try decoder.unkeyedContainer()
-            guard (c.count ?? 0) <= 256 else { throw NativeCrashRecordDecoder.Failure.collectionLimit }
+            // The pinned recorder captures at most 1000 threads and always keeps the crashed one.
+            guard (c.count ?? 0) <= 1000 else { throw NativeCrashRecordDecoder.Failure.collectionLimit }
             var values: [Thread] = []
             while !c.isAtEnd {
-                guard values.count < 256 else { throw NativeCrashRecordDecoder.Failure.collectionLimit }
+                guard values.count < 1000 else { throw NativeCrashRecordDecoder.Failure.collectionLimit }
                 values.append(try c.decode(Thread.self))
             }
             self.values = values
@@ -117,15 +118,17 @@ struct NativeCrashVendorRecord: Decodable {
         let cpu_type: Int32, cpu_subtype: Int32
     }
     struct Images: Decodable {
-        let values: [Image?]
+        /// Decodable entries with their source position. Processes can load more than a thousand
+        /// images, so every entry within the input byte limit is scanned; only referenced ones are emitted.
+        let values: [(index: Int, image: Image)]
+        let skipped: Bool
         init(from decoder: Decoder) throws {
-            var c = try decoder.unkeyedContainer(), values: [Image?] = []
-            guard (c.count ?? 0) <= 1024 else { throw NativeCrashRecordDecoder.Failure.collectionLimit }
+            var c = try decoder.unkeyedContainer(), values: [(index: Int, image: Image)] = [], skipped = false
             while !c.isAtEnd {
-                guard values.count < 1024 else { throw NativeCrashRecordDecoder.Failure.collectionLimit }
-                values.append(try? Image(from: c.superDecoder()))
+                let index = c.currentIndex
+                if let image = try? Image(from: c.superDecoder()) { values.append((index, image)) } else { skipped = true }
             }
-            self.values = values
+            self.values = values; self.skipped = skipped
         }
     }
     let report: Header

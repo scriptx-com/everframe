@@ -91,17 +91,14 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                       changeError(record(), "is_clean_exit", true)] { XCTAssertThrowsError(try decode(input)) }
     }
     func testCrashedThreadMustBeUniqueAndBounded() throws {
-        // Over the limit, the record is otherwise valid: exactly one thread crashed.
-        let overLimit = Array(repeating: ["index": 0, "crashed": false], count: 256) + [["index": 256, "crashed": true]]
+        // Over the recorder's 1000-thread maximum, the record is otherwise valid: exactly one thread crashed.
+        let overLimit = Array(repeating: ["index": 0, "crashed": false], count: 1000) + [["index": 1000, "crashed": true]]
         for (threads, expected): ([[String: Any]], NativeCrashRecordDecoder.Failure) in [
             ([], .crashedThread), ([["index": 0, "crashed": false]], .crashedThread),
             ([["index": 0, "crashed": true], ["index": 1, "crashed": true]], .crashedThread),
             (overLimit, .collectionLimit), ([["index": 65536, "crashed": true]], .crashedThread)] {
             var input = record(), crash = input["crash"] as! [String: Any]; crash["threads"] = threads; input["crash"] = crash
             XCTAssertThrowsError(try decode(input)) { XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, expected) }
-        }
-        XCTAssertThrowsError(try decode(record(images: Array(repeating: image(), count: 1025)))) {
-            XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, .collectionLimit)
         }
     }
     func testMalformedCappedAndAbsentStacksStayAlignedAndHonest() throws {
@@ -274,5 +271,15 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         let origin = try decode(record(type: "nsexception", frames: Array(repeating: frame(), count: 94),
                                        exceptionFrames: Array(repeating: frame(), count: 94)))
         XCTAssertEqual(origin.crash.native?.framesIncomplete, false)
+    }
+    func testLargeImageAndThreadListsDegradeInsteadOfRejecting() throws {
+        // UI processes can load more than a thousand images; only referenced images are emitted.
+        let many = try XCTUnwrap(decode(record(images: Array(repeating: image(base: 0x9000), count: 1500) + [image()])).crash.native)
+        XCTAssertEqual(many.images.count, 1); XCTAssertEqual(many.frames[0].imageIndex, 0)
+        XCTAssertEqual(many.frames[0].imageOffset, "0x10"); XCTAssertFalse(many.imagesIncomplete)
+        // Up to the recorder's own 1000-thread maximum, the unique crashed thread is found anywhere.
+        var threads: [[String: Any]] = (0..<1000).map { ["index": $0, "crashed": false] }
+        threads[999] = ["index": 999, "crashed": true, "backtrace": ["contents": [frame()]]]
+        XCTAssertEqual(try decode(changeCrash(record(), "threads", threads)).crash.native?.crashedThreadIndex, 999)
     }
 }
