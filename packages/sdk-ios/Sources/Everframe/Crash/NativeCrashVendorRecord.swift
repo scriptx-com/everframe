@@ -13,6 +13,17 @@ struct NativeCrashVendorRecord: Decodable {
     struct Crash: Decodable {
         let error: Fault
         let threads: Threads
+        /// NSException origin (callStackReturnAddresses). A malformed value counts as absent.
+        let last_exception_backtrace: Backtrace?
+        let lastExceptionBacktraceMalformed: Bool
+        enum CodingKeys: String, CodingKey { case error, threads, last_exception_backtrace }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            error = try c.decode(Fault.self, forKey: .error)
+            threads = try c.decode(Threads.self, forKey: .threads)
+            last_exception_backtrace = try? c.decode(Backtrace.self, forKey: .last_exception_backtrace)
+            lastExceptionBacktraceMalformed = c.contains(.last_exception_backtrace) && last_exception_backtrace == nil
+        }
     }
     struct Fault: Decodable {
         struct Mach: Decodable {

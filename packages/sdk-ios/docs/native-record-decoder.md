@@ -2,15 +2,19 @@
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 # Native record normalization
 
-The internal decoder accepts the standalone recorder's pinned3.9.0 standard fatal
+The internal decoder accepts the standalone recorder's pinned 3.9.0 standard fatal
 records in a healthy process. It does not start recording, delete raw files,
 recover configuration, or enqueue events. A future recovery coordinator must
 resolve the original context and supply its redaction policy.
 
-Input is limited to2MiB, depth64,256 threads and1024 images. Duplicate keys reject.
+Input is limited to 2 MiB, depth 64, 256 threads and 1024 images. Duplicate keys reject.
 Structural integer fields reject decimal/exponent token spellings before Foundation
 conversion can round them. Ignored vendor metadata may contain fractional numbers.
-Only the unique crashed thread is used; its first256 input frames are considered.
+Only the unique crashed thread is used, except that NSException records normalize the
+exception's own backtrace (last_exception_backtrace) when it has frames: the uncaught
+handler's stack can already be unwound past the throw site. A malformed exception
+backtrace falls back to the handler stack and marks frames incomplete. The first 256
+input frames are considered.
 Malformed frames/images and missing or ambiguous image matches remain explicitly
 incomplete. Unmatched instruction addresses remain available without guessed
 image associations. Process/system/memory/register metadata and exception

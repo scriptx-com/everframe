@@ -15,12 +15,14 @@ enum NativeCrashJSONPreflight {
     }
     private static let integerPaths: Set<[String]> = {
         var paths: Set<[String]> = [["report", "timestamp"], ["crash", "error", "address"],
-            ["crash", "threads", "index"], ["crash", "threads", "backtrace", "skipped"]]
+            ["crash", "threads", "index"], ["crash", "threads", "backtrace", "skipped"],
+            ["crash", "last_exception_backtrace", "skipped"]]
         for key in ["image_addr", "image_vmaddr", "image_size", "cpu_type", "cpu_subtype"] {
             paths.insert(["binary_images", key])
         }
         for key in ["instruction_addr", "object_addr"] {
             paths.insert(["crash", "threads", "backtrace", "contents", key])
+            paths.insert(["crash", "last_exception_backtrace", "contents", key])
         }
         for key in ["exception", "code", "subcode"] { paths.insert(["crash", "error", "mach", key]) }
         for key in ["signal", "code"] { paths.insert(["crash", "error", "signal", key]) }

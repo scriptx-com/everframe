@@ -28,6 +28,13 @@ enum NativeCrashRecordDecoder {
         let crashed = vendor.crash.threads.values.filter(\.crashed)
         guard crashed.count == 1, let thread = crashed.first, (0...65535).contains(thread.index)
         else { throw Failure.crashedThread }
+        // NSException records keep the throw site in the exception's own backtrace. The crashed
+        // thread holds the uncaught-exception handler, whose stack may already be unwound.
+        let origin = fault.type == "nsexception" ? vendor.crash.last_exception_backtrace : nil
+        let usesOrigin = origin.map { !$0.contents.values.isEmpty } ?? false
+        let backtrace = usesOrigin ? origin : thread.backtrace
+        let originLost = fault.type == "nsexception" && !usesOrigin
+            && (origin != nil || vendor.crash.lastExceptionBacktraceMalformed)
         let rawType: String
         switch fault.type {
         case "mach":
@@ -51,7 +58,7 @@ enum NativeCrashRecordDecoder {
                   !basename(entry.name).isEmpty else { imagesIncomplete = true; continue }
             candidates.append((index, entry, uuid))
         }
-        for entry in thread.backtrace?.contents.values ?? [] {
+        for entry in backtrace?.contents.values ?? [] {
             let pc = entry.instruction_addr
             let matches = candidates.filter { _, image, uuid in
                 !entry.associationMalformed && pc >= image.image_addr && pc - image.image_addr < image.image_size
@@ -82,8 +89,8 @@ enum NativeCrashRecordDecoder {
             machSubcode: fault.mach?.subcode.map { hex($0.value) },
             signalCode: fault.signal?.code.map(Int.init), signalNumber: fault.signal.map { Int($0.signal) })
         let native = EverframeNativeCrashMetadata(crashedThreadIndex: thread.index, error: error,
-            frames: nativeFrames, framesIncomplete: thread.backtrace == nil
-                || thread.backtrace?.contents.incomplete == true || (thread.backtrace?.skipped ?? 0) != 0,
+            frames: nativeFrames, framesIncomplete: backtrace == nil || originLost
+                || backtrace?.contents.incomplete == true || (backtrace?.skipped ?? 0) != 0,
             images: images, imagesIncomplete: imagesIncomplete, platform: .apple,
             timestampMicros: String(header.timestamp))
         let keys = nativeFrames.prefix(5).enumerated().map { index, frame in

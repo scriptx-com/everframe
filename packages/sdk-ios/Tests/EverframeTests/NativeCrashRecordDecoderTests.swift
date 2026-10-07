@@ -9,17 +9,19 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
     let reportID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     let contextID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
     let imageID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
-    func image(base: UInt64 = 0x20000000000001, size: UInt64 = 0x100) -> [String: Any] {
+    let systemID = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+    func image(base: UInt64 = 0x20000000000001, size: UInt64 = 0x100, uuid: String? = nil,
+               name: String = "/Applications/App.app/App") -> [String: Any] {
         ["image_addr": base, "image_vmaddr": UInt64(0x100000000), "image_size": size,
-         "uuid": imageID.uppercased(), "name": "/Applications/App.app/App",
+         "uuid": (uuid ?? imageID).uppercased(), "name": name,
          "cpu_type": 16777228, "cpu_subtype": 0]
     }
-    func frame(pc: UInt64 = 0x20000000000011) -> [String: Any] {
-        ["instruction_addr": pc, "symbol_name": "fatalFunction"]
+    func frame(pc: UInt64 = 0x20000000000011, symbol: String = "fatalFunction") -> [String: Any] {
+        ["instruction_addr": pc, "symbol_name": symbol]
     }
     func record(type: String = "mach", frames: [[String: Any]]? = nil,
-                images: [[String: Any]]? = nil) -> [String: Any] {
-        ["report": ["version": "3.9.0", "type": "standard", "id": reportID.uppercased(),
+                images: [[String: Any]]? = nil, exceptionFrames: [[String: Any]]? = nil) -> [String: Any] {
+        let value: [String: Any] = ["report": ["version": "3.9.0", "type": "standard", "id": reportID.uppercased(),
                     "run_id": reportID, "timestamp": UInt64(1791331200000001)],
          "user": ["everframe_context_id": contextID],
          "binary_images": images ?? [image()],
@@ -30,6 +32,8 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                             "nsexception": ["name": "CustomException", "userInfo": ["secret": "NEVER_COPY"]],
                             "reason": "failure"],
                    "threads": [["index": 7, "crashed": true, "backtrace": ["contents": frames ?? [frame()]]]]]]
+        guard let exceptionFrames else { return value }
+        return changeCrash(value, "last_exception_backtrace", ["contents": exceptionFrames, "skipped": 0])
     }
     func data(_ value: [String: Any]) throws -> Data { try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]) }
     func decode(_ value: [String: Any], redact: (String) -> String = { $0 }) throws -> NativeCrashRecord {
@@ -38,6 +42,10 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
     func changeError(_ input: [String: Any], _ key: String, _ value: Any) -> [String: Any] {
         var input = input, crash = input["crash"] as! [String: Any], error = crash["error"] as! [String: Any]
         error[key] = value; crash["error"] = error; input["crash"] = crash; return input
+    }
+    func changeCrash(_ input: [String: Any], _ key: String, _ value: Any) -> [String: Any] {
+        var input = input, crash = input["crash"] as! [String: Any]
+        crash[key] = value; input["crash"] = crash; return input
     }
     func testThreeFaultClassesPreserveOriginalIdentityAndExactAddresses() throws {
         for (type, expected) in [("mach", "EXC_BREAKPOINT"), ("signal", "SIGTRAP"), ("nsexception", "CustomException")] {
@@ -154,6 +162,15 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
                 XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, .malformed, key + ":" + token)
             }
         }
+        // The NSException origin backtrace (sorted before threads) carries the same structural integers.
+        let origin = String(decoding: try data(record(type: "nsexception", exceptionFrames: [associated])), as: UTF8.self)
+        for (key, token) in [("instruction_addr", "9007199254740993.1"), ("object_addr", "9007199254740993.1"), ("skipped", "0.1")] {
+            let range = try XCTUnwrap(origin.range(of: #"""# + key + #"":-?[0-9]+"#, options: .regularExpression))
+            let altered = origin.replacingCharacters(in: range, with: #"""# + key + #"":"# + token)
+            XCTAssertThrowsError(try NativeCrashRecordDecoder.decode(Data(altered.utf8), redact: { $0 }), "origin " + key) {
+                XCTAssertEqual($0 as? NativeCrashRecordDecoder.Failure, .malformed, "origin " + key)
+            }
+        }
         // Unknown metadata must not inherit the structural integer-only spelling rule.
         let ignored = #"{"system":{"timestamp":1791331200000001.1,"code":1.5,"uptime":1e-3},"# + original.dropFirst()
         XCTAssertNoThrow(try NativeCrashRecordDecoder.decode(Data(ignored.utf8), redact: { $0 }))
@@ -176,5 +193,32 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         }
         // Identical keys in separate objects are legal.
         XCTAssertNoThrow(try decode(record()))
+    }
+    func testNSExceptionUsesExceptionOriginBacktrace() throws {
+        let images = [image(base: 0x180000000, size: 0x100000, uuid: systemID,
+                            name: "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"), image()]
+        // The uncaught handler can run after the throw site was unwound (for example inside GCD).
+        let handler = [frame(pc: 0x180000010, symbol: "__handleUncaughtException"),
+                       frame(pc: 0x180000020, symbol: "_objc_terminate"), frame(pc: 0x180000030, symbol: "_dispatch_client_callout")]
+        let origin = [frame(pc: 0x180000040, symbol: "__exceptionPreprocess"),
+                      frame(pc: 0x180000050, symbol: "objc_exception_throw"), frame(pc: 0x20000000000021, symbol: "appClosure")]
+        let result = try decode(record(type: "nsexception", frames: handler, images: images, exceptionFrames: origin))
+        let native = try XCTUnwrap(result.crash.native)
+        XCTAssertEqual(result.crash.frames.map(\.function), ["__exceptionPreprocess", "objc_exception_throw", "appClosure"])
+        XCTAssertEqual(native.frames.map(\.instructionAddress), ["0x180000040", "0x180000050", "0x20000000000021"])
+        XCTAssertEqual(native.frames[2].imageIndex.map { native.images[$0].name }, "App")
+        XCTAssertEqual(native.crashedThreadIndex, 7); XCTAssertFalse(native.framesIncomplete)
+        // Without an origin, and for other fault types, the crashed thread stays the source.
+        for input in [record(type: "nsexception", frames: handler, images: images),
+                      record(type: "mach", frames: handler, images: images, exceptionFrames: origin)] {
+            XCTAssertEqual(try decode(input).crash.frames.map(\.function),
+                           ["__handleUncaughtException", "_objc_terminate", "_dispatch_client_callout"])
+        }
+        // A malformed origin falls back to the handler stack and is reported incomplete.
+        let malformed = changeCrash(record(type: "nsexception", frames: handler, images: images),
+                                    "last_exception_backtrace", ["contents": "bad"])
+        let fallback = try XCTUnwrap(decode(malformed).crash.native)
+        XCTAssertEqual(fallback.frames.map(\.instructionAddress), ["0x180000010", "0x180000020", "0x180000030"])
+        XCTAssertTrue(fallback.framesIncomplete)
     }
 }
