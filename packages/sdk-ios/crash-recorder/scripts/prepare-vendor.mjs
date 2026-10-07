@@ -9,6 +9,8 @@ export const revision = '3f77f379c2db001e0c261c2a51b7e2b115d31f91';
 export const sourceRoots = ['KSCrashCore', 'KSCrashRecordingCore', 'KSCrashRecording'];
 export const vendorRoot = 'Sources/EverframeCrashRecorder/Vendor';
 export const sha256 = data => createHash('sha256').update(data).digest('hex');
+// Split so license scanners do not read the generated header templates as this file's own tags.
+const spdxLicense = `SPDX-${'License-Identifier:'}`;
 export function licenseFor(path) {
   if (path.endsWith('/KSObjCApple.h')) return 'APSL-2.0';
   if (path.endsWith('/KSMach-O.c')) return 'MIT AND APSL-2.0';
@@ -69,9 +71,9 @@ export function transform(path, original) {
     changes.push('omit raw stack contents and registers of threads that did not crash');
   }
   if (path.endsWith('.xcprivacy')) {
-    return original.replace(/(<\?xml[^>]+\?>\s*)/, `$1<!-- SPDX-License-Identifier: ${license}\nModified by ScriptX on 2026-10-07: ${changes.join('; ')}. Original notices retained. -->\n`);
+    return original.replace(/(<\?xml[^>]+\?>\s*)/, `$1<!-- ${spdxLicense} ${license}\nModified by ScriptX on 2026-10-07: ${changes.join('; ')}. Original notices retained. -->\n`);
   }
-  return `// SPDX-License-Identifier: ${license}\n// Modified by ScriptX on 2026-10-07: ${changes.join('; ')}.\n// Original copyright and license notices retained below.\n` +
+  return `// ${spdxLicense} ${license}\n// Modified by ScriptX on 2026-10-07: ${changes.join('; ')}.\n// Original copyright and license notices retained below.\n` +
     (translationUnit ? '#include "EverframeKSCrashNamespace.h"\n' : '') +
     (path.endsWith('/KSObjCApple.h') ? appleNotice : '') + original;
 }
@@ -101,7 +103,7 @@ export function mergePrivacy(manifests) {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const encode=value=> typeof value==='boolean' ? `<${value}/>` : typeof value==='string' ? `<string>${escape(value)}</string>` :
     Array.isArray(value) ? `<array>${value.map(encode).join('')}</array>` : `<dict>${Object.keys(value).sort().map(key=>`<key>${escape(key)}</key>${encode(value[key])}`).join('')}</dict>`;
-  return '<?xml version="1.0" encoding="UTF-8"?>\n<!-- SPDX-License-Identifier: MIT -->\n' +
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<!-- ${spdxLicense} MIT -->\n` +
     '<!-- Deterministically aggregated from the three preserved KSCrash privacy manifests. -->\n' +
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n' +
     `<plist version="1.0">${encode(value)}</plist>\n`;
