@@ -10,5 +10,6 @@ int EFCRProbeGate(void);
 int EFCRProbeAdmitContext(void);
 void EFCRProbeSetGate(bool open);
 int EFCRProbeInstallOffMain(const char *directory);
+int EFCRProbeDisableOffMain(void);
 int EFCRProbeEnableOffMain(void);
 int EFCRProbePublishOffMain(const char *identifier);

@@ -76,6 +76,7 @@ int EFCRProbeAdmitContext(void) {
 // Moves only the report gate, leaving the vendor monitors as they are.
 void EFCRProbeSetGate(bool open) { efcr_gateSet(open); }
 static void *installOffMain(void *directory) { return (void *)(intptr_t)EFCRInstall(directory); }
+static void *disableOffMain(void *unused) { (void)unused; return (void *)(intptr_t)EFCRSetEnabled(false); }
 static void *enableOffMain(void *unused) { (void)unused; return (void *)(intptr_t)EFCRSetEnabled(true); }
 static void *publishOffMain(void *identifier) { return (void *)(intptr_t)EFCRSetContextIdentifier(identifier); }
 static int onBackgroundThread(void *(*body)(void *), void *argument) {
@@ -85,5 +86,6 @@ static int onBackgroundThread(void *(*body)(void *), void *argument) {
     return (int)(intptr_t)result;
 }
 int EFCRProbeInstallOffMain(const char *directory) { return onBackgroundThread(installOffMain, (void *)directory); }
+int EFCRProbeDisableOffMain(void) { return onBackgroundThread(disableOffMain, NULL); }
 int EFCRProbeEnableOffMain(void) { return onBackgroundThread(enableOffMain, NULL); }
 int EFCRProbePublishOffMain(const char *identifier) { return onBackgroundThread(publishOffMain, (void *)identifier); }

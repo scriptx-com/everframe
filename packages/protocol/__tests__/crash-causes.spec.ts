@@ -297,6 +297,27 @@ describe('generic crash cause contract', () => {
     expect(seen).toEqual(['Error', 'x'.repeat(8_178)]);
   });
 
+  it('drops an email address cut by the scan window before an email rule can miss it', () => {
+    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+    const email = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const redact = (value: string) => value.replace(jwt, '[REDACTED:JWT]').replace(email, '[REDACTED:EMAIL]');
+    // Redacted tokens shrink the text, so the address would fit the message cap.
+    const tokens = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(250)}.${'S'.repeat(13)} `.repeat(28);
+    for (const address of ['john.doe@example.com', 'john%doe@example.com']) {
+      // The cut falls inside the domain, then right after the address.
+      for (const start of [8_178, 8_192 - address.length]) {
+        const before = tokens.padEnd(start - 1, 'p');
+        const normalized = normalizeCrashCauseChain({
+          causes: [{ exceptionType: 'Error', message: `${before} ${address} tail`, frames: [], framesTruncated: false }],
+          truncated: false,
+        }, redact);
+
+        expect(normalized?.causes[0]?.message, `${address} at ${start}`).toBe(redact(before));
+        expect(normalized?.truncated).toBe(true);
+      }
+    }
+  });
+
   it('keeps a valid frame prefix, omits malformed optional fields, and permits the next cause', () => {
     const second = { ...rootCause(), exceptionType: 'InnerError', frames: [] };
     const normalized = normalizeCrashCauseChain({

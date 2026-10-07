@@ -140,11 +140,11 @@ function prefixWithoutSplit(value: string, limit: number): { value: string; lost
   return { value: value.slice(0, end), lost: true };
 }
 
-// Units of the tokens the shared redaction patterns match (JWT, bearer).
+// Units of the tokens redaction only matches whole: JWT, bearer and email.
 function isTokenUnit(unit: number): boolean {
   return (unit >= 0x30 && unit <= 0x39) || (unit >= 0x41 && unit <= 0x5A) || (unit >= 0x61 && unit <= 0x7A)
-    || unit === 0x2B || unit === 0x2D || unit === 0x2E || unit === 0x2F || unit === 0x3D || unit === 0x5F
-    || unit === 0x7E;
+    || unit === 0x25 || unit === 0x2B || unit === 0x2D || unit === 0x2E || unit === 0x2F || unit === 0x3D
+    || unit === 0x40 || unit === 0x5F || unit === 0x7E;
 }
 
 // Digits, dashes and JavaScript whitespace: the units of card and SSN numbers.

@@ -8,10 +8,11 @@ let warnedEpoch: object | undefined;
 
 /**
  * Call from an application's componentDidCatch, in a boundary rendered inside
- * EverframeProvider. A boundary that wraps the provider unmounts it in the same
- * commit before componentDidCatch runs, so its calls are inert. Errors caught
- * during the provider's first commit are not captured either: the provider
- * publishes its runtime after its descendants' componentDidCatch.
+ * EverframeProvider. A boundary that wraps the provider replaces it with its
+ * fallback in the same commit, before componentDidCatch runs, so its calls find
+ * no provider unless that fallback mounts one. Inside the provider, errors
+ * caught during its first commit are not captured: the provider publishes its
+ * runtime after its descendants' componentDidCatch.
  * The application owns its fallback and recovery policy. Native acceptance does
  * not establish delivery; fatal escalation can still produce a separate report.
  */

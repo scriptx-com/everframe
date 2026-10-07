@@ -16,7 +16,8 @@ import uuid
 
 # Stack canary written by EFCRProbeMemoryFault; neither its bytes nor their hex form may persist.
 STACK_MARKER = bytes((0x5A + 37 * i) & 0xFF for i in range(16))
-X86 = platform.machine() == 'x86_64'
+ARCH = platform.machine()
+X86 = ARCH == 'x86_64'
 # Terminating signals of each fault on this native host.
 SIGNALS = {'swift': {signal.SIGILL if X86 else signal.SIGTRAP}, 'objc': {signal.SIGABRT},
            'memory': {signal.SIGBUS, signal.SIGSEGV}, 'signal': {signal.SIGABRT},
@@ -28,8 +29,8 @@ ERRORS = {'swift': ('mach', 'mach', 'exception_name', 'EXC_BAD_INSTRUCTION' if X
           'signal': ('signal', 'signal', 'name', 'SIGABRT'),
           'leaf': ('mach', 'mach', 'exception_name', 'EXC_BAD_ACCESS'),
           'overflow': ('mach', 'mach', 'exception_name', 'EXC_BAD_ACCESS')}
-# Frame 1 of each native fault is its real caller. The stack overflow faults on a function's
-# first instruction, so there frame 1 must be the link register itself.
+# Frame 1 of each native fault is its real caller. These faults happen after their call left
+# the return address in lr (arm64) or on the stack (x86_64), so this holds on both.
 CALLERS = {'swift': 'main', 'memory': 'main', 'leaf': 'EFCRProbeLeafFault'}
 
 
@@ -41,6 +42,27 @@ def require(condition, message):
 
 def child_limits():
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+
+
+def check_frames(name, fault, crashed, arch):
+    """Checks the crashed thread's frames; returns the checks this architecture cannot make."""
+    frames = crashed['backtrace']['contents']
+    symbols = [frame.get('symbol_name') for frame in frames]
+    addresses = [frame['instruction_addr'] for frame in frames]
+    if fault in CALLERS:
+        require(len(symbols) > 1 and symbols[1] == CALLERS[fault] and all(a != b for a, b in zip(addresses, addresses[1:])),
+                f'{name}: caller missing or frame duplicated: {symbols[:4]}')
+    if fault != 'overflow':
+        return []
+    # The arm64 stack overflow faults on a function's first instruction, before its frame
+    # record exists, so frame 1 must be the link register itself. x86_64 has no link
+    # register: its overflow faults on the call pushing the return address.
+    if arch != 'arm64':
+        return ['overflow-link-register']
+    lr = crashed.get('registers', {}).get('basic', {}).get('lr')
+    require(len(addresses) > 1 and addresses[1] == lr,
+            f'{name}: link-register caller {lr} missing: {addresses[:4]}')
+    return []
 
 
 def run_probes(binary, evidence):
@@ -106,16 +128,10 @@ def run_probes(binary, evidence):
             crashed = [t for t in parsed['crash']['threads'] if t.get('crashed')]
             require(len(crashed) == 1 and crashed[0].get('backtrace', {}).get('contents'),
                     f'{name}: crashed-thread backtrace missing')
-            frames = crashed[0]['backtrace']['contents']
-            symbols = [frame.get('symbol_name') for frame in frames]
-            addresses = [frame['instruction_addr'] for frame in frames]
-            if extra in CALLERS:
-                require(len(symbols) > 1 and symbols[1] == CALLERS[extra] and all(a != b for a, b in zip(addresses, addresses[1:])),
-                        f'{name}: caller missing or frame duplicated: {symbols[:4]}')
-            if extra == 'overflow':
-                lr = crashed[0].get('registers', {}).get('basic', {}).get('lr')
-                require(len(addresses) > 1 and addresses[1] == lr,
-                        f'{name}: link-register caller {lr} missing: {addresses[:4]}')
+            skipped = check_frames(name, extra, crashed[0], ARCH)
+            if skipped:
+                row['skippedChecks'] = skipped
+                (evidence / 'processes.json').write_text(json.dumps(results, indent=2) + '\n')
         return row
 
     run('missing', 'invalid', evidence / 'absent')
@@ -149,13 +165,14 @@ def run_probes(binary, evidence):
     run('terminal', 'terminal', directory('terminal'), directory('vendor-poison'))
     for fault in ['leaf', 'overflow']:
         run(f'enabled-{fault}', 'enabled', directory(f'enabled-{fault}'), fault, fatal=True, count=1)
-    for mode in ['enabled', 'disabled', 'disabled-after', 'reenabled', 'gate-closed', 'monitors-off']:
+    for mode in ['enabled', 'disabled', 'disabled-after', 'disabled-off-main', 'reenabled', 'gate-closed', 'monitors-off']:
         for fault in ['swift', 'objc', 'memory', 'signal']:
             name = f'{mode}-{fault}'
             run(name, mode, directory(name), fault, fatal=True, count=int(mode in ['enabled', 'reenabled']))
     rapid = [run(f'rapid-{i}', 'enabled', directory(str(uuid.uuid4())), 'swift', fatal=True, count=1) for i in range(3)]
     require(len({row['reports'][0]['id'] for row in rapid}) == 3, 'rapid crash UUID collision')
-    proof = {'schemaVersion': 1, 'binarySha256': hashlib.sha256(binary.read_bytes()).hexdigest(), 'processes': results}
+    proof = {'schemaVersion': 1, 'arch': ARCH, 'binarySha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
+             'processes': results}
     (evidence / 'proof.json').write_text(json.dumps(proof, indent=2) + '\n')
     print(f'{len(results)} fresh process probes passed: {evidence / "proof.json"}')
     return proof
