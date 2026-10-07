@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Everframe build artifact CLI
 
 Run `everframe --help` for source-map, Hermes, R8 and build-staging commands.
