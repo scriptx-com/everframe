@@ -1,0 +1,21 @@
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_4e13e37b6d12c1 66-101
+packages/sdk-ios/Tests/NativeCrashStartupProof/README.md
+  s_97602a0a2d8f20::t_8817d8c3a89405 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "59cea7bb4c39518f81ade46b6245869af20db649",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
