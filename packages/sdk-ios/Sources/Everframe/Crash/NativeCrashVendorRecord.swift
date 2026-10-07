@@ -116,6 +116,24 @@ struct NativeCrashVendorRecord: Decodable {
         let image_vmaddr: UInt64?
         let uuid: String, name: String
         let cpu_type: Int32, cpu_subtype: Int32
+        /// Runtime diagnostics (for example Swift fatalError text) from the image's __crash_info section.
+        let crash_info_message: String?, crash_info_message2: String?
+        enum CodingKeys: String, CodingKey {
+            case image_addr, image_size, image_vmaddr, uuid, name, cpu_type, cpu_subtype, crash_info_message, crash_info_message2
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            image_addr = try c.decode(UInt64.self, forKey: .image_addr)
+            image_size = try c.decode(UInt64.self, forKey: .image_size)
+            image_vmaddr = try c.decodeIfPresent(UInt64.self, forKey: .image_vmaddr)
+            uuid = try c.decode(String.self, forKey: .uuid)
+            name = try c.decode(String.self, forKey: .name)
+            cpu_type = try c.decode(Int32.self, forKey: .cpu_type)
+            cpu_subtype = try c.decode(Int32.self, forKey: .cpu_subtype)
+            // Malformed diagnostics never invalidate the image identity.
+            crash_info_message = try? c.decode(String.self, forKey: .crash_info_message)
+            crash_info_message2 = try? c.decode(String.self, forKey: .crash_info_message2)
+        }
     }
     struct Images: Decodable {
         /// Decodable entries with their source position. Processes can load more than a thousand

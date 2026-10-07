@@ -54,8 +54,7 @@ enum NativeCrashRecordDecoder {
         default: rawType = fault.nsexception?.name ?? "NSException"
         }
         let type = text(rawType, limit: 256, redact: redact, fallback: fault.type)
-        let message = text(fault.reason ?? rawType, limit: 4096, redact: redact, fallback: type)
-        var images: [EverframeNativeCrashImage] = [], frames: [EverframeFrame] = []
+        var images: [EverframeNativeCrashImage] = [], frames: [EverframeFrame] = [], crashInfo: [String] = []
         var nativeFrames: [EverframeNativeCrashFrame] = [], sourceToOutput: [Int: Int] = [:], appKeys: [String] = []
         var imagesIncomplete = vendor.binary_images?.skipped ?? true
         var candidates: [(Int, NativeCrashVendorRecord.Image, String)] = []
@@ -84,6 +83,8 @@ enum NativeCrashRecordDecoder {
                         cpuSubtype: Int(image.cpu_subtype), cpuType: Int(image.cpu_type),
                         loadAddress: hex(image.image_addr), name: name, size: hex(image.image_size),
                         uuid: uuid, vmAddress: image.image_vmaddr.map(hex)))
+                    // Runtime crash info only from images this stack references; others can be stale.
+                    crashInfo += [image.crash_info_message, image.crash_info_message2].compactMap { $0 }
                 }
                 offset = hex(pc - image.image_addr)
                 if !isSystemImage(image.name) { appKeys.append("\(uuid):\(hex(pc - image.image_addr))") }
@@ -93,6 +94,8 @@ enum NativeCrashRecordDecoder {
             frames.append(EverframeFrame(col: nil, file: nil, function: symbol, line: nil, raw: raw))
             nativeFrames.append(EverframeNativeCrashFrame(imageIndex: imageIndex, imageOffset: offset, instructionAddress: hex(pc)))
         }
+        let message = text(fault.reason ?? (crashInfo.isEmpty ? rawType : crashInfo.joined(separator: "\n")),
+                           limit: 4096, redact: redact, fallback: type)
         let error = EverframeNativeCrashError(faultAddress: fault.address.map(hex),
             machCode: fault.mach?.code.map { hex($0.value) }, machException: fault.mach.map { Int($0.exception) },
             machSubcode: fault.mach?.subcode.map { hex($0.value) },

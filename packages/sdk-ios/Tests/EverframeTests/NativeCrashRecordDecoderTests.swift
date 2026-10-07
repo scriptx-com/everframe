@@ -282,4 +282,22 @@ final class NativeCrashRecordDecoderTests: XCTestCase {
         threads[999] = ["index": 999, "crashed": true, "backtrace": ["contents": [frame()]]]
         XCTAssertEqual(try decode(changeCrash(record(), "threads", threads)).crash.native?.crashedThreadIndex, 999)
     }
+    func testRuntimeCrashInfoBecomesRedactedMessage() throws {
+        var swift = image(base: 0x180000000, size: 0x100000, uuid: systemID, name: "/usr/lib/swift/libswiftCore.dylib")
+        swift["crash_info_message"] = "Feature.swift:42: Fatal error: boom 4111111111111111\n"
+        var stale = image(base: 0x190000000, size: 0x1000, uuid: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", name: "/usr/lib/libStale.dylib")
+        stale["crash_info_message"] = "STALE"
+        let trap = changeError(record(frames: [frame(pc: 0x180000010), frame()], images: [swift, image(), stale]), "reason", NSNull())
+        let crash = try decode(trap, redact: { RedactionEngine().redact($0) }).crash
+        XCTAssertEqual(crash.exceptionType, "EXC_BREAKPOINT")
+        XCTAssertTrue(crash.message.hasPrefix("Feature.swift:42: Fatal error: boom "), crash.message)
+        XCTAssertFalse(crash.message.contains("4111111111111111")); XCTAssertFalse(crash.message.contains("STALE"))
+        XCTAssertFalse(crash.message.unicodeScalars.contains { $0.value < 32 })
+        // A recorded reason still wins, and a malformed message does not invalidate its image.
+        XCTAssertEqual(try decode(record(frames: [frame(pc: 0x180000010)], images: [swift])).crash.message, "failure")
+        swift["crash_info_message"] = 7
+        let malformed = changeError(record(frames: [frame(pc: 0x180000010)], images: [swift]), "reason", NSNull())
+        XCTAssertEqual(try decode(malformed).crash.native?.frames[0].imageIndex, 0)
+        XCTAssertEqual(try decode(malformed).crash.message, "EXC_BREAKPOINT")
+    }
 }
