@@ -1,0 +1,41 @@
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_97602a0a2d8f20::t_f8560d25d094d7 84-102
+packages/protocol/__tests__/json-schema.spec.ts
+  s_97602a0a2d8f20::t_1096b0f7b7e8cf 193-217
+packages/protocol/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_5fb8ada3f639eb 40-78
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_633d2d1ef3b013 2509-2562
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_8cd599f9cf7fa6 184-195
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_df1bfdcca2e08b 48
+packages/protocol/src/diagnostic.ts
+  s_97602a0a2d8f20::t_e3e8ef21e4053a 4,32,53-55
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_bffc39f2c74bad 66-67,70
+packages/protocol/src/release-health.ts
+  s_97602a0a2d8f20::t_afb21da3b474e3 13-29,31-32,35,39-49,62-63,67-69
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/DiagnosticExposureProtocolTest.kt
+  s_97602a0a2d8f20::t_a50f7ee769b10d 1-21
+packages/sdk-ios/Tests/EverframeTests/DiagnosticExposureProtocolTests.swift
+  s_97602a0a2d8f20::t_5a6e50e548bbcc 1-19
+packages/sdk-web/src/release-health/runtime.ts
+  s_97602a0a2d8f20::t_a1a3e4b39ef826 3,9,37,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbb8aa379a2b31911f7c1edf7cf5c9c98757183f",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
