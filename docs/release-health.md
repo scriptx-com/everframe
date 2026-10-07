@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Web release exposures
 
 The imperative `@everframe/web` lifecycle can collect anonymous release exposure observations independently of replay and playback vitals:

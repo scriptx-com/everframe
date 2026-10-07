@@ -35,6 +35,7 @@ export function setupReleaseHealth(config: {
   let stopped = false;
   let revoked = explicitlyDisabled;
   let hidden = false;
+  let listening = false;
   let journal: ReleaseHealthJournal | undefined;
   let route = '';
   let generation = '';
@@ -118,7 +119,7 @@ export function setupReleaseHealth(config: {
     hidden = false;
     void serialize(async () => { await ready; await begin(); }).then(flush).catch(failure);
   };
-  function unlisten() { window.removeEventListener('online', online); window.removeEventListener('pagehide', pagehide); window.removeEventListener('pageshow', pageshow); }
+  function unlisten() { if (!listening) return; listening = false; window.removeEventListener('online', online); window.removeEventListener('pagehide', pagehide); window.removeEventListener('pageshow', pageshow); }
   const ready: Promise<ReleaseHealthDiagnostics> = (async () => {
     if (!enabled && !explicitlyDisabled) return snapshot();
     const bytes = new TextEncoder().encode(JSON.stringify([endpoint, apiKey]));
@@ -129,6 +130,7 @@ export function setupReleaseHealth(config: {
     const activated = await journal.activate(route); generation = activated.generation; losses = activated.losses;
     await begin();
     if (!stopped && !revoked) {
+      listening = true;
       window.addEventListener('online', online); window.addEventListener('pagehide', pagehide); window.addEventListener('pageshow', pageshow);
     }
     return snapshot(exposure ? 1 : 0);
