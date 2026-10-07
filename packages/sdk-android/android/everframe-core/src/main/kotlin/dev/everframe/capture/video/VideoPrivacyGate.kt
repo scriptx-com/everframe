@@ -20,8 +20,9 @@ import dev.everframe.sensitive.TXSensitiveView
 import java.lang.ref.WeakReference
 
 /**
- * Main-only traversal. Inputs, TextureViews and sensitive views are masked; WebViews, Compose,
- * unclassified views and anything that cannot be placed on screen refuse the frame.
+ * Main-only traversal. Inputs, TextureViews and sensitive views are masked; visible WebViews,
+ * Compose and Flutter hosts, unclassified views and any masked view whose drawn position cannot
+ * be proven refuse the frame.
  */
 internal class VideoPrivacyGate(
     private val activity: () -> Activity?,

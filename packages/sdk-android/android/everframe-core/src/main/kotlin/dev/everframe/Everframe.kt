@@ -1994,12 +1994,16 @@ object Everframe {
     }
 
     /**
-     * Mark a View as sensitive — its bounds are masked in screenshots and
-     * native video excludes the entire window while it is present.
+     * Mark a View as sensitive — its bounds are masked in screenshots, and
+     * native video paints it black, with any children it lets draw outside
+     * its bounds. Native video refuses the frame instead while the view's
+     * drawn position cannot be proven, for example during a legacy view
+     * animation or a shared-element transition, or while it sits in an
+     * overlay.
      *
      * Implementation tags the View with `R.id.tx_sensitive = true`; both
      * `SensitiveRectRegistry.isSensitive` (screenshot redactor) and
-     * `NativeVideoPrivacyGate` (video exclusion) check this tag. Mirrors
+     * `VideoPrivacyGate` (video masking) check this tag. Mirrors
      * the Compose-side `Modifier.txSensitive()`
      * semantic-key path.
      *
