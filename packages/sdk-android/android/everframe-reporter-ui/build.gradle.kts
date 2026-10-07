@@ -79,6 +79,9 @@ dependencies {
     // CompanionSubmissionComposerTest's identical use of these in :everframe-core.
     testImplementation(libs.mockwebserver)
     testImplementation(libs.okhttp)
+    // ReporterDialogSingleFlightTest types into and taps the real reporter
+    // dialog under Robolectric.
+    testImplementation(libs.compose.ui.test.junit4)
 
     // Instrumented tests — separate APK; never enters releaseRuntimeClasspath.
     androidTestImplementation(libs.junit)
