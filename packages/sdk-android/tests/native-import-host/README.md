@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Durable native-record import qualification
 
 This host exercises the SDK's internal encrypted native-record importer after an
