@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Everframe build artifact CLI
 
 Run `everframe --help` for source-map, Hermes, R8 and build-staging commands.
@@ -33,13 +36,31 @@ everframe dsym upload-build --app-id "$EVERFRAME_APP_ID" \
 
 The command checks every listed Mach-O UUID/CPU identity against the raw DWARF
 files in the directory's `.dSYM/Contents/Resources/DWARF` layout. Missing or
-ambiguous identities, unsupported headers and invalid segment/section ranges
-fail before any upload. Full DWARF validity is checked by the service and can
+ambiguous identities, unsupported listed binaries and oversized matching files
+fail before any upload. Other dSYMs in the directory, such as a watchOS companion
+or unlisted frameworks, are inspected but not selected. A DWARF file with an
+unsupported or malformed header, including invalid segment/section ranges, is
+never uploaded: it is skipped, and the failure for a listed identity without a
+match names the skipped files. Full DWARF validity is checked by the service and can
 still reject a later file after an earlier artifact is ready. The command does not
 infer coverage for unlisted modules or inspect compressed archives. Current native
 support covers little-endian64 arm64/arm64e/x86_64/x86_64h slices, including
-universal files. Limits:16 listed binaries,8 selected files,64 candidate bundles,
-1024 directory entries and64MiB per DWARF file.
+universal files. Limits: 16 listed binaries, 8 selected files, 64 bundles that
+hold a listed identity, 1024 directory entries and 64 MiB per selected DWARF file.
+
+A failed local check prints its code first, then the paths and image identities
+involved:
+
+| Code | What to check |
+| --- | --- |
+| `missing_matching_dsym` | Each listed image without a match is printed as architecture, UUID and binary path. Build that target with `DEBUG_INFORMATION_FORMAT = dwarf-with-dsym`, pass the directory that holds its `.dSYM` bundle, and compare `dwarfdump --uuid` for the binary and the dSYM. Skipped files and the reason for each follow the list. |
+| `ambiguous_dsym_identity` | Two different DWARF files hold the printed identity. Remove the stale copy from the directory. |
+| `invalid_apple_binary`, `unsupported_apple_architecture` | The printed file is not a supported 64-bit little-endian Mach-O. Do not list watchOS arm64_32 or other 32-bit binaries. |
+| `invalid_input_file` | The printed path is not a regular file. List the executable inside a bundle, such as `App.app/App`, not the bundle directory. |
+| `dsym_too_large` | The printed matching DWARF file exceeds 64 MiB. |
+| `apple_build_limit` | The message names the limit. Pass a directory that holds only this build's dSYMs, or split the binaries across runs. |
+| `source_map_changed` | The printed file changed during the run. Run the command after the build has finished writing its outputs. |
+| `symlink_escapes_root` | The printed path resolves outside `--dsym-dir` or, for a listed binary, outside its own directory. Pass real paths instead of symlinks. |
 
 Each selected file uses its own immutable artifact upload. Success means all are
 ready; a later failure leaves earlier ready artifacts available and returns a
