@@ -176,7 +176,7 @@ internal object AndroidTombstoneReader {
         }
         require(embeddedId == tid)
         return AndroidTombstone(AndroidNativeCrashMetadata(abi = abi, crashedThreadID = tid, frames = frames,
-            framesIncomplete = incomplete || frames.isEmpty(), source = AndroidNativeSource.values().single(), signalNumber = signal, signalCode = signalCode), appCode)
+            framesIncomplete = incomplete || frames.isEmpty(), source = AndroidNativeSource.AndroidExitInfo, signalNumber = signal, signalCode = signalCode), appCode)
     }
     /** App-packaged ELF: an APK-embedded or extracted library under app storage. System partitions, APEX
      * modules, JIT memory and ART output (oat/odex/vdex/art) change with OS builds and dexopt state. */

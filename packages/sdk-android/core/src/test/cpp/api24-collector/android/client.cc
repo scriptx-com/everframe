@@ -40,7 +40,7 @@ extern "C" const char ev_android_fault_pc[];
 }
 }
 extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivity_nativeStatus(JNIEnv* env,jclass){return Status(env,"off; no handler installed");}
-extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivity_nativeArm(JNIEnv* env,jclass,jstring directory_value,jstring library_value,jint failure_mode){
+static jstring Arm(JNIEnv* env,jstring directory_value,jstring library_value,jint failure_mode,jbyteArray provided_key,jstring provided_epoch){
   if(session)return Status(env,"already armed");
   const auto directory=String(env,directory_value),library=String(env,library_value);
   crashpad::ScopedFileHandle crash_client,crash_handler,control_client,control_handler;
@@ -57,6 +57,13 @@ extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivi
   qa::Frame frame{};frame.kind=qa::kProvision;frame.pid=getpid();frame.expected_pc=reinterpret_cast<uintptr_t>(ev_android_fault_pc);std::array<uint8_t,16> epoch{};
   if(!Random(frame.key.data(),frame.key.size())||!Random(frame.challenge.data(),frame.challenge.size())||!Random(epoch.data(),epoch.size())){qa::Clear(&frame,sizeof frame);qa::Clear(epoch.data(),epoch.size());return Status(env,"random failure; unarmed");}
   const char* hex="0123456789abcdef";for(size_t i=0;i<epoch.size();i++){frame.epoch[i*2]=hex[epoch[i]>>4];frame.epoch[i*2+1]=hex[epoch[i]&15];}qa::Clear(epoch.data(),epoch.size());
+  if(provided_key || provided_epoch){
+    const auto frozen_epoch=provided_epoch?String(env,provided_epoch):"";
+    if(!provided_key||env->GetArrayLength(provided_key)!=32||frozen_epoch.size()!=32||!std::all_of(frozen_epoch.begin(),frozen_epoch.end(),[](char c){return (c>='0'&&c<='9')||(c>='a'&&c<='f');})){qa::Clear(&frame,sizeof frame);return Status(env,"frozen provision rejected; unarmed");}
+    env->GetByteArrayRegion(provided_key,0,32,reinterpret_cast<jbyte*>(frame.key.data()));
+    if(env->ExceptionCheck()){qa::Clear(&frame,sizeof frame);return nullptr;}
+    std::copy(frozen_epoch.begin(),frozen_epoch.end(),frame.epoch.begin());
+  }
   if(!qa::KeyAbsentFromInputs(frame.key)){qa::Clear(&frame,sizeof frame);return Status(env,"private input check failed; unarmed");}
   auto challenge=frame.challenge;if(failure_mode==1)frame.version=2;
   bool sent=qa::Send(control_client.get(),frame);qa::Clear(&frame,sizeof frame);
@@ -68,6 +75,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivi
   session=new Session{control_client.release(),peer.pid,challenge};
   return Status(env,"ready; peer verified; key_not_args_env=1; key buffers cleared; handler installed");
 }
+extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivity_nativeArm(JNIEnv* env,jclass,jstring directory,jstring libraries,jint mode){return Arm(env,directory,libraries,mode,nullptr,nullptr);}
+extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivity_nativeArmFrozen(JNIEnv* env,jclass,jstring directory,jstring libraries,jbyteArray key,jstring epoch){return Arm(env,directory,libraries,0,key,epoch);}
 extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivity_nativeRevoke(JNIEnv* env,jclass){
   if(!session)return Status(env,"unarmed");qa::Frame request{};request.kind=qa::kRevoke;request.pid=getpid();request.challenge=session->challenge;qa::Frame reply{};qa::Peer peer{};
   if(!qa::Send(session->control,request)||!qa::Receive(session->control,&reply,&peer)||!qa::Valid(reply,qa::kRevoked,session->handler,peer.uid,getuid())||peer.pid!=session->handler||reply.challenge!=session->challenge)return Status(env,"revoke failed");

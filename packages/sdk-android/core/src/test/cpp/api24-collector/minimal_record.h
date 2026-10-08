@@ -15,6 +15,7 @@ struct FrozenIdentity { std::string report_id, epoch, owner, release; };
 struct MinimalRecord {
   FrozenIdentity identity;
   uint32_t signal = 0;
+  uint64_t thread_id = 0, snapshot_time_ms = 0;
   uint32_t architecture = 0;
   uint64_t pc = 0, module_base = 0, module_offset = 0;
   std::string module, build_id;
