@@ -233,6 +233,11 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- createCtx is recreated each render; only the killed client matters
   }, [ctxValue]);
+  // The other killed state: the host's own kill(), possibly from a child mount
+  // effect that ran before these effects. The mount effects below must not
+  // revive capture, fetch config or drain the outbox for it.
+  const explicitlyKilled = (): boolean =>
+    __internalClientState.get(ctxValue.client)?.killed === true && !ctxValue.releaseHealth.stoppedNormally;
 
   useEffect(() => {
     ctxValue.releaseHealth.start();
@@ -346,6 +351,12 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // run only for the committed ctxValue, so this re-points the slot (and the
   // buffer getter, idempotently) at the pair that will actually submit.
   useEffect(() => {
+    // A discarded StrictMode twin may hold the slots with live sinks; take
+    // them back without reviving what the explicit kill closed.
+    if (explicitlyKilled()) {
+      ctxValue.adapter.__rebindCrumbHooks({ revive: false });
+      return;
+    }
     ctxValue.adapter.__setBreadcrumbBuffer(
       () => __internalClientState.get(ctxValue.client)?.breadcrumbs,
     );
@@ -448,6 +459,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // call would not be deduped either).
   const initReplayPromiseRef = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
+    if (explicitlyKilled()) return;
     initReplayPromiseRef.current = ctxValue.adapter.__initReplay().then(() => {
       ctxValue.adapter.__applyBreadcrumbsConfig();
     });
@@ -526,7 +538,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   useEffect(() => {
     const adapter = ctxValue.adapter;
     const ob = adapter.outbox;
-    if (!ob) return;
+    if (!ob || explicitlyKilled()) return;
     const trigger = (): void => {
       // PR review Finding 2 (P1, 2026-08-06 identity spec), second half — a
       // drain that fires before the config fetch resolves sees
