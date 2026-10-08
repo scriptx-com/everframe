@@ -1,0 +1,32 @@
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticRuntimeTests.swift
+  s_360d9eb003c487::t_de16297cbeb449 181-196
+  s_360d9eb003c487::t_34346645e99b67 20,23-31
+  s_360d9eb003c487::t_166e4ce23d8da6 197,300-306
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticRuntime.swift
+  s_360d9eb003c487::t_c748e723a1dc09 71
+  s_360d9eb003c487::t_0477944344dd1c 195
+  s_360d9eb003c487::t_00185c8a38b456 31,33
+  s_360d9eb003c487::t_fb339c98a7cc16 28
+  s_360d9eb003c487::t_0a56a5f1274acd 21
+  s_360d9eb003c487::t_8447ddaf4cbcd1 155,165,169-171
+  s_360d9eb003c487::t_0abbcf648e42a1 183-184
+  s_360d9eb003c487::t_e61e33a28f8c0a 182,185-186,190
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticStore.swift
+  s_360d9eb003c487::t_25b2dc06bfa823 98-99,102-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "416e910e0af9795c729bd34c814404b0bdcacda9",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
