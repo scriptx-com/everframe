@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(everframe_release_fault)
+add_library(everframe_release_fault SHARED fault.cc)
+target_link_options(everframe_release_fault PRIVATE -Wl,--build-id=sha1)
+target_link_libraries(everframe_release_fault PRIVATE dl)

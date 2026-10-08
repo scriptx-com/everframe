@@ -10,7 +10,8 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Native pause must be lock-free and perform no disk or socket IO. Other calls run off stateLock. */
 internal interface AndroidNativeSignalProducer {
-    fun arm(epoch: String, key: ByteArray): Boolean
+    fun arm(epoch: String, key: ByteArray, generation: Long): Boolean
+    fun generation(): Long
     fun pause()
     fun revoke(): Boolean
 }
@@ -22,6 +23,7 @@ internal class AndroidNativeSignalController(
     private val readRecord: (String) -> ByteArray?,
     private val processLaunchId: String = UUID.randomUUID().toString(),
     private val now: () -> Long = System::currentTimeMillis,
+    private val cleanup: (Set<String>) -> Unit = {},
 ) {
     private data class Owner(val command: Long, val epoch: Int, val reportId: String, val engine: AndroidNativeRecordImport)
     private val operations = Any()
@@ -59,6 +61,14 @@ internal class AndroidNativeSignalController(
         }
     }
 
+    fun retireCurrent(): Boolean = synchronized(operations) {
+        readyCommand = -1
+        if (!producer.revoke()) return@synchronized false
+        owner?.let { it.engine.retireArmed(it.reportId); cleanup(it.engine.retainedEpochs()) }
+        owner = null
+        true
+    }
+
     /** IO caller. Recover immutable prior-process reports before arming the new frozen context. */
     fun enable(command: Long, epoch: Int, authorization: OutboxAuthorization,
                template: () -> OutboxEntry, admit: (OutboxEntry, OutboxAuthorization) -> Boolean): Boolean = synchronized(operations) {
@@ -75,13 +85,18 @@ internal class AndroidNativeSignalController(
             owner = null
             val engine = factory()
             engine.recover(processLaunchId, now(), gate, readRecord, admit)
+            cleanup(engine.retainedEpochs())
+            val nativeGeneration = producer.generation()
             if (!gate.isAllowed()) return@synchronized false
             val entry = template()
             owner = Owner(command, epoch, entry.reportId, engine)
-            if (!engine.arm(entry, processLaunchId, gate, producer::arm) || !gate.isAllowed()) {
+            if (!engine.arm(entry, processLaunchId, gate) { id, key -> producer.arm(id, key, nativeGeneration) } || !gate.isAllowed()) {
                 producer.pause()
-                producer.revoke()
-                owner = null
+                if (producer.revoke()) {
+                    engine.retireArmed(entry.reportId)
+                    cleanup(engine.retainedEpochs())
+                    owner = null
+                }
                 return@synchronized false
             }
             readyCommand = command

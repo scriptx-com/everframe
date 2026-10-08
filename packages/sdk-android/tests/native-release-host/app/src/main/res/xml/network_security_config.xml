@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This acceptance app trusts a caller-supplied local CA only for its SDK domain. -->
+<network-security-config><domain-config cleartextTrafficPermitted="false"><domain includeSubdomains="false">everframe.dev</domain><trust-anchors><certificates src="@raw/proof_ca"/></trust-anchors></domain-config></network-security-config>

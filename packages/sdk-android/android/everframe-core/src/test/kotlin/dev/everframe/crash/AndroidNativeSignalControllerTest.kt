@@ -23,11 +23,13 @@ class AndroidNativeSignalControllerTest {
     private class Producer : AndroidNativeSignalProducer {
         var armed = false
         var arms = 0
+        var borrowedKey: ByteArray? = null
         var onArm: () -> Unit = {}
         var available = true
         var revokeFails = false
-        override fun arm(epoch: String, key: ByteArray): Boolean {
-            arms++; armed = available; onArm(); return available
+        override fun generation() = 0L
+        override fun arm(epoch: String, key: ByteArray, generation: Long): Boolean {
+            arms++; borrowedKey = key; armed = available; onArm(); return available
         }
         override fun pause() { armed = false }
         override fun revoke(): Boolean { armed = false; return !revokeFails }
@@ -88,4 +90,18 @@ class AndroidNativeSignalControllerTest {
         assertFalse(c.enable(c.request(), 1, object : OutboxAuthorization { override fun isAllowed() = false }, ::template) { _, _ -> true })
         assertEquals(0, p.arms); assertFalse(c.ready(1))
     }
+    @Test fun `replacement after durable arm retires the now paused capsule`() {
+        val p = Producer(); val c = owner(p)
+        val gate = object : OutboxAuthorization {
+            override fun isAllowed(): Boolean {
+                // arm() clears its borrowed key in finally, before returning to the controller.
+                if (p.borrowedKey?.all { it == 0.toByte() } == true) { c.request(); return false }
+                return true
+            }
+        }
+        assertFalse(c.enable(c.request(), 1, gate, ::template) { _, _ -> false })
+        assertFalse(c.ready(1)); assertFalse(p.armed)
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+    }
+
 }

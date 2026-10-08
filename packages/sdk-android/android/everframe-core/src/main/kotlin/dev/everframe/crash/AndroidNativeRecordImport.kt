@@ -107,6 +107,9 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         }
         return count
     }
+    @Synchronized fun retainedEpochs(): Set<String> = capsules.snapshotTokens().mapNotNull {
+        capsules.readIfPresent(it)?.entry?.reportId?.replace("-", "")
+    }.toSet()
     /** Retire only the current live process's armed context after its producer is paused. */
     @Synchronized fun retireArmed(reportId: String) { removeCapsules(reportId) }
     private fun removeCapsules(id:String) { for(token in capsules.snapshotTokens()) if(capsules.readIfPresent(token)?.entry?.reportId==id) capsules.removeIfPresent(token) }
