@@ -33,10 +33,10 @@ final class NativeCrashRuntimeTests: XCTestCase {
         let key = key
         return NativeCrashRuntime(rootURL: root, outbox: outbox, recorder: recorder.adapter, keyProvider: { key })
     }
-    private func priorRun() throws -> (UUID, URL) {
+    private func priorRun(startedAt: Date = Date()) throws -> (UUID, URL) {
         let key = key
         let store = try NativeCrashRecovery(rootURL: root, activeRunIDs: [], keyProvider: { key })
-        let run = try store.prepareRun()
+        let run = try store.prepareRun(now: startedAt)
         let id = try store.writeContext(NativeRecoveryTestData.context(), runID: run.id)
         let reports = run.recorderURL.appendingPathComponent("Reports")
         try FileManager.default.createDirectory(at: reports, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -245,6 +245,18 @@ final class NativeCrashRuntimeTests: XCTestCase {
         }
         XCTAssertFalse(recorder.enabled); XCTAssertEqual(recorder.installs, 1)
         XCTAssertEqual(recorder.identifiers.count, 256)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("runs").path).count, 1)
+    }
+
+    func testFreshCrashFromLongLivedProcessIsImportedBeforeAgeRetirement() async throws {
+        // The prior process ran for 15 days, then crashed just before this launch.
+        let (report, _) = try priorRun(startedAt: Date().addingTimeInterval(-15 * 24 * 60 * 60))
+        let recorder = Recorder()
+        let current = self.runtime(recorder)
+        let armed = await current.refresh(ticket: current.invalidate(), context: { try NativeRecoveryTestData.context(owner: "sdk-B") })
+        XCTAssertTrue(armed)
+        XCTAssertEqual(try outbox.hydrate().map(\.reportId), [report], "an expired run's pending record must be imported, not deleted")
+        // Age retention still applies once the record is queued: only the active run remains.
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("runs").path).count, 1)
     }
 }

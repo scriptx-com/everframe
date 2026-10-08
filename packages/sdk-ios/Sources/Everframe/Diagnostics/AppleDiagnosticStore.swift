@@ -95,10 +95,12 @@ final class AppleDiagnosticStore {
         guard state.revoked else { throw Failure.invalid }
         var next = state; next.needsOutboxErase = false; try commit(next)
     }
-    func maintain(now: Date) throws {
+    /// Returns whether expired receipts were removed.
+    @discardableResult func maintain(now: Date) throws -> Bool {
         var next = state
         next.receipts.removeAll { now.timeIntervalSince($0.entry.createdAt) >= Self.lifetime || $0.entry.createdAt > now }
-        if next.receipts.count != state.receipts.count { try commit(next) }
+        guard next.receipts.count != state.receipts.count else { return false }
+        try commit(next); return true
     }
     private func commit(_ next: State) throws {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
