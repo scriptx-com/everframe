@@ -1,0 +1,29 @@
+packages/sdk-android/core/src/test/cpp/api24-collector/android/BUILD.gn
+  s_97602a0a2d8f20::t_92616c806fbac8 21
+packages/sdk-android/core/src/test/cpp/api24-collector/android/client.cc
+  s_97602a0a2d8f20::t_604e670fbeb2f3 50-51
+packages/sdk-android/core/src/test/cpp/api24-collector/android/handler.cc
+  s_97602a0a2d8f20::t_00633f1c27af95 11-12,21,23-28,57-58,70-80,83,92-101
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.cc
+  s_97602a0a2d8f20::t_5b9eeb62375d8e 50-72
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.h
+  s_97602a0a2d8f20::t_8efd432d006f22 7,9-15
+packages/sdk-android/tests/native-handler-host/app/src/main/java/dev/everframe/qualification/MainActivity.java
+  s_97602a0a2d8f20::t_a654c8cefc5e53 22,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8ed23255b5afbaf87083982a25927a859f7574ff",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
