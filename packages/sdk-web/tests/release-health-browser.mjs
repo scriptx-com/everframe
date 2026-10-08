@@ -131,6 +131,42 @@ try {
     window.handle.kill(); await window.handle.releaseHealth.ready; await window.handle.releaseHealth.flush();
   });
   assert.equal(received.length, beforeImmediateKill);
+  // A later default-off init still owns an explicit kill of the earlier route.
+  await page.evaluate(() => window.handle.destroy()); await load(); offline = true;
+  await start('old-default-off', 'pk_default_off');
+  await page.evaluate(async () => { window.handle.destroy(); await new Promise(r => setTimeout(r, 100)); });
+  await load();
+  const defaultOffPurge = await page.evaluate(async () => {
+    async function priorRows() {
+      const db = await new Promise((resolve, reject) => {
+        const open = indexedDB.open('everframe-release-health-v1'); open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error);
+      });
+      try { return await new Promise((resolve, reject) => {
+        const request = db.transaction('records').objectStore('records').getAll();
+        request.onsuccess = () => resolve(request.result.filter(row => row.record.exposure.loadedBuildId === 'old-default-off').length);
+        request.onerror = () => reject(request.error);
+      }); } finally { db.close(); }
+    }
+    const before = await priorRows();
+    window.handle = window.sdk.init({ apiKey: 'pk_default_off' }); window.handle.kill();
+    const deadline = Date.now() + 5000;
+    let after;
+    do { after = await priorRows(); if (after === 0) break; await new Promise(r => setTimeout(r, 20)); } while (Date.now() < deadline);
+    return { before, after };
+  });
+  assert.deepEqual(defaultOffPurge, { before: 2, after: 0 });
+  // Explicit privacy kill remains effective after normal destruction.
+  await page.evaluate(() => window.handle.destroy()); await load();
+  await start('late-destroy-kill', 'pk_late_destroy');
+  const lateDestroyPurge = await page.evaluate(async () => {
+    window.handle.destroy(); await new Promise(r => setTimeout(r, 100));
+    const before = (await window.handle.releaseHealth.diagnostics()).queued;
+    window.handle.kill();
+    const deadline = Date.now() + 5000; let after;
+    do { after = (await window.handle.releaseHealth.diagnostics()).queued; if (after === 0) break; await new Promise(r => setTimeout(r, 20)); } while (Date.now() < deadline);
+    return { before, after };
+  });
+  assert.deepEqual(lateDestroyPurge, { before: 2, after: 0 });
   // A failed purge remains a barrier for subsequent producers in this document.
   const failedPurge = await page.evaluate(async () => {
     const original = IDBDatabase.prototype.transaction;
@@ -195,6 +231,6 @@ try {
   assert.deepEqual({ optOutDatabases, fullQueue }, { optOutDatabases: [], fullQueue: { state: 'active', exposure: null,
     error: 'Release health journal: capacity', sent: 256, queued: 0, priorQueueLosses: 1 } });
   await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: await browser.version(), received,
-    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'failed-purge-reenable-barrier', 'opt-out-no-storage', 'full-queue-drains'] }, null, 2));
+    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'default-off-kill-purges-prior-route', 'explicit-kill-after-destroy', 'failed-purge-reenable-barrier', 'opt-out-no-storage', 'full-queue-drains'] }, null, 2));
   console.log('PASS: actual init, real IndexedDB, offline reload, frozen build/route, privacy kill and disabled purge');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

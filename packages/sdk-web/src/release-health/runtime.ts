@@ -55,6 +55,12 @@ export function setupReleaseHealth(config: {
   const snapshot = (queued = 0): ReleaseHealthDiagnostics => ({ state, exposure: exposure ? structuredClone(exposure) : null,
     queued, priorQueueLosses: losses, ...(error === undefined ? {} : { error }) });
 
+  async function openJournal(create = true) {
+    const bytes = new TextEncoder().encode(routeIdentity);
+    route = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
+    journal = await openReleaseHealthJournal(create);
+    return journal;
+  }
   async function purgePending() {
     if (!journal) return;
     while (pendingRevocations.has(routeIdentity)) {
@@ -143,9 +149,8 @@ export function setupReleaseHealth(config: {
   function unlisten() { if (!listening) return; listening = false; window.removeEventListener('online', online); window.removeEventListener('pagehide', pagehide); window.removeEventListener('pageshow', pageshow); }
   const ready: Promise<ReleaseHealthDiagnostics> = (async () => {
     if (!enabled && !explicitlyDisabled) return snapshot();
-    const bytes = new TextEncoder().encode(routeIdentity);
-    route = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
-    try { journal = await openReleaseHealthJournal(enabled); }
+    let opened: ReleaseHealthJournal;
+    try { opened = await openJournal(enabled); }
     catch (reason) {
       // Opting out never creates storage just to erase it; no journal means nothing is queued.
       if (!(reason instanceof HealthJournalError && reason.code === 'missing')) throw reason;
@@ -154,7 +159,7 @@ export function setupReleaseHealth(config: {
     await purgePending();
     if (revoked) { state = 'disabled'; return snapshot(); }
     if (stopped) { state = 'stopped'; return snapshot(); }
-    const activated = await journal.activate(route); generation = activated.generation; losses = activated.losses;
+    const activated = await opened.activate(route); generation = activated.generation; losses = activated.losses;
     await begin();
     if (!stopped && !revoked) {
       listening = true;
@@ -174,7 +179,13 @@ export function setupReleaseHealth(config: {
     revoke() {
       pendingRevocations.set(routeIdentity, Symbol());
       revoked = true; stopped = true; state = 'disabled'; inFlight?.abort(); unlisten();
-      return serialize(async () => { await ready; if (journal && route) await purgePending(); exposure = null; }).catch(failure);
+      return serialize(async () => {
+        await ready;
+        // A default-off instance still owns explicit consent withdrawal for
+        // this route, including durable rows left by an earlier opted-in mount.
+        if (!journal) await openJournal();
+        await purgePending(); exposure = null;
+      }).catch(failure);
     },
   };
 }
