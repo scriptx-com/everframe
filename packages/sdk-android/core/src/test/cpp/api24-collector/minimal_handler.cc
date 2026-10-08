@@ -47,11 +47,28 @@ class MinimalDelegate final : public crashpad::ExceptionHandlerServer::Delegate 
   const std::function<void(bool)> after_commit_;
   bool committed_ = false;
 };
-bool RunHandler(int socket, const std::string& directory, const FrozenIdentity& identity, const Key& key, const std::function<void(bool)>& after_commit) {
-  crashpad::ExceptionHandlerServer server;
-  if (!server.InitializeWithClient(crashpad::ScopedFileHandle(socket), false)) return false;
-  MinimalDelegate delegate(directory, identity, key, after_commit);
-  server.Run(&delegate);
-  return delegate.committed();
+class PreparedHandlerImpl final : public PreparedHandler {
+ public:
+  PreparedHandlerImpl(const std::string& directory, const FrozenIdentity& identity,
+                      const Key& key, const std::function<void(bool)>& after_commit)
+      : delegate_(directory, identity, key, after_commit) {}
+  bool Initialize(int socket) {
+    return server_.InitializeWithClient(crashpad::ScopedFileHandle(socket), false);
+  }
+  bool Run() override { server_.Run(&delegate_); return delegate_.committed(); }
+ private:
+  crashpad::ExceptionHandlerServer server_;
+  MinimalDelegate delegate_;
+};
+std::unique_ptr<PreparedHandler> PrepareHandler(int socket, const std::string& directory,
+    const FrozenIdentity& identity, const Key& key, const std::function<void(bool)>& after_commit) {
+  auto handler = std::make_unique<PreparedHandlerImpl>(directory, identity, key, after_commit);
+  if (!handler->Initialize(socket)) return nullptr;
+  return handler;
+}
+bool RunHandler(int socket, const std::string& directory, const FrozenIdentity& identity,
+                const Key& key, const std::function<void(bool)>& after_commit) {
+  auto handler = PrepareHandler(socket, directory, identity, key, after_commit);
+  return handler && handler->Run();
 }
 }

@@ -18,7 +18,7 @@ crashpad_loadable_module("everframe_qualification_handler") {
   include_dirs = [ "../", everframe_crypto_root + "/include" ]
   deps = [ "../../handler:handler", "../../snapshot", "../../util", "../../third_party/mini_chromium:base" ]
   libs = [ everframe_crypto_root + "/libcrypto.a", "log", "dl" ]
-  ldflags = [ "-Wl,--build-id=sha1", "-Wl,--exclude-libs,ALL", "-static-libstdc++" ]
+  ldflags = [ "-Wl,--build-id=sha1", "-Wl,--exclude-libs,ALL", "-static-libstdc++", "-Wl,--wrap=epoll_create1", "-Wl,--wrap=pthread_create" ]
 }
 crashpad_executable("everframe_qualification_trampoline") {
   testonly = true

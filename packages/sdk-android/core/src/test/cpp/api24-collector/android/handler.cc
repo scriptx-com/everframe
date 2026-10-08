@@ -8,6 +8,8 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <pthread.h>
+#include <sys/epoll.h>
 #include <cerrno>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -16,8 +18,14 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
-#include <thread>
+#include <functional>
 #include <vector>
+// Test-only failure injection at the real healthy setup syscall boundaries.
+static bool fail_server_init=false,fail_controller_start=false;
+extern "C" int __real_epoll_create1(int);
+extern "C" int __wrap_epoll_create1(int flags){if(fail_server_init){errno=EMFILE;return -1;}return __real_epoll_create1(flags);}
+extern "C" int __real_pthread_create(pthread_t*,const pthread_attr_t*,void*(*)(void*),void*);
+extern "C" int __wrap_pthread_create(pthread_t* thread,const pthread_attr_t* attr,void*(*entry)(void*),void* arg){if(fail_controller_start)return EAGAIN;return __real_pthread_create(thread,attr,entry,arg);}
 namespace eq=everframe_qualification;
 namespace qa=everframe_qualification::android;
 namespace {
@@ -46,6 +54,8 @@ extern "C" __attribute__((visibility("default"))) int CrashpadHandlerMain(int ar
     else if(s.starts_with("--initial-client-fd="))crash=Number(s.substr(20));
     else if(s.starts_with("--expected-client="))client=Number(s.substr(18));
     else if(s.starts_with("--qualification-directory="))directory=s.substr(26);
+    else if(s=="--qualification-fail-server-init")fail_server_init=true;
+    else if(s=="--qualification-fail-controller-start")fail_controller_start=true;
     else return 71;
   }
   if(directory.empty()||client<1||!InheritedOnly(control,crash)||!PackagedExecution(argv[0]))return 72;
@@ -57,20 +67,6 @@ extern "C" __attribute__((visibility("default"))) int CrashpadHandlerMain(int ar
   eq::FrozenIdentity identity{"android-qualification",std::string(frame.epoch.begin(),frame.epoch.end()),"anonymous-qualification","frozen-native-qualification"};qa::Clear(&frame,sizeof frame);
   bool private_key=qa::KeyAbsentFromInputs(key);
   if(!private_key){qa::Clear(key.data(),key.size());return 74;}
-  {eq::Authority authority(directory,key);if(!authority.Enable(identity.epoch)){qa::Clear(key.data(),key.size());return 75;}}
-  qa::Frame ready{};ready.kind=qa::kReady;ready.pid=getpid();ready.challenge=challenge;
-  if(!qa::Send(control,ready)){eq::Authority authority(directory,key);authority.Revoke();qa::Clear(key.data(),key.size());return 76;}
-  __android_log_print(ANDROID_LOG_INFO,"EVNativeQualification","EV_HANDLER ready inherited_fds=2 peer_verified=1 key_not_args_env=1 exec_apk_path=1 untrusted_domain=1 client=%d uid=%d launch=%s",client,getuid(),android_get_device_api_level()>=29?"system-linker":"extracted-trampoline");
-  std::atomic<bool> done{false};
-  std::thread controller([&]{
-    while(!done.load()){
-      pollfd wait{control,POLLIN,0};int readable=poll(&wait,1,100);if(readable==0||(readable<0&&errno==EINTR))continue;if(readable<0)break;
-      qa::Frame request{};qa::Peer sender{};if(!qa::Receive(control,&request,&sender))break;
-      if(sender.pid!=client||!qa::Valid(request,qa::kRevoke,client,sender.uid,getuid())||request.challenge!=challenge)break;
-      eq::Authority authority(directory,key);auto result=authority.Revoke();if(result==eq::RevokeResult::error)break;
-      qa::Frame reply{};reply.kind=qa::kRevoked;reply.pid=getpid();reply.challenge=challenge;if(!qa::Send(control,reply))break;
-    }
-  });
   // Android may kill every process in the app group after client death. Verify
   // the durable file in the healthy callback before the fatal client is released.
   bool qualified=false;
@@ -80,7 +76,29 @@ extern "C" __attribute__((visibility("default"))) int CrashpadHandlerMain(int ar
     qualified=committed&&authenticated&&partial&&key_absent&&minimal;
     __android_log_print(ANDROID_LOG_INFO,"EVNativeQualification","EV_HANDLER captured committed=%d authenticated=%d exact_pc=%d partial=%d key_not_cipher=%d minimal=%d client=%d",committed,authenticated,exact,partial,key_absent,minimal,client);
   };
-  const bool committed=eq::RunHandler(crash,directory,identity,key,after_commit);done.store(true);controller.join();close(control);
+  auto prepared=eq::PrepareHandler(crash,directory,identity,key,after_commit);
+  if(!prepared){qa::Clear(key.data(),key.size());return 75;}
+  {eq::Authority authority(directory,key);if(!authority.Enable(identity.epoch)){qa::Clear(key.data(),key.size());return 75;}}
+  std::atomic<bool> done{false};
+  std::function<void()> control_loop=[&]{
+    while(!done.load()){
+      pollfd wait{control,POLLIN,0};int readable=poll(&wait,1,100);if(readable==0||(readable<0&&errno==EINTR))continue;if(readable<0)break;
+      qa::Frame request{};qa::Peer sender{};if(!qa::Receive(control,&request,&sender))break;
+      if(sender.pid!=client||!qa::Valid(request,qa::kRevoke,client,sender.uid,getuid())||request.challenge!=challenge)break;
+      eq::Authority authority(directory,key);auto result=authority.Revoke();if(result==eq::RevokeResult::error)break;
+      qa::Frame reply{};reply.kind=qa::kRevoked;reply.pid=getpid();reply.challenge=challenge;if(!qa::Send(control,reply))break;
+    }
+  };
+  pthread_t controller;
+  if(pthread_create(&controller,nullptr,[](void* value)->void*{(*static_cast<std::function<void()>*>(value))();return nullptr;},&control_loop)!=0){
+    eq::Authority authority(directory,key);authority.Revoke();qa::Clear(key.data(),key.size());return 76;
+  }
+  qa::Frame ready{};ready.kind=qa::kReady;ready.pid=getpid();ready.challenge=challenge;
+  if(!qa::Send(control,ready)){
+    eq::Authority authority(directory,key);authority.Revoke();done.store(true);pthread_join(controller,nullptr);qa::Clear(key.data(),key.size());return 76;
+  }
+  __android_log_print(ANDROID_LOG_INFO,"EVNativeQualification","EV_HANDLER ready inherited_fds=2 peer_verified=1 key_not_args_env=1 exec_apk_path=1 untrusted_domain=1 client=%d uid=%d launch=%s",client,getuid(),android_get_device_api_level()>=29?"system-linker":"extracted-trampoline");
+  const bool committed=prepared->Run();done.store(true);pthread_join(controller,nullptr);close(control);
   qa::Clear(key.data(),key.size());
   return committed&&qualified?0:77;
 }

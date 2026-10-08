@@ -47,6 +47,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_dev_everframe_qualification_MainActivi
   if(!crashpad::UnixCredentialSocket::CreateCredentialSocketpair(&crash_client,&crash_handler)||!crashpad::UnixCredentialSocket::CreateCredentialSocketpair(&control_client,&control_handler))return Status(env,"socket failure; unarmed");
   int sentinel=open("/dev/null",O_RDONLY);if(sentinel<0)return Status(env,"sentinel failure; unarmed");
   std::vector<std::string> args={"--control-fd="+std::to_string(control_handler.get()),"--expected-client="+std::to_string(getpid()),"--qualification-directory="+directory};
+  if(failure_mode==3)args.push_back("--qualification-fail-server-init");
+  if(failure_mode==4)args.push_back("--qualification-fail-controller-start");
   std::set<int> preserve={control_handler.get()};if(failure_mode==2)preserve.insert(sentinel);bool spawned=false;
   const std::string trampoline=library+"/libeverframe_qualification_trampoline.so",handler=library+"/libeverframe_qualification_handler.so";
   if(android_get_device_api_level()>=29){spawned=crashpad::CrashpadClient::StartHandlerWithLinkerForClient(trampoline,handler,sizeof(void*)==8,nullptr,{}, {},"",{},args,crash_handler.get(),preserve);}
