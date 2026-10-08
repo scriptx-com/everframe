@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { z } from 'zod';
+import { NativeExposurePointerSchema } from './release-health.js';
 
 const addressPattern = /^0x(?:0|[1-9a-f][0-9a-f]{0,15})$(?![\s\S])/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\s\S])/;
@@ -44,7 +45,13 @@ export const NativeCrashFrame = z.object({
 }).meta({ id: 'NativeCrashFrame', title: 'NativeCrashFrame' });
 export type NativeCrashFrame = z.infer<typeof NativeCrashFrame>;
 
+export const NativeCrashReleaseHealthEvidence = z.object({
+  version: z.literal(1), attribution: z.literal('immutable_fatal_context').meta({ title: 'NativeCrashHealthAttribution' }),
+  contextId: z.string().regex(uuidPattern), exposure: NativeExposurePointerSchema,
+}).strict().meta({ id: 'NativeCrashReleaseHealthEvidence', title: 'NativeCrashReleaseHealthEvidence' });
+
 export const NativeCrashMetadata = z.object({
+  releaseHealthEvidence: NativeCrashReleaseHealthEvidence.optional(),
   platform: z.literal('apple').meta({ title: 'NativeCrashPlatform' }),
   timestampMicros: z.string().regex(/^(?:0|[1-9][0-9]{0,17})$(?![\s\S])/),
   crashedThreadIndex: z.number().int().min(0).max(65535),
