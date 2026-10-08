@@ -38,6 +38,31 @@ class AndroidNativeRecoveryTest {
         engine.arm(value, 99, "app", allowed) { token = it }
         return value to token
     }
+    private fun v(value: Long): ByteArray {
+        var n = value
+        val result = ArrayList<Byte>()
+        do { val part = (n and 127).toInt(); n = n ushr 7; result.add((part or if (n != 0L) 128 else 0).toByte()) } while (n != 0L)
+        return result.toByteArray()
+    }
+    private fun n(field: Int, value: Long) = v(field * 8L) + v(value)
+    private fun b(field: Int, value: ByteArray) = v(field * 8L + 2) + v(value.size.toLong()) + value
+    private class Frame(val path: String, val relativePc: Long, val buildId: String? = null)
+    /** debuggerd tombstone for pid 99 whose crashed thread 42 holds [frames], innermost first. */
+    private fun tombstone(signal: Int, vararg frames: Frame) = n(1, 1) + n(5, 99) + n(6, 42) + b(10, n(1, signal.toLong())) +
+        b(16, n(1, 42) + b(2, frames.fold(n(1, 42)) { all, f -> all + b(4, n(1, f.relativePc) + n(2, f.relativePc + 0x7000000000) +
+            b(6, f.path.toByteArray()) + (f.buildId?.let { b(8, it.toByteArray()) } ?: byteArrayOf())) }))
+    private fun recoveredCrash(exit: (ByteArray) -> AndroidNativeExit): JsonObject {
+        val (_, token) = arm(recovery())
+        var crash: JsonObject? = null
+        assertEquals(1, recovery().recover(listOf(exit(token)), 3000, allowed) {
+            crash = Json.parseToJsonElement(it.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["payload"]!!.jsonObject["crash"]!!.jsonObject
+            true
+        })
+        return crash!!
+    }
+    private fun recoveredCrash(trace: ByteArray) = recoveredCrash { record(it, trace = { ByteArrayInputStream(trace) }) }
+    private fun fingerprint(trace: ByteArray) = recoveredCrash(trace)["fingerprint"]!!.jsonPrimitive.content
+    private val apk = "/data/app/~~seed==/dev.example-key==/base.apk!libfault.so"
     @Test fun `registers only opaque token after durable encrypted context admission`() {
         val engine = recovery()
         val value = template()
@@ -130,6 +155,40 @@ class AndroidNativeRecoveryTest {
         try { engine.arm(template(), 99, "app", allowed) { registered = true }; fail() }
         catch (_: OutboxWriteException) { }
         assertFalse(registered)
+    }
+    @Test fun `one app crash site keeps one fingerprint across OS ART and dexopt builds`() {
+        fun segv(art: String, artPc: Long, dex: String) = tombstone(11,
+            Frame(apk, 0x704, "2f753e29"), Frame(apk, 0x6f4, "2f753e29"),
+            Frame("/system/framework/arm64/boot.oat", artPc, art), Frame("/apex/com.android.art/lib64/libart.so", artPc + 0x6e0000, art),
+            Frame("/data/app/~~seed==/dev.example-key==/oat/arm64/$dex", 0xd309c))
+        val reference = recoveredCrash(segv("73f9b9fa", 0x9c3a0, "base.vdex"))
+        assertEquals(reference["fingerprint"], recoveredCrash(segv("1b9fecf8", 0x9d000, "base.odex"))["fingerprint"])
+        val evidence = reference["androidNative"]!!.jsonObject["frames"]!!.jsonArray.map { it.jsonObject }
+        assertEquals(5, evidence.size)
+        assertEquals("73f9b9fa", evidence[2]["buildId"]!!.jsonPrimitive.content) // Raw evidence keeps OS identity.
+        fun abort(libc: String, pc: Long) = tombstone(6,
+            Frame("/apex/com.android.runtime/lib64/bionic/libc.so", pc, libc), Frame(apk, 0x718, "2f753e29"))
+        assertEquals(fingerprint(abort("1b9fecf8", 0xbd448)), fingerprint(abort("dcb9fe2b", 0xbe000)))
+        val extracted = "/data/app/~~seed==/dev.example-key==/lib/arm64/libfault.so"
+        fun system(build: String, pc: Long) = tombstone(11, Frame("/system/lib64/libandroid_runtime.so", pc, build), Frame(extracted, 0x30, "aa"))
+        assertEquals(fingerprint(system("01", 0x10)), fingerprint(system("02", 0x90)))
+    }
+    @Test fun `distinct app crash sites and signals keep distinct fingerprints`() {
+        val site = fingerprint(tombstone(11, Frame(apk, 0x704, "2f753e29"), Frame("/apex/com.android.art/lib64/libart.so", 0x10, "dc")))
+        assertNotEquals(site, fingerprint(tombstone(11, Frame(apk, 0x6f4, "2f753e29"), Frame("/apex/com.android.art/lib64/libart.so", 0x10, "dc"))))
+        assertNotEquals(site, fingerprint(tombstone(6, Frame(apk, 0x704, "2f753e29"), Frame("/apex/com.android.art/lib64/libart.so", 0x10, "dc"))))
+        // Without app frames, the crashing module identifies the group across OS builds.
+        fun hwui(build: String, pc: Long) = tombstone(11, Frame("/system/lib64/libhwui.so", pc, build), Frame("/apex/com.android.runtime/lib64/bionic/libc.so", pc, build))
+        assertEquals(fingerprint(hwui("0a", 0x100)), fingerprint(hwui("0b", 0x200)))
+        assertNotEquals(fingerprint(hwui("0a", 0x100)), fingerprint(tombstone(11, Frame("/vendor/lib64/egl/libGLESv2_adreno.so", 0x100, "0a"))))
+    }
+    @Test fun `tombstone-less native exits group by the OS-reported signal`() {
+        fun missing(status: Int) = recoveredCrash { AndroidNativeExit(99, "app", 2000, 5, it, { null }, status) }
+        val segv = missing(11)
+        assertEquals("Native signal 11", segv["exceptionType"]!!.jsonPrimitive.content)
+        assertEquals(segv["fingerprint"], missing(11)["fingerprint"])
+        assertNotEquals(segv["fingerprint"], missing(6)["fingerprint"])
+        assertEquals("Native process crash", missing(0)["exceptionType"]!!.jsonPrimitive.content)
     }
     @Test fun `malformed and missing tombstones remain explicit raw native outcomes`() {
         for (trace in listOf<() -> java.io.InputStream?>({ null }, { ByteArrayInputStream(byteArrayOf(0)) }, { throw java.io.IOException("gone") })) {
