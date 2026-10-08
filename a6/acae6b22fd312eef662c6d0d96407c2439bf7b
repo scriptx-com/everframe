@@ -1,0 +1,77 @@
+packages/protocol/__tests__/crash-reporting-followthrough.spec.ts
+  s_97602a0a2d8f20::t_5466988365fbb7 1-50
+packages/protocol/__tests__/recovered-stall.spec.ts
+  s_97602a0a2d8f20::t_d1503b3439d9c7 1-70
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_c62ff2d4fe8609 1064-1066,3528-3654
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_035b332ec984b0 171,179-183,185-186,188-190,192-195,197-199
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_601af53293a163 108-113
+packages/protocol/src/envelope.ts
+  s_97602a0a2d8f20::t_58ac435e78f33e 9,163,204,211-221
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_2142432ec1bb51 77
+packages/protocol/src/recovered-stall.ts
+  s_97602a0a2d8f20::t_1d066c64b45678 1-25
+packages/sdk-android/README.md
+  s_97602a0a2d8f20::t_1cc82f2c5d4628 78-87
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_353ff44dd09cdc 600-629,873,986,1393
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/RecoveredStallEnvelope.kt
+  s_97602a0a2d8f20::t_c3a2b7fee10c73 1-46
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/RecoveredStallObserver.kt
+  s_97602a0a2d8f20::t_855e3360c4f5ab 1-123
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/RecoveredStallOwner.kt
+  s_97602a0a2d8f20::t_791418fc87f043 1-67
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/RecoveredStallRuntime.kt
+  s_97602a0a2d8f20::t_c47ef18042061a 1-172
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_97602a0a2d8f20::t_bfdd079a53a103 920-968
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/RecoveredStallFacadeTest.kt
+  s_97602a0a2d8f20::t_3f5b99ec5224ff 1-65
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/RecoveredStallLifecycleTest.kt
+  s_97602a0a2d8f20::t_282c8b79818365 1-108
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/RecoveredStallObserverTest.kt
+  s_97602a0a2d8f20::t_7c453103315a50 1-96
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/RecoveredStallRuntimeTest.kt
+  s_97602a0a2d8f20::t_d392682b44c681 1-98
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_876706ec6f47d5 166-167,181,195,209,224-270,272-286,938-1017
+packages/sdk-android/tests/recovered-stall-host/README.md
+  s_97602a0a2d8f20::t_e23680ba7a28a3 1-11
+packages/sdk-android/tests/recovered-stall-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_28689b2db4e975 1-27
+packages/sdk-android/tests/recovered-stall-host/app/proguard-rules.pro
+  s_97602a0a2d8f20::t_1188f5853373a2 1-3
+packages/sdk-android/tests/recovered-stall-host/app/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_78358444e3a16f 1-10
+packages/sdk-android/tests/recovered-stall-host/app/src/main/java/dev/everframe/stallproof/MainActivity.kt
+  s_97602a0a2d8f20::t_66c5ee0e02cec8 1-107
+packages/sdk-android/tests/recovered-stall-host/build.gradle.kts
+  s_97602a0a2d8f20::t_f89867d4850e84 1-6
+packages/sdk-android/tests/recovered-stall-host/gradle.properties
+  s_97602a0a2d8f20::t_bc7e4ceb653ef1 1-5
+packages/sdk-android/tests/recovered-stall-host/settings.gradle.kts
+  s_97602a0a2d8f20::t_ac1bea0a833161 1-11
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_a0f244712593d8 583,588,599,635,651,2937-3178
+packages/sdk-ios/Sources/EverframeProtocol/PayloadCompat.swift
+  s_97602a0a2d8f20::t_1ead2ed0fe23ae 6-63,68-129,131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a6acae6b22fd312eef662c6d0d96407c2439bf7b",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
