@@ -52,3 +52,13 @@ an intentional plaintext control record. Negative journal/cipher cases retain
 corrupt fixture inputs so the runner can verify refusal. No key recovery across
 exec/reboot, Android keystore/crypto package, production retention, full unwind,
 four-ABI package or installed Android26–30/24–25 support is supplied here.
+
+Initial authority bootstrap requires an otherwise empty owned directory. If a
+journal is missing while any retained record or temporary remains, enable is
+refused and the retained bytes stay available for explicit cleanup. A refused
+bootstrap leaves invalid authority state and does not silently reconstruct it.
+
+Interrupted replay covers pre-link temporary files and post-commit/pre-used
+updates. The narrower link-before-temporary-unlink window leaves two hardlinks;
+replay refuses that state until explicit revocation/cleanup. It does not create
+a second occurrence, and arbitrary storage interruption recovery is not claimed.

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 #include "authority.h"
 #include <fcntl.h>
+#include <dirent.h>
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
 #include <sys/file.h>
@@ -45,6 +46,18 @@ bool WriteState(int fd,const State& s){
   return ftruncate(fd,b.size())==0&&fsync(fd)==0;
 }
 bool Absent(int dir,const std::string& name){struct stat s{};return fstatat(dir,name.c_str(),&s,AT_SYMLINK_NOFOLLOW)!=0&&errno==ENOENT;}
+// Initial bootstrap is permitted only in an otherwise empty owned directory.
+// A missing journal must not discard a retained record's cleanup obligation.
+bool OnlyJournal(int dir){
+  int scan=openat(dir,".",O_RDONLY|O_DIRECTORY|O_CLOEXEC);if(scan<0)return false;
+  DIR* entries=fdopendir(scan);if(!entries){close(scan);return false;}
+  bool empty=true;errno=0;
+  while(auto* entry=readdir(entries)){
+    std::string name(entry->d_name);
+    if(name!="."&&name!=".."&&name!="authority"){empty=false;break;}
+  }
+  const bool read_ok=errno==0;closedir(entries);return empty&&read_ok;
+}
 bool Remove(int dir,const std::string& name){return unlinkat(dir,name.c_str(),0)==0||errno==ENOENT;}
 std::optional<std::vector<uint8_t>> ReadCipher(int dir,const std::string& name){
   File file(openat(dir,name.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));if(file.fd<0||!Regular(file.fd))return std::nullopt;
@@ -60,6 +73,7 @@ bool Authority::Enable(const std::string& epoch){
   int value=openat(dir.fd,"authority",O_RDWR|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);const bool created=value>=0;
   if(value<0&&errno==EEXIST)value=openat(dir.fd,"authority",O_RDWR|O_CLOEXEC|O_NOFOLLOW);
   File journal(value);if(!Lock(journal.fd)||!Current(dir.fd,journal.fd))return false;
+  if(created&&!OnlyJournal(dir.fd))return false;
   if(!created){auto old=ReadState(journal.fd);if(!old||old->enabled||old->epoch==epoch||!Absent(dir.fd,old->epoch)||!Absent(dir.fd,old->epoch+".partial"))return false;}
   return WriteState(journal.fd,State{epoch,true,false})&&fsync(dir.fd)==0;
 }

@@ -59,6 +59,16 @@ bool AuthorityControls(const std::string& root,const eq::Key& key) {
       Check(a.Commit(e,b)==R::denied);Check(fresh.Commit(next,Bytes(new_key,next))==R::committed);
       Check(stat((d+"/authority").c_str(),&last)==0&&first.st_ino==last.st_ino);Check(Records(d)==1);
     }
+    for(const char* mode:{"missing-retained-record","missing-retained-temporary"}) {
+      auto d=make(mode),e=Epoch();eq::Authority a(d,key);Check(a.Enable(e));auto b=Bytes(key,e);
+      if(std::string(mode)=="missing-retained-record")Check(a.Commit(e,b)==R::committed);
+      else {std::ofstream partial(d+"/"+e+".partial",std::ios::binary);partial.write(reinterpret_cast<const char*>(b.data()),10);}
+      eq::Authority failing(d,key,{},true);Check(failing.Revoke()==V::cleanup_pending);
+      Check(unlink((d+"/authority").c_str())==0);Check(Records(d)==1);
+      eq::Key next_key=key;next_key[0]^=1;eq::Authority fresh(d,next_key);
+      Check(!fresh.Enable(Epoch()));Check(Records(d)==1);Check(!fresh.Enable(Epoch()));
+      Check(a.Commit(e,b)==R::error);Check(fresh.Revoke()==V::error);Check(Records(d)==1);
+    }
     for(const char* mode:{"missing","malformed","partial"}) {
       auto d=make(mode),e=Epoch();eq::Authority a(d,key);Check(a.Enable(e));auto b=Bytes(key,e);
       if(std::string(mode)=="missing") Check(unlink((d+"/authority").c_str())==0);
@@ -83,7 +93,7 @@ bool AuthorityControls(const std::string& root,const eq::Key& key) {
       Receive(ready[0]);Receive(ready[0]);Send(go[1]);Send(go[1]);int sum=0;for(auto p:children){int s;Check(waitpid(p,&s,0)==p&&WIFEXITED(s));sum+=WEXITSTATUS(s);}Check(sum==21);Check(Records(d)==1);
       for(int fd:{ready[0],ready[1],go[0],go[1]})close(fd);
     }
-    std::cout<<"{\"authenticatedReplay\":true,\"revokeBeforeAdmission\":true,\"revokeWaitsForCommit\":true,\"failedEraseBlocksEnable\":true,\"staleEpochDenied\":true,\"stableAuthorityInode\":true,\"invalidJournalDenied\":true,\"commitInterruptionDeduplicated\":true,\"temporaryInterruptionRecovered\":true,\"concurrentCommitDeduplicated\":true}\n";
+    std::cout<<"{\"authenticatedReplay\":true,\"revokeBeforeAdmission\":true,\"revokeWaitsForCommit\":true,\"failedEraseBlocksEnable\":true,\"staleEpochDenied\":true,\"stableAuthorityInode\":true,\"missingJournalRetainedCleanupDenied\":true,\"invalidJournalDenied\":true,\"commitInterruptionDeduplicated\":true,\"temporaryInterruptionRecovered\":true,\"concurrentCommitDeduplicated\":true}\n";
     return true;
   }
 }
