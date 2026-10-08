@@ -193,6 +193,10 @@ ${overload([])}
 ${overload([diagnosticArg])}
 ${overload([diagnosticArg, ['appleDiagnostic', 'AppleDiagnosticEvidence']])}
 ${overload([diagnosticArg, ['recoveredStall', 'RecoveredStallEvidence']])}
+    // The two predecessor layouts had different component13 return descriptors.
+    // Keep the observer binary entry point while new source uses the appended field.
+    @kotlin.jvm.JvmName("component13")
+    fun recoveredStallComponent13(): RecoveredStallEvidence? = recoveredStall
 }`);
 for (const [generated, stable] of Object.entries({ DiagnosticAndroid: 'Android',
   TraceClass: 'Trace', TraceEnum: 'RecoveredStallTrace', Clock: 'RecoveredStallClock', Eligibility: 'RecoveredStallEligibility',
