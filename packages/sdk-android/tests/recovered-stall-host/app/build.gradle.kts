@@ -6,7 +6,7 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = providers.gradleProperty("proofApplicationId").getOrElse("dev.everframe.stallproof")
-        minSdk = 24; targetSdk = 35
+        minSdk = 26; targetSdk = 35
         versionCode = 1; versionName = "stall-proof-1"
     }
     buildTypes {

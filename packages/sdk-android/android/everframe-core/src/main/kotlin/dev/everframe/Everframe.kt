@@ -603,7 +603,7 @@ object Everframe {
         dev.everframe.diagnostics.RecoveredStallRuntime.ready(currentStartEpochVolatile())
 
     /**
-     * Opt in after each start() to recovered main-looper probe observations (API24+).
+     * Opt in after each start() to recovered main-looper probe observations (API26+).
      * Disabled by default. Measures queue latency, never OS ANR, fatality or crash counts.
      * Foreground, interactive and debugger gates apply; records contain no stack or identity.
      * Disabling cancels pending admission. Already admitted immutable records retain normal
@@ -615,10 +615,10 @@ object Everframe {
         val (captured, request) = stateLock.withLock {
             val snapshot = captureSessionSnapshot()
             snapshot to dev.everframe.diagnostics.RecoveredStallRuntime.request(snapshot.user.startEpoch,
-                enabled && android.os.Build.VERSION.SDK_INT >= 24 && snapshot.captureConsent &&
+                enabled && android.os.Build.VERSION.SDK_INT >= 26 && snapshot.captureConsent &&
                     snapshot.config?.capture?.crash == true)
         }
-        if (!enabled || !captured.captureConsent || captured.config?.capture?.crash != true) return
+        if (!enabled || android.os.Build.VERSION.SDK_INT < 26 || !captured.captureConsent || captured.config?.capture?.crash != true) return
         val context = appContext ?: return
         launchCapturedWork(captured, requireCurrentStart = true) {
             txGuardVoid("recoveredStall.enable") {

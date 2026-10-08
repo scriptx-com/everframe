@@ -42,6 +42,18 @@ class RecoveredStallFacadeTest {
         Everframe.setRecoveredStallObserverEnabled(false)
         assertTrue(active.closed); assertFalse(Everframe.isRecoveredStallObserverReady())
     }
+    @Test @Config(sdk = [24, 25]) fun unsupportedPlatformCannotKeepAnObserverEnabled() {
+        start(); val active = install()
+        Everframe.setRecoveredStallObserverEnabled(true)
+        assertTrue(active.closed)
+        assertFalse(Everframe.isRecoveredStallObserverReady())
+    }
+    @Test @Config(sdk = [26]) fun supportedPlatformCanKeepItsExplicitOptIn() {
+        start(); val active = install()
+        Everframe.setRecoveredStallObserverEnabled(true)
+        assertFalse(active.closed)
+        assertTrue(Everframe.isRecoveredStallObserverReady())
+    }
     @Test fun replacementStartRequiresAnotherExplicitOptIn() {
         start(); val active = install(); start()
         assertTrue(active.closed); assertFalse(Everframe.isRecoveredStallObserverReady())

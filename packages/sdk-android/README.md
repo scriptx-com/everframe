@@ -81,7 +81,7 @@ Diagnostic cause names preserve OS reason categories, not proof of user intent. 
 
 ### Recovered main-thread delays (opt in)
 
-After each `Everframe.start`, call `Everframe.setRecoveredStallObserverEnabled(true)` to observe recovered main-looper probe delays on Android/API24 and later. The observer is disabled by default and requires capture consent and `capture.crash`. `Everframe.isRecoveredStallObserverReady()` reports that its lifecycle observer is installed; it does not promise an eligible sample or complete coverage.
+After each `Everframe.start`, call `Everframe.setRecoveredStallObserverEnabled(true)` to observe recovered main-looper probe delays on Android/API26 and later. API24–25 remain unavailable in this mode: the envelope/timestamp path requires platform `java.time`, and this API does not assume host library desugaring. The observer is disabled by default and requires capture consent and `capture.crash`. `Everframe.isRecoveredStallObserverReady()` reports that its lifecycle observer is installed; it does not promise an eligible sample or complete coverage.
 
 This separate mode reports only after the queued probe executes again. A delay of 5–60 seconds is an **SDK probe observation**, not a confirmed OS ANR, task duration, crash, or fatal outcome. Missing recovery produces no observation. No stack, user, session, web exposure, or native exposure is attached. OS exit recovery remains independently opt-in and owns its existing OS state-summary token; this observer never writes that token.
 

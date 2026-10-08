@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 # Installed recovered-stall fixture
 
-This credential-free API24+ host consumes the actual SDK Release Maven artifacts and minifies its own Release APK. Publish the SDK into an isolated Maven repository, then run the SDK Gradle wrapper against this directory with `-PeverframeMavenRepo=<absolute path>`, `-PeverframeVersion=<local version>` and `:app:assembleRelease`. Use `-PproofApplicationId=<unique owned package>`.
+This credential-free API26+ host consumes the actual SDK Release Maven artifacts and minifies its own Release APK. Publish the SDK into an isolated Maven repository, then run the SDK Gradle wrapper against this directory with `-PeverframeMavenRepo=<absolute path>`, `-PeverframeVersion=<local version>` and `:app:assembleRelease`. Use `-PproofApplicationId=<unique owned package>`.
 
 Before launching on a rootable owned emulator, block IPv4 and IPv6 output for only this package UID. Keep those rules until fixture cleanup; the ordinary SDK destination remains production and no production credentials are used. Never apply rules to unrelated packages.
 

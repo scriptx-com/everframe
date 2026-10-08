@@ -38,7 +38,7 @@ internal object RecoveredStallRuntime {
     /** Called off main, before the probe timer exists. No identity/session is captured. */
     fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, request: Long): Boolean {
         val config = captured.config ?: return false
-        if (Build.VERSION.SDK_INT < 24 || !captured.captureConsent || !config.capture.crash) return false
+        if (Build.VERSION.SDK_INT < 26 || !captured.captureConsent || !config.capture.crash) return false
         val epoch = captured.user.startEpoch
         return owner.enable(request, epoch, {
             Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch
