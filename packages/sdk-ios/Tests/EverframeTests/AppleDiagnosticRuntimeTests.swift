@@ -273,10 +273,19 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         live.boundary()
     }
     func testFullOutboxRetainsStagedReceiptForRestartWithoutEviction() async throws {
-        let first = runtime(box: outbox(max: 0)); expect(await first.enable(context: try context()))
-        expect(await first.accept(candidate())); XCTAssertTrue(try outbox().hydrate().isEmpty); first.boundary()
-        let next = runtime(); expect(await next.enable(context: try context()))
-        XCTAssertEqual(try outbox().hydrate().count, 1); next.boundary()
+        let full = outbox(max: 2)
+        let manuals = (0..<2).map { _ in OutboxEntry(reportId: UUID(), createdAt: now, envelopeBytes: Data("{}".utf8),
+            idempotencyKey: UUID().uuidString, attachmentRefs: [], sdkKey: "manual-owner", endpoint: "https://example.invalid/api/ingest") }
+        for manual in manuals { _ = try full.enqueueRecovered(manual) }
+        let first = runtime(box: full); expect(await first.enable(context: try context()))
+        expect(await first.accept(candidate()))
+        XCTAssertEqual(try full.hydrate(), manuals); first.boundary()
+        // Once a slot frees, the next opt-in inserts the staged receipt.
+        try full.drain(where: { $0.reportId == manuals[0].reportId })
+        let next = runtime(box: outbox(max: 2)); expect(await next.enable(context: try context()))
+        let queued = try full.hydrate()
+        XCTAssertEqual(queued.count, 2); XCTAssertEqual(queued.first, manuals[1])
+        XCTAssertTrue(AppleDiagnosticDelivery.isApple(try XCTUnwrap(queued.last))); next.boundary()
     }
 }
 
