@@ -148,6 +148,9 @@ object Everframe {
      * state (`_config`, `_user`, ...) is protected.
      */
     private var _startEpoch: Int = 0
+    // Reservation precedes customer teardown; only publication pairs this epoch
+    // with its configuration. Guarded by stateLock, never inferred from captureGate.
+    private var _publishedStartEpoch: Int? = null
 
     /**
      * Lock-free mirror of [_startEpoch] — see [currentStartEpochVolatile] for
@@ -376,6 +379,13 @@ object Everframe {
                 killGeneration = _killGeneration,
                 captureConsent = captureGate,
             )
+        }
+
+    /** Startup work belongs to the invocation that published this configuration. */
+    private fun capturePublishedSessionSnapshot(epoch: Int): TXCapturedSession? =
+        stateLock.withLock {
+            if (_startEpoch != epoch || _publishedStartEpoch != epoch) null
+            else captureSessionSnapshot()
         }
 
     /** Snapshot lock order: capture coordinator -> state/authorization lock, then release
@@ -662,9 +672,15 @@ object Everframe {
         // Narrowing API30 diagnostics to unsupported native-only mode still
         // releases the existing shared owner and durably erases its context.
         val effectiveEnabled = enabled && android.os.Build.VERSION.SDK_INT >= (if (diagnostics) 30 else 31)
-        val captured = captureSessionSnapshot()
-        val context = appContext
-        val request = dev.everframe.crash.AndroidNativeCrashRuntime.request(captured.user.startEpoch, effectiveEnabled, diagnostics)
+        val (captured, context, request) = stateLock.withLock {
+            // Customer teardown can re-enter this setter after a new epoch was
+            // reserved but before its config is published. Disable must still
+            // revoke; enable must never adopt the previous destination.
+            if (effectiveEnabled && _publishedStartEpoch != _startEpoch) return
+            val snapshot = captureSessionSnapshot()
+            Triple(snapshot, appContext, dev.everframe.crash.AndroidNativeCrashRuntime.request(
+                snapshot.user.startEpoch, effectiveEnabled, diagnostics))
+        }
         if (!effectiveEnabled) {
             txGuardVoid("nativeCrash.disable") {
                 dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context, captured.user.startEpoch, true,
@@ -866,6 +882,7 @@ object Everframe {
         // can only serve one of them.
         val epoch = synchronized(reportCaptureCoordinator) { stateLock.withLock {
             _startEpoch += 1
+            _publishedStartEpoch = null
             // Important 7 — the lock-free mirror, written in the same critical
             // section as the field it mirrors. See currentStartEpochVolatile().
             _startEpochMirror.set(_startEpoch)
@@ -942,6 +959,7 @@ object Everframe {
             sharedNetworkBuffer.rotate(epoch)
 
             _config = config
+            _publishedStartEpoch = epoch
             // External review, finding 2 (Serious) — clear the self-declared
             // user (`setUser`, spec 2026-08-12) in the SAME `stateLock`
             // critical section that installs the new configuration, so no
@@ -1037,7 +1055,7 @@ object Everframe {
         // WeakReference: the heavy-init coroutine must not extend the
         // Activity's lifetime if it is destroyed between start() and install.
         val currentActivityRef = currentActivity?.let { java.lang.ref.WeakReference(it) }
-        val drainSession = captureSessionSnapshot()
+        val drainSession = capturePublishedSessionSnapshot(epoch) ?: return
         val drainEndpoint = IngestEndpoint.url
         __beforeDrainLaunchForTesting?.invoke()
 
@@ -1379,6 +1397,7 @@ object Everframe {
                 // about to tear down below. Mirrors iOS kill() (commit
                 // 826e5f76).
                 _startEpoch += 1
+                _publishedStartEpoch = null
                 // Important 7: the lock-free mirror is written in the SAME
                 // critical section as the field it mirrors, at every write
                 // site, so the transport's non-blocking kill predicate can
