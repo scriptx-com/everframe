@@ -1,0 +1,49 @@
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_0f39a2db9996eb 102-144
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryContext.swift
+  s_97602a0a2d8f20::t_4f97e4c5f46746 17-20,23-24,28,51-57,59-61,80-88
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_97602a0a2d8f20::t_8b6b44e1d95053 6-8,25-27,32-33,36-38,53-86,92-93,96,100,104,108,115,117,126-127,131
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashStartupContext.swift
+  s_97602a0a2d8f20::t_89d3776307208d 10,36
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_97602a0a2d8f20::t_4085834414b27f 45,49,53,64,67,69-72,76-77,87-122,898,1987,2046-2048
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthModels.swift
+  s_97602a0a2d8f20::t_1e531f6a803386 15-17
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthRuntime.swift
+  s_97602a0a2d8f20::t_3dfd8443d67813 12-21,45-46,174
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_97602a0a2d8f20::t_d408441d7a48c0 49-95
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_97602a0a2d8f20::t_4dc2c56a906c9c 1-101
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthSDKTests.swift
+  s_97602a0a2d8f20::t_44fcbece1d2d20 1-66
+packages/sdk-ios/Tests/ReleaseHealthProof/App.swift
+  s_97602a0a2d8f20::t_9812598fb7042b 1-160
+packages/sdk-ios/Tests/ReleaseHealthProof/Faults.h
+  s_97602a0a2d8f20::t_411b64cdb86622 1-8
+packages/sdk-ios/Tests/ReleaseHealthProof/Faults.m
+  s_97602a0a2d8f20::t_269c3a673cd457 1-52
+packages/sdk-ios/Tests/ReleaseHealthProof/Proof.entitlements
+  s_97602a0a2d8f20::t_a0fce2da3adddc 1-7
+packages/sdk-ios/Tests/ReleaseHealthProof/README.md
+  s_97602a0a2d8f20::t_2daf296a02115b 1-11
+packages/sdk-ios/Tests/ReleaseHealthProof/project.yml
+  s_97602a0a2d8f20::t_bb606ff71feeec 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "da76a6043a81e12df292b643dadb680239859f83",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
