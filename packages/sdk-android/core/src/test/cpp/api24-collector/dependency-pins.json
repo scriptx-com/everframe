@@ -1,0 +1,46 @@
+{
+  "purpose": "qualification-only; no SDK runtime dependency",
+  "upstreamSources": [
+    {
+      "name": "crashpad",
+      "revision": "677b9e33a269d8ddcf6ad21344e43f6caec4786f",
+      "url": "https://codeload.github.com/chromium/crashpad/tar.gz/677b9e33a269d8ddcf6ad21344e43f6caec4786f",
+      "bytes": 1671564,
+      "sha256": "1ddbf933fbd617b39cc0832953b89f243113d6083499fe28ee7d8431d024d397"
+    },
+    {
+      "name": "mini_chromium",
+      "revision": "c029983310e7b806aa4c75463d3a013c9558abde",
+      "url": "https://chromium.googlesource.com/chromium/mini_chromium/+archive/c029983310e7b806aa4c75463d3a013c9558abde.tar.gz",
+      "bytes": 154421,
+      "sha256": "c2c4650122ddc61d7c7cbcf2d0e6103bd94a239b81f466c9dcd1b044b821de1a"
+    },
+    {
+      "name": "lss",
+      "revision": "9719c1e1e676814c456b55f5f070eabad6709d31",
+      "url": "https://chromium.googlesource.com/linux-syscall-support/+archive/9719c1e1e676814c456b55f5f070eabad6709d31.tar.gz",
+      "bytes": 42275,
+      "sha256": "5aa6f3a7c7045d492a7b123de148a7cbb8caaeb1de6ea6e33a448aac24b5097c"
+    },
+    {
+      "name": "zlib",
+      "revision": "fef58692c1d7bec94c4ed3d030a45a1832a9615d",
+      "url": "https://chromium.googlesource.com/chromium/src/third_party/zlib/+archive/fef58692c1d7bec94c4ed3d030a45a1832a9615d.tar.gz",
+      "bytes": 584453,
+      "sha256": "b5c9e3e41f01f285ad46990143aabf6422f1e97d745c2c4236d92c58c380d9fb"
+    },
+    {
+      "name": "googletest",
+      "revision": "3983f67e32fb3e9294487b9d4f9586efa6e5d088",
+      "url": "https://codeload.github.com/google/googletest/tar.gz/3983f67e32fb3e9294487b9d4f9586efa6e5d088",
+      "bytes": 888705,
+      "sha256": "900f7ebff191f60d963822341f3016ef7a58a108550230f73518c8491813fccc"
+    }
+  ],
+  "hostToolchain": {
+    "gn": "1000 (5e19d2f)",
+    "clang": "Debian19.1.7 (pinned sources require C++23)",
+    "ninja": "1.11.1",
+    "openssl": "3.0.22"
+  }
+}

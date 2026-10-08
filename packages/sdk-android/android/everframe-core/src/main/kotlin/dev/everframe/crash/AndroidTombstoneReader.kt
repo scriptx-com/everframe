@@ -170,7 +170,7 @@ internal object AndroidTombstoneReader {
         }
         require(embeddedId == tid)
         return AndroidNativeCrashMetadata(abi = abi, crashedThreadID = tid, frames = frames,
-            framesIncomplete = incomplete || frames.isEmpty(), source = AndroidNativeSource.values().single(), signalNumber = signal, signalCode = signalCode)
+            framesIncomplete = incomplete || frames.isEmpty(), source = AndroidNativeSource.AndroidExitInfo, signalNumber = signal, signalCode = signalCode)
     }
     private fun frame(wire: Wire): AndroidNativeFrame {
         var pc = 0uL

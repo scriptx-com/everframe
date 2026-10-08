@@ -18,7 +18,7 @@ export const AndroidNativeFrame = z.object({
 export type AndroidNativeFrame = z.infer<typeof AndroidNativeFrame>;
 
 export const AndroidNativeCrashMetadata = z.object({
-  source: z.literal('android-exit-info').meta({ title: 'AndroidNativeSource' }),
+  source: z.enum(['android-exit-info', 'android-native-handler']).meta({ title: 'AndroidNativeSource' }),
   abi: z.enum(['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64', 'riscv64']).meta({ title: 'AndroidNativeAbi' }),
   crashedThreadId: z.number().int().min(1).max(4294967295),
   framesIncomplete: z.boolean(),

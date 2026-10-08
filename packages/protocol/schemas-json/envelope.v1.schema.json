@@ -3012,7 +3012,10 @@
       "properties": {
         "source": {
           "type": "string",
-          "const": "android-exit-info",
+          "enum": [
+            "android-exit-info",
+            "android-native-handler"
+          ],
           "title": "AndroidNativeSource"
         },
         "abi": {

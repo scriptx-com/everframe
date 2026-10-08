@@ -1513,6 +1513,7 @@ public extension EverframeAndroidNativeFrame {
 
 public enum EverframeAndroidNativeSource: String, Codable {
     case androidExitInfo = "android-exit-info"
+    case androidNativeHandler = "android-native-handler"
 }
 
 // MARK: - EverframeCrashCauseChain
