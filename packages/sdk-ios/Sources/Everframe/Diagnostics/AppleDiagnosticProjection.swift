@@ -7,9 +7,11 @@ enum AppleDiagnosticProjection {
     static func stack(_ bytes: Data) -> AppleDiagnosticStack {
         func empty(_ status: String) -> AppleDiagnosticStack { .init(status: status, truncated: false, frames: []) }
         guard bytes.count <= 256 * 1024 else { return empty("oversized") }
+        // MXCallStackTree.jsonRepresentation() emits callStacks at the top level;
+        // the documentation example nests the same tree under callStackTree.
         guard let object = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
-              let tree = object["callStackTree"] as? [String: Any],
-              let stacks = tree["callStacks"] as? [[String: Any]] else { return empty("malformed") }
+              let stacks = ((object["callStackTree"] as? [String: Any]) ?? object)["callStacks"] as? [[String: Any]]
+        else { return empty("malformed") }
         var frames: [AppleDiagnosticFrame] = []
         var pending: [(Any, Int)] = []
         var truncated = stacks.count > 512, malformed = false
