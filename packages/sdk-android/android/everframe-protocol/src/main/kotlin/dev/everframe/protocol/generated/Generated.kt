@@ -284,6 +284,10 @@ data class Payload (
     diagnostic: DiagnosticEvidence? = this.diagnostic,
     recoveredStall: RecoveredStallEvidence? = this.recoveredStall
     ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
+    // The two predecessor layouts had different component13 return descriptors.
+    // Keep the observer binary entry point while new source uses the appended field.
+    @kotlin.jvm.JvmName("component13")
+    fun recoveredStallComponent13(): RecoveredStallEvidence? = recoveredStall
 }
 
 @Serializable
