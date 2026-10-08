@@ -25,3 +25,9 @@ include(":everframe-core")
 include(":everframe-reporter-ui")
 include(":everframe-media3")
 include(":everframe-gradle-plugin")
+
+// Qualification-only host; absent from normal SDK builds and publications.
+if (providers.gradleProperty("nativeImportQualification").orNull == "true") {
+    include(":native-import-host")
+    project(":native-import-host").projectDir = file("../tests/native-import-host/app")
+}

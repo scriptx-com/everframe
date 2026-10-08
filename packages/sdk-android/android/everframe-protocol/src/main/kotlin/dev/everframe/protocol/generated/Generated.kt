@@ -325,7 +325,8 @@ data class AndroidNativeFrame (
 
 @Serializable
 enum class AndroidNativeSource(val value: String) {
-    @SerialName("android-exit-info") AndroidExitInfo("android-exit-info");
+    @SerialName("android-exit-info") AndroidExitInfo("android-exit-info"),
+    @SerialName("android-native-handler") AndroidNativeHandler("android-native-handler");
 }
 
 @Serializable

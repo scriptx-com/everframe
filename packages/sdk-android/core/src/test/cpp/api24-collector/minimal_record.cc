@@ -34,6 +34,10 @@ std::optional<MinimalRecord> ProjectSnapshot(const crashpad::ProcessSnapshot& sn
   if (!exception || !exception->Context()) return std::nullopt;
   MinimalRecord record;
   record.identity = identity; record.signal = exception->Exception();
+  record.thread_id = exception->ThreadID();
+  timeval snapshot_time{}; snapshot.SnapshotTime(&snapshot_time);
+  if (snapshot_time.tv_sec <= 0 || snapshot_time.tv_usec < 0 || snapshot_time.tv_usec >= 1000000) return std::nullopt;
+  record.snapshot_time_ms = static_cast<uint64_t>(snapshot_time.tv_sec) * 1000 + snapshot_time.tv_usec / 1000;
   record.architecture = static_cast<uint32_t>(exception->Context()->architecture);
   record.pc = exception->Context()->InstructionPointer();
   const crashpad::ModuleSnapshot* match = nullptr;
@@ -61,7 +65,7 @@ std::optional<std::string> SerializeRecord(const MinimalRecord& r) {
   std::ostringstream out;
   out << "{\"version\":1,\"reportId\":\"" << r.identity.report_id << "\",\"epoch\":\"" << r.identity.epoch
       << "\",\"owner\":\"" << r.identity.owner << "\",\"release\":\"" << r.identity.release
-      << "\",\"signal\":" << r.signal << ",\"architecture\":" << r.architecture << ",\"pc\":" << r.pc
+      << "\",\"threadId\":" << r.thread_id << ",\"snapshotTimeMs\":" << r.snapshot_time_ms << ",\"signal\":" << r.signal << ",\"architecture\":" << r.architecture << ",\"pc\":" << r.pc
       << ",\"moduleBase\":" << r.module_base << ",\"moduleOffset\":" << r.module_offset
       << ",\"module\":\"" << r.module << "\",\"buildId\":\"" << r.build_id << "\",\"partial\":true}";
   return out.str();

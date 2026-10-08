@@ -11,6 +11,9 @@ const crash = () => ({ androidNative: evidence(), exceptionType: 'SIGSEGV', mess
   frames: [{ raw: 'libfault.so 0x20000000000001' }], mechanism: 'android-exit-info', handled: false, fatal: true,
   occurredAt: '2026-10-07T18:00:00.000Z', fingerprint: '0123456789abcdef' });
 describe('Android native crash evidence', () => {
+  it('distinguishes authenticated native handler provenance from OS exit info', () => {
+    expect(AndroidNativeCrashMetadata.safeParse({ ...evidence(), source: 'android-native-handler', framesIncomplete: true }).success).toBe(true);
+  });
   it('preserves ELF identity and unsigned PCs without an Apple UUID conversion', () => {
     expect(AndroidNativeCrashMetadata.parse(evidence())).toEqual(evidence());
     expect(CrashPayload.parse(crash()).androidNative).toEqual(evidence());
