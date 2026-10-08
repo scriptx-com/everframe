@@ -7,18 +7,26 @@ import EverframeProtocol
 final class NativeCrashStartupTests: XCTestCase {
     private let device = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "26.5", locale: "en_US", timezone: "UTC",
         appVersion: "1.2.3", appBuild: "42", bundleIdentifier: "dev.example.host")
-    func testTemplateIsDeterministicAndRedactsEveryPersistedString() throws {
-        let config = EverframeConfig(appId: "sdk-A", release: "release-secret", redaction: .init(customPatterns: [try NSRegularExpression(pattern: "secret")]))
-        let user = EFUser(id: "user-secret", email: "secret@example.invalid", displayName: "secret")
-        let context = try NativeCrashStartupContext.make(config: config, user: user, device: device, endpoint: "https://example.invalid")
-        let again = try NativeCrashStartupContext.make(config: config, user: user, device: device, endpoint: "https://example.invalid")
+    func testTemplateIsDeterministicAndKeepsDeclaredIdentityVerbatim() throws {
+        // Other report paths send the declared user and app/device identity as
+        // given. Masked ids/emails would merge people or overwrite stored emails.
+        let config = EverframeConfig(appId: "sdk-A", release: "release-secret", redaction: .init(customPatterns: [
+            try NSRegularExpression(pattern: "secret"), try NSRegularExpression(pattern: "[a-z]+@example\\.com")]))
+        let user = EFUser(id: "4111111111111111", email: "alice@example.com", displayName: "secret")
+        let host = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "26.5", locale: "en_US", timezone: "UTC",
+            appVersion: "1.2.3", appBuild: "42", bundleIdentifier: "io.mycompanyname.customerportal.production")
+        let context = try NativeCrashStartupContext.make(config: config, user: user, device: host, endpoint: "https://example.invalid")
+        let again = try NativeCrashStartupContext.make(config: config, user: user, device: host, endpoint: "https://example.invalid")
         XCTAssertEqual(try context.encoded(), try again.encoded())
         XCTAssertEqual(context.sdkKey, "sdk-A"); XCTAssertNil(context.identitySubject)
         let envelope = try EverframeReportEnvelope(data: context.envelopeTemplate)
-        XCTAssertEqual(envelope.reporter.user?.id, "user-[REDACTED]")
-        XCTAssertEqual(envelope.reporter.user?.displayName, "[REDACTED]")
-        XCTAssertFalse(envelope.reporter.user?.email?.contains("secret") ?? true)
-        XCTAssertEqual(envelope.context.app.version, "release-[REDACTED]")
+        XCTAssertEqual(envelope.reporter.user?.id, "4111111111111111")
+        XCTAssertEqual(envelope.reporter.user?.email, "alice@example.com")
+        XCTAssertEqual(envelope.reporter.user?.displayName, "secret")
+        XCTAssertEqual(envelope.context.app.name, "io.mycompanyname.customerportal.production")
+        XCTAssertEqual(envelope.context.app.version, "release-secret")
+        // The frozen policy still redacts the recovered crash record's strings.
+        XCTAssertEqual(try context.redaction.compiled()("crash secret"), "crash [REDACTED]")
         XCTAssertEqual(envelope.context.app.build, "42"); XCTAssertEqual(envelope.context.device.model, "iPhone")
         XCTAssertTrue(envelope.attachments.isEmpty); XCTAssertNil(envelope.sessionID)
         XCTAssertNil(envelope.payload.breadcrumbs); XCTAssertNil(envelope.payload.vitals)
