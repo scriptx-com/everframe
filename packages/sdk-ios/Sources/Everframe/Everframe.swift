@@ -42,12 +42,15 @@ public final class Everframe: @unchecked Sendable {
     public static let SDK_VERSION = EverframeSDKVersion
     internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime(),
                   appleDiagnosticRuntime: AppleDiagnosticRuntime? = AppleDiagnosticPlatform.makeRuntime(),
+                  appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
                   nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() }) {
         self.nativeCrashRuntime = nativeCrashRuntime
         self.appleDiagnosticRuntime = appleDiagnosticRuntime
+        self.appleDiagnosticSession = appleDiagnosticSession
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
     }
     private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
+    private let appleDiagnosticSession: @Sendable () -> URLSession
     private let nativeCrashRuntime: NativeCrashRuntime?
     private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
     private var nativeCrashTicket: UInt64 = 0
@@ -102,7 +105,8 @@ public final class Everframe: @unchecked Sendable {
             let context = AppleDiagnosticContext(frozen: frozen, applicationVersion: version, applicationBuild: build)
             return await runtime.enable(context: context, ticket: ticket) { [weak self, weak runtime] in
                 guard let self, let runtime else { return }
-                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox).restrictingOutboxToAppleDiagnostics()
+                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox, session: self.appleDiagnosticSession())
+                    .restrictingOutboxToAppleDiagnostics()
                 await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
                     epochAtInitiation: epoch, currentEpoch: { [weak self] in self?.currentStartEpoch ?? -1 })
             }
