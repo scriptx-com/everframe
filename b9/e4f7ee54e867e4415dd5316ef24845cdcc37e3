@@ -1,0 +1,33 @@
+packages/sdk-android/core/src/test/cpp/api24-collector/BUILD.gn
+  s_97602a0a2d8f20::t_0994e258ad96ba 1-11
+packages/sdk-android/core/src/test/cpp/api24-collector/README.md
+  s_97602a0a2d8f20::t_f89efc9c5c6b11 1-27
+packages/sdk-android/core/src/test/cpp/api24-collector/crash_fixture.cc
+  s_97602a0a2d8f20::t_a1bd12ed22103c 1-94
+packages/sdk-android/core/src/test/cpp/api24-collector/dependency-pins.json
+  s_97602a0a2d8f20::t_2353e79e2d3323 1-46
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.cc
+  s_97602a0a2d8f20::t_78d34ccca55891 1-52
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.h
+  s_97602a0a2d8f20::t_6c57ca1f37941b 1-9
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_record.cc
+  s_97602a0a2d8f20::t_f9bd4edc555bc6 1-113
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_record.h
+  s_97602a0a2d8f20::t_322319aa8c0c68 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9e4f7ee54e867e4415dd5316ef24845cdcc37e3",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
