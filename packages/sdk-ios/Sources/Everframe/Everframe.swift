@@ -74,7 +74,7 @@ public final class Everframe: @unchecked Sendable {
             let armed = await runtime.refresh(ticket: ticket) {
                 try NativeCrashStartupContext.make(config: config, user: user, device: device,
                     endpoint: IngestEndpoint.url.absoluteString,
-                    releaseHealthExposure: try exposureBytes.map { try EverframeNativeExposure(data: $0) })
+                    releaseHealthExposure: try exposureBytes.map { try ReleaseHealthDate.decoder().decode(EverframeNativeExposure.self, from: $0) })
             }
             // A user/config change may obsolete this snapshot before recovery
             // starts. The launch tail must await a current attempt rather than

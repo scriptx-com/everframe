@@ -26,6 +26,20 @@ enum ReleaseHealthDate {
         }
         return encoder
     }
+    // `.iso8601` accepts fractional seconds only from Swift 6.2 Foundation (iOS 26);
+    // iOS 15-18 reject every millisecond timestamp this encoder writes.
+    static func decoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer(), value = try container.decode(String.self)
+            let format = ISO8601DateFormatter(); format.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            guard let date = format.date(from: value) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Expected an ISO 8601 timestamp with fractional seconds.")
+            }
+            return canonical(date)
+        }
+        return decoder
+    }
 }
 struct ReleaseHealthSegment {
     let pointer: EverframeNativeExposure
