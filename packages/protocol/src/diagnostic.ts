@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { z } from 'zod';
+import { NativeExposurePointerSchema } from './release-health.js';
 
 /** The OS reason is authoritative; traces and SIGKILL alone cannot establish ANR/OOM. */
 // OS reason categories: reason10 before API34 can also mean a package/component change.
@@ -29,6 +30,7 @@ export type DiagnosticFrame = z.infer<typeof DiagnosticFrame>;
 /** OS-process evidence is not a web exposure or a crash-free metric input. */
 export const DiagnosticEvidence = z.object({
   version: z.literal(1), evidenceId: z.string().uuid(), processLaunchId: z.string().uuid(),
+  nativeExposure: NativeExposurePointerSchema.optional(),
   kind: z.literal('process_exit'), provenance: z.literal('android_application_exit_info'),
   scope: z.literal('os_process'), outcome: z.literal('terminated'), cause: DiagnosticCause,
   occurredAt: z.string().datetime(), collectedAt: z.string().datetime(),
@@ -49,6 +51,9 @@ export const DiagnosticEvidence = z.object({
   const issue = (path: PropertyKey[], message: string) => ctx.addIssue({ code: 'custom', path, message });
   if (value.cause !== androidExitCause(value.android.reason)) issue(['cause'], 'Cause must match the OS exit reason');
   if (Date.parse(value.occurredAt) > Date.parse(value.collectedAt)) issue(['collectedAt'], 'Collection precedes process exit');
+  if (value.nativeExposure && value.nativeExposure.processLaunchId !== value.processLaunchId) {
+    issue(['nativeExposure', 'processLaunchId'], 'Exposure must belong to the exact OS process');
+  }
   const trace = value.trace;
   if (trace.status !== 'available' && (trace.format !== 'none' || trace.frames.length > 0)) {
     issue(['trace'], 'Unavailable trace must not claim a format or stack');

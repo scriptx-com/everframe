@@ -1058,6 +1058,9 @@
         },
         "diagnostic": {
           "$ref": "#/$defs/DiagnosticEvidence"
+        },
+        "appleDiagnostic": {
+          "$ref": "#/$defs/AppleDiagnosticEvidence"
         }
       },
       "additionalProperties": {}
@@ -3027,6 +3030,60 @@
           "format": "uuid",
           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
+        "nativeExposure": {
+          "type": "object",
+          "properties": {
+            "exposureId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "processLaunchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "startedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+            },
+            "nativeBuildId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "loadedBuildId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "loadedBundleStatus": {
+              "type": "string",
+              "enum": [
+                "known",
+                "not_applicable",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "exposureId",
+            "processLaunchId",
+            "startedAt",
+            "nativeBuildId",
+            "loadedBuildId",
+            "loadedBundleStatus"
+          ],
+          "additionalProperties": false
+        },
         "kind": {
           "type": "string",
           "const": "process_exit"
@@ -3204,6 +3261,270 @@
       ],
       "additionalProperties": false,
       "title": "DiagnosticEvidence"
+    },
+    "AppleDiagnosticEvidence": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "evidenceId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "ownershipId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "hang_batch",
+            "app_exit_summary"
+          ],
+          "title": "AppleDiagnosticKind"
+        },
+        "provenance": {
+          "type": "string",
+          "const": "apple_metrickit"
+        },
+        "scope": {
+          "type": "string",
+          "const": "reporting_interval"
+        },
+        "outcome": {
+          "type": "string",
+          "const": "unknown"
+        },
+        "interval": {
+          "type": "object",
+          "properties": {
+            "begin": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            },
+            "end": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            }
+          },
+          "required": [
+            "begin",
+            "end"
+          ],
+          "additionalProperties": false
+        },
+        "collectedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "attribution": {
+          "type": "object",
+          "properties": {
+            "process": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "release": {
+              "type": "string",
+              "const": "frozen"
+            },
+            "session": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "webExposure": {
+              "type": "string",
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "process",
+            "release",
+            "session",
+            "webExposure"
+          ],
+          "additionalProperties": false
+        },
+        "apple": {
+          "type": "object",
+          "properties": {
+            "applicationVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "applicationBuild": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "osVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "applicationVersion",
+            "applicationBuild",
+            "osVersion"
+          ],
+          "additionalProperties": false
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "hangs": {
+          "minItems": 1,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "durationMs": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 86400000
+              },
+              "stack": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "available",
+                      "unavailable",
+                      "malformed",
+                      "oversized"
+                    ],
+                    "title": "AppleDiagnosticStackStatus"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  },
+                  "frames": {
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "binaryUUID": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "binaryName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9_.+-]+$"
+                        },
+                        "address": {
+                          "type": "string",
+                          "pattern": "^0x[0-9a-f]{1,16}$"
+                        },
+                        "offset": {
+                          "type": "string",
+                          "pattern": "^0x[0-9a-f]{1,16}$"
+                        }
+                      },
+                      "required": [
+                        "binaryUUID",
+                        "binaryName",
+                        "address",
+                        "offset"
+                      ],
+                      "additionalProperties": false,
+                      "title": "AppleDiagnosticFrame"
+                    }
+                  }
+                },
+                "required": [
+                  "status",
+                  "truncated",
+                  "frames"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "durationMs",
+              "stack"
+            ],
+            "additionalProperties": false,
+            "title": "AppleHang"
+          }
+        },
+        "exits": {
+          "minItems": 1,
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "foreground",
+                  "background"
+                ],
+                "title": "AppleExitState"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "memory_resource_limit",
+                  "bad_access",
+                  "abnormal",
+                  "illegal_instruction",
+                  "watchdog",
+                  "cpu_resource_limit",
+                  "memory_pressure",
+                  "suspended_locked_file",
+                  "background_task_timeout"
+                ],
+                "title": "AppleExitReason"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              }
+            },
+            "required": [
+              "state",
+              "reason",
+              "count"
+            ],
+            "additionalProperties": false,
+            "title": "AppleExitCount"
+          }
+        }
+      },
+      "required": [
+        "version",
+        "evidenceId",
+        "ownershipId",
+        "kind",
+        "provenance",
+        "scope",
+        "outcome",
+        "interval",
+        "collectedAt",
+        "attribution",
+        "apple",
+        "truncated"
+      ],
+      "additionalProperties": false,
+      "title": "AppleDiagnosticEvidence"
     }
   }
 }

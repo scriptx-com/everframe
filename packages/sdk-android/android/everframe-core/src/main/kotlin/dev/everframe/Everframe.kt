@@ -842,11 +842,17 @@ object Everframe {
             // Important 7 — the lock-free mirror, written in the same critical
             // section as the field it mirrors. See currentStartEpochVolatile().
             _startEpochMirror.set(_startEpoch)
+            dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, config.releaseHealth?.enabled == true)
             _startEpoch
         } }
         // "Is this start() invocation still the newest one?" Every step below
         // that publishes or unpublishes process-global state is gated on it.
         val stillNewest = { stateLock.withLock { _startEpoch == epoch } }
+        txGuardVoid("start.releaseHealthBoundary") {
+            // Only an explicit disabled configuration waits for erasure on this thread.
+            dev.everframe.health.ReleaseHealthRuntime.boundary(context.applicationContext, epoch,
+                erase = config.releaseHealth != null)
+        }
         txGuardVoid("start.nativeCrashBoundary") {
             dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context.applicationContext, epoch, false,
                 { currentStartEpochVolatile() == epoch })
@@ -1007,6 +1013,13 @@ object Everframe {
         val drainSession = captureSessionSnapshot()
         val drainEndpoint = IngestEndpoint.url
         __beforeDrainLaunchForTesting?.invoke()
+
+        // A slow health route must not delay replay, crash, or other SDK initialization.
+        launchCapturedWork(drainSession) {
+            txGuardSuspend("start.releaseHealth") {
+                dev.everframe.health.ReleaseHealthRuntime.start(context.applicationContext, drainSession, drainEndpoint)
+            }
+        }
 
         // Heavy init detached — host main thread continues immediately. Per
         // DEFE-02, heavy-init body itself must be guarded so a crash there doesn't
@@ -1348,6 +1361,7 @@ object Everframe {
                 // revocation survive a later start() that re-opens captureGate.
                 _killGeneration += 1
                 _killGenerationMirror.set(_killGeneration)
+                dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, false)
                 dev.everframe.crash.AndroidNativeCrashRuntime.noteKill()
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
@@ -1398,6 +1412,9 @@ object Everframe {
             revokedIdentityJobs.forEach { it.cancel() }
             finishOutboxRevocation()
             val stillThisKill = { currentStartEpochVolatile() == killEpoch }
+            txGuardVoid("kill.releaseHealthBoundary") {
+                dev.everframe.health.ReleaseHealthRuntime.boundary(appContext, killEpoch)
+            }
             txGuardVoid("kill.nativeCrashBoundary") {
                 dev.everframe.crash.AndroidNativeCrashRuntime.boundary(appContext, killEpoch, true, stillThisKill)
             }
@@ -1554,6 +1571,13 @@ object Everframe {
         val drainEndpoint = IngestEndpoint.url
         __beforeDrainLaunchForTesting?.invoke()
         launchCapturedWork(captured) {
+            txGuardSuspend("requestOutboxDrain.releaseHealth") {
+                dev.everframe.health.ReleaseHealthRuntime.flush(epochAtInitiation)
+            }
+        }
+        // Health may be waiting on a different captured destination or its own
+        // drain mutex. Ordinary reports retain their independent progress.
+        launchCapturedWork(captured) {
             txGuardSuspend("requestOutboxDrain") {
                 val outbox = sharedOutboxFor(ctx)
                 CrashSidecar(ctx).hydrateInto(outbox)
@@ -1571,6 +1595,23 @@ object Everframe {
                     drainSession = captured,
                     endpointAtInitiation = drainEndpoint,
                 )
+            }
+        }
+    }
+
+    /** True only after this SDK segment's anonymous start was committed to encrypted storage. */
+    @JvmStatic
+    fun isReleaseHealthReady(): Boolean = captureGate &&
+        dev.everframe.health.ReleaseHealthRuntime.readyPointer(currentStartEpochVolatile()) != null
+
+    /** Requests delivery using each record's frozen route; independent of replay and vitals. */
+    @JvmStatic
+    fun requestReleaseHealthFlush() {
+        val captured = captureSessionSnapshot()
+        if (captured.config == null) return
+        launchCapturedWork(captured) {
+            txGuardSuspend("releaseHealth.flush") {
+                dev.everframe.health.ReleaseHealthRuntime.flush(captured.user.startEpoch)
             }
         }
     }

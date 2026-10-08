@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { ReleaseHealthExposure, ReleaseHealthRecord } from '@everframe/protocol';
+import type { WebReleaseHealthExposure, ReleaseHealthRecord } from '@everframe/protocol';
 import { HealthJournalError, openReleaseHealthJournal, type ReleaseHealthJournal } from './journal.js';
 
 export interface ReleaseHealthOptions { enabled: boolean; loadedBuildId?: string }
 export interface ReleaseHealthDiagnostics {
   state: 'disabled' | 'starting' | 'active' | 'stopped' | 'unavailable';
-  exposure: ReleaseHealthExposure | null;
+  exposure: WebReleaseHealthExposure | null;
   queued: number;
   priorQueueLosses: number;
   error?: string;
@@ -34,7 +34,7 @@ export function setupReleaseHealth(config: {
   if (explicitlyDisabled) pendingRevocations.set(routeIdentity, Symbol());
   const loadedBuildId = config.releaseHealth?.loadedBuildId ?? null;
   let state: ReleaseHealthDiagnostics['state'] = enabled ? 'starting' : 'disabled';
-  let exposure: ReleaseHealthExposure | null = null;
+  let exposure: WebReleaseHealthExposure | null = null;
   let startedMono = 0;
   let error: string | undefined;
   let stopped = false;
@@ -73,7 +73,7 @@ export function setupReleaseHealth(config: {
     if (!journal || stopped || revoked || hidden || pendingRevocations.has(routeIdentity)) return;
     const current = await journal.list(route, generation);
     losses = current.losses;
-    const next: ReleaseHealthExposure = {
+    const next: WebReleaseHealthExposure = {
       exposureId: crypto.randomUUID(), pageLaunchId: pageLaunchId ??= crypto.randomUUID(),
       startedAt: new Date().toISOString(), platform: 'web', sdkVersion,
       nativeRelease: 'not_applicable', loadedBuildId, subject: 'anonymous_exposure',

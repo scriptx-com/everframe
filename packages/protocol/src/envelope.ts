@@ -5,6 +5,7 @@ import { FocusedNode } from './focus.js';
 import { AttachmentRef } from './attachments.js';
 import { Breadcrumb } from './breadcrumb.js';
 import { DiagnosticEvidence } from './diagnostic.js';
+import { AppleDiagnosticEvidence } from './apple-diagnostic.js';
 import { CrashPayload } from './crash.js';
 import { NetworkBodyEntrySchema } from './network-body.js';
 import { VitalsEntry, MAX_ENVELOPE_VITALS_ENTRIES } from './vitals.js';
@@ -157,6 +158,7 @@ export const ReportEnvelope = z
         // source is 'crash' or 'error'.
         crash: CrashPayload.optional(),
         diagnostic: DiagnosticEvidence.optional(),
+        appleDiagnostic: AppleDiagnosticEvidence.optional(),
       })
       .passthrough(),
     context: z
@@ -195,6 +197,15 @@ export const ReportEnvelope = z
   .superRefine((envelope, ctx) => {
     const evidence = envelope.payload.diagnostic;
     const issue = (path: PropertyKey[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+    const apple = envelope.payload.appleDiagnostic;
+    if (apple) {
+      if (evidence || envelope.payload.crash || envelope.source !== 'diagnostic') issue(['source'], 'Apple evidence requires diagnostic source and no other diagnostic or crash block');
+      if (envelope.sdk.platform !== 'ios') issue(['sdk', 'platform'], 'MetricKit evidence requires iOS');
+      if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'appleDiagnostic'], 'Apple evidence must be anonymous and attachment-free');
+      if (apple.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+      if (Date.parse(apple.collectedAt) !== Date.parse(envelope.submittedAt)) issue(['submittedAt'], 'Submission must use the frozen collection time');
+      return;
+    }
     if (!evidence) {
       if (envelope.source === 'diagnostic') issue(['payload', 'diagnostic'], 'Diagnostic source requires evidence');
       return;

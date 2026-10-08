@@ -162,8 +162,10 @@ data class Payload (
     val redactions: JsonArray? = null,
     val resources: List<Resource>? = null,
     val vitals: List<Vital>? = null,
-    val diagnostic: DiagnosticEvidence? = null
+    val diagnostic: DiagnosticEvidence? = null,
+    val appleDiagnostic: AppleDiagnosticEvidence? = null
 ) {
+
     constructor(
     annotations: JsonArray? = null,
     breadcrumbs: List<Breadcrumb>? = null,
@@ -176,7 +178,7 @@ data class Payload (
     redactions: JsonArray? = null,
     resources: List<Resource>? = null,
     vitals: List<Vital>? = null
-    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, null)
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, null, null)
 
     fun copy(
     annotations: JsonArray? = this.annotations,
@@ -190,7 +192,173 @@ data class Payload (
     redactions: JsonArray? = this.redactions,
     resources: List<Resource>? = this.resources,
     vitals: List<Vital>? = this.vitals
-    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic)
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic)
+
+
+    constructor(
+    annotations: JsonArray? = null,
+    breadcrumbs: List<Breadcrumb>? = null,
+    crash: Crash? = null,
+    extra: String? = null,
+    focus: Focus? = null,
+    logs: JsonArray? = null,
+    network: JsonArray? = null,
+    networkBodies: List<NetworkBody>? = null,
+    redactions: JsonArray? = null,
+    resources: List<Resource>? = null,
+    vitals: List<Vital>? = null,
+    diagnostic: DiagnosticEvidence? = null
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null)
+
+    fun copy(
+    annotations: JsonArray? = this.annotations,
+    breadcrumbs: List<Breadcrumb>? = this.breadcrumbs,
+    crash: Crash? = this.crash,
+    extra: String? = this.extra,
+    focus: Focus? = this.focus,
+    logs: JsonArray? = this.logs,
+    network: JsonArray? = this.network,
+    networkBodies: List<NetworkBody>? = this.networkBodies,
+    redactions: JsonArray? = this.redactions,
+    resources: List<Resource>? = this.resources,
+    vitals: List<Vital>? = this.vitals,
+    diagnostic: DiagnosticEvidence? = this.diagnostic
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic)
+
+}
+
+@Serializable
+data class AppleDiagnosticEvidence (
+    val apple: Apple,
+    val attribution: AppleDiagnosticAttribution,
+    val collectedAt: String,
+
+    @SerialName("evidenceId")
+    val evidenceID: String,
+
+    val exits: List<AppleExitCount>? = null,
+    val hangs: List<AppleHang>? = null,
+    val interval: Interval,
+    val kind: AppleDiagnosticKind,
+    val outcome: AppleDiagnosticOutcome,
+
+    @SerialName("ownershipId")
+    val ownershipID: String,
+
+    val provenance: AppleDiagnosticProvenance,
+    val scope: AppleDiagnosticScope,
+    val truncated: Boolean,
+    val version: Double
+)
+
+@Serializable
+data class Apple (
+    val applicationBuild: String,
+    val applicationVersion: String,
+    val osVersion: String
+)
+
+@Serializable
+data class AppleDiagnosticAttribution (
+    val process: Session,
+    val release: Release,
+    val session: Session,
+    val webExposure: Session
+)
+
+@Serializable
+enum class Session(val value: String) {
+    @SerialName("unavailable") Unavailable("unavailable");
+}
+
+@Serializable
+enum class Release(val value: String) {
+    @SerialName("frozen") Frozen("frozen");
+}
+
+@Serializable
+data class AppleExitCount (
+    val count: Long,
+    val reason: AppleExitReason,
+    val state: AppleExitState
+)
+
+@Serializable
+enum class AppleExitReason(val value: String) {
+    @SerialName("abnormal") Abnormal("abnormal"),
+    @SerialName("background_task_timeout") BackgroundTaskTimeout("background_task_timeout"),
+    @SerialName("bad_access") BadAccess("bad_access"),
+    @SerialName("cpu_resource_limit") CPUResourceLimit("cpu_resource_limit"),
+    @SerialName("illegal_instruction") IllegalInstruction("illegal_instruction"),
+    @SerialName("memory_pressure") MemoryPressure("memory_pressure"),
+    @SerialName("memory_resource_limit") MemoryResourceLimit("memory_resource_limit"),
+    @SerialName("normal") Normal("normal"),
+    @SerialName("suspended_locked_file") SuspendedLockedFile("suspended_locked_file"),
+    @SerialName("watchdog") Watchdog("watchdog");
+}
+
+@Serializable
+enum class AppleExitState(val value: String) {
+    @SerialName("background") Background("background"),
+    @SerialName("foreground") Foreground("foreground");
+}
+
+@Serializable
+data class AppleHang (
+    @SerialName("durationMs")
+    val durationMS: Double,
+
+    val stack: Stack
+)
+
+@Serializable
+data class Stack (
+    val frames: List<AppleDiagnosticFrame>,
+    val status: AppleDiagnosticStackStatus,
+    val truncated: Boolean
+)
+
+@Serializable
+data class AppleDiagnosticFrame (
+    val address: String,
+    val binaryName: String,
+    val binaryUUID: String,
+    val offset: String
+)
+
+@Serializable
+enum class AppleDiagnosticStackStatus(val value: String) {
+    @SerialName("available") Available("available"),
+    @SerialName("malformed") Malformed("malformed"),
+    @SerialName("oversized") Oversized("oversized"),
+    @SerialName("unavailable") Unavailable("unavailable");
+}
+
+@Serializable
+data class Interval (
+    val begin: String,
+    val end: String
+)
+
+@Serializable
+enum class AppleDiagnosticKind(val value: String) {
+    @SerialName("app_exit_summary") AppExitSummary("app_exit_summary"),
+    @SerialName("hang_batch") HangBatch("hang_batch");
+}
+
+@Serializable
+enum class AppleDiagnosticOutcome(val value: String) {
+    @SerialName("unknown") Unknown("unknown");
+}
+
+@Serializable
+enum class AppleDiagnosticProvenance(val value: String) {
+    @SerialName("apple_metrickit") AppleMetrickit("apple_metrickit");
+}
+
+@Serializable
+enum class AppleDiagnosticScope(val value: String) {
+    @SerialName("reporting_interval") ReportingInterval("reporting_interval");
 }
 
 @Serializable
@@ -518,8 +686,41 @@ data class DiagnosticEvidence (
     val provenance: Provenance,
     val scope: Scope,
     val trace: Trace,
-    val version: Double
-)
+    val version: Double,
+    val nativeExposure: NativeExposure? = null
+) {
+    constructor(
+    android: Android,
+    attribution: Attribution,
+    cause: DiagnosticCause,
+    collectedAt: String,
+    evidenceID: String,
+    kind: DiagnosticKind,
+    occurredAt: String,
+    outcome: Outcome,
+    processLaunchID: String,
+    provenance: Provenance,
+    scope: Scope,
+    trace: Trace,
+    version: Double
+    ) : this(android, attribution, cause, collectedAt, evidenceID, kind, occurredAt, outcome, processLaunchID, provenance, scope, trace, version, null)
+
+    fun copy(
+    android: Android = this.android,
+    attribution: Attribution = this.attribution,
+    cause: DiagnosticCause = this.cause,
+    collectedAt: String = this.collectedAt,
+    evidenceID: String = this.evidenceID,
+    kind: DiagnosticKind = this.kind,
+    occurredAt: String = this.occurredAt,
+    outcome: Outcome = this.outcome,
+    processLaunchID: String = this.processLaunchID,
+    provenance: Provenance = this.provenance,
+    scope: Scope = this.scope,
+    trace: Trace = this.trace,
+    version: Double = this.version
+    ): DiagnosticEvidence = DiagnosticEvidence(android, attribution, cause, collectedAt, evidenceID, kind, occurredAt, outcome, processLaunchID, provenance, scope, trace, version, nativeExposure)
+}
 
 @Serializable
 data class Android (
@@ -542,16 +743,6 @@ enum class Process(val value: String) {
 }
 
 @Serializable
-enum class Release(val value: String) {
-    @SerialName("frozen") Frozen("frozen");
-}
-
-@Serializable
-enum class Session(val value: String) {
-    @SerialName("unavailable") Unavailable("unavailable");
-}
-
-@Serializable
 enum class DiagnosticCause(val value: String) {
     @SerialName("anr") Anr("anr"),
     @SerialName("java_crash") JavaCrash("java_crash"),
@@ -565,6 +756,33 @@ enum class DiagnosticCause(val value: String) {
 @Serializable
 enum class DiagnosticKind(val value: String) {
     @SerialName("process_exit") ProcessExit("process_exit");
+}
+
+@Serializable
+data class NativeExposure (
+    @SerialName("exposureId")
+    val exposureID: String,
+
+    @SerialName("loadedBuildId")
+    @Required
+    val loadedBuildID: String? = null,
+
+    val loadedBundleStatus: LoadedBundleStatus,
+
+    @SerialName("nativeBuildId")
+    val nativeBuildID: String,
+
+    @SerialName("processLaunchId")
+    val processLaunchID: String,
+
+    val startedAt: String
+)
+
+@Serializable
+enum class LoadedBundleStatus(val value: String) {
+    @SerialName("known") Known("known"),
+    @SerialName("not_applicable") NotApplicable("not_applicable"),
+    @SerialName("unknown") Unknown("unknown");
 }
 
 @Serializable

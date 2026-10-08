@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.crash
 
+import dev.everframe.health.NativeExposurePointer
+import dev.everframe.health.ProcessLaunchIdentity
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
 
@@ -19,7 +21,8 @@ internal interface AndroidNativeExitPlatform {
 internal class AndroidNativeRecoveryController(
     private val factory: () -> AndroidNativeRecovery,
     private val platform: AndroidNativeExitPlatform,
-    private val processLaunchId: String = java.util.UUID.randomUUID().toString(),
+    private val processLaunchId: String = ProcessLaunchIdentity.id.toString(),
+    private val exposure: (Int) -> NativeExposurePointer? = { null },
 ) {
     private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean) {
         var ready = false
@@ -64,7 +67,8 @@ internal class AndroidNativeRecoveryController(
             owner.engine.recover(exits, nowMs, gate, allowDiagnostics = diagnostics) { if (gate.isAllowed()) admit(it) else false }
             synchronized(lock) {
                 if (!gate.isAllowed()) return false
-                owner.engine.arm(template(), platform.pid, platform.processName, gate, diagnostics, processLaunchId, platform.apiLevel) {
+                owner.engine.arm(template(), platform.pid, platform.processName, gate, diagnostics, processLaunchId, platform.apiLevel,
+                    nativeExposure = exposure(epoch)) {
                     owner.claimed = true // An exception may follow a successful remote Binder write.
                     platform.setStateSummary(it)
                 }

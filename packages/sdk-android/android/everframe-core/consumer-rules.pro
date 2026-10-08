@@ -58,6 +58,10 @@
 -keep class dev.everframe.config.Environment { *; }
 -keep class dev.everframe.config.TXUser { *; }
 
+# Preserve the release-health opt-in surface through the host's R8 pass too.
+-keep class dev.everframe.config.ReleaseHealthConfig { *; }
+-keep enum dev.everframe.config.ReleaseHealthBundleStatus { *; }
+
 # Branding (spec 2026-08-26): mirrors the identical addition in
 # ../proguard-rules.pro (see that file for the full rationale). This copy
 # drives the CONSUMER app's own R8 pass — a host app that reads

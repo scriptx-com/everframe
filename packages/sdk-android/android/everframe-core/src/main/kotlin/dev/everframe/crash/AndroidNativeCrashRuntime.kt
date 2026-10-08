@@ -47,7 +47,8 @@ internal object AndroidNativeCrashRuntime {
                 AndroidOutboxKeyProvider("dev.everframe.native-exit.v1.$name"), AndroidOutboxFileOps(),
                 maxEntries = 8, maxTotalBytes = 2L * 1024 * 1024)
             AndroidNativeRecovery(store("contexts"), store("prepared"))
-        }, AndroidExitPlatform(context.applicationContext)).also { controller = it }
+        }, AndroidExitPlatform(context.applicationContext),
+            exposure = dev.everframe.health.ReleaseHealthRuntime::readyPointer).also { controller = it }
     }
 
     /** Off-main caller. Defaults to no state-summary ownership until explicitly requested by the host. */

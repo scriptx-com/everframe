@@ -92,3 +92,22 @@ describe('process-exit evidence', () => {
     expect(ReportEnvelope.safeParse(value).success).toBe(false);
   });
 });
+
+const nativeExposurePointer = () => ({
+  exposureId: '33333333-3333-4333-8333-333333333333', processLaunchId: diagnostic().processLaunchId,
+  startedAt: '2026-10-07T09:00:00.000Z', nativeBuildId: 'native-artifact-a',
+  loadedBuildId: null, loadedBundleStatus: 'not_applicable',
+});
+describe('frozen native exposure evidence', () => {
+  it('preserves one explicit segment pointer with an exact process identity', () => {
+    const value = envelope(); value.payload.diagnostic.nativeExposure = nativeExposurePointer();
+    expect(ReportEnvelope.parse(value).payload.diagnostic?.nativeExposure).toEqual(nativeExposurePointer());
+  });
+  it.each([
+    { processLaunchId: '44444444-4444-4444-8444-444444444444' },
+    { loadedBuildId: 'bundle-a' }, { nativeBuildId: '' }, { currentSessionId: 'borrowed' },
+  ])('rejects a contradictory or invented frozen pointer %j', patch => {
+    const value = envelope(); value.payload.diagnostic.nativeExposure = { ...nativeExposurePointer(), ...patch };
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+});

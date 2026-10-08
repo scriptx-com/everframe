@@ -62,12 +62,15 @@ export {
 } from './render.js';
 // Zod-free, so the SDK's eager bundle can import it without pulling in schemas.
 export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';
+export {
+  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema, NativeExposurePointerSchema,
+  WebReleaseHealthExposureSchema, AndroidReleaseHealthExposureSchema,
+  RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
+} from './release-health.js';
+export type { ReleaseHealthRecord, ReleaseHealthExposure, NativeExposurePointer, WebReleaseHealthExposure, AndroidReleaseHealthExposure } from './release-health.js';
 
 export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
 
 export { DiagnosticEvidence, DiagnosticCause, DiagnosticFrame, androidExitCause } from './diagnostic.js';
-export {
-  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema,
-  RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
-} from './release-health.js';
-export type { ReleaseHealthRecord, ReleaseHealthExposure } from './release-health.js';
+
+export { AppleDiagnosticEvidence, AppleDiagnosticFrame, AppleHang, AppleExitCount } from './apple-diagnostic.js';

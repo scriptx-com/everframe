@@ -41,7 +41,13 @@ node --input-type=module - "$OUT_PATH" <<'NODE'
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const path = process.argv[2];
-const source = readFileSync(path, 'utf8');
+let source = readFileSync(path, 'utf8');
+// Adding a sibling schema must not rename the already published Android types.
+for (const [generated, stable] of Object.entries({ DiagnosticAttribution: 'Attribution',
+  PurpleProcess: 'Process', SessionEnum: 'Session', DiagnosticOutcome: 'Outcome',
+  DiagnosticProvenance: 'Provenance', DiagnosticScope: 'Scope' })) {
+  source = source.replace(new RegExp(`\\b${generated}\\b`, 'g'), stable);
+}
 const blockPattern = /data class Crash \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const match = source.match(blockPattern);
 if (!match) throw new Error('codegen-kotlin: Crash block shape changed');
@@ -161,26 +167,65 @@ let rewritten = source.replace(
 const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const payloadMatch = rewritten.match(payloadPattern);
 if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
-const diagnosticProperty = '    val diagnostic: DiagnosticEvidence? = null,';
 const payloadProperties = payloadMatch[1].split('\n');
-const diagnosticIndex = payloadProperties.indexOf(diagnosticProperty);
-if (diagnosticIndex < 0) throw new Error('codegen-kotlin: Payload.diagnostic missing');
-payloadProperties.splice(diagnosticIndex, 1);
+const additions = ['diagnostic', 'appleDiagnostic'];
+for (const name of additions) {
+  const index = payloadProperties.findIndex(line => line.trim().startsWith(`val ${name}:`));
+  if (index < 0) throw new Error(`codegen-kotlin: Payload.${name} missing`);
+  payloadProperties.splice(index, 1);
+}
 const oldParameters = payloadProperties.map(line => line.replace('val ', '').replace(/,$/, ''));
-const names = oldParameters.map(line => line.trim().split(':')[0]);
-const constructorParameters = oldParameters.join(',\n');
-const copyParameters = oldParameters.map((line, index) => line.replace(/ = null$/, ` = this.${names[index]}`)).join(',\n');
-payloadProperties[payloadProperties.length - 1] += ',';
-payloadProperties.push('    val diagnostic: DiagnosticEvidence? = null');
-rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${payloadProperties.join('\n')}\n) {
+const oldNames = oldParameters.map(line => line.trim().split(':')[0]);
+const e8Parameters = [...oldParameters, '    diagnostic: DiagnosticEvidence? = null'];
+const e8Names = [...oldNames, 'diagnostic'];
+const overload = (parameters, names, tail) => `
     constructor(
-${constructorParameters}
-    ) : this(${names.join(', ')}, null)
+${parameters.join(',\n')}
+    ) : this(${names.join(', ')}, ${tail.map(() => 'null').join(', ')})
 
     fun copy(
-${copyParameters}
-    ): Payload = Payload(${names.join(', ')}, diagnostic)
+${parameters.map((line, i) => line.replace(/ = null$/, ` = this.${names[i]}`)).join(',\n')}
+    ): Payload = Payload(${[...names, ...tail].join(', ')})
+`;
+const propertiesWithAdditions = [...payloadProperties.map(line => line.replace(/,$/, '')),
+  '    val diagnostic: DiagnosticEvidence? = null', '    val appleDiagnostic: AppleDiagnosticEvidence? = null'];
+rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertiesWithAdditions.join(',\n')}\n) {
+${overload(oldParameters, oldNames, ['diagnostic', 'appleDiagnostic'])}
+${overload(e8Parameters, e8Names, ['appleDiagnostic'])}
 }`);
+// Keep existing diagnostic positional arguments stable; append the optional exposure.
+const evidencePattern = /data class DiagnosticEvidence \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
+const evidenceMatch = rewritten.match(evidencePattern);
+if (!evidenceMatch) throw new Error('codegen-kotlin: DiagnosticEvidence block shape changed');
+const exposureProperty = '    val nativeExposure: NativeExposure? = null,';
+const evidenceProperties = evidenceMatch[1].split('\n');
+const exposureIndex = evidenceProperties.indexOf(exposureProperty);
+if (exposureIndex < 0) throw new Error('codegen-kotlin: DiagnosticEvidence.nativeExposure missing');
+evidenceProperties.splice(exposureIndex, 1);
+const evidenceParameters = evidenceProperties.filter(line => line.trim().startsWith('val '))
+  .map(line => line.replace('val ', '').replace(/,$/, ''));
+const evidenceNames = evidenceParameters.map(line => line.trim().split(':')[0]);
+const evidenceCopy = evidenceParameters.map((line, index) => `${line} = this.${evidenceNames[index]}`);
+evidenceProperties[evidenceProperties.length - 1] += ',';
+evidenceProperties.push('    val nativeExposure: NativeExposure? = null');
+rewritten = rewritten.replace(evidencePattern, `data class DiagnosticEvidence (\n${evidenceProperties.join('\n')}\n) {
+    constructor(
+${evidenceParameters.join(',\n')}
+    ) : this(${evidenceNames.join(', ')}, null)
+
+    fun copy(
+${evidenceCopy.join(',\n')}
+    ): DiagnosticEvidence = DiagnosticEvidence(${evidenceNames.join(', ')}, nativeExposure)
+}`);
+// This nullable field is required on the wire: omission changes the exact
+// frozen pointer and must not result from the default encoder configuration.
+const exposurePattern = /data class NativeExposure \(\n([\s\S]*?)\n\)/;
+const exposureMatch = rewritten.match(exposurePattern);
+if (!exposureMatch || !exposureMatch[1].includes('    val loadedBuildID: String? = null,')) {
+  throw new Error('codegen-kotlin: NativeExposure.loadedBuildID shape changed');
+}
+rewritten = rewritten.replace(exposurePattern, exposureMatch[0].replace(
+  '    val loadedBuildID: String? = null,', '    @Required\n    val loadedBuildID: String? = null,'));
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {
   throw new Error('codegen-kotlin: Format block shape changed');

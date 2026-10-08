@@ -105,6 +105,48 @@ Physical-device lock-state and performance qualification remain separate checks.
 
 ---
 
+## Apple hang and exit diagnostics
+
+On iOS 15+, explicitly opt in **after** `start`:
+
+```swift
+let enabled = await Everframe.shared.setAppleDiagnosticsEnabled(true)
+// On consent withdrawal, await durable removal before treating it as complete.
+let erased = await Everframe.shared.setAppleDiagnosticsEnabled(false)
+```
+
+Enabling requires a started SDK with `capture.crash` enabled. Unsupported platforms
+or unmet preconditions return `false`; a storage failure also returns `false` because
+the requested persistent transition did not finish. Disabling
+immediately closes network admission; a failed erase remains pending and prevents
+a later enable from restoring the old records. Retry disabling when storage is
+available. `kill()` also closes admission and schedules erasure. A new `start`
+closes the current callback window and requires another explicit enable.
+
+The collector accepts MetricKit hang batches and aggregate app-exit counts. It
+excludes MetricKit crash diagnostics, CPU/disk exceptions and signposts. Reporting
+periods are never individual incident times, and aggregate counts are never crash
+or fatality counts. Process, session and web exposure attribution are unavailable.
+The collector is unavailable on tvOS and macOS.
+
+Callback admission is deliberately sparse: the complete OS reporting interval
+must fit within the current process's uninterrupted opt-in window, and the OS
+application version/build must match the frozen native version/build. Delayed
+payloads spanning restarts, updates, reconfiguration or consent changes are dropped.
+This is not a comprehensive hang monitor or a crash-free denominator.
+
+Once accepted, anonymous records use an encrypted receipt journal and outbox.
+Explicit opt-in after restart permits retry only for the same SDK key and endpoint,
+with the original bytes and idempotency key. At most 32 receipts / 4 MiB are retained
+for seven days; no new receipt evicts an earlier one. Revocation removes Apple
+receipts without taking ownership of another collector's entries. A request already
+admitted to the network can complete; disabling does not claim to erase remote data.
+
+Only bounded stack UUIDs, safe binary names, addresses and offsets are collected;
+raw MetricKit JSON is not persisted. Custom redaction uses the capture-time policy.
+Current qualification covers synthetic projections, durable delivery and SDK
+compilation. Physical-device MetricKit callback delivery remains unqualified.
+
 ## Triggers are host-app concern
 
 > Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
