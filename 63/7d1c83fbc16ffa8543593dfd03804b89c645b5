@@ -1,0 +1,28 @@
+packages/cli/src/apple-build.ts
+  s_360d9eb003c487::t_8c3146b4aed1dd 28-40
+  s_360d9eb003c487::t_fb3a80175afe64 336-337
+  s_360d9eb003c487::t_2f239444ac5250 406-417
+  s_360d9eb003c487::t_84c5ffd9c5256f 355,357-359,361-370,372-373,375-376
+packages/cli/README.md
+  s_360d9eb003c487::t_63f23ba22d1052 36-41,45-46
+packages/cli/__tests__/apple-build.spec.ts
+  s_360d9eb003c487::t_fdb733e3daec70 430,432
+  s_360d9eb003c487::t_bdc45c03c05eb5 14
+  s_360d9eb003c487::t_b1b7eb88d871ed 346-429,431,433-447
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "637d1c83fbc16ffa8543593dfd03804b89c645b5",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
