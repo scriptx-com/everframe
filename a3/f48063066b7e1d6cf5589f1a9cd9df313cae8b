@@ -1,0 +1,37 @@
+packages/sdk-react/src/provider.tsx
+  s_360d9eb003c487::t_608522aa281625 462
+  s_360d9eb003c487::t_62c6bb3480419c 354-359
+  s_360d9eb003c487::t_56c301668b9432 236-240
+  s_360d9eb003c487::t_3a9119510a31ed 541
+packages/sdk-web/src/adapter.ts
+  s_360d9eb003c487::t_383c8f37a9c0c8 2100-2102
+  s_360d9eb003c487::t_583bc32380de7d 2098-2099,2103-2107
+  s_360d9eb003c487::t_805769e3867f4b 423-426,428
+packages/sdk-web/__tests__/kill-switch-gates.spec.ts
+  s_360d9eb003c487::t_683df50fc8e39a 28
+  s_360d9eb003c487::t_26a4a341efa06d 180-225
+packages/sdk-react/tests/release-health-browser.mjs
+  s_360d9eb003c487::t_fd6cb12928816f 81
+  s_360d9eb003c487::t_d4cd6cfe5aff48 102
+  s_360d9eb003c487::t_e497ff1a234d0e 101,103-108,111
+  s_360d9eb003c487::t_dda4612fddf19a 15,18-21
+packages/sdk-react/__tests__/provider-child-kill.spec.tsx
+  s_360d9eb003c487::t_8e795faf158180 96,98,101,107
+  s_360d9eb003c487::t_ceea1733fdba28 1-95,97,99-100,102-106,108-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a3f48063066b7e1d6cf5589f1a9cd9df313cae8b",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
