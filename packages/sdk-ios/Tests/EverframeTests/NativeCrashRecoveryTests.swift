@@ -119,26 +119,77 @@ final class NativeCrashRecoveryTests: XCTestCase {
         }
         XCTAssertEqual(try closed.maintain(), 1)
     }
-    func testUnsafeUnknownAndOversizedTreesAreNeverRetiredOrImported() throws {
+    func testUnsafeAndUnknownTreesAreQuarantinedAndNeverRetired() throws {
+        // Aged, so maintenance would retire it if its tree were recognized.
         let (run, _) = try prepared(now: Date(timeIntervalSince1970: 1))
         let raw = try Data(contentsOf: reportPath(run))
         try FileManager.default.setAttributes([.posixPermissions: 0o666], ofItemAtPath: reportPath(run).path)
-        XCTAssertThrowsError(try recovery().recover(runID: run.id, outbox: box()))
-        XCTAssertThrowsError(try recovery().maintain())
+        XCTAssertEqual(try recovery().recover(runID: run.id, outbox: box()), .quarantined(.tree))
+        XCTAssertEqual(try recovery().maintain(), 0)
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: reportPath(run).path)
         let unknown = runPath(run.id).appendingPathComponent("unknown")
         try Data().write(to: unknown)
-        XCTAssertThrowsError(try recovery().maintain()); try FileManager.default.removeItem(at: unknown)
+        XCTAssertEqual(try recovery().maintain(), 0); try FileManager.default.removeItem(at: unknown)
         let linked = directory.appendingPathComponent("hardlink")
         try FileManager.default.linkItem(at: reportPath(run), to: linked)
-        XCTAssertThrowsError(try recovery().maintain()); try FileManager.default.removeItem(at: linked)
+        XCTAssertEqual(try recovery().recover(runID: run.id, outbox: box()), .quarantined(.tree))
+        XCTAssertEqual(try recovery().maintain(), 0); try FileManager.default.removeItem(at: linked)
         try FileManager.default.removeItem(at: reportPath(run))
         try raw.write(to: linked)
         try FileManager.default.createSymbolicLink(at: reportPath(run), withDestinationURL: linked)
-        XCTAssertThrowsError(try recovery().maintain()); try FileManager.default.removeItem(at: reportPath(run))
-        try writeRaw(Data(repeating: 32, count: 2 * 1024 * 1024 + 1), run: run)
-        XCTAssertThrowsError(try recovery().recover(runID: run.id, outbox: box()))
+        XCTAssertEqual(try recovery().maintain(), 0); try FileManager.default.removeItem(at: reportPath(run))
         XCTAssertTrue(FileManager.default.fileExists(atPath: contextPath(run.id).path))
+        XCTAssertTrue(try box().hydrate().isEmpty)
+    }
+    func testUnrecognizedRunStaysQuarantinedWithoutBlockingOtherRuns() throws {
+        let (blocked, _) = try prepared(), (pending, reportID) = try prepared()
+        let unknown = blocked.recorderURL.appendingPathComponent("Reports/unrecognized")
+        try Data("vendor".utf8).write(to: unknown)
+        XCTAssertEqual(try recovery().recover(runID: pending.id, outbox: box()), .queued(reportID))
+        XCTAssertEqual(try recovery().recover(runID: blocked.id, outbox: box()), .quarantined(.tree))
+        let live = try recovery(); let next = try live.prepareRun()
+        XCTAssertNoThrow(try live.writeContext(NativeRecoveryTestData.context(), runID: next.id))
+        // Age retirement removes the other closed run, never unrecognized content.
+        XCTAssertEqual(try recovery(active: [next.id]).maintain(now: Date().addingTimeInterval(15 * 86400)), 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: runPath(pending.id).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: unknown.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: reportPath(blocked).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: contextPath(blocked.id).path))
+        XCTAssertEqual(try box().hydrate().map(\.reportId), [reportID])
+    }
+    func testOversizedRunsAreNeverImportedButStillRetire() throws {
+        let (oversized, _) = try prepared(now: Date().addingTimeInterval(-60)), (pending, reportID) = try prepared()
+        try writeRaw(Data(repeating: 32, count: 2 * 1024 * 1024 + 1), run: oversized)
+        XCTAssertEqual(try recovery().recover(runID: pending.id, outbox: box()), .queued(reportID))
+        XCTAssertEqual(try recovery().recover(runID: oversized.id, outbox: box()), .quarantined(.tree))
+        XCTAssertEqual(try recovery().maintain(), 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: reportPath(oversized).path))
+        // A run total over its bound is quarantined the same way.
+        var limits = NativeCrashRecovery.Limits.defaults
+        limits.maxRunBytes = try Data(contentsOf: reportPath(pending)).count - 1
+        XCTAssertEqual(try recovery(limits: limits).recover(runID: pending.id, outbox: box()), .quarantined(.tree))
+        XCTAssertEqual(try recovery(limits: limits).maintain(), 0)
+        // Admission still reclaims the oldest closed run when its files exceed their bounds.
+        limits = .defaults; limits.maxRuns = 2
+        XCTAssertNoThrow(try recovery(limits: limits).prepareRun())
+        XCTAssertFalse(FileManager.default.fileExists(atPath: runPath(oversized.id).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: contextPath(oversized.id).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: runPath(pending.id).path))
+        XCTAssertEqual(try box().hydrate().map(\.reportId), [reportID])
+    }
+    func testRecrashLeftoverIsRecognizedWithoutBlockingOtherRuns() throws {
+        let (recrash, originalID) = try prepared(), (pending, reportID) = try prepared()
+        // An interrupted vendor recrash leaves the renamed original beside a partial report.
+        let original = recrash.recorderURL.appendingPathComponent("Reports/Everframe-report-0000000000000001.old")
+        try FileManager.default.moveItem(at: reportPath(recrash), to: original)
+        try writeRaw(Data("{\"report\":".utf8), run: recrash)
+        XCTAssertEqual(try recovery().recover(runID: pending.id, outbox: box()), .queued(reportID))
+        XCTAssertEqual(try recovery().recover(runID: recrash.id, outbox: box()), .quarantined(.multipleReports))
+        try FileManager.default.removeItem(at: reportPath(recrash))
+        XCTAssertEqual(try recovery().recover(runID: recrash.id, outbox: box()), .queued(originalID))
+        XCTAssertEqual(try recovery().maintain(now: Date().addingTimeInterval(15 * 86400)), 2)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: runPath(recrash.id).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: contextPath(recrash.id).path))
     }
     func testCapacityExpiresOldestClosedRunAndRefusesActiveRun() throws {
         var limits = NativeCrashRecovery.Limits.defaults; limits.maxRuns = 1
@@ -196,14 +247,12 @@ final class NativeCrashRecoveryTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         XCTAssertEqual(try recovery().recover(runID: run.id, outbox: box()), .queued(id))
     }
-    func testStageAndTotalCapacityNeverDeleteActiveOrOversizedRuns() throws {
+    func testStageAndTotalCapacityNeverDeleteActiveRuns() throws {
         let (run, _) = try prepared()
         let rawBytes = try Data(contentsOf: reportPath(run)).count
         var limits = NativeCrashRecovery.Limits.defaults; limits.maxRunBytes = rawBytes + 10
         XCTAssertThrowsError(try recovery(limits: limits).recover(runID: run.id, outbox: box()))
         XCTAssertFalse(FileManager.default.fileExists(atPath: runPath(run.id).appendingPathComponent("stage.evr").path))
-        limits.maxRunBytes = rawBytes - 1
-        XCTAssertThrowsError(try recovery(limits: limits).maintain())
         XCTAssertTrue(FileManager.default.fileExists(atPath: reportPath(run).path))
         limits = .defaults; limits.maxTotalBytes = rawBytes - 1
         XCTAssertThrowsError(try recovery(active: [run.id], limits: limits).maintain())
