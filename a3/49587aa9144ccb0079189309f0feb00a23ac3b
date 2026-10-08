@@ -1,0 +1,31 @@
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthTransport.swift
+  s_97602a0a2d8f20::t_c64f5f4aaf7399 1-49
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthRuntime.swift
+  s_97602a0a2d8f20::t_c64f5f4aaf7399 1-166
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthConfiguration.swift
+  s_97602a0a2d8f20::t_cdb0cb28c94eb4 1-23
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthModels.swift
+  s_97602a0a2d8f20::t_fca8297bd52abd 1-58
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthStore.swift
+  s_97602a0a2d8f20::t_62143a8451c229 1-105
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_97602a0a2d8f20::t_f59c7faaa9e746 1-132
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthStoreTests.swift
+  s_97602a0a2d8f20::t_a14bba701d4c67 1-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a349587aa9144ccb0079189309f0feb00a23ac3b",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
