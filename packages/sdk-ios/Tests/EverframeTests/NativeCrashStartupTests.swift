@@ -67,11 +67,13 @@ final class NativeCrashStartupTests: XCTestCase {
         let gate = NativeStartupSnapshotGate(device: device, entered: [first, second])
         let sdk = Everframe(nativeCrashRuntime: runtime, nativeDeviceSnapshot: { await gate.snapshot() })
         defer {
-            sdk.kill(); gate.releaseAll(); Everframe.__resetStartTailDelayHookForTesting()
+            sdk.kill(); gate.releaseAll(); Everframe.__beforeLaunchDrainHookForTesting = nil
             try? FileManager.default.removeItem(at: root)
         }
-        let tail = expectation(description: "launch drain finished")
-        Everframe.__startTailDelayHookForTesting = {
+        let tail = expectation(description: "launch drain about to start")
+        // Runs before the drain reads its queue, not after it returns.
+        Everframe.__beforeLaunchDrainHookForTesting = { instance in
+            guard instance === sdk else { return }
             XCTAssertEqual(try? box.hydrate().map(\.reportId), [reportID], "recovery must finish before the launch drain")
             XCTAssertTrue(probe.snapshot().enabled)
             tail.fulfill()
