@@ -10,7 +10,7 @@ const DB_NAME = 'everframe-release-health-v1';
 interface RouteState { route: string; generation: string; revoked: boolean; losses: number; updatedAt: number }
 export interface HealthQueueRow { key: string; route: string; generation: string; record: ReleaseHealthRecord; enqueuedAt: number; bytes: number }
 export class HealthJournalError extends Error {
-  constructor(readonly code: 'capacity' | 'revoked' | 'conflict' | 'corrupt') { super(`Release health journal: ${code}`); }
+  constructor(readonly code: 'capacity' | 'revoked' | 'conflict' | 'corrupt' | 'missing') { super(`Release health journal: ${code}`); }
 }
 const request = <T>(value: IDBRequest<T>): Promise<T> => new Promise((resolve, reject) => {
   value.onsuccess = () => resolve(value.result); value.onerror = () => reject(value.error);
@@ -21,14 +21,18 @@ const finished = (tx: IDBTransaction): Promise<void> => new Promise((resolve, re
 });
 const increment = (value: number) => Math.min(2_147_483_647, value + 1);
 
-export async function openReleaseHealthJournal() {
+/** Without `create`, a journal that does not exist yet stays uncreated and the open rejects with `missing`. */
+export async function openReleaseHealthJournal(create = true) {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
     const open = indexedDB.open(DB_NAME, 1);
-    open.onupgradeneeded = () => {
+    let missing = false;
+    open.onupgradeneeded = event => {
+      // Aborting the first version change leaves no database behind.
+      if (!create && event.oldVersion === 0) { missing = true; open.transaction?.abort(); return; }
       open.result.createObjectStore('records', { keyPath: 'key' });
       open.result.createObjectStore('routes', { keyPath: 'route' });
     };
-    open.onerror = () => reject(open.error);
+    open.onerror = () => reject(missing ? new HealthJournalError('missing') : open.error);
     open.onblocked = () => reject(new Error('Release health storage upgrade blocked'));
     open.onsuccess = () => resolve(open.result);
   });
