@@ -149,7 +149,8 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
         DeliveryURLProtocol.response = { .success(503) }
         await drain(sender)
         XCTAssertEqual(try queue.hydrate().count, 1)
-        XCTAssertEqual(ledger.snapshot().queue.operations["enqueue-committed"], 1)
+        XCTAssertEqual(ledger.snapshot().queue.operations["enqueue-committed"], 0,
+            "A failed drain retains its existing entry without another queue write")
         DeliveryURLProtocol.response = { .success(400) }
         await drain(sender)
         XCTAssertEqual(try queue.hydrate().count, 0)

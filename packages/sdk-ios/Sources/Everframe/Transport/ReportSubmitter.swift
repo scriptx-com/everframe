@@ -133,6 +133,17 @@ public final class ReportSubmitter: Sendable {
         identitySubject: String? = nil,
         identityToken: String? = nil
     ) async throws -> ReportResult {
+        try await performSubmit(envelopeBytes: envelopeBytes, idempotencyKey: idempotencyKey,
+            attachments: attachments, reportId: reportId, companionAttribution: companionAttribution,
+            sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
+            identityToken: identityToken, alreadyPersisted: false)
+    }
+
+    private func performSubmit(
+        envelopeBytes: Data, idempotencyKey: String, attachments: [Attachment], reportId: UUID,
+        companionAttribution: String? = nil, sdkKey: String? = nil, endpoint: String? = nil,
+        identitySubject: String? = nil, identityToken: String? = nil, alreadyPersisted: Bool
+    ) async throws -> ReportResult {
 
         let effectiveKey = sdkKey ?? config.appId
         let effectiveEndpoint = endpoint ?? IngestEndpoint.url.absoluteString
@@ -160,15 +171,17 @@ public final class ReportSubmitter: Sendable {
             }
             switch RetryPolicy.classify(statusCode: status, headers: headers, error: nil) {
             case .retryable, .retryAfter:
-                try enqueueToOutbox(
-                    reportId: reportId,
-                    envelopeBytes: envelopeBytes,
-                    idempotencyKey: idempotencyKey,
-                    attachments: attachments,
-                    sdkKey: effectiveKey,
-                    endpoint: effectiveEndpoint,
-                    identitySubject: identitySubject
-                )
+                if !alreadyPersisted {
+                    try enqueueToOutbox(
+                        reportId: reportId,
+                        envelopeBytes: envelopeBytes,
+                        idempotencyKey: idempotencyKey,
+                        attachments: attachments,
+                        sdkKey: effectiveKey,
+                        endpoint: effectiveEndpoint,
+                        identitySubject: identitySubject
+                    )
+                }
                 return .queued(reportId: reportId)
             case .terminal:
                 NSLog("[Everframe] submit failed (server status=\(status))")
@@ -177,15 +190,17 @@ public final class ReportSubmitter: Sendable {
         } catch let urlError as URLError {
             switch RetryPolicy.classify(statusCode: nil, headers: [:], error: urlError) {
             case .retryable, .retryAfter:
-                try enqueueToOutbox(
-                    reportId: reportId,
-                    envelopeBytes: envelopeBytes,
-                    idempotencyKey: idempotencyKey,
-                    attachments: attachments,
-                    sdkKey: effectiveKey,
-                    endpoint: effectiveEndpoint,
-                    identitySubject: identitySubject
-                )
+                if !alreadyPersisted {
+                    try enqueueToOutbox(
+                        reportId: reportId,
+                        envelopeBytes: envelopeBytes,
+                        idempotencyKey: idempotencyKey,
+                        attachments: attachments,
+                        sdkKey: effectiveKey,
+                        endpoint: effectiveEndpoint,
+                        identitySubject: identitySubject
+                    )
+                }
                 return .queued(reportId: reportId)
             case .terminal:
                 NSLog("[Everframe] submit failed (network error code=\(urlError.code.rawValue))")
@@ -195,8 +210,7 @@ public final class ReportSubmitter: Sendable {
     }
 
     /// Best-effort drain of the persistent outbox: hydrate all entries, attempt
-    /// each one in order, remove successes (and queue-on-failure re-enqueues
-    /// transient failures). Safe to invoke from `start()`'s detached Task —
+    /// each one in order, remove successes and retain transient failures. Safe to invoke from `start()`'s detached Task —
     /// 04-06 owns that wiring.
     ///
     /// - Parameters identityHolder/currentReplayConfig: how this pass
@@ -400,7 +414,9 @@ public final class ReportSubmitter: Sendable {
                 #else
                 let sender = self
                 #endif
-                let result = try await sender.observing(diagnostics, origin: .outboxDrain).submit(
+                // The entry remains durable throughout the attempt. Re-enqueuing
+                // on failure would change its age and could evict another entry.
+                let result = try await sender.observing(diagnostics, origin: .outboxDrain).performSubmit(
                     envelopeBytes: envelopeBytes,
                     idempotencyKey: e.idempotencyKey,
                     attachments: attachments,
@@ -408,7 +424,8 @@ public final class ReportSubmitter: Sendable {
                     sdkKey: e.sdkKey,
                     endpoint: e.endpoint,
                     identitySubject: e.identitySubject,
-                    identityToken: identityToken
+                    identityToken: identityToken,
+                    alreadyPersisted: true
                 )
                 if case .submitted = result {
                     try outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterAcceptance)

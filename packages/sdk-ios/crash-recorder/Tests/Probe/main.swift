@@ -39,7 +39,7 @@ check(EFCRInstall(nil) == EFCRInstallInvalidDirectory, "nil path is recoverable 
 check(EFCRInstall(directory) == EFCRInstallSuccess, "install")
 check(!EFCRIsEnabled(), "installation returns disabled")
 if mode.hasPrefix("ctx-") {
-    let contextA = "11111111-1111-4111-8111-111111111111"
+    let contextA = mode == "ctx-current" && args.count > 4 ? args[4] : "11111111-1111-4111-8111-111111111111"
     let contextB = "22222222-2222-4222-8222-222222222222"
     check(EFCRSetContextIdentifier(contextA), "publish A while disabled")
     switch mode {
