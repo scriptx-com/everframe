@@ -58,21 +58,34 @@ try {
   assert(!received.some(row => 'outcome' in row.record));
   // The next project must not drain a prior project's frozen route.
   offline = true; await page.evaluate(() => window.handle.destroy()); await load();
-  await start('private-to-A'); await page.evaluate(() => window.handle.destroy()); await load();
+  assert.equal((await start('private-to-A')).queued, 2); await page.evaluate(() => window.handle.destroy()); await load();
   const beforeB = received.length; offline = false; await start('build-C', 'pk_test_b');
   await page.evaluate(() => window.handle.releaseHealth.flush());
   assert(received.slice(beforeB).every(row => row.key === 'Bearer pk_test_b'));
   // Privacy kill purges and invalidates this route, including pending startup.
-  offline = true; await page.evaluate(async () => {
+  offline = true; await page.evaluate(() => window.handle.destroy()); await load();
+  assert.equal((await start('killed-B', 'pk_test_b')).queued, 2);
+  await page.evaluate(async () => {
     window.handle.kill(); await new Promise(r => setTimeout(r, 100));
   });
   assert.equal((await page.evaluate(() => window.handle.releaseHealth.diagnostics())).queued, 0);
+  // A revoked producer reports queued:0 regardless, so prove the erasure from a
+  // fresh document: re-enabling online delivers nothing the kill erased.
+  const delivered = since => received.slice(since).map(row => row.record.exposure.loadedBuildId + ':' + row.record.phase);
   await page.evaluate(() => window.handle.destroy()); await load();
-  const beforeDisabled = received.length; offline = false;
+  const beforeKillReenable = received.length; offline = false;
+  await start('reenabled-B', 'pk_test_b'); await page.evaluate(() => window.handle.releaseHealth.flush());
+  assert.deepEqual(delivered(beforeKillReenable), ['reenabled-B:start']);
+  await page.evaluate(() => window.handle.destroy()); await load();
+  const beforeDisabled = received.length;
   await start('disabled', 'pk_test_a', { disabled: true });
   await page.evaluate(() => window.handle.releaseHealth.flush());
   assert.equal(received.length, beforeDisabled);
   assert.equal((await page.evaluate(() => window.handle.releaseHealth.diagnostics())).queued, 0);
+  // The three pk_test_a rows queued offline above must not survive disabled init.
+  await page.evaluate(() => window.handle.destroy()); await load();
+  await start('reenabled-A'); await page.evaluate(() => window.handle.releaseHealth.flush());
+  assert.deepEqual(delivered(beforeDisabled), ['reenabled-A:start']);
   // Two real tabs share the same IndexedDB transactions and bounded global budget.
   const isolated = await browser.newContext();
   const left = await isolated.newPage(), right = await isolated.newPage();
