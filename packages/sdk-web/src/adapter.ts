@@ -420,8 +420,12 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * uninstalls the page-global fetch/XHR/console patchers, so a FRESH
    * Provider mount after an old one's unmount must re-bind here (called from
    * the same mount effect) or capture stays silently dead forever.
+   *
+   * `{ revive: false }` re-points the slots without clearing this adapter's
+   * kill: a mount whose client the host explicitly killed must still take
+   * them back from a discarded StrictMode twin, which was never killed.
    */
-  __rebindCrumbHooks(): void;
+  __rebindCrumbHooks(options?: { revive?: boolean }): void;
   /** Apply server-driven maxCount to the live buffer (called after config refresh). Never throws. */
   __applyBreadcrumbsConfig(): void;
   /**
@@ -2091,7 +2095,16 @@ export function createWebPlatformAdapter(
     __setUserGetter: (get: () => UserMetadata | null): void => {
       userGet = get;
     },
-    __rebindCrumbHooks: (): void => {
+    __rebindCrumbHooks: (options?: { revive?: boolean }): void => {
+      if (options?.revive === false) {
+        // Claim only. These sinks keep consulting this adapter's own kill
+        // gates, so a killed adapter's forwarders stay inert and nothing the
+        // kill closed is reopened.
+        __bindCrumbHooks(crumbSink, crumbGate);
+        __bindCrashSink(crashSink ?? null);
+        __bindBodyCaptureHooks(bodyCapture);
+        return;
+      }
       // Codex round-1 findings 1/2 — see `reportingKilled`'s declaration. A
       // caller reaching this seam is declaring that a LIVE host mount owns this
       // adapter, which is the one thing that distinguishes React StrictMode's
