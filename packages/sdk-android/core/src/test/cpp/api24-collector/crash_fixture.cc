@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
@@ -40,6 +41,7 @@ void RememberAlternateStack() {
   stack_t stack{};if(sigaltstack(nullptr,&stack)!=0||(stack.ss_flags&SS_DISABLE))_exit(82);
   alternate_begin=reinterpret_cast<uintptr_t>(stack.ss_sp);alternate_end=alternate_begin+stack.ss_size;
 }
+int64_t MonotonicMs() { timespec now{};clock_gettime(CLOCK_MONOTONIC,&now);return int64_t{now.tv_sec}*1000+now.tv_nsec/1000000; }
 std::string RandomEpoch() {
   unsigned char bytes[16];if(RAND_bytes(bytes,sizeof bytes)!=1)_exit(83);
   const char* hex="0123456789abcdef";std::string out;for(auto b:bytes){out+=hex[b>>4];out+=hex[b&15];}return out;
@@ -109,6 +111,7 @@ int main(int argc,char** argv) {
   if (!crashpad::UnixCredentialSocket::CreateCredentialSocketpair(&client_socket, &server_socket)) return 7;
   int sockets[2] = {client_socket.release(), server_socket.release()};
   const pid_t handler=getpid();
+  const int64_t forked=MonotonicMs();
   const pid_t client=fork();
   if (client<0) return 8;
   if (client==0) {
@@ -139,12 +142,14 @@ int main(int argc,char** argv) {
   close(sockets[0]);close(events[1]);close(gate[0]);close(gate[1]);
   const bool committed=eq::RunHandler(sockets[1],directory,identity,key);
   int status=0; if (waitpid(client,&status,0)!=client || !WIFSIGNALED(status)) return 9;
+  // Spans fault and capture; a handler that never releases the client adds its 5 s completion wait.
+  const int64_t lifetime_ms=MonotonicMs()-forked;
   char observed[16]{};const ssize_t observed_count=read(events[0],observed,sizeof observed);close(events[0]);
   const std::string tokens=observed_count>0?std::string(observed,observed_count):std::string();
   size_t count=0; for (const auto& item : std::filesystem::directory_iterator(directory)) if(item.path().filename()!="authority")++count;
   if(mode=="worker-unprepared-overflow") {
     if(committed||count||WTERMSIG(status)!=SIGSEGV||tokens.find('U')==std::string::npos||tokens.find('S')!=std::string::npos)return 13;
-    std::cout<<"{\"fatalSignal\":11,\"recordCount\":0,\"unpreparedThreadDeclined\":true}\n";return 0;
+    std::cout<<"{\"fatalSignal\":11,\"clientLifetimeMs\":"<<lifetime_ms<<",\"recordCount\":0,\"unpreparedThreadDeclined\":true}\n";return 0;
   }
   if(!committed)return 9;
   const auto file=directory+"/"+identity.epoch;
@@ -152,7 +157,7 @@ int main(int argc,char** argv) {
   const std::vector<uint8_t> bytes{std::istreambuf_iterator<char>(stream),std::istreambuf_iterator<char>()};
   const auto record=eq::OpenRecord(bytes,key);
   if (!record) return 10;
-  std::cout << "{\"fatalSignal\":" << WTERMSIG(status) << ",\"encryptedBytes\":" << bytes.size()
+  std::cout << "{\"fatalSignal\":" << WTERMSIG(status) << ",\"clientLifetimeMs\":" << lifetime_ms << ",\"encryptedBytes\":" << bytes.size()
             << ",\"expectedSegvPc\":" << reinterpret_cast<uintptr_t>(ev_qualification_fault_pc)
             << ",\"recordCount\":" << count << ",\"signalRanOnAlternateStack\":" << (tokens.find('S')!=std::string::npos?"true":"false")
             << ",\"previousHandlerRan\":" << (tokens.find('P')!=std::string::npos?"true":"false")

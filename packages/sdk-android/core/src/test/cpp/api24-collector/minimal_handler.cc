@@ -47,7 +47,9 @@ class MinimalDelegate final : public crashpad::ExceptionHandlerServer::Delegate 
 };
 bool RunHandler(int socket, const std::string& directory, const FrozenIdentity& identity, const Key& key) {
   crashpad::ExceptionHandlerServer server;
-  if (!server.InitializeWithClient(crashpad::ScopedFileHandle(socket), false)) return false;
+  // SetHandlerSocket clients speak the shared-connection protocol: after a request they wait
+  // for SIGCONT and never read a completion message, so single-client mode holds them 5 s.
+  if (!server.InitializeWithClient(crashpad::ScopedFileHandle(socket), true)) return false;
   MinimalDelegate delegate(directory, identity, key);
   server.Run(&delegate);
   return delegate.committed();
