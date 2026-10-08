@@ -22,7 +22,11 @@ rootProject.name = "everframe-android"
 
 include(":everframe-protocol")
 include(":everframe-core")
-include(":everframe-native-crash")
+// Native binaries are deliberately not downloaded or built by ordinary SDK tasks.
+// An explicit, verified workspace opts into this optional publication.
+if (providers.gradleProperty("everframeNativeBuildDir").isPresent) {
+    include(":everframe-native-crash")
+}
 include(":everframe-reporter-ui")
 include(":everframe-media3")
 include(":everframe-gradle-plugin")

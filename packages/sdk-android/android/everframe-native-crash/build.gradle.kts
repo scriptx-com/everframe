@@ -5,6 +5,12 @@ plugins {
     `maven-publish`
     signing
 }
+// This module is Java-only, so Dokka cannot infer roots from the Kotlin plugin.
+extensions.configure<org.jetbrains.dokka.gradle.DokkaExtension> {
+    dokkaSourceSets.register("main") {
+        sourceRoots.from(file("src/main/java"))
+    }
+}
 val nativeWorkspace = providers.gradleProperty("everframeNativeBuildDir")
     .map { file(it) }.orElse(layout.projectDirectory.dir("../../native/build").asFile)
 val nativeAbis = providers.gradleProperty("everframeNativeAbis").orElse("all")

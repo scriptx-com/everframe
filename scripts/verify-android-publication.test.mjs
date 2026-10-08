@@ -83,10 +83,10 @@ function fixture() {
   return repository;
 }
 
-function verify(repository) {
+function verify(repository, native = false) {
   return spawnSync('bash', [verifier, version], {
     cwd: root,
-    env: { ...process.env, MAVEN_LOCAL_REPOSITORY: repository },
+    env: { ...process.env, MAVEN_LOCAL_REPOSITORY: repository, EVERFRAME_VERIFY_NATIVE_CRASH: native ? "1" : "0" },
     encoding: 'utf8',
   });
 }
@@ -204,3 +204,81 @@ test('rejects a release core AAR whose delivery diagnostics API was renamed or s
     }
   }
 });
+
+function nativeFixture(repository, omit, replacements = {}) {
+  const directory = path.join(repository, 'dev/everframe/native-crash', version);
+  mkdirSync(directory, { recursive: true });
+  const prefix = path.join(directory, `native-crash-${version}`);
+  writeFileSync(`${prefix}.pom`, `<project><groupId>dev.everframe</groupId><artifactId>native-crash</artifactId><version>${version}</version></project>`);
+  zip(`${prefix}-sources.jar`, { 'dev/everframe/nativecrash/NativeCrashBridge.java': 'class' });
+  zip(`${prefix}-javadoc.jar`, { 'index.html': '<html>Native capture</html>' });
+  const bridge = 'dev/everframe/nativecrash/NativeCrashBridge.class';
+  zip(`${prefix}-classes.jar`, { [omit === bridge ? 'other.class' : bridge]: 'generation arm pause revoke' });
+  const entries = {
+    'classes.jar': readFileSync(`${prefix}-classes.jar`),
+    'proguard.txt': '-keep class dev.everframe.nativecrash.NativeCrashBridge { *; }',
+  };
+  for (const name of ['Crashpad', 'OpenSSL', 'linux-syscall-support', 'mini-chromium', 'zlib']) {
+    entries[`assets/everframe-native-licenses/${name}.txt`] = 'License';
+  }
+  for (const [abi, elfClass, machine] of [['armeabi-v7a', 1, 40], ['arm64-v8a', 2, 183], ['x86', 1, 3], ['x86_64', 2, 62]]) {
+    const elf = Buffer.alloc(64);
+    elf.set([127, 69, 76, 70, elfClass, 1]);
+    elf.writeUInt16LE(machine, 18);
+    for (const library of ['client', 'handler', 'trampoline']) entries[`jni/${abi}/libeverframe_native_${library}.so`] = elf;
+  }
+  if (omit) delete entries[omit];
+  zip(`${prefix}.aar`, { ...entries, ...replacements });
+  rmSync(`${prefix}-classes.jar`);
+}
+
+test('accepts an explicitly enabled complete native publication', () => {
+  const repository = fixture();
+  try {
+    nativeFixture(repository);
+    const result = verify(repository, true);
+    assert.equal(result.status, 0, result.stderr);
+  } finally { rmSync(repository, { recursive: true, force: true }); }
+});
+
+test('requires the optional publication when explicitly enabled', () => {
+  const repository = fixture();
+  try {
+    const result = verify(repository, true);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /native-crash/);
+  } finally { rmSync(repository, { recursive: true, force: true }); }
+});
+
+for (const omit of [
+  'jni/x86/libeverframe_native_handler.so',
+  'dev/everframe/nativecrash/NativeCrashBridge.class',
+  'proguard.txt',
+  'assets/everframe-native-licenses/OpenSSL.txt',
+]) {
+  test(`rejects enabled native publication missing ${omit}`, () => {
+    const repository = fixture();
+    try {
+      nativeFixture(repository, omit);
+      const result = verify(repository, true);
+      assert.notEqual(result.status, 0);
+      assert.ok(result.stderr.includes(omit), result.stderr);
+    } finally { rmSync(repository, { recursive: true, force: true }); }
+  });
+}
+
+for (const [entry, contents] of [
+  ['jni/arm64-v8a/libeverframe_native_client.so', Buffer.alloc(64)],
+  ['jni/unexpected/libother.so', Buffer.alloc(64)],
+  ['proguard.txt', '-keep class unrelated.Type { *; }'],
+]) {
+  test(`rejects invalid native publication content in ${entry}`, () => {
+    const repository = fixture();
+    try {
+      nativeFixture(repository, undefined, { [entry]: contents });
+      const result = verify(repository, true);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Invalid native-crash AAR/);
+    } finally { rmSync(repository, { recursive: true, force: true }); }
+  });
+}

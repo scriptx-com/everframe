@@ -61,3 +61,19 @@ them again. A single-ABI local build uses `--abi arm64-v8a` plus Gradle
 `-PeverframeNativeAbis=arm64-v8a`; publication rejects partial-ABI builds.
 Third-party license texts ship as AAR assets. No downloaded or generated native
 binary is checked into this repository.
+
+Ordinary Android builds and Maven bundles exclude this module. Supplying
+`-PeverframeNativeBuildDir` explicitly includes it and requires valid artifacts;
+a missing or stale workspace fails the build. To prepare a complete unsigned
+mobile bundle including native capture, run from the repository root:
+
+```sh
+node scripts/build-mobile-maven-bundle.mjs --prepare \
+  --native-workspace /absolute/owned-build
+```
+
+Without `--native-workspace`, the established bundle contents are unchanged.
+The native-enabled bundle requires all four ABIs and verifies the bridge,
+consumer keep rules and third-party licenses. For direct Maven-local checks,
+set `EVERFRAME_VERIFY_NATIVE_CRASH=1` when running
+`scripts/verify-android-publication.sh <version>`.
