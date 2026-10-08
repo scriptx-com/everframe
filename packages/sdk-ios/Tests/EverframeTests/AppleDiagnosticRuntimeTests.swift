@@ -49,7 +49,11 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
     func testSDKStartAndKillFenceDiagnosticAdmission() async throws {
         let live = runtime(), device = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "18.0", locale: "en_US", timezone: "UTC",
             appVersion: "1.0", appBuild: "42", bundleIdentifier: "dev.example.host")
-        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: live, nativeDeviceSnapshot: { device })
+        // The accepted receipt starts the SDK's retry drain; keep it off real hosts.
+        let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [AppleUnavailableProtocol.self]
+        let session = URLSession(configuration: configuration); defer { session.invalidateAndCancel() }
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: live, appleDiagnosticSession: { session },
+            nativeDeviceSnapshot: { device })
         defer { live.boundary() }
         reject(await sdk.setAppleDiagnosticsEnabled(true))
         try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
@@ -357,6 +361,17 @@ private final class AppleAcceptProtocol: URLProtocol {
     override func startLoading() {
         Self.lock.withLock { Self.recorded.append(request) }
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+/// A retryable answer: the receipt stays queued and no request leaves the process.
+private final class AppleUnavailableProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
