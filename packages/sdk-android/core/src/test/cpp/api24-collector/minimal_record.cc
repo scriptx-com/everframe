@@ -106,7 +106,7 @@ bool WriteEncryptedRecord(const std::string& directory, const std::string& name,
   if (close(fd) != 0) ok=false;
   // Hard link commits without replacing any existing immutable record.
   if (ok) ok=linkat(dir, temporary.c_str(), dir, name.c_str(), 0)==0;
-  unlinkat(dir, temporary.c_str(), 0);
+  if (unlinkat(dir, temporary.c_str(), 0) != 0 && errno != ENOENT) ok=false;
   if (ok) ok=fsync(dir)==0;
   close(dir); return ok;
 }

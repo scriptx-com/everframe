@@ -4,7 +4,7 @@
 import("../build/crashpad_buildconfig.gni")
 crashpad_executable("everframe_crash_fixture") {
   testonly = true
-  sources = [ "crash_fixture.cc", "minimal_handler.cc", "minimal_handler.h", "minimal_record.cc", "minimal_record.h" ]
+  sources = [ "crash_fixture.cc", "authority_controls.cc", "authority.cc", "authority.h", "minimal_handler.cc", "minimal_handler.h", "minimal_record.cc", "minimal_record.h" ]
   deps = [ "../client", "../handler:handler", "../snapshot", "../util", "../third_party/mini_chromium:base" ]
   libs = [ "crypto" ]
   ldflags = [ "-Wl,--build-id=sha1" ]

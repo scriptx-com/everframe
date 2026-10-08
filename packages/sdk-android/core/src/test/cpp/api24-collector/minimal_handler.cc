@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 #include "minimal_handler.h"
+#include "authority.h"
 #include "handler/linux/capture_snapshot.h"
 #include "handler/linux/exception_handler_server.h"
 #include "snapshot/linux/process_snapshot_linux.h"
@@ -34,7 +35,9 @@ class MinimalDelegate final : public crashpad::ExceptionHandlerServer::Delegate 
     if (!projected) return false;
     const auto cipher = SealRecord(*projected, key_);
     if (!cipher) return false;
-    committed_ = WriteEncryptedRecord(directory_, identity_.report_id, *cipher);
+    Authority authority(directory_, key_);
+    const auto result = authority.Commit(identity_.epoch, *cipher);
+    committed_ = result == CommitResult::committed || result == CommitResult::existing;
     return committed_;
   }
   const std::string directory_;
