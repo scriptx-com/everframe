@@ -4,7 +4,9 @@ package dev.everframe
 
 import dev.everframe.crash.AndroidNativeCrashRuntime
 import dev.everframe.crash.AndroidNativeRecoveryRequests
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -13,6 +15,19 @@ import org.robolectric.annotation.Config
 /** Public recovery switches must erase previous-process evidence only on an explicit false or an API30 narrowing. */
 @RunWith(RobolectricTestRunner::class)
 class ProcessExitRecoveryModeTest {
+    private val publishedStartEpoch = Everframe::class.java.getDeclaredField("_publishedStartEpoch").apply { isAccessible = true }
+
+    /** Enables are fenced until a start publishes its epoch, so publish the current one as start() does. */
+    private var previousPublishedStartEpoch: Any? = null
+
+    @Before fun publishStart() {
+        previousPublishedStartEpoch = publishedStartEpoch.get(null)
+        val epoch = Everframe::class.java.getDeclaredField("_startEpoch").apply { isAccessible = true }.getInt(null)
+        publishedStartEpoch.set(null, epoch)
+    }
+
+    @After fun restorePublishedStart() { publishedStartEpoch.set(null, previousPublishedStartEpoch) }
+
     /** Consumes and reports any durable-erasure obligation the switch calls left for the next owner. */
     private fun erasureScheduled(): Boolean {
         val runtime = AndroidNativeCrashRuntime::class.java
