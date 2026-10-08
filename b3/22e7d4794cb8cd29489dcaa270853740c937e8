@@ -1,0 +1,20 @@
+packages/sdk-ios/Tests/EverframeTests/DiagnosticExposureProtocolTests.swift
+  s_360d9eb003c487::t_1f1e5ffd7cace1 26-41
+  s_360d9eb003c487::t_cae8b206cf72c5 15,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b322e7d4794cb8cd29489dcaa270853740c937e8",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
