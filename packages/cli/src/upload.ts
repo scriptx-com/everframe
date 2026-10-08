@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { open, realpath, unlink, lstat } from "node:fs/promises";
 import { isIP } from "node:net";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { DSYM_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
+import { DSYM_MAX_BYTES, ELF_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
 import { collectBuild, hashFile, type LocalBuild } from "./manifest.js";
 
 export interface UploadOptions {
@@ -283,8 +283,8 @@ async function verifyCollectedFiles(
     if (!mapPath) throw new Error("invalid_local_build");
     const roots = local.fileRoots?.get(artifact.url);
     await readCheckedMapping(roots?.mapRoot ?? defaultRoot, mapPath, artifact,
-      local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined);
-    if (local.manifest.version === 3 || local.manifest.version === 4) continue;
+      local.manifest.version === 5 ? ELF_MAX_BYTES : local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined);
+    if (local.manifest.version === 3 || local.manifest.version === 4 || local.manifest.version === 5) continue;
     const generatedPath = local.generatedPaths?.get(artifact.url);
     if (!generatedPath) throw new Error("invalid_local_build");
     await ensurePathInRoot(roots?.generatedRoot ?? defaultRoot, generatedPath);
@@ -350,7 +350,7 @@ export async function uploadCollectedBuild(
         roots?.mapRoot ?? options.root,
         mapPath,
         artifact,
-        local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined,
+        local.manifest.version === 5 ? ELF_MAX_BYTES : local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined,
       );
       const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
       const uploaded = await request(

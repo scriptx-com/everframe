@@ -3,7 +3,7 @@
 
 # Everframe build artifact CLI
 
-Run `everframe --help` for source-map, Hermes, R8 and build-staging commands.
+Run `everframe --help` for source-map, Hermes, R8, native symbols and build-staging commands.
 
 ## Apple dSYM upload
 
@@ -91,3 +91,27 @@ node packages/cli/dist/index.js dsym upload-build --app-id "$EVERFRAME_APP_ID" \
 
 The shell example also accepts `EVERFRAME_CLI_JS` pointing to that built
 `dist/index.js`. This workflow does not require publishing a package first.
+
+## Android ELF upload
+
+Keep the unstripped shared library produced by each Android build and ABI:
+
+```sh
+everframe elf upload --app-id "$EVERFRAME_APP_ID" \
+  --library "symbols/arm64-v8a/libapp.so"
+```
+
+Set `EVERFRAME_API_TOKEN` to a token with `artifacts:write` access to the app.
+`EVERFRAME_API_URL` optionally selects the endpoint. Each invocation uploads one
+raw ELF file up to 64 MiB and retains the local file. Archives, symbol directories,
+separate debug files and compressed DWARF sections are unsupported. The service
+requires embedded DWARF line/debug information and a GNU build ID, then matches
+frames by that exact build ID and ABI within the app. A release label or library
+filename cannot substitute for that identity. Keep the build ID in the shipped
+library; stripping runtime debug information must preserve it.
+
+Run once for every library and ABI whose frames need symbols. Upload after the
+native build and before promoting the app; a nonzero exit means the artifact is
+not ready. Retrying the same file resumes its content-addressed upload. This
+command does not install a Gradle task or discover build outputs. A ready artifact
+establishes symbol availability; readable crashes still require device testing.
