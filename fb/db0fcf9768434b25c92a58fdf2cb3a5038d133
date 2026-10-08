@@ -1,0 +1,59 @@
+packages/sdk-android/core/src/test/cpp/api24-collector/android/BUILD.gn
+  s_97602a0a2d8f20::t_96e7d26fd965df 1-34
+packages/sdk-android/core/src/test/cpp/api24-collector/android/OPENSSL-LICENSE.txt
+  s_97602a0a2d8f20::t_06d163aca8d5ac 1-177
+packages/sdk-android/core/src/test/cpp/api24-collector/android/README.md
+  s_97602a0a2d8f20::t_77dcd6608f249f 1-18
+packages/sdk-android/core/src/test/cpp/api24-collector/android/client.cc
+  s_97602a0a2d8f20::t_0ca548eba9e038 1-74
+packages/sdk-android/core/src/test/cpp/api24-collector/android/dependency-pins.json
+  s_97602a0a2d8f20::t_065806c0b5df57 1-29
+packages/sdk-android/core/src/test/cpp/api24-collector/android/handler.cc
+  s_97602a0a2d8f20::t_5d41094a284775 1-86
+packages/sdk-android/core/src/test/cpp/api24-collector/android/handoff.cc
+  s_97602a0a2d8f20::t_d58d898503cf7f 1-61
+packages/sdk-android/core/src/test/cpp/api24-collector/android/handoff.h
+  s_97602a0a2d8f20::t_a1168ff6530595 1-28
+packages/sdk-android/core/src/test/cpp/api24-collector/android/handoff_controls.cc
+  s_97602a0a2d8f20::t_93d0532eacec1c 1-78
+packages/sdk-android/core/src/test/cpp/api24-collector/android/mini-chromium-arm-gn.patch
+  s_97602a0a2d8f20::t_be03f445f11b18 1-10
+packages/sdk-android/core/src/test/cpp/api24-collector/android/publication_controls.cc
+  s_97602a0a2d8f20::t_c2d39e457a1cbe 1-34
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.cc
+  s_97602a0a2d8f20::t_c0841b59e6ed0c 14-15,41,47,50,53
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.h
+  s_97602a0a2d8f20::t_dfa99c57ba0059 6,8-9
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_record.cc
+  s_97602a0a2d8f20::t_74d741d36f4378 8-11,111-117,119
+packages/sdk-android/tests/native-handler-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_cc411e8536c1d5 1-20
+packages/sdk-android/tests/native-handler-host/app/proguard-rules.pro
+  s_97602a0a2d8f20::t_702e611e9e2668 1
+packages/sdk-android/tests/native-handler-host/app/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_666f4a1ac3eacc 1-5
+packages/sdk-android/tests/native-handler-host/app/src/main/assets/OPENSSL-LICENSE.txt
+  s_97602a0a2d8f20::t_0684fe22e5b8f0 1-177
+packages/sdk-android/tests/native-handler-host/app/src/main/java/dev/everframe/qualification/MainActivity.java
+  s_97602a0a2d8f20::t_143870656ce6c3 1-29
+packages/sdk-android/tests/native-handler-host/build.gradle.kts
+  s_97602a0a2d8f20::t_2cda667aea0527 1-3
+packages/sdk-android/tests/native-handler-host/settings.gradle.kts
+  s_97602a0a2d8f20::t_9b035b17b325e2 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fbdb0fcf9768434b25c92a58fdf2cb3a5038d133",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
