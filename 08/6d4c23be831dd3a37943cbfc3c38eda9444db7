@@ -1,0 +1,19 @@
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticRuntimeTests.swift
+  s_360d9eb003c487::t_5f50cf791d868f 276-288
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "086d4c23be831dd3a37943cbfc3c38eda9444db7",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
