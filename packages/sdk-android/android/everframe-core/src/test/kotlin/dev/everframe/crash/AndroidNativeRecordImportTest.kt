@@ -42,11 +42,12 @@ class AndroidNativeRecordImportTest {
         engine.arm(value,"previous-process",allowed) { e,k -> epoch=e;retained=k.copyOf();true }
         return Armed(value,epoch,retained)
     }
-    private fun cipher(a: Armed, epoch: String = a.epoch, plain: String? = null): ByteArray {
+    private fun cipher(a: Armed, epoch: String = a.epoch, plain: String? = null, captured: Long = 2000, production: Boolean = false): ByteArray {
         val header = byteArrayOf(69,86,81,67,1,0,0,0); val nonce=ByteArray(12).also { SecureRandom().nextBytes(it) }
         val text=plain ?: """{"version":1,"reportId":"android-qualification","epoch":"$epoch","owner":"anonymous-qualification","release":"frozen-native-qualification","signal":11,"architecture":4,"threadId":99,"snapshotTimeMs":2000,"pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"libfault.so","buildId":"aabb","partial":true}"""
+        val finalText=text.replace("\"snapshotTimeMs\":2000", "\"snapshotTimeMs\":$captured").let { if(production) it.replace("android-qualification",epoch).replace("anonymous-qualification","anonymous").replace("frozen-native-qualification","frozen") else it }
         val c=Cipher.getInstance("AES/GCM/NoPadding");c.init(Cipher.ENCRYPT_MODE,SecretKeySpec(a.key,"AES"),GCMParameterSpec(128,nonce));c.updateAAD(header)
-        return header+nonce+c.doFinal(text.toByteArray())
+        return header+nonce+c.doFinal(finalText.toByteArray())
     }
     @Test fun `capsule is encrypted and durable before provisioning and temporary key is cleared`() {
         val value=template();var borrowed:ByteArray?=null
@@ -100,8 +101,8 @@ class AndroidNativeRecordImportTest {
         val b=arm();val denied=object:OutboxAuthorization { override fun isAllowed()=false }
         assertEquals(0,importer().recover("new",3000,denied,{ cipher(b) }) { it, admission -> error("stale") })
     }
-    @Test fun `expired capsule is removed without reading native ciphertext`() {
-        arm();assertEquals(0,importer().recover("new",15L*24*60*60*1000,allowed,{ error("expired") }) { it, admission -> error("expired") })
+    @Test fun `expired authenticated record is removed after checking capture time`() {
+        val a=arm();assertEquals(0,importer().recover("new",15L*24*60*60*1000,allowed,{ cipher(a) }) { it, admission -> error("expired") })
         assertTrue(store("capsules").snapshotTokens().isEmpty())
     }
     @Test fun `launches that end without a native fault retire their capsules`() {
@@ -197,6 +198,32 @@ class AndroidNativeRecordImportTest {
             true
         } } catch(_:OutboxWriteException) {}
         assertTrue(main.snapshotTokens().isEmpty())
+    }
+
+    @Test fun `production native identity imports with original anonymous capsule`() {
+        val a=arm();val main=store("main")
+        assertEquals(1,importer().recover("next",3000,allowed,{ cipher(a,production=true) }) { e,g -> main.enqueueSync(e,g);true })
+        assertEquals(a.template.reportId,main.readIfPresent(main.snapshotTokens().single())!!.entry.reportId)
+    }
+    @Test fun `fresh crash after long process uptime survives arm age`() {
+        val a=arm();val now=AndroidNativeRecordImport.MAX_AGE_MS+6000
+        assertEquals(1,importer().recover("next",now,allowed,{ cipher(a,captured=now-1000) }) { _,_ -> true })
+    }
+    @Test fun `clock rollback cannot retire current process capsule`() {
+        arm()
+        assertEquals(0,importer().recover("previous-process",999,allowed,{ error("live") }) { _,_ -> error("live") })
+        assertEquals(1,store("capsules").snapshotTokens().size)
+    }
+    @Test fun `clock rollback still authenticates previous process crash`() {
+        val a=arm()
+        assertEquals(1,importer().recover("next",500,allowed,{cipher(a)}) { _,_ -> true })
+    }
+    @Test fun `fresh late crash keeps prepared receipt for retry`() {
+        val a=arm();val now=AndroidNativeRecordImport.MAX_AGE_MS+6000
+        var staged:OutboxEntry?=null
+        assertEquals(0,importer().recover("next",now,allowed,{cipher(a,captured=now-1000)}) { e,_ -> staged=e;false })
+        assertNotNull(staged)
+        assertEquals(1,importer().recover("later",now+1000,allowed,{null}) { e,_ -> assertEquals(staged,e);true })
     }
 
 }

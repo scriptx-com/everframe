@@ -64,7 +64,6 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             if(!gate.isAllowed()) break
             val context=capsules.readIfPresent(token)?.entry ?: continue
             if(context.reportId in ready) continue
-            if(nowMs<context.createdAt || nowMs-context.createdAt>MAX_AGE_MS) { capsules.removeIfPresent(token);continue }
             val capsule=try { require(context.envelopeBytes.size<=MAX_CONTEXT);Json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject } catch(_:Exception) { continue }
             if(capsule["version"]?.jsonPrimitive?.intOrNull!=1 || capsule["launch"]?.jsonPrimitive?.content==currentProcessLaunchId) continue
             val key=try { Base64.getDecoder().decode(capsule.getValue("key").jsonPrimitive.content) } catch(_:Exception) { continue }
@@ -73,7 +72,13 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
                 // An ended launch that left no record can never produce one.
                 if(bytes==null) { capsules.removeIfPresent(token);continue }
                 AndroidNativeRecordReader.open(bytes,key,context.reportId.replace("-",""),context.createdAt,nowMs)
-            } finally { key.fill(0) } ?: continue
+            } finally { key.fill(0) }
+            if (native == null) {
+                if (nowMs > context.createdAt && nowMs - context.createdAt > MAX_AGE_MS) capsules.removeIfPresent(token)
+                continue
+            }
+            val capturedAt = native.getValue("snapshotTimeMs").jsonPrimitive.long
+            if (nowMs > capturedAt && nowMs - capturedAt > MAX_AGE_MS) { capsules.removeIfPresent(token); continue }
             check(gate)
             val frozen=capsule.getValue("envelope").jsonObject
             val original=context.copy(envelopeBytes=frozen.toString().toByteArray())
@@ -93,7 +98,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             val owners=capsules.snapshotTokens().mapNotNull { capsules.readIfPresent(it)?.entry?.reportId }.toSet()
             val entry=prepared.readIfPresent(token)?.entry ?: continue
             if(entry.reportId !in owners) { prepared.removeIfPresent(token);continue }
-            if(nowMs<entry.createdAt || nowMs-entry.createdAt>MAX_AGE_MS) { removeCapsules(entry.reportId);prepared.removeIfPresent(token);continue }
+            if(nowMs>entry.createdAt && nowMs-entry.createdAt>MAX_AGE_MS) { removeCapsules(entry.reportId);prepared.removeIfPresent(token);continue }
             check(gate)
             if(!admit(entry,gate)) continue
             check(gate)
@@ -102,6 +107,8 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         }
         return count
     }
+    /** Retire only the current live process's armed context after its producer is paused. */
+    @Synchronized fun retireArmed(reportId: String) { removeCapsules(reportId) }
     private fun removeCapsules(id:String) { for(token in capsules.snapshotTokens()) if(capsules.readIfPresent(token)?.entry?.reportId==id) capsules.removeIfPresent(token) }
     private fun report(context:OutboxEntry,frozen:JsonObject,record:JsonObject,nowMs:Long):OutboxEntry {
         val timestamp=record.getValue("snapshotTimeMs").jsonPrimitive.long
@@ -116,7 +123,9 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             put("frames",buildJsonArray { add(buildJsonObject { put("raw",raw) }) });put("androidNative",native)
         }
         val bytes=JsonObject(frozen+mapOf("source" to JsonPrimitive("crash"),"submittedAt" to JsonPrimitive(Instant.ofEpochMilli(nowMs).toString()),"payload" to buildJsonObject { put("crash",crash) })).toString().toByteArray()
-        return context.copy(envelopeBytes=bytes,idempotencyKey=digest(bytes))
+        // The retry window begins when a valid record is first recovered, not when
+        // a potentially long-running process armed its crash context.
+        return context.copy(createdAt=nowMs,envelopeBytes=bytes,idempotencyKey=digest(bytes))
     }
     fun invalidate() { revision.incrementAndGet();capsules.invalidateSync();prepared.invalidateSync() }
     /** Invalidate both generations before producer shutdown or any fallible disk operation. */

@@ -41,12 +41,16 @@ internal object AndroidNativeRecordReader {
         val plain=cipher.doFinal(bytes,20,bytes.size-20)
         val record=try { Json.parseToJsonElement(plain.toString(Charsets.UTF_8)).jsonObject } finally { plain.fill(0) }
         require(record["version"]?.jsonPrimitive?.int==1 && record["epoch"]?.jsonPrimitive?.content==epoch)
-        require(record["reportId"]?.jsonPrimitive?.content=="android-qualification" && record["owner"]?.jsonPrimitive?.content=="anonymous-qualification" && record["release"]?.jsonPrimitive?.content=="frozen-native-qualification")
+        val identity = listOf("reportId", "owner", "release").map { record[it]?.jsonPrimitive?.content }
+        require(identity == listOf("android-qualification", "anonymous-qualification", "frozen-native-qualification") ||
+            identity == listOf(epoch, "anonymous", "frozen"))
         require(record["partial"]?.jsonPrimitive?.boolean==true)
         val signal=record.getValue("signal").jsonPrimitive.int;require(signal in 1..64)
         val tid=record.getValue("threadId").jsonPrimitive.long;require(tid in 1..4294967295L)
         val captured=record.getValue("snapshotTimeMs").jsonPrimitive.long
-        require(captured>=createdAt && captured<=nowMs && captured>0)
+        // Both clocks are wall clocks. A clock adjustment is not evidence that an
+        // authenticated native record is invalid; age is applied by the importer.
+        require(captured > 0)
         val abi=when(record.getValue("architecture").jsonPrimitive.int) { 1->"x86";2->"x86_64";3->"armeabi-v7a";4->"arm64-v8a";else->error("architecture") }
         fun address(name:String)=record.getValue(name).jsonPrimitive.content.toULong()
         val pc=address("pc");val base=address("moduleBase");val relative=address("moduleOffset")
