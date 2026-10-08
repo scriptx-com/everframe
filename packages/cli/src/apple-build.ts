@@ -31,13 +31,30 @@ const NOT_A_DSYM = new Set([
   "unsupported_apple_architecture",
   "invalid_input_file",
 ]);
-/** Bounded diagnostic detail: keeps the informative tail of a long path. */
-const shown = (path: string) =>
-  path.length > 200 ? "..." + path.slice(-197) : path;
+/**
+ * At most eight detail lines per diagnostic list. Paths stay whole so the CLI
+ * can redact a configured token before it caps the printed message.
+ */
 const bounded = (lines: string[]) =>
   lines.length > 8
     ? [...lines.slice(0, 8), `  and ${lines.length - 8} more`]
     : lines;
+/** Names the file behind a bare failure code; other errors pass through. */
+function named(error: unknown, path: string) {
+  return error instanceof Error && /^[a-z0-9_]+$/.test(error.message)
+    ? new Error(`${error.message}: ${path}`)
+    : error;
+}
+export async function withPath<T>(
+  path: string,
+  run: () => Promise<T>
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw named(error, path);
+  }
+}
 const key = (image: AppleBuildImage) =>
   `${image.uuid}/${image.cpuType}/${image.cpuSubtype}`;
 function architecture(
@@ -320,13 +337,15 @@ export async function collectAppleBuild(options: {
   dsymDir: string;
 }): Promise<CollectedAppleBuild> {
   if (!options.binaries.length || options.binaries.length > 16)
-    throw new Error("apple_build_limit");
+    throw new Error(
+      `apple_build_limit: list 1 to 16 binaries (got ${options.binaries.length})`
+    );
   const root = await realpath(resolve(options.dsymDir));
   const binaries = [];
   for (const path of options.binaries)
     binaries.push({
       path: resolve(path),
-      images: await readAppleBinaryImages(path),
+      images: await withPath(resolve(path), () => readAppleBinaryImages(path)),
     });
   const expected = new Map(
     binaries.flatMap((b) =>
@@ -336,21 +355,28 @@ export async function collectAppleBuild(options: {
   const candidates: Array<{ path: string; images: AppleBuildImage[] }> = [],
     skipped: string[] = [];
   let entries = 0,
-    bundles = 0;
+    bundles = 0,
+    scanned = 0;
   async function list(path: string) {
-    const canonical = await checkedRealPath(root, path),
-      result = [];
-    const dir = await opendir(canonical);
-    for await (const entry of dir) {
-      if (++entries > 1024) throw new Error("apple_build_limit");
-      result.push(entry.name);
-    }
-    if (canonical !== (await checkedRealPath(root, path)))
-      throw new Error("source_map_changed");
-    return result.sort();
+    return withPath(path, async () => {
+      const canonical = await checkedRealPath(root, path),
+        result = [];
+      const dir = await opendir(canonical);
+      for await (const entry of dir) {
+        if (++entries > 1024)
+          throw new Error(
+            `apple_build_limit: more than 1024 directory entries under ${root}`
+          );
+        result.push(entry.name);
+      }
+      if (canonical !== (await checkedRealPath(root, path)))
+        throw new Error("source_map_changed");
+      return result.sort();
+    });
   }
   for (const name of await list(root)) {
     if (!name.endsWith(".dSYM")) continue;
+    scanned++;
     const directory = join(root, name, "Contents", "Resources", "DWARF");
     let matched = false;
     for (const entry of await list(directory)) {
@@ -363,8 +389,8 @@ export async function collectAppleBuild(options: {
         // unsupported entries are not candidates. Path, race and I/O
         // failures still stop the build.
         if (!(error instanceof Error) || !NOT_A_DSYM.has(error.message))
-          throw error;
-        skipped.push(`  ${shown(path)} (${error.message})`);
+          throw named(error, path);
+        skipped.push(`  ${path} (${error.message})`);
         continue;
       }
       if (images.some((image) => expected.has(key(image)))) {
@@ -373,55 +399,75 @@ export async function collectAppleBuild(options: {
       }
     }
     // Unrelated bundles stay bounded by the directory-entry limit only.
-    if (matched && ++bundles > 64) throw new Error("apple_build_limit");
+    if (matched && ++bundles > 64)
+      throw new Error(
+        `apple_build_limit: more than 64 .dSYM bundles under ${root} hold a listed identity`
+      );
   }
   const selected = new Map<string, LocalBuild>(),
-    published = new Map<string, string>();
-  for (const candidate of candidates) {
-    const inspected = await inspect(
-      candidate.path,
-      { root, kind: "dsym" },
-      true
-    );
-    if (JSON.stringify(inspected.images) !== JSON.stringify(candidate.images))
-      throw new Error("source_map_changed");
-    const local = await collectDsymBuild({ dwarfPath: candidate.path });
-    await checkedRealPath(root, candidate.path);
-    const sha = local.manifest.artifacts[0]!.mapSha256;
-    if (sha !== inspected.sha256) throw new Error("source_map_changed");
-    for (const image of inspected.images) {
-      const previous = published.get(key(image));
-      if (previous && previous !== sha)
-        throw new Error("ambiguous_dsym_identity");
-      published.set(key(image), sha);
-    }
-    if (!selected.has(sha)) {
-      if (selected.size === 8) throw new Error("apple_build_limit");
-      // Preserve the caller's common anchor, including the bundle parents.
-      for (const roots of local.fileRoots!.values()) roots.mapRoot = root;
-      selected.set(sha, local);
-    }
-  }
-  for (const identity of expected.keys())
-    if (!published.has(identity))
-      throw new Error(
-        [
-          "missing_matching_dsym",
-          ...(skipped.length
-            ? [
-                "Skipped files that are not supported 64-bit dSYMs:",
-                ...bounded(skipped),
-              ]
-            : []),
-        ].join("\n")
+    published = new Map<string, { sha: string; path: string }>();
+  for (const candidate of candidates)
+    await withPath(candidate.path, async () => {
+      const inspected = await inspect(
+        candidate.path,
+        { root, kind: "dsym" },
+        true
       );
-  for (const binary of binaries) {
-    if (
-      JSON.stringify(await readAppleBinaryImages(binary.path)) !==
-      JSON.stringify(binary.images)
-    )
-      throw new Error("source_map_changed");
-  }
+      if (
+        JSON.stringify(inspected.images) !== JSON.stringify(candidate.images)
+      )
+        throw new Error("source_map_changed");
+      const local = await collectDsymBuild({ dwarfPath: candidate.path });
+      await checkedRealPath(root, candidate.path);
+      const sha = local.manifest.artifacts[0]!.mapSha256;
+      if (sha !== inspected.sha256) throw new Error("source_map_changed");
+      for (const image of inspected.images) {
+        const previous = published.get(key(image));
+        if (previous && previous.sha !== sha)
+          throw new Error(
+            `ambiguous_dsym_identity: ${image.architecture} ${image.uuid} is in different files ${previous.path} and ${candidate.path}`
+          );
+        if (!previous) published.set(key(image), { sha, path: candidate.path });
+      }
+      if (!selected.has(sha)) {
+        if (selected.size === 8)
+          throw new Error(
+            "apple_build_limit: more than 8 distinct DWARF files match the listed binaries"
+          );
+        // Preserve the caller's common anchor, including the bundle parents.
+        for (const roots of local.fileRoots!.values()) roots.mapRoot = root;
+        selected.set(sha, local);
+      }
+    });
+  const missing = new Map<string, string>();
+  for (const binary of binaries)
+    for (const image of binary.images)
+      if (!published.has(key(image)) && !missing.has(key(image)))
+        missing.set(
+          key(image),
+          `  ${image.architecture} ${image.uuid} in ${binary.path}`
+        );
+  if (missing.size)
+    throw new Error(
+      [
+        `missing_matching_dsym: no DWARF file under ${root} matches these listed images (.dSYM bundles inspected: ${scanned}):`,
+        ...bounded([...missing.values()]),
+        ...(skipped.length
+          ? [
+              "Skipped files that are not supported 64-bit dSYMs:",
+              ...bounded(skipped),
+            ]
+          : []),
+      ].join("\n")
+    );
+  for (const binary of binaries)
+    await withPath(binary.path, async () => {
+      if (
+        JSON.stringify(await readAppleBinaryImages(binary.path)) !==
+        JSON.stringify(binary.images)
+      )
+        throw new Error("source_map_changed");
+    });
   return {
     artifacts: [...selected.values()],
     images: [...expected.values()],

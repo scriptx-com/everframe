@@ -317,22 +317,26 @@ it("does not follow a dSYM bundle outside its declared directory", async () => {
   await symlink(join(other.root, "App.dSYM"), join(f.root, "App.dSYM"));
   await expect(
     collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
-  ).rejects.toThrow(/symlink/);
+  ).rejects.toThrow(
+    /^symlink_escapes_root: .+\/App\.dSYM\/Contents\/Resources\/DWARF$/
+  );
 });
 it("bounds declared binaries, candidate bundles and directory entries", async () => {
   const f = await fixture();
   await expect(
     collectAppleBuild({ binaries: [], dsymDir: f.root })
-  ).rejects.toThrow(/limit/);
+  ).rejects.toThrow("apple_build_limit: list 1 to 16 binaries (got 0)");
   await expect(
     collectAppleBuild({ binaries: Array(17).fill(f.binary), dsymDir: f.root })
-  ).rejects.toThrow(/limit/);
+  ).rejects.toThrow("apple_build_limit: list 1 to 16 binaries (got 17)");
   await Promise.all(
     Array.from({ length: 65 }, (_, i) => dsym(f.root, "Candidate" + i))
   );
   await expect(
     collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
-  ).rejects.toThrow(/limit/);
+  ).rejects.toThrow(
+    /^apple_build_limit: more than 64 \.dSYM bundles under .+ hold a listed identity$/
+  );
   const second = await fixture();
   await Promise.all(
     Array.from({ length: 1025 }, (_, i) =>
@@ -341,7 +345,7 @@ it("bounds declared binaries, candidate bundles and directory entries", async ()
   );
   await expect(
     collectAppleBuild({ binaries: [second.binary], dsymDir: second.root })
-  ).rejects.toThrow(/limit/);
+  ).rejects.toThrow(/^apple_build_limit: more than 1024 directory entries under /);
 });
 // A watchOS companion's dSYM: 32-bit MH_MAGIC header with CPU_TYPE_ARM64_32.
 function watchDsym(uuid = UUID_B) {
@@ -445,6 +449,92 @@ it("fails an identity found only in unsupported files and names a bounded list o
   expect(message).toContain("and 3 more");
   expect(message).not.toContain("note8");
 });
+it("names each uncovered listed image with its architecture, UUID and binary", async () => {
+  const f = await fixture(),
+    framework = join(f.root, "Framework"),
+    simulator = "00112233-4455-6677-8899-aabbccddeeff";
+  await writeFile(
+    framework,
+    universal([
+      macho({ uuid: UUID_B, kind: 6 }),
+      macho({ uuid: simulator, cpu: 0x1000007, subtype: 3, kind: 6 }),
+    ])
+  );
+  await dsym(f.root, "App");
+  await dsym(f.root, "Framework", macho({ uuid: UUID_B, kind: 10 }));
+  const message = await collectAppleBuild({
+    binaries: [f.binary, framework],
+    dsymDir: f.root,
+  }).then(
+    () => "",
+    (e: Error) => e.message
+  );
+  expect(message.split("\n")).toEqual([
+    expect.stringMatching(
+      /^missing_matching_dsym: no DWARF file under .+ matches these listed images \(\.dSYM bundles inspected: 2\):$/
+    ),
+    `  x86_64 ${simulator} in ${framework}`,
+  ]);
+});
+it.each([
+  [
+    "invalid_apple_binary",
+    "a watchOS arm64_32 executable",
+    async (root: string) => {
+      const path = join(root, "Watch"),
+        bytes = watchDsym(UUID_A);
+      bytes.writeUInt32LE(2, 12);
+      await writeFile(path, bytes);
+      return path;
+    },
+  ],
+  [
+    "unsupported_apple_architecture",
+    "an unsupported CPU",
+    async (root: string) => {
+      const path = join(root, "Legacy");
+      await writeFile(path, macho({ uuid: UUID_B, cpu: 12 }));
+      return path;
+    },
+  ],
+  [
+    "invalid_input_file",
+    "an app bundle directory",
+    async (root: string) => {
+      const path = join(root, "App.app");
+      await mkdir(path);
+      return path;
+    },
+  ],
+] as const)(
+  "names the listed binary in %s for %s",
+  async (code, _name, make) => {
+    const f = await fixture();
+    await dsym(f.root, "App");
+    const binary = await make(f.root);
+    await expect(
+      collectAppleBuild({ binaries: [f.binary, binary], dsymDir: f.root })
+    ).rejects.toThrow(`${code}: ${binary}`);
+  }
+);
+it("names the identity and both files of an ambiguous match", async () => {
+  const f = await fixture();
+  await dsym(f.root, "App");
+  await dsym(
+    f.root,
+    "Conflict",
+    Buffer.concat([macho({ kind: 10 }), Buffer.from("different bytes")])
+  );
+  await expect(
+    collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
+  ).rejects.toThrow(
+    new RegExp(
+      `^ambiguous_dsym_identity: arm64 ${UUID_A} is in different files ` +
+        `.+/App\\.dSYM/Contents/Resources/DWARF/App and ` +
+        `.+/Conflict\\.dSYM/Contents/Resources/DWARF/Conflict$`
+    )
+  );
+});
 
 it.each(["modify", "replace"])(
   "rejects a file that changes while its headers are being read (%s)",
@@ -470,7 +560,7 @@ it("checks expected binaries again after collecting dSYMs", async () => {
   };
   await expect(
     collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
-  ).rejects.toThrow("source_map_changed");
+  ).rejects.toThrow(`source_map_changed: ${f.binary}`);
 });
 it("does not block on a FIFO masquerading as a binary", async () => {
   const f = await fixture(),
@@ -486,7 +576,9 @@ it("rejects oversized raw DWARF and more than eight selected files", async () =>
   await truncate(path, 64 * 1024 * 1024 + 1);
   await expect(
     collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
-  ).rejects.toThrow("dsym_too_large");
+  ).rejects.toThrow(
+    /^dsym_too_large: .+\/App\.dSYM\/Contents\/Resources\/DWARF\/App$/
+  );
   const second = await fixture(),
     binaries = [];
   for (let i = 0; i < 9; i++) {
@@ -498,5 +590,7 @@ it("rejects oversized raw DWARF and more than eight selected files", async () =>
   }
   await expect(
     collectAppleBuild({ binaries, dsymDir: second.root })
-  ).rejects.toThrow("apple_build_limit");
+  ).rejects.toThrow(
+    /^apple_build_limit: more than 8 distinct DWARF files match the listed binaries$/
+  );
 });
