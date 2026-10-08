@@ -1,6 +1,6 @@
 {
   "name": "@everframe/web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": false,
   "description": "Framework-agnostic web SDK for Everframe — AI-ready in-app bug reporting for any web framework or plain HTML.",
   "author": {

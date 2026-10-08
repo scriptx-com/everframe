@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: MIT -->
+# @everframe/expo
 
 ## 0.1.0
 
@@ -11,10 +11,7 @@
 
   `@everframe/bundler-plugin` adds Vite, Rollup, webpack, esbuild and Next.js plugins that stamp a build ID into web bundles and upload their source maps at the end of a production build. `everframe upload-expo-export` uploads the bundles and source maps from an `expo export` directory. `everframe setup react-native` patches the Gradle and Xcode build steps so native release builds collect and upload their artifacts.
 
-# @everframe/cli
-
-## 0.0.2
-
 ### Patch Changes
 
-- Updated internal dependencies.
+- Updated dependencies [93308e3]
+  - @everframe/cli@0.1.0

@@ -1,6 +1,6 @@
 {
   "name": "@everframe/expo",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": false,
   "description": "Expo config plugin that collects and verifies Everframe build artifacts during native builds.",
   "type": "module",

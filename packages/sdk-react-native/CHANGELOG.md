@@ -1,5 +1,46 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.1.0
+
+### Minor Changes
+
+- a5e45fd: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Mobile crash reports now include the error's cause chain. React Native sends `Error.cause` chains through the existing native bridge, including the stacks Hermes exposes on `Error.prototype`. Android captures `Throwable` causes next to the existing JVM metadata, and iOS follows the `NSUnderlyingErrorKey` of `NSError` and `CustomNSError` errors. Each chain keeps at most 8 causes, 32 frames per cause and 65,536 serialized UTF-8 bytes, is redacted before it is stored, and marks anything it drops as truncated. Malformed cause data never discards the outer report, and causes do not change how errors are grouped.
+
+  Cause redaction scans a bounded prefix of each field (8,192 characters) and of each JavaScript stack (32,768 characters). When either limit cuts the text, the cut token and any digit group before it are dropped before redaction, so a JWT, bearer token, card number or SSN split at the limit does not reach a report. The same holds for an email address when the web SDK's `redaction.maskInputs` includes `'email'`. This applies to web cause chains as well. Custom `redaction.customRules` patterns are matched only against the retained text, so when the limit cuts a custom match that contains spaces or other punctuation, the start of that match can remain unredacted.
+
+- 18bcef7: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Add report delivery diagnostics. `getReportDeliveryStatus()` in `@everframe/react-native`, `Everframe.getReportDeliveryStatus()` on Android and `Everframe.shared.getReportDeliveryStatus()` on iOS return a detached snapshot of cached observations: native capture outcomes per entry path, report outbox operations with the last observed queue count, and settled upload outcomes for live submissions and outbox drains. Snapshots contain only fixed codes and counters, perform no storage or network work, and reset when the SDK starts or is killed. With an older native SDK the React Native getter returns `unsupported/native-method-missing`, and the browser export returns `unsupported/platform`.
+
+- 7d000f6: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Add `captureReactError` at `@everframe/react-native/integrations/react` for an existing React error boundary's `componentDidCatch`. It reports the caught error as a handled exception with bounded, redacted component-stack metadata and shares accepted error identity with `captureException` and automatic capture. Render the boundary inside `EverframeProvider`. A boundary that wraps the provider reports only if its fallback mounts its own provider, and errors that a boundary inside the provider catches during the provider's first commit are not captured. The subpath is native-only; browser-conditioned resolution rejects it.
+
+  Add `getErrorCaptureStatus()`, a detached, content-free snapshot of local JavaScript capture admission for the `handled`, `errorUtils` and `rejection` paths: attempts and their outcomes. `accepted` means the native SDK accepted the capture, not that the report was delivered. The browser entry returns `unsupported`.
+
+- 551e3f7: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Add opt-in reporting of unhandled promise rejections on Hermes. With `crashReporting.promiseRejections.enabled: true`, a rejection still unhandled after 2 seconds is reported through the existing nonfatal error path; a handler attached within that interval cancels the report. Observation installs only on the verified runtime, `react-native-tvos@0.85.3-0` with Hermes `250829098.0.10` on Android and iOS, and reports `unsupported` elsewhere, including browser execution. At most 16 pending snapshots of up to 64 KiB each are kept, and work older than 30 seconds expires instead of being reported. Rejection reasons that are not `Error` objects are reported as a bounded primitive value or a type label such as `[object]`, never as serialized object contents, and their `cause` is not reported. Automatic reports keep their limit of 10 distinct errors per mount; non-Error reasons are deduplicated by value with digit runs ignored and use at most 5 of those 10.
+
+  `getPromiseRejectionStatus()` reports whether the observer is active, with counters for pending, accepted, cancelled, dropped, expired, suppressed, refused, failed and discarded rejections.
+
+### Patch Changes
+
+- 93308e3: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Publish the build-artifact tooling. `@everframe/metro` stamps a build identity into Hermes bundles at bundle time, `@everframe/expo` adds the native build steps that collect the bundle, source map and native identifiers, and `@everframe/cli` verifies and uploads them so release crashes symbolicate. `@everframe/react-native` now reads the identity injected by `@everframe/metro`, so no build ID needs to be passed at runtime.
+
+  `@everframe/bundler-plugin` adds Vite, Rollup, webpack, esbuild and Next.js plugins that stamp a build ID into web bundles and upload their source maps at the end of a production build. `everframe upload-expo-export` uploads the bundles and source maps from an `expo export` directory. `everframe setup react-native` patches the Gradle and Xcode build steps so native release builds collect and upload their artifacts.
+
+  - @everframe/react@1.1.0
+
 ## 1.0.0
 
 ### Minor Changes
