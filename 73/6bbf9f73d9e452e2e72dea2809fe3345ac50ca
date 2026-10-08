@@ -1,0 +1,41 @@
+packages/cli/__tests__/apple-build.spec.ts
+  s_360d9eb003c487::t_0ce2d1f4f538cc 593-595
+  s_360d9eb003c487::t_79bbb9d6ea35ef 452-537
+  s_360d9eb003c487::t_5743bce9e29784 579-581
+  s_360d9eb003c487::t_b1aa4cfde41338 320-322,328,331,337-339,348
+  s_360d9eb003c487::t_75d775a5a85dbf 563
+packages/cli/README.md
+  s_360d9eb003c487::t_e6f7be0354f416 60
+  s_360d9eb003c487::t_47ade4a569b723 50-54,56-59,61
+  s_360d9eb003c487::t_9015737c22c03c 48-49
+  s_360d9eb003c487::t_e0d9e46af86a8d 55
+packages/cli/src/apple-build.ts
+  s_360d9eb003c487::t_6704ca4135949f 34-37,42-57
+  s_360d9eb003c487::t_89684f5c827446 358-359,361-375,379
+  s_360d9eb003c487::t_40a11fcfc7f64f 392-393,402,404,407-470
+  s_360d9eb003c487::t_b347b3e142add9 340-342,348
+packages/cli/src/apple-upload.ts
+  s_360d9eb003c487::t_7f9e4d730a0183 7,16-23,28-34
+packages/cli/src/index.ts
+  s_360d9eb003c487::t_47bf1466223006 428-429
+packages/cli/__tests__/apple-upload.spec.ts
+  s_360d9eb003c487::t_9d293485536e90 3,5,9-15
+  s_360d9eb003c487::t_7452939a7c9014 167-171
+  s_360d9eb003c487::t_2373cdb66f896c 233-277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "736bbf9f73d9e452e2e72dea2809fe3345ac50ca",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
