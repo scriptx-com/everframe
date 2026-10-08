@@ -17,10 +17,13 @@ import org.robolectric.annotation.Config
 class ProcessExitRecoveryModeTest {
     private val publishedStartEpoch = Everframe::class.java.getDeclaredField("_publishedStartEpoch").apply { isAccessible = true }
 
-    /** Enables are fenced until a start publishes its epoch, so publish the current one as start() does. */
     private var previousPublishedStartEpoch: Any? = null
 
+    /** Enables are fenced until a start publishes its epoch, so publish the current one as start() does.
+     * Earlier classes in the same sandbox can leave an owner or an erasure obligation behind, so begin
+     * from a fresh process's recovery state. */
     @Before fun publishStart() {
+        AndroidNativeCrashRuntime.__resetForTesting()
         previousPublishedStartEpoch = publishedStartEpoch.get(null)
         val epoch = Everframe::class.java.getDeclaredField("_startEpoch").apply { isAccessible = true }.getInt(null)
         publishedStartEpoch.set(null, epoch)
