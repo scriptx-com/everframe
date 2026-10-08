@@ -1,0 +1,45 @@
+packages/protocol/__tests__/native-crash.spec.ts
+  s_97602a0a2d8f20::t_58238f5eb60b40 121-144
+packages/protocol/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_8b7d1bc207077a 79-98
+packages/protocol/compat/ios-exposure/KotlinMain.kt
+  s_97602a0a2d8f20::t_d14d8774320104 1-17
+packages/protocol/compat/ios-exposure/OldJavaCaller.java
+  s_97602a0a2d8f20::t_8188a68756b549 1-10
+packages/protocol/compat/ios-exposure/OldNativeCaller.kt
+  s_97602a0a2d8f20::t_e7d4d7aa372fba 1-8
+packages/protocol/compat/ios-exposure/OldNativeCaller.swift
+  s_97602a0a2d8f20::t_7f05a0a28df5ef 1-10
+packages/protocol/compat/ios-exposure/README.md
+  s_97602a0a2d8f20::t_61e81570be2796 1-5
+packages/protocol/compat/ios-exposure/SwiftMain.swift
+  s_97602a0a2d8f20::t_737d836e2851d9 1-13
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_3a4996cf8c6d42 2220-2222,2274-2357,3118
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_330c598fb70dc4 220-241
+packages/protocol/scripts/codegen-swift.sh
+  s_97602a0a2d8f20::t_7121efaa8b0dc9 93-122
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_9e840aa8ac5a24 67,70
+packages/protocol/src/native-crash.ts
+  s_97602a0a2d8f20::t_35593fe58bf6b1 4,48-52,54
+packages/protocol/src/release-health.ts
+  s_97602a0a2d8f20::t_dc91a995f546d4 28-29,48-55,57,79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "703a5031509db6e28c66ab1070cf405d95300409",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
