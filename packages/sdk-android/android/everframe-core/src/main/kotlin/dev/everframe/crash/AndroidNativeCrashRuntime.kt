@@ -8,6 +8,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Process
 import androidx.annotation.RequiresApi
+import androidx.annotation.VisibleForTesting
 import dev.everframe.Everframe
 import dev.everframe.TXCapturedSession
 import dev.everframe.capture.DeviceMetadata
@@ -19,16 +20,28 @@ import java.util.UUID
 
 internal object AndroidNativeCrashRuntime {
     private val lock = Any()
-    private val requests = AndroidNativeRecoveryRequests()
+    @Volatile private var requests = AndroidNativeRecoveryRequests()
     fun noteKill() { requests.invalidate() }
-    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false): Long = requests.request(epoch, enabled, diagnostics)
+    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false, supported: Boolean = true): Long =
+        requests.request(epoch, enabled, diagnostics, supported)
     fun diagnosticsReady(epoch: Int): Boolean = requests.diagnosticsEnabled(epoch) && ready(epoch)
     fun ready(epoch: Int): Boolean = requests.enabled(epoch) && synchronized(lock) { controller }?.ready(epoch) == true
     private var controller: AndroidNativeRecoveryController? = null
     private var eraseWhenContextAvailable = false
 
+    /** Test seam replacing the ActivityManager/Keystore-backed owner. Never set in production. */
+    @VisibleForTesting
+    internal var __controllerFactoryForTesting: ((Context) -> AndroidNativeRecoveryController)? = null
+
+    /** Simulates process death: in-memory ownership and commands are lost, durable journals remain. */
+    @VisibleForTesting
+    internal fun __resetForTesting() {
+        synchronized(lock) { controller = null; eraseWhenContextAvailable = false }
+        requests = AndroidNativeRecoveryRequests()
+    }
+
     private fun controller(context: Context): AndroidNativeRecoveryController = synchronized(lock) {
-        controller ?: AndroidNativeRecoveryController({
+        controller ?: __controllerFactoryForTesting?.invoke(context)?.also { controller = it } ?: AndroidNativeRecoveryController({
             val root = File(context.noBackupFilesDir, "dev.everframe/native-exit-v1")
             fun store(name: String) = OutboxStore(File(root, name),
                 AndroidOutboxKeyProvider("dev.everframe.native-exit.v1.$name"), AndroidOutboxFileOps(),
@@ -107,5 +120,5 @@ private class AndroidExitPlatform(private val context: Context) : AndroidNativeE
     override fun setStateSummary(value: ByteArray?) { manager.setProcessStateSummary(value) }
     override fun history(): List<AndroidNativeExit> = manager.getHistoricalProcessExitReasons(context.packageName, 0, 32)
         .take(32).map { exit -> AndroidNativeExit(exit.pid, exit.processName, exit.timestamp, exit.reason,
-            exit.processStateSummary?.takeIf { it.size <= 128 }?.copyOf()) { exit.traceInputStream } }
+            exit.processStateSummary?.takeIf { it.size <= 128 }?.copyOf(), { exit.traceInputStream }, exit.status) }
 }

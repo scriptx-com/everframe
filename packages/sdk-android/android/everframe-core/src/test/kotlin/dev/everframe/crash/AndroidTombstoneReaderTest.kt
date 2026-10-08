@@ -110,6 +110,29 @@ class AndroidTombstoneReaderTest {
         val copies = dev.everframe.protocol.generated.Crash::class.java.methods.filter { it.name == "copy" }.map { it.parameterTypes.size }
         for (count in listOf(12, 13, 14, 15)) assertTrue("Copy $count missing", count in copies)
     }
+    @Test fun `only app-packaged libraries are grouping code`() {
+        val paths = linkedMapOf(
+            "/data/app/~~a==/dev.example-b==/base.apk!libfault.so" to true,
+            "/data/app/~~a==/dev.example-b==/split_config.arm64_v8a.apk!libfault.so" to true,
+            "/data/app/~~a==/dev.example-b==/lib/arm64/libfault.so" to true,
+            "/data/user/0/dev.example/files/libplugin.so" to true,
+            "/mnt/expand/0f1e/app/~~a==/dev.example-b==/base.apk!libfault.so" to true,
+            "/apex/com.android.runtime/lib64/bionic/libc.so" to false,
+            "/system/lib64/libhwui.so" to false,
+            "/vendor/lib64/egl/libGLESv2_adreno.so" to false,
+            "/system/framework/arm64/boot.oat" to false,
+            "/data/app/~~a==/dev.example-b==/oat/arm64/base.odex" to false,
+            "/data/app/~~a==/dev.example-b==/oat/arm64/base.vdex" to false,
+            "/data/dalvik-cache/arm64/system@framework@boot.oat" to false,
+            "/memfd:jit-cache (deleted)" to false,
+            "[anon:dalvik-jit-code-cache]" to false,
+            "/data/app/~~a==/dev.example-b==/base.apk" to false,
+        )
+        val trace = n(6, 42u) + b(16, n(1, 42u) + b(2, n(1, 42u) + paths.keys.fold(byteArrayOf()) { all, path -> all + b(4, n(1, 1u) + s(6, path)) }))
+        val value = requireNotNull(AndroidTombstoneReader.readTombstone(ByteArrayInputStream(trace)))
+        assertEquals(paths.values.toList(), value.appCode)
+        assertEquals(read(trace), value.metadata)
+    }
     @Test fun `known fields with wrong wire types and invalid utf8 fail closed`() {
         assertNull(read(n(6, 42u) + b(16, n(1, 42u) + b(2, n(1, 42u) + b(4, b(6, byteArrayOf(0xc3.toByte())))))))
         assertNull(read(trace() + b(6, byteArrayOf(42))))

@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { mkdtemp, writeFile, rm, readFile } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, readFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { uploadAppleBuild } from "../src/apple-upload.js";
 import { main } from "../src/index.js";
-import { dsym, macho, segmented, UUID_B } from "./apple-build-fixture.js";
+import {
+  dsym,
+  macho,
+  segmented,
+  UUID_A,
+  UUID_B,
+} from "./apple-build-fixture.js";
 const roots: string[] = [];
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "everframe-apple-upload-"));
@@ -158,7 +164,11 @@ it.each(["binary", "earlier-dsym"])(
     };
     await expect(
       uploadAppleBuild(f.options, { fetch: api.fetcher, wait: async () => {} })
-    ).rejects.toThrow("source_map_changed");
+    ).rejects.toThrow(
+      kind === "binary"
+        ? `source_map_changed: ${f.binaries[0]}`
+        : /^source_map_changed: .+\/App\.dSYM\/Contents\/Resources\/DWARF\/App$/
+    );
   }
 );
 it("accepts repeated CLI binary options and prints success only after all files are ready", async () => {
@@ -219,4 +229,49 @@ it("redacts a configured token even from a local filesystem diagnostic", async (
     )
   ).toBe(1);
   expect(error.mock.calls.flat().join(" ")).not.toContain("fixture-secret");
+});
+it("prints the whole uncovered-image diagnostic with the token redacted", async () => {
+  const f = await fixture(),
+    error = vi.spyOn(console, "error").mockImplementation(() => {}),
+    fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await rm(f.files[1]!);
+  // Archive paths are long; the listed path must not be cut short.
+  const framework = join(
+    f.root,
+    "App.app",
+    "Frameworks",
+    "fixture-secret-" + "Feature".repeat(12) + ".framework",
+    "Feature"
+  );
+  await mkdir(dirname(framework), { recursive: true });
+  await writeFile(framework, macho({ uuid: UUID_B, kind: 6 }));
+  expect(
+    await main(
+      [
+        "dsym",
+        "upload-build",
+        "--app-id",
+        "app",
+        "--binary",
+        f.binaries[0]!,
+        "--binary",
+        framework,
+        "--dsym-dir",
+        f.root,
+      ],
+      {
+        EVERFRAME_API_TOKEN: "fixture-secret",
+        EVERFRAME_API_URL: f.options.apiUrl,
+      }
+    )
+  ).toBe(1);
+  const output = error.mock.calls.flat().join("\n");
+  expect(output).toMatch(/^missing_matching_dsym: /);
+  expect(output).toContain(
+    `  arm64 ${UUID_B} in ${framework.replace("fixture-secret", "[redacted]")}`
+  );
+  expect(output).not.toContain("fixture-secret");
+  expect(output).not.toContain(UUID_A);
+  expect(fetcher).not.toHaveBeenCalled();
 });
