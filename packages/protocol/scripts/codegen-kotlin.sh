@@ -168,7 +168,7 @@ const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializabl
 const payloadMatch = rewritten.match(payloadPattern);
 if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
 const payloadProperties = payloadMatch[1].split('\n');
-const additions = ['diagnostic', 'appleDiagnostic'];
+const additions = ['diagnostic', 'appleDiagnostic', 'recoveredStall'];
 for (const name of additions) {
   const index = payloadProperties.findIndex(line => line.trim().startsWith(`val ${name}:`));
   if (index < 0) throw new Error(`codegen-kotlin: Payload.${name} missing`);
@@ -176,23 +176,27 @@ for (const name of additions) {
 }
 const oldParameters = payloadProperties.map(line => line.replace('val ', '').replace(/,$/, ''));
 const oldNames = oldParameters.map(line => line.trim().split(':')[0]);
-const e8Parameters = [...oldParameters, '    diagnostic: DiagnosticEvidence? = null'];
-const e8Names = [...oldNames, 'diagnostic'];
-const overload = (parameters, names, tail) => `
-    constructor(
-${parameters.join(',\n')}
-    ) : this(${names.join(', ')}, ${tail.map(() => 'null').join(', ')})
+const overload = (extra) => {
+  const parameters = [...oldParameters, ...extra.map(([name, type]) => `    ${name}: ${type}? = null`)];
+  const names = [...oldNames, ...extra.map(([name]) => name)];
+  const tail = ['diagnostic', 'appleDiagnostic', 'recoveredStall'];
+  return `    constructor(\n${parameters.join(',\n')}\n    ) : this(${oldNames.join(', ')}, ${tail.map(name => names.includes(name) ? name : 'null').join(', ')})
 
-    fun copy(
-${parameters.map((line, i) => line.replace(/ = null$/, ` = this.${names[i]}`)).join(',\n')}
-    ): Payload = Payload(${[...names, ...tail].join(', ')})
-`;
+    fun copy(\n${parameters.map((line, i) => line.replace(/ = null$/, ` = this.${names[i]}`)).join(',\n')}\n    ): Payload = Payload(${[...oldNames, ...tail].join(', ')})`;
+};
 const propertiesWithAdditions = [...payloadProperties.map(line => line.replace(/,$/, '')),
-  '    val diagnostic: DiagnosticEvidence? = null', '    val appleDiagnostic: AppleDiagnosticEvidence? = null'];
+  '    val diagnostic: DiagnosticEvidence? = null', '    val appleDiagnostic: AppleDiagnosticEvidence? = null',
+  '    val recoveredStall: RecoveredStallEvidence? = null'];
+const diagnosticArg = ['diagnostic', 'DiagnosticEvidence'];
 rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertiesWithAdditions.join(',\n')}\n) {
-${overload(oldParameters, oldNames, ['diagnostic', 'appleDiagnostic'])}
-${overload(e8Parameters, e8Names, ['appleDiagnostic'])}
+${overload([])}
+${overload([diagnosticArg])}
+${overload([diagnosticArg, ['appleDiagnostic', 'AppleDiagnosticEvidence']])}
+${overload([diagnosticArg, ['recoveredStall', 'RecoveredStallEvidence']])}
 }`);
+for (const [generated, stable] of Object.entries({ DiagnosticAndroid: 'Android',
+  TraceClass: 'Trace', TraceEnum: 'RecoveredStallTrace', Clock: 'RecoveredStallClock', Eligibility: 'RecoveredStallEligibility',
+})) rewritten = rewritten.replace(new RegExp(`\\b${generated}\\b`, 'g'), stable);
 // Keep existing diagnostic positional arguments stable; append the optional exposure.
 const evidencePattern = /data class DiagnosticEvidence \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const evidenceMatch = rewritten.match(evidencePattern);

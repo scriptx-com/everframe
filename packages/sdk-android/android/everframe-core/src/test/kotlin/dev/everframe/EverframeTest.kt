@@ -917,4 +917,53 @@ class EverframeTest {
             dev.everframe.vitals.VitalsRuntime.current(),
         )
     }
+    @Test
+    fun `recovered observer refuses opt-in while a new start has not published its destination`() {
+        Everframe.start(context, validConfig())
+        awaitHeavyInit()
+        val oldEpoch = Everframe.currentStartEpochVolatile()
+        dev.everframe.vitals.VitalsServerConfigSignal.flow.value =
+            dev.everframe.vitals.VitalsServerConfig(vitalsEnabled = true, vitalsSampleRate = 1.0)
+        var attempted = false
+        var admitted = false
+        var capturedKey: String? = null
+        var capturedEpoch = -1
+        val previous = vitalsControllerForTest()
+        dev.everframe.vitals.VitalsRuntime.install(previous)
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!previous.isRunning && System.currentTimeMillis() < deadline) Thread.sleep(2)
+        assertTrue("precondition: old controller is collecting before reconfiguration", previous.isRunning)
+        previous.trackPlayer(object : dev.everframe.vitals.PlayerIntegration {
+            override val library = "fake"
+            override val version: String? = null
+            override fun attach(ctx: dev.everframe.vitals.PlayerIntegrationContext) = true
+            override fun snapshot(onResult: (dev.everframe.vitals.PlayerSnapshot?) -> Boolean) { onResult(null) }
+            override fun startupTimings(): dev.everframe.vitals.StartupTimings? = null
+            override fun describe(ctx: dev.everframe.vitals.PlayerIntegrationContext) {}
+            override fun detach() {
+                if (attempted) return
+                attempted = true
+                val captured = Everframe.captureSessionSnapshot()
+                capturedKey = captured.config?.sdkKey
+                capturedEpoch = captured.user.startEpoch
+                val token = dev.everframe.diagnostics.RecoveredStallRuntime.request(captured.user.startEpoch, true)
+                val field = dev.everframe.diagnostics.RecoveredStallRuntime::class.java.getDeclaredField("owner").apply { isAccessible = true }
+                val owner = field.get(dev.everframe.diagnostics.RecoveredStallRuntime) as dev.everframe.diagnostics.RecoveredStallOwner
+                admitted = owner.enable(token, captured.user.startEpoch, { true }) {
+                    object : dev.everframe.diagnostics.RecoveredStallSession {
+                        override val ready = true
+                        override fun start() = Unit
+                        override fun close() = Unit
+                    }
+                }
+            }
+        }, "main")
+        Everframe.start(context, validConfig().copy(sdkKey = "txx_live_nextdestination"))
+        assertTrue("must exercise customer teardown between epoch reservation and publication", attempted)
+        assertEquals(validConfig().sdkKey, capturedKey)
+        assertEquals(oldEpoch + 1, capturedEpoch)
+        assertFalse("old destination must not be armed under the newly reserved epoch", admitted)
+        assertEquals("txx_live_nextdestination", Everframe.currentConfig!!.sdkKey)
+    }
+
 }

@@ -163,9 +163,9 @@ data class Payload (
     val resources: List<Resource>? = null,
     val vitals: List<Vital>? = null,
     val diagnostic: DiagnosticEvidence? = null,
-    val appleDiagnostic: AppleDiagnosticEvidence? = null
+    val appleDiagnostic: AppleDiagnosticEvidence? = null,
+    val recoveredStall: RecoveredStallEvidence? = null
 ) {
-
     constructor(
     annotations: JsonArray? = null,
     breadcrumbs: List<Breadcrumb>? = null,
@@ -178,7 +178,7 @@ data class Payload (
     redactions: JsonArray? = null,
     resources: List<Resource>? = null,
     vitals: List<Vital>? = null
-    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, null, null)
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, null, null, null)
 
     fun copy(
     annotations: JsonArray? = this.annotations,
@@ -192,9 +192,7 @@ data class Payload (
     redactions: JsonArray? = this.redactions,
     resources: List<Resource>? = this.resources,
     vitals: List<Vital>? = this.vitals
-    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic)
-
-
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
     constructor(
     annotations: JsonArray? = null,
     breadcrumbs: List<Breadcrumb>? = null,
@@ -208,7 +206,7 @@ data class Payload (
     resources: List<Resource>? = null,
     vitals: List<Vital>? = null,
     diagnostic: DiagnosticEvidence? = null
-    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null)
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null, null)
 
     fun copy(
     annotations: JsonArray? = this.annotations,
@@ -223,8 +221,69 @@ data class Payload (
     resources: List<Resource>? = this.resources,
     vitals: List<Vital>? = this.vitals,
     diagnostic: DiagnosticEvidence? = this.diagnostic
-    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic)
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
+    constructor(
+    annotations: JsonArray? = null,
+    breadcrumbs: List<Breadcrumb>? = null,
+    crash: Crash? = null,
+    extra: String? = null,
+    focus: Focus? = null,
+    logs: JsonArray? = null,
+    network: JsonArray? = null,
+    networkBodies: List<NetworkBody>? = null,
+    redactions: JsonArray? = null,
+    resources: List<Resource>? = null,
+    vitals: List<Vital>? = null,
+    diagnostic: DiagnosticEvidence? = null,
+    appleDiagnostic: AppleDiagnosticEvidence? = null
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, null)
 
+    fun copy(
+    annotations: JsonArray? = this.annotations,
+    breadcrumbs: List<Breadcrumb>? = this.breadcrumbs,
+    crash: Crash? = this.crash,
+    extra: String? = this.extra,
+    focus: Focus? = this.focus,
+    logs: JsonArray? = this.logs,
+    network: JsonArray? = this.network,
+    networkBodies: List<NetworkBody>? = this.networkBodies,
+    redactions: JsonArray? = this.redactions,
+    resources: List<Resource>? = this.resources,
+    vitals: List<Vital>? = this.vitals,
+    diagnostic: DiagnosticEvidence? = this.diagnostic,
+    appleDiagnostic: AppleDiagnosticEvidence? = this.appleDiagnostic
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
+    constructor(
+    annotations: JsonArray? = null,
+    breadcrumbs: List<Breadcrumb>? = null,
+    crash: Crash? = null,
+    extra: String? = null,
+    focus: Focus? = null,
+    logs: JsonArray? = null,
+    network: JsonArray? = null,
+    networkBodies: List<NetworkBody>? = null,
+    redactions: JsonArray? = null,
+    resources: List<Resource>? = null,
+    vitals: List<Vital>? = null,
+    diagnostic: DiagnosticEvidence? = null,
+    recoveredStall: RecoveredStallEvidence? = null
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null, recoveredStall)
+
+    fun copy(
+    annotations: JsonArray? = this.annotations,
+    breadcrumbs: List<Breadcrumb>? = this.breadcrumbs,
+    crash: Crash? = this.crash,
+    extra: String? = this.extra,
+    focus: Focus? = this.focus,
+    logs: JsonArray? = this.logs,
+    network: JsonArray? = this.network,
+    networkBodies: List<NetworkBody>? = this.networkBodies,
+    redactions: JsonArray? = this.redactions,
+    resources: List<Resource>? = this.resources,
+    vitals: List<Vital>? = this.vitals,
+    diagnostic: DiagnosticEvidence? = this.diagnostic,
+    recoveredStall: RecoveredStallEvidence? = this.recoveredStall
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
 }
 
 @Serializable
@@ -913,6 +972,86 @@ enum class BodySkipped(val value: String) {
     @SerialName("content-type") ContentType("content-type"),
     @SerialName("error") Error("error"),
     @SerialName("unsupported") Unsupported("unsupported");
+}
+
+@Serializable
+data class RecoveredStallEvidence (
+    val android: RecoveredStallAndroid,
+    val attribution: RecoveredStallAttribution,
+    val clock: RecoveredStallClock,
+    val eligibility: RecoveredStallEligibility,
+
+    @SerialName("evidenceId")
+    val evidenceID: String,
+
+    val kind: RecoveredStallKind,
+    val outcome: RecoveredStallOutcome,
+
+    @SerialName("probeDelayMs")
+    val probeDelayMS: Long,
+
+    val provenance: RecoveredStallProvenance,
+    val queuedAt: String,
+    val recoveredAt: String,
+
+    @SerialName("sampleIntervalMs")
+    val sampleIntervalMS: Double,
+
+    val scope: RecoveredStallScope,
+
+    @SerialName("thresholdMs")
+    val thresholdMS: Double,
+
+    val trace: RecoveredStallTrace,
+    val version: Double
+)
+
+@Serializable
+data class RecoveredStallAndroid (
+    val apiLevel: Long
+)
+
+@Serializable
+data class RecoveredStallAttribution (
+    val nativeExposure: Session,
+    val release: Release,
+    val session: Session,
+    val webExposure: Session
+)
+
+@Serializable
+enum class RecoveredStallClock(val value: String) {
+    @SerialName("uptime") Uptime("uptime");
+}
+
+@Serializable
+enum class RecoveredStallEligibility(val value: String) {
+    @SerialName("foreground-debugger-checked-v1") ForegroundDebuggerCheckedV1("foreground-debugger-checked-v1");
+}
+
+@Serializable
+enum class RecoveredStallKind(val value: String) {
+    @SerialName("recovered_main_thread_stall") RecoveredMainThreadStall("recovered_main_thread_stall");
+}
+
+@Serializable
+enum class RecoveredStallOutcome(val value: String) {
+    @SerialName("recovered") Recovered("recovered");
+}
+
+@Serializable
+enum class RecoveredStallProvenance(val value: String) {
+    @SerialName("android_main_looper_probe") AndroidMainLooperProbe("android_main_looper_probe");
+}
+
+@Serializable
+enum class RecoveredStallScope(val value: String) {
+    @SerialName("main_looper") MainLooper("main_looper");
+}
+
+@Serializable
+enum class RecoveredStallTrace(val value: String) {
+    @SerialName("not_collected") NotCollected("not_collected");
 }
 
 @Serializable
