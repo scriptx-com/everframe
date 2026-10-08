@@ -1,0 +1,27 @@
+packages/sdk-android/native/README.md
+  s_97602a0a2d8f20::t_d9415dec38ebb6 1-3
+packages/sdk-android/tests/native-release-host/README.md
+  s_97602a0a2d8f20::t_80436615994f09 1-3
+packages/sdk-android/tests/native-release-host/app/proguard-rules.pro
+  s_97602a0a2d8f20::t_40a6abe1143763 1-2
+packages/sdk-android/tests/native-release-host/app/src/main/res/xml/network_security_config.xml
+  s_97602a0a2d8f20::t_9f181d7bc88eb5 2-3
+public-boundary.json
+  s_97602a0a2d8f20::t_3c0416b92d03be 139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8eaa4565e449c7a0692691f0bf71d7d617700c0a",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
