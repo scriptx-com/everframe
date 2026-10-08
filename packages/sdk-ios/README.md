@@ -63,6 +63,48 @@ struct MyApp: App {
 
 ---
 
+## Automatic native crashes
+
+The source SDK connects native crash capture to `Everframe.shared.start` when
+`capture.crash` is enabled (the default). It records supported Swift traps,
+uncaught Objective-C exceptions and memory/signal faults in native code, then
+imports them into the encrypted delivery queue on the next enabled launch.
+The recorder is bundled with the SDK; hosts do not install it separately.
+
+Capture starts asynchronously after an encrypted context is durable. There is a
+capture gap during startup and user/configuration changes. A crash already
+admitted keeps its original context; later reports use the new context. Recovery
+preserves the original project routing, app/device details, self-declared user,
+and redaction policy, even after another user or project starts. Native reports
+currently omit verified identity and continuously refreshed breadcrumbs, logs,
+replay and resource samples. Symbolicated source locations require the separate
+native symbol-processing pipeline; raw addresses remain available.
+
+In React Native, a stored fatal JavaScript crash closes native capture until the
+next `start`. React Native's fatal handler then aborts with `RCTFatalException`;
+that abort is not reported as a second crash. If the JavaScript report could not
+be stored, native capture stays on and records the abort instead.
+
+Set `CaptureConfig(crash: false)` to disable automatic capture, or call `kill()`
+to stop the running SDK. A disabled launch retains pending raw records without
+promoting them. Reports already in the delivery queue follow the existing retry
+policy; disabling capture does not retroactively delete queued reports.
+
+Each enabled launch imports pending records before retiring old runs. A run
+expires 14 days after its process started, or earlier under storage
+pressure. The runtime keeps at most 16 runs, with bounded raw/context storage.
+It supports 256 distinct context snapshots per process; identical snapshots
+reuse their identifier. Unavailable encryption keys, unsafe storage, exhausted
+capacity or recorder failures leave capture disabled. Repeated `start` calls
+reuse the process recorder rather than installing competing handlers.
+
+The installed Release qualification host is in
+[`Tests/NativeCrashStartupProof`](Tests/NativeCrashStartupProof). It exercises
+normal startup, real faults and relaunch delivery on an owned iOS simulator.
+Physical-device lock-state and performance qualification remain separate checks.
+
+---
+
 ## Triggers are host-app concern
 
 > Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.

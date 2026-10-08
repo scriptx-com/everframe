@@ -197,9 +197,13 @@ public final class JSONLOutbox: @unchecked Sendable {
         // - `Bundle.main.bundleIdentifier == "com.apple.dt.xctest.tool"`: set by
         //   the `swift test` CLI, which spawns the test bundle under Apple's xctest
         //   tool. This tool does not set `XCTestConfigurationFilePath` in the child.
-        // Removing either branch loses detection in one of these environments.
+        // - Loaded XCTestCase: Swift Testing's helper loads the same test bundle
+        //   but supplies neither XCTest host identifier above. Its default queue
+        //   must never read/drain a developer application's persistent reports.
+        // Removing any branch loses detection in one of these environments.
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-           Bundle.main.bundleIdentifier == "com.apple.dt.xctest.tool" {
+           Bundle.main.bundleIdentifier == "com.apple.dt.xctest.tool" ||
+           NSClassFromString("XCTestCase") != nil {
             return testOutboxDirectory.appendingPathComponent("outbox.jsonl")
         }
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
