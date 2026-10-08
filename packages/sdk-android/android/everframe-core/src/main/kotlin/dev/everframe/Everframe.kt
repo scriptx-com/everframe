@@ -979,6 +979,7 @@ object Everframe {
             // ordering.
             _identityHolder.set(null)
             appContext = context.applicationContext
+            dev.everframe.diagnostics.RecoveredStallRuntime.startPublished(epoch)
             dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(epoch, config.capture.crash)
             captureGate = true
             true

@@ -27,13 +27,18 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 internal object RecoveredStallRuntime {
     private val owner = RecoveredStallOwner()
     private val budget = RecoveredStallBudget()
-    fun request(epoch: Int, enabled: Boolean): Long = owner.request(epoch, enabled)
-    fun boundary() = owner.invalidate()
-    fun ready(epoch: Int): Boolean = owner.ready(epoch)
+    // start reserves an epoch before customer teardown, then publishes its config.
+    // An opt-in in that gap must not bind the old key to the newly reserved epoch.
+    private val publishedEpoch = AtomicInteger(-1)
+    fun request(epoch: Int, enabled: Boolean): Long = owner.request(epoch, enabled && publishedEpoch.get() == epoch)
+    fun boundary() { publishedEpoch.set(-1); owner.invalidate() }
+    fun startPublished(epoch: Int) { publishedEpoch.set(epoch) }
+    fun ready(epoch: Int): Boolean = publishedEpoch.get() == epoch && owner.ready(epoch)
 
     /** Called off main, before the probe timer exists. No identity/session is captured. */
     fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, request: Long): Boolean {
@@ -41,7 +46,7 @@ internal object RecoveredStallRuntime {
         if (Build.VERSION.SDK_INT < 26 || !captured.captureConsent || !config.capture.crash) return false
         val epoch = captured.user.startEpoch
         return owner.enable(request, epoch, {
-            Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch
+            publishedEpoch.get() == epoch && Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch
         }) { allowed ->
             val device = DeviceMetadata.collect(context)
             val encoded = EnvelopeBuilder(vitalsStamp = { null }).buildEncoded(
