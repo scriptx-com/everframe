@@ -597,6 +597,36 @@ object Everframe {
 
     // ---------------- Public API (every body wrapped in txGuardVoid) ----------------
 
+    /** True after the current explicit opt-in has installed its lifecycle observer. */
+    @JvmStatic
+    fun isRecoveredStallObserverReady(): Boolean = captureGate &&
+        dev.everframe.diagnostics.RecoveredStallRuntime.ready(currentStartEpochVolatile())
+
+    /**
+     * Opt in after each start() to recovered main-looper probe observations (API26+).
+     * Disabled by default. Measures queue latency, never OS ANR, fatality or crash counts.
+     * Foreground, interactive and debugger gates apply; records contain no stack or identity.
+     * Disabling cancels pending admission. Already admitted immutable records retain normal
+     * encrypted outbox retry authority; kill() applies the global outbox erasure policy.
+     */
+    @JvmStatic
+    fun setRecoveredStallObserverEnabled(enabled: Boolean) {
+        // Serialize opt-in with start/kill so a stale caller cannot replace a newer owner.
+        val (captured, request) = stateLock.withLock {
+            val snapshot = captureSessionSnapshot()
+            snapshot to dev.everframe.diagnostics.RecoveredStallRuntime.request(snapshot.user.startEpoch,
+                enabled && android.os.Build.VERSION.SDK_INT >= 26 && snapshot.captureConsent &&
+                    snapshot.config?.capture?.crash == true)
+        }
+        if (!enabled || android.os.Build.VERSION.SDK_INT < 26 || !captured.captureConsent || captured.config?.capture?.crash != true) return
+        val context = appContext ?: return
+        launchCapturedWork(captured, requireCurrentStart = true) {
+            txGuardVoid("recoveredStall.enable") {
+                dev.everframe.diagnostics.RecoveredStallRuntime.enable(context, captured, sharedOutboxFor(context), request)
+            }
+        }
+    }
+
     /** True after the current explicit opt-in has durably registered its OS context. */
     @JvmStatic
     fun isNativeCrashRecoveryReady(): Boolean = captureGate &&
@@ -840,6 +870,7 @@ object Everframe {
             // section as the field it mirrors. See currentStartEpochVolatile().
             _startEpochMirror.set(_startEpoch)
             dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, config.releaseHealth?.enabled == true)
+            dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
             _startEpoch
         } }
         // "Is this start() invocation still the newest one?" Every step below
@@ -952,6 +983,7 @@ object Everframe {
             // ordering.
             _identityHolder.set(null)
             appContext = context.applicationContext
+            dev.everframe.diagnostics.RecoveredStallRuntime.startPublished(epoch)
             dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(epoch, config.capture.crash)
             captureGate = true
             true
@@ -1358,6 +1390,7 @@ object Everframe {
                 _killGenerationMirror.set(_killGeneration)
                 dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, false)
                 dev.everframe.crash.AndroidNativeCrashRuntime.noteKill()
+                dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
                 _config = null

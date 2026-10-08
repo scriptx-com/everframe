@@ -74,3 +74,4 @@ export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './an
 export { DiagnosticEvidence, DiagnosticCause, DiagnosticFrame, androidExitCause } from './diagnostic.js';
 
 export { AppleDiagnosticEvidence, AppleDiagnosticFrame, AppleHang, AppleExitCount } from './apple-diagnostic.js';
+export { RecoveredStallEvidence } from './recovered-stall.js';

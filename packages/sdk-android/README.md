@@ -75,6 +75,16 @@ Recovery reads at most32 historical records, matches the exact token/PID/process
 
 Diagnostic cause names preserve OS reason categories, not proof of user intent. Before Android 14/API34, reason10 (`REASON_USER_REQUESTED`) also covered app updates and component-state changes. Consumers should qualify that category using the retained API level/reason; reason11 means the OS user was stopped. See [ApplicationExitInfo](https://developer.android.com/reference/android/app/ApplicationExitInfo#REASON_USER_REQUESTED).
 
+### Recovered main-thread delays (opt in)
+
+After each `Everframe.start`, call `Everframe.setRecoveredStallObserverEnabled(true)` to observe recovered main-looper probe delays on Android/API26 and later. API24–25 remain unavailable in this mode: the envelope/timestamp path requires platform `java.time`, and this API does not assume host library desugaring. The observer is disabled by default and requires capture consent and `capture.crash`. `Everframe.isRecoveredStallObserverReady()` reports that its lifecycle observer is installed; it does not promise an eligible sample or complete coverage.
+
+This separate mode reports only after the queued probe executes again. A delay of 5–60 seconds is an **SDK probe observation**, not a confirmed OS ANR, task duration, crash, or fatal outcome. Missing recovery produces no observation. No stack, user, session, web exposure, or native exposure is attached. OS exit recovery remains independently opt-in and owns its existing OS state-summary token; this observer never writes that token.
+
+Sampling runs once per second only while the process lifecycle is foreground. Every probe and admission also checks foreground process importance, screen interactivity, and debugger state. A watchdog scheduling gap over 2.5 seconds, sleep/clock inconsistency, or loss of eligibility discards the pending sample. Queue barriers and scheduling can affect probe latency; this is not a diagnosis of the cause. No background sampling timer runs.
+
+At most four observations are admitted per OS process, separated by at least 60 seconds, including across SDK restarts or repeated opt-in. Each anonymous record is limited to 64 KiB and uses the ordinary bounded encrypted outbox with frozen release and destination. Disabling removes callbacks and cancels pending/new admission; already admitted immutable records retain normal retry authority, including after relaunch. `Everframe.kill()` applies the SDK's global outbox erasure policy. No signal handler or persisted heartbeat is installed.
+
 ## License
 
 MIT

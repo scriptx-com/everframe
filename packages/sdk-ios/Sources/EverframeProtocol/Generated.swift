@@ -580,11 +580,12 @@ public struct EverframePayload: Codable {
     public let focus: EverframeFocus?
     public let logs, network: [EverframeJSONAny]?
     public let networkBodies: [EverframeNetworkBody]?
+    public let recoveredStall: EverframeRecoveredStallEvidence?
     public let redactions: [EverframeJSONAny]?
     public let resources: [EverframeResource]?
     public let vitals: [EverframeVital]?
 
-    public init(annotations: [EverframeJSONAny]?, appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil, breadcrumbs: [EverframeBreadcrumb]?, crash: EverframeCrash?, diagnostic: EverframeDiagnosticEvidence? = nil, extra: String?, focus: EverframeFocus?, logs: [EverframeJSONAny]?, network: [EverframeJSONAny]?, networkBodies: [EverframeNetworkBody]?, redactions: [EverframeJSONAny]?, resources: [EverframeResource]?, vitals: [EverframeVital]?) {
+    public init(annotations: [EverframeJSONAny]?, appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil, breadcrumbs: [EverframeBreadcrumb]?, crash: EverframeCrash?, diagnostic: EverframeDiagnosticEvidence? = nil, extra: String?, focus: EverframeFocus?, logs: [EverframeJSONAny]?, network: [EverframeJSONAny]?, networkBodies: [EverframeNetworkBody]?, recoveredStall: EverframeRecoveredStallEvidence? = nil, redactions: [EverframeJSONAny]?, resources: [EverframeResource]?, vitals: [EverframeVital]?) {
         self.annotations = annotations
         self.appleDiagnostic = appleDiagnostic
         self.breadcrumbs = breadcrumbs
@@ -595,6 +596,7 @@ public struct EverframePayload: Codable {
         self.logs = logs
         self.network = network
         self.networkBodies = networkBodies
+        self.recoveredStall = recoveredStall
         self.redactions = redactions
         self.resources = resources
         self.vitals = vitals
@@ -630,6 +632,7 @@ public extension EverframePayload {
         logs: [EverframeJSONAny]?? = nil,
         network: [EverframeJSONAny]?? = nil,
         networkBodies: [EverframeNetworkBody]?? = nil,
+        recoveredStall: EverframeRecoveredStallEvidence?? = nil,
         redactions: [EverframeJSONAny]?? = nil,
         resources: [EverframeResource]?? = nil,
         vitals: [EverframeVital]?? = nil
@@ -645,6 +648,7 @@ public extension EverframePayload {
             logs: logs ?? self.logs,
             network: network ?? self.network,
             networkBodies: networkBodies ?? self.networkBodies,
+            recoveredStall: recoveredStall ?? self.recoveredStall,
             redactions: redactions ?? self.redactions,
             resources: resources ?? self.resources,
             vitals: vitals ?? self.vitals
@@ -2928,6 +2932,248 @@ public enum EverframeBodySkipped: String, Codable {
     case contentType = "content-type"
     case error = "error"
     case unsupported = "unsupported"
+}
+
+// MARK: - EverframeRecoveredStallEvidence
+public struct EverframeRecoveredStallEvidence: Codable {
+    public let android: EverframeRecoveredStallAndroid
+    public let attribution: EverframeRecoveredStallAttribution
+    public let clock: EverframeRecoveredStallClock
+    public let eligibility: EverframeRecoveredStallEligibility
+    public let evidenceID: String
+    public let kind: EverframeRecoveredStallKind
+    public let outcome: EverframeRecoveredStallOutcome
+    public let probeDelayMS: Int
+    public let provenance: EverframeRecoveredStallProvenance
+    public let queuedAt, recoveredAt: Date
+    public let sampleIntervalMS: Double
+    public let scope: EverframeRecoveredStallScope
+    public let thresholdMS: Double
+    public let trace: EverframeRecoveredStallTrace
+    public let version: Double
+
+    public enum CodingKeys: String, CodingKey {
+        case android, attribution, clock, eligibility
+        case evidenceID = "evidenceId"
+        case kind, outcome
+        case probeDelayMS = "probeDelayMs"
+        case provenance, queuedAt, recoveredAt
+        case sampleIntervalMS = "sampleIntervalMs"
+        case scope
+        case thresholdMS = "thresholdMs"
+        case trace, version
+    }
+
+    public init(android: EverframeRecoveredStallAndroid, attribution: EverframeRecoveredStallAttribution, clock: EverframeRecoveredStallClock, eligibility: EverframeRecoveredStallEligibility, evidenceID: String, kind: EverframeRecoveredStallKind, outcome: EverframeRecoveredStallOutcome, probeDelayMS: Int, provenance: EverframeRecoveredStallProvenance, queuedAt: Date, recoveredAt: Date, sampleIntervalMS: Double, scope: EverframeRecoveredStallScope, thresholdMS: Double, trace: EverframeRecoveredStallTrace, version: Double) {
+        self.android = android
+        self.attribution = attribution
+        self.clock = clock
+        self.eligibility = eligibility
+        self.evidenceID = evidenceID
+        self.kind = kind
+        self.outcome = outcome
+        self.probeDelayMS = probeDelayMS
+        self.provenance = provenance
+        self.queuedAt = queuedAt
+        self.recoveredAt = recoveredAt
+        self.sampleIntervalMS = sampleIntervalMS
+        self.scope = scope
+        self.thresholdMS = thresholdMS
+        self.trace = trace
+        self.version = version
+    }
+}
+
+// MARK: EverframeRecoveredStallEvidence convenience initializers and mutators
+
+public extension EverframeRecoveredStallEvidence {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeRecoveredStallEvidence.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        android: EverframeRecoveredStallAndroid? = nil,
+        attribution: EverframeRecoveredStallAttribution? = nil,
+        clock: EverframeRecoveredStallClock? = nil,
+        eligibility: EverframeRecoveredStallEligibility? = nil,
+        evidenceID: String? = nil,
+        kind: EverframeRecoveredStallKind? = nil,
+        outcome: EverframeRecoveredStallOutcome? = nil,
+        probeDelayMS: Int? = nil,
+        provenance: EverframeRecoveredStallProvenance? = nil,
+        queuedAt: Date? = nil,
+        recoveredAt: Date? = nil,
+        sampleIntervalMS: Double? = nil,
+        scope: EverframeRecoveredStallScope? = nil,
+        thresholdMS: Double? = nil,
+        trace: EverframeRecoveredStallTrace? = nil,
+        version: Double? = nil
+    ) -> EverframeRecoveredStallEvidence {
+        return EverframeRecoveredStallEvidence(
+            android: android ?? self.android,
+            attribution: attribution ?? self.attribution,
+            clock: clock ?? self.clock,
+            eligibility: eligibility ?? self.eligibility,
+            evidenceID: evidenceID ?? self.evidenceID,
+            kind: kind ?? self.kind,
+            outcome: outcome ?? self.outcome,
+            probeDelayMS: probeDelayMS ?? self.probeDelayMS,
+            provenance: provenance ?? self.provenance,
+            queuedAt: queuedAt ?? self.queuedAt,
+            recoveredAt: recoveredAt ?? self.recoveredAt,
+            sampleIntervalMS: sampleIntervalMS ?? self.sampleIntervalMS,
+            scope: scope ?? self.scope,
+            thresholdMS: thresholdMS ?? self.thresholdMS,
+            trace: trace ?? self.trace,
+            version: version ?? self.version
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - EverframeRecoveredStallAndroid
+public struct EverframeRecoveredStallAndroid: Codable {
+    public let apiLevel: Int
+
+    public init(apiLevel: Int) {
+        self.apiLevel = apiLevel
+    }
+}
+
+// MARK: EverframeRecoveredStallAndroid convenience initializers and mutators
+
+public extension EverframeRecoveredStallAndroid {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeRecoveredStallAndroid.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        apiLevel: Int? = nil
+    ) -> EverframeRecoveredStallAndroid {
+        return EverframeRecoveredStallAndroid(
+            apiLevel: apiLevel ?? self.apiLevel
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - EverframeRecoveredStallAttribution
+public struct EverframeRecoveredStallAttribution: Codable {
+    public let nativeExposure: EverframeSession
+    public let release: EverframeRelease
+    public let session, webExposure: EverframeSession
+
+    public init(nativeExposure: EverframeSession, release: EverframeRelease, session: EverframeSession, webExposure: EverframeSession) {
+        self.nativeExposure = nativeExposure
+        self.release = release
+        self.session = session
+        self.webExposure = webExposure
+    }
+}
+
+// MARK: EverframeRecoveredStallAttribution convenience initializers and mutators
+
+public extension EverframeRecoveredStallAttribution {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeRecoveredStallAttribution.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        nativeExposure: EverframeSession? = nil,
+        release: EverframeRelease? = nil,
+        session: EverframeSession? = nil,
+        webExposure: EverframeSession? = nil
+    ) -> EverframeRecoveredStallAttribution {
+        return EverframeRecoveredStallAttribution(
+            nativeExposure: nativeExposure ?? self.nativeExposure,
+            release: release ?? self.release,
+            session: session ?? self.session,
+            webExposure: webExposure ?? self.webExposure
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeRecoveredStallClock: String, Codable {
+    case uptime = "uptime"
+}
+
+public enum EverframeRecoveredStallEligibility: String, Codable {
+    case foregroundDebuggerCheckedV1 = "foreground-debugger-checked-v1"
+}
+
+public enum EverframeRecoveredStallKind: String, Codable {
+    case recoveredMainThreadStall = "recovered_main_thread_stall"
+}
+
+public enum EverframeRecoveredStallOutcome: String, Codable {
+    case recovered = "recovered"
+}
+
+public enum EverframeRecoveredStallProvenance: String, Codable {
+    case androidMainLooperProbe = "android_main_looper_probe"
+}
+
+public enum EverframeRecoveredStallScope: String, Codable {
+    case mainLooper = "main_looper"
+}
+
+public enum EverframeRecoveredStallTrace: String, Codable {
+    case notCollected = "not_collected"
 }
 
 // MARK: - EverframeResource
