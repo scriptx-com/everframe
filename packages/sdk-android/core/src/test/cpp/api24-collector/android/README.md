@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Android handler qualification
 
 These targets are test-only packaging and execution fixtures, not an SDK collector.

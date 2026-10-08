@@ -1,5 +1,6 @@
 {
   "purpose": "qualification-only; no SDK runtime dependency",
+  "pinning": "GitHub codeload archives are byte-stable and pinned by sha256. Gitiles regenerates +archive tarballs with new timestamps on every request, so those sources are pinned by the git tree id of the archive's files instead.",
   "upstreamSources": [
     {
       "name": "crashpad",
@@ -12,22 +13,19 @@
       "name": "mini_chromium",
       "revision": "c029983310e7b806aa4c75463d3a013c9558abde",
       "url": "https://chromium.googlesource.com/chromium/mini_chromium/+archive/c029983310e7b806aa4c75463d3a013c9558abde.tar.gz",
-      "bytes": 154421,
-      "sha256": "c2c4650122ddc61d7c7cbcf2d0e6103bd94a239b81f466c9dcd1b044b821de1a"
+      "gitTree": "c2fbf7683494164dbf8bc91e0031189fe3c1e8aa"
     },
     {
       "name": "lss",
       "revision": "9719c1e1e676814c456b55f5f070eabad6709d31",
       "url": "https://chromium.googlesource.com/linux-syscall-support/+archive/9719c1e1e676814c456b55f5f070eabad6709d31.tar.gz",
-      "bytes": 42275,
-      "sha256": "5aa6f3a7c7045d492a7b123de148a7cbb8caaeb1de6ea6e33a448aac24b5097c"
+      "gitTree": "6e72d83d88350579148b2e68d98a74ff81931a1a"
     },
     {
       "name": "zlib",
       "revision": "fef58692c1d7bec94c4ed3d030a45a1832a9615d",
       "url": "https://chromium.googlesource.com/chromium/src/third_party/zlib/+archive/fef58692c1d7bec94c4ed3d030a45a1832a9615d.tar.gz",
-      "bytes": 584453,
-      "sha256": "b5c9e3e41f01f285ad46990143aabf6422f1e97d745c2c4236d92c58c380d9fb"
+      "gitTree": "d9e536150676db44c061579c4d62c5602a0d28f6"
     },
     {
       "name": "googletest",

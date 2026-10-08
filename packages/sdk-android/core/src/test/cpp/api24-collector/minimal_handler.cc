@@ -53,7 +53,9 @@ class PreparedHandlerImpl final : public PreparedHandler {
                       const Key& key, const std::function<void(bool)>& after_commit)
       : delegate_(directory, identity, key, after_commit) {}
   bool Initialize(int socket) {
-    return server_.InitializeWithClient(crashpad::ScopedFileHandle(socket), false);
+    // SetHandlerSocket clients speak the shared-connection protocol: after a request they wait
+    // for SIGCONT and never read a completion message, so single-client mode holds them 5 s.
+    return server_.InitializeWithClient(crashpad::ScopedFileHandle(socket), true);
   }
   bool Run() override { server_.Run(&delegate_); return delegate_.committed(); }
  private:

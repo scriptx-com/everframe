@@ -17,11 +17,20 @@ enum NativeCrashRecorderAdapter {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath()
         return NativeCrashRuntime(rootURL: caches.appendingPathComponent("dev.everframe.native-crash"),
             outbox: JSONLOutbox(), recorder: .init(
-                install: { path in path.path.withCString { EFCRInstall($0) == EFCRInstallSuccess } },
+                install: { path in recorderDirectory(path)?.withCString { EFCRInstall($0) == EFCRInstallSuccess } ?? false },
                 disable: { _ = EFCRSetEnabled(false) },
                 publish: { id in
                     guard id.uuidString.lowercased().withCString({ EFCRSetContextIdentifier($0) }) else { return false }
                     return EFCRSetEnabled(true)
                 }))
+    }
+
+    /// The recorder accepts only realpath(3)'s spelling of its run directory.
+    /// Foundation reports device containers as /var/..., which realpath spells
+    /// /private/var/...; the recorder would reject the Foundation spelling.
+    static func recorderDirectory(_ url: URL) -> String? {
+        guard let resolved = realpath(url.path, nil) else { return nil }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 }
