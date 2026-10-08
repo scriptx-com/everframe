@@ -1,0 +1,27 @@
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_8fc033f6135573 77
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryContext.swift
+  s_360d9eb003c487::t_18f9a2f85cdd8c 19
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_360d9eb003c487::t_9855f738d3452d 41-56
+  s_360d9eb003c487::t_691e6d81d55153 29-30
+  s_360d9eb003c487::t_904e5938c0a63a 100-101
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthModels.swift
+  s_360d9eb003c487::t_fb2aba209e3137 29-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "097978391bf682d7e261f27898d92a5a74c331ca",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
