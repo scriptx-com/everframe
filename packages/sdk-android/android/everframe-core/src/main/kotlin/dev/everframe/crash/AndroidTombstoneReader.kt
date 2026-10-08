@@ -11,6 +11,9 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 
+/** Crashed-thread evidence plus, per frame, whether it runs app-packaged native code. Grouping only. */
+internal class AndroidTombstone(val metadata: AndroidNativeCrashMetadata, val appCode: List<Boolean>)
+
 /** Healthy-process reader for Android debuggerd's tombstone.proto (API 31+).
  * No memory dumps, logs, registers, command lines, thread names or abort text leave this boundary.
  * Unknown fields are skipped, never recursively decoded. Does not install a signal handler.
@@ -21,7 +24,9 @@ internal object AndroidTombstoneReader {
     private const val MAX_THREADS = 1024
     private const val MAX_FRAMES = 256
 
-    fun read(input: InputStream, expectedPid: Int? = null): AndroidNativeCrashMetadata? = try {
+    fun read(input: InputStream, expectedPid: Int? = null): AndroidNativeCrashMetadata? = readTombstone(input, expectedPid)?.metadata
+
+    fun readTombstone(input: InputStream, expectedPid: Int? = null): AndroidTombstone? = try {
         input.use { stream ->
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(8192)
@@ -102,7 +107,7 @@ internal object AndroidTombstoneReader {
         require(signed in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong())
         return signed
     }
-    private fun decode(bytes: ByteArray, expectedPid: Int?): AndroidNativeCrashMetadata {
+    private fun decode(bytes: ByteArray, expectedPid: Int?): AndroidTombstone {
         val wire = Wire(bytes, Budget())
         var arch = 0L
         var tid = 0L
@@ -157,26 +162,32 @@ internal object AndroidTombstoneReader {
         var sawId = false
         var incomplete = false
         val frames = ArrayList<AndroidNativeFrame>()
+        val appCode = ArrayList<Boolean>()
         thread.fields { field ->
             when (field) {
                 1 -> { require(!sawId); sawId = true; embeddedId = uint32(thread.number()) }
                 4 -> {
                     val frame = thread.slice()
                     if (frames.size == MAX_FRAMES) incomplete = true
-                    else frames.add(frame(thread.child(frame)))
+                    else { val (value, app) = frame(thread.child(frame)); frames.add(value); appCode.add(app) }
                 }
                 else -> thread.skip()
             }
         }
         require(embeddedId == tid)
-        return AndroidNativeCrashMetadata(abi = abi, crashedThreadID = tid, frames = frames,
-            framesIncomplete = incomplete || frames.isEmpty(), source = AndroidNativeSource.values().single(), signalNumber = signal, signalCode = signalCode)
+        return AndroidTombstone(AndroidNativeCrashMetadata(abi = abi, crashedThreadID = tid, frames = frames,
+            framesIncomplete = incomplete || frames.isEmpty(), source = AndroidNativeSource.values().single(), signalNumber = signal, signalCode = signalCode), appCode)
     }
-    private fun frame(wire: Wire): AndroidNativeFrame {
+    /** App-packaged ELF: an APK-embedded or extracted library under app storage. System partitions, APEX
+     * modules, JIT memory and ART output (oat/odex/vdex/art) change with OS builds and dexopt state. */
+    private fun appPackaged(path: String) = (path.startsWith("/data/") || path.startsWith("/mnt/expand/")) &&
+        path.substringAfterLast('/').substringAfterLast('!').endsWith(".so")
+    private fun frame(wire: Wire): Pair<AndroidNativeFrame, Boolean> {
         var pc = 0uL
         var relativePc = 0uL
         var module: String? = null
         var buildId: String? = null
+        var app = false
         val seen = HashSet<Int>()
         wire.fields { field ->
             when (field) {
@@ -184,8 +195,10 @@ internal object AndroidTombstoneReader {
                 2 -> { unique(seen, field); pc = wire.number() }
                 6 -> {
                     unique(seen, field)
-                    val name = wire.text().substringAfterLast('/').substringAfterLast('\\')
+                    val path = wire.text()
+                    val name = path.substringAfterLast('/').substringAfterLast('\\')
                     module = name.takeIf { it.isNotEmpty() && it.length <= 256 && it.none { c -> c.code < 32 || c.code == 127 } }
+                    app = appPackaged(path)
                 }
                 8 -> {
                     unique(seen, field)
@@ -196,6 +209,6 @@ internal object AndroidTombstoneReader {
             }
         }
         return AndroidNativeFrame(pc = "0x${pc.toString(16)}", relativePC = "0x${relativePc.toString(16)}",
-            module = module, buildID = buildId.takeIf { module != null })
+            module = module, buildID = buildId.takeIf { module != null }) to (app && module != null)
     }
 }

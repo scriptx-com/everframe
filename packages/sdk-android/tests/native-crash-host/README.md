@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 # Installed Android native crash fixture
 
 This credential-free app deliberately terminates through optimized JNI faults. It requires Android API31+ for OS native tombstone recovery. Build the SDK Release Maven artifacts into an isolated local repository, then invoke the SDK Gradle wrapper against this directory with `-PeverframeMavenRepo=<absolute path>` and `-PeverframeVersion=<local version>` plus `:app:assembleRelease`. `proofApplicationId` can select a unique package on an owned emulator.
