@@ -11,8 +11,8 @@
 namespace everframe_qualification {
 class MinimalDelegate final : public crashpad::ExceptionHandlerServer::Delegate {
  public:
-  MinimalDelegate(const std::string& directory, const FrozenIdentity& identity, const Key& key)
-      : directory_(directory), identity_(identity), key_(key) {}
+  MinimalDelegate(const std::string& directory, const FrozenIdentity& identity, const Key& key, const std::function<void(bool)>& after_commit)
+      : directory_(directory), identity_(identity), key_(key), after_commit_(after_commit) {}
   bool HandleException(pid_t pid, uid_t uid, const crashpad::ExceptionHandlerProtocol::ClientInformation& info,
       crashpad::VMAddress stack, pid_t* thread, crashpad::UUID*) override {
     crashpad::DirectPtraceConnection connection;
@@ -38,17 +38,19 @@ class MinimalDelegate final : public crashpad::ExceptionHandlerServer::Delegate 
     Authority authority(directory_, key_);
     const auto result = authority.Commit(identity_.epoch, *cipher);
     committed_ = result == CommitResult::committed || result == CommitResult::existing;
+    if (after_commit_) after_commit_(committed_);
     return committed_;
   }
   const std::string directory_;
   const FrozenIdentity identity_;
   const Key key_;
+  const std::function<void(bool)> after_commit_;
   bool committed_ = false;
 };
-bool RunHandler(int socket, const std::string& directory, const FrozenIdentity& identity, const Key& key) {
+bool RunHandler(int socket, const std::string& directory, const FrozenIdentity& identity, const Key& key, const std::function<void(bool)>& after_commit) {
   crashpad::ExceptionHandlerServer server;
   if (!server.InitializeWithClient(crashpad::ScopedFileHandle(socket), false)) return false;
-  MinimalDelegate delegate(directory, identity, key);
+  MinimalDelegate delegate(directory, identity, key, after_commit);
   server.Run(&delegate);
   return delegate.committed();
 }
