@@ -39,10 +39,11 @@ final class NativeCrashStartupTests: XCTestCase {
         XCTAssertNil(context.identitySubject)
     }
     func testNormalBreadcrumbInstallationDoesNotReplaceProcessFatalHandler() {
-        // This local sentinel detects the install side effect even if another
-        // test previously exercised the legacy adapter's direct installation.
+        // The legacy adapter installs once per process. Reset it so an earlier
+        // start() in this process cannot mask a reintroduced installation.
         let old = NSGetUncaughtExceptionHandler()
-        defer { NSSetUncaughtExceptionHandler(old) }
+        ErrorBreadcrumbAdapter.__resetForTesting()
+        defer { ErrorBreadcrumbAdapter.__resetForTesting(); NSSetUncaughtExceptionHandler(old) }
         NSSetUncaughtExceptionHandler(nil)
         BreadcrumbAdapters.install()
         XCTAssertNil(NSGetUncaughtExceptionHandler())
