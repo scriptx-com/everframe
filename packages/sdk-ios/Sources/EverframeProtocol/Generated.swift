@@ -1993,9 +1993,10 @@ public struct EverframeNativeCrashMetadata: Codable {
     public let images: [EverframeNativeCrashImage]
     public let imagesIncomplete: Bool
     public let platform: EverframeNativeCrashPlatform
+    public let releaseHealthEvidence: EverframeNativeCrashReleaseHealthEvidence?
     public let timestampMicros: String
 
-    public init(crashedThreadIndex: Int, error: EverframeNativeCrashError, frames: [EverframeNativeCrashFrame], framesIncomplete: Bool, images: [EverframeNativeCrashImage], imagesIncomplete: Bool, platform: EverframeNativeCrashPlatform, timestampMicros: String) {
+    public init(crashedThreadIndex: Int, error: EverframeNativeCrashError, frames: [EverframeNativeCrashFrame], framesIncomplete: Bool, images: [EverframeNativeCrashImage], imagesIncomplete: Bool, platform: EverframeNativeCrashPlatform, releaseHealthEvidence: EverframeNativeCrashReleaseHealthEvidence?, timestampMicros: String) {
         self.crashedThreadIndex = crashedThreadIndex
         self.error = error
         self.frames = frames
@@ -2003,6 +2004,7 @@ public struct EverframeNativeCrashMetadata: Codable {
         self.images = images
         self.imagesIncomplete = imagesIncomplete
         self.platform = platform
+        self.releaseHealthEvidence = releaseHealthEvidence
         self.timestampMicros = timestampMicros
     }
 }
@@ -2033,6 +2035,7 @@ public extension EverframeNativeCrashMetadata {
         images: [EverframeNativeCrashImage]? = nil,
         imagesIncomplete: Bool? = nil,
         platform: EverframeNativeCrashPlatform? = nil,
+        releaseHealthEvidence: EverframeNativeCrashReleaseHealthEvidence??,
         timestampMicros: String? = nil
     ) -> EverframeNativeCrashMetadata {
         return EverframeNativeCrashMetadata(
@@ -2043,6 +2046,7 @@ public extension EverframeNativeCrashMetadata {
             images: images ?? self.images,
             imagesIncomplete: imagesIncomplete ?? self.imagesIncomplete,
             platform: platform ?? self.platform,
+            releaseHealthEvidence: releaseHealthEvidence ?? self.releaseHealthEvidence,
             timestampMicros: timestampMicros ?? self.timestampMicros
         )
     }
@@ -2054,6 +2058,20 @@ public extension EverframeNativeCrashMetadata {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
+}
+
+public extension EverframeNativeCrashMetadata {
+    init(crashedThreadIndex: Int, error: EverframeNativeCrashError, frames: [EverframeNativeCrashFrame], framesIncomplete: Bool, images: [EverframeNativeCrashImage], imagesIncomplete: Bool, platform: EverframeNativeCrashPlatform, timestampMicros: String) { self.init(crashedThreadIndex: crashedThreadIndex, error: error, frames: frames, framesIncomplete: framesIncomplete, images: images, imagesIncomplete: imagesIncomplete, platform: platform, releaseHealthEvidence: nil, timestampMicros: timestampMicros) }
+    func with(
+        crashedThreadIndex: Int? = nil,
+        error: EverframeNativeCrashError? = nil,
+        frames: [EverframeNativeCrashFrame]? = nil,
+        framesIncomplete: Bool? = nil,
+        images: [EverframeNativeCrashImage]? = nil,
+        imagesIncomplete: Bool? = nil,
+        platform: EverframeNativeCrashPlatform? = nil,
+        timestampMicros: String? = nil
+    ) -> EverframeNativeCrashMetadata { return self.with(crashedThreadIndex: crashedThreadIndex, error: error, frames: frames, framesIncomplete: framesIncomplete, images: images, imagesIncomplete: imagesIncomplete, platform: platform, releaseHealthEvidence: .some(self.releaseHealthEvidence), timestampMicros: timestampMicros) }
 }
 
 // MARK: - EverframeNativeCrashError
@@ -2251,6 +2269,161 @@ public enum EverframeNativeCrashArchitecture: String, Codable {
 
 public enum EverframeNativeCrashPlatform: String, Codable {
     case apple = "apple"
+}
+
+// MARK: - EverframeNativeCrashReleaseHealthEvidence
+public struct EverframeNativeCrashReleaseHealthEvidence: Codable {
+    public let attribution: EverframeNativeCrashHealthAttribution
+    public let contextID: String
+    public let exposure: EverframeNativeExposure
+    public let version: Double
+
+    public enum CodingKeys: String, CodingKey {
+        case attribution
+        case contextID = "contextId"
+        case exposure, version
+    }
+
+    public init(attribution: EverframeNativeCrashHealthAttribution, contextID: String, exposure: EverframeNativeExposure, version: Double) {
+        self.attribution = attribution
+        self.contextID = contextID
+        self.exposure = exposure
+        self.version = version
+    }
+}
+
+// MARK: EverframeNativeCrashReleaseHealthEvidence convenience initializers and mutators
+
+public extension EverframeNativeCrashReleaseHealthEvidence {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeNativeCrashReleaseHealthEvidence.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        attribution: EverframeNativeCrashHealthAttribution? = nil,
+        contextID: String? = nil,
+        exposure: EverframeNativeExposure? = nil,
+        version: Double? = nil
+    ) -> EverframeNativeCrashReleaseHealthEvidence {
+        return EverframeNativeCrashReleaseHealthEvidence(
+            attribution: attribution ?? self.attribution,
+            contextID: contextID ?? self.contextID,
+            exposure: exposure ?? self.exposure,
+            version: version ?? self.version
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeNativeCrashHealthAttribution: String, Codable {
+    case immutableFatalContext = "immutable_fatal_context"
+}
+
+// MARK: - EverframeNativeExposure
+public struct EverframeNativeExposure: Codable {
+    public let exposureID: String
+    public let loadedBuildID: String?
+    public let loadedBundleStatus: EverframeLoadedBundleStatus
+    public let nativeBuildID: String
+    public let processLaunchID: String
+    public let startedAt: Date
+
+    public enum CodingKeys: String, CodingKey {
+        case exposureID = "exposureId"
+        case loadedBuildID = "loadedBuildId"
+        case loadedBundleStatus
+        case nativeBuildID = "nativeBuildId"
+        case processLaunchID = "processLaunchId"
+        case startedAt
+    }
+
+    public init(exposureID: String, loadedBuildID: String?, loadedBundleStatus: EverframeLoadedBundleStatus, nativeBuildID: String, processLaunchID: String, startedAt: Date) {
+        self.exposureID = exposureID
+        self.loadedBuildID = loadedBuildID
+        self.loadedBundleStatus = loadedBundleStatus
+        self.nativeBuildID = nativeBuildID
+        self.processLaunchID = processLaunchID
+        self.startedAt = startedAt
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(exposureID, forKey: .exposureID)
+        try container.encode(loadedBuildID, forKey: .loadedBuildID)
+        try container.encode(loadedBundleStatus, forKey: .loadedBundleStatus)
+        try container.encode(nativeBuildID, forKey: .nativeBuildID)
+        try container.encode(processLaunchID, forKey: .processLaunchID)
+        try container.encode(startedAt, forKey: .startedAt)
+    }
+}
+
+// MARK: EverframeNativeExposure convenience initializers and mutators
+
+public extension EverframeNativeExposure {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeNativeExposure.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        exposureID: String? = nil,
+        loadedBuildID: String?? = nil,
+        loadedBundleStatus: EverframeLoadedBundleStatus? = nil,
+        nativeBuildID: String? = nil,
+        processLaunchID: String? = nil,
+        startedAt: Date? = nil
+    ) -> EverframeNativeExposure {
+        return EverframeNativeExposure(
+            exposureID: exposureID ?? self.exposureID,
+            loadedBuildID: loadedBuildID ?? self.loadedBuildID,
+            loadedBundleStatus: loadedBundleStatus ?? self.loadedBundleStatus,
+            nativeBuildID: nativeBuildID ?? self.nativeBuildID,
+            processLaunchID: processLaunchID ?? self.processLaunchID,
+            startedAt: startedAt ?? self.startedAt
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeLoadedBundleStatus: String, Codable {
+    case known = "known"
+    case notApplicable = "not_applicable"
+    case unknown = "unknown"
 }
 
 // MARK: - EverframeDiagnosticEvidence
@@ -2504,95 +2677,6 @@ public enum EverframeDiagnosticCause: String, Codable {
 
 public enum EverframeDiagnosticKind: String, Codable {
     case processExit = "process_exit"
-}
-
-// MARK: - EverframeNativeExposure
-public struct EverframeNativeExposure: Codable {
-    public let exposureID: String
-    public let loadedBuildID: String?
-    public let loadedBundleStatus: EverframeLoadedBundleStatus
-    public let nativeBuildID: String
-    public let processLaunchID: String
-    public let startedAt: Date
-
-    public enum CodingKeys: String, CodingKey {
-        case exposureID = "exposureId"
-        case loadedBuildID = "loadedBuildId"
-        case loadedBundleStatus
-        case nativeBuildID = "nativeBuildId"
-        case processLaunchID = "processLaunchId"
-        case startedAt
-    }
-
-    public init(exposureID: String, loadedBuildID: String?, loadedBundleStatus: EverframeLoadedBundleStatus, nativeBuildID: String, processLaunchID: String, startedAt: Date) {
-        self.exposureID = exposureID
-        self.loadedBuildID = loadedBuildID
-        self.loadedBundleStatus = loadedBundleStatus
-        self.nativeBuildID = nativeBuildID
-        self.processLaunchID = processLaunchID
-        self.startedAt = startedAt
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(exposureID, forKey: .exposureID)
-        try container.encode(loadedBuildID, forKey: .loadedBuildID)
-        try container.encode(loadedBundleStatus, forKey: .loadedBundleStatus)
-        try container.encode(nativeBuildID, forKey: .nativeBuildID)
-        try container.encode(processLaunchID, forKey: .processLaunchID)
-        try container.encode(startedAt, forKey: .startedAt)
-    }
-}
-
-// MARK: EverframeNativeExposure convenience initializers and mutators
-
-public extension EverframeNativeExposure {
-    init(data: Data) throws {
-        self = try newJSONDecoder().decode(EverframeNativeExposure.self, from: data)
-    }
-
-    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
-        guard let data = json.data(using: encoding) else {
-            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
-        }
-        try self.init(data: data)
-    }
-
-    init(fromURL url: URL) throws {
-        try self.init(data: try Data(contentsOf: url))
-    }
-
-    func with(
-        exposureID: String? = nil,
-        loadedBuildID: String?? = nil,
-        loadedBundleStatus: EverframeLoadedBundleStatus? = nil,
-        nativeBuildID: String? = nil,
-        processLaunchID: String? = nil,
-        startedAt: Date? = nil
-    ) -> EverframeNativeExposure {
-        return EverframeNativeExposure(
-            exposureID: exposureID ?? self.exposureID,
-            loadedBuildID: loadedBuildID ?? self.loadedBuildID,
-            loadedBundleStatus: loadedBundleStatus ?? self.loadedBundleStatus,
-            nativeBuildID: nativeBuildID ?? self.nativeBuildID,
-            processLaunchID: processLaunchID ?? self.processLaunchID,
-            startedAt: startedAt ?? self.startedAt
-        )
-    }
-
-    func jsonData() throws -> Data {
-        return try newJSONEncoder().encode(self)
-    }
-
-    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
-        return String(data: try self.jsonData(), encoding: encoding)
-    }
-}
-
-public enum EverframeLoadedBundleStatus: String, Codable {
-    case known = "known"
-    case notApplicable = "not_applicable"
-    case unknown = "unknown"
 }
 
 public enum EverframeOutcome: String, Codable {

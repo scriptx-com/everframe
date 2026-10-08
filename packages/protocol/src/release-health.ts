@@ -25,7 +25,8 @@ const bundleConsistent = (value: { loadedBuildId: string | null; loadedBundleSta
 export const NativeExposurePointerSchema = z.object({
   exposureId: uuid, processLaunchId: uuid, startedAt: timestamp, nativeBuildId: text(200),
   ...bundleIdentity,
-}).strict().refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
+}).strict().refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' })
+  .meta({ id: 'NativeExposure', title: 'NativeExposure' });
 
 /** An observation segment. This is neither a verified person nor a process outcome. */
 export const WebReleaseHealthExposureSchema = z.object({
@@ -44,8 +45,16 @@ export const AndroidReleaseHealthExposureSchema = z.object({
     priorQueueLosses: z.null(), queueLossAccounting: z.literal('unavailable'),
   }).strict(),
 }).strict().refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
+export const IOSReleaseHealthExposureSchema = z.object({
+  ...sharedExposure, processLaunchId: uuid, platform: z.literal('ios'),
+  nativeRelease: z.object({ buildId: text(200) }).strict(), ...bundleIdentity,
+  coverage: z.object({
+    policy: z.literal('ios-sdk-segment-v1'), sampleRate: z.literal(1),
+    priorQueueLosses: z.null(), queueLossAccounting: z.literal('unavailable'),
+  }).strict(),
+}).strict().refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
 export const ReleaseHealthExposureSchema = z.discriminatedUnion('platform', [
-  WebReleaseHealthExposureSchema, AndroidReleaseHealthExposureSchema,
+  WebReleaseHealthExposureSchema, AndroidReleaseHealthExposureSchema, IOSReleaseHealthExposureSchema,
 ]);
 
 const common = {
@@ -67,3 +76,4 @@ export type ReleaseHealthExposure = z.infer<typeof ReleaseHealthExposureSchema>;
 export type NativeExposurePointer = z.infer<typeof NativeExposurePointerSchema>;
 export type WebReleaseHealthExposure = z.infer<typeof WebReleaseHealthExposureSchema>;
 export type AndroidReleaseHealthExposure = z.infer<typeof AndroidReleaseHealthExposureSchema>;
+export type IOSReleaseHealthExposure = z.infer<typeof IOSReleaseHealthExposureSchema>;

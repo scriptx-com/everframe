@@ -225,6 +225,28 @@ ${evidenceParameters.join(',\n')}
 ${evidenceCopy.join(',\n')}
     ): DiagnosticEvidence = DiagnosticEvidence(${evidenceNames.join(', ')}, nativeExposure)
 }`);
+// Append Apple linkage without changing the old positional/copy JVM boundary.
+const nativePattern = /data class NativeCrashMetadata \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
+const nativeMatch = rewritten.match(nativePattern);
+if (!nativeMatch) throw new Error('codegen-kotlin: NativeCrashMetadata block missing');
+const nativeProperties = nativeMatch[1].split('\n');
+const healthIndex = nativeProperties.findIndex(p => p.trim().startsWith('val releaseHealthEvidence:'));
+if (healthIndex < 0) throw new Error('codegen-kotlin: native health evidence missing');
+nativeProperties.splice(healthIndex, 1);
+const nativeParams = nativeProperties.filter(p => p.trim().startsWith('val '))
+  .map(p => p.replace('val ', '').replace(/,$/, ''));
+const nativeNames = nativeParams.map(p => p.trim().split(':')[0]);
+nativeProperties[nativeProperties.length - 1] += ',';
+nativeProperties.push('    val releaseHealthEvidence: NativeCrashReleaseHealthEvidence? = null');
+rewritten = rewritten.replace(nativePattern, `data class NativeCrashMetadata (\n${nativeProperties.join('\n')}\n) {
+    constructor(
+${nativeParams.join(',\n')}
+    ) : this(${nativeNames.join(', ')}, null)
+
+    fun copy(
+${nativeParams.map((p, i) => `${p} = this.${nativeNames[i]}`).join(',\n')}
+    ): NativeCrashMetadata = NativeCrashMetadata(${nativeNames.join(', ')}, releaseHealthEvidence)
+}`);
 // This nullable field is required on the wire: omission changes the exact
 // frozen pointer and must not result from the default encoder configuration.
 const exposurePattern = /data class NativeExposure \(\n([\s\S]*?)\n\)/;

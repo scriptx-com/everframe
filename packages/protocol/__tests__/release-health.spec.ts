@@ -76,3 +76,23 @@ describe('Android release exposure segments', () => {
     expect(ReleaseHealthRecordSchema.safeParse({ ...end(), exposure: androidExposure(), endReason: 'page_hide' }).success).toBe(false);
   });
 });
+
+
+describe('iOS release exposure segments', () => {
+  const ios = () => ({ ...androidStart(), exposure: { ...androidExposure(), platform: 'ios',
+    coverage: { ...androidExposure().coverage, policy: 'ios-sdk-segment-v1' } } });
+  it('accepts a durable anonymous iOS start and explicit stop', () => {
+    expect(ReleaseHealthRecordSchema.parse(ios())).toEqual(ios());
+    const value = { ...end(), exposure: ios().exposure };
+    expect(ReleaseHealthRecordSchema.parse(value)).toEqual(value);
+  });
+  it.each([{ loadedBundleStatus: 'known', loadedBuildId: null },
+    { loadedBundleStatus: 'unknown', loadedBuildId: 'downloaded-not-loaded' },
+    { nativeRelease: 'not_applicable' }, { processLaunchId: undefined },
+    { startedAt: '2026-10-07T12:00:00Z' }, { userId: 'person' }])('rejects invalid iOS identity %j', patch => {
+    expect(ReleaseHealthRecordSchema.safeParse({ ...ios(), exposure: { ...ios().exposure, ...patch } }).success).toBe(false);
+  });
+  it('rejects page-hide as a native boundary', () => {
+    expect(ReleaseHealthRecordSchema.safeParse({ ...end(), exposure: ios().exposure, endReason: 'page_hide' }).success).toBe(false);
+  });
+});

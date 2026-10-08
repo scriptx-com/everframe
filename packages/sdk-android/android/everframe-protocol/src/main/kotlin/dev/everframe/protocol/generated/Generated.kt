@@ -682,8 +682,31 @@ data class NativeCrashMetadata (
     val images: List<NativeCrashImage>,
     val imagesIncomplete: Boolean,
     val platform: NativeCrashPlatform,
-    val timestampMicros: String
-)
+    val timestampMicros: String,
+    val releaseHealthEvidence: NativeCrashReleaseHealthEvidence? = null
+) {
+    constructor(
+    crashedThreadIndex: Long,
+    error: NativeCrashError,
+    frames: List<NativeCrashFrame>,
+    framesIncomplete: Boolean,
+    images: List<NativeCrashImage>,
+    imagesIncomplete: Boolean,
+    platform: NativeCrashPlatform,
+    timestampMicros: String
+    ) : this(crashedThreadIndex, error, frames, framesIncomplete, images, imagesIncomplete, platform, timestampMicros, null)
+
+    fun copy(
+    crashedThreadIndex: Long = this.crashedThreadIndex,
+    error: NativeCrashError = this.error,
+    frames: List<NativeCrashFrame> = this.frames,
+    framesIncomplete: Boolean = this.framesIncomplete,
+    images: List<NativeCrashImage> = this.images,
+    imagesIncomplete: Boolean = this.imagesIncomplete,
+    platform: NativeCrashPlatform = this.platform,
+    timestampMicros: String = this.timestampMicros
+    ): NativeCrashMetadata = NativeCrashMetadata(crashedThreadIndex, error, frames, framesIncomplete, images, imagesIncomplete, platform, timestampMicros, releaseHealthEvidence)
+}
 
 @Serializable
 data class NativeCrashError (
@@ -726,6 +749,49 @@ enum class NativeCrashArchitecture(val value: String) {
 @Serializable
 enum class NativeCrashPlatform(val value: String) {
     @SerialName("apple") Apple("apple");
+}
+
+@Serializable
+data class NativeCrashReleaseHealthEvidence (
+    val attribution: NativeCrashHealthAttribution,
+
+    @SerialName("contextId")
+    val contextID: String,
+
+    val exposure: NativeExposure,
+    val version: Double
+)
+
+@Serializable
+enum class NativeCrashHealthAttribution(val value: String) {
+    @SerialName("immutable_fatal_context") ImmutableFatalContext("immutable_fatal_context");
+}
+
+@Serializable
+data class NativeExposure (
+    @SerialName("exposureId")
+    val exposureID: String,
+
+    @SerialName("loadedBuildId")
+    @Required
+    val loadedBuildID: String? = null,
+
+    val loadedBundleStatus: LoadedBundleStatus,
+
+    @SerialName("nativeBuildId")
+    val nativeBuildID: String,
+
+    @SerialName("processLaunchId")
+    val processLaunchID: String,
+
+    val startedAt: String
+)
+
+@Serializable
+enum class LoadedBundleStatus(val value: String) {
+    @SerialName("known") Known("known"),
+    @SerialName("not_applicable") NotApplicable("not_applicable"),
+    @SerialName("unknown") Unknown("unknown");
 }
 
 @Serializable
@@ -818,33 +884,6 @@ enum class DiagnosticCause(val value: String) {
 @Serializable
 enum class DiagnosticKind(val value: String) {
     @SerialName("process_exit") ProcessExit("process_exit");
-}
-
-@Serializable
-data class NativeExposure (
-    @SerialName("exposureId")
-    val exposureID: String,
-
-    @SerialName("loadedBuildId")
-    @Required
-    val loadedBuildID: String? = null,
-
-    val loadedBundleStatus: LoadedBundleStatus,
-
-    @SerialName("nativeBuildId")
-    val nativeBuildID: String,
-
-    @SerialName("processLaunchId")
-    val processLaunchID: String,
-
-    val startedAt: String
-)
-
-@Serializable
-enum class LoadedBundleStatus(val value: String) {
-    @SerialName("known") Known("known"),
-    @SerialName("not_applicable") NotApplicable("not_applicable"),
-    @SerialName("unknown") Unknown("unknown");
 }
 
 @Serializable

@@ -99,6 +99,51 @@ Physical-device lock-state and performance qualification remain separate checks.
 
 ---
 
+## Anonymous release exposures (iOS)
+
+Release-health collection is off by default. After `start` has published the SDK
+configuration, opt in with the identity of the native build actually running:
+
+```swift
+let health = try ReleaseHealthConfiguration(nativeBuildId: "ios-2026.10.08.1",
+    loadedBuildId: nil, loadedBundleStatus: .notApplicable)
+let ready = await Everframe.shared.setReleaseHealth(health)
+```
+
+`true` means the segment start was durably appended. A `false` result means the
+SDK is not started/ready, storage is unavailable, or this platform is unsupported.
+For an embedded JavaScript bundle, pass its actual loaded build ID with
+`loadedBundleStatus: .known`; use `.unknown` when its identity is unavailable.
+Use `.notApplicable` for a native-only app. Do not pass a bundle
+that was downloaded but has not loaded.
+
+Each SDK start requires a new opt-in and creates a distinct segment. Segments in
+the same process share a process-launch UUID; neither identity represents a user.
+Collection works independently of replay, vitals and crash capture. When native
+crash capture is enabled, only a pointer already durably ready can be frozen into
+its immutable fatal context. Recovery never borrows the relaunch's segment.
+Apple MetricKit reporting windows are not joined to these exposures.
+
+The encrypted app-private journal retains at most 256 records, 1 MiB total and
+seven days. Capacity failure does not evict earlier records to invent coverage;
+queue-loss accounting remains unavailable. Delivery retries preserve the original
+route, SDK key and serialized record. Revoked or expired keys may prevent delivery.
+
+```swift
+let erasedLocally = await Everframe.shared.setReleaseHealth(nil)
+```
+
+Disabling clears readiness immediately and attempts to erase pending health
+records. A failed erase keeps an in-process purge obligation that must succeed
+before another opt-in becomes ready. Retry cleanup when the result is `false`;
+the failed erase obligation is not guaranteed to survive process loss or restart.
+Disabling prevents new native admissions from freezing the old pointer; already
+admitted independent crash evidence retains its original bytes under crash
+delivery/retention policy. This is not retroactive server erasure.
+`kill()` revokes both capture and health. A missing end record or exit does not
+mean a crash or a healthy termination; observed starts do not establish crash-free
+or user rates. tvOS compiles this API but returns `false` for enabling collection.
+
 ## Apple hang and exit diagnostics
 
 On iOS 15+, explicitly opt in **after** `start`:
