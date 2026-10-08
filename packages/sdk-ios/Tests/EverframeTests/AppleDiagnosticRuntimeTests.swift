@@ -17,10 +17,18 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
     private func outbox(max: Int = 50) -> JSONLOutbox {
         let key = key; return JSONLOutbox(fileURL: root.appendingPathComponent("outbox"), maxEntries: max, keyProvider: { key })
     }
-    private func runtime(box: JSONLOutbox? = nil, at date: Date? = nil) -> AppleDiagnosticRuntime {
+    private func runtime(box: JSONLOutbox? = nil, at date: Date? = nil, retryInterval: TimeInterval = 30) -> AppleDiagnosticRuntime {
         let key = key, date = date ?? now
         return AppleDiagnosticRuntime(root: root.appendingPathComponent("journal"), outbox: box ?? outbox(),
-            keyProvider: { key }, now: { date })
+            keyProvider: { key }, now: { date }, retryInterval: retryInterval)
+    }
+    private func eventually(timeout: TimeInterval = 5, _ condition: () throws -> Bool) async throws -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while try !condition() {
+            guard Date() < deadline else { return false }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return true
     }
     private func expect(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { XCTAssertTrue(value, file: file, line: line) }
     private func reject(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { XCTAssertFalse(value, file: file, line: line) }
@@ -170,6 +178,23 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
             XCTAssertEqual(request.url?.absoluteString, original.endpoint)
         }
     }
+    func testIdleRetryTicksNeitherRewriteTheSharedQueueNorStartDrains() async throws {
+        let box = outbox(), drains = AppleDrainCounter(), file = root.appendingPathComponent("outbox")
+        let manual = OutboxEntry(reportId: UUID(), createdAt: now, envelopeBytes: Data("{}".utf8), idempotencyKey: "manual",
+            attachmentRefs: [], sdkKey: "manual-owner", endpoint: "https://example.invalid/api/ingest")
+        _ = try box.enqueueRecovered(manual)
+        let live = runtime(box: box, retryInterval: 0.01)
+        let enabled = await live.enable(context: try context(), drain: { drains.increment() }); expect(enabled)
+        // Every rewrite re-seals the queue under a fresh nonce: equal bytes mean no rewrite.
+        let idle = try Data(contentsOf: file)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(try Data(contentsOf: file), idle); XCTAssertEqual(drains.count, 0)
+        // A pending receipt is still retried on later ticks without rewriting the queue.
+        expect(await live.accept(candidate()))
+        let staged = try Data(contentsOf: file)
+        expect(try await eventually { drains.count >= 3 })
+        XCTAssertEqual(try Data(contentsOf: file), staged); live.boundary()
+    }
     func testAggregateProducerKeepsCountsWithoutIndividualIncidentClaims() async throws {
         let live = runtime(); expect(await live.enable(context: try context()))
         let input = AppleDiagnosticCandidate(kind: "app_exit_summary", begin: now, end: now,
@@ -270,6 +295,13 @@ private final class AppleNeverUploadProtocol: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
+}
+
+private final class AppleDrainCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+    var count: Int { lock.withLock { value } }
+    func increment() { lock.withLock { value += 1 } }
 }
 
 private final class AppleDiagnosticKeyFailure: @unchecked Sendable {
