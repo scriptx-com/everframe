@@ -33,7 +33,7 @@ npx --yes quicktype@23 \
 # quicktype alphabetizes Kotlin properties, which would insert new optional
 # fields into Crash's positional primary constructor. Keep every pre-details
 # position stable, including the previously appended JVM and details fields, and
-# append causeChain and native last. The visible legacy constructor and copy overload retain
+# append causeChain, native and androidNative last. The visible legacy constructor and copy overload retain
 # source/JVM compatibility; construction maps an old value to no generic cause,
 # while copy keeps the receiver's cause. Locate Crash by its own declaration boundary because generated
 # supporting declarations can appear between Crash and Frame.
@@ -50,6 +50,7 @@ const jvmProperty = '    val jvm: JVMCrashMetadata? = null';
 const detailsProperty = '    val details: CrashDetails? = null';
 const causeChainProperty = '    val causeChain: CrashCauseChain? = null';
 const nativeProperty = '    val native: NativeCrashMetadata? = null';
+const androidNativeProperty = '    val androidNative: AndroidNativeCrashMetadata? = null';
 const properties = match[1].split('\n');
 const jvmIndex = properties.indexOf(`${jvmProperty},`);
 if (jvmIndex < 0) throw new Error('codegen-kotlin: Crash.jvm property missing or moved');
@@ -63,22 +64,45 @@ properties.splice(causeChainIndex, 1);
 const nativeIndex = properties.indexOf(`${nativeProperty},`);
 if (nativeIndex < 0) throw new Error('codegen-kotlin: Crash.native property missing or moved');
 properties.splice(nativeIndex, 1);
+const androidNativeIndex = properties.indexOf(`${androidNativeProperty},`);
+if (androidNativeIndex < 0) throw new Error('codegen-kotlin: Crash.androidNative property missing or moved');
+properties.splice(androidNativeIndex, 1);
 
 const lastIndex = properties.length - 1;
 if (!properties[lastIndex].startsWith('    val threadName:')) {
   throw new Error('codegen-kotlin: expected Crash.threadName to be the final quicktype property');
 }
 properties[lastIndex] = `${properties[lastIndex]},`;
-properties.push(`${jvmProperty},`, `${detailsProperty},`, `${causeChainProperty},`, nativeProperty);
+properties.push(`${jvmProperty},`, `${detailsProperty},`, `${causeChainProperty},`, `${nativeProperty},`, androidNativeProperty);
 
 const compatibilityBody = ` {
     constructor(
         exceptionType: String, fatal: Boolean? = null, fingerprint: String,
         frames: List<Frame>, handled: Boolean, jsBundle: JSBundle? = null,
         mechanism: String, message: String, occurredAt: String, threadName: String? = null,
+        jvm: JVMCrashMetadata? = null, details: CrashDetails? = null,
+        causeChain: CrashCauseChain? = null, native: NativeCrashMetadata? = null,
+    ) : this(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
+             message, occurredAt, threadName, jvm, details, causeChain, native, null)
+
+    fun copy(
+        exceptionType: String = this.exceptionType, fatal: Boolean? = this.fatal,
+        fingerprint: String = this.fingerprint, frames: List<Frame> = this.frames,
+        handled: Boolean = this.handled, jsBundle: JSBundle? = this.jsBundle,
+        mechanism: String = this.mechanism, message: String = this.message,
+        occurredAt: String = this.occurredAt, threadName: String? = this.threadName,
+        jvm: JVMCrashMetadata? = this.jvm, details: CrashDetails? = this.details,
+        causeChain: CrashCauseChain? = this.causeChain, native: NativeCrashMetadata? = this.native,
+    ): Crash = Crash(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
+                     message, occurredAt, threadName, jvm, details, causeChain, native, androidNative)
+
+    constructor(
+        exceptionType: String, fatal: Boolean? = null, fingerprint: String,
+        frames: List<Frame>, handled: Boolean, jsBundle: JSBundle? = null,
+        mechanism: String, message: String, occurredAt: String, threadName: String? = null,
         jvm: JVMCrashMetadata? = null, details: CrashDetails? = null, causeChain: CrashCauseChain? = null,
     ) : this(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-             message, occurredAt, threadName, jvm, details, causeChain, null)
+             message, occurredAt, threadName, jvm, details, causeChain, null, null)
 
     fun copy(
         exceptionType: String = this.exceptionType, fatal: Boolean? = this.fatal,
@@ -89,7 +113,7 @@ const compatibilityBody = ` {
         jvm: JVMCrashMetadata? = this.jvm, details: CrashDetails? = this.details,
         causeChain: CrashCauseChain? = this.causeChain,
     ): Crash = Crash(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-                     message, occurredAt, threadName, jvm, details, causeChain, native)
+                     message, occurredAt, threadName, jvm, details, causeChain, native, androidNative)
 
     constructor(
         exceptionType: String,
@@ -106,7 +130,7 @@ const compatibilityBody = ` {
         details: CrashDetails? = null,
     ) : this(
         exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, null, null,
+        message, occurredAt, threadName, jvm, details, null, null, null,
     )
 
     fun copy(
@@ -124,7 +148,7 @@ const compatibilityBody = ` {
         details: CrashDetails? = this.details,
     ): Crash = Crash(
         exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, causeChain, native,
+        message, occurredAt, threadName, jvm, details, causeChain, native, androidNative,
     )
 }`;
 

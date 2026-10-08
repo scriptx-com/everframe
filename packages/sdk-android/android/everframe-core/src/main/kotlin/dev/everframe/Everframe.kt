@@ -597,6 +597,41 @@ object Everframe {
 
     // ---------------- Public API (every body wrapped in txGuardVoid) ----------------
 
+    /** True after the current explicit opt-in has durably registered its OS context. */
+    @JvmStatic
+    fun isNativeCrashRecoveryReady(): Boolean = captureGate &&
+        dev.everframe.crash.AndroidNativeCrashRuntime.ready(currentStartEpochVolatile())
+
+    /**
+     * Opt in to OS-recorded native crash recovery on Android 12/API31+ after start().
+     * Call after each start; disabled by default. The host grants exclusive use of
+     * ActivityManager.setProcessStateSummary while enabled. Setup/recovery runs on IO.
+     * Older APIs remain unchanged. Reports are anonymous, with frozen release/destination.
+     * Disable, kill and replacement start erase unadmitted native contexts; their durable
+     * erasure may do bounded local IO. This does not install a signal handler.
+     */
+    @JvmStatic
+    fun setNativeCrashRecoveryEnabled(enabled: Boolean) {
+        val captured = captureSessionSnapshot()
+        val context = appContext
+        val request = dev.everframe.crash.AndroidNativeCrashRuntime.request(captured.user.startEpoch, enabled)
+        if (!enabled) {
+            txGuardVoid("nativeCrash.disable") {
+                dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context, captured.user.startEpoch, true,
+                    { currentStartEpochVolatile() == captured.user.startEpoch }, request)
+            }
+            return
+        }
+        if (context == null || captured.config?.capture?.crash != true || !captured.captureConsent) return
+        launchCapturedWork(captured, requireCurrentStart = true) {
+            txGuardVoid("nativeCrash.enable") {
+                if (dev.everframe.crash.AndroidNativeCrashRuntime.enable(context, captured, sharedOutboxFor(context), request)) {
+                    requestOutboxDrain()
+                }
+            }
+        }
+    }
+
     /**
      * Synchronous start. Returns in <5ms on real devices (RESEARCH carry-forward
      * from Phase 04 Pitfall 5). Heavy work (log capture install, outbox drain,
@@ -789,6 +824,10 @@ object Everframe {
         // "Is this start() invocation still the newest one?" Every step below
         // that publishes or unpublishes process-global state is gated on it.
         val stillNewest = { stateLock.withLock { _startEpoch == epoch } }
+        txGuardVoid("start.nativeCrashBoundary") {
+            dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context.applicationContext, epoch, false,
+                { currentStartEpochVolatile() == epoch })
+        }
 
         // Codex round-3, Critical 3 — the previous session's `ReplaySession`
         // is invalidated BEFORE the vitals signal is cleared, not after. Its
@@ -1286,6 +1325,7 @@ object Everframe {
                 // revocation survive a later start() that re-opens captureGate.
                 _killGeneration += 1
                 _killGenerationMirror.set(_killGeneration)
+                dev.everframe.crash.AndroidNativeCrashRuntime.noteKill()
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
                 _config = null
@@ -1335,6 +1375,9 @@ object Everframe {
             revokedIdentityJobs.forEach { it.cancel() }
             finishOutboxRevocation()
             val stillThisKill = { currentStartEpochVolatile() == killEpoch }
+            txGuardVoid("kill.nativeCrashBoundary") {
+                dev.everframe.crash.AndroidNativeCrashRuntime.boundary(appContext, killEpoch, true, stillThisKill)
+            }
             __reporterTriggersTeardown?.invoke()
             LogCapture.configure(enabled = false, isCurrent = stillThisKill)
             dev.everframe.companion.CompanionBadgeServerConfigSignal.publish(null, stillThisKill)
