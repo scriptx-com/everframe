@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import type { ReleaseHealthExposure, ReleaseHealthRecord } from '@everframe/protocol';
-import { openReleaseHealthJournal, type ReleaseHealthJournal } from './journal.js';
+import { HealthJournalError, openReleaseHealthJournal, type ReleaseHealthJournal } from './journal.js';
 
 export interface ReleaseHealthOptions { enabled: boolean; loadedBuildId?: string }
 export interface ReleaseHealthDiagnostics {
@@ -137,7 +137,12 @@ export function setupReleaseHealth(config: {
     if (!enabled && !explicitlyDisabled) return snapshot();
     const bytes = new TextEncoder().encode(routeIdentity);
     route = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
-    journal = await openReleaseHealthJournal();
+    try { journal = await openReleaseHealthJournal(enabled); }
+    catch (reason) {
+      // Opting out never creates storage just to erase it; no journal means nothing is queued.
+      if (!(reason instanceof HealthJournalError && reason.code === 'missing')) throw reason;
+      return snapshot();
+    }
     await purgePending();
     if (revoked) { state = 'disabled'; return snapshot(); }
     if (stopped) { state = 'stopped'; return snapshot(); }

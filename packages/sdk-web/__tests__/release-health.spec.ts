@@ -20,4 +20,33 @@ describe('release health readiness', () => {
     expect(await handle.ready).toMatchObject({ state: 'unavailable', exposure: null, error: 'disk unavailable' });
     await handle.flush(); expect((await handle.diagnostics()).state).toBe('unavailable');
   });
+  it('erases without creating browser storage when opted out before any journal exists', async () => {
+    vi.stubGlobal('crypto', { subtle: { digest: async () => new Uint8Array(32).buffer } });
+    // IndexedDB open of a database that does not exist: completing the first
+    // version change creates it, aborting that change leaves nothing behind.
+    const created: string[] = []; let databases = 0;
+    vi.stubGlobal('indexedDB', { open() {
+      let aborted = false;
+      const request: Record<string, unknown> & { onupgradeneeded?: (event: unknown) => void; onerror?: () => void; onsuccess?: () => void } = {
+        result: { createObjectStore: (name: string) => created.push(name) },
+        transaction: { abort: () => { aborted = true; } },
+      };
+      setTimeout(() => {
+        request.onupgradeneeded?.({ oldVersion: 0, newVersion: 1 });
+        if (aborted) { request.error = new DOMException('Version change aborted', 'AbortError'); request.onerror?.(); }
+        else { databases++; request.onsuccess?.(); }
+      });
+      return request;
+    } });
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    const states: unknown[] = [];
+    for (const config of [{ apiKey: 'pk_opt_out', disabled: true }, { apiKey: 'pk_opt_out', releaseHealth: { enabled: false } }]) {
+      const handle = setupReleaseHealth(config, 'https://example.test', 'test');
+      const { state, exposure, queued } = await handle.ready; states.push({ state, exposure, queued });
+      await handle.flush();
+    }
+    const disabled = { state: 'disabled', exposure: null, queued: 0 };
+    expect({ states, created, databases }).toEqual({ states: [disabled, disabled], created: [], databases: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

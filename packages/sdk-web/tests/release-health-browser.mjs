@@ -162,7 +162,22 @@ try {
     } finally { IDBDatabase.prototype.transaction = original; window.fetch = send; }
   });
   assert.deepEqual(failedPurge, ['kill', 'disabled'].map(mode => ({ mode, blockedState: 'unavailable', sent: ['new-build'] })));
+  // Fresh profiles: opting out creates no journal.
+  async function freshPage() {
+    const fresh = await browser.newContext(); const tab = await fresh.newPage();
+    await tab.goto(base); await tab.waitForFunction(() => !!window.sdk); return { fresh, tab };
+  }
+  const optOut = await freshPage();
+  const optOutDatabases = await optOut.tab.evaluate(async () => {
+    for (const extra of [{ disabled: true }, { releaseHealth: { enabled: false } }]) {
+      const handle = window.sdk.init({ apiKey: 'pk_test_opt_out', vitals: { enabled: false }, ...extra });
+      await handle.releaseHealth.ready; await handle.releaseHealth.flush(); handle.destroy();
+    }
+    return (await indexedDB.databases()).map(database => database.name).filter(name => name === 'everframe-release-health-v1');
+  });
+  await optOut.fresh.close();
+  assert.deepEqual({ optOutDatabases }, { optOutDatabases: [] });
   await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: await browser.version(), received,
-    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'failed-purge-reenable-barrier'] }, null, 2));
+    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'failed-purge-reenable-barrier', 'opt-out-no-storage'] }, null, 2));
   console.log('PASS: actual init, real IndexedDB, offline reload, frozen build/route, privacy kill and disabled purge');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }
