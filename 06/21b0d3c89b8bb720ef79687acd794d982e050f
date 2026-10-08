@@ -1,0 +1,103 @@
+packages/sdk-android/android/build.gradle.kts
+  s_97602a0a2d8f20::t_2db0521b1f0957 124
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_06685ab13440cb 640-671,926-927,1451,1505-1507
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_97602a0a2d8f20::t_7771de070d2ca9 110-112
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalController.kt
+  s_97602a0a2d8f20::t_00a2a43281f01c 13-14,26,64-71,88-89,93,95-99
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalFiles.kt
+  s_97602a0a2d8f20::t_f552122c135925 1-56
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_97602a0a2d8f20::t_ec939c1d2fc1a5 1-138
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_97602a0a2d8f20::t_f3611b7f93132c 26,30-32,93-106
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalFacadeTest.kt
+  s_97602a0a2d8f20::t_e7576a27dc27f7 1-17
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalFilesTest.kt
+  s_97602a0a2d8f20::t_48c97391af5220 1-49
+packages/sdk-android/android/everframe-native-crash/build.gradle.kts
+  s_97602a0a2d8f20::t_76adf6c8a8ce3e 1-48
+packages/sdk-android/android/everframe-native-crash/consumer-rules.pro
+  s_97602a0a2d8f20::t_7d2297dda6263f 1-4
+packages/sdk-android/android/everframe-native-crash/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_275508e83a3bd5 1-6
+packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/Crashpad.txt
+  s_97602a0a2d8f20::t_f9eba6b056ce8c 1-202
+packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/OpenSSL.txt
+  s_97602a0a2d8f20::t_eab7ee9975484d 1-177
+packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/linux-syscall-support.txt
+  s_97602a0a2d8f20::t_164af6ab2ba76f 1-27
+packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/mini-chromium.txt
+  s_97602a0a2d8f20::t_cb2745f12ccaad 1-27
+packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/zlib.txt
+  s_97602a0a2d8f20::t_cd788a6db79cde 1-19
+packages/sdk-android/android/everframe-native-crash/src/main/java/dev/everframe/nativecrash/NativeCrashBridge.java
+  s_97602a0a2d8f20::t_ed50b0e982861f 1-13
+packages/sdk-android/android/settings.gradle.kts
+  s_97602a0a2d8f20::t_fb7e233c11f1a7 25,35-39
+packages/sdk-android/native/BUILD.gn
+  s_97602a0a2d8f20::t_027d88a481494e 1-28
+packages/sdk-android/native/OPENSSL-LICENSE.txt
+  s_97602a0a2d8f20::t_2da08302528662 1-177
+packages/sdk-android/native/README.md
+  s_97602a0a2d8f20::t_ca42998e181f7a 1-60
+packages/sdk-android/native/authority.cc
+  s_97602a0a2d8f20::t_4e7a5046c2de4d 1-108
+packages/sdk-android/native/authority.h
+  s_97602a0a2d8f20::t_c1c530828d2003 1-28
+packages/sdk-android/native/build.py
+  s_97602a0a2d8f20::t_341a5975f0975e 1-143
+packages/sdk-android/native/client.cc
+  s_97602a0a2d8f20::t_8b415c7e60200e 1-160
+packages/sdk-android/native/handler.cc
+  s_97602a0a2d8f20::t_1d47b956ae35ae 1-156
+packages/sdk-android/native/handoff.cc
+  s_97602a0a2d8f20::t_89b8abf823edf6 1-61
+packages/sdk-android/native/handoff.h
+  s_97602a0a2d8f20::t_52119d94b3a324 1-28
+packages/sdk-android/native/mini-chromium-arm-gn.patch
+  s_97602a0a2d8f20::t_300d88d13b0590 1-10
+packages/sdk-android/native/minimal_record.cc
+  s_97602a0a2d8f20::t_7a12d985713bef 1-128
+packages/sdk-android/native/minimal_record.h
+  s_97602a0a2d8f20::t_a0fb4ab0128ec7 1-29
+packages/sdk-android/native/source-pins.json
+  s_97602a0a2d8f20::t_3a7c5362bd4728 1-43
+packages/sdk-android/native/toolchain-pins.json
+  s_97602a0a2d8f20::t_049403b89783db 1-28
+packages/sdk-android/tests/native-release-host/README.md
+  s_97602a0a2d8f20::t_8e4de7b639ea97 1-48
+packages/sdk-android/tests/native-release-host/app/.gitignore
+  s_97602a0a2d8f20::t_ea008b3b3d724e 1-2
+packages/sdk-android/tests/native-release-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_4df7d3539cc062 1-30
+packages/sdk-android/tests/native-release-host/app/proguard-rules.pro
+  s_97602a0a2d8f20::t_b68371b6fb7277 1
+packages/sdk-android/tests/native-release-host/app/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_41c6ff7eb9ddc7 1-9
+packages/sdk-android/tests/native-release-host/app/src/main/cpp/CMakeLists.txt
+  s_97602a0a2d8f20::t_22fd3d92d347ca 1-5
+packages/sdk-android/tests/native-release-host/app/src/main/cpp/fault.cc
+  s_97602a0a2d8f20::t_80754438d1fea7 1-29
+packages/sdk-android/tests/native-release-host/app/src/main/kotlin/dev/everframe/releaseproof/MainActivity.kt
+  s_97602a0a2d8f20::t_a616ffe1704c09 1-86
+packages/sdk-android/tests/native-release-host/app/src/main/res/xml/network_security_config.xml
+  s_97602a0a2d8f20::t_39b18aeb24bf78 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0621b0d3c89b8bb720ef79687acd794d982e050f",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
