@@ -1,0 +1,35 @@
+packages/sdk-android/android/everframe-native-crash/build.gradle.kts
+  s_97602a0a2d8f20::t_72d24ad45c10e9 8-13
+packages/sdk-android/android/settings.gradle.kts
+  s_97602a0a2d8f20::t_ed568f5b7cfc56 25-29
+packages/sdk-android/native/README.md
+  s_97602a0a2d8f20::t_68c2a4085898c0 64-79
+scripts/build-mobile-maven-bundle.mjs
+  s_97602a0a2d8f20::t_fc5d030216614d 8,13,16,23-24,43-45,69,95
+scripts/mobile-bundle-artifacts.mjs
+  s_97602a0a2d8f20::t_7466bbca6241ce 1-15
+scripts/mobile-bundle-artifacts.test.mjs
+  s_97602a0a2d8f20::t_ef63d14358aaa0 1-25
+scripts/verify-android-publication.sh
+  s_97602a0a2d8f20::t_262e3f61fd9369 54-59
+scripts/verify-android-publication.test.mjs
+  s_97602a0a2d8f20::t_20c08fc45f7ac4 86,89,207-284
+scripts/verify-native-crash-aar.py
+  s_97602a0a2d8f20::t_67d8b5c9f352da 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f676c00ae5b920429e26d88e873a1a9a23536507",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
