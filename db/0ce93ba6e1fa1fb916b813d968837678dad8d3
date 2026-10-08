@@ -1,0 +1,34 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_360d9eb003c487::t_87dbaf3695caca 118
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_360d9eb003c487::t_d44043754dbb42 95,98
+  s_360d9eb003c487::t_3661bae3dc2a1c 23-28
+  s_360d9eb003c487::t_0220e9d13a9ced 122-131,133-134,138-139,145
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_360d9eb003c487::t_372234485ff69d 212
+  s_360d9eb003c487::t_d16acd7540756f 14-16,27-29
+  s_360d9eb003c487::t_e2c745bd4fa76a 110
+  s_360d9eb003c487::t_9baae266450ce6 165,172,178-179,181-185,190,198-199,201
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_360d9eb003c487::t_48fb68363bc306 41-65
+  s_360d9eb003c487::t_c31e587a236cb2 159-172,174-192
+  s_360d9eb003c487::t_04d286c405d536 173
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidTombstoneReaderTest.kt
+  s_360d9eb003c487::t_278db1b0a89d5b 113-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db0ce93ba6e1fa1fb916b813d968837678dad8d3",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
