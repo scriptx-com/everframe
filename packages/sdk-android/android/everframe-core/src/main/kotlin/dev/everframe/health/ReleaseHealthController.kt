@@ -65,7 +65,8 @@ internal class ReleaseHealthController(
         if (completedRevocation == requested) return true
         return try {
             val old = store.get() ?: factory().also { store.set(it) }
-            old.revokeSync()
+            // Never create a journal only to purge it: an absent root holds no records.
+            if (!old.isAbsent()) old.revokeSync()
             store.compareAndSet(old, null)
             // A later request can raise the counter while disk IO is blocked. Never mark that
             // later generation complete using this earlier erasure receipt.
