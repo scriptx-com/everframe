@@ -80,6 +80,11 @@ currently omit verified identity and continuously refreshed breadcrumbs, logs,
 replay and resource samples. Symbolicated source locations require the separate
 native symbol-processing pipeline; raw addresses remain available.
 
+In React Native, a stored fatal JavaScript crash closes native capture until the
+next `start`. React Native's fatal handler then aborts with `RCTFatalException`;
+that abort is not reported as a second crash. If the JavaScript report could not
+be stored, native capture stays on and records the abort instead.
+
 Set `CaptureConfig(crash: false)` to disable automatic capture, or call `kill()`
 to stop the running SDK. A disabled launch retains pending raw records without
 promoting them. Reports already in the delivery queue follow the existing retry

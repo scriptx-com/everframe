@@ -50,6 +50,16 @@ public final class Everframe: @unchecked Sendable {
     private var nativeCrashTicket: UInt64 = 0
     private var nativeCrashPublishedEpoch: Int?
 
+    /// A persisted JavaScript fatal ends the process next: React Native's release
+    /// fatal handler throws RCTFatalException. Close native capture until the
+    /// next start so that abort is not reported as a second, different crash.
+    internal func closeNativeCrashCaptureAfterAcceptedFatal() {
+        stateLock.withLock {
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            nativeCrashPublishedEpoch = nil
+        }
+    }
+
     /// Capture ownership atomically, then do main-actor/device and disk work
     /// outside stateLock. The runtime ticket fences every asynchronous boundary.
     @discardableResult internal func refreshNativeCrashContext() async -> Bool {

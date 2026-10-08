@@ -146,6 +146,38 @@ final class NativeCrashStartupTests: XCTestCase {
         XCTAssertNotEqual(run.recorderURL.path, canonical, "fixture must use an aliased container path")
         XCTAssertEqual(NativeCrashRecorderAdapter.recorderDirectory(run.recorderURL), canonical)
     }
+    func testAcceptedFatalJavaScriptCrashClosesNativeCaptureUntilNextStart() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        let probe = NativeStartupRecorderProbe()
+        let key = Data(repeating: 0x47, count: 32)
+        let runtime = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let sdk = Everframe(nativeCrashRuntime: runtime)
+        CrashReporter.__closeNativeCaptureForTesting = { sdk.closeNativeCrashCaptureAfterAcceptedFatal() }
+        CrashReporter.__scheduleDrainForTesting = { _ in }
+        defer {
+            sdk.kill(); CrashReporter.__closeNativeCaptureForTesting = nil; CrashReporter.__scheduleDrainForTesting = nil
+            try? FileManager.default.removeItem(at: root)
+        }
+        let config = EverframeConfig(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
+        try sdk.start(config: config)
+        let armed = await sdk.refreshNativeCrashContext()
+        XCTAssertTrue(armed)
+        let reports = JSONLOutbox(fileURL: root.appendingPathComponent("reports"), keyProvider: { key })
+        XCTAssertTrue(CrashReporter.captureFacts(json: #"{"exceptionType":"TypeError","fatal":false}"#, outbox: reports, config: config))
+        XCTAssertTrue(probe.snapshot().enabled, "a surviving runtime keeps native capture")
+        // React Native aborts through RCTFatalException after its JS fatal is stored.
+        XCTAssertTrue(CrashReporter.captureFacts(json: #"{"exceptionType":"TypeError","fatal":true}"#, outbox: reports, config: config))
+        XCTAssertFalse(probe.snapshot().enabled, "the host abort must not become a second native crash")
+        sdk.setUser(.init(id: "user-B"))
+        let rearmed = await sdk.refreshNativeCrashContext()
+        XCTAssertFalse(rearmed); XCTAssertFalse(probe.snapshot().enabled)
+        try sdk.start(config: config)
+        let restarted = await sdk.refreshNativeCrashContext()
+        XCTAssertTrue(restarted); XCTAssertTrue(probe.snapshot().enabled)
+        XCTAssertEqual(try reports.hydrate().count, 2)
+    }
 }
 
 private final class NativeStartupRecorderProbe: @unchecked Sendable {
