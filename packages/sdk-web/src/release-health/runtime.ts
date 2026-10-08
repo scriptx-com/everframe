@@ -74,8 +74,16 @@ export function setupReleaseHealth(config: {
       coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: losses },
     };
     const mono = performance.now();
-    await journal.append(route, generation, { schemaVersion: 1, recordId: crypto.randomUUID(),
-      exposure: next, phase: 'start', sequence: 0, capturedAt: next.startedAt, elapsedMs: 0 });
+    try {
+      await journal.append(route, generation, { schemaVersion: 1, recordId: crypto.randomUUID(),
+        exposure: next, phase: 'start', sequence: 0, capturedAt: next.startedAt, elapsedMs: 0 });
+    } catch (reason) {
+      // The journal counted the refused start as a loss. Only delivery frees a
+      // full queue, so stay active without an exposure and keep draining.
+      if (!(reason instanceof HealthJournalError && reason.code === 'capacity')) throw reason;
+      if (revoked || stopped || pendingRevocations.has(routeIdentity)) return;
+      state = 'active'; error = reason.message; return;
+    }
     if (revoked || stopped || pendingRevocations.has(routeIdentity)) return;
     exposure = next; startedMono = mono; state = 'active';
   }

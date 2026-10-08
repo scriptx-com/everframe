@@ -162,7 +162,7 @@ try {
     } finally { IDBDatabase.prototype.transaction = original; window.fetch = send; }
   });
   assert.deepEqual(failedPurge, ['kill', 'disabled'].map(mode => ({ mode, blockedState: 'unavailable', sent: ['new-build'] })));
-  // Fresh profiles: opting out creates no journal.
+  // Fresh profiles: opting out creates no journal, and a full queue still drains.
   async function freshPage() {
     const fresh = await browser.newContext(); const tab = await fresh.newPage();
     await tab.goto(base); await tab.waitForFunction(() => !!window.sdk); return { fresh, tab };
@@ -176,8 +176,25 @@ try {
     return (await indexedDB.databases()).map(database => database.name).filter(name => name === 'everframe-release-health-v1');
   });
   await optOut.fresh.close();
-  assert.deepEqual({ optOutDatabases }, { optOutDatabases: [] });
+  const full = await freshPage();
+  const fullQueue = await full.tab.evaluate(async () => {
+    const send = window.fetch; let online = false; let sent = 0;
+    window.fetch = async () => { if (online) sent++; return new Response('{}', { status: online ? 201 : 503 }); };
+    try {
+      const config = { apiKey: 'pk_test_full', releaseHealth: { enabled: true, loadedBuildId: 'full-queue' } };
+      const producer = () => window.sdk.setupReleaseHealth(config, 'https://capacity.test', 'test');
+      // 128 offline page lifetimes each queue a start and an end: 256 rows.
+      for (let i = 0; i < 128; i++) { const lifetime = producer(); await lifetime.ready; await lifetime.flush(); await lifetime.stop(); }
+      const refused = producer(); const { state, exposure, error } = await refused.ready; await refused.flush();
+      online = true; await refused.flush();
+      const { queued, priorQueueLosses } = await refused.diagnostics(); await refused.stop();
+      return { state, exposure, error, sent, queued, priorQueueLosses };
+    } finally { window.fetch = send; }
+  });
+  await full.fresh.close();
+  assert.deepEqual({ optOutDatabases, fullQueue }, { optOutDatabases: [], fullQueue: { state: 'active', exposure: null,
+    error: 'Release health journal: capacity', sent: 256, queued: 0, priorQueueLosses: 1 } });
   await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: await browser.version(), received,
-    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'failed-purge-reenable-barrier', 'opt-out-no-storage'] }, null, 2));
+    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'failed-purge-reenable-barrier', 'opt-out-no-storage', 'full-queue-drains'] }, null, 2));
   console.log('PASS: actual init, real IndexedDB, offline reload, frozen build/route, privacy kill and disabled purge');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }
