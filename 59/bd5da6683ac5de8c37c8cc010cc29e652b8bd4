@@ -1,0 +1,147 @@
+docs/release-health.md
+  s_360d9eb003c487::t_1b959b1bf19cbc 20,24
+packages/cli/README.md
+  s_360d9eb003c487::t_5e21c8fd5563bf 39-44,48-63
+packages/cli/__tests__/apple-build.spec.ts
+  s_360d9eb003c487::t_66348a23162801 14,320-322,328,331,337-339,348-536,563,579-581,593-595
+packages/cli/__tests__/apple-upload.spec.ts
+  s_360d9eb003c487::t_d564bd4eca0c7a 3,5,9-15,167-171,233-277
+packages/cli/src/apple-build.ts
+  s_360d9eb003c487::t_6eae2185e20225 28-57,340-342,348,355-356,358-359,361-375,379,381,383-385,387-396,398-399,401-405,408-461,463-470
+packages/cli/src/apple-upload.ts
+  s_360d9eb003c487::t_0efcb0f13e2b6b 7,16-23,28-34
+packages/cli/src/index.ts
+  s_360d9eb003c487::t_f97adf22bb64e9 493-494
+packages/protocol/__tests__/apple-diagnostic.spec.ts
+  s_360d9eb003c487::t_77592b38d4785f 15,17,23-24,34-57
+packages/protocol/__tests__/crash-reporting-followthrough.spec.ts
+  s_360d9eb003c487::t_ee3c3923d1f7cf 44-53
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_360d9eb003c487::t_e143f3fabef12d 83-93
+packages/protocol/__tests__/release-health.spec.ts
+  s_360d9eb003c487::t_1e77e613def1ea 39-44
+packages/protocol/compat/followthrough/README.md
+  s_360d9eb003c487::t_ed5a037886c807 1-3
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_360d9eb003c487::t_6a705fa1de622b 3255
+packages/protocol/src/diagnostic.ts
+  s_360d9eb003c487::t_3531ea49af7ada 23-24
+packages/protocol/src/release-health.ts
+  s_360d9eb003c487::t_5e192fcda84fce 32,34-36
+packages/sdk-android/README.md
+  s_360d9eb003c487::t_12fc0e4f4e957e 70
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_715ae79e07d908 649-650,661,676-677,682,685,687,900-902
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidExitDiagnostic.kt
+  s_360d9eb003c487::t_b224ffaad8e15d 16-18,71-76
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_360d9eb003c487::t_fd496efebd30dd 11,23,25-26,32-42,44,124
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_360d9eb003c487::t_f7a508b9dbddd0 9,25-30,49,64-65,82-88,120,127-128,136-138,142,179-188,190-191,195-196,202
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_360d9eb003c487::t_054dd33afe779c 48-57
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRequests.kt
+  s_360d9eb003c487::t_002aa439cf53ac 6,15-20,26
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_360d9eb003c487::t_3b9a8f3ce6c03e 14-16,27-29,110,165,172,178-179,181-185,190,198-199,201,212
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthController.kt
+  s_360d9eb003c487::t_3c2dd5eb79a3c9 68-69
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_360d9eb003c487::t_d24fba1adbf2ea 29-31,33,44,46
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_360d9eb003c487::t_b7ba936a71914f 317-318
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_360d9eb003c487::t_e6fb75eeb1b691 171-191
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/ProcessExitRecoveryModeTest.kt
+  s_360d9eb003c487::t_3cf8f9e217a494 1-62
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidExitDiagnosticTest.kt
+  s_360d9eb003c487::t_94c0d2f61acd17 133-150
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeExposureLinkTest.kt
+  s_360d9eb003c487::t_a13fcf0d03b45c 83-99
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_360d9eb003c487::t_97d002c13530c9 6,40-41,48-105
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_360d9eb003c487::t_46bc7c35606ad4 41-65,159-192
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidTombstoneReaderTest.kt
+  s_360d9eb003c487::t_5a764b4468f357 113-135
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthControllerTest.kt
+  s_360d9eb003c487::t_43f2cb43c9007e 79-91
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/AndroidNativeCrashRuntimeTest.kt
+  s_360d9eb003c487::t_66f7404f4e85a9 1-195
+packages/sdk-ios/README.md
+  s_360d9eb003c487::t_d2a4229bf61170 83-87,93-94
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_360d9eb003c487::t_ef050cf1e06b31 50-53,518-523
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecorderAdapter.swift
+  s_360d9eb003c487::t_d3cc94c83faa3f 20,27-35
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecovery.swift
+  s_360d9eb003c487::t_840725dda136f9 17,27-28,81,94,154-155,210,214,219-222,225,231,236,240,254,259,266,279
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryContext.swift
+  s_360d9eb003c487::t_f22a9069194d91 19
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryFiles.swift
+  s_360d9eb003c487::t_f8ea9f758ec331 11-13,47-48,67-70,75
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_360d9eb003c487::t_8114c9ba39abcd 112-114
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashStartupContext.swift
+  s_360d9eb003c487::t_5edc8a4a49e14c 26-29
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticProjection.swift
+  s_360d9eb003c487::t_8362f9ad5b08f8 10-11,13-14
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticRuntime.swift
+  s_360d9eb003c487::t_12a9a29181d03c 21,28,31,33,71,155,165,169-171,182-186,190,195
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticStore.swift
+  s_360d9eb003c487::t_336009f2202177 98-99,102-103
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_c2ad0a35eaa925 46,51,56,62-71,90,161-162,708-713,1099-1102
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthModels.swift
+  s_360d9eb003c487::t_0a1369adc66916 29-42
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticProjectionTests.swift
+  s_360d9eb003c487::t_473396fefb0e78 8-13,19,26-47,52,55,59
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticRuntimeTests.swift
+  s_360d9eb003c487::t_5d22a0269c31e0 20,23-31,52-56,185-235,280-292,347-379
+packages/sdk-ios/Tests/EverframeTests/DiagnosticExposureProtocolTests.swift
+  s_360d9eb003c487::t_9a80d2553f916f 15,17,26-41
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecoveryTests.swift
+  s_360d9eb003c487::t_4977d6022b53e3 122-123,127-128,132,135-136,140,142-192,250
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_360d9eb003c487::t_c53961b44117ac 36,39,250-261
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_360d9eb003c487::t_d14729f15c356f 10-19,23-29,42-43,45-46,71,74-77,138-183
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_360d9eb003c487::t_f0702366ba50a5 29-30,41-56,100-101
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_360d9eb003c487::t_8d7879a5fe6dc1 115-159,172-181
+packages/sdk-react/__tests__/provider-child-kill.spec.tsx
+  s_360d9eb003c487::t_671adba5e8c6ca 1-112
+packages/sdk-react/src/provider.tsx
+  s_360d9eb003c487::t_02072652774ea0 236-240,354-359,462,541
+packages/sdk-react/tests/release-health-browser.mjs
+  s_360d9eb003c487::t_15d331fae2bbcf 15,18-21,81,101-108,111
+packages/sdk-web/__tests__/kill-switch-gates.spec.ts
+  s_360d9eb003c487::t_2ad1b1a7e9eec9 28,180-225
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_360d9eb003c487::t_99dfd1d7ed1d17 4,7-15,32-83
+packages/sdk-web/src/adapter.ts
+  s_360d9eb003c487::t_fc825f3cf79db3 423-426,428,2098-2107
+packages/sdk-web/src/release-health/journal.ts
+  s_360d9eb003c487::t_06440ed8883de2 13,24-25,28-31,35
+packages/sdk-web/src/release-health/runtime.ts
+  s_360d9eb003c487::t_c3d8f770ead6bb 4,58,61,83-92,152-158
+packages/sdk-web/tests/release-health-browser.mjs
+  s_360d9eb003c487::t_e805740b8eb51e 61,66-68,72-78,80,85-88,201-232,234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "59bd5da6683ac5de8c37c8cc010cc29e652b8bd4",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
