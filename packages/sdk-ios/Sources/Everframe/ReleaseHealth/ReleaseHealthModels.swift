@@ -12,7 +12,9 @@ struct ReleaseHealthEntry: Codable, Equatable, Sendable {
     let body: Data
 }
 enum ReleaseHealthDate {
-    static func canonical(_ date: Date) -> Date { Date(timeIntervalSince1970: floor(date.timeIntervalSince1970 * 1000) / 1000) }
+    // Foundation's ISO decoder can land one floating-point step below an exact
+    // millisecond. Nearest-millisecond normalization preserves its wire value.
+    static func canonical(_ date: Date) -> Date { Date(timeIntervalSince1970: (date.timeIntervalSince1970 * 1000).rounded() / 1000) }
     static func text(_ date: Date) -> String {
         let format = ISO8601DateFormatter(); format.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return format.string(from: canonical(date))

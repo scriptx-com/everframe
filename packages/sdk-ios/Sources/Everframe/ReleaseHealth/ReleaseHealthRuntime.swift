@@ -9,6 +9,16 @@ typealias ReleaseHealthSend = @Sendable (ReleaseHealthEntry, @escaping ReleaseHe
 
 /// Memory-only admission lock, serial disk worker and independent HTTP task.
 final class ReleaseHealthRuntime: @unchecked Sendable {
+    static func makeRuntime() -> ReleaseHealthRuntime? {
+        #if os(iOS)
+        guard NSClassFromString("XCTestCase") == nil,
+              ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return nil }
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath()
+        return ReleaseHealthRuntime(root: caches.appendingPathComponent("dev.everframe.release-health"))
+        #else
+        return nil
+        #endif
+    }
     private struct Owner: Equatable, Sendable { let configuration: ReleaseHealthConfiguration; let sdkKey: String; let endpoint: String }
     private let lock = NSLock()
     private var generation: UInt64 = 0
@@ -32,7 +42,8 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     init(root: URL, keyProvider: @escaping () throws -> Data = { try OutboxEncryptionKey.getOrCreate() },
          processLaunchID: UUID = ReleaseHealthProcessIdentity.id, now: @escaping @Sendable () -> Date = { Date() },
          uptime: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
-         beforeCommit: @escaping () throws -> Void = {}, transport: @escaping ReleaseHealthSend = ReleaseHealthTransport.send) {
+         beforeCommit: @escaping () throws -> Void = {},
+         transport: @escaping ReleaseHealthSend = { entry, admission in await ReleaseHealthTransport.send(entry, admission: admission) }) {
         self.root = root; self.keyProvider = keyProvider; self.processLaunchID = processLaunchID
         self.now = now; self.uptime = uptime; self.beforeCommit = beforeCommit; self.transport = transport
     }
@@ -160,7 +171,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
             _ = await self.onWorker { self.drainTask = nil; return true }
         }
     }
-    private func onWorker<T>(_ work: @escaping () -> T) async -> T {
+    private func onWorker<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
         await withCheckedContinuation { continuation in worker.async { continuation.resume(returning: work()) } }
     }
 }
