@@ -11,8 +11,8 @@
 namespace everframe_qualification {
 class MinimalDelegate final : public crashpad::ExceptionHandlerServer::Delegate {
  public:
-  MinimalDelegate(const std::string& directory, const FrozenIdentity& identity, const Key& key)
-      : directory_(directory), identity_(identity), key_(key) {}
+  MinimalDelegate(const std::string& directory, const FrozenIdentity& identity, const Key& key, const std::function<void(bool)>& after_commit)
+      : directory_(directory), identity_(identity), key_(key), after_commit_(after_commit) {}
   bool HandleException(pid_t pid, uid_t uid, const crashpad::ExceptionHandlerProtocol::ClientInformation& info,
       crashpad::VMAddress stack, pid_t* thread, crashpad::UUID*) override {
     crashpad::DirectPtraceConnection connection;
@@ -38,20 +38,39 @@ class MinimalDelegate final : public crashpad::ExceptionHandlerServer::Delegate 
     Authority authority(directory_, key_);
     const auto result = authority.Commit(identity_.epoch, *cipher);
     committed_ = result == CommitResult::committed || result == CommitResult::existing;
+    if (after_commit_) after_commit_(committed_);
     return committed_;
   }
   const std::string directory_;
   const FrozenIdentity identity_;
   const Key key_;
+  const std::function<void(bool)> after_commit_;
   bool committed_ = false;
 };
-bool RunHandler(int socket, const std::string& directory, const FrozenIdentity& identity, const Key& key) {
-  crashpad::ExceptionHandlerServer server;
-  // SetHandlerSocket clients speak the shared-connection protocol: after a request they wait
-  // for SIGCONT and never read a completion message, so single-client mode holds them 5 s.
-  if (!server.InitializeWithClient(crashpad::ScopedFileHandle(socket), true)) return false;
-  MinimalDelegate delegate(directory, identity, key);
-  server.Run(&delegate);
-  return delegate.committed();
+class PreparedHandlerImpl final : public PreparedHandler {
+ public:
+  PreparedHandlerImpl(const std::string& directory, const FrozenIdentity& identity,
+                      const Key& key, const std::function<void(bool)>& after_commit)
+      : delegate_(directory, identity, key, after_commit) {}
+  bool Initialize(int socket) {
+    // SetHandlerSocket clients speak the shared-connection protocol: after a request they wait
+    // for SIGCONT and never read a completion message, so single-client mode holds them 5 s.
+    return server_.InitializeWithClient(crashpad::ScopedFileHandle(socket), true);
+  }
+  bool Run() override { server_.Run(&delegate_); return delegate_.committed(); }
+ private:
+  crashpad::ExceptionHandlerServer server_;
+  MinimalDelegate delegate_;
+};
+std::unique_ptr<PreparedHandler> PrepareHandler(int socket, const std::string& directory,
+    const FrozenIdentity& identity, const Key& key, const std::function<void(bool)>& after_commit) {
+  auto handler = std::make_unique<PreparedHandlerImpl>(directory, identity, key, after_commit);
+  if (!handler->Initialize(socket)) return nullptr;
+  return handler;
+}
+bool RunHandler(int socket, const std::string& directory, const FrozenIdentity& identity,
+                const Key& key, const std::function<void(bool)>& after_commit) {
+  auto handler = PrepareHandler(socket, directory, identity, key, after_commit);
+  return handler && handler->Run();
 }
 }

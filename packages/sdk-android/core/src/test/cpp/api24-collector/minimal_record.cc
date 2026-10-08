@@ -5,6 +5,10 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <sys/stat.h>
+#if defined(__ANDROID__) || defined(EVERFRAME_QUALIFICATION_ANDROID_PUBLICATION)
+#include <sys/syscall.h>
+#include <linux/fs.h>
+#endif
 #include <unistd.h>
 #include <algorithm>
 #include <iomanip>
@@ -104,8 +108,15 @@ bool WriteEncryptedRecord(const std::string& directory, const std::string& name,
   }
   ok = ok && fsync(fd)==0;
   if (close(fd) != 0) ok=false;
-  // Hard link commits without replacing any existing immutable record.
+  // Android untrusted_app cannot create hard links in app_data_file. The
+  // kernel's no-replace rename preserves immutable publication without that
+  // SELinux permission. Unsupported kernels fail closed; never fall back to
+  // ordinary replacing rename. The macro qualifies this exact adapter on Linux.
+#if defined(__ANDROID__) || defined(EVERFRAME_QUALIFICATION_ANDROID_PUBLICATION)
+  if (ok) ok=syscall(SYS_renameat2,dir,temporary.c_str(),dir,name.c_str(),static_cast<unsigned int>(RENAME_NOREPLACE))==0;
+#else
   if (ok) ok=linkat(dir, temporary.c_str(), dir, name.c_str(), 0)==0;
+#endif
   if (unlinkat(dir, temporary.c_str(), 0) != 0 && errno != ENOENT) ok=false;
   if (ok) ok=fsync(dir)==0;
   close(dir); return ok;
