@@ -1,0 +1,49 @@
+docs/release-health.md
+  s_360d9eb003c487::t_e5a4f80ae280c4 20,24
+packages/protocol/__tests__/release-health.spec.ts
+  s_360d9eb003c487::t_b29165dce982d8 39-44
+packages/protocol/src/release-health.ts
+  s_360d9eb003c487::t_642fd8a2bb5544 31,33-35
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_0a986238105121 852-854
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_360d9eb003c487::t_4e9adfdc2d2d9b 64-65,136-138
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthController.kt
+  s_360d9eb003c487::t_321210a83fd19c 68-69
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_360d9eb003c487::t_dcdd0ab583e3e7 29-31,33,44,46
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_360d9eb003c487::t_5c3b32675a9fa6 317-318
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_360d9eb003c487::t_b9ec1571d6136a 171-191
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeExposureLinkTest.kt
+  s_360d9eb003c487::t_e9bd4229c905e5 83-99
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthControllerTest.kt
+  s_360d9eb003c487::t_de3f996df9cfa0 79-91
+packages/sdk-ios/Tests/EverframeTests/DiagnosticExposureProtocolTests.swift
+  s_360d9eb003c487::t_01d7d09fe9ef00 15,17,26-41
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_360d9eb003c487::t_2a998c715ba413 4,7-15,32-83
+packages/sdk-web/src/release-health/journal.ts
+  s_360d9eb003c487::t_7fd8bb0c9edad2 13,24-25,28-31,35
+packages/sdk-web/src/release-health/runtime.ts
+  s_360d9eb003c487::t_850fd03ea92aaa 4,58,61,83-92,152-158
+packages/sdk-web/tests/release-health-browser.mjs
+  s_360d9eb003c487::t_90866d4c046f71 61,66-68,72-78,80,85-88,201-232,234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "592a0277c05fa596095d58e1e32e940055f3b7a6",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
