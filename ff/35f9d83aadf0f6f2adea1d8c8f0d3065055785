@@ -1,0 +1,21 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_4103f686725403 151-153,384-390,675-683,885,962,1058,1400
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_97602a0a2d8f20::t_987d8113e8ac4a 969-1049
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ff35f9d83aadf0f6f2adea1d8c8f0d3065055785",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
