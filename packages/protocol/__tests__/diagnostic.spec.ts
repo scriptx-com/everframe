@@ -80,4 +80,15 @@ describe('process-exit evidence', () => {
     value.payload.diagnostic.trace.frames = Array.from({ length: 65 }, () => ({ function: 'a.b' }));
     expect(ReportEnvelope.safeParse(value).success).toBe(false);
   });
+  it('accepts Kotlin-mangled main-thread frame names', () => {
+    const value = envelope();
+    value.payload.diagnostic.trace = { status: 'available', format: 'android_anr_text', truncated: false, frames: [
+      { function: 'com.example.ui.FeedKt.FeedRow-8Feqmps', file: 'Feed.kt', line: 40 },
+      { function: 'androidx.compose.ui.node.LayoutNode.remeasure-_Sx5XlM$ui_release' },
+      { function: 'com.example.ui.ComposableSingletons$FeedKt$lambda-1$1.invoke', file: 'Feed.kt', line: 30 },
+    ] };
+    expect(ReportEnvelope.safeParse(value).success).toBe(true);
+    value.payload.diagnostic.trace.frames = [{ function: 'com.example.Main.run(Main.java:7)' }];
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
 });

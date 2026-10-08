@@ -9,7 +9,6 @@ enum NativeCrashStartupContext {
     static func make(config: EverframeConfig, user: EFUser?, device: DeviceMetadata,
                      endpoint: String) throws -> NativeCrashRecoveryContext {
         let policy = try NativeCrashRedactionSnapshot.capture(config: config.redaction)
-        let redact = try policy.compiled()
         var fields: [String: String] = [
             "app.name": device.bundleIdentifier ?? "unknown",
             "app.version": config.release ?? device.appVersion ?? "unknown",
@@ -24,9 +23,10 @@ enum NativeCrashStartupContext {
         fields["user.id"] = user?.id
         fields["user.email"] = user?.email
         fields["user.displayName"] = user?.displayName
-        // The generic builder does not redact every typed extra field. Apply
-        // the frozen policy before passing any host/device strings to it.
-        fields = fields.mapValues(redact)
+        // Like every other report path, keep the declared user and app/device
+        // identity verbatim: ingest keys people by user id or email, so a masked
+        // value would merge users or overwrite a stored email. The frozen policy
+        // redacts the recovered crash record's own strings.
         let placeholder = UUID(uuidString: "00000000-0000-4000-8000-000000000000")!
         let built = try EnvelopeBuilder(vitalsStamp: { nil }).buildEncoded(
             reportId: placeholder, sdkVersion: Everframe.SDK_VERSION, extra: fields, source: .crash)
