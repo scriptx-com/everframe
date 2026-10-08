@@ -1,0 +1,73 @@
+packages/cli/README.md
+  s_360d9eb003c487::t_bdbb5871049ce0 1-3,39-44,48-63
+packages/cli/__tests__/apple-build.spec.ts
+  s_360d9eb003c487::t_070996f0223a66 14,320-322,328,331,337-339,348-536,563,579-581,593-595
+packages/cli/__tests__/apple-upload.spec.ts
+  s_360d9eb003c487::t_f5c9d0ed9fca9c 3,5,9-15,167-171,233-277
+packages/cli/src/apple-build.ts
+  s_360d9eb003c487::t_903cc400d749cf 28-57,340-342,348,355-356,358-359,361-375,379,381,383-385,387-396,398-399,401-405,408-461,463-470
+packages/cli/src/apple-upload.ts
+  s_360d9eb003c487::t_e5869b49c8ec61 7,16-23,28-34
+packages/cli/src/index.ts
+  s_360d9eb003c487::t_83a620b12929d9 428-429
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_360d9eb003c487::t_398fefe1428381 11,23,30-40,42,118
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_360d9eb003c487::t_fdf13e92c12ec3 23-28,95,98,122-131,133-134,138-139,145
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_360d9eb003c487::t_4c8c73f6f665ec 14-16,27-29,110,165,172,178-179,181-185,190,198-199,201,212
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_360d9eb003c487::t_580f43ee09d685 41-65,159-192
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidTombstoneReaderTest.kt
+  s_360d9eb003c487::t_254011caf7a940 113-135
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/AndroidNativeCrashRuntimeTest.kt
+  s_360d9eb003c487::t_c08c2e943b61e3 1-195
+packages/sdk-android/core/src/test/cpp/api24-collector/README.md
+  s_360d9eb003c487::t_f6a2cb8abe232b 1-3
+packages/sdk-android/core/src/test/cpp/api24-collector/crash_fixture.cc
+  s_360d9eb003c487::t_d0d6e2d515a8ef 14,44,114,145-146,152,160
+packages/sdk-android/core/src/test/cpp/api24-collector/dependency-pins.json
+  s_360d9eb003c487::t_948ec3009b2195 3,16,22,28
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.cc
+  s_360d9eb003c487::t_508d033b9d6a89 56-58
+packages/sdk-android/tests/native-crash-host/README.md
+  s_360d9eb003c487::t_bf1f958a0d92c0 1-2
+packages/sdk-ios/README.md
+  s_360d9eb003c487::t_8bc3655abd2d43 83-87,93-94
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_360d9eb003c487::t_6b1128704f8280 50-53,518-523
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecorderAdapter.swift
+  s_360d9eb003c487::t_e956064653e068 20,27-35
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecovery.swift
+  s_360d9eb003c487::t_06d26768ac59fc 17,27-28,81,94,154-155,210,214,219-222,225,231,236,240,254,259,266,279
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryFiles.swift
+  s_360d9eb003c487::t_00ff316a4cf9b4 11-13,47-48,67-70,75
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_360d9eb003c487::t_977626c67fe810 6-8,25-27,32-33,36-38,53-86,92-93,96,100,104,107,112-114,117,119,128-129,133
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashStartupContext.swift
+  s_360d9eb003c487::t_59ac3e2f83e6c5 26-29
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_c2cf34e3391d7a 53-62,626-631,1015-1018
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecoveryTests.swift
+  s_360d9eb003c487::t_483bad1e6a7095 122-123,127-128,132,135-136,140,142-192,250
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_360d9eb003c487::t_f50ac8422132c9 36,39,49-95,250-261
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_360d9eb003c487::t_ebfa98fbc78779 10-19,23-29,42-43,45-46,71,74-77,138-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "83fed8e126ecf2e3c647257ae7a1f38a71f5bd0d",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
