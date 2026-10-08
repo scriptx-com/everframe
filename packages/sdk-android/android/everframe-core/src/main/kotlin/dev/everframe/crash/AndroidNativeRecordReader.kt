@@ -7,6 +7,7 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.LinkOption
+import java.nio.file.NoSuchFileException
 import java.nio.file.StandardOpenOption
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
@@ -19,6 +20,8 @@ import javax.crypto.spec.SecretKeySpec
 internal object AndroidNativeRecordReader {
     const val MAX_BYTES = 4096
     private val header = byteArrayOf(69,86,81,67,1,0,0,0)
+    /** Null only when no usable record exists: absent, not a regular file (a symlink
+     * included) or outside the size bound. Other read failures throw. */
     fun readFile(file: File): ByteArray? = try {
         val path=file.toPath()
         val attributes=Files.readAttributes(path,BasicFileAttributes::class.java,LinkOption.NOFOLLOW_LINKS)
@@ -28,7 +31,7 @@ internal object AndroidNativeRecordReader {
             while(buffer.hasRemaining() && channel.read(buffer)>=0) { }
             if(buffer.position()>MAX_BYTES) null else buffer.array().copyOf(buffer.position())
         }
-    } catch(_:Exception) { null }
+    } catch(_:NoSuchFileException) { null }
 
     fun open(bytes: ByteArray,key: ByteArray,epoch: String,createdAt: Long,nowMs: Long): JsonObject? = try {
         require(bytes.size in 36..MAX_BYTES && key.size==32 && bytes.copyOfRange(0,8).contentEquals(header))

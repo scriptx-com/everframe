@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Durable native-record import qualification
 
 This host exercises the SDK's internal encrypted native-record importer after an
@@ -37,7 +40,14 @@ The importer supplies its own authorization gate to the admission callback. The
 callback must pass that exact gate to the durable outbox write and report success
 only after the write commits. Capsule and prepared queues are bounded by their
 caller-configured encrypted stores; eligibility is fourteen days and expiration
-is enforced on recovery. Native ciphertext directories are fixture-owned and
+is enforced on recovery. Arming adds one capsule per launch. Recovery retires the
+capsule of an earlier launch that left no native record: only process death
+followed by relaunch is supported, so that launch ended without a captured
+fault. A record that exists but cannot be read keeps its capsule. A production
+adapter must therefore recover on every launch and use one launch identifier
+per process lifetime, or arming fails once the capsule store is full. This host
+arms once per cleared install and never exercises repeated clean launches; that
+rule is covered by JVM tests only. Native ciphertext directories are fixture-owned and
 retained for evidence; a future production adapter still needs bounded cleanup.
 No erasure timer runs while an application never executes. Temporary key byte
 arrays are cleared, but JVM/cipher memory zeroization is not claimed.

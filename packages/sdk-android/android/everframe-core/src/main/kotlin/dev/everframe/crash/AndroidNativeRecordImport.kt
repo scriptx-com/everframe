@@ -50,8 +50,12 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         } finally { key.fill(0) }
     }
 
-    /** Reader owns a bounded no-follow read. Admission MUST pass its supplied gate to
-     * the durable outbox write, and return true only after that write commits. */
+    /** Reader owns a bounded no-follow read and returns null only when no usable record
+     * exists; it throws when it cannot tell. Admission MUST pass its supplied gate to
+     * the durable outbox write, and return true only after that write commits.
+     * Supported model: process death, then relaunch. A capsule from another launch that
+     * has no record is retired, since that launch ended without a captured fault, so
+     * recover on every launch to keep per-launch arm() within the capsule store bound. */
     @Synchronized fun recover(currentProcessLaunchId:String,nowMs:Long,authorization:OutboxAuthorization,readRecord:(String)->ByteArray?,admit:(OutboxEntry,OutboxAuthorization)->Boolean):Int {
         val gate=gate(revision.get(),authorization);if(!gate.isAllowed()) return 0
         var count=drain(nowMs,gate,admit)
@@ -65,7 +69,9 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             if(capsule["version"]?.jsonPrimitive?.intOrNull!=1 || capsule["launch"]?.jsonPrimitive?.content==currentProcessLaunchId) continue
             val key=try { Base64.getDecoder().decode(capsule.getValue("key").jsonPrimitive.content) } catch(_:Exception) { continue }
             val native=try {
-                val bytes=readRecord(context.reportId.replace("-","")) ?: continue
+                val bytes=readRecord(context.reportId.replace("-",""))
+                // An ended launch that left no record can never produce one.
+                if(bytes==null) { capsules.removeIfPresent(token);continue }
                 AndroidNativeRecordReader.open(bytes,key,context.reportId.replace("-",""),context.createdAt,nowMs)
             } finally { key.fill(0) } ?: continue
             check(gate)

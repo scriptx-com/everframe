@@ -104,6 +104,22 @@ class AndroidNativeRecordImportTest {
         arm();assertEquals(0,importer().recover("new",15L*24*60*60*1000,allowed,{ error("expired") }) { it, admission -> error("expired") })
         assertTrue(store("capsules").snapshotTokens().isEmpty())
     }
+    @Test fun `launches that end without a native fault retire their capsules`() {
+        repeat(9) { i ->
+            assertEquals(0,importer().recover("launch-$i",2000,allowed,{ null }) { _, _ -> error("no fault") })
+            assertTrue(importer().arm(template(),"launch-$i",allowed) { _,_ -> true })
+        }
+        // The current launch may still fault, so its capsule survives a missing record.
+        assertEquals(0,importer().recover("launch-8",3000,allowed,{ null }) { _, _ -> error("live") })
+        assertEquals(1,store("capsules").snapshotTokens().size)
+    }
+    @Test fun `native record that cannot be read keeps its capsule`() {
+        val a=arm();val file=File(folder.root,"record").apply { writeBytes(cipher(a));setReadable(false) }
+        org.junit.Assume.assumeFalse("needs a user that file permissions apply to",file.canRead())
+        try { importer().recover("new",3000,allowed,{ AndroidNativeRecordReader.readFile(file) }) { _, _ -> error("unreadable") } } catch(_:java.io.IOException) {}
+        file.setReadable(true)
+        assertEquals(1,importer().recover("later",4000,allowed,{ AndroidNativeRecordReader.readFile(file) }) { _, _ -> true })
+    }
     @Test fun `full main outbox preserves prepared import until capacity returns`() {
         val a=arm();val main=store("bounded",1);val other=template();main.enqueueSync(other,allowed)
         assertEquals(0,importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> try { main.enqueueSync(it,admission);true } catch(_:OutboxWriteException) { false } })
