@@ -1,0 +1,21 @@
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_360d9eb003c487::t_63919254cfdfb2 6-8,25-27,32-33,36-38,53-86,92-93,96,100,104,108,115,117,126-127,131
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_360d9eb003c487::t_2fe0ba94fc70e8 49-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8cb33bd612fcde510e6f28ee102b31d69ca5ce25",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
