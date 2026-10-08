@@ -5,6 +5,7 @@ package dev.everframe.crash
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
 import dev.everframe.outbox.OutboxStore
+import dev.everframe.outbox.OutboxToken
 import dev.everframe.protocol.generated.AndroidNativeCrashMetadata
 import java.io.InputStream
 import java.security.MessageDigest
@@ -39,6 +40,7 @@ internal class AndroidNativeRecovery(
         private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         private fun token(id: String) = (TOKEN_PREFIX + id).toByteArray(Charsets.US_ASCII)
     }
+    private var armed: OutboxToken? = null // Caller serializes arm and disarm.
 
     fun arm(template: OutboxEntry, pid: Int, processName: String, authorization: OutboxAuthorization,
             diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, register: (ByteArray) -> Unit) {
@@ -67,6 +69,13 @@ internal class AndroidNativeRecovery(
             contexts.removeIfPresent(durable)
             throw failure
         }
+        armed = durable
+    }
+
+    /** Drops only this owner's current-process context, after its OS token was replaced or cleared. */
+    fun disarm() {
+        armed?.let { contexts.removeIfPresent(it) }
+        armed = null
     }
 
     fun recover(exits: List<AndroidNativeExit>, nowMs: Long, authorization: OutboxAuthorization, allowDiagnostics: Boolean = false, admit: (OutboxEntry) -> Boolean): Int {

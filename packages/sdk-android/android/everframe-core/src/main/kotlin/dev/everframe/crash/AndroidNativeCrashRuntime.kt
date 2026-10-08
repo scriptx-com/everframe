@@ -21,7 +21,8 @@ internal object AndroidNativeCrashRuntime {
     private val lock = Any()
     private val requests = AndroidNativeRecoveryRequests()
     fun noteKill() { requests.invalidate() }
-    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false): Long = requests.request(epoch, enabled, diagnostics)
+    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false, supported: Boolean = true): Long =
+        requests.request(epoch, enabled, diagnostics, supported)
     fun diagnosticsReady(epoch: Int): Boolean = requests.diagnosticsEnabled(epoch) && ready(epoch)
     fun ready(epoch: Int): Boolean = requests.enabled(epoch) && synchronized(lock) { controller }?.ready(epoch) == true
     private var controller: AndroidNativeRecoveryController? = null
