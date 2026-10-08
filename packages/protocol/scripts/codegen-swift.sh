@@ -105,6 +105,12 @@ source = source.replace(exposurePattern, block => block.slice(0, -1) + `
         try container.encode(startedAt, forKey: .startedAt)
     }
 }`);
+source = source.replace(/recoveredStall: EverframeRecoveredStallEvidence\?,/g, 'recoveredStall: EverframeRecoveredStallEvidence? = nil,');
+for (const [generated, stable] of Object.entries({
+  DiagnosticAndroid: 'Android', DiagnosticAttribution: 'Attribution',
+  DiagnosticOutcome: 'Outcome', DiagnosticProvenance: 'Provenance', DiagnosticScope: 'Scope',
+  TraceClass: 'Trace', TraceEnum: 'RecoveredStallTrace', Clock: 'RecoveredStallClock', Eligibility: 'RecoveredStallEligibility',
+})) source = source.replace(new RegExp(`\\bEverframe${generated}\\b`, 'g'), `Everframe${stable}`);
 const formatPattern = /public enum EverframeFormat: String, Codable \{[\s\S]*?\n\}/u;
 if (!formatPattern.test(source)) {
   throw new Error('codegen-swift: EverframeFormat block shape changed');
