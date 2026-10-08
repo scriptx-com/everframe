@@ -1,0 +1,55 @@
+packages/protocol/__tests__/android-native-crash.spec.ts
+  s_97602a0a2d8f20::t_7ac74702af9819 14-16
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_97602a0a2d8f20::t_1e44e212591cd8 2400-2403
+packages/protocol/src/android-native-crash.ts
+  s_97602a0a2d8f20::t_596c4e3f3ae14d 21
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_97602a0a2d8f20::t_9e4577f273b6a5 1-121
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordReader.kt
+  s_97602a0a2d8f20::t_aa64086ebeaa9d 1-60
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_97602a0a2d8f20::t_922c1fe3949725 173
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_97602a0a2d8f20::t_c7b4144a12aad5 1-176
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_f8df34669e9df3 328-329
+packages/sdk-android/android/settings.gradle.kts
+  s_97602a0a2d8f20::t_252104d28b745b 28-33
+packages/sdk-android/core/src/test/cpp/api24-collector/android/client.cc
+  s_97602a0a2d8f20::t_1eb6e9e4596114 43,60-66,78-79
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_record.cc
+  s_97602a0a2d8f20::t_6d03eb833e1c13 37-40,68
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_record.h
+  s_97602a0a2d8f20::t_de48a85cbe48bc 18
+packages/sdk-android/tests/native-import-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_69a13775d0c9f3 1-20
+packages/sdk-android/tests/native-import-host/app/proguard-rules.pro
+  s_97602a0a2d8f20::t_a3c4b14c539a94 1
+packages/sdk-android/tests/native-import-host/app/src/main/AndroidManifest.xml
+  s_97602a0a2d8f20::t_d2f14676ff1673 1-6
+packages/sdk-android/tests/native-import-host/app/src/main/assets/OPENSSL-LICENSE.txt
+  s_97602a0a2d8f20::t_0e41d454dd2a0e 1-177
+packages/sdk-android/tests/native-import-host/app/src/main/java/dev/everframe/qualification/ImportProbe.kt
+  s_97602a0a2d8f20::t_7d1c7f943197cd 1-81
+packages/sdk-android/tests/native-import-host/app/src/main/java/dev/everframe/qualification/MainActivity.java
+  s_97602a0a2d8f20::t_d5c76e05f2fb4e 1-21
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_97602a0a2d8f20::t_2bdda7177cef51 985
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8434f9161f05245db8b4d9a246efcd92f346f126",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
