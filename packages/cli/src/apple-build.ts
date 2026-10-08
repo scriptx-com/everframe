@@ -25,6 +25,19 @@ interface ReadOptions {
   root?: string;
 }
 const invalid = () => new Error("invalid_apple_binary");
+/** A DWARF entry rejected with one of these cannot hold a listed identity. */
+const NOT_A_DSYM = new Set([
+  "invalid_apple_binary",
+  "unsupported_apple_architecture",
+  "invalid_input_file",
+]);
+/** Bounded diagnostic detail: keeps the informative tail of a long path. */
+const shown = (path: string) =>
+  path.length > 200 ? "..." + path.slice(-197) : path;
+const bounded = (lines: string[]) =>
+  lines.length > 8
+    ? [...lines.slice(0, 8), `  and ${lines.length - 8} more`]
+    : lines;
 const key = (image: AppleBuildImage) =>
   `${image.uuid}/${image.cpuType}/${image.cpuSubtype}`;
 function architecture(
@@ -69,8 +82,6 @@ async function inspect(
     if (before.size > BigInt(Number.MAX_SAFE_INTEGER) || before.size < 32n)
       throw invalid();
     const size = Number(before.size);
-    if (options.kind === "dsym" && size > DSYM_MAX_BYTES)
-      throw new Error("dsym_too_large");
     async function read(position: number, length: number) {
       if (
         !Number.isSafeInteger(position) ||
@@ -322,7 +333,8 @@ export async function collectAppleBuild(options: {
       b.images.map((image) => [key(image), image] as const)
     )
   );
-  const candidates: Array<{ path: string; images: AppleBuildImage[] }> = [];
+  const candidates: Array<{ path: string; images: AppleBuildImage[] }> = [],
+    skipped: string[] = [];
   let entries = 0,
     bundles = 0;
   async function list(path: string) {
@@ -339,14 +351,29 @@ export async function collectAppleBuild(options: {
   }
   for (const name of await list(root)) {
     if (!name.endsWith(".dSYM")) continue;
-    if (++bundles > 64) throw new Error("apple_build_limit");
     const directory = join(root, name, "Contents", "Resources", "DWARF");
+    let matched = false;
     for (const entry of await list(directory)) {
-      const path = join(directory, entry),
+      const path = join(directory, entry);
+      let images: AppleBuildImage[];
+      try {
         images = await readAppleBinaryImages(path, { root, kind: "dsym" });
-      if (images.some((image) => expected.has(key(image))))
+      } catch (error) {
+        // Unlisted companions (watchOS arm64_32), stray files and other
+        // unsupported entries are not candidates. Path, race and I/O
+        // failures still stop the build.
+        if (!(error instanceof Error) || !NOT_A_DSYM.has(error.message))
+          throw error;
+        skipped.push(`  ${shown(path)} (${error.message})`);
+        continue;
+      }
+      if (images.some((image) => expected.has(key(image)))) {
         candidates.push({ path, images });
+        matched = true;
+      }
     }
+    // Unrelated bundles stay bounded by the directory-entry limit only.
+    if (matched && ++bundles > 64) throw new Error("apple_build_limit");
   }
   const selected = new Map<string, LocalBuild>(),
     published = new Map<string, string>();
@@ -376,7 +403,18 @@ export async function collectAppleBuild(options: {
     }
   }
   for (const identity of expected.keys())
-    if (!published.has(identity)) throw new Error("missing_matching_dsym");
+    if (!published.has(identity))
+      throw new Error(
+        [
+          "missing_matching_dsym",
+          ...(skipped.length
+            ? [
+                "Skipped files that are not supported 64-bit dSYMs:",
+                ...bounded(skipped),
+              ]
+            : []),
+        ].join("\n")
+      );
   for (const binary of binaries) {
     if (
       JSON.stringify(await readAppleBinaryImages(binary.path)) !==

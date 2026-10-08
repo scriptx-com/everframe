@@ -11,7 +11,7 @@ import {
 } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   readAppleBinaryImages,
@@ -342,6 +342,108 @@ it("bounds declared binaries, candidate bundles and directory entries", async ()
   await expect(
     collectAppleBuild({ binaries: [second.binary], dsymDir: second.root })
   ).rejects.toThrow(/limit/);
+});
+// A watchOS companion's dSYM: 32-bit MH_MAGIC header with CPU_TYPE_ARM64_32.
+function watchDsym(uuid = UUID_B) {
+  const b = Buffer.alloc(52);
+  b.writeUInt32LE(0xfeedface, 0);
+  b.writeUInt32LE(0x200000c, 4);
+  b.writeUInt32LE(1, 8);
+  b.writeUInt32LE(10, 12);
+  b.writeUInt32LE(1, 16);
+  b.writeUInt32LE(24, 20);
+  b.writeUInt32LE(0x1b, 28);
+  b.writeUInt32LE(24, 32);
+  Buffer.from(uuid.replaceAll("-", ""), "hex").copy(b, 36);
+  return b;
+}
+const unrelated = (i: number) =>
+  UUID_B.slice(0, 28) + String(i).padStart(8, "0");
+it.each([
+  [
+    "a 32-bit watchOS companion dSYM",
+    (root: string) => dsym(root, "Watch", watchDsym()),
+  ],
+  [
+    "a universal watchOS companion dSYM",
+    (root: string) =>
+      dsym(
+        root,
+        "Watch",
+        universal([watchDsym(), macho({ uuid: UUID_B, kind: 10 })])
+      ),
+  ],
+  [
+    "an unsupported CPU dSYM",
+    (root: string) =>
+      dsym(root, "Legacy", macho({ uuid: UUID_B, cpu: 12, kind: 10 })),
+  ],
+  [
+    "an unrelated dSYM over 64 MiB",
+    async (root: string) =>
+      truncate(
+        await dsym(root, "Vendor", macho({ uuid: UUID_B, kind: 10 })),
+        64 * 1024 * 1024 + 1
+      ),
+  ],
+  [
+    "a stray .DS_Store beside the selected DWARF file",
+    (root: string) =>
+      writeFile(
+        join(root, "App.dSYM", "Contents", "Resources", "DWARF", ".DS_Store"),
+        Buffer.concat([Buffer.from("\0\0\0\x01Bud1", "latin1"), Buffer.alloc(64)])
+      ),
+  ],
+  [
+    "a directory inside an unrelated DWARF directory",
+    async (root: string) => {
+      const path = await dsym(root, "Other", macho({ uuid: UUID_B, kind: 10 }));
+      await mkdir(path + "-nested");
+    },
+  ],
+  [
+    "64 unrelated framework dSYMs",
+    (root: string) =>
+      Promise.all(
+        Array.from({ length: 64 }, (_, i) =>
+          dsym(root, "Pod" + i, macho({ uuid: unrelated(i), kind: 10 }))
+        )
+      ),
+  ],
+] as const)(
+  "selects the listed app's symbols beside %s",
+  async (_name, add) => {
+    const f = await fixture();
+    await dsym(f.root, "App");
+    await add(f.root);
+    const result = await collectAppleBuild({
+      binaries: [f.binary],
+      dsymDir: f.root,
+    });
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.images.map((image) => image.uuid)).toEqual([UUID_A]);
+  }
+);
+it("fails an identity found only in unsupported files and names a bounded list of them", async () => {
+  const f = await fixture();
+  await dsym(f.root, "App", segmented().subarray(0, 208));
+  const notes = dirname(await dsym(f.root, "Notes", Buffer.alloc(64, 0x20)));
+  for (let i = 0; i < 9; i++)
+    await writeFile(join(notes, "note" + i), Buffer.alloc(64, 0x20));
+  const error = await collectAppleBuild({
+    binaries: [f.binary],
+    dsymDir: f.root,
+  }).catch((e: Error) => e);
+  expect(error).toBeInstanceOf(Error);
+  const message = (error as Error).message;
+  expect(message).toMatch(/^missing_matching_dsym/);
+  expect(message).toContain(
+    join("App.dSYM", "Contents", "Resources", "DWARF", "App") +
+      " (invalid_apple_binary)"
+  );
+  expect(message).toContain("note0 (invalid_apple_binary)");
+  expect(message).toContain("and 3 more");
+  expect(message).not.toContain("note8");
 });
 
 it.each(["modify", "replace"])(
