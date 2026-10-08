@@ -26,9 +26,11 @@ internal object ReleaseHealthRuntime {
     fun request(epoch: Int, enabled: Boolean) { controller.request(epoch, enabled) }
     fun readyPointer(epoch: Int) = controller.readyPointer(epoch)
 
-    /** Disabled boundaries attempt durable erasure outside the SDK authorization lock. */
-    fun boundary(application: Context?, epoch: Int) {
+    /** Disabled boundaries attempt durable erasure outside the SDK authorization lock. A start
+     * without health configuration passes [erase] false and leaves that erasure to [start]. */
+    fun boundary(application: Context?, epoch: Int, erase: Boolean = true) {
         if (application != null) context = application.applicationContext
+        if (!erase) return
         val request = controller.currentRequest(epoch) ?: return
         if (!request.enabled) controller.finishBoundary(request)
     }
@@ -37,10 +39,11 @@ internal object ReleaseHealthRuntime {
     suspend fun start(application: Context, captured: TXCapturedSession, endpoint: String) {
         context = application.applicationContext
         val config = captured.config ?: return
-        val health = config.releaseHealth ?: return
         val epoch = captured.user.startEpoch
         val request = controller.currentRequest(epoch) ?: return
+        // Absent health still erases an earlier journal, here rather than on the start caller.
         controller.finishBoundary(request)
+        val health = config.releaseHealth ?: return
         val current = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch &&
                 !Everframe.killGenerationChangedVolatile(captured.killGeneration)

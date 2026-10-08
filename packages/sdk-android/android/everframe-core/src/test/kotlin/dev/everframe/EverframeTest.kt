@@ -169,6 +169,27 @@ class EverframeTest {
     }
 
     @Test
+    fun `start without release health leaves health journal work off the caller thread`() {
+        val caller = Thread.currentThread()
+        val resolvedOn = java.util.concurrent.ConcurrentLinkedQueue<Thread>()
+        val tracking = object : android.content.ContextWrapper(context) {
+            override fun getApplicationContext(): Context = this
+            override fun getNoBackupFilesDir(): java.io.File {
+                if (Thread.currentThread().stackTrace.any { it.className.startsWith("dev.everframe.health.") }) {
+                    resolvedOn.add(Thread.currentThread())
+                }
+                return super.getNoBackupFilesDir()
+            }
+        }
+        Everframe.start(tracking, validConfig())
+        assertFalse("start() resolved the release health journal on the caller thread", caller in resolvedOn)
+        // Absent health still checks for an earlier journal to erase, on the SDK IO scope.
+        val deadline = System.currentTimeMillis() + 5_000
+        while (resolvedOn.none { it !== caller } && System.currentTimeMillis() < deadline) Thread.sleep(5)
+        assertTrue("absent release health never checked for an earlier journal", resolvedOn.any { it !== caller })
+    }
+
+    @Test
     fun `start throws MissingAppId on blank appId`() {
         val bad = validConfig().copy(appId = "")
         assertThrows(EverframeConfigError.MissingAppId::class.java) {

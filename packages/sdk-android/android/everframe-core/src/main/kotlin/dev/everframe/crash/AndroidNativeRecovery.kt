@@ -61,7 +61,8 @@ internal class AndroidNativeRecovery(
         require(nativeExposure == null || (nativeExposure.valid() && nativeExposure.processLaunchId == processLaunchId))
         val enriched = diagnostics || nativeExposure != null
         val context = buildJsonObject {
-            put("version", if (enriched) 2 else 1); put("pid", pid); put("process", processName); put("envelope", envelope)
+            // The version persists the arm-time mode; a native-only context may still carry a pointer.
+            put("version", if (diagnostics) 2 else 1); put("pid", pid); put("process", processName); put("envelope", envelope)
             if (enriched) {
                 require(apiLevel >= 30 && UUID.fromString(processLaunchId).toString() == processLaunchId)
                 put("processLaunchId", processLaunchId); put("apiLevel", apiLevel)
@@ -132,10 +133,10 @@ internal class AndroidNativeRecovery(
             } else if (exit.reason == 6) trace = AndroidExitDiagnostic.readAnr(exit.openTrace, exit.pid)
             if (!authorization.isAllowed()) break
             val envelope = state["envelope"]?.jsonObject ?: continue
-            val diagnostic = if (diagnostics) {
+            val frozen = (state["nativeExposure"] as? JsonObject)?.let(NativeExposurePointer::parse)
+                ?.takeIf { it.processLaunchId == launchId }
+            val diagnostic = if (diagnostics || frozen != null) {
                 val evidence = AndroidExitDiagnostic.evidence(context.reportId, launchId!!, apiLevel, exit, nowMs, trace)
-                val frozen = (state["nativeExposure"] as? JsonObject)?.let(NativeExposurePointer::parse)
-                    ?.takeIf { it.processLaunchId == launchId }
                 if (frozen == null) evidence else JsonObject(evidence + ("nativeExposure" to frozen.toJson()))
             } else null
             val report = recovered(context, envelope, exit, tombstone, nowMs, diagnostic)
