@@ -6,6 +6,7 @@ import dev.everframe.health.NativeExposurePointer
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
 import dev.everframe.outbox.OutboxStore
+import dev.everframe.outbox.OutboxToken
 import dev.everframe.protocol.generated.AndroidNativeCrashMetadata
 import java.io.InputStream
 import java.security.MessageDigest
@@ -21,7 +22,12 @@ internal data class AndroidNativeExit(
     val reason: Int,
     val stateSummary: ByteArray?,
     val openTrace: () -> InputStream?,
-)
+    /** ApplicationExitInfo.getStatus(): the terminating signal of a native crash; 0 when unknown. */
+    val status: Int,
+) {
+    constructor(pid: Int, processName: String, timestamp: Long, reason: Int, stateSummary: ByteArray?,
+                openTrace: () -> InputStream?) : this(pid, processName, timestamp, reason, stateSummary, openTrace, 0)
+}
 
 /** Separate encrypted context + prepared-envelope journals. Never exposes a context as a report.
  * The prepared receipt freezes bytes before admission; source is removed before that receipt.
@@ -40,6 +46,7 @@ internal class AndroidNativeRecovery(
         private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         private fun token(id: String) = (TOKEN_PREFIX + id).toByteArray(Charsets.US_ASCII)
     }
+    private var armed: OutboxToken? = null // Caller serializes arm and disarm.
 
     fun arm(template: OutboxEntry, pid: Int, processName: String, authorization: OutboxAuthorization,
             diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, nativeExposure: NativeExposurePointer? = null, register: (ByteArray) -> Unit) {
@@ -72,6 +79,13 @@ internal class AndroidNativeRecovery(
             contexts.removeIfPresent(durable)
             throw failure
         }
+        armed = durable
+    }
+
+    /** Drops only this owner's current-process context, after its OS token was replaced or cleared. */
+    fun disarm() {
+        armed?.let { contexts.removeIfPresent(it) }
+        armed = null
     }
 
     fun recover(exits: List<AndroidNativeExit>, nowMs: Long, authorization: OutboxAuthorization, allowDiagnostics: Boolean = false, admit: (OutboxEntry) -> Boolean): Int {
@@ -103,14 +117,15 @@ internal class AndroidNativeRecovery(
             val exit = matches.single()
             if (exit.reason != NATIVE_REASON && (!diagnostics || !allowDiagnostics)) { contexts.removeIfPresent(key); continue }
             var trace = AndroidExitDiagnostic.trace("not_requested")
-            var native: AndroidNativeCrashMetadata? = null
+            var tombstone: AndroidTombstone? = null
             if (exit.reason == NATIVE_REASON) {
                 if (apiLevel < 31) trace = AndroidExitDiagnostic.trace("unsupported")
                 else try {
                     val stream = exit.openTrace()
                     if (stream == null) trace = AndroidExitDiagnostic.trace("unavailable")
                     else {
-                        native = AndroidTombstoneReader.read(stream, expectedPid = exit.pid)
+                        tombstone = AndroidTombstoneReader.readTombstone(stream, expectedPid = exit.pid)
+                        val native = tombstone?.metadata
                         trace = if (native == null) AndroidExitDiagnostic.trace("malformed")
                             else AndroidExitDiagnostic.trace("available", "android_tombstone", native.framesIncomplete)
                     }
@@ -124,7 +139,7 @@ internal class AndroidNativeRecovery(
                 val evidence = AndroidExitDiagnostic.evidence(context.reportId, launchId!!, apiLevel, exit, nowMs, trace)
                 if (frozen == null) evidence else JsonObject(evidence + ("nativeExposure" to frozen.toJson()))
             } else null
-            val report = recovered(context, envelope, exit, native, nowMs, diagnostic)
+            val report = recovered(context, envelope, exit, tombstone, nowMs, diagnostic)
             try { prepared.enqueueSync(report, authorization) } catch (_: Exception) { continue }
             admitted += drainPrepared(authorization, admit, allowDiagnostics)
         }
@@ -161,19 +176,30 @@ internal class AndroidNativeRecovery(
         }
     }
 
+    /** Signal plus app-packaged frames only: OS/ART build IDs and PCs change with every device build
+     * and dexopt state, so they would split one crash site. Without app frames, the crashing module. */
+    private fun groupKey(kind: String, tombstone: AndroidTombstone?): String {
+        val frames = tombstone?.metadata?.frames.orEmpty()
+        val app = frames.filterIndexed { index, _ -> tombstone?.appCode?.getOrNull(index) == true }.take(5)
+        val identity = if (app.isEmpty()) frames.firstOrNull()?.module.orEmpty()
+            else app.joinToString("|") { "${it.module}:${it.relativePC}" }
+        return "$kind|$identity"
+    }
+
     private fun recovered(context: OutboxEntry, template: JsonObject, exit: AndroidNativeExit,
-                          native: AndroidNativeCrashMetadata?, nowMs: Long, diagnostic: JsonObject?): OutboxEntry {
+                          tombstone: AndroidTombstone?, nowMs: Long, diagnostic: JsonObject?): OutboxEntry {
+        val native = tombstone?.metadata
         val frames = native?.frames.orEmpty().map {
             buildJsonObject { put("raw", "${it.module ?: "<unknown>"} ${it.relativePC}") }
         }
-        val kind = native?.signalNumber?.let { "Native signal $it" } ?: "Native process crash"
-        val groupInput = kind + native?.frames.orEmpty().take(5).joinToString("|") { "${it.buildID}:${it.module}:${it.relativePC}" }
+        val signal = native?.signalNumber ?: exit.status.takeIf { it in 1..64 }?.toLong()
+        val kind = signal?.let { "Native signal $it" } ?: "Native process crash"
         val crash = buildJsonObject {
             put("exceptionType", kind)
             put("message", if (native == null) "Native process crash (tombstone unavailable)" else "Native process crash")
             put("mechanism", "android-exit-info"); put("handled", false); put("fatal", true)
             put("occurredAt", Instant.ofEpochMilli(exit.timestamp).toString())
-            put("fingerprint", digest(groupInput.toByteArray()).take(16))
+            put("fingerprint", digest(groupKey(kind, tombstone).toByteArray()).take(16))
             put("frames", JsonArray(frames))
             if (native != null) put("androidNative", json.encodeToJsonElement(native))
         }

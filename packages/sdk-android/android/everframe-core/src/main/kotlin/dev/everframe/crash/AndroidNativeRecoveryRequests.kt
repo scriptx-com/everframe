@@ -3,7 +3,7 @@
 package dev.everframe.crash
 
 /** Command generations fence queued work; explicit disable also owns durable erasure.
- * Ordinary start changes the command without discarding the preceding process's journal.
+ * Ordinary start and mode changes alter the command without discarding the preceding process's journal.
  */
 internal class AndroidNativeRecoveryRequests {
     private var epoch = -1
@@ -12,13 +12,18 @@ internal class AndroidNativeRecoveryRequests {
     private var revision = 0L
     private val revocation = AndroidNativeRecoveryRevocation()
 
-    @Synchronized fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false): Long = transition(epoch, enabled, !enabled, diagnostics)
+    /** An unsupported mode (native-only on API30) acts as a disable only when it narrows active diagnostics. */
+    @Synchronized fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false, supported: Boolean = true): Long {
+        val narrowsDiagnostics = !diagnostics && epoch == this.epoch && this.enabled && this.diagnostics
+        val effective = enabled && (supported || !narrowsDiagnostics)
+        return transition(epoch, effective, !effective, diagnostics)
+    }
     @Synchronized fun boundary(epoch: Int): Long = transition(epoch, false, false)
     private fun transition(epoch: Int, enabled: Boolean, erase: Boolean, diagnostics: Boolean = false): Long {
         if (epoch < this.epoch) return -1
         // Publish erasure before a newer true command can escape this monitor.
         // invalidate is atomic-only; no disk or revocation-monitor acquisition.
-        if (erase || (epoch == this.epoch && this.enabled && enabled && diagnostics != this.diagnostics)) revocation.invalidate()
+        if (erase) revocation.invalidate()
         if (epoch != this.epoch || enabled != this.enabled || (enabled && diagnostics) != this.diagnostics) revision++
         this.epoch = epoch
         this.enabled = enabled

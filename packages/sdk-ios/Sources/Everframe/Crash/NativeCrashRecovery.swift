@@ -14,7 +14,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
     }
     struct Run: Sendable { let id: UUID; let recorderURL: URL }
     enum Failure: Error, Equatable { case activeRun, busy, unsafePath, capacity, io, unavailable, journal, missingRun, invalidLimits }
-    enum Quarantine: Equatable { case record, context, multipleReports, journal }
+    enum Quarantine: Equatable { case record, context, multipleReports, journal, tree }
     enum Outcome: Equatable { case noReport, quarantined(Quarantine), queued(UUID), alreadyImported(UUID) }
     enum Phase: Equatable { case staged, enqueued, receipted }
     private typealias Files = NativeCrashContextFiles
@@ -24,6 +24,8 @@ final class NativeCrashRecovery: @unchecked Sendable {
         let contexts: [NativeCrashContextStore.Run]
         let runs: [UUID: Tree.Inventory]
         let retiring: [UUID]
+        /// Trees that failed validation: kept in place, never imported or retired.
+        let blocked: Set<UUID>
         var bytes: Int { runs.values.reduce(0) { $0 + $1.bytes } }
     }
     private static let lock = NSLock()
@@ -76,7 +78,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
             _ = try maintainLocked(now: now)
             var inventory = try scan()
             while inventory.contexts.count >= limits.maxRuns || inventory.bytes >= limits.maxTotalBytes {
-                guard let candidate = inventory.contexts.first(where: { !excluded($0.id) }) else { throw Failure.capacity }
+                guard let candidate = inventory.contexts.first(where: { retirable($0.id, inventory) }) else { throw Failure.capacity }
                 try retire(candidate.id, inventory: inventory)
                 inventory = try scan()
             }
@@ -89,7 +91,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
                 } catch NativeCrashContextStore.Failure.capacity {
                     // Context ciphertext has an independent byte budget. Reclaim
                     // eligible old runs even when raw bytes/run count still fit.
-                    guard let candidate = inventory.contexts.first(where: { !excluded($0.id) }) else { throw Failure.capacity }
+                    guard let candidate = inventory.contexts.first(where: { retirable($0.id, inventory) }) else { throw Failure.capacity }
                     try retire(candidate.id, inventory: inventory)
                     inventory = try scan()
                 }
@@ -149,6 +151,8 @@ final class NativeCrashRecovery: @unchecked Sendable {
         _ = try resumeRetirements()
         let inventory = try scan()
         guard let run = inventory.runs[runID], !inventory.retiring.contains(runID) else { throw Failure.missingRun }
+        // Unrecognized, unsafe or over-bound trees stay in place and are never read.
+        guard !inventory.blocked.contains(runID), !run.oversized else { return (nil, .quarantined(.tree)) }
         guard run.reports.count <= 1 else { return (nil, .quarantined(.multipleReports)) }
         let stageURL = runURL(runID).appendingPathComponent("stage.evr")
         let receiptURL = runURL(runID).appendingPathComponent("receipt.evr")
@@ -203,34 +207,37 @@ final class NativeCrashRecovery: @unchecked Sendable {
         guard let run = inventory.runs[runID], run.bytes <= limits.maxRunBytes - bytes,
               inventory.bytes <= limits.maxTotalBytes - bytes else { throw Failure.capacity }
     }
-    private func rawInventory() throws -> (runs: [UUID: Tree.Inventory], retiring: [UUID]) {
+    private func rawInventory() throws -> (runs: [UUID: Tree.Inventory], retiring: [UUID], blocked: Set<UUID>) {
         for name in try Files.entries(rootURL, maximum: 2) {
             guard name == "contexts" || name == "runs" else { throw Failure.unsafePath }
         }
-        var runs: [UUID: Tree.Inventory] = [:], retiring: [UUID] = []
+        var runs: [UUID: Tree.Inventory] = [:], retiring: [UUID] = [], blocked: Set<UUID> = []
         for name in try Files.entries(runsURL, maximum: 32) {
             let tombstone = name.hasPrefix(".retiring-")
             guard let id = Tree.uuid(tombstone ? String(name.dropFirst(10)) : name),
                   runs[id] == nil else { throw Failure.unsafePath }
-            runs[id] = try Tree.scan(runsURL.appendingPathComponent(name), maximum: limits.maxRunBytes)
+            // One run's unrecognized, unsafe or unreadable tree must not stop every
+            // other run. It stays in place and is budgeted at the run maximum.
+            do { runs[id] = try Tree.scan(runsURL.appendingPathComponent(name), maximum: limits.maxRunBytes) }
+            catch { runs[id] = Tree.Inventory(bytes: limits.maxRunBytes); blocked.insert(id) }
             if tombstone { retiring.append(id) }
         }
-        return (runs, retiring)
+        return (runs, retiring, blocked)
     }
     private func scan() throws -> Inventory {
         let raw = try rawInventory()
         let contexts = try contextStore.runs(), ids = Set(contexts.map(\.id))
         guard raw.runs.keys.allSatisfy({ ids.contains($0) || raw.retiring.contains($0) }) else { throw Failure.unsafePath }
-        return Inventory(contexts: contexts, runs: raw.runs, retiring: raw.retiring)
+        return Inventory(contexts: contexts, runs: raw.runs, retiring: raw.retiring, blocked: raw.blocked)
     }
     /// A durable raw tombstone is the retirement authority even when recursive
     /// context removal already deleted its run header. Validate raw trees first;
     /// removeRun independently checks every remaining context entry without
-    /// requiring the header. Unknown content and active/in-flight IDs still block.
+    /// requiring the header. Unknown raw content and active/in-flight IDs stay in place.
     private func resumeRetirements() throws -> Int {
         let raw = try rawInventory()
         var count = 0
-        for id in raw.retiring where !excluded(id) {
+        for id in raw.retiring where !excluded(id) && !raw.blocked.contains(id) {
             let context = rootURL.appendingPathComponent("contexts/" + id.uuidString.lowercased())
             if try Files.info(context) != nil { try contextStore.removeRun(id) }
             let tombstone = runsURL.appendingPathComponent(".retiring-" + id.uuidString.lowercased())
@@ -244,18 +251,19 @@ final class NativeCrashRecovery: @unchecked Sendable {
         guard now.timeIntervalSince1970.isFinite else { throw Failure.invalidLimits }
         var count = try resumeRetirements()
         var inventory = try scan()
-        for run in inventory.contexts where !excluded(run.id) && now.timeIntervalSince(run.createdAt) >= limits.maxAge {
+        for run in inventory.contexts where retirable(run.id, inventory) && now.timeIntervalSince(run.createdAt) >= limits.maxAge {
             try retire(run.id, inventory: inventory); count += 1
         }
         inventory = try scan()
         while inventory.contexts.count > limits.maxRuns || inventory.bytes > limits.maxTotalBytes {
-            guard let candidate = inventory.contexts.first(where: { !excluded($0.id) }) else { throw Failure.capacity }
+            guard let candidate = inventory.contexts.first(where: { retirable($0.id, inventory) }) else { throw Failure.capacity }
             try retire(candidate.id, inventory: inventory); count += 1; inventory = try scan()
         }
         return count
     }
     private func retire(_ id: UUID, inventory: Inventory) throws {
         guard !excluded(id) else { throw Failure.activeRun }
+        guard !inventory.blocked.contains(id) else { throw Failure.unsafePath }
         let tombstone = runsURL.appendingPathComponent(".retiring-" + id.uuidString.lowercased())
         if inventory.runs[id] != nil, !inventory.retiring.contains(id) {
             try FileManager.default.moveItem(at: runURL(id), to: tombstone)
@@ -268,6 +276,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
         }
     }
     private func excluded(_ id: UUID) -> Bool { activeRunIDs.contains(id) || Self.inFlight.contains(lease(id)) }
+    private func retirable(_ id: UUID, _ inventory: Inventory) -> Bool { !excluded(id) && !inventory.blocked.contains(id) }
     private func lease(_ id: UUID) -> String { rootURL.path + "/" + id.uuidString.lowercased() }
     private func runURL(_ id: UUID) -> URL { runsURL.appendingPathComponent(id.uuidString.lowercased(), isDirectory: true) }
     private func key() throws -> Data {
