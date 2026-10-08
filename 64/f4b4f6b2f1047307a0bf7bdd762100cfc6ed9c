@@ -1,0 +1,79 @@
+packages/cli/README.md
+  s_360d9eb003c487::t_b0721cc587995e 1-3,39-44,48-63
+packages/cli/__tests__/apple-build.spec.ts
+  s_360d9eb003c487::t_3e1a77e1edc5f3 14,320-322,328,331,337-339,348-536,563,579-581,593-595
+packages/cli/__tests__/apple-upload.spec.ts
+  s_360d9eb003c487::t_c7ef71ffbee836 3,5,9-15,167-171,233-277
+packages/cli/src/apple-build.ts
+  s_360d9eb003c487::t_ced628c33d598f 28-57,340-342,348,355-356,358-359,361-375,379,381,383-385,387-396,398-399,401-405,408-461,463-470
+packages/cli/src/apple-upload.ts
+  s_360d9eb003c487::t_6320725f552118 7,16-23,28-34
+packages/cli/src/index.ts
+  s_360d9eb003c487::t_9697227e66f3e5 428-429
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_360d9eb003c487::t_dbc75b40850bcf 11,23,30-40,42,118
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_360d9eb003c487::t_03c53c3dcc6914 23-28,95,98,122-131,133-134,138-139,145
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidTombstoneReader.kt
+  s_360d9eb003c487::t_2174caecdfb878 14-16,27-29,110,165,172,178-179,181-185,190,198-199,201,212
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_360d9eb003c487::t_be12366cc4e557 41-65,159-192
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidTombstoneReaderTest.kt
+  s_360d9eb003c487::t_521f3b9bb02a2b 113-135
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/AndroidNativeCrashRuntimeTest.kt
+  s_360d9eb003c487::t_f894554bf6b9e2 1-195
+packages/sdk-android/core/src/test/cpp/api24-collector/README.md
+  s_360d9eb003c487::t_1364738c462b59 1-3
+packages/sdk-android/core/src/test/cpp/api24-collector/android/README.md
+  s_360d9eb003c487::t_791553fcb333d5 1-3
+packages/sdk-android/core/src/test/cpp/api24-collector/crash_fixture.cc
+  s_360d9eb003c487::t_570878c40ef9da 14,44,114,145-146,152,160
+packages/sdk-android/core/src/test/cpp/api24-collector/dependency-pins.json
+  s_360d9eb003c487::t_21898b0499b8a0 3,16,22,28
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.cc
+  s_360d9eb003c487::t_3b9efbd16c309b 56-58
+packages/sdk-android/tests/native-crash-host/README.md
+  s_360d9eb003c487::t_ce6ed685614cf7 1-2
+packages/sdk-android/tests/native-handler-host/app/proguard-rules.pro
+  s_360d9eb003c487::t_7f47ec4bd9bb7f 1-2
+packages/sdk-android/tests/native-handler-host/app/src/main/AndroidManifest.xml
+  s_360d9eb003c487::t_dafc0851b2c843 1-2
+packages/sdk-ios/README.md
+  s_360d9eb003c487::t_382ff9d0ac34c7 83-87,93-94
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_360d9eb003c487::t_4e639c941e3303 50-53,518-523
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecorderAdapter.swift
+  s_360d9eb003c487::t_bc013ef2fd282f 20,27-35
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecovery.swift
+  s_360d9eb003c487::t_3d98eb7cefb65e 17,27-28,81,94,154-155,210,214,219-222,225,231,236,240,254,259,266,279
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryFiles.swift
+  s_360d9eb003c487::t_41de8527de6485 11-13,47-48,67-70,75
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_360d9eb003c487::t_1e453b15b3705d 6-8,25-27,32-33,36-38,53-86,92-93,96,100,104,107,112-114,117,119,128-129,133
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashStartupContext.swift
+  s_360d9eb003c487::t_f981fe7e85d297 26-29
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_34d2c22d18ef52 53-62,626-631,1015-1018
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecoveryTests.swift
+  s_360d9eb003c487::t_8870e23afbbc6f 122-123,127-128,132,135-136,140,142-192,250
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_360d9eb003c487::t_dc0e553cc4a62d 36,39,49-95,250-261
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_360d9eb003c487::t_f6214cfc675a31 10-19,23-29,42-43,45-46,71,74-77,138-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64f4b4f6b2f1047307a0bf7bdd762100cfc6ed9c",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
