@@ -13,7 +13,9 @@ internal object AndroidExitDiagnostic {
     const val MAX_TRACE_BYTES = 256 * 1024
     const val MAX_FRAMES = 64
     private val header = Regex("^----- pid ([0-9]+) at .+ -----$")
-    private val frame = Regex("^\\s+at ([A-Za-z0-9_.$<>]{1,256})\\((?:([A-Za-z0-9_.$-]{1,128})(?::([0-9]{1,10}))?|Native method|Unknown Source)\\).*$")
+    // Kotlin value-class and lambda names (FeedRow-8Feqmps, lambda-1) contain '-'.
+    private val frame = Regex("^\\s+at ([A-Za-z0-9_.$<>-]{1,256})\\((?:([A-Za-z0-9_.$-]{1,128})(?::([0-9]{1,10}))?|Native method|Unknown Source)\\).*$")
+    private val frameLine = Regex("^\\s+at ")
 
     fun cause(reason: Int): String = when (reason) {
         6 -> "anr"
@@ -66,7 +68,12 @@ internal object AndroidExitDiagnostic {
                     continue
                 }
                 if (!main) continue
-                val match = frame.matchEntire(line) ?: continue
+                val match = frame.matchEntire(line)
+                if (match == null) {
+                    // A frame outside the retained grammar is omitted, never silently.
+                    if (frameLine.containsMatchIn(line)) truncated = true
+                    continue
+                }
                 if (frames.size == MAX_FRAMES) { truncated = true; break }
                 frames.add(buildJsonObject {
                     put("function", match.groupValues[1])

@@ -33,10 +33,10 @@ final class NativeCrashRuntimeTests: XCTestCase {
         let key = key
         return NativeCrashRuntime(rootURL: root, outbox: outbox, recorder: recorder.adapter, keyProvider: { key })
     }
-    private func priorRun() throws -> (UUID, URL) {
+    private func priorRun(startedAt: Date = Date()) throws -> (UUID, URL) {
         let key = key
         let store = try NativeCrashRecovery(rootURL: root, activeRunIDs: [], keyProvider: { key })
-        let run = try store.prepareRun()
+        let run = try store.prepareRun(now: startedAt)
         let id = try store.writeContext(NativeRecoveryTestData.context(), runID: run.id)
         let reports = run.recorderURL.appendingPathComponent("Reports")
         try FileManager.default.createDirectory(at: reports, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -45,6 +45,53 @@ final class NativeCrashRuntimeTests: XCTestCase {
         try NativeRecoveryTestData.raw(context: id, report: report).write(to: path)
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: path.path)
         return (report, path)
+    }
+    func testRecorderInstallationAndPublicationRunOnMainWithoutMovingPersistenceThere() async throws {
+        let key = key, context = try NativeRecoveryTestData.context()
+        let current = NativeCrashRuntime(rootURL: root, outbox: outbox,
+            recorder: .init(install: { _ in XCTAssertTrue(Thread.isMainThread); return true },
+                disable: {}, publish: { _ in XCTAssertTrue(Thread.isMainThread); return true }), keyProvider: {
+                XCTAssertFalse(Thread.isMainThread, "key and filesystem work stay on the worker")
+                return key
+            })
+        let result = await current.refresh(ticket: current.invalidate(), context: { context })
+        XCTAssertTrue(result)
+    }
+    private final class AdmissionGate: @unchecked Sendable {
+        let lock = NSLock(), entered: XCTestExpectation
+        var hold = false
+        var pending: (@Sendable () -> Void)?
+        init(_ entered: XCTestExpectation) { self.entered = entered }
+        func enqueue(_ work: @escaping @Sendable () -> Void) {
+            let deferred = lock.withLock { () -> Bool in
+                if hold { pending = work; return true }; return false
+            }
+            if deferred { entered.fulfill() } else { DispatchQueue.main.async(execute: work) }
+        }
+        func block() { lock.withLock { hold = true } }
+        func release() {
+            let work = lock.withLock { let result = pending; pending = nil; hold = false; return result }
+            if let work { DispatchQueue.main.async(execute: work) }
+        }
+    }
+    func testQueuedMainAdmissionCannotReenableAfterSynchronousDisable() async throws {
+        let recorder = Recorder(), key = key, context = try NativeRecoveryTestData.context()
+        let queued = expectation(description: "main admission queued after durable context")
+        let gate = AdmissionGate(queued)
+        let current = NativeCrashRuntime(rootURL: root, outbox: outbox, recorder: recorder.adapter,
+            keyProvider: { key }, scheduleAdmission: { gate.enqueue($0) })
+        let first = await current.refresh(ticket: current.invalidate(), context: { context })
+        XCTAssertTrue(first); gate.block()
+        let ticket = current.invalidate()
+        let pending = Task { await current.refresh(ticket: ticket, context: { context }) }
+        await fulfillment(of: [queued], timeout: 5)
+        _ = current.invalidate()
+        XCTAssertFalse(recorder.enabled)
+        gate.release()
+        let obsolete = await pending.value
+        XCTAssertFalse(obsolete); XCTAssertFalse(recorder.enabled)
+        XCTAssertEqual(recorder.identifiers.count, 1)
+        XCTAssertEqual(recorder.installs, 1)
     }
     func testPriorOwnerRecoveredBeforeInstallationAndNewContextIsDurableBeforeEnable() async throws {
         let (report, _) = try priorRun()
@@ -198,6 +245,18 @@ final class NativeCrashRuntimeTests: XCTestCase {
         }
         XCTAssertFalse(recorder.enabled); XCTAssertEqual(recorder.installs, 1)
         XCTAssertEqual(recorder.identifiers.count, 256)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("runs").path).count, 1)
+    }
+
+    func testFreshCrashFromLongLivedProcessIsImportedBeforeAgeRetirement() async throws {
+        // The prior process ran for 15 days, then crashed just before this launch.
+        let (report, _) = try priorRun(startedAt: Date().addingTimeInterval(-15 * 24 * 60 * 60))
+        let recorder = Recorder()
+        let current = self.runtime(recorder)
+        let armed = await current.refresh(ticket: current.invalidate(), context: { try NativeRecoveryTestData.context(owner: "sdk-B") })
+        XCTAssertTrue(armed)
+        XCTAssertEqual(try outbox.hydrate().map(\.reportId), [report], "an expired run's pending record must be imported, not deleted")
+        // Age retention still applies once the record is queued: only the active run remains.
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("runs").path).count, 1)
     }
 }
