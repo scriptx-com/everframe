@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_97602a0a2d8f20::t_82b074162a5b11 75-81,101,110-111,126-128
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordReader.kt
+  s_97602a0a2d8f20::t_9f9d57be72c09e 44-46,51-53
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalController.kt
+  s_97602a0a2d8f20::t_c309cf5d936014 1-98
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_97602a0a2d8f20::t_9385e40b560c19 45,48,50,104-105,203-228
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_97602a0a2d8f20::t_fa4193d78d1d90 1-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a8632992a104c35f2e0b5df490b99f4d8ad63d13",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
