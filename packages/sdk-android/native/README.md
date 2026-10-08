@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Optional Android native crash capture
 
 The `native-crash` Android library supplies the optional signal producer for the

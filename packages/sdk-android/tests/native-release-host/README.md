@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Installed Release native crash acceptance app
 
 This host uses public `Everframe.start`, native signal opt-in, readiness, kill and

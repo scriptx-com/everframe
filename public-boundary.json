@@ -136,6 +136,7 @@
     "^packages/everframe_flutter/pubspec\\.lock$",
     "^packages/sdk-web/test-results/",
     "(^|/)\\.gradle(?:/|$)",
+    "^packages/sdk-android/tests/native-release-host/app/\\.cxx(?:/|$)",
     "(^|/)(?:node_modules|dist|build|target|\\.turbo|\\.next|\\.build|DerivedData)(?:/|$)",
     "(^|/)next-env\\.d\\.ts$",
     "(^|/)examples/react-native/(?:android|ios)(?:/|$)",
