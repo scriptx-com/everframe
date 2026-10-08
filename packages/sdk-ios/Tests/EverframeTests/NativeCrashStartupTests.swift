@@ -7,18 +7,26 @@ import EverframeProtocol
 final class NativeCrashStartupTests: XCTestCase {
     private let device = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "26.5", locale: "en_US", timezone: "UTC",
         appVersion: "1.2.3", appBuild: "42", bundleIdentifier: "dev.example.host")
-    func testTemplateIsDeterministicAndRedactsEveryPersistedString() throws {
-        let config = EverframeConfig(appId: "sdk-A", release: "release-secret", redaction: .init(customPatterns: [try NSRegularExpression(pattern: "secret")]))
-        let user = EFUser(id: "user-secret", email: "secret@example.invalid", displayName: "secret")
-        let context = try NativeCrashStartupContext.make(config: config, user: user, device: device, endpoint: "https://example.invalid")
-        let again = try NativeCrashStartupContext.make(config: config, user: user, device: device, endpoint: "https://example.invalid")
+    func testTemplateIsDeterministicAndKeepsDeclaredIdentityVerbatim() throws {
+        // Other report paths send the declared user and app/device identity as
+        // given. Masked ids/emails would merge people or overwrite stored emails.
+        let config = EverframeConfig(appId: "sdk-A", release: "release-secret", redaction: .init(customPatterns: [
+            try NSRegularExpression(pattern: "secret"), try NSRegularExpression(pattern: "[a-z]+@example\\.com")]))
+        let user = EFUser(id: "4111111111111111", email: "alice@example.com", displayName: "secret")
+        let host = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "26.5", locale: "en_US", timezone: "UTC",
+            appVersion: "1.2.3", appBuild: "42", bundleIdentifier: "io.mycompanyname.customerportal.production")
+        let context = try NativeCrashStartupContext.make(config: config, user: user, device: host, endpoint: "https://example.invalid")
+        let again = try NativeCrashStartupContext.make(config: config, user: user, device: host, endpoint: "https://example.invalid")
         XCTAssertEqual(try context.encoded(), try again.encoded())
         XCTAssertEqual(context.sdkKey, "sdk-A"); XCTAssertNil(context.identitySubject)
         let envelope = try EverframeReportEnvelope(data: context.envelopeTemplate)
-        XCTAssertEqual(envelope.reporter.user?.id, "user-[REDACTED]")
-        XCTAssertEqual(envelope.reporter.user?.displayName, "[REDACTED]")
-        XCTAssertFalse(envelope.reporter.user?.email?.contains("secret") ?? true)
-        XCTAssertEqual(envelope.context.app.version, "release-[REDACTED]")
+        XCTAssertEqual(envelope.reporter.user?.id, "4111111111111111")
+        XCTAssertEqual(envelope.reporter.user?.email, "alice@example.com")
+        XCTAssertEqual(envelope.reporter.user?.displayName, "secret")
+        XCTAssertEqual(envelope.context.app.name, "io.mycompanyname.customerportal.production")
+        XCTAssertEqual(envelope.context.app.version, "release-secret")
+        // The frozen policy still redacts the recovered crash record's strings.
+        XCTAssertEqual(try context.redaction.compiled()("crash secret"), "crash [REDACTED]")
         XCTAssertEqual(envelope.context.app.build, "42"); XCTAssertEqual(envelope.context.device.model, "iPhone")
         XCTAssertTrue(envelope.attachments.isEmpty); XCTAssertNil(envelope.sessionID)
         XCTAssertNil(envelope.payload.breadcrumbs); XCTAssertNil(envelope.payload.vitals)
@@ -31,10 +39,11 @@ final class NativeCrashStartupTests: XCTestCase {
         XCTAssertNil(context.identitySubject)
     }
     func testNormalBreadcrumbInstallationDoesNotReplaceProcessFatalHandler() {
-        // This local sentinel detects the install side effect even if another
-        // test previously exercised the legacy adapter's direct installation.
+        // The legacy adapter installs once per process. Reset it so an earlier
+        // start() in this process cannot mask a reintroduced installation.
         let old = NSGetUncaughtExceptionHandler()
-        defer { NSSetUncaughtExceptionHandler(old) }
+        ErrorBreadcrumbAdapter.__resetForTesting()
+        defer { ErrorBreadcrumbAdapter.__resetForTesting(); NSSetUncaughtExceptionHandler(old) }
         NSSetUncaughtExceptionHandler(nil)
         BreadcrumbAdapters.install()
         XCTAssertNil(NSGetUncaughtExceptionHandler())
@@ -59,11 +68,13 @@ final class NativeCrashStartupTests: XCTestCase {
         let gate = NativeStartupSnapshotGate(device: device, entered: [first, second])
         let sdk = Everframe(nativeCrashRuntime: runtime, nativeDeviceSnapshot: { await gate.snapshot() })
         defer {
-            sdk.kill(); gate.releaseAll(); Everframe.__resetStartTailDelayHookForTesting()
+            sdk.kill(); gate.releaseAll(); Everframe.__beforeLaunchDrainHookForTesting = nil
             try? FileManager.default.removeItem(at: root)
         }
-        let tail = expectation(description: "launch drain finished")
-        Everframe.__startTailDelayHookForTesting = {
+        let tail = expectation(description: "launch drain about to start")
+        // Runs before the drain reads its queue, not after it returns.
+        Everframe.__beforeLaunchDrainHookForTesting = { instance in
+            guard instance === sdk else { return }
             XCTAssertEqual(try? box.hydrate().map(\.reportId), [reportID], "recovery must finish before the launch drain")
             XCTAssertTrue(probe.snapshot().enabled)
             tail.fulfill()
@@ -123,6 +134,52 @@ final class NativeCrashStartupTests: XCTestCase {
         let disabled = await sdk.refreshNativeCrashContext()
         XCTAssertFalse(disabled); XCTAssertFalse(probe.snapshot().enabled)
         XCTAssertEqual(probe.snapshot().installs, 1)
+    }
+    func testRecorderReceivesCanonicalSpellingOfFoundationRunDirectory() throws {
+        // Like a device container (/var -> /private/var), macOS temporary storage
+        // is reported by Foundation without the /private prefix realpath(3) adds.
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x47, count: 32)
+        let run = try NativeCrashRecovery(rootURL: root.appendingPathComponent("native"), activeRunIDs: [], keyProvider: { key }).prepareRun()
+        let resolved = try XCTUnwrap(realpath(run.recorderURL.path, nil))
+        defer { free(resolved) }
+        let canonical = String(cString: resolved)
+        XCTAssertNotEqual(run.recorderURL.path, canonical, "fixture must use an aliased container path")
+        XCTAssertEqual(NativeCrashRecorderAdapter.recorderDirectory(run.recorderURL), canonical)
+    }
+    func testAcceptedFatalJavaScriptCrashClosesNativeCaptureUntilNextStart() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        let probe = NativeStartupRecorderProbe()
+        let key = Data(repeating: 0x47, count: 32)
+        let runtime = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let sdk = Everframe(nativeCrashRuntime: runtime)
+        CrashReporter.__closeNativeCaptureForTesting = { sdk.closeNativeCrashCaptureAfterAcceptedFatal() }
+        CrashReporter.__scheduleDrainForTesting = { _ in }
+        defer {
+            sdk.kill(); CrashReporter.__closeNativeCaptureForTesting = nil; CrashReporter.__scheduleDrainForTesting = nil
+            try? FileManager.default.removeItem(at: root)
+        }
+        let config = EverframeConfig(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
+        try sdk.start(config: config)
+        let armed = await sdk.refreshNativeCrashContext()
+        XCTAssertTrue(armed)
+        let reports = JSONLOutbox(fileURL: root.appendingPathComponent("reports"), keyProvider: { key })
+        XCTAssertTrue(CrashReporter.captureFacts(json: #"{"exceptionType":"TypeError","fatal":false}"#, outbox: reports, config: config))
+        XCTAssertTrue(probe.snapshot().enabled, "a surviving runtime keeps native capture")
+        // React Native aborts through RCTFatalException after its JS fatal is stored.
+        XCTAssertTrue(CrashReporter.captureFacts(json: #"{"exceptionType":"TypeError","fatal":true}"#, outbox: reports, config: config))
+        XCTAssertFalse(probe.snapshot().enabled, "the host abort must not become a second native crash")
+        sdk.setUser(.init(id: "user-B"))
+        let rearmed = await sdk.refreshNativeCrashContext()
+        XCTAssertFalse(rearmed); XCTAssertFalse(probe.snapshot().enabled)
+        try sdk.start(config: config)
+        let restarted = await sdk.refreshNativeCrashContext()
+        XCTAssertTrue(restarted); XCTAssertTrue(probe.snapshot().enabled)
+        XCTAssertEqual(try reports.hydrate().count, 2)
     }
 }
 

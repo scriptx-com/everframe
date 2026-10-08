@@ -17,10 +17,18 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
     private func outbox(max: Int = 50) -> JSONLOutbox {
         let key = key; return JSONLOutbox(fileURL: root.appendingPathComponent("outbox"), maxEntries: max, keyProvider: { key })
     }
-    private func runtime(box: JSONLOutbox? = nil, at date: Date? = nil) -> AppleDiagnosticRuntime {
+    private func runtime(box: JSONLOutbox? = nil, at date: Date? = nil, retryInterval: TimeInterval = 30) -> AppleDiagnosticRuntime {
         let key = key, date = date ?? now
         return AppleDiagnosticRuntime(root: root.appendingPathComponent("journal"), outbox: box ?? outbox(),
-            keyProvider: { key }, now: { date })
+            keyProvider: { key }, now: { date }, retryInterval: retryInterval)
+    }
+    private func eventually(timeout: TimeInterval = 5, _ condition: () throws -> Bool) async throws -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while try !condition() {
+            guard Date() < deadline else { return false }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return true
     }
     private func expect(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { XCTAssertTrue(value, file: file, line: line) }
     private func reject(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { XCTAssertFalse(value, file: file, line: line) }
@@ -41,7 +49,11 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
     func testSDKStartAndKillFenceDiagnosticAdmission() async throws {
         let live = runtime(), device = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "18.0", locale: "en_US", timezone: "UTC",
             appVersion: "1.0", appBuild: "42", bundleIdentifier: "dev.example.host")
-        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: live, nativeDeviceSnapshot: { device })
+        // The accepted receipt starts the SDK's retry drain; keep it off real hosts.
+        let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [AppleUnavailableProtocol.self]
+        let session = URLSession(configuration: configuration); defer { session.invalidateAndCancel() }
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: live, appleDiagnosticSession: { session },
+            nativeDeviceSnapshot: { device })
         defer { live.boundary() }
         reject(await sdk.setAppleDiagnosticsEnabled(true))
         try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
@@ -170,6 +182,57 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
             XCTAssertEqual(request.url?.absoluteString, original.endpoint)
         }
     }
+    func testSDKRetryDrainLeavesQueuedManualReportsToTheirOwnDrain() async throws {
+        // Drives the SDK's own retry drain rather than a hand-built restricted submitter.
+        // Whole seconds: queued entries persist ISO-8601 timestamps.
+        let date = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970))
+        let appId = "evf_live_cccccccccccccccccccccccccccccccc", endpoint = IngestEndpoint.url.absoluteString
+        let device = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "18.0", locale: "en_US", timezone: "UTC",
+            appVersion: "1.0", appBuild: "42", bundleIdentifier: "dev.example.host")
+        let manual = OutboxEntry(reportId: UUID(), createdAt: date, envelopeBytes: Data("{}".utf8), idempotencyKey: "manual",
+            attachmentRefs: [], sdkKey: appId, endpoint: endpoint, identitySubject: "manual-user")
+        _ = try outbox().enqueueRecovered(manual)
+        // Stage a receipt for the destination the SDK freezes, then restart.
+        let frozen = try NativeCrashStartupContext.make(config: EverframeConfig(appId: appId), user: nil, device: device, endpoint: endpoint)
+        let first = runtime(at: date)
+        expect(await first.enable(context: .init(frozen: frozen, applicationVersion: "1.0", applicationBuild: "42")))
+        expect(await first.accept(AppleDiagnosticCandidate(kind: "hang_batch", begin: date, end: date, applicationVersion: "1.0",
+            applicationBuild: "42", osVersion: "iOS 18.0", hangs: [.init(durationMs: 2000, stack: .init(status: "unavailable",
+            truncated: false, frames: []))], exits: [], truncated: false)))
+        first.boundary()
+        let receipt = try XCTUnwrap(outbox().hydrate().last); XCTAssertTrue(AppleDiagnosticDelivery.isApple(receipt))
+        AppleAcceptProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [AppleAcceptProtocol.self]
+        let session = URLSession(configuration: configuration); defer { session.invalidateAndCancel() }
+        let live = runtime(at: date)
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: live, appleDiagnosticSession: { session },
+            nativeDeviceSnapshot: { device })
+        try sdk.start(config: .init(appId: appId, capture: .init(logs: false)))
+        expect(await sdk.setAppleDiagnosticsEnabled(true))
+        expect(try await eventually { try !self.outbox().hydrate().contains(where: AppleDiagnosticDelivery.isApple) })
+        // The manual report is neither sent without its identity nor rewritten.
+        XCTAssertEqual(try outbox().hydrate(), [manual])
+        XCTAssertEqual(AppleAcceptProtocol.requests.map { $0.value(forHTTPHeaderField: "X-Everframe-Idempotency-Key") },
+                       [receipt.idempotencyKey])
+        sdk.kill(); expect(await sdk.setAppleDiagnosticsEnabled(false))
+    }
+    func testIdleRetryTicksNeitherRewriteTheSharedQueueNorStartDrains() async throws {
+        let box = outbox(), drains = AppleDrainCounter(), file = root.appendingPathComponent("outbox")
+        let manual = OutboxEntry(reportId: UUID(), createdAt: now, envelopeBytes: Data("{}".utf8), idempotencyKey: "manual",
+            attachmentRefs: [], sdkKey: "manual-owner", endpoint: "https://example.invalid/api/ingest")
+        _ = try box.enqueueRecovered(manual)
+        let live = runtime(box: box, retryInterval: 0.01)
+        let enabled = await live.enable(context: try context(), drain: { drains.increment() }); expect(enabled)
+        // Every rewrite re-seals the queue under a fresh nonce: equal bytes mean no rewrite.
+        let idle = try Data(contentsOf: file)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(try Data(contentsOf: file), idle); XCTAssertEqual(drains.count, 0)
+        // A pending receipt is still retried on later ticks without rewriting the queue.
+        expect(await live.accept(candidate()))
+        let staged = try Data(contentsOf: file)
+        expect(try await eventually { drains.count >= 3 })
+        XCTAssertEqual(try Data(contentsOf: file), staged); live.boundary()
+    }
     func testAggregateProducerKeepsCountsWithoutIndividualIncidentClaims() async throws {
         let live = runtime(); expect(await live.enable(context: try context()))
         let input = AppleDiagnosticCandidate(kind: "app_exit_summary", begin: now, end: now,
@@ -214,10 +277,19 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         live.boundary()
     }
     func testFullOutboxRetainsStagedReceiptForRestartWithoutEviction() async throws {
-        let first = runtime(box: outbox(max: 0)); expect(await first.enable(context: try context()))
-        expect(await first.accept(candidate())); XCTAssertTrue(try outbox().hydrate().isEmpty); first.boundary()
-        let next = runtime(); expect(await next.enable(context: try context()))
-        XCTAssertEqual(try outbox().hydrate().count, 1); next.boundary()
+        let full = outbox(max: 2)
+        let manuals = (0..<2).map { _ in OutboxEntry(reportId: UUID(), createdAt: now, envelopeBytes: Data("{}".utf8),
+            idempotencyKey: UUID().uuidString, attachmentRefs: [], sdkKey: "manual-owner", endpoint: "https://example.invalid/api/ingest") }
+        for manual in manuals { _ = try full.enqueueRecovered(manual) }
+        let first = runtime(box: full); expect(await first.enable(context: try context()))
+        expect(await first.accept(candidate()))
+        XCTAssertEqual(try full.hydrate(), manuals); first.boundary()
+        // Once a slot frees, the next opt-in inserts the staged receipt.
+        try full.drain(where: { $0.reportId == manuals[0].reportId })
+        let next = runtime(box: outbox(max: 2)); expect(await next.enable(context: try context()))
+        let queued = try full.hydrate()
+        XCTAssertEqual(queued.count, 2); XCTAssertEqual(queued.first, manuals[1])
+        XCTAssertTrue(AppleDiagnosticDelivery.isApple(try XCTUnwrap(queued.last))); next.boundary()
     }
 }
 
@@ -267,6 +339,39 @@ private final class AppleNeverUploadProtocol: URLProtocol {
     override func startLoading() {
         XCTFail("An unowned Apple receipt reached network admission")
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+private final class AppleDrainCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+    var count: Int { lock.withLock { value } }
+    func increment() { lock.withLock { value += 1 } }
+}
+
+private final class AppleAcceptProtocol: URLProtocol {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var recorded: [URLRequest] = []
+    static var requests: [URLRequest] { lock.withLock { recorded } }
+    static func reset() { lock.withLock { recorded = [] } }
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.lock.withLock { Self.recorded.append(request) }
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+/// A retryable answer: the receipt stays queued and no request leaves the process.
+private final class AppleUnavailableProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
