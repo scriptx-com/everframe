@@ -45,9 +45,16 @@ internal class AndroidNativeRecoveryController(
             active?.let {
                 if (it.authorization.isAllowed() && it.diagnostics == diagnostics) return it.epoch == epoch && it.ready
                 active = null
-                it.engine.invalidate()
-                if (it.claimed) runCatching { platform.setStateSummary(null) }
-                it.engine.revoke()
+                if (it.epoch == epoch && it.diagnostics != diagnostics) {
+                    // A mode change in one start keeps both journals for the new owner's
+                    // recovery, which applies the new mode; only the old registration goes.
+                    if (it.claimed) runCatching { platform.setStateSummary(null) }
+                    runCatching { it.engine.disarm() }
+                } else {
+                    it.engine.invalidate()
+                    if (it.claimed) runCatching { platform.setStateSummary(null) }
+                    it.engine.revoke()
+                }
             }
             Active(epoch, factory(), authorization, diagnostics).also { active = it }
         }

@@ -12,9 +12,13 @@ import { chromium } from '@playwright/test';
 const output = resolve(process.argv[2]);
 await mkdir(output, { recursive: true });
 let bundle, online = false;
-const attempts = [], accepted = [], checks = [];
+const attempts = [], accepted = [], checks = [], crashReports = [];
 const server = createServer(async (req, res) => {
   if (req.url === '/bundle.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(bundle); return; }
+  if (req.url === '/api/ingest') {
+    for await (const _ of req); crashReports.push(req.method);
+    res.setHeader('Content-Type', 'application/json'); res.end('{}'); return;
+  }
   if (req.url === '/api/ingest/release-health') {
     let body = ''; for await (const part of req) body += part;
     const entry = { key: req.headers.authorization, record: JSON.parse(body) };
@@ -74,7 +78,7 @@ try {
 
   for (const scenario of ['strict', 'strict-consent-mutation', 'child-kill', 'strict-child-kill', 'absent', 'disabled', 'storage-denied']) {
     const isolated = await browser.newContext(); const tab = await isolated.newPage();
-    tab.on('pageerror', error => browserErrors.push(error.message));
+    tab.on('pageerror', error => { if (error.message !== 'uncaught-after-child-kill') browserErrors.push(error.message); });
     if (scenario === 'storage-denied') await tab.addInitScript(() => {
       const original = IDBFactory.prototype.open;
       IDBFactory.prototype.open = function(name, ...args) {
@@ -94,8 +98,17 @@ try {
       await tab.waitForTimeout(200); assert.equal(accepted.length, before, scenario);
       assert.equal(await tab.locator('#alive').count(), 1);
     }
+    if (scenario === 'child-kill' || scenario === 'strict-child-kill' || scenario === 'absent') {
+      // The child kill also stays terminal for crash reports and the crumbs they carry; 'absent' is the live control.
+      const reportsBefore = crashReports.length;
+      await tab.evaluate(() => { console.log('crumb-after-child-kill'); setTimeout(() => { throw new Error('uncaught-after-child-kill'); }); });
+      await tab.waitForTimeout(500);
+      const sent = crashReports.length - reportsBefore;
+      assert(scenario === 'absent' ? sent > 0 : sent === 0, `${scenario}: ${sent} crash reports`);
+    }
     await tab.evaluate(() => window.host.unmount()); await isolated.close(); checks.push(scenario);
   }
+  checks.push('child-kill-no-crash-capture');
   // A different key cannot deliver the earlier key's frozen queue; explicit disabled consent purges it.
   const routes = await browser.newContext(); const tab = await routes.newPage();
   await tab.goto(endpoint); await tab.waitForFunction(() => !!window.host); online = false;

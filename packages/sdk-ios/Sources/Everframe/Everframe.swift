@@ -42,16 +42,29 @@ public final class Everframe: @unchecked Sendable {
     public static let SDK_VERSION = EverframeSDKVersion
     internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime(),
                   appleDiagnosticRuntime: AppleDiagnosticRuntime? = AppleDiagnosticPlatform.makeRuntime(),
+                  appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
                   nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() }) {
         self.nativeCrashRuntime = nativeCrashRuntime
         self.appleDiagnosticRuntime = appleDiagnosticRuntime
+        self.appleDiagnosticSession = appleDiagnosticSession
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
     }
     private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
+    private let appleDiagnosticSession: @Sendable () -> URLSession
     private let nativeCrashRuntime: NativeCrashRuntime?
     private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
     private var nativeCrashTicket: UInt64 = 0
     private var nativeCrashPublishedEpoch: Int?
+
+    /// A persisted JavaScript fatal ends the process next: React Native's release
+    /// fatal handler throws RCTFatalException. Close native capture until the
+    /// next start so that abort is not reported as a second, different crash.
+    internal func closeNativeCrashCaptureAfterAcceptedFatal() {
+        stateLock.withLock {
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            nativeCrashPublishedEpoch = nil
+        }
+    }
 
     /// Capture ownership atomically, then do main-actor/device and disk work
     /// outside stateLock. The runtime ticket fences every asynchronous boundary.
@@ -102,7 +115,8 @@ public final class Everframe: @unchecked Sendable {
             let context = AppleDiagnosticContext(frozen: frozen, applicationVersion: version, applicationBuild: build)
             return await runtime.enable(context: context, ticket: ticket) { [weak self, weak runtime] in
                 guard let self, let runtime else { return }
-                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox).restrictingOutboxToAppleDiagnostics()
+                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox, session: self.appleDiagnosticSession())
+                    .restrictingOutboxToAppleDiagnostics()
                 await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
                     epochAtInitiation: epoch, currentEpoch: { [weak self] in self?.currentStartEpoch ?? -1 })
             }
@@ -648,6 +662,12 @@ public final class Everframe: @unchecked Sendable {
         __startTailDelayHookForTesting = nil
     }
 
+    /// Test-only seam — when set, start()'s heavy-init tail awaits this closure
+    /// with its SDK instance immediately before the launch `drainOutbox()` call,
+    /// so a test can observe what native recovery queued before delivery
+    /// begins. `nil` in production.
+    nonisolated(unsafe) internal static var __beforeLaunchDrainHookForTesting: (@Sendable (Everframe) async -> Void)?
+
     // MARK: - Session-supersession test seam (round-4 review Finding F16)
 
     #if canImport(UIKit)
@@ -1032,6 +1052,10 @@ public final class Everframe: @unchecked Sendable {
             // own URLSession that excludes our own URLProtocol-based capture
             // interceptor (so submission requests don't recurse).
             let submitter = ReportSubmitter(config: config).observing(ReportDiagnostics.shared.handle(epoch: epoch))
+            // Recovery-before-drain test seam — see its doc comment. `nil` in production.
+            if let hook = Self.__beforeLaunchDrainHookForTesting {
+                await hook(self)
+            }
             // Native identity Task 8b — the real singleton holder + the live
             // `ReplayConfig`, not the inert defaults `drainOutbox` used to
             // fall back to.
