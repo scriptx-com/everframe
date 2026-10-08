@@ -1,0 +1,27 @@
+packages/protocol/compat/followthrough/OldAppleComponentsCaller.kt
+  s_97602a0a2d8f20::t_b7e7f7b6db246f 1-15
+packages/protocol/compat/followthrough/OldObserverComponentsCaller.kt
+  s_97602a0a2d8f20::t_47c2265e79b61f 1-15
+packages/protocol/compat/followthrough/README.md
+  s_97602a0a2d8f20::t_f4b405ecec4936 4-5
+packages/protocol/scripts/codegen-kotlin.sh
+  s_97602a0a2d8f20::t_afbbae268fc13b 196-199
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_97602a0a2d8f20::t_a8be801323c8f6 287-290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e20d323c94fa0ab2d81376c641b3511ded99985a",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
