@@ -76,6 +76,19 @@ class ReleaseHealthControllerTest {
         assertTrue(activate(owner, resumed, "build-B"))
         assertEquals(listOf("build-B"), builds())
     }
+    @Test fun `disabled boundary without a journal creates no storage`() {
+        val owner = controller()
+        assertTrue(owner.finishBoundary(owner.request(1, false)))
+        assertFalse(File(folder.root, "health").exists())
+        assertTrue(activate(owner, owner.request(2, true)))
+        assertEquals(listOf("build-A"), builds())
+    }
+    @Test fun `disabled boundary still erases a journal left by an earlier process`() {
+        val earlier = controller(); assertTrue(activate(earlier, earlier.request(1, true)))
+        val next = controller()
+        assertTrue(next.finishBoundary(next.request(1, false)))
+        assertEquals(emptyList<String>(), builds())
+    }
     @Test fun `an old boundary cannot erase the newly admitted segment`() {
         val owner = controller(); assertTrue(activate(owner, owner.request(1, true)))
         val disabled = owner.request(2, false)

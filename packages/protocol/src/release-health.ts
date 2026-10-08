@@ -28,9 +28,11 @@ export const NativeExposurePointerSchema = z.object({
 }).strict().refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
 
 /** An observation segment. This is neither a verified person nor a process outcome. */
+// Parsed key order is part of stored record digests, so the web fields keep their original order.
 export const WebReleaseHealthExposureSchema = z.object({
-  ...sharedExposure, pageLaunchId: uuid, platform: z.literal('web'),
-  nativeRelease: z.literal('not_applicable'),
+  exposureId: uuid, pageLaunchId: uuid, startedAt: timestamp, platform: z.literal('web'),
+  sdkVersion: text(64), nativeRelease: z.literal('not_applicable'), loadedBuildId: text(200).nullable(),
+  subject: z.literal('anonymous_exposure'),
   coverage: z.object({
     policy: z.literal('web-page-v1'), sampleRate: z.literal(1),
     priorQueueLosses: z.number().int().min(0).max(2_147_483_647),

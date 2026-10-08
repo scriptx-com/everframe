@@ -12,9 +12,9 @@ final class DiagnosticExposureProtocolTests: XCTestCase {
         XCTAssertTrue(encoded["loadedBuildId"] is NSNull)
     }
     func testLegacyInitializerDoesNotRequireAnExposure() throws {
-        let source = try EverframeDiagnosticEvidence("""
+        let source = try Self.canonicalDecoder().decode(EverframeDiagnosticEvidence.self, from: Data("""
         {"version":1,"evidenceId":"11111111-1111-4111-8111-111111111111","processLaunchId":"22222222-2222-4222-8222-222222222222","kind":"process_exit","provenance":"android_application_exit_info","scope":"os_process","outcome":"terminated","cause":"anr","occurredAt":"2026-10-07T10:00:00.000Z","collectedAt":"2026-10-07T10:01:00.000Z","attribution":{"process":"exact_os_token","release":"frozen","session":"unavailable","webExposure":"unavailable"},"android":{"apiLevel":35,"reason":6,"pid":100},"trace":{"status":"unavailable","format":"none","truncated":false,"frames":[]}}
-        """)
+        """.utf8))
         let copy = EverframeDiagnosticEvidence(android: source.android, attribution: source.attribution,
             cause: source.cause, collectedAt: source.collectedAt, evidenceID: source.evidenceID,
             kind: source.kind, occurredAt: source.occurredAt, outcome: source.outcome,
@@ -22,5 +22,21 @@ final class DiagnosticExposureProtocolTests: XCTestCase {
             scope: source.scope, trace: source.trace, version: source.version)
         XCTAssertNil(copy.nativeExposure)
         XCTAssertEqual(copy.processLaunchID, source.processLaunchID)
+    }
+
+    // Protocol timestamps carry milliseconds. The generated `.iso8601` decoder rejects them on
+    // Foundation before Swift 6.2 (macOS 15, iOS 18), so decode them explicitly.
+    private static func canonicalDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { dec in
+            let container = try dec.singleValueContainer()
+            let string = try container.decode(String.self)
+            let withFractional = ISO8601DateFormatter()
+            withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = withFractional.date(from: string) { return date }
+            throw DecodingError.dataCorruptedError(
+                in: container, debugDescription: "Expected ISO8601 date string, got \(string)")
+        }
+        return decoder
     }
 }
