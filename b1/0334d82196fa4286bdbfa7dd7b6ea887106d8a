@@ -1,0 +1,23 @@
+packages/sdk-android/core/src/test/cpp/api24-collector/android/README.md
+  s_360d9eb003c487::t_2fe540f27d54e4 1-3
+packages/sdk-android/tests/native-handler-host/app/proguard-rules.pro
+  s_360d9eb003c487::t_a9e6e47cba225c 1-2
+packages/sdk-android/tests/native-handler-host/app/src/main/AndroidManifest.xml
+  s_360d9eb003c487::t_cb0a2b659cef6f 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b10334d82196fa4286bdbfa7dd7b6ea887106d8a",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
