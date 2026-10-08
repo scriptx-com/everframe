@@ -1,7 +1,7 @@
 {
   "name": "@everframe/react-native",
-  "version": "1.0.0",
-  "description": "React Native SDK for Everframe \u2014 AI-ready in-app bug reporting, bridging the native iOS and Android reporter to your RN app. Supports phone, Apple TV, and Android TV.",
+  "version": "1.1.0",
+  "description": "React Native SDK for Everframe — AI-ready in-app bug reporting, bridging the native iOS and Android reporter to your RN app. Supports phone, Apple TV, and Android TV.",
   "author": {
     "name": "Scriptx, UAB",
     "email": "support@everframe.dev",

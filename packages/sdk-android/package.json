@@ -1,7 +1,7 @@
 {
   "name": "@everframe/sdk-android",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Everframe native Android SDK workspace. The Gradle artifacts are not consumed through pnpm.",
   "license": "MIT",
   "scripts": {
