@@ -1,0 +1,21 @@
+packages/sdk-android/core/src/test/cpp/api24-collector/minimal_handler.cc
+  s_360d9eb003c487::t_d3867df49c2ef8 50-52
+packages/sdk-android/core/src/test/cpp/api24-collector/crash_fixture.cc
+  s_360d9eb003c487::t_4926b7ea19eca8 14,44,114,145-146,152,160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db7cff4db1a75c1ea1370213f316bf13fdb1e319",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
