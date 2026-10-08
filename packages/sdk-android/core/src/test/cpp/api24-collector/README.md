@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Healthy-handler qualification fixture
 
 This test executable explores a custom healthy-process Crashpad delegate. It is
