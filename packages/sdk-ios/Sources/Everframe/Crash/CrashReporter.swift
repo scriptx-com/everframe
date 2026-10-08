@@ -47,6 +47,10 @@ public enum CrashReporter {
     /// Production leaves this nil and schedules the same captured operation in a Task.
     nonisolated(unsafe) internal static var __scheduleDrainForTesting: ((@escaping @Sendable () async -> Void) -> Void)?
 
+    /// Lets tests direct the post-fatal native capture closure at an injected SDK.
+    /// Production leaves this nil and closes `Everframe.shared`'s native capture.
+    nonisolated(unsafe) internal static var __closeNativeCaptureForTesting: (() -> Void)?
+
     private enum Classification { case automatic, handled }
 
     /// Prime the device-metadata cache. Call at start()/configure() time.
@@ -511,6 +515,12 @@ public enum CrashReporter {
                 sdkKey: config.appId, endpoint: IngestEndpoint.url.absoluteString,
                 identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil), diagnostics: deliveryOwner)
             diagnostic.outcome = .persisted
+            if fatal {
+                // The host runtime aborts next (React Native throws RCTFatalException).
+                // Close native capture first so this crash is not recorded twice.
+                if let close = __closeNativeCaptureForTesting { close() }
+                else { Everframe.shared.closeNativeCrashCaptureAfterAcceptedFatal() }
+            }
             if !fatal {
                 // Runtime survives — ship now instead of waiting for next launch.
                 let submitter = ReportSubmitter(config: config, outbox: outbox).observing(deliveryOwner)
