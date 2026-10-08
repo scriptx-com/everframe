@@ -1,0 +1,32 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthControllerTest.kt
+  s_360d9eb003c487::t_d01d359f7b43fc 79-91
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthController.kt
+  s_360d9eb003c487::t_270092a5cc8850 68-69
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_360d9eb003c487::t_e5777af77a6688 316-317
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_360d9eb003c487::t_13286d9301a135 190-191
+  s_360d9eb003c487::t_4809f5ff99a2e0 172-189
+  s_360d9eb003c487::t_1af3c9595f74a6 171
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_010403b84fb37b 849-851
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_360d9eb003c487::t_9910c6b5b81776 29-31,33
+  s_360d9eb003c487::t_967827cf4d1d40 44,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64f6c28e6d0c5ffc6adeca813dbcdb39826d894f",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
