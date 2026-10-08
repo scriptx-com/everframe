@@ -50,8 +50,9 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         } finally { key.fill(0) }
     }
 
-    /** Reader owns a bounded no-follow file read; all bytes are authenticated here. */
-    @Synchronized fun recover(currentProcessLaunchId:String,nowMs:Long,authorization:OutboxAuthorization,readRecord:(String)->ByteArray?,admit:(OutboxEntry)->Boolean):Int {
+    /** Reader owns a bounded no-follow read. Admission MUST pass its supplied gate to
+     * the durable outbox write, and return true only after that write commits. */
+    @Synchronized fun recover(currentProcessLaunchId:String,nowMs:Long,authorization:OutboxAuthorization,readRecord:(String)->ByteArray?,admit:(OutboxEntry,OutboxAuthorization)->Boolean):Int {
         val gate=gate(revision.get(),authorization);if(!gate.isAllowed()) return 0
         var count=drain(nowMs,gate,admit)
         val ready=prepared.snapshotTokens().mapNotNull { prepared.readIfPresent(it)?.entry?.reportId }.toSet()
@@ -77,7 +78,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         }
         return count
     }
-    private fun drain(nowMs:Long,gate:OutboxAuthorization,admit:(OutboxEntry)->Boolean):Int {
+    private fun drain(nowMs:Long,gate:OutboxAuthorization,admit:(OutboxEntry,OutboxAuthorization)->Boolean):Int {
         var count=0
         for(token in prepared.snapshotTokens()) {
             if(!gate.isAllowed()) break
@@ -87,7 +88,8 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             val entry=prepared.readIfPresent(token)?.entry ?: continue
             if(entry.reportId !in owners) { prepared.removeIfPresent(token);continue }
             if(nowMs<entry.createdAt || nowMs-entry.createdAt>MAX_AGE_MS) { removeCapsules(entry.reportId);prepared.removeIfPresent(token);continue }
-            if(!admit(entry)) continue
+            check(gate)
+            if(!admit(entry,gate)) continue
             check(gate)
             removeCapsules(entry.reportId)
             prepared.removeIfPresent(token);count++

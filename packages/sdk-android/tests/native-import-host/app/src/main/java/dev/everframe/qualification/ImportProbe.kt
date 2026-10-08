@@ -59,12 +59,13 @@ object ImportProbe {
                 "recover", "retry", "prepare-only", "erase", "erase-owner-only" -> {
                     val outbox=JSONLOutbox(activity)
                     if(mode=="erase") engine.revoke()
-                    if(mode=="erase-owner-only") makeStore(activity,"capsules").revokeSync()
-                    val imported=if(mode=="erase-owner-only") 0 else engine.recover(launch,System.currentTimeMillis(),allowed,{ epoch -> AndroidNativeRecordReader.readFile(File(File(nativeRoot,epoch),epoch)) }) { entry ->
-                        if(mode=="prepare-only") false else { outbox.store.enqueueSync(entry,allowed);true }
+                    if(mode=="erase-owner-only") MainActivity.revokeOwner(makeStore(activity,"capsules"))
+                    val imported=if(mode=="erase-owner-only") 0 else engine.recover(launch,System.currentTimeMillis(),allowed,{ epoch -> AndroidNativeRecordReader.readFile(File(File(nativeRoot,epoch),epoch)) }) { entry, admission ->
+                        if(mode=="prepare-only") false else { outbox.store.enqueueSync(entry,admission);true }
                     }
                     val entries=runBlocking { outbox.hydrate() }
                     val result=buildJsonObject {
+                        put("preparedIdentities",buildJsonArray { MainActivity.receiptIdentities(makeStore(activity,"prepared")).forEach { add(it) } });
                         put("processId",android.os.Process.myPid());put("mode",mode);put("imported",imported);put("outboxCount",entries.size)
                         put("capsules",File(activity.noBackupFilesDir,"native-import/capsules/active").listFiles().orEmpty().count { it.extension=="txq" });put("prepared",File(activity.noBackupFilesDir,"native-import/prepared/active").listFiles().orEmpty().count { it.extension=="txq" })
                         put("currentSdkKey",dev.everframe.Everframe.currentConfig!!.sdkKey);put("currentRelease",dev.everframe.Everframe.currentConfig!!.release);put("currentConfiguredRoute",dev.everframe.config.IngestEndpoint.url)

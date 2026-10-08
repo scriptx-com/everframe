@@ -59,7 +59,7 @@ class AndroidNativeRecordImportTest {
     }
     @Test fun `relaunch imports into real outbox with frozen ownership and native provenance`() {
         val a=arm();val bytes=cipher(a);val main=store("main")
-        assertEquals(1,importer().recover("new-process",3000,allowed,{ bytes }) { main.enqueueSync(it,allowed);true })
+        assertEquals(1,importer().recover("new-process",3000,allowed,{ bytes }) { it, admission -> main.enqueueSync(it,admission);true })
         val e=main.readIfPresent(main.snapshotTokens().single())!!.entry
         assertEquals(a.template.reportId,e.reportId);assertEquals("old-key",e.sdkKey);assertEquals("https://old.example",e.endpoint);assertNull(e.identitySubject)
         val j=Json.parseToJsonElement(e.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
@@ -67,56 +67,56 @@ class AndroidNativeRecordImportTest {
         val crash=j["payload"]!!.jsonObject["crash"]!!.jsonObject
         assertEquals("android-native-handler",crash["androidNative"]!!.jsonObject["source"]!!.jsonPrimitive.content)
         assertEquals("1970-01-01T00:00:02Z",crash["occurredAt"]!!.jsonPrimitive.content)
-        assertEquals(0,importer().recover("newer",4000,allowed,{ bytes }) { error("duplicate") })
+        assertEquals(0,importer().recover("newer",4000,allowed,{ bytes }) { it, admission -> error("duplicate") })
     }
     @Test fun `current process and wrong epoch cannot import`() {
-        val a=arm();assertEquals(0,importer().recover("previous-process",3000,allowed,{ cipher(a) }) { error("live") })
-        assertEquals(0,importer().recover("new",3000,allowed,{ cipher(a,"0".repeat(32)) }) { error("epoch") })
+        val a=arm();assertEquals(0,importer().recover("previous-process",3000,allowed,{ cipher(a) }) { it, admission -> error("live") })
+        assertEquals(0,importer().recover("new",3000,allowed,{ cipher(a,"0".repeat(32)) }) { it, admission -> error("epoch") })
     }
     @Test fun `authenticates header ciphertext and tag before parsing`() {
         val a=arm();val good=cipher(a)
         for(index in listOf(0,10,25,good.lastIndex)) {
             val bad=good.copyOf();bad[index]=(bad[index].toInt() xor 1).toByte()
-            assertEquals(0,importer().recover("new",3000,allowed,{ bad }) { error("unauthenticated") })
+            assertEquals(0,importer().recover("new",3000,allowed,{ bad }) { it, admission -> error("unauthenticated") })
         }
-        assertEquals(1,importer().recover("new",3000,allowed,{ good }) { true })
+        assertEquals(1,importer().recover("new",3000,allowed,{ good }) { it, admission -> true })
     }
     @Test fun `capacity failure retains immutable prepared bytes after later native file loss`() {
         val a=arm();var first:OutboxEntry?=null
-        assertEquals(0,importer().recover("new",3000,allowed,{ cipher(a) }) { first=it;false })
+        assertEquals(0,importer().recover("new",3000,allowed,{ cipher(a) }) { it, admission -> first=it;false })
         assertEquals(1,store("prepared").snapshotTokens().size)
-        assertEquals(1,importer().recover("later",5000,allowed,{ null }) { assertEquals(first,it);true })
+        assertEquals(1,importer().recover("later",5000,allowed,{ null }) { it, admission -> assertEquals(first,it);true })
     }
     @Test fun `source cleanup interruption cannot reenqueue after the durable source is gone`() {
         val a=arm();var first:OutboxEntry?=null
-        try { importer().recover("new",3000,allowed,{ cipher(a) }) { first=it;interruptRemoval=true;true };fail("injection") } catch(_:OutboxWriteException) {}
+        try { importer().recover("new",3000,allowed,{ cipher(a) }) { it, admission -> first=it;interruptRemoval=true;true };fail("injection") } catch(_:OutboxWriteException) {}
         assertNotNull(first)
-        assertEquals(0,importer().recover("later",5000,allowed,{ null }) { error("already admitted source was removed") })
+        assertEquals(0,importer().recover("later",5000,allowed,{ null }) { it, admission -> error("already admitted source was removed") })
         assertTrue(store("prepared").snapshotTokens().isEmpty())
     }
     @Test fun `revocation and stale authorization cannot resurrect capsules`() {
         val a=arm();val old=importer();old.revoke()
-        assertEquals(0,importer().recover("new",3000,allowed,{ cipher(a) }) { error("revoked") })
+        assertEquals(0,importer().recover("new",3000,allowed,{ cipher(a) }) { it, admission -> error("revoked") })
         val b=arm();val denied=object:OutboxAuthorization { override fun isAllowed()=false }
-        assertEquals(0,importer().recover("new",3000,denied,{ cipher(b) }) { error("stale") })
+        assertEquals(0,importer().recover("new",3000,denied,{ cipher(b) }) { it, admission -> error("stale") })
     }
     @Test fun `expired capsule is removed without reading native ciphertext`() {
-        arm();assertEquals(0,importer().recover("new",15L*24*60*60*1000,allowed,{ error("expired") }) { error("expired") })
+        arm();assertEquals(0,importer().recover("new",15L*24*60*60*1000,allowed,{ error("expired") }) { it, admission -> error("expired") })
         assertTrue(store("capsules").snapshotTokens().isEmpty())
     }
     @Test fun `full main outbox preserves prepared import until capacity returns`() {
         val a=arm();val main=store("bounded",1);val other=template();main.enqueueSync(other,allowed)
-        assertEquals(0,importer().recover("new",3000,allowed,{cipher(a)}) { try { main.enqueueSync(it,allowed);true } catch(_:OutboxWriteException) { false } })
+        assertEquals(0,importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> try { main.enqueueSync(it,admission);true } catch(_:OutboxWriteException) { false } })
         main.removeIfPresent(main.snapshotTokens().single())
-        assertEquals(1,importer().recover("later",4000,allowed,{null}) { main.enqueueSync(it,allowed);true })
+        assertEquals(1,importer().recover("later",4000,allowed,{null}) { it, admission -> main.enqueueSync(it,admission);true })
         assertEquals(a.template.reportId,main.readIfPresent(main.snapshotTokens().single())!!.entry.reportId)
     }
     @Test fun `failed producer shutdown still erases both durable stores`() {
-        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { false }
+        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> false }
         val engine=importer()
         try { engine.revoke { false };fail("must report producer failure") } catch(_:IllegalStateException) {}
         assertTrue(store("capsules").snapshotTokens().isEmpty());assertTrue(store("prepared").snapshotTokens().isEmpty())
-        assertEquals(0,engine.recover("later",4000,allowed,{cipher(a)}) { error("old lease") })
+        assertEquals(0,engine.recover("later",4000,allowed,{cipher(a)}) { it, admission -> error("old lease") })
     }
     @Test fun `authorization changing during provision removes unadmitted capsule`() {
         var yes=true;val gate=object:OutboxAuthorization { override fun isAllowed()=yes }
@@ -124,13 +124,13 @@ class AndroidNativeRecordImportTest {
         assertTrue(store("capsules").snapshotTokens().isEmpty())
     }
     @Test fun `prepared record also expires and cannot survive erasure boundary`() {
-        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { false }
-        assertEquals(0,importer().recover("later",15L*24*60*60*1000,allowed,{error("expired")}) { error("expired prepared") })
+        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> false }
+        assertEquals(0,importer().recover("later",15L*24*60*60*1000,allowed,{error("expired")}) { it, admission -> error("expired prepared") })
         assertTrue(store("capsules").snapshotTokens().isEmpty());assertTrue(store("prepared").snapshotTokens().isEmpty())
     }
     @Test fun `invalid native addresses time and thread identity cannot be projected`() {
         val a=arm()
-        for(plain in listOf("{}", "[]", "not json")) assertEquals(0,importer().recover("new",3000,allowed,{cipher(a,plain=plain)}) { error("invalid") })
+        for(plain in listOf("{}", "[]", "not json")) assertEquals(0,importer().recover("new",3000,allowed,{cipher(a,plain=plain)}) { it, admission -> error("invalid") })
         assertNull(AndroidNativeRecordReader.open(ByteArray(4097),a.key,a.epoch,1000,3000))
     }
     @Test fun `native source reader refuses symlinks and oversize files`() {
@@ -143,34 +143,44 @@ class AndroidNativeRecordImportTest {
 
     @Test fun `grouping uses ELF relative identity rather than ASLR absolute PC`() {
         val a=arm();var first:OutboxEntry?=null
-        importer().recover("new",3000,allowed,{cipher(a)}) { first=it;true }
+        importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> first=it;true }
         val b=arm();val shifted="""{"version":1,"reportId":"android-qualification","epoch":"${b.epoch}","owner":"anonymous-qualification","release":"frozen-native-qualification","signal":11,"architecture":4,"threadId":100,"snapshotTimeMs":2000,"pc":8208,"moduleBase":8192,"moduleOffset":16,"module":"libfault.so","buildId":"aabb","partial":true}"""
-        var second:OutboxEntry?=null;importer().recover("new",3000,allowed,{cipher(b,plain=shifted)}) { second=it;true }
+        var second:OutboxEntry?=null;importer().recover("new",3000,allowed,{cipher(b,plain=shifted)}) { it, admission -> second=it;true }
         fun fingerprint(e:OutboxEntry)=Json.parseToJsonElement(e.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["payload"]!!.jsonObject["crash"]!!.jsonObject["fingerprint"]
         assertEquals(fingerprint(first!!),fingerprint(second!!))
     }
 
     @Test fun `capsule revocation interrupted before prepared erasure cannot reauthorize prepared report`() {
-        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { false }
+        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> false }
         store("capsules").revokeSync() // crash before the second store is erased
         assertEquals(1,store("prepared").snapshotTokens().size)
-        assertEquals(0,importer().recover("newer",4000,allowed,{cipher(a)}) { error("revoked capsule must fence prepared admission") })
+        assertEquals(0,importer().recover("newer",4000,allowed,{cipher(a)}) { it, admission -> error("revoked capsule must fence prepared admission") })
     }
 
     @Test fun `failed capsule erasure still clears prepared and cannot rearm until reconciled`() {
-        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { false };val engine=importer()
+        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> false };val engine=importer()
         failCapsuleSync=true
         try { engine.revoke();fail("injection") } catch(_:Exception) {}
         assertTrue(store("prepared").snapshotTokens().isEmpty())
-        assertEquals(0,engine.recover("later",4000,allowed,{cipher(a)}) { error("revoked") })
+        assertEquals(0,engine.recover("later",4000,allowed,{cipher(a)}) { it, admission -> error("revoked") })
         try { importer().arm(template(),"next",allowed) { _,_->error("must not provision") };fail("pending erasure") } catch(_:OutboxWriteException) {}
         failCapsuleSync=false;importer().revoke()
-        assertEquals(0,importer().recover("later",4000,allowed,{cipher(a)}) { error("resurrected") })
+        assertEquals(0,importer().recover("later",4000,allowed,{cipher(a)}) { it, admission -> error("resurrected") })
     }
     @Test fun `revocation while native bytes are read fences prepared admission`() {
         val a=arm();var active=true;val gate=object:OutboxAuthorization { override fun isAllowed()=active }
-        try { importer().recover("new",3000,gate,{active=false;cipher(a)}) { error("stale") };fail("revoked") } catch(_:OutboxWriteException) {}
+        try { importer().recover("new",3000,gate,{active=false;cipher(a)}) { it, admission -> error("stale") };fail("revoked") } catch(_:OutboxWriteException) {}
         assertTrue(store("prepared").snapshotTokens().isEmpty())
+    }
+
+    @Test fun `revocation at main outbox admission cannot leave a newly queued report`() {
+        val engine=importer();val a=arm(engine);val main=store("main")
+        try { engine.recover("new",3000,allowed,{cipher(a)}) { entry, admission ->
+            engine.revoke()
+            main.enqueueSync(entry,admission)
+            true
+        } } catch(_:OutboxWriteException) {}
+        assertTrue(main.snapshotTokens().isEmpty())
     }
 
 }
