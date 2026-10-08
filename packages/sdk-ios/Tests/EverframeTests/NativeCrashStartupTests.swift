@@ -124,6 +124,20 @@ final class NativeCrashStartupTests: XCTestCase {
         XCTAssertFalse(disabled); XCTAssertFalse(probe.snapshot().enabled)
         XCTAssertEqual(probe.snapshot().installs, 1)
     }
+    func testRecorderReceivesCanonicalSpellingOfFoundationRunDirectory() throws {
+        // Like a device container (/var -> /private/var), macOS temporary storage
+        // is reported by Foundation without the /private prefix realpath(3) adds.
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x47, count: 32)
+        let run = try NativeCrashRecovery(rootURL: root.appendingPathComponent("native"), activeRunIDs: [], keyProvider: { key }).prepareRun()
+        let resolved = try XCTUnwrap(realpath(run.recorderURL.path, nil))
+        defer { free(resolved) }
+        let canonical = String(cString: resolved)
+        XCTAssertNotEqual(run.recorderURL.path, canonical, "fixture must use an aliased container path")
+        XCTAssertEqual(NativeCrashRecorderAdapter.recorderDirectory(run.recorderURL), canonical)
+    }
 }
 
 private final class NativeStartupRecorderProbe: @unchecked Sendable {
