@@ -65,6 +65,16 @@ Chains retain at most 8 causes, 32 frames per cause, and 65,536 serialized UTF-8
 bytes after redaction. Cycles, unreadable fields and discarded data are marked
 with truncation flags. Causes do not change the outer error's grouping key.
 
+### OS process-exit diagnostics (opt in)
+
+After `Everframe.start`, call `Everframe.setProcessExitDiagnosticsEnabled(true)` to recover previous-process diagnostics on Android11/API30 and later. `isProcessExitDiagnosticsReady()` becomes true after the encrypted context and opaque OS token are registered. This mode includes native crash recovery and replaces native-only mode. Call only one switch per start. A later call selects the other mode without erasing previous-process evidence, but native-only recovery drops unadmitted non-native exits, so diagnostics selected after native-only recovery ran can miss them. Native-only mode needs API31: on API30, `setNativeCrashRecoveryEnabled(true)` releases an active diagnostics mode and erases its unadmitted evidence, and otherwise does nothing. Either recovery switch set to false disables the shared owner and erases unadmitted evidence. The host grants exclusive use of `ActivityManager.setProcessStateSummary`; do not enable another writer concurrently.
+
+ANR terminations use the OS exit reason, not a missing heartbeat. System low-memory exits, user-requested stops and unknown reasons remain separate diagnostics, not crashes. A recovered live stall produces no report in this mode. An ANR trace attached to an unrelated exit is never used to relabel that exit. API30 native exits have metadata only; native tombstones require API31. Reports are anonymous and preserve the previous process's destination and release; they do not acquire the new process's user, session or web exposure.
+
+Recovery reads at most32 historical records, matches the exact token/PID/process, and retains contexts for at most14 days in bounded encrypted journals (8 entries/2MiB each). ANR traces are read off the main thread, capped at256KiB and64 main-thread frames; only method names, source basenames and line numbers are retained. Raw trace text, OS descriptions and trace attachments are excluded. Missing, malformed, unsupported or truncated evidence is explicit. No main-thread watchdog is installed, and this mode is disabled by default. Readiness can remain false when consent is absent, the OS/API is unsupported, or bounded durable storage cannot admit a context.
+
+Diagnostic cause names preserve OS reason categories, not proof of user intent. Before Android 14/API34, reason10 (`REASON_USER_REQUESTED`) also covered app updates and component-state changes. Consumers should qualify that category using the retained API level/reason; reason11 means the OS user was stopped. See [ApplicationExitInfo](https://developer.android.com/reference/android/app/ApplicationExitInfo#REASON_USER_REQUESTED).
+
 ## License
 
 MIT

@@ -19,8 +19,9 @@ internal interface AndroidNativeExitPlatform {
 internal class AndroidNativeRecoveryController(
     private val factory: () -> AndroidNativeRecovery,
     private val platform: AndroidNativeExitPlatform,
+    private val processLaunchId: String = java.util.UUID.randomUUID().toString(),
 ) {
-    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization) {
+    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean) {
         var ready = false
         var claimed = false
     }
@@ -28,18 +29,31 @@ internal class AndroidNativeRecoveryController(
     @Volatile private var active: Active? = null
 
     fun enable(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, template: () -> OutboxEntry,
-               admit: (OutboxEntry) -> Boolean): Boolean {
-        if (platform.apiLevel < 31 || !authorization.isAllowed()) return false
+               admit: (OutboxEntry) -> Boolean): Boolean = enableMode(epoch, authorization, nowMs, false, template, admit)
+
+    fun enableDiagnostics(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, template: () -> OutboxEntry,
+                          admit: (OutboxEntry) -> Boolean): Boolean = enableMode(epoch, authorization, nowMs, true, template, admit)
+
+    private fun enableMode(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, diagnostics: Boolean,
+                           template: () -> OutboxEntry, admit: (OutboxEntry) -> Boolean): Boolean {
+        if (platform.apiLevel < (if (diagnostics) 30 else 31) || !authorization.isAllowed()) return false
         val owner = synchronized(lock) {
             if (!authorization.isAllowed()) return false
             active?.let {
-                if (it.authorization.isAllowed()) return it.epoch == epoch && it.ready
+                if (it.authorization.isAllowed() && it.diagnostics == diagnostics) return it.epoch == epoch && it.ready
                 active = null
-                it.engine.invalidate()
-                if (it.claimed) runCatching { platform.setStateSummary(null) }
-                it.engine.revoke()
+                if (it.epoch == epoch && it.diagnostics != diagnostics) {
+                    // A mode change in one start keeps both journals for the new owner's
+                    // recovery, which applies the new mode; only the old registration goes.
+                    if (it.claimed) runCatching { platform.setStateSummary(null) }
+                    runCatching { it.engine.disarm() }
+                } else {
+                    it.engine.invalidate()
+                    if (it.claimed) runCatching { platform.setStateSummary(null) }
+                    it.engine.revoke()
+                }
             }
-            Active(epoch, factory(), authorization).also { active = it }
+            Active(epoch, factory(), authorization, diagnostics).also { active = it }
         }
         val gate = object : OutboxAuthorization {
             override fun isAllowed() = active === owner && authorization.isAllowed()
@@ -47,10 +61,10 @@ internal class AndroidNativeRecoveryController(
         try {
             val exits = platform.history()
             if (!gate.isAllowed()) return false
-            owner.engine.recover(exits, nowMs, gate) { if (gate.isAllowed()) admit(it) else false }
+            owner.engine.recover(exits, nowMs, gate, allowDiagnostics = diagnostics) { if (gate.isAllowed()) admit(it) else false }
             synchronized(lock) {
                 if (!gate.isAllowed()) return false
-                owner.engine.arm(template(), platform.pid, platform.processName, gate) {
+                owner.engine.arm(template(), platform.pid, platform.processName, gate, diagnostics, processLaunchId, platform.apiLevel) {
                     owner.claimed = true // An exception may follow a successful remote Binder write.
                     platform.setStateSummary(it)
                 }
@@ -74,7 +88,7 @@ internal class AndroidNativeRecoveryController(
 
     /** Replacement start retires only a prior live owner; explicit disable/kill also erase old journals. */
     fun retire(epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean) {
-        if (platform.apiLevel < 31) return
+        if (platform.apiLevel < 30) return
         synchronized(lock) {
             if (!isCurrent()) return
             val owner = active

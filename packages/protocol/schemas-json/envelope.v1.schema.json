@@ -21,7 +21,8 @@
       "enum": [
         "manual",
         "crash",
-        "error"
+        "error",
+        "diagnostic"
       ]
     },
     "sessionId": {
@@ -1054,6 +1055,9 @@
             "fingerprint"
           ],
           "additionalProperties": {}
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/DiagnosticEvidence"
         }
       },
       "additionalProperties": {}
@@ -3002,6 +3006,201 @@
       ],
       "additionalProperties": false,
       "title": "AndroidNativeFrame"
+    },
+    "DiagnosticEvidence": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "evidenceId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "processLaunchId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "process_exit"
+        },
+        "provenance": {
+          "type": "string",
+          "const": "android_application_exit_info"
+        },
+        "scope": {
+          "type": "string",
+          "const": "os_process"
+        },
+        "outcome": {
+          "type": "string",
+          "const": "terminated"
+        },
+        "cause": {
+          "type": "string",
+          "enum": [
+            "anr",
+            "native_crash",
+            "java_crash",
+            "system_low_memory",
+            "user_requested",
+            "system_other",
+            "unknown"
+          ],
+          "title": "DiagnosticCause"
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "collectedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "attribution": {
+          "type": "object",
+          "properties": {
+            "process": {
+              "type": "string",
+              "const": "exact_os_token"
+            },
+            "release": {
+              "type": "string",
+              "const": "frozen"
+            },
+            "session": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "webExposure": {
+              "type": "string",
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "process",
+            "release",
+            "session",
+            "webExposure"
+          ],
+          "additionalProperties": false
+        },
+        "android": {
+          "type": "object",
+          "properties": {
+            "apiLevel": {
+              "type": "integer",
+              "minimum": 30,
+              "maximum": 1000
+            },
+            "reason": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            "pid": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          "required": [
+            "apiLevel",
+            "reason",
+            "pid"
+          ],
+          "additionalProperties": false
+        },
+        "trace": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "available",
+                "unavailable",
+                "malformed",
+                "unsupported",
+                "not_requested"
+              ],
+              "title": "DiagnosticTraceStatus"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "none",
+                "android_anr_text",
+                "android_tombstone"
+              ],
+              "title": "DiagnosticTraceFormat"
+            },
+            "truncated": {
+              "type": "boolean"
+            },
+            "frames": {
+              "maxItems": 64,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "function": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "pattern": "^[A-Za-z0-9_.$<>-]+$"
+                  },
+                  "file": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_.$-]+$"
+                  },
+                  "line": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  }
+                },
+                "required": [
+                  "function"
+                ],
+                "additionalProperties": false,
+                "title": "DiagnosticFrame"
+              }
+            }
+          },
+          "required": [
+            "status",
+            "format",
+            "truncated",
+            "frames"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "evidenceId",
+        "processLaunchId",
+        "kind",
+        "provenance",
+        "scope",
+        "outcome",
+        "cause",
+        "occurredAt",
+        "collectedAt",
+        "attribution",
+        "android",
+        "trace"
+      ],
+      "additionalProperties": false,
+      "title": "DiagnosticEvidence"
     }
   }
 }
