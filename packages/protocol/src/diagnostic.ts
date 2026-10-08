@@ -20,7 +20,8 @@ export const DiagnosticCause = z.enum([
 ]).meta({ title: 'DiagnosticCause' });
 export type DiagnosticCause = z.infer<typeof DiagnosticCause>;
 export const DiagnosticFrame = z.object({
-  function: z.string().min(1).max(256).regex(/^[A-Za-z0-9_.$<>]+$/),
+  // '-' appears in Kotlin value-class and lambda names (FeedRow-8Feqmps, lambda-1).
+  function: z.string().min(1).max(256).regex(/^[A-Za-z0-9_.$<>-]+$/),
   file: z.string().min(1).max(128).regex(/^[A-Za-z0-9_.$-]+$/).optional(),
   line: z.number().int().min(1).max(2147483647).optional(),
 }).strict().meta({ title: 'DiagnosticFrame' });

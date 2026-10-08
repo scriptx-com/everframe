@@ -314,6 +314,8 @@ internal class OutboxStore(
     fun invalidateSync() { coordinator.epoch.incrementAndGet() }
     fun hasCurrentLease(): Boolean = lease == coordinator.epoch.get() && !isRevocationPending()
     fun isRevocationPending(): Boolean = coordinator.epoch.get() != coordinator.completedEpoch.get()
+    /** No root was ever created and no revocation is pending, so erasure has nothing to remove. */
+    fun isAbsent(): Boolean = !isRevocationPending() && !root.exists()
 
     /** A permanent nonsensitive kill history for O5's legacy migration suppression. */
     fun hasRevocationHistory(): Boolean = locked { File(root, "kill.history").exists() || File(root, "kill.pending").exists() }

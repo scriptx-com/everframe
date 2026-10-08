@@ -26,7 +26,8 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         _ = try context(pointer(build: "native-b"))
         let restored = try NativeCrashRecoveryContext.decode(original.encoded())
         let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: contextID), redact: { $0 })
-        let entry = try restored.entry(for: raw), parsed = try EverframeReportEnvelope(data: entry.envelopeBytes)
+        let entry = try restored.entry(for: raw)
+        let parsed = try ReleaseHealthDate.decoder().decode(EverframeReportEnvelope.self, from: entry.envelopeBytes)
         let evidence = try XCTUnwrap(parsed.payload.crash?.native?.releaseHealthEvidence)
         XCTAssertEqual(evidence.contextID, contextID.uuidString.lowercased()); XCTAssertEqual(evidence.exposure.exposureID, a.exposureID)
         XCTAssertEqual(evidence.exposure.nativeBuildID, "native-a"); XCTAssertEqual(evidence.attribution, .immutableFatalContext)
@@ -36,6 +37,22 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let exposure = wire["exposure"] as! [String: Any]
         XCTAssertEqual(exposure["startedAt"] as? String, "2026-10-08T01:02:03.456Z"); XCTAssertTrue(exposure["loadedBuildId"] is NSNull)
         XCTAssertEqual(try restored.entry(for: raw).envelopeBytes, entry.envelopeBytes)
+    }
+    func testFrozenPointerKeepsExactMillisecondStartWithoutLenientFoundationParsing() throws {
+        // Before Swift 6.2 Foundation (iOS 15-18), `.iso8601` rejects the fractional
+        // seconds that every frozen pointer carries, including whole-second starts.
+        let starts = [1_791_421_323.456, 1_791_421_323, Date().timeIntervalSince1970]
+        for start in starts.map({ ReleaseHealthDate.canonical(Date(timeIntervalSince1970: $0)) }) {
+            let a = pointer().with(startedAt: start)
+            let restored = try NativeCrashRecoveryContext.decode(context(a).encoded())
+            let exposure = try XCTUnwrap(restored.releaseHealthExposure)
+            XCTAssertEqual(exposure.exposureID, a.exposureID); XCTAssertEqual(exposure.startedAt, a.startedAt)
+            let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: UUID()), redact: { $0 })
+            let json = try JSONSerialization.jsonObject(with: restored.entry(for: raw).envelopeBytes) as! [String: Any]
+            let crash = (json["payload"] as! [String: Any])["crash"] as! [String: Any]
+            let wire = (crash["native"] as! [String: Any])["releaseHealthEvidence"] as! [String: Any]
+            XCTAssertEqual((wire["exposure"] as! [String: Any])["startedAt"] as? String, ReleaseHealthDate.text(start))
+        }
     }
     func testMalformedFrozenPointerCannotEnterDurableContext() throws {
         let a = pointer()
@@ -80,7 +97,8 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         XCTAssertNil(try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: currentID)).releaseHealthExposure)
         XCTAssertEqual(try contexts.readContext(runID: runID, contextID: contextID), before)
         let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: contextID), redact: { $0 })
-        XCTAssertEqual(try EverframeReportEnvelope(data: frozen.entry(for: raw).envelopeBytes).payload.crash?.native?.releaseHealthEvidence?.exposure.nativeBuildID, "native-a")
+        let envelope = try ReleaseHealthDate.decoder().decode(EverframeReportEnvelope.self, from: frozen.entry(for: raw).envelopeBytes)
+        XCTAssertEqual(envelope.payload.crash?.native?.releaseHealthEvidence?.exposure.nativeBuildID, "native-a")
         sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
 }

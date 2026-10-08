@@ -36,6 +36,12 @@ describe('release exposure record', () => {
     { coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: -1 } }])('rejects unsupported or unsafe identity %j', patch => {
     expect(ReleaseHealthRecordSchema.safeParse({ ...start(), exposure: { ...exposure, ...patch } }).success).toBe(false);
   });
+  it('keeps the parsed web key order that stored record digests were computed over', () => {
+    // Receivers digest JSON.stringify(parsed); a reordered shape turns exact replays into conflicts.
+    expect(JSON.stringify(ReleaseHealthRecordSchema.parse(end()).exposure)).toBe(JSON.stringify(exposure));
+    expect(Object.keys(ReleaseHealthRecordSchema.parse(start())))
+      .toEqual(['schemaVersion', 'recordId', 'exposure', 'capturedAt', 'phase', 'sequence', 'elapsedMs']);
+  });
 });
 
 const androidExposure = () => ({

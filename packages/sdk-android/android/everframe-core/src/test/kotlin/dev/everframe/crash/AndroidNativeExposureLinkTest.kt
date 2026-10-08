@@ -80,6 +80,23 @@ class AndroidNativeExposureLinkTest {
         assertEquals(0, engine().recover(listOf(AndroidNativeExit(99, "app", 2000, 6, token) { null }), 3000,
             allowed, allowDiagnostics = false) { error("native-only mode admitted ANR") })
     }
+    @Test fun `native only pointer context stays native only when a later launch enables diagnostics`() {
+        val owner = producer(); assertTrue(owner.start()); val pointer = owner.readyPointer()!!
+        var anr = byteArrayOf(); var native = byteArrayOf()
+        engine().arm(template(), 99, "app", allowed, processLaunchId = launch.toString(), apiLevel = 35,
+            nativeExposure = pointer) { anr = it }
+        engine().arm(template(), 99, "app", allowed, processLaunchId = launch.toString(), apiLevel = 35,
+            nativeExposure = pointer) { native = it }
+        val traceRead = AtomicBoolean(false)
+        val records = ArrayList<OutboxEntry>()
+        assertEquals(1, engine().recover(listOf(AndroidNativeExit(99, "app", 2000, 6, anr) { traceRead.set(true); null },
+            AndroidNativeExit(99, "app", 2000, 5, native) { null }), 3000, allowed, allowDiagnostics = true) { records.add(it); true })
+        assertFalse("native-only ANR trace was read", traceRead.get())
+        val body = Json.parseToJsonElement(records.single().envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals("crash", body["source"]!!.jsonPrimitive.content)
+        assertEquals(pointer.toJson(), body["payload"]!!.jsonObject["diagnostic"]!!.jsonObject["nativeExposure"])
+        assertTrue(store("contexts").snapshotTokens().isEmpty())
+    }
     @Test fun `foreign process pointer is refused before the OS token is registered`() {
         val owner = producer(); assertTrue(owner.start())
         var registered = false

@@ -18,16 +18,19 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     var deliveryOutbox: JSONLOutbox { outbox }
     private let keyProvider: @Sendable () throws -> Data
     private let now: @Sendable () -> Date
+    private let retryInterval: TimeInterval
     private var store: AppleDiagnosticStore?
     private var window: (ticket: UInt64, id: UUID, begin: Date, context: AppleDiagnosticContext)?
     private var driver: ((Bool) -> Void)?
     private var drain: (@Sendable () async -> Void)?
     private var drainTask: Task<Void, Never>?
     private var retryTimer: DispatchSourceTimer?
+    private var outboxExpiryOwed = true
 
     init(root: URL, outbox: JSONLOutbox, keyProvider: @escaping @Sendable () throws -> Data = { try OutboxEncryptionKey.getOrCreate() },
-         now: @escaping @Sendable () -> Date = { Date() }) {
+         now: @escaping @Sendable () -> Date = { Date() }, retryInterval: TimeInterval = 30) {
         self.root = root; self.outbox = outbox; self.keyProvider = keyProvider; self.now = now
+        self.retryInterval = retryInterval
     }
     deinit { retryTimer?.cancel(); drainTask?.cancel(); AppleDiagnosticDelivery.remove(owner: owner) }
 
@@ -65,6 +68,7 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
             do {
                 try self.prepareStore()
                 guard self.finishErasure(), self.current(ticket), let store = self.store else { return false }
+                self.outboxExpiryOwed = true
                 try self.maintain(now: self.now()); try store.activate()
                 if self.window?.ticket != ticket {
                     self.retryTimer?.cancel(); self.retryTimer = nil
@@ -148,6 +152,7 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     }
     private func retryPending(ticket: UInt64, context: AppleDiagnosticContext) {
         guard current(ticket), let store, !store.isRevoked else { return }
+        var published = false
         for entry in store.pending where entry.sdkKey == context.frozen.sdkKey && entry.endpoint == context.frozen.endpoint {
             guard current(ticket) else { return }
             do {
@@ -157,10 +162,13 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
                     AppleDiagnosticDelivery.publish(owner: owner, entry: entry) { [weak self] in
                         guard let self else { return }; self.worker.async { try? self.store?.settle(entry.reportId) }
                     }
+                    published = true
                 }
             } catch { continue }
         }
-        if let drain, drainTask == nil {
+        // The restricted drain uploads only permitted receipts; without one it
+        // would only decrypt and parse the shared queue.
+        if published, let drain, drainTask == nil {
             drainTask = Task { [weak self] in
                 await drain()
                 self?.worker.async { [weak self] in self?.drainTask = nil }
@@ -171,15 +179,20 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
         // Retention removes both copies. Expired Apple bytes must not occupy
         // the shared queue after their journal authority has been discarded.
         AppleDiagnosticDelivery.prune(owner: owner, now: now)
-        try store?.maintain(now: now)
+        // Queued Apple bytes mirror journal receipts and share their lifetime.
+        // Rewrite the shared queue on each opt-in, after a receipt expires or to
+        // retry a failed pass; an idle retry tick leaves it untouched.
+        if try store?.maintain(now: now) == true { outboxExpiryOwed = true }
+        guard outboxExpiryOwed else { return }
         try outbox.drain { entry in
             AppleDiagnosticDelivery.isApple(entry) && (entry.createdAt > now || now.timeIntervalSince(entry.createdAt) >= AppleDiagnosticStore.lifetime)
         }
+        outboxExpiryOwed = false
     }
     private func installRetry(ticket: UInt64, context: AppleDiagnosticContext) {
         guard retryTimer == nil else { return }
         let timer = DispatchSource.makeTimerSource(queue: worker)
-        timer.schedule(deadline: .now() + 30, repeating: 30)
+        timer.schedule(deadline: .now() + retryInterval, repeating: retryInterval)
         timer.setEventHandler { [weak self] in
             guard let self, self.current(ticket) else { return }
             do { try self.maintain(now: self.now()) } catch { return }

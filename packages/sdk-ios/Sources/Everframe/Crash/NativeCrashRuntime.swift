@@ -103,13 +103,15 @@ final class NativeCrashRuntime: @unchecked Sendable {
             }
             guard let recovery else { return nil }
             if !didRecover {
-                _ = try recovery.maintain()
                 for id in try recovery.closedRunIDs() {
                     guard isCurrent(ticket) else { return nil }
                     // A per-record failure retains evidence for the next launch.
                     // Structural inventory failures above stop the whole attempt.
                     _ = try? recovery.recover(runID: id, outbox: outbox)
                 }
+                // A run's age counts from its process start, not from the crash.
+                // Import first so a long-lived process's fresh record is not retired.
+                _ = try recovery.maintain()
                 didRecover = true
             }
             guard isCurrent(ticket) else { return nil }
