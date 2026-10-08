@@ -134,10 +134,12 @@ let erasedLocally = await Everframe.shared.setReleaseHealth(nil)
 ```
 
 Disabling clears readiness immediately and attempts to erase pending health
-records. A failed erase keeps a purge obligation that must succeed before another
-opt-in becomes ready. It prevents new native admissions from freezing the old
-pointer; already-admitted independent crash evidence retains its original bytes
-under crash delivery/retention policy. This is not retroactive server erasure.
+records. A failed erase keeps an in-process purge obligation that must succeed
+before another opt-in becomes ready. Retry cleanup when the result is `false`;
+the failed erase obligation is not guaranteed to survive process loss or restart.
+Disabling prevents new native admissions from freezing the old pointer; already
+admitted independent crash evidence retains its original bytes under crash
+delivery/retention policy. This is not retroactive server erasure.
 `kill()` revokes both capture and health. A missing end record or exit does not
 mean a crash or a healthy termination; observed starts do not establish crash-free
 or user rates. tvOS compiles this API but returns `false` for enabling collection.
