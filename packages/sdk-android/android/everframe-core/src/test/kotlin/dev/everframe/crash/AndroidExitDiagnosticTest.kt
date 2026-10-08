@@ -130,6 +130,24 @@ class AndroidExitDiagnosticTest {
         assertTrue(huge.bytesRead <= 256 * 1024 + 1)
         assertEquals(1, bounded["frames"]!!.jsonArray.size)
     }
+    @Test fun `ANR stack keeps Kotlin mangled frames and marks unparsed main thread frames as truncated`() {
+        fun read(vararg frames: String) = AndroidExitDiagnostic.readAnr({
+            ByteArrayInputStream(("----- pid 99 at today -----\n\"main\" prio=5 tid=1 Runnable\n" +
+                frames.joinToString("") { "  at $it\n" } + "\"worker\" prio=5 tid=2 Runnable\n").toByteArray())
+        }, 99)
+        val compose = read("com.example.ui.FeedKt.FeedRow-8Feqmps(Feed.kt:40)",
+            "androidx.compose.ui.node.LayoutNode.remeasure-_Sx5XlM\$ui_release(LayoutNode.kt:1205)",
+            "com.example.ui.ComposableSingletons\$FeedKt\$lambda-1\$1.invoke(Feed.kt:30)",
+            "com.example.Main.run(Main.java:7)")
+        assertEquals(listOf("com.example.ui.FeedKt.FeedRow-8Feqmps", "androidx.compose.ui.node.LayoutNode.remeasure-_Sx5XlM\$ui_release",
+            "com.example.ui.ComposableSingletons\$FeedKt\$lambda-1\$1.invoke", "com.example.Main.run"),
+            compose["frames"]!!.jsonArray.map { it.jsonObject["function"]!!.jsonPrimitive.content })
+        assertFalse(compose["truncated"]!!.jsonPrimitive.boolean)
+        val gap = read("com.example.Main.run(Main.java:7)", "com.example.Café.render(Café.kt:8)", "com.example.Main.start(Main.java:9)")
+        assertEquals("available", gap["status"]!!.jsonPrimitive.content)
+        assertEquals(2, gap["frames"]!!.jsonArray.size)
+        assertTrue("an omitted frame must not look like a complete stack", gap["truncated"]!!.jsonPrimitive.boolean)
+    }
 
     @Test fun `native only reenable drops unadmitted non native context and prepared diagnostics`() {
         val (_, pendingToken) = arm()

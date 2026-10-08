@@ -3,6 +3,7 @@
 package dev.everframe.crash
 
 import dev.everframe.outbox.*
+import kotlinx.serialization.json.*
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -36,12 +37,71 @@ class AndroidNativeRecoveryControllerTest {
         var historyCalls = 0
         var registrations = ArrayList<ByteArray?>()
         var beforeHistory: () -> Unit = {}
-        override fun history(): List<AndroidNativeExit> { historyCalls++; beforeHistory(); return emptyList() }
+        var exits: List<AndroidNativeExit> = emptyList()
+        override fun history(): List<AndroidNativeExit> { historyCalls++; beforeHistory(); return exits }
         override fun setStateSummary(value: ByteArray?) { registrations.add(value) }
     }
     private fun template(): OutboxEntry {
         val id = UUID.randomUUID().toString()
         return OutboxEntry(id, 1000, """{"reportId":"$id","reporter":{},"payload":{}}""".toByteArray(), "template", emptyList(), "key", "https://example.test")
+    }
+    private fun previous(pid: Int, reason: Int): AndroidNativeExit {
+        var token = byteArrayOf()
+        engine().arm(template(), pid, "app", allowed, diagnostics = true) { token = it }
+        return AndroidNativeExit(pid, "app", 2000, reason, token) { null }
+    }
+    private fun source(entry: OutboxEntry) = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["source"]!!.jsonPrimitive.content
+    /** Mirrors AndroidNativeCrashRuntime.enable: finish pending erasure, then enable the requested mode. */
+    private fun runtimeEnable(requests: AndroidNativeRecoveryRequests, controller: AndroidNativeRecoveryController, request: Long,
+                              diagnostics: Boolean, admit: (OutboxEntry) -> Boolean): Boolean {
+        val gate = object : OutboxAuthorization { override fun isAllowed() = requests.allows(request, 1, true) }
+        if (!requests.finishRevocation { if (!gate.isAllowed()) false else { controller.retire(1, true) { gate.isAllowed() }; gate.isAllowed() } }) return false
+        return if (diagnostics) controller.enableDiagnostics(1, gate, 3000, ::template, admit) else controller.enable(1, gate, 3000, ::template, admit)
+    }
+    @Test fun `selecting diagnostics after native-only in one start keeps previous process evidence`() {
+        val platform = Platform().apply { exits = listOf(previous(98, 6)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        val requests = AndroidNativeRecoveryRequests()
+        val native = requests.request(1, true)
+        val diagnostics = requests.request(1, true, diagnostics = true)
+        assertFalse(runtimeEnable(requests, controller, native, false) { fail("superseded native-only work admitted"); false })
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(runtimeEnable(requests, controller, diagnostics, true) { admitted += it; true })
+        assertEquals("previous process ANR", listOf("diagnostic"), admitted.map(::source))
+    }
+    @Test fun `selecting native-only after diagnostics in one start keeps native evidence and drops diagnostics`() {
+        val platform = Platform().apply { exits = listOf(previous(97, 6), previous(98, 5)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        val requests = AndroidNativeRecoveryRequests()
+        val diagnostics = requests.request(1, true, diagnostics = true)
+        val native = requests.request(1, true)
+        assertFalse(runtimeEnable(requests, controller, diagnostics, true) { fail("superseded diagnostics work admitted"); false })
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(runtimeEnable(requests, controller, native, false) { admitted += it; true })
+        assertEquals("previous process native crash only", listOf("crash"), admitted.map(::source))
+    }
+    @Test fun `widening replaces the live owner without discarding unadmitted previous process receipts`() {
+        val platform = Platform().apply { exits = listOf(previous(98, 5)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enable(1, allowed, 3000, ::template) { false }) // Outbox refused: receipt retained.
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(controller.enableDiagnostics(1, allowed, 4000, ::template) { admitted += it; true })
+        assertEquals(listOf("crash"), admitted.map(::source))
+        assertEquals(listOf(true, false, true), platform.registrations.map { it != null })
+        assertEquals("replaced owner's own context must not linger", 1, OutboxStore(File(folder.root, "contexts"), keys, ops).snapshotTokens().size)
+    }
+    @Test fun `narrowing replaces the live owner, drops diagnostic receipts and keeps native receipts`() {
+        val platform = Platform().apply { exits = listOf(previous(97, 6), previous(98, 5)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { false }) // Outbox refused both receipts.
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(controller.enable(1, allowed, 4000, ::template) { admitted += it; true })
+        assertEquals(listOf("crash"), admitted.map(::source))
+        assertTrue(OutboxStore(File(folder.root, "prepared"), keys, ops).snapshotTokens().isEmpty())
+        assertEquals(1, OutboxStore(File(folder.root, "contexts"), keys, ops).snapshotTokens().size)
+        val resurrected = ArrayList<OutboxEntry>()
+        assertTrue(controller.enableDiagnostics(1, allowed, 5000, ::template) { resurrected += it; true })
+        assertTrue("dropped diagnostic evidence must not return", resurrected.isEmpty())
     }
     @Test fun `diagnostic mode supports API30 but never queries unsupported APIs`() {
         val unsupported = Platform(29)

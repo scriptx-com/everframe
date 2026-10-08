@@ -8,7 +8,9 @@ import Darwin
 enum NativeCrashRecoveryFiles {
     typealias Failure = NativeCrashRecovery.Failure
     typealias Base = NativeCrashContextFiles
-    struct Inventory { var bytes = 0; var reports: [URL] = []; var entries = 0 }
+    /// `oversized`: every entry is recognized and safe, but a file or the run is over
+    /// its bound. Such a run is never read and is budgeted at the run maximum.
+    struct Inventory { var bytes = 0; var reports: [URL] = []; var entries = 0; var oversized = false }
 
     static func uuid(_ name: String) -> UUID? {
         guard let id = UUID(uuidString: name), id.uuidString.lowercased() == name else { return nil }
@@ -42,7 +44,8 @@ enum NativeCrashRecoveryFiles {
                     guard ["Reports", "Data", "RunSidecars", "Sidecars"].contains(name) else { throw Failure.unsafePath }
                     isDirectory = true
                 case ["recorder", "Reports"]:
-                    guard matches(name, "^Everframe-report-[0-9a-f]{16}\\.json$") else { throw Failure.unsafePath }
+                    // `.old` is the vendor's recrash rename of the report it was writing.
+                    guard matches(name, "^Everframe-report-[0-9a-f]{16}\\.(json|old)$") else { throw Failure.unsafePath }
                     maxFile = 2 * 1024 * 1024; result.reports.append(path)
                 case ["recorder", "Data"]:
                     guard ["ConsoleLog.txt", "last_run_id"].contains(name) else { throw Failure.unsafePath }
@@ -61,13 +64,15 @@ enum NativeCrashRecoveryFiles {
                 if isDirectory { try visit(path, next) }
                 else {
                     let info = try regular(path, protected: protected)
-                    guard info.st_size >= 0, info.st_size <= maxFile,
-                          result.bytes <= maximum - Int(info.st_size) else { throw Failure.capacity }
-                    result.bytes += Int(info.st_size)
+                    guard info.st_size >= 0 else { throw Failure.capacity }
+                    // Keep validating the rest of the tree so an oversized run can still retire.
+                    if info.st_size <= maxFile, result.bytes <= maximum - Int(info.st_size) { result.bytes += Int(info.st_size) }
+                    else { result.oversized = true }
                 }
             }
         }
         try visit(root, [])
+        if result.oversized { result.bytes = maximum }
         return result
     }
     @discardableResult static func regular(_ url: URL, protected: Bool = false) throws -> stat {

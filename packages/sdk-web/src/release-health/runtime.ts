@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import type { ReleaseHealthExposure, ReleaseHealthRecord } from '@everframe/protocol';
-import { openReleaseHealthJournal, type ReleaseHealthJournal } from './journal.js';
+import { HealthJournalError, openReleaseHealthJournal, type ReleaseHealthJournal } from './journal.js';
 
 export interface ReleaseHealthOptions { enabled: boolean; loadedBuildId?: string }
 export interface ReleaseHealthDiagnostics {
@@ -55,10 +55,10 @@ export function setupReleaseHealth(config: {
   const snapshot = (queued = 0): ReleaseHealthDiagnostics => ({ state, exposure: exposure ? structuredClone(exposure) : null,
     queued, priorQueueLosses: losses, ...(error === undefined ? {} : { error }) });
 
-  async function openJournal() {
+  async function openJournal(create = true) {
     const bytes = new TextEncoder().encode(routeIdentity);
     route = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
-    journal = await openReleaseHealthJournal();
+    journal = await openReleaseHealthJournal(create);
     return journal;
   }
   async function purgePending() {
@@ -80,8 +80,16 @@ export function setupReleaseHealth(config: {
       coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: losses },
     };
     const mono = performance.now();
-    await journal.append(route, generation, { schemaVersion: 1, recordId: crypto.randomUUID(),
-      exposure: next, phase: 'start', sequence: 0, capturedAt: next.startedAt, elapsedMs: 0 });
+    try {
+      await journal.append(route, generation, { schemaVersion: 1, recordId: crypto.randomUUID(),
+        exposure: next, phase: 'start', sequence: 0, capturedAt: next.startedAt, elapsedMs: 0 });
+    } catch (reason) {
+      // The journal counted the refused start as a loss. Only delivery frees a
+      // full queue, so stay active without an exposure and keep draining.
+      if (!(reason instanceof HealthJournalError && reason.code === 'capacity')) throw reason;
+      if (revoked || stopped || pendingRevocations.has(routeIdentity)) return;
+      state = 'active'; error = reason.message; return;
+    }
     if (revoked || stopped || pendingRevocations.has(routeIdentity)) return;
     exposure = next; startedMono = mono; state = 'active';
   }
@@ -141,7 +149,13 @@ export function setupReleaseHealth(config: {
   function unlisten() { if (!listening) return; listening = false; window.removeEventListener('online', online); window.removeEventListener('pagehide', pagehide); window.removeEventListener('pageshow', pageshow); }
   const ready: Promise<ReleaseHealthDiagnostics> = (async () => {
     if (!enabled && !explicitlyDisabled) return snapshot();
-    const opened = await openJournal();
+    let opened: ReleaseHealthJournal;
+    try { opened = await openJournal(enabled); }
+    catch (reason) {
+      // Opting out never creates storage just to erase it; no journal means nothing is queued.
+      if (!(reason instanceof HealthJournalError && reason.code === 'missing')) throw reason;
+      return snapshot();
+    }
     await purgePending();
     if (revoked) { state = 'disabled'; return snapshot(); }
     if (stopped) { state = 'stopped'; return snapshot(); }
