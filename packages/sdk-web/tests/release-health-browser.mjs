@@ -58,21 +58,34 @@ try {
   assert(!received.some(row => 'outcome' in row.record));
   // The next project must not drain a prior project's frozen route.
   offline = true; await page.evaluate(() => window.handle.destroy()); await load();
-  await start('private-to-A'); await page.evaluate(() => window.handle.destroy()); await load();
+  assert.equal((await start('private-to-A')).queued, 2); await page.evaluate(() => window.handle.destroy()); await load();
   const beforeB = received.length; offline = false; await start('build-C', 'pk_test_b');
   await page.evaluate(() => window.handle.releaseHealth.flush());
   assert(received.slice(beforeB).every(row => row.key === 'Bearer pk_test_b'));
   // Privacy kill purges and invalidates this route, including pending startup.
-  offline = true; await page.evaluate(async () => {
+  offline = true; await page.evaluate(() => window.handle.destroy()); await load();
+  assert.equal((await start('killed-B', 'pk_test_b')).queued, 2);
+  await page.evaluate(async () => {
     window.handle.kill(); await new Promise(r => setTimeout(r, 100));
   });
   assert.equal((await page.evaluate(() => window.handle.releaseHealth.diagnostics())).queued, 0);
+  // A revoked producer reports queued:0 regardless, so prove the erasure from a
+  // fresh document: re-enabling online delivers nothing the kill erased.
+  const delivered = since => received.slice(since).map(row => row.record.exposure.loadedBuildId + ':' + row.record.phase);
   await page.evaluate(() => window.handle.destroy()); await load();
-  const beforeDisabled = received.length; offline = false;
+  const beforeKillReenable = received.length; offline = false;
+  await start('reenabled-B', 'pk_test_b'); await page.evaluate(() => window.handle.releaseHealth.flush());
+  assert.deepEqual(delivered(beforeKillReenable), ['reenabled-B:start']);
+  await page.evaluate(() => window.handle.destroy()); await load();
+  const beforeDisabled = received.length;
   await start('disabled', 'pk_test_a', { disabled: true });
   await page.evaluate(() => window.handle.releaseHealth.flush());
   assert.equal(received.length, beforeDisabled);
   assert.equal((await page.evaluate(() => window.handle.releaseHealth.diagnostics())).queued, 0);
+  // The three pk_test_a rows queued offline above must not survive disabled init.
+  await page.evaluate(() => window.handle.destroy()); await load();
+  await start('reenabled-A'); await page.evaluate(() => window.handle.releaseHealth.flush());
+  assert.deepEqual(delivered(beforeDisabled), ['reenabled-A:start']);
   // Two real tabs share the same IndexedDB transactions and bounded global budget.
   const isolated = await browser.newContext();
   const left = await isolated.newPage(), right = await isolated.newPage();
@@ -185,7 +198,39 @@ try {
     } finally { IDBDatabase.prototype.transaction = original; window.fetch = send; }
   });
   assert.deepEqual(failedPurge, ['kill', 'disabled'].map(mode => ({ mode, blockedState: 'unavailable', sent: ['new-build'] })));
+  // Fresh profiles: opting out creates no journal, and a full queue still drains.
+  async function freshPage() {
+    const fresh = await browser.newContext(); const tab = await fresh.newPage();
+    await tab.goto(base); await tab.waitForFunction(() => !!window.sdk); return { fresh, tab };
+  }
+  const optOut = await freshPage();
+  const optOutDatabases = await optOut.tab.evaluate(async () => {
+    for (const extra of [{ disabled: true }, { releaseHealth: { enabled: false } }]) {
+      const handle = window.sdk.init({ apiKey: 'pk_test_opt_out', vitals: { enabled: false }, ...extra });
+      await handle.releaseHealth.ready; await handle.releaseHealth.flush(); handle.destroy();
+    }
+    return (await indexedDB.databases()).map(database => database.name).filter(name => name === 'everframe-release-health-v1');
+  });
+  await optOut.fresh.close();
+  const full = await freshPage();
+  const fullQueue = await full.tab.evaluate(async () => {
+    const send = window.fetch; let online = false; let sent = 0;
+    window.fetch = async () => { if (online) sent++; return new Response('{}', { status: online ? 201 : 503 }); };
+    try {
+      const config = { apiKey: 'pk_test_full', releaseHealth: { enabled: true, loadedBuildId: 'full-queue' } };
+      const producer = () => window.sdk.setupReleaseHealth(config, 'https://capacity.test', 'test');
+      // 128 offline page lifetimes each queue a start and an end: 256 rows.
+      for (let i = 0; i < 128; i++) { const lifetime = producer(); await lifetime.ready; await lifetime.flush(); await lifetime.stop(); }
+      const refused = producer(); const { state, exposure, error } = await refused.ready; await refused.flush();
+      online = true; await refused.flush();
+      const { queued, priorQueueLosses } = await refused.diagnostics(); await refused.stop();
+      return { state, exposure, error, sent, queued, priorQueueLosses };
+    } finally { window.fetch = send; }
+  });
+  await full.fresh.close();
+  assert.deepEqual({ optOutDatabases, fullQueue }, { optOutDatabases: [], fullQueue: { state: 'active', exposure: null,
+    error: 'Release health journal: capacity', sent: 256, queued: 0, priorQueueLosses: 1 } });
   await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: await browser.version(), received,
-    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'default-off-kill-purges-prior-route', 'explicit-kill-after-destroy', 'failed-purge-reenable-barrier'] }, null, 2));
+    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'default-off-kill-purges-prior-route', 'explicit-kill-after-destroy', 'failed-purge-reenable-barrier', 'opt-out-no-storage', 'full-queue-drains'] }, null, 2));
   console.log('PASS: actual init, real IndexedDB, offline reload, frozen build/route, privacy kill and disabled purge');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

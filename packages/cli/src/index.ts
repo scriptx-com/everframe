@@ -490,7 +490,8 @@ export async function main(
   } catch (error) {
     const message = error instanceof Error ? error.message : "upload_failed";
     const token = env.EVERFRAME_API_TOKEN;
-    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, 256));
+    // upload-build failures list bounded paths and image identities.
+    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, isDsymBuildCommand ? 8192 : 256));
     return 1;
   }
 }

@@ -112,6 +112,51 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         await gate.release(); await runtime.flush()
         XCTAssertFalse(sent.value); XCTAssertTrue(try rows().isEmpty)
     }
+    func testFailedStartAppendNeverPublishesReadiness() async throws {
+        let holder = HealthRuntimeHolder(), readyDuringCommit = HealthValues<Bool?>()
+        let runtime = runtime(beforeCommit: {
+            readyDuringCommit.append(holder.runtime.map { $0.readyPointer != nil })
+            throw CocoaError(.fileWriteOutOfSpace)
+        })
+        holder.runtime = runtime
+        let accepted = try await enable(runtime); XCTAssertFalse(accepted)
+        XCTAssertEqual(readyDuringCommit.values, [false])
+        XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
+    }
+    func testFullJournalRejectsStartWithoutReadiness() async throws {
+        let store = try ReleaseHealthStore(root: root, keyProvider: { self.key })
+        for _ in 0..<256 {
+            try store.append(.init(recordID: UUID(), createdAt: now, sdkKey: "key-a",
+                endpoint: "https://a.example/api/ingest/release-health", body: Data("{}".utf8)))
+        }
+        let runtime = runtime(); let accepted = try await enable(runtime); XCTAssertFalse(accepted)
+        XCTAssertNil(runtime.readyPointer); XCTAssertEqual(try rows().count, 256)
+    }
+    func testInterruptedStagingIsErasedBeforeTheNextStart() async throws {
+        let old = ReleaseHealthSegment(configuration: try configuration("native-old"), sdkVersion: "1.0.0", sdkKey: "key-a",
+            endpoint: "https://a.example/api/ingest/release-health", processLaunchID: UUID(), now: now, uptime: 1)
+        try ReleaseHealthStore(root: root, keyProvider: { self.key }).append(old.entry(end: false, now: now, uptime: 1))
+        try Data("partial encrypted staging".utf8).write(to: root.appendingPathComponent(".pending"))
+        let runtime = runtime(); let accepted = try await enable(runtime); XCTAssertTrue(accepted)
+        let pointer = try XCTUnwrap(runtime.readyPointer); XCTAssertNotEqual(pointer.exposureID, old.pointer.exposureID)
+        let records = try rows().map { try JSONSerialization.jsonObject(with: $0.body) as! [String: Any] }
+        XCTAssertEqual(records.compactMap { ($0["exposure"] as? [String: Any])?["exposureId"] as? String }, [pointer.exposureID])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".pending").path))
+        runtime.boundary(); await runtime.barrier()
+    }
+    func testDrainSendsOnlyTheEnabledOwnersRecords() async throws {
+        let foreign = ReleaseHealthEntry(recordID: UUID(), createdAt: now, sdkKey: "key-a",
+            endpoint: "https://a.example/api/ingest/release-health", body: Data("{}".utf8))
+        try ReleaseHealthStore(root: root, keyProvider: { self.key }).append(foreign)
+        let sent = HealthValues<String>(), key = key, now = now
+        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, now: { now }, transport: { entry, admission in
+            _ = admission { sent.append(entry.sdkKey) }; return .settled
+        })
+        let accepted = try await enable(runtime, key: "key-b"); XCTAssertTrue(accepted)
+        await runtime.flush()
+        XCTAssertEqual(sent.values, ["key-b"]); XCTAssertEqual(try rows().map(\.recordID), [foreign.recordID])
+        runtime.boundary(); await runtime.barrier()
+    }
     func testUnknownFilesStayUnavailableWithoutDeletingUnownedData() async throws {
         try Data("unowned".utf8).write(to: root.appendingPathComponent("not-ours"))
         let runtime = runtime(); let accepted = try await enable(runtime); XCTAssertFalse(accepted)
@@ -122,6 +167,16 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
 private final class FailureFlag: @unchecked Sendable {
     private let lock = NSLock(); private var storage = false
     var value: Bool { get { lock.lock(); defer { lock.unlock() }; return storage } set { lock.lock(); storage = newValue; lock.unlock() } }
+}
+
+private final class HealthRuntimeHolder: @unchecked Sendable {
+    private let lock = NSLock(); private weak var storage: ReleaseHealthRuntime?
+    var runtime: ReleaseHealthRuntime? { get { lock.withLock { storage } } set { lock.withLock { storage = newValue } } }
+}
+private final class HealthValues<Value>: @unchecked Sendable {
+    private let lock = NSLock(); private var storage: [Value] = []
+    func append(_ value: Value) { lock.withLock { storage.append(value) } }
+    var values: [Value] { lock.withLock { storage } }
 }
 
 private actor HealthAsyncGate {

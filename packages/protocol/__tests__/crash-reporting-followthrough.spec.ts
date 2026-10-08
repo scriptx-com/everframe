@@ -41,8 +41,16 @@ describe('followthrough diagnostics stay separate from fatal and exposure eviden
     }
   });
   it('rejects every mixed diagnostic pair and a fabricated fatal source', () => {
-    for (const payload of [{ recoveredStall: stall(), diagnostic: android() }, { recoveredStall: stall(), appleDiagnostic: apple() }, { diagnostic: android(), appleDiagnostic: apple() }]) {
-      expect(protocol.ReportEnvelope.safeParse(envelope('android', payload)).success).toBe(false);
+    // Each pair is otherwise valid for the evidence that selects its rule, so mixing must be the only issue.
+    const appleMix = 'Apple evidence requires diagnostic source and no other diagnostic or crash block';
+    for (const [platform, submittedAt, payload, path, message] of [
+      ['android', stall().recoveredAt, { recoveredStall: stall(), diagnostic: android() }, ['payload'], 'Recovered probes cannot include other captured content'],
+      ['ios', apple().collectedAt, { recoveredStall: stall(), appleDiagnostic: apple() }, ['source'], appleMix],
+      ['ios', apple().collectedAt, { diagnostic: android(), appleDiagnostic: apple() }, ['source'], appleMix],
+    ] as const) {
+      const mixed = envelope(platform, payload); mixed.submittedAt = submittedAt;
+      const issues = protocol.ReportEnvelope.safeParse(mixed).error?.issues.map(issue => ({ path: issue.path, message: issue.message }));
+      expect(issues, Object.keys(payload).join('+')).toEqual([{ path, message }]);
     }
     const value = envelope('android', { recoveredStall: stall() }); value.submittedAt = stall().recoveredAt; value.source = 'crash';
     expect(protocol.ReportEnvelope.safeParse(value).success).toBe(false);

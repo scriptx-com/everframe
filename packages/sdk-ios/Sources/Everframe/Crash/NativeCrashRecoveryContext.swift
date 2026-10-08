@@ -16,7 +16,7 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
     let redaction: NativeCrashRedactionSnapshot
     private let releaseHealthExposureBytes: Data?
     var releaseHealthExposure: EverframeNativeExposure? {
-        releaseHealthExposureBytes.flatMap { try? EverframeNativeExposure(data: $0) }
+        releaseHealthExposureBytes.flatMap { try? ReleaseHealthDate.decoder().decode(EverframeNativeExposure.self, from: $0) }
     }
 
     init(sdkKey: String, endpoint: String, identitySubject: String?,
