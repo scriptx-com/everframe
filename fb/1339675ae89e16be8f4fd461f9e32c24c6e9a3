@@ -1,0 +1,29 @@
+packages/sdk-android/README.md
+  s_97602a0a2d8f20::t_35bb4871c28b84 84
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_d57c67f2c2644b 606,618,621
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/RecoveredStallRuntime.kt
+  s_97602a0a2d8f20::t_0e91f9cd64c819 41
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/RecoveredStallFacadeTest.kt
+  s_97602a0a2d8f20::t_1beaca90d68c2b 45-56
+packages/sdk-android/tests/recovered-stall-host/README.md
+  s_97602a0a2d8f20::t_0363d7aeceb34c 5
+packages/sdk-android/tests/recovered-stall-host/app/build.gradle.kts
+  s_97602a0a2d8f20::t_6387a83aef0c82 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb1339675ae89e16be8f4fd461f9e32c24c6e9a3",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
