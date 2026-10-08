@@ -1,0 +1,27 @@
+docs/release-health.md
+  s_360d9eb003c487::t_619e427bd2a20f 20,24
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_360d9eb003c487::t_d48e62def0803d 4,7-15,32-83
+packages/sdk-web/src/release-health/journal.ts
+  s_360d9eb003c487::t_e48c33f470d13e 13,24-25,28-31,35
+packages/sdk-web/src/release-health/runtime.ts
+  s_360d9eb003c487::t_c8c651e1d156e7 4,77-86,148-153
+packages/sdk-web/tests/release-health-browser.mjs
+  s_360d9eb003c487::t_f838715ac9ebc9 61,66-68,72-74,76-80,85-88,165-196,198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b17abaded992c54433ab0c03bb530e20eaf3d2a7",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
