@@ -156,6 +156,31 @@ let rewritten = source.replace(
   blockPattern,
   `data class Crash (\n${properties.join('\n')}\n)${compatibilityBody}`
 );
+// Preserve Payload's old positional constructor, copy descriptor/default masks,
+// and component order when adding optional diagnostic evidence.
+const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
+const payloadMatch = rewritten.match(payloadPattern);
+if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
+const diagnosticProperty = '    val diagnostic: DiagnosticEvidence? = null,';
+const payloadProperties = payloadMatch[1].split('\n');
+const diagnosticIndex = payloadProperties.indexOf(diagnosticProperty);
+if (diagnosticIndex < 0) throw new Error('codegen-kotlin: Payload.diagnostic missing');
+payloadProperties.splice(diagnosticIndex, 1);
+const oldParameters = payloadProperties.map(line => line.replace('val ', '').replace(/,$/, ''));
+const names = oldParameters.map(line => line.trim().split(':')[0]);
+const constructorParameters = oldParameters.join(',\n');
+const copyParameters = oldParameters.map((line, index) => line.replace(/ = null$/, ` = this.${names[index]}`)).join(',\n');
+payloadProperties[payloadProperties.length - 1] += ',';
+payloadProperties.push('    val diagnostic: DiagnosticEvidence? = null');
+rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${payloadProperties.join('\n')}\n) {
+    constructor(
+${constructorParameters}
+    ) : this(${names.join(', ')}, null)
+
+    fun copy(
+${copyParameters}
+    ): Payload = Payload(${names.join(', ')}, diagnostic)
+}`);
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {
   throw new Error('codegen-kotlin: Format block shape changed');

@@ -64,3 +64,5 @@ export {
 export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';
 
 export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
+
+export { DiagnosticEvidence, DiagnosticCause, DiagnosticFrame, androidExitCause } from './diagnostic.js';

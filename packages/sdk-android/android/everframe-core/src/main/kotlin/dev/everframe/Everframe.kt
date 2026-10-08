@@ -606,16 +606,39 @@ object Everframe {
      * Opt in to OS-recorded native crash recovery on Android 12/API31+ after start().
      * Call after each start; disabled by default. The host grants exclusive use of
      * ActivityManager.setProcessStateSummary while enabled. Setup/recovery runs on IO.
-     * Older APIs remain unchanged. Reports are anonymous, with frozen release/destination.
+     * Older APIs remain unchanged, except that API30 releases and erases an active diagnostics mode.
+     * Reports are anonymous, with frozen release/destination.
      * Disable, kill and replacement start erase unadmitted native contexts; their durable
      * erasure may do bounded local IO. This does not install a signal handler.
      */
     @JvmStatic
-    fun setNativeCrashRecoveryEnabled(enabled: Boolean) {
+    fun setNativeCrashRecoveryEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = false)
+
+    /**
+     * Opt in to OS-recorded previous-process diagnostics on Android 11/API30+.
+     * Includes native recovery, ANR terminations and qualified ordinary/unknown exits.
+     * Replaces native-only mode and grants the same exclusive OS-summary ownership.
+     * Changing mode keeps previous-process evidence; native-only drops unadmitted non-native exits.
+     * Call after each start. Disabled by default; no heartbeat observer is installed.
+     * Reports are anonymous and retain the previous process's release/destination.
+     * Either recovery switch set to false disables the shared owner and erases unadmitted evidence.
+     */
+    @JvmStatic
+    fun setProcessExitDiagnosticsEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = true)
+
+    @JvmStatic
+    fun isProcessExitDiagnosticsReady(): Boolean = captureGate &&
+        dev.everframe.crash.AndroidNativeCrashRuntime.diagnosticsReady(currentStartEpochVolatile())
+
+    private fun setProcessExitRecovery(enabled: Boolean, diagnostics: Boolean) {
+        // Narrowing API30 diagnostics to unsupported native-only mode still
+        // releases the existing shared owner and durably erases its context.
+        // Otherwise an unsupported mode records the request and erases nothing.
+        val supported = android.os.Build.VERSION.SDK_INT >= (if (diagnostics) 30 else 31)
         val captured = captureSessionSnapshot()
         val context = appContext
-        val request = dev.everframe.crash.AndroidNativeCrashRuntime.request(captured.user.startEpoch, enabled)
-        if (!enabled) {
+        val request = dev.everframe.crash.AndroidNativeCrashRuntime.request(captured.user.startEpoch, enabled, diagnostics, supported)
+        if (!enabled || !supported) {
             txGuardVoid("nativeCrash.disable") {
                 dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context, captured.user.startEpoch, true,
                     { currentStartEpochVolatile() == captured.user.startEpoch }, request)
@@ -625,7 +648,7 @@ object Everframe {
         if (context == null || captured.config?.capture?.crash != true || !captured.captureConsent) return
         launchCapturedWork(captured, requireCurrentStart = true) {
             txGuardVoid("nativeCrash.enable") {
-                if (dev.everframe.crash.AndroidNativeCrashRuntime.enable(context, captured, sharedOutboxFor(context), request)) {
+                if (dev.everframe.crash.AndroidNativeCrashRuntime.enable(context, captured, sharedOutboxFor(context), request, diagnostics)) {
                     requestOutboxDrain()
                 }
             }

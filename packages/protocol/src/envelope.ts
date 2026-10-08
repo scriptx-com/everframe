@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { FocusedNode } from './focus.js';
 import { AttachmentRef } from './attachments.js';
 import { Breadcrumb } from './breadcrumb.js';
+import { DiagnosticEvidence } from './diagnostic.js';
 import { CrashPayload } from './crash.js';
 import { NetworkBodyEntrySchema } from './network-body.js';
 import { VitalsEntry, MAX_ENVELOPE_VITALS_ENTRIES } from './vitals.js';
@@ -23,7 +24,7 @@ export const ReportEnvelope = z
     // optional — absent means 'manual' (all pre-crash-reporting envelopes).
     // 'crash' = process-terminating unhandled exception; 'error' = non-fatal
     // uncaught (web onerror/unhandledrejection, RN non-fatal).
-    source: z.enum(['manual', 'crash', 'error']).optional(),
+    source: z.enum(['manual', 'crash', 'error', 'diagnostic']).optional(),
     // Session vitals (spec 2026-09-01): the always-on collector's session,
     // stamped when vitals were running at submit time. Additive optional —
     // absent on every pre-vitals envelope and whenever vitals are disabled.
@@ -155,6 +156,7 @@ export const ReportEnvelope = z
         // Unattended-report exception details (spec 2026-07-18). Present iff
         // source is 'crash' or 'error'.
         crash: CrashPayload.optional(),
+        diagnostic: DiagnosticEvidence.optional(),
       })
       .passthrough(),
     context: z
@@ -190,6 +192,26 @@ export const ReportEnvelope = z
     attachments: z.array(AttachmentRef),
   })
   .passthrough()
+  .superRefine((envelope, ctx) => {
+    const evidence = envelope.payload.diagnostic;
+    const issue = (path: PropertyKey[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+    if (!evidence) {
+      if (envelope.source === 'diagnostic') issue(['payload', 'diagnostic'], 'Diagnostic source requires evidence');
+      return;
+    }
+    if (evidence.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+    if (envelope.sdk.platform !== 'android' && envelope.sdk.platform !== 'androidtv') issue(['sdk', 'platform'], 'Android OS evidence requires an Android platform');
+    if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'diagnostic'], 'Recovered process evidence must be anonymous and attachment-free');
+    if (Date.parse(envelope.submittedAt) !== Date.parse(evidence.collectedAt)) issue(['submittedAt'], 'Submission must use the frozen evidence collection time');
+    if (envelope.source === 'crash') {
+      const crash = envelope.payload.crash;
+      if (evidence.cause !== 'native_crash' || !crash || !crash.fatal || crash.handled || crash.mechanism !== 'android-exit-info') {
+        issue(['payload', 'crash'], 'Crash overlap requires fatal OS native-crash evidence');
+      }
+    } else if (envelope.source !== 'diagnostic' || envelope.payload.crash || evidence.cause === 'native_crash') {
+      issue(['source'], 'Non-native exit evidence requires diagnostic source without a crash payload');
+    }
+  })
   .meta({
     // Draft 2020-12 keyword names: `$id` + `$schema`.
     $id: 'ReportEnvelope',

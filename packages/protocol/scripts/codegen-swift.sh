@@ -43,6 +43,8 @@ const path = process.argv[2];
 let source = readFileSync(path, 'utf8')
   .replace(/\bJSONNull\b/g, 'EverframeJSONNull')
   .replace(/\bJSONAny\b/g, 'EverframeJSONAny');
+// Additive optional evidence must not break existing source initializers.
+source = source.replace(/diagnostic: EverframeDiagnosticEvidence\?,/g, 'diagnostic: EverframeDiagnosticEvidence? = nil,');
 const formatPattern = /public enum EverframeFormat: String, Codable \{[\s\S]*?\n\}/u;
 if (!formatPattern.test(source)) {
   throw new Error('codegen-swift: EverframeFormat block shape changed');
