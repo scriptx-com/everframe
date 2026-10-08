@@ -118,3 +118,27 @@ describe('Apple native crash metadata', () => {
     }
   });
 });
+
+
+describe('Apple immutable fatal exposure evidence', () => {
+  const evidence = () => ({ version: 1, attribution: 'immutable_fatal_context',
+    contextId: '33333333-3333-4333-8333-333333333333', exposure: {
+      exposureId: '11111111-1111-4111-8111-111111111111', processLaunchId: '22222222-2222-4222-8222-222222222222',
+      startedAt: '2026-10-08T01:02:03.456Z', nativeBuildId: 'native-build-a', loadedBuildId: null, loadedBundleStatus: 'not_applicable',
+    } });
+  it('retains the complete admitted pointer without changing native addresses', () => {
+    const value = { ...native(), releaseHealthEvidence: evidence() };
+    expect(NativeCrashMetadata.parse(value)).toEqual(value);
+  });
+  it.each([{ version: 2 }, { attribution: 'current_process' }, { contextId: 'not-a-uuid' },
+    { extra: true }, { exposure: {} }])('rejects forged evidence %j', patch => {
+    expect(NativeCrashMetadata.safeParse({ ...native(), releaseHealthEvidence: { ...evidence(), ...patch } }).success).toBe(false);
+  });
+  it('does not rewrite a pointer timestamp or accept inconsistent bundle identity', () => {
+    for (const patch of [{ startedAt: '2026-10-08T01:02:03Z' }, { loadedBundleStatus: 'known' }]) {
+      expect(NativeCrashMetadata.safeParse({ ...native(), releaseHealthEvidence: {
+        ...evidence(), exposure: { ...evidence().exposure, ...patch },
+      } }).success).toBe(false);
+    }
+  });
+});

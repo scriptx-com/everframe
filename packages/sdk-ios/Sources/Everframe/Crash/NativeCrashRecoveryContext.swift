@@ -14,12 +14,18 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
     let identitySubject: String?
     let envelopeTemplate: Data
     let redaction: NativeCrashRedactionSnapshot
+    private let releaseHealthExposureBytes: Data?
+    var releaseHealthExposure: EverframeNativeExposure? {
+        releaseHealthExposureBytes.flatMap { try? ReleaseHealthDate.decoder().decode(EverframeNativeExposure.self, from: $0) }
+    }
 
     init(sdkKey: String, endpoint: String, identitySubject: String?,
-         envelopeTemplate: Data, redaction: NativeCrashRedactionSnapshot) throws {
+         envelopeTemplate: Data, redaction: NativeCrashRedactionSnapshot,
+         releaseHealthExposure: EverframeNativeExposure? = nil) throws {
         schemaVersion = 1; self.sdkKey = sdkKey; self.endpoint = endpoint
         self.identitySubject = identitySubject; self.envelopeTemplate = envelopeTemplate
         self.redaction = redaction
+        releaseHealthExposureBytes = try releaseHealthExposure.map { try ReleaseHealthDate.encoder().encode($0) }
         try validate()
     }
     func encoded() throws -> Data {
@@ -42,9 +48,17 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
         try validate()
         do {
             let template = try EverframeReportEnvelope(data: envelopeTemplate)
-            let envelope = template.with(payload: template.payload.with(crash: record.crash),
+            var crash = record.crash
+            if let exposure = releaseHealthExposure, let contextID = record.contextID, let native = crash.native {
+                let evidence = EverframeNativeCrashReleaseHealthEvidence(attribution: .immutableFatalContext,
+                    contextID: contextID.uuidString.lowercased(), exposure: exposure, version: 1)
+                crash = crash.with(native: .some(native.with(releaseHealthEvidence: .some(evidence))))
+            }
+            let envelope = template.with(payload: template.payload.with(crash: crash),
                 reportID: record.reportID.uuidString.lowercased(), source: .crash, submittedAt: record.crash.occurredAt)
-            let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601; encoder.outputFormatting = [.sortedKeys]
+            let encoder = releaseHealthExposureBytes == nil ? JSONEncoder() : ReleaseHealthDate.encoder()
+            if releaseHealthExposureBytes == nil { encoder.dateEncodingStrategy = .iso8601 }
+            encoder.outputFormatting = [.sortedKeys]
             let bytes = try encoder.encode(envelope)
             guard bytes.count <= 512 * 1024 else { throw Failure.oversized }
             let idempotency = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
@@ -63,6 +77,15 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
               identitySubject.map({ !$0.isEmpty && $0.utf8.count <= 1024 && !$0.contains(where: { $0.isNewline }) }) ?? true
         else { throw Failure.invalidContext }
         guard envelopeTemplate.count <= 32 * 1024 else { throw Failure.oversized }
+        if let bytes = releaseHealthExposureBytes {
+            guard let exposure = releaseHealthExposure,
+                  [exposure.exposureID, exposure.processLaunchID].allSatisfy({ UUID(uuidString: $0)?.uuidString.lowercased() == $0 }),
+                  let wire = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
+                  wire["startedAt"] as? String == ReleaseHealthDate.text(exposure.startedAt),
+                  let status = ReleaseHealthConfiguration.LoadedBundleStatus(rawValue: exposure.loadedBundleStatus.rawValue) else { throw Failure.invalidContext }
+            _ = try ReleaseHealthConfiguration(nativeBuildId: exposure.nativeBuildID,
+                loadedBuildId: exposure.loadedBuildID, loadedBundleStatus: status)
+        }
         do {
             let template = try EverframeReportEnvelope(data: envelopeTemplate)
             guard template.attachments.isEmpty else { throw Failure.invalidContext }

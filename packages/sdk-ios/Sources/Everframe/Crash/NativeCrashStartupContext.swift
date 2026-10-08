@@ -7,7 +7,7 @@ import EverframeProtocol
 /// or host metadata callbacks are read while building the persisted template.
 enum NativeCrashStartupContext {
     static func make(config: EverframeConfig, user: EFUser?, device: DeviceMetadata,
-                     endpoint: String) throws -> NativeCrashRecoveryContext {
+                     endpoint: String, releaseHealthExposure: EverframeNativeExposure? = nil) throws -> NativeCrashRecoveryContext {
         let policy = try NativeCrashRedactionSnapshot.capture(config: config.redaction)
         var fields: [String: String] = [
             "app.name": device.bundleIdentifier ?? "unknown",
@@ -33,6 +33,6 @@ enum NativeCrashStartupContext {
         let envelope = try EverframeReportEnvelope(data: built.bytes).with(submittedAt: Date(timeIntervalSince1970: 0))
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601; encoder.outputFormatting = [.sortedKeys]
         return try NativeCrashRecoveryContext(sdkKey: config.appId, endpoint: endpoint, identitySubject: nil,
-            envelopeTemplate: encoder.encode(envelope), redaction: policy)
+            envelopeTemplate: encoder.encode(envelope), redaction: policy, releaseHealthExposure: releaseHealthExposure)
     }
 }
