@@ -8,7 +8,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.security.SecureRandom
 import java.util.UUID
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class AndroidNativeSignalControllerTest {
     @get:Rule val folder = TemporaryFolder()
@@ -25,11 +29,12 @@ class AndroidNativeSignalControllerTest {
         var arms = 0
         var borrowedKey: ByteArray? = null
         var onArm: () -> Unit = {}
+        var prepare: (String) -> Unit = {}
         var available = true
         var revokeFails = false
         override fun generation() = 0L
         override fun arm(epoch: String, key: ByteArray, generation: Long): Boolean {
-            arms++; borrowedKey = key; armed = available; onArm(); return available
+            arms++; borrowedKey = key; prepare(epoch); armed = available; onArm(); return available
         }
         override fun pause() { armed = false }
         override fun revoke(): Boolean { armed = false; return !revokeFails }
@@ -102,6 +107,58 @@ class AndroidNativeSignalControllerTest {
         assertFalse(c.enable(c.request(), 1, gate, ::template) { _, _ -> false })
         assertFalse(c.ready(1)); assertFalse(p.armed)
         assertTrue(store("capsules").snapshotTokens().isEmpty())
+    }
+
+    // Production layout: stores and records under the owned native directory, real cleanup.
+    private val files by lazy { AndroidNativeSignalFiles(folder.root, JvmOutboxFileOps()) }
+    private fun owned(name: String) = OutboxStore(File(files.root, name), keys, JvmOutboxFileOps(), 8, 2*1024*1024)
+    private fun ownedEngine() = AndroidNativeRecordImport(owned("capsules"), owned("prepared"))
+    private fun epochs(name: String) = owned(name).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId.replace("-", "") }.toSet() }
+    private fun nativeRecord(epoch: String, key: ByteArray): ByteArray {
+        val header = byteArrayOf(69,86,81,67,1,0,0,0); val nonce = ByteArray(12).also { SecureRandom().nextBytes(it) }
+        val text = """{"version":1,"reportId":"$epoch","epoch":"$epoch","owner":"anonymous","release":"frozen","signal":11,"architecture":4,"threadId":99,"snapshotTimeMs":2000,"pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"libfault.so","buildId":"aabb","partial":true}"""
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce)); cipher.updateAAD(header)
+        return header + nonce + cipher.doFinal(text.toByteArray())
+    }
+    /** An ended launch armed its capsule, and its handler published the authenticated record. */
+    private fun crashedLaunch(launch: String): String {
+        var epoch = ""
+        assertTrue(ownedEngine().arm(template(), launch, allowed) { id, key ->
+            files.prepare(id); File(files.records, "$id/$id").writeBytes(nativeRecord(id, key)); epoch = id; true })
+        return epoch
+    }
+    private fun assertEvidence(vararg ended: String) {
+        for (epoch in ended) assertNotNull("record of ended launch $epoch was deleted", files.read(epoch))
+        assertTrue("capsule of an ended launch was retired", epochs("capsules").containsAll(ended.toList()))
+    }
+
+    @Test fun `replacement and retirement keep ended launches' capsules, prepared reports and records`() {
+        val p = Producer().apply { prepare = files::prepare }
+        val c = AndroidNativeSignalController(::ownedEngine, p, files::read, processLaunchId = "this-process", now = { 3000 }, cleanup = files::cleanup)
+        // The main outbox is full, so recovered reports stay prepared beside their capsules.
+        fun enable(epoch: Int) = c.enable(c.request(), epoch, allowed, ::template) { _, _ -> false }
+        val held = crashedLaunch("ended-held")
+        assertTrue(enable(1)); assertEquals(setOf(held), epochs("prepared"))
+        val first = (epochs("capsules") - held).single()
+        val pending = crashedLaunch("ended-not-yet-imported")
+
+        assertTrue(c.retireCurrent())
+        assertEvidence(held, pending); assertEquals(setOf(held), epochs("prepared"))
+        assertEquals(setOf(held, pending), epochs("capsules")); assertEquals(setOf(held, pending), files.records.list()!!.toSet())
+
+        assertTrue(enable(2)); val second = (epochs("capsules") - held - pending).single()
+        assertTrue(enable(3)) // replacement start while this process's capsule is armed
+        assertEvidence(held, pending); assertEquals(setOf(held, pending), epochs("prepared"))
+        val third = (epochs("capsules") - held - pending).single()
+        assertEquals(setOf(held, pending, third), files.records.list()!!.toSet())
+        assertFalse(epochs("capsules").contains(first) || epochs("capsules").contains(second))
+
+        // The next launch has outbox capacity and delivers both original reports.
+        val admitted = ArrayList<String>()
+        val next = AndroidNativeSignalController(::ownedEngine, Producer(), files::read, processLaunchId = "next-process", now = { 4000 }, cleanup = files::cleanup)
+        assertTrue(next.enable(next.request(), 1, allowed, ::template) { e, _ -> admitted += e.reportId.replace("-", ""); true })
+        assertEquals(setOf(held, pending), admitted.toSet())
     }
 
 }

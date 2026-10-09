@@ -5,6 +5,7 @@ package dev.everframe.crash
 import android.app.Application
 import android.content.Context
 import android.os.Build
+import androidx.annotation.VisibleForTesting
 import dev.everframe.Everframe
 import dev.everframe.TXCapturedSession
 import dev.everframe.capture.DeviceMetadata
@@ -26,6 +27,19 @@ internal object AndroidNativeSignalRuntime {
     @Volatile private var controller: AndroidNativeSignalController? = null
     @Volatile private var files: AndroidNativeSignalFiles? = null
 
+    /** Test seams replacing Keystore keys, Os file operations and the optional module. Never set in production. */
+    @VisibleForTesting internal var __keysForTesting: OutboxKeyProvider? = null
+    @VisibleForTesting internal var __fileOpsForTesting: OutboxFileOps? = null
+    @VisibleForTesting internal var __producerForTesting: AndroidNativeSignalProducer? = null
+
+    /** Simulates process death: in-memory ownership and the erase obligation are lost, durable files remain. */
+    @VisibleForTesting
+    internal fun __resetForTesting() { synchronized(work) { controller = null; files = null; erasePending.set(false) } }
+
+    /** The process owner exactly as an opt-in or an erase creates it. */
+    @VisibleForTesting @androidx.annotation.RequiresApi(26)
+    internal fun __ownerForTesting(context: Context): AndroidNativeSignalController = synchronized(work) { owner(context) }
+
     /** Atomic/native-only fence, safe under the SDK stateLock. */
     fun request(erase: Boolean = false): Long {
         if (erase) erasePending.set(true)
@@ -42,17 +56,19 @@ internal object AndroidNativeSignalRuntime {
             }
         return name == context.packageName
     }
+    private fun fileOps(): OutboxFileOps = __fileOpsForTesting ?: AndroidOutboxFileOps()
+    @androidx.annotation.RequiresApi(26)
+    private fun engine(storage: AndroidNativeSignalFiles): AndroidNativeRecordImport {
+        fun store(name: String) = OutboxStore(File(storage.root, name),
+            __keysForTesting ?: AndroidOutboxKeyProvider("dev.everframe.native-signal.v1.$name"), fileOps(), 8, 2L*1024*1024)
+        return AndroidNativeRecordImport(store("capsules"), store("prepared"))
+    }
     @androidx.annotation.RequiresApi(26)
     private fun owner(context: Context): AndroidNativeSignalController {
         controller?.let { return it }
-        val storage = AndroidNativeSignalFiles(context.noBackupFilesDir, AndroidOutboxFileOps())
-        fun engine(): AndroidNativeRecordImport {
-            fun store(name: String) = OutboxStore(File(storage.root, name),
-                AndroidOutboxKeyProvider("dev.everframe.native-signal.v1.$name"), AndroidOutboxFileOps(), 8, 2L*1024*1024)
-            return AndroidNativeRecordImport(store("capsules"), store("prepared"))
-        }
-        val producer = OptionalProducer(context, storage)
-        return AndroidNativeSignalController(::engine, producer, storage::read, cleanup = storage::cleanup).also {
+        val storage = AndroidNativeSignalFiles(context.noBackupFilesDir, fileOps())
+        val producer = __producerForTesting ?: OptionalProducer(context, storage)
+        return AndroidNativeSignalController({ engine(storage) }, producer, storage::read, cleanup = storage::cleanup).also {
             files = storage; controller = it
         }
     }
@@ -103,9 +119,9 @@ internal object AndroidNativeSignalRuntime {
         true
     }
     /** Replacement start pauses synchronously, then retires only this process's context on IO. */
-    fun retireAfterStart(command: Long) {
-        if (controller == null) return
-        cleanupScope.launch {
+    fun retireAfterStart(command: Long): Job? {
+        if (controller == null) return null
+        return cleanupScope.launch {
             synchronized(work) {
                 if (revision.get() == command) controller?.retireCurrent()
             }
