@@ -105,11 +105,43 @@ bool SystemHandler(const struct sigaction& a) {
   return (path.starts_with("/system/")||path.starts_with("/apex/")) &&
       (path.ends_with("/libsigchain.so")||path.ends_with("/libart.so")||path.ends_with("/libc.so"));
 }
-bool OwnsSignals() {
+// WebView's in-process Crashpad handler restores the handler it replaced and
+// re-raises, so it chains whether it was installed before or after this one.
+// Admit it only inside the current provider's APKs or library directory.
+bool WebViewHandler(const struct sigaction& a,const std::vector<std::string>& webview) {
+  if(a.sa_handler==SIG_DFL||a.sa_handler==SIG_IGN||webview.empty())return false;
+  Dl_info library{};
+  if(!dladdr(reinterpret_cast<void*>(a.sa_sigaction),&library)||!library.dli_fname)return false;
+  const std::string path=library.dli_fname;
+  if(!path.ends_with(".so"))return false;
+  return std::any_of(webview.begin(),webview.end(),[&](const std::string& root) {
+    return path.starts_with(root+"!/")||(path.starts_with(root+"/")&&path.find('/',root.size()+1)==std::string::npos);
+  });
+}
+std::vector<std::string> WebViewPaths(JNIEnv* env,jobjectArray values) {
+  std::vector<std::string> paths;
+  const jsize count=values?std::min<jsize>(env->GetArrayLength(values),64):0;
+  for(jsize i=0;i<count;i++) {
+    auto* item=static_cast<jstring>(env->GetObjectArrayElement(values,i));
+    if(env->ExceptionCheck())return {};
+    const auto path=String(env,item);if(item)env->DeleteLocalRef(item);
+    // Absolute and normalized: no empty, '.' or '..' component and no trailing '/'.
+    bool normal=path.size()>1&&path.size()<=4096&&path.front()=='/'&&path.back()!='/';
+    for(size_t start=1;normal&&start<path.size();) {
+      const size_t end=std::min(path.find('/',start),path.size());
+      const auto part=std::string_view(path).substr(start,end-start);
+      normal=!part.empty()&&part!="."&&part!="..";start=end+1;
+    }
+    if(normal)paths.push_back(path);
+  }
+  return paths;
+}
+bool OwnsSignals(const std::vector<std::string>& webview) {
   for(int s=1;s<NSIG;s++)if(crashpad::Signals::IsCrashSignal(s)) {
     struct sigaction action{};if(sigaction(s,nullptr,&action))return false;
-    if(installed_once) { if(!SameHandler(action,*installed.ActionForSignal(s)))return false; }
-    else { if(!SystemHandler(action))return false;*original.ActionForSignal(s)=action; }
+    const bool chaining=WebViewHandler(action,webview);
+    if(installed_once) { if(!SameHandler(action,*installed.ActionForSignal(s))&&!chaining)return false; }
+    else { if(!SystemHandler(action)&&!chaining)return false;*original.ActionForSignal(s)=action; }
   }
   return true;
 }
@@ -121,7 +153,8 @@ bool Exchange(wire::Frame* request,uint32_t reply_kind) {
   return sent && wire::Receive(session->control,&reply,&peer) && peer.pid==session->handler &&
       wire::Valid(reply,reply_kind,session->handler,peer.uid,getuid()) && reply.challenge==session->challenge;
 }
-bool Spawn(const std::string& directory,const std::string& library,wire::Frame* provision) {
+bool Spawn(const std::string& directory,const std::string& library,wire::Frame* provision,
+    const std::vector<std::string>& webview) {
   crashpad::ScopedFileHandle client,handler,control,handler_control;
   if(!crashpad::UnixCredentialSocket::CreateCredentialSocketpair(&client,&handler) ||
      !crashpad::UnixCredentialSocket::CreateCredentialSocketpair(&control,&handler_control))return false;
@@ -143,7 +176,7 @@ bool Spawn(const std::string& directory,const std::string& library,wire::Frame* 
   const bool sent=wire::Send(control.get(),*provision);wire::Clear(provision,sizeof *provision);
   wire::Frame ready{};wire::Peer peer{};
   if(!sent||!wire::Receive(control.get(),&ready,&peer)||peer.pid==getpid() ||
-     !wire::Ready(ready,challenge,peer.pid,peer.uid,getuid())||!OwnsSignals())return false;
+     !wire::Ready(ready,challenge,peer.pid,peer.uid,getuid())||!OwnsSignals(webview))return false;
   // Exactly one installation. Reconfiguration later replaces authority over control only.
   crashpad::CrashpadClient collector;
   if(!collector.SetHandlerSocket(std::move(client),peer.pid)){permanent_failure=true;return false;}
@@ -170,18 +203,20 @@ extern "C" JNIEXPORT jboolean JNICALL Java_dev_everframe_nativecrash_NativeCrash
   return Exchange(&frame,wire::kRevoked);
 }
 extern "C" JNIEXPORT jboolean JNICALL Java_dev_everframe_nativecrash_NativeCrashBridge_arm(
-    JNIEnv* env,jclass,jstring directory,jstring libraries,jbyteArray key,jstring epoch,jlong generation) {
+    JNIEnv* env,jclass,jstring directory,jstring libraries,jbyteArray key,jstring epoch,jlong generation,
+    jobjectArray webview_paths) {
   std::lock_guard<std::mutex> lock(Operations());
   uint64_t expected=static_cast<uint64_t>(generation);
   if((expected&1)||state.load(std::memory_order_acquire)!=expected)return false;
-  if(permanent_failure||android_get_device_api_level()<26||android_get_device_api_level()>30||!OwnsSignals())return false;
+  const auto webview=WebViewPaths(env,webview_paths);
+  if(permanent_failure||android_get_device_api_level()<26||android_get_device_api_level()>30||!OwnsSignals(webview))return false;
   const auto root=String(env,directory),lib=String(env,libraries),id=String(env,epoch);
   if(root.empty()||lib.empty()||id.size()!=32||!key||env->GetArrayLength(key)!=32 ||
      !std::all_of(id.begin(),id.end(),[](char c){return (c>='a'&&c<='f')||(c>='0'&&c<='9');}))return false;
   wire::Frame frame{};frame.kind=wire::kProvision;std::copy(id.begin(),id.end(),frame.epoch.begin());
   env->GetByteArrayRegion(key,0,32,reinterpret_cast<jbyte*>(frame.key.data()));
   bool okay=false;
-  if(!env->ExceptionCheck())okay=session?Exchange(&frame,wire::kReady):Spawn(root,lib,&frame);
+  if(!env->ExceptionCheck())okay=session?Exchange(&frame,wire::kReady):Spawn(root,lib,&frame,webview);
   wire::Clear(&frame,sizeof frame);
   // A start/disable arriving at any point during provisioning wins this CAS.
   return okay && state.compare_exchange_strong(expected,expected|1,std::memory_order_acq_rel);

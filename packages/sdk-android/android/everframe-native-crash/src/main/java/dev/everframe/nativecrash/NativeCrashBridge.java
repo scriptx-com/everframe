@@ -7,7 +7,10 @@ public final class NativeCrashBridge {
     static { System.loadLibrary("everframe_native_client"); }
     private NativeCrashBridge() {}
     public static native long generation();
-    public static native boolean arm(String recordsDirectory, String libraryDirectory, byte[] key, String epoch, long generation);
+    /** {@code webViewPaths}: the current WebView provider's APKs and library directory. Its
+     * in-process crash handler chains, so it is admitted beside the platform handlers. */
+    public static native boolean arm(String recordsDirectory, String libraryDirectory, byte[] key, String epoch, long generation,
+                                     String[] webViewPaths);
     public static native void pause();
     public static native boolean revoke();
 }

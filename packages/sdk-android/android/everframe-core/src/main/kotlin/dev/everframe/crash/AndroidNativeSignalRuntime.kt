@@ -170,8 +170,8 @@ internal object AndroidNativeSignalRuntime {
             val type = load() ?: return false
             files.prepare(epoch)
             return type.getMethod("arm", String::class.java, String::class.java, ByteArray::class.java,
-                String::class.java, Long::class.javaPrimitiveType).invoke(null, files.records.path,
-                context.applicationInfo.nativeLibraryDir, key, epoch, generation) as Boolean
+                String::class.java, Long::class.javaPrimitiveType, Array<String>::class.java).invoke(null, files.records.path,
+                context.applicationInfo.nativeLibraryDir, key, epoch, generation, AndroidNativeWebViewPaths.current()) as Boolean
         }
     }
 }

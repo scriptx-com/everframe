@@ -23,7 +23,11 @@ existing delivery and revocation policy.
 
 This path supports API26–30 in the default application process. It grants
 exclusive ownership of the native fatal-signal handlers: another app-bundled
-collector causes activation to fail closed. API24–25 are unsupported. API31+
+collector causes activation to fail closed. The platform WebView's in-process
+crash handler restores the previous handler and re-raises, so it is accepted
+whether WebView initializes before or after the opt-in. While WebView's handler
+is the most recent one, a collector installed before it cannot be seen and is
+not refused. API24–25 are unsupported. API31+
 continues to use `setNativeCrashRecoveryEnabled(true)` and OS exit information.
 Absent optional binaries or a failed setup leave readiness false.
 
