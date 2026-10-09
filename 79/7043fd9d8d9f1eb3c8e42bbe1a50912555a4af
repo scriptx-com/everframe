@@ -1,0 +1,23 @@
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/health/ReleaseHealthRuntimeTest.kt
+  s_360d9eb003c487::t_e768aa9d1dd3bc 1-286
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_360d9eb003c487::t_76273e84686b35 124
+  s_360d9eb003c487::t_273ce7586a4b3f 98-105
+  s_360d9eb003c487::t_eb8bd047cfd204 6-8,24-25,28,31-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "797043fd9d8d9f1eb3c8e42bbe1a50912555a4af",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
