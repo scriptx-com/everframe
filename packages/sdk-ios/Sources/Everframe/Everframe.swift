@@ -50,9 +50,21 @@ public final class Everframe: @unchecked Sendable {
         self.releaseHealthRuntime = releaseHealthRuntime
         self.appleDiagnosticSession = appleDiagnosticSession
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
+        #if os(iOS)
+        if releaseHealthRuntime != nil {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let observer = ReleaseHealthLifecycleObserver.observeApplication { [weak self] foreground in
+                    _ = self?.releaseHealthForegroundChanged(foreground)
+                }
+                self.stateLock.withLock { self.releaseHealthLifecycleObserver = observer }
+            }
+        }
+        #endif
     }
     private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
     private let releaseHealthRuntime: ReleaseHealthRuntime?
+    private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
     private let appleDiagnosticSession: @Sendable () -> URLSession
     private let nativeCrashRuntime: NativeCrashRuntime?
     private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
@@ -97,8 +109,31 @@ public final class Everframe: @unchecked Sendable {
         return false
     }
 
+    /// The UIKit callback retires the old immutable native context and session
+    /// pointer together. Background capture is then rearmed without a pointer;
+    /// foreground publication waits for a durable start and current ownership.
+    @discardableResult internal func releaseHealthForegroundChanged(_ foreground: Bool) -> Task<Void, Never> {
+        let captured: (UInt64, Int, UInt64)? = stateLock.withLock {
+            guard let runtime = releaseHealthRuntime, let ticket = runtime.setForeground(foreground) else { return nil }
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            return (ticket, _startEpoch, _configGeneration)
+        }
+        return Task { [weak self] in
+            guard let self, let (ticket, epoch, configGeneration) = captured, let runtime = self.releaseHealthRuntime else { return }
+            if foreground { _ = await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION) }
+            let current = self.stateLock.withLock { () -> Bool in
+                guard self.nativeCrashPublishedEpoch == epoch, self._startEpoch == epoch,
+                      self._configGeneration == configGeneration, Self.captureGate else { return false }
+                self.nativeCrashTicket = self.nativeCrashRuntime?.invalidate() ?? 0
+                return true
+            }
+            if current { _ = await self.refreshNativeCrashContext() }
+        }
+    }
+
     /// Opt in after start with explicit artifact identity. True means this
-    /// anonymous segment's start is durable. Every new start requires new opt-in.
+    /// foreground session's start is durable. Background returns false and waits
+    /// for foreground before recording; its configuration remains opted in. Every new start requires new opt-in.
     /// Nil immediately revokes future health admission and attempts local erasure;
     /// false means cleanup must be retried. Already-admitted independent crash
     /// evidence is governed by crash retention; this is not server-side erasure.

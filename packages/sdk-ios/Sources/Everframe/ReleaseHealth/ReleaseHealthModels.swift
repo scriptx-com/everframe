@@ -41,6 +41,7 @@ enum ReleaseHealthDate {
         return decoder
     }
 }
+enum ReleaseHealthEndReason: String { case background; case sdkStop = "sdk_stop" }
 struct ReleaseHealthSegment {
     let pointer: EverframeNativeExposure
     let configuration: ReleaseHealthConfiguration
@@ -57,18 +58,18 @@ struct ReleaseHealthSegment {
             nativeBuildID: configuration.nativeBuildId, processLaunchID: processLaunchID.uuidString.lowercased(),
             startedAt: ReleaseHealthDate.canonical(now))
     }
-    func entry(end: Bool, now: Date, uptime: TimeInterval) throws -> ReleaseHealthEntry {
-        let id = UUID(), captured = end ? ReleaseHealthDate.canonical(now) : pointer.startedAt
+    func entry(end: Bool, now: Date, uptime: TimeInterval, endReason: ReleaseHealthEndReason = .sdkStop) throws -> ReleaseHealthEntry {
+        let id = UUID(), captured = end ? max(ReleaseHealthDate.canonical(now), pointer.startedAt) : pointer.startedAt
         let exposure: [String: Any] = ["exposureId": pointer.exposureID, "processLaunchId": pointer.processLaunchID,
             "startedAt": ReleaseHealthDate.text(pointer.startedAt), "platform": "ios", "sdkVersion": sdkVersion,
             "nativeRelease": ["buildId": configuration.nativeBuildId], "loadedBuildId": configuration.loadedBuildId as Any? ?? NSNull(),
-            "loadedBundleStatus": configuration.loadedBundleStatus.rawValue, "sessionPolicy": "launch-v1",
+            "loadedBundleStatus": configuration.loadedBundleStatus.rawValue, "sessionPolicy": "foreground-v1",
             "subject": configuration.userId.map { ["kind": "provided", "id": $0] } ?? ["kind": "anonymous"],
             "coverage": ["policy": "ios-sdk-segment-v1", "sampleRate": 1, "priorQueueLosses": NSNull(), "queueLossAccounting": "unavailable"]]
-        var record: [String: Any] = ["schemaVersion": 2, "recordId": id.uuidString.lowercased(), "exposure": exposure,
+        var record: [String: Any] = ["schemaVersion": 3, "recordId": id.uuidString.lowercased(), "exposure": exposure,
             "capturedAt": ReleaseHealthDate.text(captured), "phase": end ? "end" : "start", "sequence": end ? 1 : 0,
             "elapsedMs": end ? Int(min(max(0, (uptime - startedUptime) * 1000), 31 * 86400 * 1000)) : 0]
-        if end { record["endReason"] = "sdk_stop" }
+        if end { record["endReason"] = endReason.rawValue; record["outcome"] = "completed" }
         return ReleaseHealthEntry(recordID: id, createdAt: captured, sdkKey: sdkKey, endpoint: endpoint,
             body: try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]))
     }

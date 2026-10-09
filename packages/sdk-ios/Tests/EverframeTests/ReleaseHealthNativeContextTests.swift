@@ -60,6 +60,47 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         XCTAssertThrowsError(try context(a.with(loadedBundleStatus: .known)))
         XCTAssertThrowsError(try context(a.with(nativeBuildID: "")))
     }
+    func testForegroundTransitionsRefreshActualFatalContextAndBackgroundCaptureStaysUnlinked() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x64, count: 32), probe = HealthNativeRecorderProbe()
+        let entered = expectation(description: "background end blocked"), release = DispatchSemaphore(value: 0), blocked = HealthNativeFlag()
+        defer { release.signal() }
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, beforeCommit: {
+            if blocked.value { blocked.value = false; entered.fulfill(); _ = release.wait(timeout: .now() + 5) }
+        }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        XCTAssertTrue(enabled)
+        let first = try XCTUnwrap(health.readyPointer)
+        let initial = probe.snapshot(), oldContext = try XCTUnwrap(initial.context)
+        let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(initial.path).deletingLastPathComponent().lastPathComponent))
+        let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
+        let oldBytes = try contexts.readContext(runID: runID, contextID: oldContext)
+        blocked.value = true
+        let background = sdk.releaseHealthForegroundChanged(false)
+        XCTAssertNil(health.readyPointer)
+        await fulfillment(of: [entered], timeout: 3)
+        await background.value
+        let backgroundState = probe.snapshot(); XCTAssertTrue(backgroundState.enabled)
+        let unlinked = try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(backgroundState.context)))
+        XCTAssertNil(unlinked.releaseHealthExposure)
+        release.signal()
+        await sdk.releaseHealthForegroundChanged(true).value
+        let second = try XCTUnwrap(health.readyPointer); XCTAssertNotEqual(first.exposureID, second.exposureID)
+        let reentered = try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(probe.snapshot().context)))
+        XCTAssertEqual(reentered.releaseHealthExposure?.exposureID, second.exposureID)
+        XCTAssertEqual(try contexts.readContext(runID: runID, contextID: oldContext), oldBytes)
+        sdk.kill(); await health.barrier()
+        await sdk.releaseHealthForegroundChanged(false).value
+        await sdk.releaseHealthForegroundChanged(true).value
+        XCTAssertNil(health.readyPointer); XCTAssertFalse(probe.snapshot().enabled)
+        _ = await sdk.setReleaseHealth(nil)
+    }
     func testHealthRevocationClosesNewNativeAdmissionBeforeDiskAndKeepsAdmittedContext() async throws {
         let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])

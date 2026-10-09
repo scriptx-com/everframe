@@ -47,6 +47,23 @@ final class ReleaseHealthSDKTests: XCTestCase {
         XCTAssertEqual(try rows().map(\.sdkKey), [config().appId, config().appId, config("b").appId])
         sdk.kill(); await runtime.barrier(); let erased = await sdk.setReleaseHealth(nil); XCTAssertTrue(erased)
     }
+    func testBackgroundOptInWaitsAndForegroundReopensWithLatestIdentity() async throws {
+        let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        try sdk.start(config: config())
+        await sdk.releaseHealthForegroundChanged(false).value
+        let a = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "a", loadedBundleStatus: .known, userId: "opaque-a")
+        let b = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "b", loadedBundleStatus: .known, userId: "opaque-b")
+        let first = await sdk.setReleaseHealth(a); XCTAssertFalse(first)
+        let changed = await sdk.setReleaseHealth(b); XCTAssertFalse(changed)
+        XCTAssertTrue(try rows().isEmpty)
+        await sdk.releaseHealthForegroundChanged(true).value
+        XCTAssertNotNil(runtime.readyPointer)
+        let body = try JSONSerialization.jsonObject(with: XCTUnwrap(rows().first).body) as! [String: Any]
+        let exposure = body["exposure"] as! [String: Any]
+        XCTAssertEqual(exposure["loadedBuildId"] as? String, "b")
+        XCTAssertEqual(exposure["subject"] as? [String: String], ["kind": "provided", "id": "opaque-b"])
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
     func testReservedStartEpochCannotPublishHealthWithPreviousConfiguration() async throws {
         let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
         try sdk.start(config: config()); let enabled = try await sdk.setReleaseHealth(health()); XCTAssertTrue(enabled)
