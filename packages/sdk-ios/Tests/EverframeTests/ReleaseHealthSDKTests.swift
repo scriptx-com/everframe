@@ -64,6 +64,20 @@ final class ReleaseHealthSDKTests: XCTestCase {
         XCTAssertEqual(exposure["subject"] as? [String: String], ["kind": "provided", "id": "opaque-b"])
         sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
+    func testLaunchOptInWaitsForTheFirstLifecycleSnapshot() async throws {
+        // As on iOS: admission reads background until the observer that init installs
+        // delivers the first application state on a later main-actor turn.
+        let key = key, runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, initiallyForeground: false, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        try sdk.start(config: config())
+        sdk.releaseHealthLifecycleReady = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            _ = sdk.releaseHealthForegroundChanged(true)
+        }
+        let enabled = try await sdk.setReleaseHealth(health()); XCTAssertTrue(enabled)
+        XCTAssertNotNil(runtime.readyPointer); XCTAssertEqual(try rows().count, 1)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
     func testReservedStartEpochCannotPublishHealthWithPreviousConfiguration() async throws {
         let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
         try sdk.start(config: config()); let enabled = try await sdk.setReleaseHealth(health()); XCTAssertTrue(enabled)

@@ -52,7 +52,7 @@ public final class Everframe: @unchecked Sendable {
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
         #if os(iOS)
         if releaseHealthRuntime != nil {
-            Task { @MainActor [weak self] in
+            releaseHealthLifecycleReady = Task { @MainActor [weak self] in
                 guard let self else { return }
                 let observer = ReleaseHealthLifecycleObserver.observeApplication { [weak self] foreground in
                     _ = self?.releaseHealthForegroundChanged(foreground)
@@ -65,6 +65,8 @@ public final class Everframe: @unchecked Sendable {
     private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
     private let releaseHealthRuntime: ReleaseHealthRuntime?
     private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
+    /// Delivers the first application state. Assigned once, by init on iOS.
+    internal var releaseHealthLifecycleReady: Task<Void, Never>?
     private let appleDiagnosticSession: @Sendable () -> URLSession
     private let nativeCrashRuntime: NativeCrashRuntime?
     private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
@@ -154,6 +156,9 @@ public final class Everframe: @unchecked Sendable {
             _ = await refreshNativeCrashContext()
             return erased
         }
+        // Until the first application state arrives, admission reads background, and its
+        // arrival would fence this ticket: a foreground launch must not answer false.
+        await releaseHealthLifecycleReady?.value
         let captured: (UInt64, Int, UInt64)? = stateLock.withLock {
             guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, let config = _config else { return nil }
             nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
