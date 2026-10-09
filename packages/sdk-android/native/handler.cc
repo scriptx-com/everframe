@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/eventfd.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
@@ -127,12 +128,17 @@ extern "C" __attribute__((visibility("default"))) int CrashpadHandlerMain(int ar
   crashpad::ExceptionHandlerServer server;
   if(!server.InitializeWithClient(crashpad::ScopedFileHandle(crash),true)){owner.Revoke();return 75;}
   std::atomic<bool> done{false};
+  // The controller sleeps until control traffic, control loss or this completion.
+  const int completion=eventfd(0,EFD_CLOEXEC);
+  if(completion<0){owner.Revoke();return 77;}
+  const auto finish=[&] { done.store(true);const uint64_t one=1;while(write(completion,&one,sizeof one)<0&&errno==EINTR) {} };
   // Constructing a controller thread is a prerequisite to advertising readiness.
   std::thread controller([&] {
     while(!done.load()) {
-      pollfd wait{control,POLLIN,0};int readable=poll(&wait,1,100);
-      if(readable==0||(readable<0&&errno==EINTR))continue;
+      pollfd wait[2]={{control,POLLIN,0},{completion,POLLIN,0}};int readable=poll(wait,2,-1);
+      if(readable<0&&errno==EINTR)continue;
       if(readable<0)break;
+      if(!wait[0].revents)continue;
       wire::Frame request{};wire::Peer sender{};
       if(!wire::Receive(control,&request,&sender))break;
       const bool valid=sender.pid==client && request.challenge==challenge &&
@@ -150,7 +156,7 @@ extern "C" __attribute__((visibility("default"))) int CrashpadHandlerMain(int ar
     if(!done.load()) { owner.Revoke(true);server.Stop(); }
   });
   wire::Frame ready{};ready.kind=wire::kReady;ready.pid=getpid();ready.challenge=challenge;
-  if(!wire::Send(control,ready)){owner.Revoke();done.store(true);controller.join();return 76;}
-  server.Run(&owner);done.store(true);controller.join();close(control);
+  if(!wire::Send(control,ready)){owner.Revoke();finish();controller.join();close(completion);return 76;}
+  server.Run(&owner);finish();controller.join();close(control);close(completion);
   return 0;
 }
