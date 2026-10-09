@@ -16,8 +16,7 @@ public struct ReleaseHealthConfiguration: Equatable, Sendable {
         guard Self.validText(nativeBuildId, maximum: 200),
               loadedBuildId.map({ Self.validText($0, maximum: 200) }) ?? true,
               (loadedBundleStatus == .known) == (loadedBuildId != nil) else { throw ValidationError.invalidBuildIdentity }
-        guard userId.map({ Self.validText($0, maximum: 128) &&
-            !$0.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{feff}"))).isEmpty }) ?? true else { throw ValidationError.invalidUserIdentity }
+        guard userId.map({ Self.validText($0, maximum: 128) }) ?? true else { throw ValidationError.invalidUserIdentity }
         self.userId = userId
         self.nativeBuildId = nativeBuildId; self.loadedBuildId = loadedBuildId; self.loadedBundleStatus = loadedBundleStatus
     }
@@ -34,7 +33,15 @@ public struct ReleaseHealthConfiguration: Equatable, Sendable {
         }
     }
     static func validText(_ value: String, maximum: Int) -> Bool {
-        !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value.utf16.count <= maximum &&
+        !value.unicodeScalars.allSatisfy(wireWhitespace) && value.utf16.count <= maximum &&
             !value.unicodeScalars.contains { $0.value < 32 }
+    }
+    // Blank matches the wire contract's ECMAScript trim(): Zs, U+0009-U+000D, U+2028, U+2029 and
+    // U+FEFF. Foundation's whitespace set differs: it adds U+0085 and U+200B and lacks U+FEFF.
+    private static func wireWhitespace(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x9...0xD, 0x20, 0xA0, 0x1680, 0x2000...0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF: return true
+        default: return false
+        }
     }
 }
