@@ -56,9 +56,10 @@ use `appIdB`, `sdkKeyB`, `releaseB`. Modes:
   crash handler is installed first (`files/signal-owners.txt` names the provider
   library). Readiness must become true; the report matches `main`.
 - `webview-after`: after readiness, initialize a WebView, whose handler then
-  precedes the armed one (`files/signal-owners-webview.txt`), and opt in again.
-  Readiness must return (`re-armed`) within 20 seconds, otherwise the state is
-  `timeout`; the report matches `main`.
+  precedes the armed one (`files/signal-owners-webview.txt`), then start again
+  and opt in, so the replacement arm runs under it (a repeated opt-in alone keeps
+  the armed owner). Readiness must return (`re-armed`) within 20 seconds,
+  otherwise the state is `timeout`; the report matches `main`.
 
 The WebView modes need a WebView provider whose crash handler chains to the
 previous handler (current providers use Crashpad); record the provider package and

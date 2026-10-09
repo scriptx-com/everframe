@@ -70,9 +70,11 @@ open class MainActivity : Activity() {
                     "null-call" -> { status("faulting"); handler.postDelayed({ nullCall() }, 300) }
                     "plus-module" -> { System.loadLibrary("everframe_release+plus"); status("faulting"); handler.postDelayed({ plusModuleFault() }, 300) }
                     "webview-after" -> {
-                        // WebView's handler now precedes the armed one; opting in again must re-arm.
+                        // WebView's handler now precedes the armed one. A repeated opt-in keeps the
+                        // armed owner, so a replacement start and opt-in must re-arm under it.
                         webView = WebView(this@MainActivity)
                         File(filesDir, "signal-owners-webview.txt").writeText(signalOwners())
+                        Everframe.start(applicationContext, config(), this@MainActivity)
                         Everframe.setNativeSignalCaptureEnabled(true)
                         var waits = 0
                         handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeSignalCaptureReady()) { status("re-armed"); fault(false) } else if (++waits < 200) handler.postDelayed(this, 100) else status("timeout") } }, 100)
