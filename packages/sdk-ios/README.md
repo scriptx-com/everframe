@@ -108,7 +108,7 @@ Physical-device lock-state and performance qualification remain separate checks.
 
 ---
 
-## Anonymous release exposures (iOS)
+## Release health observations (iOS)
 
 Release-health collection is off by default. After `start` has published the SDK
 configuration, opt in with the identity of the native build actually running:
@@ -125,6 +125,16 @@ For an embedded JavaScript bundle, pass its actual loaded build ID with
 `loadedBundleStatus: .known`; use `.unknown` when its identity is unavailable.
 Use `.notApplicable` for a native-only app. Do not pass a bundle
 that was downloaded but has not loaded.
+
+Segments are anonymous unless you pass `userId:`, an optional project-local
+opaque account ID that is never copied from `setUser`. It must be nonblank, at
+most 128 UTF-16 units and free of U+0000–U+001F control characters; otherwise
+the initializer throws `ValidationError.invalidUserIdentity`. The ID is frozen for
+its segment. On login, logout or account switch, call `setReleaseHealth` with a
+new configuration (`userId: nil` on logout); it opens a new segment within the
+same launch. These are version 2 records: the receiving service must support
+version 2 before you enable them. See
+[release health observations](../../docs/release-health.md).
 
 Each SDK start requires a new opt-in and creates a distinct segment. Segments in
 the same process share a process-launch UUID; neither identity represents a user.

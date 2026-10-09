@@ -43,21 +43,29 @@ segments by their start time, then deduplicate launches within each cohort.
 Subjects are anonymous by default. Only the explicit release-health `userId`
 produces an identified subject. `setUser`, verified identity, email, display name,
 reporter, installation and device identifiers are never copied implicitly.
-Supplied IDs must be nonblank, at most128 UTF-16 units and contain no U+0000–U+001F control
+Supplied IDs must be nonblank, at most 128 UTF-16 units and contain no U+0000–U+001F control
 characters or invalid surrogate sequences. They are self-declared opaque IDs,
 not verified accounts; avoid emails and other direct personal information.
+An invalid ID records nothing: web and React release health is unavailable for
+that initialization or mount (web diagnostics say so), Android release health
+does not become ready, and iOS's `ReleaseHealthConfiguration` initializer throws
+`invalidUserIdentity`.
 
 The ID and build are frozen before durable admission. On login, logout, account
 switch or loaded-bundle change, reconfigure/reinitialize release health with the
 new values (omit userId on logout). On web, use `destroy()` and a new `init()`;
-on React, remount the Provider. Calling `setUser` alone does not change this
+on React, remount the Provider; on Android, call `Everframe.start` again with a
+copied `ReleaseHealthConfig` (a full SDK restart); on iOS, call `setReleaseHealth`
+with a new configuration. Calling `setUser` alone does not change this
 separate identity. Queued starts and ends retain the old snapshot and route.
 Native fatal attribution uses the exact frozen segment pointer, so a crash
 recovered after login is not assigned to the newly logged-in account.
 
 Reported session/user fractions mean **without a reported fatal crash** in the
 current retained observations. They do not mean confirmed healthy sessions or
-population crash-free rates. Missing outcomes remain unknown; neither an end nor
+population crash-free rates. Only native crashes and Android Java crash exits
+count as fatal; a launch ended by an ANR or another OS exit counts as without a
+reported fatal crash. Missing outcomes remain unknown; neither an end nor
 its absence proves a healthy/crashed process. Duplicates are deduplicated, while
 late reports, retention and erasure can change the current counts. Anonymous
 subjects never become synthetic users. Web terminal attribution is unsupported,

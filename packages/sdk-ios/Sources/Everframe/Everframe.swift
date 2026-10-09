@@ -97,8 +97,9 @@ public final class Everframe: @unchecked Sendable {
         return false
     }
 
-    /// Opt in after start with explicit artifact identity. True means this
-    /// anonymous segment's start is durable. Every new start requires new opt-in.
+    /// Opt in after start with explicit artifact identity and an optional opaque user ID. True means
+    /// this segment's start is durable. Every new start requires new opt-in; a new configuration,
+    /// such as another user ID after login or logout, opens a new segment.
     /// Nil immediately revokes future health admission and attempts local erasure;
     /// false means cleanup must be retried. Already-admitted independent crash
     /// evidence is governed by crash retention; this is not server-side erasure.
