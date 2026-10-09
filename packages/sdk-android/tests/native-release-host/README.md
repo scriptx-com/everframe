@@ -40,12 +40,32 @@ use `appIdB`, `sdkKeyB`, `releaseB`. Modes:
 - `reenable`, `replace`, `cycles`: exercise rearming and twelve replacement starts.
 - `foreign`: refuse an existing app-bundled signal handler.
 - `no-optin`, `absent`: default-off and missing-module controls.
+- `null-call`: wait for readiness, then call a null function pointer. The fault
+  PC is zero, so the next `recover` delivers a report without frames: empty
+  `androidNative.frames` and `frames`, `signalNumber` 11, `signalCode` 1, and the
+  signal-only fingerprint.
+- `plus-module`: wait for readiness, then fault inside `libeverframe_release+plus.so`.
+  The report has one frame whose module is that SONAME, with its ELF build ID.
+- `mappings`: split one reservation into about 6,000 mappings below the dynamic
+  linker before the opt-in (`files/mappings.txt` holds the split count and the
+  maps line count). Readiness must become true; the report matches `main`.
+- `webview-before`: initialize a WebView before the opt-in, so its in-process
+  crash handler is installed first (`files/signal-owners.txt` names the provider
+  library). Readiness must become true; the report matches `main`.
+- `webview-after`: after readiness, initialize a WebView, whose handler then
+  precedes the armed one (`files/signal-owners-webview.txt`), and opt in again.
+  Readiness must return (`re-armed`) within 20 seconds, otherwise the state is
+  `timeout`; the report matches `main`.
+
+The WebView modes need a WebView provider whose crash handler chains to the
+previous handler (current providers use Crashpad); record the provider package and
+version with the run.
 
 `SecondaryActivity` runs in `:secondary`; `secondary-disable` verifies that
 secondary-process opt-in/disable/kill cannot take over the primary collector.
 The local `files/acceptance-status.json` contains only public delivery diagnostics.
 No envelope is reconstructed or injected by the host. Retain the exact APK,
-unstripped `libeverframe_release_fault.so`, source, build manifest and HTTP
+unstripped `libeverframe_release_fault.so` and `libeverframe_release+plus.so`, source, build manifest and HTTP
 requests for qualification. A captured partial fault frame must map to the
 actual assembly store line in `fault.cc` with matching ELF symbols, while a
 wrong ELF identity remains unmapped.

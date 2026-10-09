@@ -6,6 +6,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.webkit.WebView
 import android.widget.TextView
 import dev.everframe.Everframe
 import dev.everframe.config.CaptureConfig
@@ -20,12 +21,18 @@ open class MainActivity : Activity() {
     private external fun fault(worker: Boolean)
     private external fun foreignHandler()
     private external fun signalOwners(): String
+    private external fun nullCall()
+    private external fun splitMappings(pairs: Int): Int
+    private external fun plusModuleFault()
+    private var webView: WebView? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         System.loadLibrary("everframe_release_fault")
         label = TextView(this); setContentView(label)
         val mode = intent.getStringExtra("mode") ?: "recover"
         if (mode == "foreign") foreignHandler()
+        // Thousands of mappings below the dynamic linker before the first arm.
+        if (mode == "mappings") File(filesDir, "mappings.txt").writeText("${splitMappings(3000)} ${File("/proc/self/maps").readLines().size}")
         fun config(suffix: String = "", crash: Boolean = true) = EverframeConfig(
             appId = requireNotNull(intent.getStringExtra("appId$suffix")),
             sdkKey = requireNotNull(intent.getStringExtra("sdkKey$suffix")),
@@ -34,6 +41,8 @@ open class MainActivity : Activity() {
             bubble=false, companionBadgeEnabled=false, shakeToReportEnabled=false,
             installIdentifierEnabled=false, vitals=VitalsConfig(enabled=false))
         Everframe.start(applicationContext, config(), this)
+        // Initializing WebView installs its in-process crash handler before the opt-in.
+        if (mode == "webview-before") webView = WebView(this)
         File(filesDir, "signal-owners.txt").writeText(signalOwners())
         if (mode != "no-optin") Everframe.setNativeSignalCaptureEnabled(true)
         if (mode == "secondary-disable") { Everframe.setNativeSignalCaptureEnabled(false); Everframe.kill() }
@@ -57,7 +66,17 @@ open class MainActivity : Activity() {
                 }
                 status("ready")
                 when (mode) {
-                    "main", "worker" -> { status("faulting"); handler.postDelayed({ fault(mode == "worker") }, 300) }
+                    "main", "worker", "mappings", "webview-before" -> { status("faulting"); handler.postDelayed({ fault(mode == "worker") }, 300) }
+                    "null-call" -> { status("faulting"); handler.postDelayed({ nullCall() }, 300) }
+                    "plus-module" -> { System.loadLibrary("everframe_release+plus"); status("faulting"); handler.postDelayed({ plusModuleFault() }, 300) }
+                    "webview-after" -> {
+                        // WebView's handler now precedes the armed one; opting in again must re-arm.
+                        webView = WebView(this@MainActivity)
+                        File(filesDir, "signal-owners-webview.txt").writeText(signalOwners())
+                        Everframe.setNativeSignalCaptureEnabled(true)
+                        var waits = 0
+                        handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeSignalCaptureReady()) { status("re-armed"); fault(false) } else if (++waits < 200) handler.postDelayed(this, 100) else status("timeout") } }, 100)
+                    }
                     "disable" -> { Everframe.setNativeSignalCaptureEnabled(false); status("disabled"); handler.postDelayed({ fault(false) }, 300) }
                     "kill" -> { Everframe.kill(); status("killed"); handler.postDelayed({ fault(false) }, 300) }
                     "paused" -> { Everframe.start(applicationContext, config(crash=false), this@MainActivity); status("paused"); handler.postDelayed({ fault(false) }, 300) }
