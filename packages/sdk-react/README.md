@@ -88,7 +88,7 @@ and automatic handlers. The first accepted capture determines classification.
 Explicit and automatic capture each allow one report per fingerprint and ten
 per SDK instance, independently. Transport retries retain the report ID.
 
-## Anonymous release exposures
+## Release health observations
 
 Opt in independently of replay and vitals:
 
@@ -102,17 +102,25 @@ Opt in independently of replay and vitals:
 ```
 
 Capture starts after the Provider mounts. Configuration is frozen for that
-mount; remount with a new React `key` when the loaded build or SDK key changes.
+mount; remount with a new React `key` when the loaded build, SDK key or
+`releaseHealth.userId` changes, including on login, logout and account switch.
 Rerenders do not rotate the exposure. Normal unmount queues an end and retains
 offline records for the next opted-in mount at the same destination. Calling
 `useEverframe().kill()` or mounting with explicit disabled consent purges that
 destination's health queue. No health storage or requests start by default.
 
-These are anonymous observations, independent of `setUser`, recognition and
-replay sessions. Starts and ends do not prove healthy execution; a missing end
-does not prove a crash. User counts and crash-free rates are unavailable. Durable
-storage is required; there is no in-memory fallback. The existing web journal
-bounds records across tabs and preserves the original build through retries.
+Observations are anonymous unless you pass `releaseHealth.userId`, a
+project-local opaque account ID (omit it on logout). `setUser`, recognition and
+replay sessions never supply it. It must be nonblank, at most 128 UTF-16 units
+and free of U+0000–U+001F control characters and unpaired surrogates. An invalid
+ID leaves release health unavailable for that mount: nothing is recorded or sent.
+Starts and ends do not prove healthy execution; a missing end does not prove a
+crash. Crash-free rates are unavailable, and user counts cover only supplied IDs.
+Durable storage is required; there is no in-memory fallback. The existing web
+journal bounds records across tabs and preserves the original build through
+retries. These are version 2 records: the receiving service must support
+version 2 before you enable them. See
+[release health observations](../../docs/release-health.md).
 
 ## Triggers
 

@@ -76,6 +76,19 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         }
         XCTAssertNoThrow(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: String(repeating: "a", count: 128)))
     }
+    func testBlankIdentityUsesTheWireContractTrim() throws {
+        // Every non-control character that ECMAScript trim() removes: Zs, U+2028, U+2029 and U+FEFF.
+        let blank = " \u{a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200a}\u{2028}\u{2029}\u{202f}\u{205f}\u{3000}\u{feff}"
+        XCTAssertThrowsError(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: blank))
+        for id in [blank, "\u{feff}"] {
+            XCTAssertThrowsError(try ReleaseHealthConfiguration(nativeBuildId: id, loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        }
+        // The wire contract, web and Android accept these; Foundation's whitespace set would not.
+        for id in ["\u{85}", "\u{200b}", " \u{85}\u{200b}\u{a0}"] {
+            XCTAssertNoThrow(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: id))
+            XCTAssertNoThrow(try ReleaseHealthConfiguration(nativeBuildId: id, loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        }
+    }
     func testReadinessIsAbsentUntilDurableAppendAndSameOwnerEnableIsIdempotent() async throws {
         let runtime = runtime(); let config = try configuration()
         let ticket = runtime.requestEnable(configuration: config, sdkKey: "key-a", endpoint: "https://a.example/api/ingest/release-health")

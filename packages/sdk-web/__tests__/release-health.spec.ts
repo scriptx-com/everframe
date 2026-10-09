@@ -94,7 +94,8 @@ describe('frozen launch session subjects', () => {
     journal.double = {
       activate: async () => ({ generation: 'current', losses: 0 }),
       list: async () => ({ rows: records.map((record, i) => ({ key: String(i), record })), losses: 0 }),
-      append: async (_route: string, _generation: string, record: unknown) => { records.push(ReleaseHealthRecordSchema.parse(record)); },
+      // A plain store: refusing an invalid subject is the SDK's job, not this double's.
+      append: async (_route: string, _generation: string, record: unknown) => { records.push(record); },
       acknowledge: async () => undefined,
       revoke: async () => { records.length = 0; },
     };
@@ -105,6 +106,7 @@ describe('frozen launch session subjects', () => {
     const handle = setupReleaseHealth({ apiKey: 'pk_anonymous', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
     await handle.ready; await handle.stop();
     expect(rows).toHaveLength(2);
+    expect(rows.map(row => ReleaseHealthRecordSchema.parse(row))).toEqual(rows);
     expect(rows[0]).toMatchObject({ schemaVersion: 2, exposure: { sessionPolicy: 'launch-v1', subject: { kind: 'anonymous' } } });
     expect(rows[1].exposure).toEqual(rows[0].exposure);
   });
@@ -117,11 +119,24 @@ describe('frozen launch session subjects', () => {
     const next = setupReleaseHealth({ ...config, releaseHealth: { enabled: true, userId: 'opaque-b', loadedBuildId: 'bundle-b' } }, 'https://example.test', 'test');
     await next.ready;
     expect(rows).toHaveLength(3);
+    expect(rows.map(row => ReleaseHealthRecordSchema.parse(row))).toEqual(rows);
     expect(rows[0].exposure.subject).toEqual({ kind: 'provided', id: 'opaque-a' });
     expect(rows[1].exposure).toEqual(rows[0].exposure);
     expect(rows[2].exposure).toMatchObject({ pageLaunchId: rows[0].exposure.pageLaunchId, loadedBuildId: 'bundle-b', subject: { kind: 'provided', id: 'opaque-b' } });
     expect(rows[2].exposure.exposureId).not.toBe(rows[0].exposure.exposureId);
     await next.revoke(); expect(rows).toEqual([]);
+  });
+  it('treats a null user ID as anonymous and keeps delivering earlier rows', async () => {
+    const rows = queued(); rows.push({ recordId: 'earlier' });
+    const sent: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => { sent.push(JSON.parse(String(init.body))); return new Response('{}', { status: 201 }); });
+    // Untyped hosts can pass null; like Android and iOS, it means no supplied ID.
+    const handle = setupReleaseHealth({ apiKey: 'pk_null_subject', releaseHealth: { enabled: true, userId: null as unknown as string } }, 'https://example.test', 'test');
+    expect(await handle.ready).toMatchObject({ state: 'active', exposure: { subject: { kind: 'anonymous' } } });
+    await handle.flush();
+    expect(sent).toContainEqual({ recordId: 'earlier' });
+    expect(ReleaseHealthRecordSchema.parse(rows[1])).toMatchObject({ schemaVersion: 2, exposure: { subject: { kind: 'anonymous' } } });
+    await handle.stop();
   });
   it.each(['', ' ', 'x'.repeat(129), 'a\u0000', '\ud800'])('refuses invalid subject %j before publishing readiness', async userId => {
     const rows = queued();
