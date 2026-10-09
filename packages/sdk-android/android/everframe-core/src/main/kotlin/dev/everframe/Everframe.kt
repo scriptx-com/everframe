@@ -646,7 +646,8 @@ object Everframe {
      * Opt in after each start() to encrypted partial native fault capture on API26..30.
      * Requires the optional native-crash module and the default app process. Disabled by
      * default; no full-unwind or arbitrary-thread stack-overflow guarantee. Another native
-     * collector prevents activation. API31+ continues using setNativeCrashRecoveryEnabled.
+     * collector prevents activation; the platform WebView's chaining crash handler does not.
+     * API31+ continues using setNativeCrashRecoveryEnabled.
      * On API30 with setProcessExitDiagnosticsEnabled, a fault recorded here is reported once,
      * by this path; the OS exit then adds no second crash.
      * Explicit disable and kill() erase unadmitted native evidence outside the SDK stateLock, on
