@@ -169,6 +169,27 @@ class EverframeTest {
     }
 
     @Test
+    fun `start without release health leaves health journal work off the caller thread`() {
+        val caller = Thread.currentThread()
+        val resolvedOn = java.util.concurrent.ConcurrentLinkedQueue<Thread>()
+        val tracking = object : android.content.ContextWrapper(context) {
+            override fun getApplicationContext(): Context = this
+            override fun getNoBackupFilesDir(): java.io.File {
+                if (Thread.currentThread().stackTrace.any { it.className.startsWith("dev.everframe.health.") }) {
+                    resolvedOn.add(Thread.currentThread())
+                }
+                return super.getNoBackupFilesDir()
+            }
+        }
+        Everframe.start(tracking, validConfig())
+        assertFalse("start() resolved the release health journal on the caller thread", caller in resolvedOn)
+        // Absent health still checks for an earlier journal to erase, on the SDK IO scope.
+        val deadline = System.currentTimeMillis() + 5_000
+        while (resolvedOn.none { it !== caller } && System.currentTimeMillis() < deadline) Thread.sleep(5)
+        assertTrue("absent release health never checked for an earlier journal", resolvedOn.any { it !== caller })
+    }
+
+    @Test
     fun `start throws MissingAppId on blank appId`() {
         val bad = validConfig().copy(appId = "")
         assertThrows(EverframeConfigError.MissingAppId::class.java) {
@@ -916,5 +937,135 @@ class EverframeTest {
                 "registry is per-controller, so nothing survives kill()->start())",
             dev.everframe.vitals.VitalsRuntime.current(),
         )
+    }
+    @Test
+    fun `recovered observer refuses opt-in while a new start has not published its destination`() {
+        Everframe.start(context, validConfig())
+        awaitHeavyInit()
+        val oldEpoch = Everframe.currentStartEpochVolatile()
+        dev.everframe.vitals.VitalsServerConfigSignal.flow.value =
+            dev.everframe.vitals.VitalsServerConfig(vitalsEnabled = true, vitalsSampleRate = 1.0)
+        var attempted = false
+        var admitted = false
+        var capturedKey: String? = null
+        var capturedEpoch = -1
+        val previous = vitalsControllerForTest()
+        dev.everframe.vitals.VitalsRuntime.install(previous)
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!previous.isRunning && System.currentTimeMillis() < deadline) Thread.sleep(2)
+        assertTrue("precondition: old controller is collecting before reconfiguration", previous.isRunning)
+        previous.trackPlayer(object : dev.everframe.vitals.PlayerIntegration {
+            override val library = "fake"
+            override val version: String? = null
+            override fun attach(ctx: dev.everframe.vitals.PlayerIntegrationContext) = true
+            override fun snapshot(onResult: (dev.everframe.vitals.PlayerSnapshot?) -> Boolean) { onResult(null) }
+            override fun startupTimings(): dev.everframe.vitals.StartupTimings? = null
+            override fun describe(ctx: dev.everframe.vitals.PlayerIntegrationContext) {}
+            override fun detach() {
+                if (attempted) return
+                attempted = true
+                val captured = Everframe.captureSessionSnapshot()
+                capturedKey = captured.config?.sdkKey
+                capturedEpoch = captured.user.startEpoch
+                val token = dev.everframe.diagnostics.RecoveredStallRuntime.request(captured.user.startEpoch, true)
+                val field = dev.everframe.diagnostics.RecoveredStallRuntime::class.java.getDeclaredField("owner").apply { isAccessible = true }
+                val owner = field.get(dev.everframe.diagnostics.RecoveredStallRuntime) as dev.everframe.diagnostics.RecoveredStallOwner
+                admitted = owner.enable(token, captured.user.startEpoch, { true }) {
+                    object : dev.everframe.diagnostics.RecoveredStallSession {
+                        override val ready = true
+                        override fun start() = Unit
+                        override fun close() = Unit
+                    }
+                }
+            }
+        }, "main")
+        Everframe.start(context, validConfig().copy(sdkKey = "txx_live_nextdestination"))
+        assertTrue("must exercise customer teardown between epoch reservation and publication", attempted)
+        assertEquals(validConfig().sdkKey, capturedKey)
+        assertEquals(oldEpoch + 1, capturedEpoch)
+        assertFalse("old destination must not be armed under the newly reserved epoch", admitted)
+        assertEquals("txx_live_nextdestination", Everframe.currentConfig!!.sdkKey)
+    }
+
+    @Test
+    @Config(sdk = [31])
+    fun `native recovery refuses old destination during reserved start and still permits disable`() {
+        Everframe.start(context, validConfig())
+        awaitHeavyInit()
+        val oldEpoch = Everframe.currentStartEpochVolatile()
+        val field = dev.everframe.crash.AndroidNativeCrashRuntime::class.java.getDeclaredField("requests").apply { isAccessible = true }
+        val requests = field.get(dev.everframe.crash.AndroidNativeCrashRuntime) as dev.everframe.crash.AndroidNativeRecoveryRequests
+        dev.everframe.vitals.VitalsServerConfigSignal.flow.value =
+            dev.everframe.vitals.VitalsServerConfig(vitalsEnabled = true, vitalsSampleRate = 1.0)
+        val previous = vitalsControllerForTest()
+        dev.everframe.vitals.VitalsRuntime.install(previous)
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!previous.isRunning && System.currentTimeMillis() < deadline) Thread.sleep(2)
+        assertTrue(previous.isRunning)
+        var attempted = false
+        var nativeAdmitted = false
+        var diagnosticsAdmitted = false
+        var disabled = false
+        previous.trackPlayer(object : dev.everframe.vitals.PlayerIntegration {
+            override val library = "fake"
+            override val version: String? = null
+            override fun attach(ctx: dev.everframe.vitals.PlayerIntegrationContext) = true
+            override fun snapshot(onResult: (dev.everframe.vitals.PlayerSnapshot?) -> Boolean) { onResult(null) }
+            override fun startupTimings(): dev.everframe.vitals.StartupTimings? = null
+            override fun describe(ctx: dev.everframe.vitals.PlayerIntegrationContext) {}
+            override fun detach() {
+                if (attempted) return
+                attempted = true
+                assertEquals(oldEpoch + 1, Everframe.currentStartEpochVolatile())
+                assertEquals(validConfig().sdkKey, Everframe.currentConfig!!.sdkKey)
+                Everframe.setNativeCrashRecoveryEnabled(true)
+                nativeAdmitted = requests.enabled(oldEpoch + 1)
+                Everframe.setProcessExitDiagnosticsEnabled(true)
+                diagnosticsAdmitted = requests.diagnosticsEnabled(oldEpoch + 1)
+                // Model an already queued command so this checks real revocation,
+                // including when no replacement config has been published yet.
+                requests.request(oldEpoch + 1, true, true)
+                Everframe.setProcessExitDiagnosticsEnabled(false)
+                disabled = !requests.enabled(oldEpoch + 1)
+            }
+        }, "main")
+        Everframe.start(context, validConfig().copy(sdkKey = "txx_live_nextdestination"))
+        assertTrue(attempted)
+        assertFalse("native recovery must not arm the previous key with the reserved epoch", nativeAdmitted)
+        assertFalse("diagnostics must not arm the previous key with the reserved epoch", diagnosticsAdmitted)
+        assertTrue("disable must still revoke during publication", disabled)
+        Everframe.setNativeCrashRecoveryEnabled(true)
+        assertTrue("post-publication opt-in remains supported", requests.enabled(Everframe.currentStartEpochVolatile()))
+    }
+
+    @Test
+    @Config(application = PublicationReentrantApplication::class)
+    fun `superseded start cannot launch health or heavy work using a later start snapshot`() {
+        val app = context as PublicationReentrantApplication
+        dev.everframe.companion.CompanionActivityTracker.resetForTesting()
+        val launched = mutableListOf<String?>()
+        Everframe.__beforeDrainLaunchForTesting = { launched.add(Everframe.currentConfig?.sdkKey) }
+        app.onRegister = {
+            app.onRegister = null
+            Everframe.start(context, validConfig().copy(sdkKey = "txx_live_reentrantdestination"))
+        }
+        try {
+            Everframe.start(context, validConfig())
+            assertEquals("txx_live_reentrantdestination", Everframe.currentConfig!!.sdkKey)
+            assertEquals("only the current start may launch its initialization", listOf("txx_live_reentrantdestination"), launched)
+        } finally {
+            app.onRegister = null
+            Everframe.__beforeDrainLaunchForTesting = null
+            dev.everframe.companion.CompanionActivityTracker.resetForTesting()
+        }
+    }
+
+}
+
+class PublicationReentrantApplication : android.app.Application() {
+    var onRegister: (() -> Unit)? = null
+    override fun registerActivityLifecycleCallbacks(callback: ActivityLifecycleCallbacks) {
+        super.registerActivityLifecycleCallbacks(callback)
+        if (callback === dev.everframe.companion.CompanionActivityTracker) onRegister?.invoke()
     }
 }

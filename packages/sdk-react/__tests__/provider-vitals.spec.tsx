@@ -59,7 +59,7 @@ describe('EverframeProvider — Session Vitals wiring (Codex round-1 finding S1)
     };
     // Same deps init.ts passes: config, apiKey, apiUrl, isKilled, sdkVersion —
     // using THIS provider's own identity, not the vanilla SDK's.
-    expect(deps.config).toBe(config);
+    expect(deps.config).toEqual(config);
     expect(deps.apiKey).toBe(config.apiKey);
     expect(typeof deps.apiUrl).toBe('string');
     expect(deps.apiUrl.length).toBeGreaterThan(0);

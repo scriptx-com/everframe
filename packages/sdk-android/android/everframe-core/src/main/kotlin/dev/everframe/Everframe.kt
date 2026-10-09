@@ -148,6 +148,9 @@ object Everframe {
      * state (`_config`, `_user`, ...) is protected.
      */
     private var _startEpoch: Int = 0
+    // Reservation precedes customer teardown; only publication pairs this epoch
+    // with its configuration. Guarded by stateLock, never inferred from captureGate.
+    private var _publishedStartEpoch: Int? = null
 
     /**
      * Lock-free mirror of [_startEpoch] — see [currentStartEpochVolatile] for
@@ -378,6 +381,13 @@ object Everframe {
             )
         }
 
+    /** Startup work belongs to the invocation that published this configuration. */
+    private fun capturePublishedSessionSnapshot(epoch: Int): TXCapturedSession? =
+        stateLock.withLock {
+            if (_startEpoch != epoch || _publishedStartEpoch != epoch) null
+            else captureSessionSnapshot()
+        }
+
     /** Snapshot lock order: capture coordinator -> state/authorization lock, then release
      * state before reading ancillary rings. Ring guards use only the volatile start epoch.
      * Start/kill reserve their epoch under this same coordinator. */
@@ -597,6 +607,100 @@ object Everframe {
 
     // ---------------- Public API (every body wrapped in txGuardVoid) ----------------
 
+    /** True after the current explicit opt-in has installed its lifecycle observer. */
+    @JvmStatic
+    fun isRecoveredStallObserverReady(): Boolean = captureGate &&
+        dev.everframe.diagnostics.RecoveredStallRuntime.ready(currentStartEpochVolatile())
+
+    /**
+     * Opt in after each start() to recovered main-looper probe observations (API26+).
+     * Disabled by default. Measures queue latency, never OS ANR, fatality or crash counts.
+     * Foreground, interactive and debugger gates apply; records contain no stack or identity.
+     * Disabling cancels pending admission. Already admitted immutable records retain normal
+     * encrypted outbox retry authority; kill() applies the global outbox erasure policy.
+     */
+    @JvmStatic
+    fun setRecoveredStallObserverEnabled(enabled: Boolean) {
+        // Serialize opt-in with start/kill so a stale caller cannot replace a newer owner.
+        val (captured, request) = stateLock.withLock {
+            val snapshot = captureSessionSnapshot()
+            snapshot to dev.everframe.diagnostics.RecoveredStallRuntime.request(snapshot.user.startEpoch,
+                enabled && android.os.Build.VERSION.SDK_INT >= 26 && snapshot.captureConsent &&
+                    snapshot.config?.capture?.crash == true)
+        }
+        if (!enabled || android.os.Build.VERSION.SDK_INT < 26 || !captured.captureConsent || captured.config?.capture?.crash != true) return
+        val context = appContext ?: return
+        launchCapturedWork(captured, requireCurrentStart = true) {
+            txGuardVoid("recoveredStall.enable") {
+                dev.everframe.diagnostics.RecoveredStallRuntime.enable(context, captured, sharedOutboxFor(context), request)
+            }
+        }
+    }
+
+    /** True after the current explicit opt-in has durably registered its OS context. */
+    @JvmStatic
+    fun isNativeCrashRecoveryReady(): Boolean = captureGate &&
+        dev.everframe.crash.AndroidNativeCrashRuntime.ready(currentStartEpochVolatile())
+
+    /**
+     * Opt in to OS-recorded native crash recovery on Android 12/API31+ after start().
+     * Call after each start; disabled by default. The host grants exclusive use of
+     * ActivityManager.setProcessStateSummary while enabled. Setup/recovery runs on IO.
+     * Older APIs remain unchanged, except that API30 releases and erases an active diagnostics mode.
+     * Reports are anonymous, with frozen release/destination.
+     * Disable, kill and replacement start erase unadmitted native contexts; their durable
+     * erasure may do bounded local IO. This does not install a signal handler.
+     */
+    @JvmStatic
+    fun setNativeCrashRecoveryEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = false)
+
+    /**
+     * Opt in to OS-recorded previous-process diagnostics on Android 11/API30+.
+     * Includes native recovery, ANR terminations and qualified ordinary/unknown exits.
+     * Replaces native-only mode and grants the same exclusive OS-summary ownership.
+     * Changing mode keeps previous-process evidence; native-only drops unadmitted non-native exits.
+     * Call after each start. Disabled by default; no heartbeat observer is installed.
+     * Reports are anonymous and retain the previous process's release/destination.
+     * Either recovery switch set to false disables the shared owner and erases unadmitted evidence.
+     */
+    @JvmStatic
+    fun setProcessExitDiagnosticsEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = true)
+
+    @JvmStatic
+    fun isProcessExitDiagnosticsReady(): Boolean = captureGate &&
+        dev.everframe.crash.AndroidNativeCrashRuntime.diagnosticsReady(currentStartEpochVolatile())
+
+    private fun setProcessExitRecovery(enabled: Boolean, diagnostics: Boolean) {
+        // Narrowing API30 diagnostics to unsupported native-only mode still
+        // releases the existing shared owner and durably erases its context.
+        // Otherwise an unsupported mode records the request and erases nothing.
+        val supported = android.os.Build.VERSION.SDK_INT >= (if (diagnostics) 30 else 31)
+        val (captured, context, request) = stateLock.withLock {
+            // Customer teardown can re-enter this setter after a new epoch was
+            // reserved but before its config is published. Disable must still
+            // revoke; enable must never adopt the previous destination.
+            if (enabled && supported && _publishedStartEpoch != _startEpoch) return
+            val snapshot = captureSessionSnapshot()
+            Triple(snapshot, appContext, dev.everframe.crash.AndroidNativeCrashRuntime.request(
+                snapshot.user.startEpoch, enabled, diagnostics, supported))
+        }
+        if (!enabled || !supported) {
+            txGuardVoid("nativeCrash.disable") {
+                dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context, captured.user.startEpoch, true,
+                    { currentStartEpochVolatile() == captured.user.startEpoch }, request)
+            }
+            return
+        }
+        if (context == null || captured.config?.capture?.crash != true || !captured.captureConsent) return
+        launchCapturedWork(captured, requireCurrentStart = true) {
+            txGuardVoid("nativeCrash.enable") {
+                if (dev.everframe.crash.AndroidNativeCrashRuntime.enable(context, captured, sharedOutboxFor(context), request, diagnostics)) {
+                    requestOutboxDrain()
+                }
+            }
+        }
+    }
+
     /**
      * Synchronous start. Returns in <5ms on real devices (RESEARCH carry-forward
      * from Phase 04 Pitfall 5). Heavy work (log capture install, outbox drain,
@@ -781,14 +885,26 @@ object Everframe {
         // can only serve one of them.
         val epoch = synchronized(reportCaptureCoordinator) { stateLock.withLock {
             _startEpoch += 1
+            _publishedStartEpoch = null
             // Important 7 — the lock-free mirror, written in the same critical
             // section as the field it mirrors. See currentStartEpochVolatile().
             _startEpochMirror.set(_startEpoch)
+            dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, config.releaseHealth?.enabled == true)
+            dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
             _startEpoch
         } }
         // "Is this start() invocation still the newest one?" Every step below
         // that publishes or unpublishes process-global state is gated on it.
         val stillNewest = { stateLock.withLock { _startEpoch == epoch } }
+        txGuardVoid("start.releaseHealthBoundary") {
+            // Only an explicit disabled configuration waits for erasure on this thread.
+            dev.everframe.health.ReleaseHealthRuntime.boundary(context.applicationContext, epoch,
+                erase = config.releaseHealth != null)
+        }
+        txGuardVoid("start.nativeCrashBoundary") {
+            dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context.applicationContext, epoch, false,
+                { currentStartEpochVolatile() == epoch })
+        }
 
         // Codex round-3, Critical 3 — the previous session's `ReplaySession`
         // is invalidated BEFORE the vitals signal is cleared, not after. Its
@@ -848,6 +964,7 @@ object Everframe {
             sharedNetworkBuffer.rotate(epoch)
 
             _config = config
+            _publishedStartEpoch = epoch
             // External review, finding 2 (Serious) — clear the self-declared
             // user (`setUser`, spec 2026-08-12) in the SAME `stateLock`
             // critical section that installs the new configuration, so no
@@ -889,6 +1006,7 @@ object Everframe {
             // ordering.
             _identityHolder.set(null)
             appContext = context.applicationContext
+            dev.everframe.diagnostics.RecoveredStallRuntime.startPublished(epoch)
             dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(epoch, config.capture.crash)
             captureGate = true
             true
@@ -942,9 +1060,16 @@ object Everframe {
         // WeakReference: the heavy-init coroutine must not extend the
         // Activity's lifetime if it is destroyed between start() and install.
         val currentActivityRef = currentActivity?.let { java.lang.ref.WeakReference(it) }
-        val drainSession = captureSessionSnapshot()
+        val drainSession = capturePublishedSessionSnapshot(epoch) ?: return
         val drainEndpoint = IngestEndpoint.url
         __beforeDrainLaunchForTesting?.invoke()
+
+        // A slow health route must not delay replay, crash, or other SDK initialization.
+        launchCapturedWork(drainSession) {
+            txGuardSuspend("start.releaseHealth") {
+                dev.everframe.health.ReleaseHealthRuntime.start(context.applicationContext, drainSession, drainEndpoint)
+            }
+        }
 
         // Heavy init detached — host main thread continues immediately. Per
         // DEFE-02, heavy-init body itself must be guarded so a crash there doesn't
@@ -1277,6 +1402,7 @@ object Everframe {
                 // about to tear down below. Mirrors iOS kill() (commit
                 // 826e5f76).
                 _startEpoch += 1
+                _publishedStartEpoch = null
                 // Important 7: the lock-free mirror is written in the SAME
                 // critical section as the field it mirrors, at every write
                 // site, so the transport's non-blocking kill predicate can
@@ -1286,6 +1412,9 @@ object Everframe {
                 // revocation survive a later start() that re-opens captureGate.
                 _killGeneration += 1
                 _killGenerationMirror.set(_killGeneration)
+                dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, false)
+                dev.everframe.crash.AndroidNativeCrashRuntime.noteKill()
+                dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
                 _config = null
@@ -1335,6 +1464,12 @@ object Everframe {
             revokedIdentityJobs.forEach { it.cancel() }
             finishOutboxRevocation()
             val stillThisKill = { currentStartEpochVolatile() == killEpoch }
+            txGuardVoid("kill.releaseHealthBoundary") {
+                dev.everframe.health.ReleaseHealthRuntime.boundary(appContext, killEpoch)
+            }
+            txGuardVoid("kill.nativeCrashBoundary") {
+                dev.everframe.crash.AndroidNativeCrashRuntime.boundary(appContext, killEpoch, true, stillThisKill)
+            }
             __reporterTriggersTeardown?.invoke()
             LogCapture.configure(enabled = false, isCurrent = stillThisKill)
             dev.everframe.companion.CompanionBadgeServerConfigSignal.publish(null, stillThisKill)
@@ -1488,6 +1623,13 @@ object Everframe {
         val drainEndpoint = IngestEndpoint.url
         __beforeDrainLaunchForTesting?.invoke()
         launchCapturedWork(captured) {
+            txGuardSuspend("requestOutboxDrain.releaseHealth") {
+                dev.everframe.health.ReleaseHealthRuntime.flush(epochAtInitiation)
+            }
+        }
+        // Health may be waiting on a different captured destination or its own
+        // drain mutex. Ordinary reports retain their independent progress.
+        launchCapturedWork(captured) {
             txGuardSuspend("requestOutboxDrain") {
                 val outbox = sharedOutboxFor(ctx)
                 CrashSidecar(ctx).hydrateInto(outbox)
@@ -1505,6 +1647,23 @@ object Everframe {
                     drainSession = captured,
                     endpointAtInitiation = drainEndpoint,
                 )
+            }
+        }
+    }
+
+    /** True only after this SDK segment's anonymous start was committed to encrypted storage. */
+    @JvmStatic
+    fun isReleaseHealthReady(): Boolean = captureGate &&
+        dev.everframe.health.ReleaseHealthRuntime.readyPointer(currentStartEpochVolatile()) != null
+
+    /** Requests delivery using each record's frozen route; independent of replay and vitals. */
+    @JvmStatic
+    fun requestReleaseHealthFlush() {
+        val captured = captureSessionSnapshot()
+        if (captured.config == null) return
+        launchCapturedWork(captured) {
+            txGuardSuspend("releaseHealth.flush") {
+                dev.everframe.health.ReleaseHealthRuntime.flush(captured.user.startEpoch)
             }
         }
     }

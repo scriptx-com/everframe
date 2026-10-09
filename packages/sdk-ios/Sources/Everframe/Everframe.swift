@@ -40,7 +40,131 @@ public final class Everframe: @unchecked Sendable {
     /// Single source of truth: edit the podspec, run the sync script — no
     /// other source files need to change at release time.
     public static let SDK_VERSION = EverframeSDKVersion
-    private init() {}
+    internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime(),
+                  appleDiagnosticRuntime: AppleDiagnosticRuntime? = AppleDiagnosticPlatform.makeRuntime(),
+                  releaseHealthRuntime: ReleaseHealthRuntime? = ReleaseHealthRuntime.makeRuntime(),
+                  appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
+                  nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() }) {
+        self.nativeCrashRuntime = nativeCrashRuntime
+        self.appleDiagnosticRuntime = appleDiagnosticRuntime
+        self.releaseHealthRuntime = releaseHealthRuntime
+        self.appleDiagnosticSession = appleDiagnosticSession
+        self.nativeDeviceSnapshot = nativeDeviceSnapshot
+    }
+    private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
+    private let releaseHealthRuntime: ReleaseHealthRuntime?
+    private let appleDiagnosticSession: @Sendable () -> URLSession
+    private let nativeCrashRuntime: NativeCrashRuntime?
+    private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
+    private var nativeCrashTicket: UInt64 = 0
+    private var nativeCrashPublishedEpoch: Int?
+
+    /// A persisted JavaScript fatal ends the process next: React Native's release
+    /// fatal handler throws RCTFatalException. Close native capture until the
+    /// next start so that abort is not reported as a second, different crash.
+    internal func closeNativeCrashCaptureAfterAcceptedFatal() {
+        stateLock.withLock {
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            nativeCrashPublishedEpoch = nil
+        }
+    }
+
+    /// Capture ownership atomically, then do main-actor/device and disk work
+    /// outside stateLock. The runtime ticket fences every asynchronous boundary.
+    @discardableResult internal func refreshNativeCrashContext() async -> Bool {
+        guard let runtime = nativeCrashRuntime else { return false }
+        while !Task.isCancelled {
+            let captured: (UInt64, EverframeConfig, EFUser?, EverframeNativeExposure?)? = stateLock.withLock {
+                guard nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
+                      let config = _config, config.capture.crash else { return nil }
+                return (nativeCrashTicket, config, _user, releaseHealthRuntime?.readyPointer)
+            }
+            guard let (ticket, config, user, exposure) = captured else { return false }
+            let exposureBytes: Data?
+            do { exposureBytes = try exposure.map { try ReleaseHealthDate.encoder().encode($0) } }
+            catch { return false }
+            let device = await nativeDeviceSnapshot()
+            let armed = await runtime.refresh(ticket: ticket) {
+                try NativeCrashStartupContext.make(config: config, user: user, device: device,
+                    endpoint: IngestEndpoint.url.absoluteString,
+                    releaseHealthExposure: try exposureBytes.map { try ReleaseHealthDate.decoder().decode(EverframeNativeExposure.self, from: $0) })
+            }
+            // A user/config change may obsolete this snapshot before recovery
+            // starts. The launch tail must await a current attempt rather than
+            // drain an empty queue while another refresh is still suspended.
+            if stateLock.withLock({ nativeCrashTicket == ticket }) { return armed }
+        }
+        return false
+    }
+
+    /// Opt in after start with explicit artifact identity. True means this
+    /// anonymous segment's start is durable. Every new start requires new opt-in.
+    /// Nil immediately revokes future health admission and attempts local erasure;
+    /// false means cleanup must be retried. Already-admitted independent crash
+    /// evidence is governed by crash retention; this is not server-side erasure.
+    /// Unsupported platforms return false. Replay/vitals/crash capture are independent.
+    @discardableResult public func setReleaseHealth(_ configuration: ReleaseHealthConfiguration?) async -> Bool {
+        guard let runtime = releaseHealthRuntime else { return false }
+        guard let configuration else {
+            let request = stateLock.withLock { () -> UInt64 in
+                nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+                return runtime.revoke()
+            }
+            let erased = await runtime.finishRevocation(request)
+            _ = await refreshNativeCrashContext()
+            return erased
+        }
+        let captured: (UInt64, Int, UInt64)? = stateLock.withLock {
+            guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, let config = _config else { return nil }
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            let ticket = runtime.requestEnable(configuration: configuration, sdkKey: config.appId,
+                endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString)
+            return (ticket, _startEpoch, _configGeneration)
+        }
+        guard let (ticket, epoch, configGeneration) = captured else { return false }
+        let enabled = await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION)
+        let current = stateLock.withLock { () -> Bool in
+            guard nativeCrashPublishedEpoch == epoch, _startEpoch == epoch,
+                  _configGeneration == configGeneration, Self.captureGate else { return false }
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            return true
+        }
+        if current { _ = await refreshNativeCrashContext() }
+        return enabled && current
+    }
+
+    /// Opt in after start. Returns true only after the requested durable
+    /// transition completes. MetricKit periods crossing this opt-in window are
+    /// dropped; accepted anonymous receipts can retry after a later same-app opt-in.
+    /// Unsupported platforms return false. Disable closes admission immediately;
+    /// a false result means persistent cleanup must be retried.
+    @discardableResult public func setAppleDiagnosticsEnabled(_ enabled: Bool) async -> Bool {
+        guard let runtime = appleDiagnosticRuntime else { return false }
+        if !enabled {
+            let request = stateLock.withLock { runtime.revoke() }
+            return await runtime.finishRevocation(request)
+        }
+        let captured: (UInt64, Int, EverframeConfig)? = stateLock.withLock {
+            guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch,
+                  let config = _config, config.capture.crash else { return nil }
+            return (runtime.requestEnable(), _startEpoch, config)
+        }
+        guard let (ticket, epoch, config) = captured else { return false }
+        let device = await nativeDeviceSnapshot()
+        guard let version = device.appVersion, let build = device.appBuild else { return false }
+        do {
+            let frozen = try NativeCrashStartupContext.make(config: config, user: nil, device: device,
+                endpoint: IngestEndpoint.url.absoluteString)
+            let context = AppleDiagnosticContext(frozen: frozen, applicationVersion: version, applicationBuild: build)
+            return await runtime.enable(context: context, ticket: ticket) { [weak self, weak runtime] in
+                guard let self, let runtime else { return }
+                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox, session: self.appleDiagnosticSession())
+                    .restrictingOutboxToAppleDiagnostics()
+                await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+                    epochAtInitiation: epoch, currentEpoch: { [weak self] in self?.currentStartEpoch ?? -1 })
+            }
+        } catch { return false }
+    }
 
     // MARK: - State (NSLock-protected)
 
@@ -581,6 +705,12 @@ public final class Everframe: @unchecked Sendable {
         __startTailDelayHookForTesting = nil
     }
 
+    /// Test-only seam — when set, start()'s heavy-init tail awaits this closure
+    /// with its SDK instance immediately before the launch `drainOutbox()` call,
+    /// so a test can observe what native recovery queued before delivery
+    /// begins. `nil` in production.
+    nonisolated(unsafe) internal static var __beforeLaunchDrainHookForTesting: (@Sendable (Everframe) async -> Void)?
+
     // MARK: - Session-supersession test seam (round-4 review Finding F16)
 
     #if canImport(UIKit)
@@ -784,6 +914,10 @@ public final class Everframe: @unchecked Sendable {
         // OWN lock, never `stateLock`, so calling it from inside this
         // critical section cannot deadlock or invert lock ordering.
         stateLock.lock()
+        appleDiagnosticRuntime?.boundary()
+        releaseHealthRuntime?.boundary()
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+        nativeCrashPublishedEpoch = nil
         let epoch = bumpStartEpoch()
         _user = nil
         _identityHolder.set(nil)
@@ -850,6 +984,7 @@ public final class Everframe: @unchecked Sendable {
         // while running customer teardown above publishes NOTHING and launches no tail.
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
+        nativeCrashPublishedEpoch = epoch
         // Follow-ups item 9, fourth round — bumped HERE, with the assignment
         // it describes, never in the epoch section above. That is the whole
         // point of it being a separate counter.
@@ -946,6 +1081,9 @@ public final class Everframe: @unchecked Sendable {
         // pattern tripped a compiler region-checker corner case and forced
         // log/outbox work onto the main thread unnecessarily.
         let startTask = Task { [config, epoch] in
+            // Recover prior native records and arm a durable current context
+            // before any potentially slow launch upload. No fatal Swift work.
+            await self.refreshNativeCrashContext()
             // 04-04: log capture (gated on config.capture.logs).
             // LogCapture.install() is idempotent — safe across multiple start()
             // calls if a host re-configures.
@@ -958,6 +1096,10 @@ public final class Everframe: @unchecked Sendable {
             // own URLSession that excludes our own URLProtocol-based capture
             // interceptor (so submission requests don't recurse).
             let submitter = ReportSubmitter(config: config).observing(ReportDiagnostics.shared.handle(epoch: epoch))
+            // Recovery-before-drain test seam — see its doc comment. `nil` in production.
+            if let hook = Self.__beforeLaunchDrainHookForTesting {
+                await hook(self)
+            }
             // Native identity Task 8b — the real singleton holder + the live
             // `ReplayConfig`, not the inert defaults `drainOutbox` used to
             // fall back to.
@@ -1222,9 +1364,12 @@ public final class Everframe: @unchecked Sendable {
     /// Note this makes `gate closed ⟹ _user == nil` an invariant: `start()`
     /// and `kill()` both clear it, and nothing else can write while closed.
     public func setUser(_ user: EFUser?) {
-        stateLock.lock(); defer { stateLock.unlock() }
-        guard Self.captureGate else { return }
+        stateLock.lock()
+        guard Self.captureGate else { stateLock.unlock(); return }
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         _user = user
+        stateLock.unlock()
+        Task { await self.refreshNativeCrashContext() }
     }
 
     /// Install or clear the verified-identity token source (recognition spec
@@ -1862,6 +2007,10 @@ public final class Everframe: @unchecked Sendable {
         // reordering was needed. `start()` was the one that had
         // `reset()`/`clear()` running before the epoch bump.
         stateLock.lock()
+        let appleErasure = appleDiagnosticRuntime?.revoke()
+        let healthErasure = releaseHealthRuntime?.revoke()
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+        nativeCrashPublishedEpoch = nil
         let killEpoch = bumpStartEpoch()
         ReportDiagnostics.shared.retireGeneration(epoch: killEpoch)
         // Monotonic and never lowered — this is what makes a revocation
@@ -1915,6 +2064,12 @@ public final class Everframe: @unchecked Sendable {
         // reading must not survive.
         _identityEnabledFlag.set(false)
         stateLock.unlock()
+        if let request = appleErasure, let runtime = appleDiagnosticRuntime {
+            Task { _ = await runtime.finishRevocation(request) }
+        }
+        if let request = healthErasure, let runtime = releaseHealthRuntime {
+            Task { _ = await runtime.finishRevocation(request) }
+        }
         taskToCancel?.cancel()
 
         // Fix round 3 residual hygiene — unlike every other piece of session

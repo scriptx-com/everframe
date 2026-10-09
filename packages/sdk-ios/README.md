@@ -63,6 +63,135 @@ struct MyApp: App {
 
 ---
 
+## Automatic native crashes
+
+The source SDK connects native crash capture to `Everframe.shared.start` when
+`capture.crash` is enabled (the default). It records supported Swift traps,
+uncaught Objective-C exceptions and memory/signal faults in native code, then
+imports them into the encrypted delivery queue on the next enabled launch.
+The recorder is bundled with the SDK; hosts do not install it separately.
+
+Capture starts asynchronously after an encrypted context is durable. There is a
+capture gap during startup and user/configuration changes. A crash already
+admitted keeps its original context; later reports use the new context. Recovery
+preserves the original project routing, app/device details, self-declared user,
+and redaction policy, even after another user or project starts. Native reports
+currently omit verified identity and continuously refreshed breadcrumbs, logs,
+replay and resource samples. Symbolicated source locations require the separate
+native symbol-processing pipeline; raw addresses remain available.
+
+In React Native, a stored fatal JavaScript crash closes native capture until the
+next `start`. React Native's fatal handler then aborts with `RCTFatalException`;
+that abort is not reported as a second crash. If the JavaScript report could not
+be stored, native capture stays on and records the abort instead.
+
+Set `CaptureConfig(crash: false)` to disable automatic capture, or call `kill()`
+to stop the running SDK. A disabled launch retains pending raw records without
+promoting them. Reports already in the delivery queue follow the existing retry
+policy; disabling capture does not retroactively delete queued reports.
+
+Each enabled launch imports pending records before retiring old runs. A run
+expires 14 days after its process started, or earlier under storage
+pressure. The runtime keeps at most 16 runs, with bounded raw/context storage.
+It supports 256 distinct context snapshots per process; identical snapshots
+reuse their identifier. Unavailable encryption keys, unsafe storage, exhausted
+capacity or recorder failures leave capture disabled. Repeated `start` calls
+reuse the process recorder rather than installing competing handlers.
+
+The installed Release qualification host is in
+[`Tests/NativeCrashStartupProof`](Tests/NativeCrashStartupProof). It exercises
+normal startup, real faults and relaunch delivery on an owned iOS simulator.
+Physical-device lock-state and performance qualification remain separate checks.
+
+---
+
+## Anonymous release exposures (iOS)
+
+Release-health collection is off by default. After `start` has published the SDK
+configuration, opt in with the identity of the native build actually running:
+
+```swift
+let health = try ReleaseHealthConfiguration(nativeBuildId: "ios-2026.10.08.1",
+    loadedBuildId: nil, loadedBundleStatus: .notApplicable)
+let ready = await Everframe.shared.setReleaseHealth(health)
+```
+
+`true` means the segment start was durably appended. A `false` result means the
+SDK is not started/ready, storage is unavailable, or this platform is unsupported.
+For an embedded JavaScript bundle, pass its actual loaded build ID with
+`loadedBundleStatus: .known`; use `.unknown` when its identity is unavailable.
+Use `.notApplicable` for a native-only app. Do not pass a bundle
+that was downloaded but has not loaded.
+
+Each SDK start requires a new opt-in and creates a distinct segment. Segments in
+the same process share a process-launch UUID; neither identity represents a user.
+Collection works independently of replay, vitals and crash capture. When native
+crash capture is enabled, only a pointer already durably ready can be frozen into
+its immutable fatal context. Recovery never borrows the relaunch's segment.
+Apple MetricKit reporting windows are not joined to these exposures.
+
+The encrypted app-private journal retains at most 256 records, 1 MiB total and
+seven days. Capacity failure does not evict earlier records to invent coverage;
+queue-loss accounting remains unavailable. Delivery retries preserve the original
+route, SDK key and serialized record. Revoked or expired keys may prevent delivery.
+
+```swift
+let erasedLocally = await Everframe.shared.setReleaseHealth(nil)
+```
+
+Disabling clears readiness immediately and attempts to erase pending health
+records. A failed erase keeps an in-process purge obligation that must succeed
+before another opt-in becomes ready. Retry cleanup when the result is `false`;
+the failed erase obligation is not guaranteed to survive process loss or restart.
+Disabling prevents new native admissions from freezing the old pointer; already
+admitted independent crash evidence retains its original bytes under crash
+delivery/retention policy. This is not retroactive server erasure.
+`kill()` revokes both capture and health. A missing end record or exit does not
+mean a crash or a healthy termination; observed starts do not establish crash-free
+or user rates. tvOS compiles this API but returns `false` for enabling collection.
+
+## Apple hang and exit diagnostics
+
+On iOS 15+, explicitly opt in **after** `start`:
+
+```swift
+let enabled = await Everframe.shared.setAppleDiagnosticsEnabled(true)
+// On consent withdrawal, await durable removal before treating it as complete.
+let erased = await Everframe.shared.setAppleDiagnosticsEnabled(false)
+```
+
+Enabling requires a started SDK with `capture.crash` enabled. Unsupported platforms
+or unmet preconditions return `false`; a storage failure also returns `false` because
+the requested persistent transition did not finish. Disabling
+immediately closes network admission; a failed erase remains pending and prevents
+a later enable from restoring the old records. Retry disabling when storage is
+available. `kill()` also closes admission and schedules erasure. A new `start`
+closes the current callback window and requires another explicit enable.
+
+The collector accepts MetricKit hang batches and aggregate app-exit counts. It
+excludes MetricKit crash diagnostics, CPU/disk exceptions and signposts. Reporting
+periods are never individual incident times, and aggregate counts are never crash
+or fatality counts. Process, session and web exposure attribution are unavailable.
+The collector is unavailable on tvOS and macOS.
+
+Callback admission is deliberately sparse: the complete OS reporting interval
+must fit within the current process's uninterrupted opt-in window, and the OS
+application version/build must match the frozen native version/build. Delayed
+payloads spanning restarts, updates, reconfiguration or consent changes are dropped.
+This is not a comprehensive hang monitor or a crash-free denominator.
+
+Once accepted, anonymous records use an encrypted receipt journal and outbox.
+Explicit opt-in after restart permits retry only for the same SDK key and endpoint,
+with the original bytes and idempotency key. At most 32 receipts / 4 MiB are retained
+for seven days; no new receipt evicts an earlier one. Revocation removes Apple
+receipts without taking ownership of another collector's entries. A request already
+admitted to the network can complete; disabling does not claim to erase remote data.
+
+Only bounded stack UUIDs, safe binary names, addresses and offsets are collected;
+raw MetricKit JSON is not persisted. Custom redaction uses the capture-time policy.
+Current qualification covers synthetic projections, durable delivery and SDK
+compilation. Physical-device MetricKit callback delivery remains unqualified.
+
 ## Triggers are host-app concern
 
 > Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.

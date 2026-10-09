@@ -25,6 +25,7 @@
 // third describe block, and the flag's declaration in adapter.ts, for why the
 // difference exists and what would break without it.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createBreadcrumbBuffer } from '@everframe/sdk-core';
 import { createWebPlatformAdapter } from '../src/adapter.js';
 
 // installConsolePatcher / the window.onerror patcher are install-once behind
@@ -173,6 +174,52 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       window.dispatchEvent(new Event('online'));
 
       expect(drain).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // A host's explicit kill can land before the committed mount's effects run
+  // (from a child's mount effect). Under StrictMode a discarded adapter twin,
+  // never killed, bound the page-global slots last during render, so the mount
+  // takes them back with `{ revive: false }`, which must revive nothing.
+  describe('a non-reviving rebind after an explicit kill', () => {
+    const config = { apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' };
+
+    it('control: without it, the twin bound last still captures and reports', async () => {
+      const committed = mk(config);
+      const twin = mk(config);
+      const twinCrumbs = createBreadcrumbBuffer();
+      twin.__setBreadcrumbBuffer(() => twinCrumbs);
+
+      committed.onKill?.();
+      console.log('after-kill-line');
+      window.onerror?.('boom', 'a.ts', 1, 1, boom());
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      expect(twinCrumbs.snapshot().map((crumb) => crumb.message)).toContain('after-kill-line');
+    });
+
+    it('takes the slots back and keeps every killed gate closed', async () => {
+      const committed = mk(config);
+      const twin = mk(config);
+      const twinCrumbs = createBreadcrumbBuffer();
+      twin.__setBreadcrumbBuffer(() => twinCrumbs);
+      const shown = vi.fn();
+      committed.__registerShowModal(shown);
+
+      committed.onKill?.();
+      committed.__rebindCrumbHooks({ revive: false });
+      console.log('after-kill-line');
+      window.onerror?.('boom', 'a.ts', 1, 1, boom());
+
+      await new Promise((r) => setTimeout(r, 60));
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(twinCrumbs.snapshot()).toEqual([]);
+      expect(committed.captureRecentLogs()).toEqual([]);
+      expect(await settledWithin(committed.__openReporter())).toEqual({
+        status: 'cancelled',
+        reason: 'killed',
+      });
+      expect(shown).not.toHaveBeenCalled();
     });
   });
 

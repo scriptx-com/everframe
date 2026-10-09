@@ -88,6 +88,32 @@ and automatic handlers. The first accepted capture determines classification.
 Explicit and automatic capture each allow one report per fingerprint and ten
 per SDK instance, independently. Transport retries retain the report ID.
 
+## Anonymous release exposures
+
+Opt in independently of replay and vitals:
+
+```tsx
+<EverframeProvider config={{
+  apiKey: 'your-sdk-key',
+  releaseHealth: { enabled: true, loadedBuildId: 'the-build-actually-loaded' },
+}}>
+  {children}
+</EverframeProvider>
+```
+
+Capture starts after the Provider mounts. Configuration is frozen for that
+mount; remount with a new React `key` when the loaded build or SDK key changes.
+Rerenders do not rotate the exposure. Normal unmount queues an end and retains
+offline records for the next opted-in mount at the same destination. Calling
+`useEverframe().kill()` or mounting with explicit disabled consent purges that
+destination's health queue. No health storage or requests start by default.
+
+These are anonymous observations, independent of `setUser`, recognition and
+replay sessions. Starts and ends do not prove healthy execution; a missing end
+does not prove a crash. User counts and crash-free rates are unavailable. Durable
+storage is required; there is no in-memory fallback. The existing web journal
+bounds records across tabs and preserves the original build through retries.
+
 ## Triggers
 
 By default the SDK installs:

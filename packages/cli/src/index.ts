@@ -8,6 +8,10 @@ import { collectStagedBuild } from "./build-collect.js";
 import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
+import { uploadAppleBuild } from "./apple-upload.js";
+import { uploadAndroidElfBuild } from "./elf-upload.js";
+import { collectElfBuild } from "./elf.js";
+import { collectDsymBuild } from "./dsym.js";
 import { collectR8Build } from "./r8.js";
 import { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
 import { setupReactNative } from "./setup-react-native.js";
@@ -18,6 +22,13 @@ export type { LocalBuild } from "./manifest.js";
 export { collectBuild } from "./manifest.js";
 export type { CollectHermesBuildOptions } from "./hermes.js";
 export { collectHermesBuild } from "./hermes.js";
+export { uploadAndroidElfBuild } from "./elf-upload.js";
+export { collectAndroidElfBuild, inspectElfFile } from "./elf-build.js";
+export type { ElfBuildImage, CollectedAndroidElfBuild } from "./elf-build.js";
+export type { CollectElfBuildOptions } from "./elf.js";
+export { collectElfBuild } from "./elf.js";
+export type { CollectDsymBuildOptions } from "./dsym.js";
+export { collectDsymBuild } from "./dsym.js";
 export type { CollectR8BuildOptions } from "./r8.js";
 export { collectR8Build } from "./r8.js";
 export type {
@@ -35,6 +46,10 @@ const HELP = `Usage:
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe setup react-native --app-id <uuid> [--project <dir>]
+  everframe dsym upload-build --app-id <uuid> --binary <executable> [--binary <framework>] --dsym-dir <directory>
+  everframe dsym upload --app-id <uuid> --dwarf <raw-file>
+  everframe elf upload-build --app-id <uuid> --binary <shipped.so> [--binary <library.so>] --symbols-dir <directory>
+  everframe elf upload --app-id <uuid> --library <unstripped-elf>
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
@@ -55,6 +70,10 @@ export async function main(
   const isSourceMapCommand =
     argv[0] === "sourcemaps" &&
     (argv[1] === "upload" || argv[1] === "upload-hermes");
+  const isDsymBuildCommand = argv[0] === "dsym" && argv[1] === "upload-build";
+  const isElfBuildCommand = argv[0] === "elf" && argv[1] === "upload-build";
+  const isElfCommand = argv[0] === "elf" && argv[1] === "upload";
+  const isDsymCommand = argv[0] === "dsym" && argv[1] === "upload";
   const isR8Command = argv[0] === "r8" && argv[1] === "upload";
   const isBuildCommand =
     argv[0] === "build" && (argv[1] === "collect" || argv[1] === "verify");
@@ -64,6 +83,10 @@ export async function main(
     !isSetupCommand &&
     !isSourceMapCommand &&
     !isR8Command &&
+    !isDsymCommand &&
+    !isElfCommand &&
+    !isElfBuildCommand &&
+    !isDsymBuildCommand &&
     !isBuildCommand &&
     !isExpoExportCommand
   ) {
@@ -197,6 +220,110 @@ export async function main(
       for (const warning of result.warnings) console.warn(warning);
       for (const failure of result.failures) console.error(failure);
       return result.ok ? 0 : 1;
+    }
+
+    if (isDsymBuildCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2), allowPositionals: false, strict: true,
+        options: {
+          "app-id": { type: "string" },
+          binary: { type: "string", multiple: true },
+          "dsym-dir": { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) { console.log(HELP); return 0; }
+      const appId = parsed.values["app-id"], binaries = parsed.values.binary,
+        dsymDir = parsed.values["dsym-dir"], token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !binaries?.length || !dsymDir || !token) throw new Error("missing_required_option");
+      const result = await uploadAppleBuild({ appId, binaries, dsymDir, token,
+        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1" });
+      console.log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} dSYM files).`);
+      return 0;
+    }
+
+    if (isDsymCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          dwarf: { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"],
+        dwarfPath = parsed.values.dwarf,
+        token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !dwarfPath || !token)
+        throw new Error("missing_required_option");
+      const local = await collectDsymBuild({ dwarfPath });
+      const result = await uploadCollectedBuild(local, {
+        appId,
+        root: dirname(resolve(dwarfPath)),
+        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        token,
+        deleteAfterUpload: false,
+      });
+      console.log(`dSYM ${result.buildUuid} is ready.`);
+      return 0;
+    }
+
+    if (isElfBuildCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2), allowPositionals: false, strict: true,
+        options: {
+          "app-id": { type: "string" },
+          binary: { type: "string", multiple: true },
+          "symbols-dir": { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) { console.log(HELP); return 0; }
+      const appId = parsed.values["app-id"], binaries = parsed.values.binary,
+        symbolsDir = parsed.values["symbols-dir"], token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !binaries?.length || !symbolsDir || !token) throw new Error("missing_required_option");
+      const result = await uploadAndroidElfBuild({ appId, binaries, symbolsDir, token,
+        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1" });
+      console.log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`);
+      return 0;
+    }
+
+    if (isElfCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          library: { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"],
+        libraryPath = parsed.values.library,
+        token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !libraryPath || !token)
+        throw new Error("missing_required_option");
+      const local = await collectElfBuild({ libraryPath });
+      const result = await uploadCollectedBuild(local, {
+        appId,
+        root: dirname(resolve(libraryPath)),
+        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        token,
+        deleteAfterUpload: false,
+      });
+      console.log(`ELF ${result.buildUuid} is ready.`);
+      return 0;
     }
 
     if (isR8Command) {
@@ -361,9 +488,10 @@ export async function main(
     console.log(`Source-map build ${result.buildUuid} is ready.`);
     return 0;
   } catch (error) {
-    console.error(
-      error instanceof Error ? error.message.slice(0, 256) : "upload_failed",
-    );
+    const message = error instanceof Error ? error.message : "upload_failed";
+    const token = env.EVERFRAME_API_TOKEN;
+    // upload-build failures list bounded paths and image identities.
+    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, isDsymBuildCommand ? 8192 : 256));
     return 1;
   }
 }
