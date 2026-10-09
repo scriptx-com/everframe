@@ -4,8 +4,10 @@ package dev.everframe.crash
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import dev.everframe.Everframe
 import dev.everframe.TXCapturedSession
 import dev.everframe.TXCapturedUser
+import dev.everframe.config.EverframeConfig
 import dev.everframe.outbox.*
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -36,12 +38,14 @@ class AndroidNativeSignalRuntimeTest {
     }
     private inner class Producer : AndroidNativeSignalProducer {
         var revokes = 0
+        var arms = 0
+        var pauses = 0
         var pauseFailure: Throwable? = null
         override fun generation() = 0L
         override fun arm(epoch: String, key: ByteArray, generation: Long): Boolean {
-            AndroidNativeSignalFiles(context.noBackupFilesDir, JvmOutboxFileOps()).prepare(epoch); return true
+            arms++; AndroidNativeSignalFiles(context.noBackupFilesDir, JvmOutboxFileOps()).prepare(epoch); return true
         }
-        override fun pause() { pauseFailure?.let { throw it } }
+        override fun pause() { pauses++; pauseFailure?.let { throw it } }
         override fun revoke(): Boolean { revokes++; return true }
     }
     private val producer = Producer()
@@ -186,5 +190,27 @@ class AndroidNativeSignalRuntimeTest {
         assertFalse(AndroidNativeSignalRuntime.ready(1))
         assertTrue(AndroidNativeSignalRuntime.finishErase(context))
         assertEquals(0, capsuleFiles()); assertTrue(records().isEmpty())
+    }
+
+    @Test fun `a repeated opt-in in one start keeps the armed owner without pausing or re-arming`() {
+        val gate = Everframe.captureGate
+        Everframe.captureGate = true
+        try {
+            val epoch = Everframe.currentStartEpochVolatile()
+            val session = TXCapturedSession(TXCapturedUser(null, epoch, null), EverframeConfig(appId = "app", sdkKey = "key"), 0, captureConsent = true)
+            val first = AndroidNativeSignalRuntime.requestEnable(epoch)
+            assertTrue(AndroidNativeSignalRuntime.enable(context, session, outbox(), first))
+            val arms = producer.arms; val pauses = producer.pauses
+            val repeat = AndroidNativeSignalRuntime.requestEnable(epoch)
+            assertEquals("a repeat must not fence the armed or in-flight setup", first, repeat)
+            assertTrue(AndroidNativeSignalRuntime.ready(epoch))
+            assertTrue(AndroidNativeSignalRuntime.enable(context, session, outbox(), repeat))
+            assertEquals(arms, producer.arms); assertEquals(pauses, producer.pauses); assertEquals(1, capsuleFiles())
+            // Any other command still fences, and the next opt-in arms a new capsule.
+            assertTrue(AndroidNativeSignalRuntime.request() > repeat)
+            assertFalse(AndroidNativeSignalRuntime.ready(epoch))
+            assertTrue(AndroidNativeSignalRuntime.enable(context, session, outbox(), AndroidNativeSignalRuntime.requestEnable(epoch)))
+            assertEquals(arms + 1, producer.arms); assertEquals(1, capsuleFiles())
+        } finally { Everframe.captureGate = gate }
     }
 }

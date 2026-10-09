@@ -656,8 +656,10 @@ object Everframe {
     fun setNativeSignalCaptureEnabled(enabled: Boolean) {
         val (captured, context, command) = stateLock.withLock {
             if (enabled && _publishedStartEpoch != _startEpoch) return
-            Triple(captureSessionSnapshot(), appContext,
-                dev.everframe.crash.AndroidNativeSignalRuntime.request(erase = !enabled))
+            val snapshot = captureSessionSnapshot()
+            Triple(snapshot, appContext,
+                if (enabled) dev.everframe.crash.AndroidNativeSignalRuntime.requestEnable(snapshot.user.startEpoch)
+                else dev.everframe.crash.AndroidNativeSignalRuntime.request(erase = true))
         }
         if (!enabled) {
             txGuardVoid("nativeSignal.disable") { dev.everframe.crash.AndroidNativeSignalRuntime.finishErase(context) }

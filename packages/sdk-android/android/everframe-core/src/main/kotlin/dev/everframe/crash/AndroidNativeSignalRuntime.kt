@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicLong
 internal object AndroidNativeSignalRuntime {
     private val revision = AtomicLong()
     private val erasePending = AtomicBoolean()
+    /** Start epoch of the newest command when it was an opt-in; -1 after a start, disable or kill. */
+    @Volatile private var enabledEpoch = -1
     private val work = Any()
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var controller: AndroidNativeSignalController? = null
@@ -35,7 +37,7 @@ internal object AndroidNativeSignalRuntime {
 
     /** Simulates process death: in-memory ownership and the erase obligation are lost, durable files remain. */
     @VisibleForTesting
-    internal fun __resetForTesting() { synchronized(work) { controller = null; files = null; erasePending.set(false) } }
+    internal fun __resetForTesting() { synchronized(work) { controller = null; files = null; erasePending.set(false); enabledEpoch = -1 } }
 
     /** The process owner exactly as an opt-in or an erase creates it. */
     @VisibleForTesting @androidx.annotation.RequiresApi(26)
@@ -43,10 +45,17 @@ internal object AndroidNativeSignalRuntime {
 
     /** Atomic/native-only fence, safe under the SDK stateLock. */
     fun request(erase: Boolean = false): Long {
+        enabledEpoch = -1
         if (erase) erasePending.set(true)
         val command = revision.incrementAndGet()
         controller?.request(erase)
         return command
+    }
+    /** Opt-in fence under the SDK stateLock. Repeating it in one start keeps the armed or in-flight
+     * setup: capture is not paused and provisioned again. */
+    fun requestEnable(epoch: Int): Long {
+        if (enabledEpoch == epoch && !erasePending.get()) return revision.get()
+        return request().also { enabledEpoch = epoch }
     }
     fun ready(epoch: Int) = !erasePending.get() && controller?.ready(epoch) == true
     private fun mainProcess(context: Context): Boolean {
@@ -83,6 +92,7 @@ internal object AndroidNativeSignalRuntime {
         if (revision.get() != command || !captured.captureConsent || captured.config?.capture?.crash != true) return@synchronized false
         val owner = owner(context)
         if (!finishErase(context) || !gate.isAllowed()) return@synchronized false
+        if (owner.ready(epoch)) return@synchronized true // A repeated opt-in keeps this start's armed owner.
         val localCommand = owner.request()
         owner.enable(localCommand, epoch, gate, {
             val device = DeviceMetadata.collect(context)
