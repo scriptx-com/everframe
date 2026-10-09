@@ -1,0 +1,29 @@
+packages/sdk-ios/README.md
+  s_360d9eb003c487::t_9f207ff8c06f66 105-109
+  s_360d9eb003c487::t_cd21c08efd7ccb 133-136
+  s_360d9eb003c487::t_ad30528d114daf 78-84
+  s_360d9eb003c487::t_cc5a9a8bfeb7e7 162-166
+  s_360d9eb003c487::t_f5bde59ebab1f5 110,167-168
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_371f37bc650210 140-141
+packages/sdk-ios/crash-recorder/README.md
+  s_360d9eb003c487::t_ec7163bc81c732 10,12,184,192-195,211-213
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/include/EverframeCrashRecorder.h
+  s_360d9eb003c487::t_66b959a2f12aa2 45-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c78486f48317d171467bde496eb2037f27caca34",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
