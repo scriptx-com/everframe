@@ -9,6 +9,7 @@ import { Readable } from "node:stream";
 import { afterEach, expect, it } from "vitest";
 import { collectDsymBuild } from "../src/dsym.js";
 import { uploadCollectedBuild } from "../src/upload.js";
+import { verifyDsymFile } from "../src/upload-snapshot.js";
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(
@@ -131,3 +132,17 @@ it("closes and removes a snapshot when the receiver rejects before reading", asy
     access(String((body as Readable & { path: string }).path)),
   ).rejects.toThrow();
 });
+it("refuses a declared size over 512 MiB even when the bytes match", async () => {
+  const f = await fixture();
+  await writeFile(f.path, "");
+  await truncate(f.path, 512 * 1024 * 1024 + 1);
+  const hash = createHash("sha256");
+  const zeros = Buffer.alloc(1024 * 1024);
+  for (let i = 0; i < 512; i++) hash.update(zeros);
+  await expect(
+    verifyDsymFile(f.path, {
+      mapBytes: 512 * 1024 * 1024 + 1,
+      mapSha256: hash.update(Buffer.alloc(1)).digest("hex"),
+    }),
+  ).rejects.toThrow("source_map_changed");
+}, 30000);

@@ -137,6 +137,34 @@ describe("raw dSYM collection and upload", () => {
     ).toBe("ready");
     expect(local.manifest.artifacts[0]?.mapBytes).toBe(64 * 1024 * 1024 + 1);
   });
+  it("collects and verifies a ready raw DWARF file of exactly 512 MiB", async () => {
+    const f = await fixture();
+    await truncate(f.path, 512 * 1024 * 1024);
+    const local = await collectDsymBuild({ dwarfPath: f.path });
+    expect(local.manifest.artifacts[0]?.mapBytes).toBe(512 * 1024 * 1024);
+    const fetcher = vi.fn(async () =>
+      Response.json({
+        buildUuid: "build",
+        status: "ready",
+        artifacts: [{ artifactUuid: "artifact", url, available: true }],
+      })
+    );
+    expect(
+      (
+        await uploadCollectedBuild(
+          local,
+          {
+            appId: "app",
+            root: f.root,
+            apiUrl: "http://127.0.0.1/api/v1",
+            token: "test-token",
+            deleteAfterUpload: false,
+          },
+          { fetch: fetcher }
+        )
+      ).status
+    ).toBe("ready");
+  }, 30000);
   it("rejects changed bytes and destructive cleanup", async () => {
     const f = await fixture();
     const local = await collectDsymBuild({ dwarfPath: f.path });

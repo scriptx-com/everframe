@@ -570,6 +570,19 @@ it("does not block on a FIFO masquerading as a binary", async () => {
     "invalid_input_file"
   );
 });
+it("accepts a matching raw DWARF file of exactly 512 MiB", async () => {
+  const f = await fixture(),
+    path = await dsym(f.root, "App");
+  await truncate(path, 512 * 1024 * 1024);
+  const result = await collectAppleBuild({
+    binaries: [f.binary],
+    dsymDir: f.root,
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.artifacts[0]!.manifest.artifacts[0]!.mapBytes).toBe(
+    512 * 1024 * 1024
+  );
+}, 30000);
 it("rejects oversized raw DWARF and more than eight selected files", async () => {
   const f = await fixture(),
     path = await dsym(f.root, "App");
