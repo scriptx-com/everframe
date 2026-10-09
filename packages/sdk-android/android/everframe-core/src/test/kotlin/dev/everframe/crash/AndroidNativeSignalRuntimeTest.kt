@@ -36,11 +36,12 @@ class AndroidNativeSignalRuntimeTest {
     }
     private inner class Producer : AndroidNativeSignalProducer {
         var revokes = 0
+        var pauseFailure: Throwable? = null
         override fun generation() = 0L
         override fun arm(epoch: String, key: ByteArray, generation: Long): Boolean {
             AndroidNativeSignalFiles(context.noBackupFilesDir, JvmOutboxFileOps()).prepare(epoch); return true
         }
-        override fun pause() {}
+        override fun pause() { pauseFailure?.let { throw it } }
         override fun revoke(): Boolean { revokes++; return true }
     }
     private val producer = Producer()
@@ -123,5 +124,43 @@ class AndroidNativeSignalRuntimeTest {
         AndroidNativeSignalRuntime.request(erase = true)
         assertTrue(AndroidNativeSignalRuntime.finishErase(context))
         assertFalse(root.exists())
+    }
+
+    /** A Keystore whose key loads fail transiently; the outbox reports that as KEY_UNAVAILABLE. */
+    private class FlakyKeys(private val keys: OutboxKeyProvider) : OutboxKeyProvider by keys {
+        @Volatile var failing = false
+        override fun loadGeneration(generation: String): javax.crypto.SecretKey {
+            if (failing) throw java.security.KeyStoreException("transient keystore failure")
+            return keys.loadGeneration(generation)
+        }
+    }
+    @Test fun `replacement retirement storage failure never reaches the host's uncaught exception handler`() {
+        val flaky = FlakyKeys(keys)
+        AndroidNativeSignalRuntime.__keysForTesting = flaky
+        armed()
+        flaky.failing = true
+        val uncaught = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, error -> uncaught.set(error) }
+        try {
+            runBlocking { AndroidNativeSignalRuntime.retireAfterStart(AndroidNativeSignalRuntime.request())!!.join() }
+        } finally { Thread.setDefaultUncaughtExceptionHandler(previous) }
+        assertNull("SDK storage failure escaped to the host", uncaught.get())
+        assertTrue(dev.everframe.envelope.InternalLogger.drainFailures().any { it.label == "nativeSignal.retire" })
+        assertFalse(AndroidNativeSignalRuntime.ready(1))
+        // The retained owner is erased once storage recovers.
+        flaky.failing = false
+        AndroidNativeSignalRuntime.request(erase = true)
+        assertTrue(AndroidNativeSignalRuntime.finishErase(context))
+        assertEquals(0, capsuleFiles()); assertTrue(records().isEmpty())
+    }
+    @Test fun `a mismatched optional module's pause cannot escape start or kill fences`() {
+        armed()
+        producer.pauseFailure = NoSuchMethodException("pause") // reflective bridge from another module version
+        val start = AndroidNativeSignalRuntime.request()
+        assertTrue(AndroidNativeSignalRuntime.request(erase = true) > start)
+        assertFalse(AndroidNativeSignalRuntime.ready(1))
+        assertTrue(AndroidNativeSignalRuntime.finishErase(context))
+        assertEquals(0, capsuleFiles()); assertTrue(records().isEmpty())
     }
 }

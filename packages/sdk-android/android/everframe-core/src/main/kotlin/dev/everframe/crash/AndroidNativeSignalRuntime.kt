@@ -11,6 +11,7 @@ import dev.everframe.TXCapturedSession
 import dev.everframe.capture.DeviceMetadata
 import dev.everframe.config.IngestEndpoint
 import dev.everframe.envelope.EnvelopeBuilder
+import dev.everframe.envelope.txGuardVoid
 import dev.everframe.outbox.*
 import kotlinx.coroutines.*
 import java.io.File
@@ -122,8 +123,12 @@ internal object AndroidNativeSignalRuntime {
     fun retireAfterStart(command: Long): Job? {
         if (controller == null) return null
         return cleanupScope.launch {
-            synchronized(work) {
-                if (revision.get() == command) controller?.retireCurrent()
+            // Keystore or storage failure keeps the paused owner for a later enable or erase;
+            // it must never reach the host's uncaught-exception handler.
+            txGuardVoid("nativeSignal.retire") {
+                synchronized(work) {
+                    if (revision.get() == command) controller?.retireCurrent()
+                }
             }
         }
     }

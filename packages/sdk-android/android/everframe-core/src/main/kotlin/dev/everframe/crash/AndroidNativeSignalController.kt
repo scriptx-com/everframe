@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.crash
 
+import dev.everframe.envelope.txGuardVoid
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
 import java.util.UUID
@@ -38,7 +39,8 @@ internal class AndroidNativeSignalController(
         val command = revision.incrementAndGet()
         readyCommand = -1
         if (erase) owner?.engine?.invalidate()
-        producer.pause()
+        // A mismatched optional module's reflective pause must not break the start, kill or erase fence.
+        txGuardVoid("nativeSignal.pause") { producer.pause() }
         return command
     }
 
