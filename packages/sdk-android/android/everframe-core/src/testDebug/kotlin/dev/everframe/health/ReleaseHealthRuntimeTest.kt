@@ -6,6 +6,7 @@
 package dev.everframe.health
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.os.Looper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.testing.TestLifecycleOwner
@@ -282,5 +283,33 @@ class ReleaseHealthRuntimeTest {
         assertTrue("a killed session reached the journal", records().isEmpty())
         assertTrue("a killed session was offered for delivery", sent.isEmpty())
         assertNull("kill() left an OS context registered", platform.registrations.last())
+    }
+
+    @Test fun `kill erases the journal before it returns so a relaunch sends nothing captured before it`() {
+        start()
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        val killed = pointer()!!.exposureId
+        assertTrue("the session start was never offered for delivery", sent.any { it.exposureId() == killed })
+        // Journal IO off this thread now waits: a process that dies as kill() returns keeps
+        // exactly the journal and keys that exist at that moment.
+        hold = CountDownLatch(1)
+        Everframe.kill()
+        val image = File(storage, "relaunch")
+        File(context.noBackupFilesDir, "dev.everframe/release-health-v1").copyRecursively(File(image, "dev.everframe/release-health-v1"))
+        val survivingKeys = JceTestOutboxKeyProvider(synchronized(keystore) { HashMap(keystore) })
+        hold!!.countDown()
+        ReleaseHealthRuntime.__resetForTesting()
+        ReleaseHealthRuntime.__keysForTesting = survivingKeys
+        val foreground = TestLifecycleOwner(Lifecycle.State.STARTED)
+        ReleaseHealthRuntime.__lifecycleOwnerForTesting = foreground
+        sent.clear()
+        val relaunched = object : ContextWrapper(context) {
+            override fun getApplicationContext(): Context = this
+            override fun getNoBackupFilesDir(): File = image
+        }
+        start(relaunched, foreground)
+        assertTrue("the relaunch opened no session", Everframe.isReleaseHealthReady())
+        assertTrue("the relaunch offered no session for delivery", sent.isNotEmpty())
+        assertTrue("a record captured before kill() was sent after it", sent.none { it.exposureId() == killed })
     }
 }

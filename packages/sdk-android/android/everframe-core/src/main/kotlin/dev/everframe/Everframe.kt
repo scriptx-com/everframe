@@ -942,7 +942,7 @@ object Everframe {
         // that publishes or unpublishes process-global state is gated on it.
         val stillNewest = { stateLock.withLock { _startEpoch == epoch } }
         txGuardVoid("start.releaseHealthBoundary") {
-            // Health erasure runs on IO after the memory-only authorization fence.
+            // Only an explicit disabled configuration waits for erasure on this thread.
             dev.everframe.health.ReleaseHealthRuntime.boundary(context.applicationContext, epoch,
                 erase = config.releaseHealth != null)
         }

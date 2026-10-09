@@ -63,13 +63,14 @@ internal object ReleaseHealthRuntime {
     }
     fun readyPointer(epoch: Int) = controller.readyPointer(epoch)
 
+    /** Disabled boundaries attempt durable erasure on the calling thread, outside the SDK authorization
+     * lock, before kill() or a disabled start returns. A start without health configuration passes
+     * [erase] false and leaves that erasure to [start]. */
     fun boundary(application: Context?, epoch: Int, erase: Boolean = true) {
         if (application != null) context = application.applicationContext
         if (!erase) return
         val request = controller.currentRequest(epoch) ?: return
-        if (!request.enabled) scope.launch {
-            txGuardSuspend("releaseHealth.erase") { controller.finishBoundary(request) }
-        }
+        if (!request.enabled) controller.finishBoundary(request)
     }
 
     /** IO initialization registers lifecycle ownership; it never assumes a foreground app. */
