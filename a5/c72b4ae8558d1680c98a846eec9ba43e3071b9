@@ -1,0 +1,29 @@
+packages/sdk-android/native/README.md
+  s_360d9eb003c487::t_078d53503f3cc5 45-49,53
+packages/sdk-android/native/build.py
+  s_360d9eb003c487::t_a3e053a8d2e28c 61-66,88
+packages/sdk-android/native/source-pins.json
+  s_360d9eb003c487::t_00507cb8d521f7 36
+packages/sdk-android/native/tests/test_build.py
+  s_360d9eb003c487::t_ece9707d982dcd 6,19-20,49-75
+packages/sdk-android/native/toolchain-pins.json
+  s_360d9eb003c487::t_7fc43d34a95136 20-23
+packages/sdk-android/tests/native-release-host/app/build.gradle.kts
+  s_360d9eb003c487::t_e192c12703f00d 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5c72b4ae8558d1680c98a846eec9ba43e3071b9",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
