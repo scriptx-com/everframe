@@ -37,6 +37,29 @@ class ReleaseHealthProducerTest {
     private fun entries() = store().snapshotTokens().mapNotNull { store().readIfPresent(it)?.entry }
     private fun record(entry: OutboxEntry) = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
 
+    @Test fun `provided subjects stay frozen through offline identity and bundle rotation`() {
+        val first = producer(config = ReleaseHealthConfig("native", "bundle-a", ReleaseHealthBundleStatus.KNOWN, userId = "opaque-a"))
+        assertTrue(first.start()); val a = first.readyPointer()!!; assertTrue(first.end())
+        val next = producer(config = ReleaseHealthConfig("native", "bundle-b", ReleaseHealthBundleStatus.KNOWN, userId = "opaque-b"))
+        assertTrue(next.start()); assertEquals(a.processLaunchId, next.readyPointer()!!.processLaunchId)
+        val records = entries().map(::record)
+        assertEquals(3, records.size)
+        for (body in records) {
+            assertEquals(2, body["schemaVersion"]!!.jsonPrimitive.int)
+            val exposure = body["exposure"]!!.jsonObject
+            assertEquals("launch-v1", exposure["sessionPolicy"]!!.jsonPrimitive.content)
+            val expected = if (exposure["loadedBuildId"]!!.jsonPrimitive.content == "bundle-a") "opaque-a" else "opaque-b"
+            assertEquals(buildJsonObject { put("kind", "provided"); put("id", expected) }, exposure["subject"])
+        }
+    }
+    @Test fun `invalid supplied subject never publishes readiness`() {
+        for (id in listOf("", " ", "x".repeat(129), "a\u0000", "\ud800")) {
+            val owner = producer(config = ReleaseHealthConfig("native", userId = id))
+            assertFalse(owner.start()); assertNull(owner.readyPointer())
+        }
+        assertTrue(entries().isEmpty())
+        assertTrue(producer(config = ReleaseHealthConfig("native", userId = "x".repeat(128))).start())
+    }
     @Test fun `readiness requires a committed anonymous start and encrypted route`() {
         val owner = producer()
         assertNull(owner.readyPointer())
@@ -45,6 +68,8 @@ class ReleaseHealthProducerTest {
         val entry = entries().single()
         val body = record(entry)
         assertEquals("start", body["phase"]!!.jsonPrimitive.content)
+        assertEquals(2, body["schemaVersion"]!!.jsonPrimitive.int)
+        assertEquals(buildJsonObject { put("kind", "anonymous") }, body["exposure"]!!.jsonObject["subject"])
         assertEquals(0, body["sequence"]!!.jsonPrimitive.int)
         val exposure = body["exposure"]!!.jsonObject
         assertEquals(pointer.exposureId, exposure["exposureId"]!!.jsonPrimitive.content)

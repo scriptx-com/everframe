@@ -52,9 +52,11 @@ try {
   }
   const queued = n => waitRecords(page, n);
   async function settle() { await page.waitForTimeout(150); }
-  await load(); await mount({ health: true, build: 'build-A', strict: true, mutateOnMount: true });
+  await load(); await mount({ health: true, build: 'build-A', userId: 'opaque-a', strict: true, mutateOnMount: true });
   const [first] = await queued(1);
   assert.equal(first.exposure.loadedBuildId, 'build-A');
+  assert.equal(first.schemaVersion, 2);
+  assert.deepEqual(first.exposure.subject, { kind: 'provided', id: 'opaque-a' });
   await page.evaluate(() => { window.host.identify(); window.host.rerender(); });
   await settle(); assert.equal((await queued(1))[0].recordId, first.recordId);
   await page.evaluate(() => window.host.unmount()); await queued(2);
@@ -136,7 +138,8 @@ try {
   await routes.close(); checks.push('key-isolation-and-disabled-purge', 'kill-without-opt-in-purges-prior-route', 'explicit-kill-after-unmount');
   assert.equal(browserErrors.length, 0, browserErrors.join('\n'));
   for (const { record } of attempts) {
-    assert.equal(record.exposure.subject, 'anonymous_exposure');
+    assert.equal(record.schemaVersion, 2);
+    assert.deepEqual(record.exposure.subject, record.exposure.loadedBuildId === 'build-A' ? { kind: 'provided', id: 'opaque-a' } : { kind: 'anonymous' });
     assert(!JSON.stringify(record).includes('must-not-enter-health'));
     for (const key of ['outcome', 'user', 'identityToken', 'sessionId']) assert(!(key in record));
   }

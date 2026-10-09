@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { webcrypto } from 'node:crypto';
+import { ReleaseHealthRecordSchema } from '@everframe/protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HealthJournalError } from '../src/release-health/journal.js';
 import { setupReleaseHealth } from '../src/release-health/runtime.js';
@@ -80,5 +82,52 @@ describe('release health readiness', () => {
     await vi.waitFor(() => expect(rows).toEqual([]));
     expect(await handle.diagnostics()).toMatchObject({ state: 'active', exposure: null, queued: 0, priorQueueLosses: 1 });
     await handle.stop();
+  });
+});
+
+
+describe('frozen launch session subjects', () => {
+  function queued() {
+    vi.stubGlobal('crypto', webcrypto);
+    vi.stubGlobal('fetch', async () => { throw new Error('offline'); });
+    const records: any[] = [];
+    journal.double = {
+      activate: async () => ({ generation: 'current', losses: 0 }),
+      list: async () => ({ rows: records.map((record, i) => ({ key: String(i), record })), losses: 0 }),
+      append: async (_route: string, _generation: string, record: unknown) => { records.push(ReleaseHealthRecordSchema.parse(record)); },
+      acknowledge: async () => undefined,
+      revoke: async () => { records.length = 0; },
+    };
+    return records;
+  }
+  it('emits v2 anonymous sessions by default without inventing a user', async () => {
+    const rows = queued();
+    const handle = setupReleaseHealth({ apiKey: 'pk_anonymous', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
+    await handle.ready; await handle.stop();
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ schemaVersion: 2, exposure: { sessionPolicy: 'launch-v1', subject: { kind: 'anonymous' } } });
+    expect(rows[1].exposure).toEqual(rows[0].exposure);
+  });
+  it('freezes identity before awaits and preserves launch across account and bundle rotation', async () => {
+    const rows = queued();
+    const config = { apiKey: 'pk_subject', releaseHealth: { enabled: true, loadedBuildId: 'bundle-a', userId: 'opaque-a' } };
+    const first = setupReleaseHealth(config, 'https://example.test', 'test');
+    config.releaseHealth.userId = 'mutated'; config.releaseHealth.loadedBuildId = 'mutated';
+    await first.ready; await first.stop();
+    const next = setupReleaseHealth({ ...config, releaseHealth: { enabled: true, userId: 'opaque-b', loadedBuildId: 'bundle-b' } }, 'https://example.test', 'test');
+    await next.ready;
+    expect(rows).toHaveLength(3);
+    expect(rows[0].exposure.subject).toEqual({ kind: 'provided', id: 'opaque-a' });
+    expect(rows[1].exposure).toEqual(rows[0].exposure);
+    expect(rows[2].exposure).toMatchObject({ pageLaunchId: rows[0].exposure.pageLaunchId, loadedBuildId: 'bundle-b', subject: { kind: 'provided', id: 'opaque-b' } });
+    expect(rows[2].exposure.exposureId).not.toBe(rows[0].exposure.exposureId);
+    await next.revoke(); expect(rows).toEqual([]);
+  });
+  it.each(['', ' ', 'x'.repeat(129), 'a\u0000', '\ud800'])('refuses invalid subject %j before publishing readiness', async userId => {
+    const rows = queued();
+    const config = { apiKey: 'pk_invalid', releaseHealth: { enabled: true, userId } };
+    const handle = setupReleaseHealth(config, 'https://example.test', 'test');
+    expect(await handle.ready).toMatchObject({ state: 'unavailable', exposure: null });
+    expect(rows).toEqual([]); await handle.stop();
   });
 });

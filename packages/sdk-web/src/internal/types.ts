@@ -7,7 +7,7 @@ import type { HostVisualCapture } from '../capture/host-visual.js';
 export interface WebEverframeConfig extends EverframeConfig {
   /** Opt-in anonymous release exposures for imperative init; independent of replay/vitals.
    * Supply only the actually executed bundle ID. Explicit false erases its pending journal. */
-  releaseHealth?: { enabled: boolean; loadedBuildId?: string };
+  releaseHealth?: { enabled: boolean; loadedBuildId?: string; userId?: string };
   /** Renderer host attribution; absent keeps ordinary web identity. */
   sdkName?: 'everframe-flutter' | 'everframe-kmp';
   /** Host package version when sdkName names a renderer host. */
