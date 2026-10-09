@@ -19,18 +19,20 @@ function Controls({ killOnMount, mutateOnMount, mutateConsentOnMount }: {
     if (mutateOnMount) {
       config.apiKey = 'mutated-key';
       config.releaseHealth!.loadedBuildId = 'mutated-build';
+      config.releaseHealth!.userId = 'mutated-subject';
     }
     if (mutateConsentOnMount) { config.disabled = true; config.releaseHealth!.enabled = false; }
     if (killOnMount) client!.kill();
   }, []);
   return <button id="alive">Host mounted</button>;
 }
-export function mount(options: { apiKey?: string; build?: string; strict?: boolean; killOnMount?: boolean;
+export function mount(options: { apiKey?: string; build?: string; userId?: string; strict?: boolean; killOnMount?: boolean;
   mutateOnMount?: boolean; mutateConsentOnMount?: boolean; health?: boolean; disabled?: boolean } = {}) {
   if (root) throw new Error('Unmount the previous host first');
   config = { apiKey: options.apiKey ?? 'pk_test_a', disabled: options.disabled === true, vitals: { enabled: false },
     ...(options.health === undefined ? {} : { releaseHealth: { enabled: options.health,
-      ...(options.build === undefined ? {} : { loadedBuildId: options.build }) } }) };
+      ...(options.build === undefined ? {} : { loadedBuildId: options.build }),
+      ...(options.userId === undefined ? {} : { userId: options.userId }) } }) };
   root = createRoot(document.getElementById('root')!);
   strict = options.strict === true;
   const tree = <EverframeProvider config={config}><Controls {...options}/></EverframeProvider>;

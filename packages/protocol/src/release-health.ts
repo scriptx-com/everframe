@@ -55,16 +55,16 @@ export const IOSReleaseHealthExposureSchema = z.object({
     priorQueueLosses: z.null(), queueLossAccounting: z.literal('unavailable'),
   }).strict(),
 }).strict().refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
-export const ReleaseHealthExposureSchema = z.discriminatedUnion('platform', [
+export const ReleaseHealthExposureV1Schema = z.discriminatedUnion('platform', [
   WebReleaseHealthExposureSchema, AndroidReleaseHealthExposureSchema, IOSReleaseHealthExposureSchema,
 ]);
 
 const common = {
-  schemaVersion: z.literal(1), recordId: uuid, exposure: ReleaseHealthExposureSchema,
+  schemaVersion: z.literal(1), recordId: uuid, exposure: ReleaseHealthExposureV1Schema,
   capturedAt: timestamp,
 };
 /** `end` records an explicit boundary; missing/end records imply no crash or health outcome. */
-export const ReleaseHealthRecordSchema = z.discriminatedUnion('phase', [
+export const ReleaseHealthRecordV1Schema = z.discriminatedUnion('phase', [
   z.object({ ...common, phase: z.literal('start'), sequence: z.literal(0), elapsedMs: z.literal(0) }).strict()
     .refine(value => value.capturedAt === value.exposure.startedAt, { message: 'Start must use its frozen timestamp' }),
   z.object({ ...common, phase: z.literal('end'), sequence: z.literal(1),
@@ -73,6 +73,36 @@ export const ReleaseHealthRecordSchema = z.discriminatedUnion('phase', [
   }).strict().refine(value => value.exposure.platform === 'web' || value.endReason === 'sdk_stop',
     { message: 'Native segments cannot end at a web page boundary' }),
 ]);
+/** Explicit launch-session accounting; supplied subjects are self-declared opaque IDs. */
+export const ReleaseHealthSubjectSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('anonymous') }).strict(),
+  z.object({ kind: z.literal('provided'), id: text(128) }).strict(),
+]);
+const session = { sessionPolicy: z.literal('launch-v1'), subject: ReleaseHealthSubjectSchema };
+export const WebReleaseHealthExposureV2Schema = WebReleaseHealthExposureSchema.extend(session);
+// Reapply bundle consistency to the new shape; keep the v1 shape and parse order intact.
+export const AndroidReleaseHealthExposureV2Schema = z.object({ ...AndroidReleaseHealthExposureSchema.shape, ...session }).strict()
+  .refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
+export const IOSReleaseHealthExposureV2Schema = z.object({ ...IOSReleaseHealthExposureSchema.shape, ...session }).strict()
+  .refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
+export const ReleaseHealthExposureV2Schema = z.discriminatedUnion('platform', [
+  WebReleaseHealthExposureV2Schema, AndroidReleaseHealthExposureV2Schema, IOSReleaseHealthExposureV2Schema,
+]);
+const commonV2 = { schemaVersion: z.literal(2), recordId: uuid,
+  exposure: ReleaseHealthExposureV2Schema, capturedAt: timestamp };
+export const ReleaseHealthRecordV2Schema = z.discriminatedUnion('phase', [
+  z.object({ ...commonV2, phase: z.literal('start'), sequence: z.literal(0), elapsedMs: z.literal(0) }).strict()
+    .refine(value => value.capturedAt === value.exposure.startedAt, { message: 'Start must use its frozen timestamp' }),
+  z.object({ ...commonV2, phase: z.literal('end'), sequence: z.literal(1),
+    elapsedMs: z.number().int().min(0).max(31 * 86_400_000), endReason: z.enum(['sdk_stop', 'page_hide']),
+  }).strict().refine(value => value.exposure.platform === 'web' || value.endReason === 'sdk_stop',
+    { message: 'Native segments cannot end at a web page boundary' }),
+]);
+export const ReleaseHealthExposureSchema = z.union([ReleaseHealthExposureV1Schema, ReleaseHealthExposureV2Schema]);
+export const ReleaseHealthRecordSchema = z.union([ReleaseHealthRecordV1Schema, ReleaseHealthRecordV2Schema]);
+export type WebReleaseHealthExposureV2 = z.infer<typeof WebReleaseHealthExposureV2Schema>;
+export type AndroidReleaseHealthExposureV2 = z.infer<typeof AndroidReleaseHealthExposureV2Schema>;
+export type IOSReleaseHealthExposureV2 = z.infer<typeof IOSReleaseHealthExposureV2Schema>;
 export type ReleaseHealthRecord = z.infer<typeof ReleaseHealthRecordSchema>;
 export type ReleaseHealthExposure = z.infer<typeof ReleaseHealthExposureSchema>;
 export type NativeExposurePointer = z.infer<typeof NativeExposurePointerSchema>;

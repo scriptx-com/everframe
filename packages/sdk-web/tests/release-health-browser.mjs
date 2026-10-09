@@ -46,14 +46,15 @@ try {
     }, { build, key, extra });
   }
   await load();
-  const first = await start('build-A'); assert.equal(first.state, 'active'); assert.equal(first.queued, 1);
+  const first = await start('build-A', 'pk_test_a', { releaseHealth: { enabled: true, loadedBuildId: 'build-A', userId: 'opaque-a' } }); assert.equal(first.state, 'active'); assert.equal(first.queued, 1);
   const firstToken = first.exposure;
   await page.evaluate(async () => { window.handle.destroy(); await new Promise(r => setTimeout(r, 100)); });
   await load(); offline = false;
   const second = await start('build-B');
   await page.evaluate(() => window.handle.releaseHealth.flush());
   const old = received.filter(row => row.record.exposure.exposureId === firstToken.exposureId);
-  assert.equal(old.length, 2); assert(old.every(row => row.record.exposure.loadedBuildId === 'build-A'));
+  assert.equal(old.length, 2); assert(old.every(row => row.record.schemaVersion === 2));
+  assert(old.every(row => row.record.exposure.subject.kind === 'provided' && row.record.exposure.subject.id === 'opaque-a')); assert(old.every(row => row.record.exposure.loadedBuildId === 'build-A'));
   assert.equal(second.exposure.loadedBuildId, 'build-B'); assert.notEqual(second.exposure.pageLaunchId, firstToken.pageLaunchId);
   assert(!received.some(row => 'outcome' in row.record));
   // The next project must not drain a prior project's frozen route.
@@ -86,6 +87,25 @@ try {
   await page.evaluate(() => window.handle.destroy()); await load();
   await start('reenabled-A'); await page.evaluate(() => window.handle.releaseHealth.flush());
   assert.deepEqual(delivered(beforeDisabled), ['reenabled-A:start']);
+  // An upgraded producer delivers records that were persisted under the original wire version.
+  await page.evaluate(() => window.handle.destroy()); await load();
+  const legacyId = await page.evaluate(async base => {
+    const apiKey = 'pk_legacy';
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([base, apiKey])));
+    const route = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    const journal = await window.sdk.openReleaseHealthJournal(); const { generation } = await journal.activate(route);
+    const now = new Date().toISOString(), recordId = crypto.randomUUID();
+    await journal.append(route, generation, { schemaVersion: 1, recordId, capturedAt: now, phase: 'start', sequence: 0, elapsedMs: 0,
+      exposure: { exposureId: crypto.randomUUID(), pageLaunchId: crypto.randomUUID(), startedAt: now,
+        platform: 'web', sdkVersion: 'previous', nativeRelease: 'not_applicable', loadedBuildId: 'legacy-build',
+        subject: 'anonymous_exposure', coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: 0 } } });
+    journal.close();
+    window.handle = window.sdk.init({ apiKey, releaseHealth: { enabled: true, loadedBuildId: 'upgraded-build' } });
+    await window.handle.releaseHealth.ready; await window.handle.releaseHealth.flush();
+    return recordId;
+  }, base);
+  assert.equal(received.find(row => row.record.recordId === legacyId)?.record.schemaVersion, 1);
+  assert(received.some(row => row.key === 'Bearer pk_legacy' && row.record.schemaVersion === 2));
   // Two real tabs share the same IndexedDB transactions and bounded global budget.
   const isolated = await browser.newContext();
   const left = await isolated.newPage(), right = await isolated.newPage();
@@ -231,6 +251,6 @@ try {
   assert.deepEqual({ optOutDatabases, fullQueue }, { optOutDatabases: [], fullQueue: { state: 'active', exposure: null,
     error: 'Release health journal: capacity', sent: 256, queued: 0, priorQueueLosses: 1 } });
   await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: await browser.version(), received,
-    checks: ['actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'default-off-kill-purges-prior-route', 'explicit-kill-after-destroy', 'failed-purge-reenable-barrier', 'opt-out-no-storage', 'full-queue-drains'] }, null, 2));
+    checks: ['v1-queue-upgrade-delivery', 'frozen-explicit-subject', 'actual-init-replay-vitals-off','offline-reload-frozen-build','fresh-page-launch','cross-project-route', 'privacy-kill', 'disabled-purge', 'concurrent-tabs-budget', 'immutable-duplicate', 'stale-generation', 'expiry-loss', 'immediate-kill', 'default-off-kill-purges-prior-route', 'explicit-kill-after-destroy', 'failed-purge-reenable-barrier', 'opt-out-no-storage', 'full-queue-drains'] }, null, 2));
   console.log('PASS: actual init, real IndexedDB, offline reload, frozen build/route, privacy kill and disabled purge');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

@@ -95,7 +95,7 @@ data class EverframeConfig(
      * The crash path validates the wire grammar and omits invalid values.
      */
     val r8MappingId: String? = null,
-    /** Anonymous, durable SDK exposure segments. Explicit opt-in; independent of replay/vitals. */
+    /** Durable SDK exposure segments, anonymous unless [ReleaseHealthConfig.userId] is set. Explicit opt-in; independent of replay/vitals. */
     val releaseHealth: ReleaseHealthConfig? = null,
 ) {
     /** Preserve the previous Java constructor and Kotlin default-argument descriptor. */

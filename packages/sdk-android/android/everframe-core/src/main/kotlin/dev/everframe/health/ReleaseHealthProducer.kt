@@ -38,7 +38,12 @@ internal class ReleaseHealthProducer(
         put("platform", "android"); put("sdkVersion", sdkVersion)
         putJsonObject("nativeRelease") { put("buildId", config.nativeBuildId) }
         put("loadedBuildId", config.loadedBuildId?.let(::JsonPrimitive) ?: JsonNull)
-        put("loadedBundleStatus", config.loadedBundleStatus.wireValue); put("subject", "anonymous_exposure")
+        put("loadedBundleStatus", config.loadedBundleStatus.wireValue); put("sessionPolicy", "launch-v1")
+        putJsonObject("subject") {
+            val id = config.userId
+            put("kind", if (id == null) "anonymous" else "provided")
+            if (id != null) put("id", id)
+        }
         putJsonObject("coverage") { put("policy", "android-sdk-segment-v1"); put("sampleRate", 1)
             put("priorQueueLosses", JsonNull); put("queueLossAccounting", "unavailable") }
     }
@@ -51,7 +56,7 @@ internal class ReleaseHealthProducer(
         started && !ended && currentAuthorization.isAllowed() && queue.hasCurrentLease()
     }
     @Synchronized fun start(): Boolean {
-        if (ended || !config.enabled || !pointer.valid() || !validHealthText(sdkVersion, 64) || !currentAuthorization.isAllowed()) return false
+        if (ended || !config.enabled || (config.userId != null && (!validHealthText(config.userId, 128) || config.userId.replace("\ufeff", "").isBlank())) || !pointer.valid() || !validHealthText(sdkVersion, 64) || !currentAuthorization.isAllowed()) return false
         return try {
             prune()
             queue.enqueueSync(startEntry, currentAuthorization)
@@ -73,7 +78,7 @@ internal class ReleaseHealthProducer(
     private fun entry(end: Boolean, capturedMs: Long, elapsedMs: Long): OutboxEntry {
         val id = UUID.randomUUID().toString()
         val bytes = buildJsonObject {
-            put("schemaVersion", 1); put("recordId", id); put("exposure", exposure)
+            put("schemaVersion", 2); put("recordId", id); put("exposure", exposure)
             put("capturedAt", NativeExposurePointer.timestamp(capturedMs)); put("phase", if (end) "end" else "start")
             put("sequence", if (end) 1 else 0); put("elapsedMs", elapsedMs)
             if (end) put("endReason", "sdk_stop")

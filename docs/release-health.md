@@ -1,28 +1,102 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# Web release exposures
+# Release health observations
 
-The imperative `@everframe/web` lifecycle can collect anonymous release exposure observations independently of replay and playback vitals:
+Web, React, Android and iOS can collect release observations independently of
+replay and playback vitals. Collection is opt-in. These producers emit version 2
+records; the receiving service must support that version before they are enabled.
+Older version-1 records already queued locally remain deliverable after upgrade.
 
 ```ts
 const sdk = init({
   apiKey: 'your-sdk-key',
   vitals: { enabled: false },
-  releaseHealth: { enabled: true, loadedBuildId: 'actually-executed-build-id' },
+  releaseHealth: {
+    enabled: true,
+    loadedBuildId: 'actually-executed-build-id',
+    // Optional: a project-local opaque account ID, only with the host's consent.
+    userId: 'opaque-account-id',
+  },
 });
-const readiness = await sdk.releaseHealth.ready;
+await sdk.releaseHealth.ready;
 const diagnostics = await sdk.releaseHealth.diagnostics();
 ```
 
-Pass the ID of the bundle executing this code. Omit the build ID when it is unknown. A fetched update is not a loaded bundle. Changing a bundle requires `destroy()` and a new `init()`; this creates a new exposure segment while preserving the page-launch identity. The React Provider and native SDKs do not yet implement this option.
+The React Provider accepts the same `releaseHealth` configuration. Remount the
+Provider to change it. Android's `ReleaseHealthConfig` and iOS's
+`ReleaseHealthConfiguration` also accept an optional `userId`; both require the
+native artifact build ID and the status of the actually loaded bundle. Use
+Android's SDK configuration at `start`, or iOS's `setReleaseHealth` API. Keep build
+IDs exact: a downloaded update is not a loaded bundle.
 
-A start is committed to IndexedDB before its exposure token becomes available. Records survive reload and retain their original build and route. The queue holds at most256 records/1MiB for7days; capacity rejection, expiry and terminal rejection are visible through diagnostics and future exposure coverage. A full queue refuses the new start instead of evicting queued records: the producer stays `active` without an exposure, reports the refusal in `error` and `priorQueueLosses`, and keeps delivering so the queue can drain. Unavailable storage is reported as `unavailable`; there is no silent in-memory fallback. Requests time out after10seconds and retry on the next init, online event or explicit `flush()`.
+## Sessions and identity
 
-`destroy()` and `pagehide` attempt to persist an end boundary. A BFCache restore opens another segment. Browser termination can interrupt these asynchronous writes, so missing ends remain unknown. Neither an end nor its absence establishes a healthy or crashed process. Background visibility changes do not end an exposure.
+The `launch-v1` session policy counts one native process lifetime or web document
+lifetime observed by the SDK. Reinitializing the SDK, restoring a page from BFCache
+or changing the loaded OTA bundle creates a new immutable segment within the same
+launch. A new process/document gets a new launch ID. This is a launch session, not
+a foreground engagement session. A session can appear in several build cohorts;
+session and user counts must not be added across cohorts. Reporting windows select
+segments by their start time, then deduplicate launches within each cohort.
 
-`kill()`, `disabled:true` and explicit `releaseHealth.enabled:false` revoke this credential route and erase its queued records. Opting out never creates browser storage: when no journal exists, there is nothing to erase. Requests already handed to the network cannot be recalled reliably. A unique persisted generation prevents older pending work from resuming after revocation. Ordinary `destroy()` preserves offline delivery for the next init. Records for another SDK key or endpoint never drain under the current credentials; after key rotation, records scoped to the old key remain pending until expiry unless explicitly erased under that old route.
+Subjects are anonymous by default. Only the explicit release-health `userId`
+produces an identified subject. `setUser`, verified identity, email, display name,
+reporter, installation and device identifiers are never copied implicitly.
+Supplied IDs must be nonblank, at most 128 UTF-16 units and contain no U+0000–U+001F control
+characters or invalid surrogate sequences. They are self-declared opaque IDs,
+not verified accounts; avoid emails and other direct personal information.
+An invalid ID records nothing: web and React release health is unavailable for
+that initialization or mount (web diagnostics say so), Android release health
+does not become ready, and iOS's `ReleaseHealthConfiguration` initializer throws
+`invalidUserIdentity`.
 
-No user, reporter, install or device identifiers are collected. `exposureId` identifies an observation segment, and `pageLaunchId` identifies this document lifetime. Neither is a person or a native process identifier. Sampling of opted-in segments is1, but SDK opt-in, blocked persistence, offline expiry and unsupported producers make population coverage incomplete. These observations do not provide a crash-free percentage or a reliable user denominator.
+The ID and build are frozen before durable admission. On login, logout, account
+switch or loaded-bundle change, reconfigure/reinitialize release health with the
+new values (omit userId on logout). On web, use `destroy()` and a new `init()`;
+on React, remount the Provider; on Android, call `Everframe.start` again with a
+copied `ReleaseHealthConfig` (a full SDK restart); on iOS, call `setReleaseHealth`
+with a new configuration. Calling `setUser` alone does not change this
+separate identity. Queued starts and ends retain the old snapshot and route.
+Native fatal attribution uses the exact frozen segment pointer, so a crash
+recovered after login is not assigned to the newly logged-in account.
 
-If browser storage rejects privacy erasure, this document retains a revocation barrier across later initialization attempts. A new producer must successfully purge the old route before recording or delivering again. If the entire document exits while every persistent write is failing, the browser cannot retain that erasure intent; the host must preserve its disabled preference and initialize disabled on subsequent loads until storage recovers. `unavailable` diagnostics surface this limitation.
+Reported session/user fractions mean **without a reported fatal crash** in the
+current retained observations. They do not mean confirmed healthy sessions or
+population crash-free rates. Only native crashes and Android Java crash exits
+count as fatal; a launch ended by an ANR or another OS exit counts as without a
+reported fatal crash. Missing outcomes remain unknown; neither an end nor
+its absence proves a healthy/crashed process. Duplicates are deduplicated, while
+late reports, retention and erasure can change the current counts. Anonymous
+subjects never become synthetic users. Web terminal attribution is unsupported,
+so web fatal fractions remain unavailable even when session counts exist.
+
+## Durable delivery and privacy
+
+A web start is committed to IndexedDB before its exposure token becomes available.
+Records survive reload and retain their original build, subject and credential
+route. The queue holds at most256 records/1MiB for7days. A full queue refuses the
+new start, reports capacity and loss diagnostics and keeps draining older records.
+Unavailable storage has no silent in-memory fallback. Requests time out after10s
+and retry on init, an online event or explicit `flush()`.
+
+Web `destroy()` and `pagehide` attempt to persist an end boundary. BFCache restore
+opens a new segment; visibility changes alone do not. Browser termination can
+interrupt asynchronous writes. Native producers likewise persist their start
+before exposing a pointer and retain their frozen records for offline delivery;
+their queue-loss accounting remains unavailable.
+
+Web `kill()`, `disabled:true` and explicit `releaseHealth.enabled:false` revoke the
+credential route and erase its queued records. Native disabling uses the SDK's
+existing release-health consent boundary. Requests already sent cannot reliably
+be recalled. Normal teardown preserves queued delivery. Other SDK keys/endpoints
+do not drain under new credentials; old-key rows remain until expiry or explicit
+erasure under the old route. A persisted generation prevents revoked pending work
+from resuming.
+
+If web storage rejects erasure, the document keeps a revocation barrier until the
+purge succeeds. If the document exits while all persistent writes fail, it cannot
+retain that intent; preserve the disabled preference across future loads until
+storage recovers. Diagnostics expose the unavailable state. SDK opt-in, missing
+outcomes, queue losses and offline expiry keep population coverage incomplete at
+any volume; these observations alone do not enable health-rate alerts.

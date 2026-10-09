@@ -102,3 +102,34 @@ describe('iOS release exposure segments', () => {
     expect(ReleaseHealthRecordSchema.safeParse({ ...end(), exposure: ios().exposure, endReason: 'page_hide' }).success).toBe(false);
   });
 });
+
+describe('version 2 launch sessions', () => {
+  const native = (platform: 'android' | 'ios') => ({ ...androidExposure(), platform,
+    coverage: { ...androidExposure().coverage, policy: `${platform}-sdk-segment-v1` } });
+  const v2 = (platform: 'web' | 'android' | 'ios', subject: unknown = { kind: 'anonymous' }) => ({
+    ...start(), schemaVersion: 2,
+    exposure: { ...(platform === 'web' ? exposure : native(platform)), sessionPolicy: 'launch-v1', subject },
+  });
+  it.each(['web', 'android', 'ios'] as const)('accepts explicit %s launch policy with anonymous or supplied subjects', platform => {
+    for (const subject of [{ kind: 'anonymous' }, { kind: 'provided', id: 'opaque-account-17' }, { kind: 'provided', id: 'x'.repeat(128) }]) {
+      const record = v2(platform, subject);
+      expect(ReleaseHealthRecordSchema.parse(record)).toEqual(record);
+      const stopped = { ...record, phase: 'end', sequence: 1, elapsedMs: 123, endReason: 'sdk_stop' };
+      expect(ReleaseHealthRecordSchema.parse(stopped)).toEqual(stopped);
+    }
+  });
+  it.each(['', ' ', 'x'.repeat(129), 'id\u0000', 'id\u001f', '\ud800', '\ufeff', ' \ufeff\u00a0'])('rejects unsafe supplied identity %j', id => {
+    expect(ReleaseHealthRecordSchema.safeParse(v2('android', { kind: 'provided', id })).success).toBe(false);
+  });
+  it.each(['anonymous_exposure', { kind: 'verified', id: 'a' }, { kind: 'provided' }, { kind: 'anonymous', id: 'a' },
+    { kind: 'provided', id: 'a', email: 'a@example.test' }])('rejects unsupported subject %j', subject => {
+    expect(ReleaseHealthRecordSchema.safeParse(v2('ios', subject)).success).toBe(false);
+  });
+  it('rejects version/policy mismatches without changing v1 records', () => {
+    const record = v2('web');
+    expect(ReleaseHealthRecordSchema.safeParse({ ...record, schemaVersion: 1 }).success).toBe(false);
+    expect(ReleaseHealthRecordSchema.safeParse({ ...start(), schemaVersion: 2 }).success).toBe(false);
+    expect(ReleaseHealthRecordSchema.safeParse({ ...record, exposure: { ...record.exposure, sessionPolicy: 'foreground' } }).success).toBe(false);
+    expect(ReleaseHealthRecordSchema.parse(start())).toEqual(start());
+  });
+});

@@ -62,9 +62,10 @@ struct ReleaseHealthSegment {
         let exposure: [String: Any] = ["exposureId": pointer.exposureID, "processLaunchId": pointer.processLaunchID,
             "startedAt": ReleaseHealthDate.text(pointer.startedAt), "platform": "ios", "sdkVersion": sdkVersion,
             "nativeRelease": ["buildId": configuration.nativeBuildId], "loadedBuildId": configuration.loadedBuildId as Any? ?? NSNull(),
-            "loadedBundleStatus": configuration.loadedBundleStatus.rawValue, "subject": "anonymous_exposure",
+            "loadedBundleStatus": configuration.loadedBundleStatus.rawValue, "sessionPolicy": "launch-v1",
+            "subject": configuration.userId.map { ["kind": "provided", "id": $0] } ?? ["kind": "anonymous"],
             "coverage": ["policy": "ios-sdk-segment-v1", "sampleRate": 1, "priorQueueLosses": NSNull(), "queueLossAccounting": "unavailable"]]
-        var record: [String: Any] = ["schemaVersion": 1, "recordId": id.uuidString.lowercased(), "exposure": exposure,
+        var record: [String: Any] = ["schemaVersion": 2, "recordId": id.uuidString.lowercased(), "exposure": exposure,
             "capturedAt": ReleaseHealthDate.text(captured), "phase": end ? "end" : "start", "sequence": end ? 1 : 0,
             "elapsedMs": end ? Int(min(max(0, (uptime - startedUptime) * 1000), 31 * 86400 * 1000)) : 0]
         if end { record["endReason"] = "sdk_stop" }

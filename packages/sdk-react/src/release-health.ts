@@ -9,6 +9,7 @@ export function createProviderReleaseHealth(config: WebEverframeConfig, sdkVersi
     disabled: config.disabled === true,
     ...(config.releaseHealth ? { releaseHealth: {
       enabled: config.releaseHealth.enabled,
+      ...(config.releaseHealth.userId === undefined ? {} : { userId: config.releaseHealth.userId }),
       ...(config.releaseHealth.loadedBuildId === undefined ? {} : { loadedBuildId: config.releaseHealth.loadedBuildId }),
     } } : {}),
   };

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { WebReleaseHealthExposure, ReleaseHealthRecord } from '@everframe/protocol';
+import { ReleaseHealthSubjectSchema, type WebReleaseHealthExposureV2, type ReleaseHealthRecord } from '@everframe/protocol';
 import { HealthJournalError, openReleaseHealthJournal, type ReleaseHealthJournal } from './journal.js';
 
-export interface ReleaseHealthOptions { enabled: boolean; loadedBuildId?: string }
+export interface ReleaseHealthOptions { enabled: boolean; loadedBuildId?: string; userId?: string }
 export interface ReleaseHealthDiagnostics {
   state: 'disabled' | 'starting' | 'active' | 'stopped' | 'unavailable';
-  exposure: WebReleaseHealthExposure | null;
+  exposure: WebReleaseHealthExposureV2 | null;
   queued: number;
   priorQueueLosses: number;
   error?: string;
@@ -22,7 +22,7 @@ let pageLaunchId: string | undefined;
 const pendingRevocations = new Map<string, symbol>();
 const MAX_REQUEST_MS = 10_000;
 
-/** Init-owned producer. It collects no user or replay data and never assigns outcomes. */
+/** Init-owned producer. It uses only explicit release-health identity and never assigns outcomes. */
 export function setupReleaseHealth(config: {
   apiKey: string; disabled?: boolean; releaseHealth?: ReleaseHealthOptions;
 }, endpoint: string, sdkVersion: string) {
@@ -33,8 +33,9 @@ export function setupReleaseHealth(config: {
   const routeIdentity = JSON.stringify([endpoint, apiKey]);
   if (explicitlyDisabled) pendingRevocations.set(routeIdentity, Symbol());
   const loadedBuildId = config.releaseHealth?.loadedBuildId ?? null;
+  const userId = config.releaseHealth?.userId;
   let state: ReleaseHealthDiagnostics['state'] = enabled ? 'starting' : 'disabled';
-  let exposure: WebReleaseHealthExposure | null = null;
+  let exposure: WebReleaseHealthExposureV2 | null = null;
   let startedMono = 0;
   let error: string | undefined;
   let stopped = false;
@@ -71,17 +72,20 @@ export function setupReleaseHealth(config: {
   }
   async function begin() {
     if (!journal || stopped || revoked || hidden || pendingRevocations.has(routeIdentity)) return;
+    // Refuse an invalid supplied ID before it can reach durable storage;
+    // null, as on Android and iOS, means no supplied ID.
+    const subject = ReleaseHealthSubjectSchema.parse(userId == null ? { kind: 'anonymous' } : { kind: 'provided', id: userId });
     const current = await journal.list(route, generation);
     losses = current.losses;
-    const next: WebReleaseHealthExposure = {
+    const next: WebReleaseHealthExposureV2 = {
       exposureId: crypto.randomUUID(), pageLaunchId: pageLaunchId ??= crypto.randomUUID(),
       startedAt: new Date().toISOString(), platform: 'web', sdkVersion,
-      nativeRelease: 'not_applicable', loadedBuildId, subject: 'anonymous_exposure',
+      nativeRelease: 'not_applicable', loadedBuildId, sessionPolicy: 'launch-v1', subject,
       coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: losses },
     };
     const mono = performance.now();
     try {
-      await journal.append(route, generation, { schemaVersion: 1, recordId: crypto.randomUUID(),
+      await journal.append(route, generation, { schemaVersion: 2, recordId: crypto.randomUUID(),
         exposure: next, phase: 'start', sequence: 0, capturedAt: next.startedAt, elapsedMs: 0 });
     } catch (reason) {
       // The journal counted the refused start as a loss. Only delivery frees a
@@ -95,7 +99,7 @@ export function setupReleaseHealth(config: {
   }
   async function end(reason: 'sdk_stop' | 'page_hide') {
     if (!exposure || !journal || revoked) return;
-    const record: ReleaseHealthRecord = { schemaVersion: 1, recordId: crypto.randomUUID(), exposure,
+    const record: ReleaseHealthRecord = { schemaVersion: 2, recordId: crypto.randomUUID(), exposure,
       phase: 'end', sequence: 1, capturedAt: new Date().toISOString(),
       elapsedMs: Math.min(31 * 86_400_000, Math.max(0, Math.floor(performance.now() - startedMono))), endReason: reason };
     await journal.append(route, generation, record);
