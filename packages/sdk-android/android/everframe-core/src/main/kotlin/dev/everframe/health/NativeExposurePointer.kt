@@ -4,8 +4,10 @@ package dev.everframe.health
 
 import dev.everframe.config.ReleaseHealthBundleStatus
 import kotlinx.serialization.json.*
-import java.time.Instant
-import java.time.format.DateTimeFormatterBuilder
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 
 internal data class NativeExposurePointer(
@@ -13,7 +15,7 @@ internal data class NativeExposurePointer(
     val nativeBuildId: String, val loadedBuildId: String?, val loadedBundleStatus: ReleaseHealthBundleStatus,
 ) {
     fun valid(): Boolean = canonicalUuid(exposureId) && canonicalUuid(processLaunchId) &&
-        runCatching { timestamp(Instant.parse(startedAt).toEpochMilli()) == startedAt }.getOrDefault(false) &&
+        runCatching { timestamp(requireNotNull(formatter().parse(startedAt)).time) == startedAt }.getOrDefault(false) &&
         validHealthText(nativeBuildId, 200) && (loadedBuildId == null || validHealthText(loadedBuildId, 200)) &&
         ((loadedBundleStatus == ReleaseHealthBundleStatus.KNOWN) == (loadedBuildId != null))
 
@@ -23,8 +25,12 @@ internal data class NativeExposurePointer(
         put("loadedBundleStatus", loadedBundleStatus.wireValue)
     }
     companion object {
-        private val formatter = DateTimeFormatterBuilder().appendInstant(3).toFormatter()
-        fun timestamp(millis: Long): String = formatter.format(Instant.ofEpochMilli(millis))
+        // Health runs on the core API24 floor without requiring host library desugaring.
+        // Formatters are mutable, so every call owns its own strict UTC formatter.
+        private fun formatter() = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC"); isLenient = false
+        }
+        fun timestamp(millis: Long): String = formatter().format(Date(millis))
         fun parse(value: JsonObject): NativeExposurePointer? = runCatching {
             require(value.keys == setOf("exposureId", "processLaunchId", "startedAt", "nativeBuildId", "loadedBuildId", "loadedBundleStatus"))
             fun text(key: String): String = value.getValue(key).jsonPrimitive.also { require(it.isString) }.content

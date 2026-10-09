@@ -4,9 +4,11 @@
 # Release health observations
 
 Web, React, Android and iOS can collect release observations independently of
-replay and playback vitals. Collection is opt-in. These producers emit version 2
-records; the receiving service must support that version before they are enabled.
-Older version-1 records already queued locally remain deliverable after upgrade.
+replay and playback vitals. Collection is opt-in. Web and React emit version 2
+records with the `launch-v1` session policy. Android and iOS emit version 3 records
+with the `foreground-v1` policy; the receiving service must support version 3
+before you enable these SDK versions. Records queued locally by an earlier SDK
+keep their original schema version and remain deliverable after upgrade.
 
 ```ts
 const sdk = init({
@@ -32,13 +34,25 @@ IDs exact: a downloaded update is not a loaded bundle.
 
 ## Sessions and identity
 
-The `launch-v1` session policy counts one native process lifetime or web document
-lifetime observed by the SDK. Reinitializing the SDK, restoring a page from BFCache
-or changing the loaded OTA bundle creates a new immutable segment within the same
-launch. A new process/document gets a new launch ID. This is a launch session, not
-a foreground engagement session. A session can appear in several build cohorts;
-session and user counts must not be added across cohorts. Reporting windows select
-segments by their start time, then deduplicate launches within each cohort.
+Web and React use the `launch-v1` policy: one web document lifetime observed by
+the SDK. Reinitializing the SDK, restoring a page from BFCache or changing the
+loaded bundle creates a new immutable segment within the same launch; a new
+document gets a new launch ID. Earlier Android and iOS SDKs also used `launch-v1`,
+observing one native process lifetime.
+
+Android and iOS use the `foreground-v1` policy. A session starts durably only while
+the app is in foreground, with a new exposure ID. Entering background closes it
+with `outcome: completed` and `endReason: background`; reconfiguring release health
+with a new user ID or loaded bundle closes it with `endReason: sdk_stop` and, while
+in foreground, opens a new one. A completed end marks the end of foreground
+monitoring, not a healthy process termination; process death leaves the outcome
+unknown. Sessions of one process share its launch ID. A launch that never reaches
+the foreground opens no session.
+
+A launch can appear in several build cohorts; session and user counts must not be
+added across cohorts. Reporting windows select segments and sessions by their start
+time. Launch counts deduplicate both policies by launch ID within each cohort, so
+several foreground sessions of one process count as one launch.
 
 Subjects are anonymous by default. Only the explicit release-health `userId`
 produces an identified subject. `setUser`, verified identity, email, display name,
@@ -58,18 +72,32 @@ on React, remount the Provider; on Android, call `Everframe.start` again with a
 copied `ReleaseHealthConfig` (a full SDK restart); on iOS, call `setReleaseHealth`
 with a new configuration. Calling `setUser` alone does not change this
 separate identity. Queued starts and ends retain the old snapshot and route.
-Native fatal attribution uses the exact frozen segment pointer, so a crash
-recovered after login is not assigned to the newly logged-in account.
+Native fatal attribution uses the exact frozen pointer of its segment or session,
+so a crash recovered after login is not assigned to the newly logged-in account.
 
 Reported session/user fractions mean **without a reported fatal crash** in the
 current retained observations. They do not mean confirmed healthy sessions or
-population crash-free rates. Only native crashes and Android Java crash exits
-count as fatal; a launch ended by an ANR or another OS exit counts as without a
-reported fatal crash. Missing outcomes remain unknown; neither an end nor
+population crash-free rates. Only crashes that carry the exact frozen pointer
+count as fatal: iOS native crash reports, Android OS crash exit records (native or
+Java) and Android SDK crash reports from the JVM uncaught-exception handler or the
+native signal handler. A launch ended by an ANR or another OS exit counts as
+without a reported fatal crash. Missing outcomes remain unknown; neither an end nor
 its absence proves a healthy/crashed process. Duplicates are deduplicated, while
 late reports, retention and erasure can change the current counts. Anonymous
 subjects never become synthetic users. Web terminal attribution is unsupported,
 so web fatal fractions remain unavailable even when session counts exist.
+
+Version 3 producers attach no session pointer while the app is in background, so a
+crash in background is outside the foreground session rates and does not make its
+launch fatal; version 2 native producers attributed it to their launch segment.
+React Native JavaScript fatal reports carry no pointer either and leave the
+session's outcome unknown. On Android with OS exit diagnostics enabled, the OS
+crash exit record of that process can still count.
+
+Android and iOS foreground sessions also have resolved crash-free rates. They count
+only sessions with a completed end or qualifying fatal evidence and report the rest
+as missing outcome coverage. They cover observed, opted-in foreground sessions
+only and are not population crash-free rates.
 
 ## Durable delivery and privacy
 

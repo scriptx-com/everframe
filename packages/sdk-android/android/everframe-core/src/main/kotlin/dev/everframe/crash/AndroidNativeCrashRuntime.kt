@@ -29,6 +29,10 @@ internal object AndroidNativeCrashRuntime {
     private var controller: AndroidNativeRecoveryController? = null
     private var eraseWhenContextAvailable = false
 
+    /** Lifecycle clear is independent of durable context replacement. */
+    fun invalidateExposure() { controller?.invalidateExposure() }
+    fun refreshExposure(epoch: Int) { controller?.refreshExposure(epoch) }
+
     /** Test seam replacing the ActivityManager/Keystore-backed owner. Never set in production. */
     @VisibleForTesting
     internal var __controllerFactoryForTesting: ((Context) -> AndroidNativeRecoveryController)? = null

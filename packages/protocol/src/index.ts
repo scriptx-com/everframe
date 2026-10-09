@@ -66,10 +66,11 @@ export {
   ReleaseHealthRecordSchema, ReleaseHealthExposureSchema, NativeExposurePointerSchema,
   WebReleaseHealthExposureSchema, AndroidReleaseHealthExposureSchema, IOSReleaseHealthExposureSchema,
   WebReleaseHealthExposureV2Schema, AndroidReleaseHealthExposureV2Schema, IOSReleaseHealthExposureV2Schema,
-  ReleaseHealthRecordV1Schema, ReleaseHealthRecordV2Schema, ReleaseHealthSubjectSchema,
+  ReleaseHealthRecordV1Schema, ReleaseHealthRecordV2Schema, ReleaseHealthRecordV3Schema, ReleaseHealthSubjectSchema,
+  AndroidReleaseHealthExposureV3Schema, IOSReleaseHealthExposureV3Schema, ReleaseHealthExposureV3Schema,
   RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
 } from './release-health.js';
-export type { WebReleaseHealthExposureV2, AndroidReleaseHealthExposureV2, IOSReleaseHealthExposureV2, ReleaseHealthRecord, ReleaseHealthExposure, NativeExposurePointer, WebReleaseHealthExposure, AndroidReleaseHealthExposure, IOSReleaseHealthExposure } from './release-health.js';
+export type { AndroidReleaseHealthExposureV3, IOSReleaseHealthExposureV3, WebReleaseHealthExposureV2, AndroidReleaseHealthExposureV2, IOSReleaseHealthExposureV2, ReleaseHealthRecord, ReleaseHealthExposure, NativeExposurePointer, WebReleaseHealthExposure, AndroidReleaseHealthExposure, IOSReleaseHealthExposure } from './release-health.js';
 
 export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
 

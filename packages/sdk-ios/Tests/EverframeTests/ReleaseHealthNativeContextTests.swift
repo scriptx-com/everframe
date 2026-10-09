@@ -60,6 +60,202 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         XCTAssertThrowsError(try context(a.with(loadedBundleStatus: .known)))
         XCTAssertThrowsError(try context(a.with(nativeBuildID: "")))
     }
+    func testForegroundTransitionsRefreshActualFatalContextAndBackgroundCaptureStaysUnlinked() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x64, count: 32), probe = HealthNativeRecorderProbe()
+        let entered = expectation(description: "background end blocked"), release = DispatchSemaphore(value: 0), blocked = HealthNativeFlag()
+        defer { release.signal() }
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, beforeCommit: {
+            if blocked.value { blocked.value = false; entered.fulfill(); _ = release.wait(timeout: .now() + 5) }
+        }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        XCTAssertTrue(enabled)
+        let first = try XCTUnwrap(health.readyPointer)
+        let initial = probe.snapshot(), oldContext = try XCTUnwrap(initial.context)
+        let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(initial.path).deletingLastPathComponent().lastPathComponent))
+        let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
+        let oldBytes = try contexts.readContext(runID: runID, contextID: oldContext)
+        blocked.value = true
+        let background = sdk.releaseHealthForegroundChanged(false)
+        XCTAssertNil(health.readyPointer)
+        await fulfillment(of: [entered], timeout: 3)
+        await background.value
+        let backgroundState = probe.snapshot(); XCTAssertTrue(backgroundState.enabled)
+        let unlinked = try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(backgroundState.context)))
+        XCTAssertNil(unlinked.releaseHealthExposure)
+        release.signal()
+        await sdk.releaseHealthForegroundChanged(true).value
+        let second = try XCTUnwrap(health.readyPointer); XCTAssertNotEqual(first.exposureID, second.exposureID)
+        let reentered = try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(probe.snapshot().context)))
+        XCTAssertEqual(reentered.releaseHealthExposure?.exposureID, second.exposureID)
+        XCTAssertEqual(try contexts.readContext(runID: runID, contextID: oldContext), oldBytes)
+        sdk.kill(); await health.barrier()
+        await sdk.releaseHealthForegroundChanged(false).value
+        await sdk.releaseHealthForegroundChanged(true).value
+        XCTAssertNil(health.readyPointer); XCTAssertFalse(probe.snapshot().enabled)
+        _ = await sdk.setReleaseHealth(nil)
+    }
+    func testLifecycleTransitionsWithoutReleaseHealthNeverPauseNativeCapture() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x66, count: 32), probe = HealthNativeRecorderProbe()
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        let armed = await sdk.refreshNativeCrashContext()
+        XCTAssertTrue(armed)
+        let before = probe.snapshot()
+        // Without an opt-in no session pointer exists, so no transition may close the gate.
+        for foreground in [false, true, false, true] {
+            let transition = sdk.releaseHealthForegroundChanged(foreground)
+            XCTAssertTrue(probe.snapshot().enabled, "capture paused on foreground=\(foreground)")
+            await transition.value
+            XCTAssertTrue(probe.snapshot().enabled, "capture not rearmed after foreground=\(foreground)")
+        }
+        let after = probe.snapshot()
+        XCTAssertEqual(after.pauses, before.pauses); XCTAssertEqual(after.publications, before.publications)
+        XCTAssertEqual(after.context, before.context); XCTAssertNil(health.readyPointer)
+    }
+    func testForegroundEntryKeepsUnlinkedCaptureArmedUntilTheDurableStartIsSwappedIn() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x67, count: 32), probe = HealthNativeRecorderProbe()
+        let entered = expectation(description: "foreground start blocked"), release = DispatchSemaphore(value: 0), blocked = HealthNativeFlag()
+        defer { release.signal() }
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, beforeCommit: {
+            if blocked.value { blocked.value = false; entered.fulfill(); _ = release.wait(timeout: .now() + 5) }
+        }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        XCTAssertTrue(enabled)
+        let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
+        func armedExposure() throws -> EverframeNativeExposure? {
+            let state = probe.snapshot()
+            let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(state.path).deletingLastPathComponent().lastPathComponent))
+            return try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(state.context))).releaseHealthExposure
+        }
+        await sdk.releaseHealthForegroundChanged(false).value; await health.barrier()
+        XCTAssertTrue(probe.snapshot().enabled); XCTAssertNil(try armedExposure())
+        let unlinked = probe.snapshot()
+        blocked.value = true
+        let foreground = sdk.releaseHealthForegroundChanged(true)
+        // The unlinked context stays armed while the new start is not yet durable.
+        XCTAssertTrue(probe.snapshot().enabled)
+        await fulfillment(of: [entered], timeout: 3)
+        let pending = probe.snapshot()
+        XCTAssertTrue(pending.enabled); XCTAssertEqual(pending.context, unlinked.context); XCTAssertEqual(pending.pauses, unlinked.pauses)
+        release.signal(); await foreground.value
+        let pointer = try XCTUnwrap(health.readyPointer)
+        XCTAssertTrue(probe.snapshot().enabled); XCTAssertEqual(try armedExposure()?.exposureID, pointer.exposureID)
+        sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+    func testBackgroundCallbackOnMainReturnsWithTheUnlinkedTwinArmed() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x68, count: 32), probe = HealthNativeRecorderProbe()
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        XCTAssertTrue(enabled)
+        let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
+        let linked = probe.snapshot()
+        let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(linked.path).deletingLastPathComponent().lastPathComponent))
+        func decoded(_ id: UUID?) throws -> NativeCrashRecoveryContext {
+            try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(id)))
+        }
+        XCTAssertNotNil(try decoded(linked.context).releaseHealthExposure)
+        // UIKit posts the notification on main; work after it in the same turn is still captured.
+        let (transition, returned) = await MainActor.run { () -> (Task<Void, Never>, HealthNativeRecorderProbe.State) in
+            let transition = sdk.releaseHealthForegroundChanged(false)
+            return (transition, probe.snapshot())
+        }
+        XCTAssertTrue(returned.enabled); XCTAssertNotEqual(returned.context, linked.context)
+        let unlinked = try decoded(returned.context)
+        XCTAssertNil(unlinked.releaseHealthExposure)
+        XCTAssertEqual(unlinked.envelopeTemplate, try decoded(linked.context).envelopeTemplate)
+        await transition.value
+        let settled = probe.snapshot()
+        XCTAssertTrue(settled.enabled); XCTAssertEqual(settled.context, returned.context)
+        XCTAssertEqual(settled.pauses, returned.pauses); XCTAssertEqual(settled.publications, returned.publications)
+        // A stored JavaScript fatal closes native capture until the next start; a later
+        // background withdrawal must not reopen it with the twin.
+        await sdk.releaseHealthForegroundChanged(true).value
+        XCTAssertNotNil(try decoded(probe.snapshot().context).releaseHealthExposure)
+        sdk.closeNativeCrashCaptureAfterAcceptedFatal()
+        let (closing, closed) = await MainActor.run { () -> (Task<Void, Never>, HealthNativeRecorderProbe.State) in
+            (sdk.releaseHealthForegroundChanged(false), probe.snapshot())
+        }
+        await closing.value
+        XCTAssertFalse(closed.enabled); XCTAssertFalse(probe.snapshot().enabled)
+        sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+    func testMoreThan256ForegroundCyclesKeepCaptureArmedAndRetainReferencedContexts() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x65, count: 32), probe = HealthNativeRecorderProbe()
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, admission in
+            admission({}) ? .settled : .retry
+        })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        XCTAssertTrue(enabled)
+        let first = probe.snapshot(), oldContext = try XCTUnwrap(first.context), recorderPath = try XCTUnwrap(first.path)
+        let runID = try XCTUnwrap(UUID(uuidString: recorderPath.deletingLastPathComponent().lastPathComponent))
+        let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
+        let oldBytes = try contexts.readContext(runID: runID, contextID: oldContext)
+        let reports = recorderPath.appendingPathComponent("Reports")
+        try FileManager.default.createDirectory(at: reports, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        let rawPath = reports.appendingPathComponent("Everframe-report-0000000000000001.json")
+        let raw = try NativeRecoveryTestData.raw(context: oldContext)
+        try raw.write(to: rawPath)
+        for cycle in 0..<270 {
+            // On main, as UIKit delivers it: the unlinked twin must be armed and still on disk.
+            let (background, unlinked) = await MainActor.run { () -> (Task<Void, Never>, HealthNativeRecorderProbe.State) in
+                (sdk.releaseHealthForegroundChanged(false), probe.snapshot())
+            }
+            await background.value
+            guard unlinked.enabled else { XCTFail("capture disabled by background at cycle \(cycle)"); break }
+            XCTAssertNil(try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(unlinked.context))).releaseHealthExposure)
+            await health.barrier(); await health.flush()
+            await sdk.releaseHealthForegroundChanged(true).value
+            await health.flush()
+            let state = probe.snapshot()
+            guard state.enabled else { XCTFail("capture disabled at foreground cycle \(cycle)"); break }
+            let current = try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(state.context)))
+            let pointer = try XCTUnwrap(health.readyPointer, "durable session missing at cycle \(cycle)")
+            XCTAssertEqual(current.releaseHealthExposure?.exposureID, pointer.exposureID)
+            XCTAssertTrue(try ReleaseHealthStore(root: root.appendingPathComponent("health"), keyProvider: { key }).pending().isEmpty)
+        }
+        XCTAssertEqual(try contexts.readContext(runID: runID, contextID: oldContext), oldBytes)
+        XCTAssertEqual(try Data(contentsOf: rawPath), raw)
+        XCTAssertLessThanOrEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("native/contexts/" + runID.uuidString.lowercased()).path).count, 257)
+        sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
     func testHealthRevocationClosesNewNativeAdmissionBeforeDiskAndKeepsAdmittedContext() async throws {
         let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -108,12 +304,16 @@ private final class HealthNativeFlag: @unchecked Sendable {
     var value: Bool { get { lock.withLock { flag } } set { lock.withLock { flag = newValue } } }
 }
 private final class HealthNativeRecorderProbe: @unchecked Sendable {
-    struct State { var path: URL?; var context: UUID?; var enabled = false }
+    /// `pauses` counts enabled-to-disabled transitions, the windows without capture.
+    struct State { var path: URL?; var context: UUID?; var enabled = false; var pauses = 0; var publications = 0 }
     private let lock = NSLock(); private var state = State()
     func snapshot() -> State { lock.withLock { state } }
     var adapter: NativeCrashRuntime.Recorder {
         .init(install: { path in self.lock.withLock { self.state.path = path }; return true },
-            disable: { self.lock.withLock { self.state.enabled = false } },
-            publish: { id in self.lock.withLock { self.state.context = id; self.state.enabled = true }; return true })
+            disable: { self.lock.withLock { if self.state.enabled { self.state.pauses += 1 }; self.state.enabled = false } },
+            publish: { id in self.lock.withLock { self.state.context = id; self.state.enabled = true; self.state.publications += 1 }; return true },
+            retainedContextIdentifiers: { self.lock.withLock {
+                self.state.enabled ? nil : Set(self.state.context.map { [$0] } ?? [])
+            } })
     }
 }

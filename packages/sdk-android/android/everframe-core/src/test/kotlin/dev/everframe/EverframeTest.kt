@@ -101,6 +101,14 @@ class EverframeTest {
         ),
     )
 
+    /**
+     * These tests never reach the network. Every start's replay config fetch stays pending, as it
+     * would against an unreachable ingest host, until tearDown fails it after kill(). A real fetch
+     * to the debug ingest address blocks an IO thread for its whole connect timeout, which kill()
+     * cannot cancel, so it outlived the test and stalled a later suite's SDK-scope teardown.
+     */
+    private val offline = java.util.concurrent.CountDownLatch(1)
+
     @Before
     fun setUp() {
         // Session Vitals: the server signal and the process-wide runtime are
@@ -114,12 +122,23 @@ class EverframeTest {
         // Everframe.start() (mirrors BreadcrumbRingBufferTest's setUp — Robolectric
         // gives a fresh Application per test, so this can't be assumed done already).
         SharedData.init(context)
+        Everframe.__replaySessionFactoryForTesting = { app, config, epoch, consent, installId ->
+            dev.everframe.capture.replay.ReplaySession(apiKey = config.sdkKey, context = app,
+                originatingStartEpoch = epoch, captureConsent = consent,
+                provider = dev.everframe.config.ReplayConfigProvider.make(apiKey = config.sdkKey,
+                    fetcher = dev.everframe.config.ConfigFetcher {
+                        offline.await(30, java.util.concurrent.TimeUnit.SECONDS)
+                        throw java.io.IOException("unit tests are offline")
+                    }, installIdProvider = installId))
+        }
     }
 
     @After
     fun tearDown() {
         // Reset SDK state for test isolation.
         Everframe.kill()
+        offline.countDown()
+        Everframe.__replaySessionFactoryForTesting = null
         sharedBreadcrumbBuffer.applyConfig(null)
         sharedBreadcrumbBuffer.clear()
         sharedNetworkBodyBuffer.clear()

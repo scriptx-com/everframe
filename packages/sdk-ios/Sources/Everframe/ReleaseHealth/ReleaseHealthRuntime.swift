@@ -14,7 +14,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
         guard NSClassFromString("XCTestCase") == nil,
               ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return nil }
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath()
-        return ReleaseHealthRuntime(root: caches.appendingPathComponent("dev.everframe.release-health"))
+        return ReleaseHealthRuntime(root: caches.appendingPathComponent("dev.everframe.release-health"), initiallyForeground: false)
         #else
         return nil
         #endif
@@ -23,6 +23,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var desired: Owner?
+    private var foreground: Bool
     private var ready: EverframeNativeExposure?
     private var requestedErasure: UInt64 = 0
     private var completedErasure: UInt64 = 0
@@ -43,25 +44,62 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
          processLaunchID: UUID = ReleaseHealthProcessIdentity.id, now: @escaping @Sendable () -> Date = { Date() },
          uptime: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
          beforeCommit: @escaping () throws -> Void = {},
+         initiallyForeground: Bool = true,
          transport: @escaping ReleaseHealthSend = { entry, admission in await ReleaseHealthTransport.send(entry, admission: admission) }) {
         self.root = root; self.keyProvider = keyProvider; self.processLaunchID = processLaunchID
         self.now = now; self.uptime = uptime; self.beforeCommit = beforeCommit; self.transport = transport
+        self.foreground = initiallyForeground
     }
     deinit { timer?.cancel(); drainTask?.cancel() }
     var readyPointer: EverframeNativeExposure? { lock.withLock { ready } }
 
     /// Called only with the SDK's published configuration ownership captured.
     func requestEnable(configuration: ReleaseHealthConfiguration, sdkKey: String, endpoint: String) -> UInt64 {
-        lock.withLock {
+        let capturedAt = now(), capturedUptime = uptime()
+        let transition: (UInt64, Bool) = lock.withLock {
             let next = Owner(configuration: configuration, sdkKey: sdkKey, endpoint: endpoint)
-            if desired != next { generation &+= 1; desired = next; ready = nil }
-            return generation
+            let changed = desired != next
+            if changed { generation &+= 1; desired = next; ready = nil }
+            return (generation, changed)
         }
+        if transition.1 {
+            worker.async {
+                if let active = self.active, active.ticket < transition.0 {
+                    self.closeActive(capturedAt: capturedAt, capturedUptime: capturedUptime)
+                }
+            }
+        }
+        return transition.0
+    }
+    /// Called at the SDK's context invalidation boundary. No disk work occurs here.
+    /// Inactive UIKit interruptions stay foreground; only background closes a session.
+    /// `retiredPointer` reports, atomically with the change, whether a ready pointer
+    /// was withdrawn: only then can a native context carry a pointer that must go.
+    @discardableResult func setForeground(_ value: Bool) -> (ticket: UInt64, retiredPointer: Bool)? {
+        let capturedAt = now(), capturedUptime = uptime()
+        let change: (ticket: UInt64, retiredPointer: Bool)? = lock.withLock {
+            guard foreground != value else { return nil }
+            let retired = ready != nil
+            foreground = value; generation &+= 1; ready = nil
+            return (generation, retired)
+        }
+        if let ticket = change?.ticket, !value {
+            worker.async {
+                if let active = self.active, active.ticket < ticket {
+                    self.closeActive(reason: .background, capturedAt: capturedAt, capturedUptime: capturedUptime)
+                }
+                self.startDrain(ticket)
+            }
+        }
+        return change
     }
     func boundary() {
+        let capturedAt = now(), capturedUptime = uptime()
         let ticket = lock.withLock { () -> UInt64 in generation &+= 1; desired = nil; ready = nil; return generation }
         worker.async {
-            if let active = self.active, active.ticket < ticket { self.closeActive() }
+            if let active = self.active, active.ticket < ticket {
+                self.closeActive(capturedAt: capturedAt, capturedUptime: capturedUptime)
+            }
             if self.lock.withLock({ self.generation == ticket && self.desired == nil }) { self.stopDrain() }
         }
     }
@@ -77,10 +115,10 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     }
     func enable(ticket: UInt64, sdkVersion: String) async -> Bool {
         await onWorker {
-            guard let owner = self.owner(ticket), ReleaseHealthConfiguration.validText(sdkVersion, maximum: 64) else { return false }
+            guard self.lock.withLock({ self.foreground }), let owner = self.owner(ticket), ReleaseHealthConfiguration.validText(sdkVersion, maximum: 64) else { return false }
             do {
                 try self.prepareStore()
-                guard self.finishErasure(), self.owner(ticket) == owner, let store = self.store else { return false }
+                guard self.finishErasure(), self.lock.withLock({ self.foreground }), self.owner(ticket) == owner, let store = self.store else { return false }
                 try store.maintain(now: self.now())
                 if self.active?.ticket != ticket {
                     self.closeActive()
@@ -91,7 +129,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
                     self.active = (ticket, segment)
                 }
                 let published = self.lock.withLock { () -> Bool in
-                    guard self.generation == ticket, self.desired == owner,
+                    guard self.generation == ticket, self.desired == owner, self.foreground,
                           self.requestedErasure == self.completedErasure else { return false }
                     self.ready = self.active?.segment.pointer; return self.ready != nil
                 }
@@ -135,10 +173,10 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
             }
         } catch { return false }
     }
-    private func closeActive() {
+    private func closeActive(reason: ReleaseHealthEndReason = .sdkStop, capturedAt: Date? = nil, capturedUptime: TimeInterval? = nil) {
         guard let previous = active else { return }; active = nil
         guard lock.withLock({ requestedErasure == completedErasure }) else { return }
-        try? store?.append(previous.segment.entry(end: true, now: now(), uptime: uptime()))
+        try? store?.append(previous.segment.entry(end: true, now: capturedAt ?? now(), uptime: capturedUptime ?? uptime(), endReason: reason))
     }
     private func stopDrain() { timer?.cancel(); timer = nil; drainTask?.cancel() }
     private func startTimer(_ ticket: UInt64) {

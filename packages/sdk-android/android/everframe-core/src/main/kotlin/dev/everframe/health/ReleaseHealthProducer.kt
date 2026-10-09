@@ -9,6 +9,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
 /** Request preparation may allocate; the returned closure only starts asynchronous transport. */
 internal fun interface HealthTransport { fun prepare(entry: OutboxEntry): () -> Deferred<Int> }
@@ -38,7 +39,7 @@ internal class ReleaseHealthProducer(
         put("platform", "android"); put("sdkVersion", sdkVersion)
         putJsonObject("nativeRelease") { put("buildId", config.nativeBuildId) }
         put("loadedBuildId", config.loadedBuildId?.let(::JsonPrimitive) ?: JsonNull)
-        put("loadedBundleStatus", config.loadedBundleStatus.wireValue); put("sessionPolicy", "launch-v1")
+        put("loadedBundleStatus", config.loadedBundleStatus.wireValue); put("sessionPolicy", "foreground-v1")
         putJsonObject("subject") {
             val id = config.userId
             put("kind", if (id == null) "anonymous" else "provided")
@@ -47,41 +48,54 @@ internal class ReleaseHealthProducer(
         putJsonObject("coverage") { put("policy", "android-sdk-segment-v1"); put("sampleRate", 1)
             put("priorQueueLosses", JsonNull); put("queueLossAccounting", "unavailable") }
     }
-    private val startEntry by lazy { entry(false, startedMs, 0) }
+    private val startEntry by lazy { entry(false, startedMs, 0, null) }
+    private data class Ending(val reason: String, val capturedMs: Long, val elapsedMs: Long)
+    private val ending = AtomicReference<Ending?>()
     private var endEntry: OutboxEntry? = null
+    @Volatile private var committed = false
     @Volatile private var started = false
     @Volatile private var ended = false
 
+    /** The start record is durable, even when a boundary then kept this session from becoming ready. */
+    val startCommitted: Boolean get() = committed
     fun readyPointer(): NativeExposurePointer? = pointer.takeIf {
-        started && !ended && currentAuthorization.isAllowed() && queue.hasCurrentLease()
+        started && !ended && ending.get() == null && currentAuthorization.isAllowed() && queue.hasCurrentLease()
     }
     @Synchronized fun start(): Boolean {
-        if (ended || !config.enabled || (config.userId != null && (!validHealthText(config.userId, 128) || config.userId.replace("\ufeff", "").isBlank())) || !pointer.valid() || !validHealthText(sdkVersion, 64) || !currentAuthorization.isAllowed()) return false
+        if (ended || ending.get() != null || !config.enabled || (config.userId != null && (!validHealthText(config.userId, 128) || config.userId.replace("\ufeff", "").isBlank())) || !pointer.valid() || !validHealthText(sdkVersion, 64) || !currentAuthorization.isAllowed()) return false
         return try {
             prune()
             queue.enqueueSync(startEntry, currentAuthorization)
+            committed = true
             started = currentAuthorization.isAllowed() && queue.hasCurrentLease()
             started
         } catch (_: Exception) { false }
     }
-    @Synchronized fun end(): Boolean {
-        if (!started || !retentionAuthorization.isAllowed()) return false
+    /** Memory-only boundary snapshot; a failed durable end never republishes this pointer. */
+    fun close(reason: String = "sdk_stop") {
+        require(reason == "background" || reason == "sdk_stop")
+        ending.compareAndSet(null, Ending(reason, nowMillis().coerceAtLeast(startedMs),
+            ((elapsedNanos() - startedNanos) / 1_000_000).coerceIn(0, 31L * 24 * 60 * 60 * 1000)))
+    }
+    @Synchronized fun end(reason: String = "sdk_stop"): Boolean {
+        if (!committed || !retentionAuthorization.isAllowed()) return false
         if (ended) return true
+        close(reason)
+        val boundary = requireNotNull(ending.get())
         return try {
-            val record = endEntry ?: entry(true, nowMillis(), ((elapsedNanos() - startedNanos) / 1_000_000)
-                .coerceIn(0, 31L * 24 * 60 * 60 * 1000)).also { endEntry = it }
+            val record = endEntry ?: entry(true, boundary.capturedMs, boundary.elapsedMs, boundary.reason).also { endEntry = it }
             queue.enqueueSync(record, retentionAuthorization)
             ended = true
             true
         } catch (_: Exception) { false }
     }
-    private fun entry(end: Boolean, capturedMs: Long, elapsedMs: Long): OutboxEntry {
+    private fun entry(end: Boolean, capturedMs: Long, elapsedMs: Long, reason: String?): OutboxEntry {
         val id = UUID.randomUUID().toString()
         val bytes = buildJsonObject {
-            put("schemaVersion", 2); put("recordId", id); put("exposure", exposure)
+            put("schemaVersion", 3); put("recordId", id); put("exposure", exposure)
             put("capturedAt", NativeExposurePointer.timestamp(capturedMs)); put("phase", if (end) "end" else "start")
             put("sequence", if (end) 1 else 0); put("elapsedMs", elapsedMs)
-            if (end) put("endReason", "sdk_stop")
+            if (end) { require(reason == "background" || reason == "sdk_stop"); put("endReason", reason); put("outcome", "completed") }
         }.toString().toByteArray(Charsets.UTF_8)
         require(bytes.size <= 8192)
         return OutboxEntry(id, capturedMs, bytes, id, emptyList(), sdkKey, endpoint, null)

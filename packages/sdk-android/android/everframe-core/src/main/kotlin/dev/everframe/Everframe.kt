@@ -1700,7 +1700,7 @@ object Everframe {
         }
     }
 
-    /** True only after this SDK segment's start was committed to encrypted storage. */
+    /** True only while a foreground monitoring session has a durable encrypted start. */
     @JvmStatic
     fun isReleaseHealthReady(): Boolean = captureGate &&
         dev.everframe.health.ReleaseHealthRuntime.readyPointer(currentStartEpochVolatile()) != null

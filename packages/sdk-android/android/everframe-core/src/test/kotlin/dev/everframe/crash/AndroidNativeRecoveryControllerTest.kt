@@ -58,6 +58,89 @@ class AndroidNativeRecoveryControllerTest {
         if (!requests.finishRevocation { if (!gate.isAllowed()) false else { controller.retire(1, true) { gate.isAllowed() }; gate.isAllowed() } }) return false
         return if (diagnostics) controller.enableDiagnostics(1, gate, 3000, ::template, admit) else controller.enable(1, gate, 3000, ::template, admit)
     }
+    @Test fun `foreground changes refresh the actual OS frozen context and clear before IO`() {
+        val platform = Platform()
+        val launch = UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
+            UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", "native", null,
+            dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        val controller = AndroidNativeRecoveryController(::engine, platform, launch, exposure = { pointer })
+        assertTrue(controller.enable(1, allowed, 3000, ::template) { true })
+        fun frozen() = OutboxStore(File(folder.root, "contexts"), keys, ops).let { queue ->
+            Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        }
+        assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+        pointer = null
+        controller.invalidateExposure()
+        assertNull(platform.registrations.last())
+        assertTrue(controller.refreshExposure(1))
+        assertFalse(frozen().containsKey("nativeExposure"))
+        assertTrue(controller.ready(1)) // Background collection continues.
+        pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        controller.invalidateExposure()
+        assertTrue(controller.refreshExposure(1))
+        assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+        assertEquals(1, platform.historyCalls) // Refresh never rereads OS history.
+    }
+    @Test fun `background while OS context is being prepared prevents stale registration`() {
+        val platform = Platform()
+        val entered = CountDownLatch(1); val resume = CountDownLatch(1)
+        val controller = AndroidNativeRecoveryController(::engine, platform, exposure = {
+            entered.countDown(); check(resume.await(5, TimeUnit.SECONDS)); null
+        })
+        var result = true
+        val worker = Thread { result = controller.enable(1, allowed, 3000, ::template) { true } }
+        worker.start()
+        try {
+            assertTrue(entered.await(5, TimeUnit.SECONDS))
+            controller.invalidateExposure()
+        } finally { resume.countDown(); worker.join(5000) }
+        assertFalse(worker.isAlive); assertFalse(result)
+        assertTrue(platform.registrations.none { it != null })
+        assertTrue(OutboxStore(File(folder.root, "contexts"), keys, ops).snapshotTokens().isEmpty())
+    }
+    @Test fun `lifecycle cancellation of initial history keeps the explicit opt in retryable`() {
+        val platform = Platform()
+        val launch = UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = null
+        val controller = AndroidNativeRecoveryController(::engine, platform, launch, exposure = { pointer })
+        platform.beforeHistory = { controller.invalidateExposure() }
+        assertFalse(controller.enable(1, allowed, 3000, ::template) { true })
+        assertFalse(controller.ready(1)); assertTrue(platform.registrations.none { it != null })
+        platform.beforeHistory = {}
+        pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        assertTrue(controller.refreshExposure(1)); assertTrue(controller.ready(1))
+        val queue = OutboxStore(File(folder.root, "contexts"), keys, ops)
+        val frozen = Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals(pointer!!.toJson(), frozen["nativeExposure"])
+        assertEquals(2, platform.historyCalls)
+    }
+    @Test fun `lifecycle retry of canceled diagnostic setup still recovers prior process evidence`() {
+        val platform = Platform(30).apply { exits = listOf(previous(98, 6)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        platform.beforeHistory = { controller.invalidateExposure() }
+        val admitted = mutableListOf<OutboxEntry>()
+        assertFalse(controller.enableDiagnostics(1, allowed, 3000, ::template) { admitted += it; true })
+        platform.beforeHistory = {}
+        assertTrue(controller.refreshExposure(1)); assertTrue(controller.ready(1))
+        assertEquals(listOf("diagnostic"), admitted.map(::source))
+        controller.retire(1, true) { true }
+        assertFalse(controller.refreshExposure(1))
+        assertFalse(controller.ready(1))
+    }
+    @Test fun `canceled OS setup cannot retry after revoked consent or a newer SDK epoch`() {
+        val platform = Platform()
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        platform.beforeHistory = { controller.invalidateExposure() }
+        assertFalse(controller.enable(1, allowed, 3000, ::template) { true })
+        consent = false
+        assertFalse(controller.refreshExposure(1))
+        consent = true; epoch.set(2)
+        assertFalse(controller.refreshExposure(1))
+        assertTrue(platform.registrations.none { it != null })
+    }
     @Test fun `selecting diagnostics after native-only in one start keeps previous process evidence`() {
         val platform = Platform().apply { exits = listOf(previous(98, 6)) }
         val controller = AndroidNativeRecoveryController(::engine, platform)

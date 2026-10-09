@@ -75,7 +75,13 @@ imports them into the encrypted delivery queue on the next enabled launch.
 The recorder is bundled with the SDK; hosts do not install it separately.
 
 Capture starts asynchronously after an encrypted context is durable. There is a
-capture gap during startup and user/configuration changes. A crash already
+capture gap during startup and user/configuration changes, including release-health
+opt-in, opt-out and reconfiguration. With release health enabled, each foreground
+session start adds a brief gap once the start is durable, while the context carrying
+its pointer is admitted on the main thread. Entering background withdraws that
+pointer before the UIKit callback returns and normally rearms a durable context
+without it in the same callback; otherwise capture resumes after an asynchronous
+refresh. App lifecycle changes do not pause capture otherwise. A crash already
 admitted keeps its original context; later reports use the new context. Recovery
 preserves the original project routing, app/device details, self-declared user,
 and redaction policy, even after another user or project starts. Native reports
@@ -96,10 +102,12 @@ policy; disabling capture does not retroactively delete queued reports.
 Each enabled launch imports pending records before retiring old runs. A run
 expires 14 days after its process started, or earlier under storage
 pressure. The runtime keeps at most 16 runs, with bounded raw/context storage.
-It supports 256 distinct context snapshots per process; identical snapshots
-reuse their identifier. Unavailable encryption keys, unsafe storage, exhausted
-capacity or recorder failures leave capture disabled. Repeated `start` calls
-reuse the process recorder rather than installing competing handlers.
+A process keeps at most 256 context snapshots; identical snapshots reuse their
+identifier, and snapshots that neither the recorder nor a stored raw report still
+references are retired, so foreground sessions do not exhaust them. Unavailable
+encryption keys, unsafe storage, exhausted capacity or recorder failures leave
+capture disabled. Repeated `start` calls reuse the process recorder rather than
+installing competing handlers.
 
 The installed Release qualification host is in
 [`Tests/NativeCrashStartupProof`](Tests/NativeCrashStartupProof). It exercises
@@ -108,40 +116,56 @@ Physical-device lock-state and performance qualification remain separate checks.
 
 ---
 
-## Release health observations (iOS)
+## Foreground release-health sessions (iOS)
 
 Release-health collection is off by default. After `start` has published the SDK
 configuration, opt in with the identity of the native build actually running:
 
 ```swift
 let health = try ReleaseHealthConfiguration(nativeBuildId: "ios-2026.10.08.1",
-    loadedBuildId: nil, loadedBundleStatus: .notApplicable)
+    loadedBuildId: nil, loadedBundleStatus: .notApplicable,
+    userId: "opaque-account-id") // Optional; anonymous when omitted.
 let ready = await Everframe.shared.setReleaseHealth(health)
 ```
 
-`true` means the segment start was durably appended. A `false` result means the
-SDK is not started/ready, storage is unavailable, or this platform is unsupported.
+`true` means an active foreground session start was durably appended. A `false`
+result means the app is in background, SDK is not started/ready, storage is
+unavailable, or this platform is unsupported. During launch the call first waits
+until the SDK has observed the application state on the main thread. Opting in
+while background keeps the configuration and waits for foreground; it does not
+create a session.
 For an embedded JavaScript bundle, pass its actual loaded build ID with
 `loadedBundleStatus: .known`; use `.unknown` when its identity is unavailable.
 Use `.notApplicable` for a native-only app. Do not pass a bundle
 that was downloaded but has not loaded.
 
-Segments are anonymous unless you pass `userId:`, an optional project-local
+Each SDK start requires a new opt-in. Version-3 records use `foreground-v1`:
+entering foreground opens a fresh session; entering background closes it with
+`outcome: completed`. UIKit inactive interruptions do not close a session.
+Changing the health configuration, account or loaded bundle closes the old session
+and opens a new one if foreground. Sessions in the same process share a launch
+UUID but have distinct exposure UUIDs. Completion marks the end of foreground
+monitoring, not healthy process termination. Death never invents a completed end.
+
+Sessions are anonymous unless you pass `userId:`, an optional project-local
 opaque account ID that is never copied from `setUser`. It must be nonblank, at
 most 128 UTF-16 units and free of U+0000–U+001F control characters; otherwise
 the initializer throws `ValidationError.invalidUserIdentity`. The ID is frozen for
-its segment. On login, logout or account switch, call `setReleaseHealth` with a
-new configuration (`userId: nil` on logout); it opens a new segment within the
-same launch. These are version 2 records: the receiving service must support
-version 2 before you enable them. See
+its session. On login, logout or account switch, call `setReleaseHealth` with a
+new configuration (`userId: nil` on logout); do the same when the loaded bundle
+changes. Queued records keep their original subject. See
 [release health observations](../../docs/release-health.md).
 
-Each SDK start requires a new opt-in and creates a distinct segment. Segments in
-the same process share a process-launch UUID; neither identity represents a user.
 Collection works independently of replay, vitals and crash capture. When native
 crash capture is enabled, only a pointer already durably ready can be frozen into
-its immutable fatal context. Recovery never borrows the relaunch's segment.
-Apple MetricKit reporting windows are not joined to these exposures.
+its immutable fatal context. Background removes that pointer synchronously;
+independent background crash capture continues with no session pointer, so a crash
+in background is not attributed to any session or launch. A stored React Native
+JavaScript fatal carries no session pointer and closes native capture, so the
+session it ends keeps an unknown outcome. Recovery never borrows the relaunch's
+session. Apple MetricKit reporting windows are not joined to these sessions. The
+receiving service must support v3 before enabling this producer; previously queued
+records retain their original wire version.
 
 The encrypted app-private journal retains at most 256 records, 1 MiB total and
 seven days. Capacity failure does not evict earlier records to invent coverage;
@@ -160,8 +184,11 @@ Disabling prevents new native admissions from freezing the old pointer; already
 admitted independent crash evidence retains its original bytes under crash
 delivery/retention policy. This is not retroactive server erasure.
 `kill()` revokes both capture and health. A missing end record or exit does not
-mean a crash or a healthy termination; observed starts do not establish crash-free
-or user rates. tvOS compiles this API but returns `false` for enabling collection.
+mean a crash or a healthy termination. Resolved foreground-session rates describe
+only sessions with a completed boundary or qualified fatal evidence; missing
+outcomes remain unknown. They do not measure the full install population. tvOS
+compiles this API but returns `false` for enabling collection. Automated lifecycle,
+context and compilation checks do not replace physical-device qualification.
 
 ## Apple hang and exit diagnostics
 

@@ -45,6 +45,93 @@ class AndroidNativeSignalControllerTest {
     private fun enable(c: AndroidNativeSignalController, command: Long = c.request(), epoch: Int = 1): Boolean =
         c.enable(command, epoch, allowed, ::template) { _, _ -> error("no prior record") }
 
+    @Test fun `refresh rotates frozen signal attribution and keeps background capture armed`() {
+        val launch = UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
+            UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", "native", null,
+            dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        val p = Producer()
+        val c = AndroidNativeSignalController(::engine, p, { null }, launch, { 3000 }, exposure = { pointer })
+        assertTrue(enable(c))
+        fun frozen() = store("capsules").let { queue ->
+            Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        }
+        assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+        pointer = null; c.invalidateExposure()
+        assertFalse(p.armed)
+        assertTrue(c.refreshExposure(1))
+        assertTrue(p.armed); assertTrue(c.ready(1)); assertFalse(frozen().containsKey("nativeExposure"))
+        pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        c.invalidateExposure(); assertTrue(c.refreshExposure(1))
+        assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+        assertEquals(3, p.arms)
+    }
+    @Test fun `opt in armed before the session start is durable gains its pointer on refresh`() {
+        val launch = UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = null
+        val p = Producer()
+        val c = AndroidNativeSignalController(::engine, p, { null }, launch, { 3000 }, exposure = { pointer })
+        fun frozen() = store("capsules").let { queue ->
+            Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        }
+        assertTrue(enable(c)); assertFalse(frozen().containsKey("nativeExposure"))
+        // Foreground entry fences nothing; the refresh after the durable start replaces the capsule.
+        pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:00.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        assertTrue(c.refreshExposure(1))
+        assertEquals(pointer!!.toJson(), frozen()["nativeExposure"])
+        assertTrue(p.armed); assertTrue(c.ready(1)); assertEquals(2, p.arms)
+        assertTrue(c.refreshExposure(1)) // The same pointer keeps the armed capsule.
+        assertEquals(2, p.arms)
+    }
+    @Test fun `background during native provisioning fences the stale arm and durable capsule`() {
+        val p = Producer(); val c = owner(p)
+        p.onArm = { c.invalidateExposure() }
+        assertFalse(enable(c)); assertFalse(c.ready(1)); assertFalse(p.armed)
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+    }
+    @Test fun `lifecycle cancellation of initial native arm preserves opt in for a fresh retry`() {
+        val p = Producer(); val c = owner(p)
+        p.onArm = { c.invalidateExposure(); p.available = false }
+        assertFalse(enable(c)); assertFalse(c.ready(1)); assertFalse(p.armed)
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+        p.onArm = {}; p.available = true
+        assertTrue(c.refreshExposure(1)); assertTrue(c.ready(1)); assertTrue(p.armed)
+        assertEquals(1, store("capsules").snapshotTokens().size)
+    }
+    @Test fun `lifecycle cancellation before signal owner publication stays retryable but revoke wins`() {
+        val p = Producer(); var first = true
+        lateinit var c: AndroidNativeSignalController
+        c = AndroidNativeSignalController({
+            if (first) { first = false; c.invalidateExposure() }
+            engine()
+        }, p, { null }, now = { 3000 })
+        assertFalse(enable(c)); assertFalse(c.ready(1))
+        assertTrue(c.refreshExposure(1)); assertTrue(c.ready(1))
+        c.request(erase = true); assertTrue(c.finishRevocation())
+        assertFalse(c.refreshExposure(1)); assertFalse(c.ready(1)); assertFalse(p.armed)
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+    }
+    @Test fun `superseded signal command cannot refresh a canceled initial setup`() {
+        val p = Producer(); val c = owner(p)
+        p.onArm = { c.invalidateExposure(); p.available = false }
+        assertFalse(enable(c))
+        c.request(); p.onArm = {}; p.available = true
+        assertFalse(c.refreshExposure(1)); assertFalse(c.ready(1)); assertFalse(p.armed)
+    }
+    @Test fun `lifecycle cancellation in the initial authorization window retains signal setup`() {
+        val p = Producer(); val c = owner(p); var first = true
+        val gate = object : OutboxAuthorization {
+            override fun isAllowed(): Boolean {
+                if (first) { first = false; c.invalidateExposure() }
+                return true
+            }
+        }
+        assertFalse(c.enable(c.request(), 1, gate, ::template) { _, _ -> true })
+        assertFalse(c.ready(1)); assertEquals(0, p.arms)
+        assertTrue(c.refreshExposure(1)); assertTrue(c.ready(1)); assertTrue(p.armed)
+    }
     @Test fun `capsules carry the process launch identity that exit-info contexts carry`() {
         val c = AndroidNativeSignalController(::engine, Producer(), { null }, now = { 3000 })
         assertTrue(enable(c))

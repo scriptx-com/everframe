@@ -116,6 +116,24 @@ final class NativeCrashRecovery: @unchecked Sendable {
         }
     }
 
+    /// Only the runtime's disabled-recorder snapshot authorizes live-context
+    /// retirement. Preserve raw references too; incomplete/unsafe raw trees stop
+    /// retirement rather than guessing which immutable owner they will need.
+    func retireUnusedContexts(runID: UUID, keeping recorderContexts: Set<UUID>) throws -> Set<UUID> {
+        try locked {
+            guard activeRunIDs.contains(runID) else { throw Failure.activeRun }
+            let inventory = try Tree.scan(runURL(runID), maximum: limits.maxRunBytes)
+            guard !inventory.oversized else { throw Failure.capacity }
+            var keeping = recorderContexts
+            for report in inventory.reports {
+                let record = try NativeCrashRecordDecoder.decode(Tree.readRaw(report), redact: { _ in "" })
+                guard let identifier = record.contextID else { throw Failure.unavailable }
+                keeping.insert(identifier)
+            }
+            return try contextStore.retireContexts(runID: runID, keeping: keeping)
+        }
+    }
+
     /// Hooks model process interruption and run outside the process lock. Production
     /// callers omit them. In-flight leases exclude retirement between these boundaries.
     func recover(runID: UUID, outbox: JSONLOutbox, phaseHook: ((Phase) throws -> Void)? = nil) throws -> Outcome {

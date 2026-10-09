@@ -89,14 +89,15 @@ identity and upload the matching mapping only from trusted CI.
 
 ## Release health observations (opt in)
 
-Set `EverframeConfig.releaseHealth` to observe SDK exposure segments independently
-of replay, session vitals, `setUser`, and install identifiers:
+Set `EverframeConfig.releaseHealth` to monitor foreground sessions independently
+of replay, session vitals, `setUser`, and install identifiers. This remains
+opt-in, with anonymous subjects by default:
 
 ```kotlin
 releaseHealth = ReleaseHealthConfig(
     nativeBuildId = BuildConfig.EXACT_NATIVE_ARTIFACT_ID,
     loadedBundleStatus = ReleaseHealthBundleStatus.NOT_APPLICABLE,
-    // Optional: a project-local opaque account ID. Omit it for anonymous segments.
+    // Optional: a project-local opaque account ID. Omit it for anonymous sessions.
     userId = signedInAccountId,
 )
 ```
@@ -106,43 +107,69 @@ JavaScript bundle, use `KNOWN` with its actual `loadedBuildId`, or `UNKNOWN` wit
 no ID. A downloaded update that has not loaded is not the running build. Blank
 or contradictory identities do not become ready.
 
-Segments are anonymous unless you set `userId`; it is never copied from
+Schema version 3 uses `sessionPolicy: foreground-v1`. A durable start opens only
+while the process lifecycle is foreground. Background closes that session with
+`outcome: completed` and `endReason: background`; reentry opens a fresh exposure
+UUID. Reconfiguration closes the previous foreground session with `sdk_stop`.
+These boundaries describe the monitored foreground interval. They do not prove
+healthy process termination. Process death leaves an unknown outcome, and a
+relaunch never invents a completed end.
+
+Foreground comes from AndroidX `ProcessLifecycleOwner`: it starts with the first
+started activity and stops shortly after the last one stops, so rotation and
+activity changes keep one session. App Startup attaches it in the default process
+only. If the app removes `androidx.startup.InitializationProvider` or its
+`androidx.lifecycle.ProcessLifecycleInitializer` entry, or enables release health
+in another process, no session opens, `isReleaseHealthReady()` stays false, and an
+`Everframe` warning names `process-lifecycle-unavailable`.
+
+`Everframe.isReleaseHealthReady()` means an active foreground start has committed
+to the encrypted journal. Background immediately removes its attribution pointer.
+Foreground sessions persist subject/build ownership and reuse immutable bytes
+and record IDs across retries. The journal is bounded to 256 records and 1 MiB,
+with a seven-day local retry window; write failures can leave outcomes unknown.
+`requestReleaseHealthFlush()` requests a retry with each record's frozen SDK key
+and endpoint. HTTP redirects are not followed. Ordinary report uploads progress
+independently while a health destination is unavailable.
+
+Absent/disabled release health and `kill()` revoke pending health records rather
+than complete sessions. `kill()` and a configuration with `enabled = false` erase
+them on the calling thread before returning; this is bounded local IO and can wait
+for an in-progress journal write. A start without `releaseHealth` erases them on
+the SDK's IO thread. Failed erasure must complete before a later re-enable. This
+control governs the health journal and future pointers. Crash and diagnostic
+evidence already captured with a session pointer (uncaught JVM exceptions, native
+signal and OS exit reports) keeps its immutable bytes under the separate crash and
+diagnostic delivery and retention policy. Health opt-out does not erase records
+already delivered to the server; server exposure erasure removes their linkage even
+when an older report arrives later. `kill()` revokes both local paths.
+
+Sessions are anonymous unless you set `userId`; it is never copied from
 `setUser`. It must be nonblank, at most 128 UTF-16 units and free of
 U+0000–U+001F control characters and unpaired surrogates. An invalid ID records
 nothing: release health does not become ready, and no exception is thrown. The ID
-is frozen for its segment. On login, logout or account switch, call
-`Everframe.start` again with a copy of your configuration whose `releaseHealth`
-carries the new `userId` (`null` on logout). That restart applies the whole
-configuration and opens a new segment within the same launch. These are version 2
-records: the receiving service must support version 2 before you enable them. See
+is frozen for its session. On login, logout or account switch, or when the loaded
+OTA build changes, call `Everframe.start` again with a copy of your configuration
+whose `releaseHealth` carries the new values (`userId = null` on logout). That
+restart closes the previous foreground session with `sdk_stop` and opens a new one
+while foreground. Anonymous sessions never infer install identity. Queue-loss
+accounting remains unavailable. These are version 3 records: the receiving
+service must support version 3 before you enable them. See
 [release health observations](../../../docs/release-health.md).
 
-Every `start()` creates a new exposure segment, including replacement in the
-same process. `Everframe.isReleaseHealthReady()` means its start was committed
-to encrypted storage; it does not mean delivery succeeded. Starts and explicit
-replacement ends use a dedicated journal bounded to 256 records, 1 MiB, and
-seven days. `requestReleaseHealthFlush()` requests a retry, using each record's
-original SDK key and destination. HTTP redirects are not followed. `kill()` or
-starting with absent/disabled release health revokes pending health records
-across destinations. Failed erasure must complete before later re-enable.
-This control governs the health journal and future pointers. An OS diagnostic
-already admitted with a pointer retains its immutable bytes under the separate
-diagnostic delivery and retention policy. Health opt-out does not erase records
-already delivered to the server; server exposure erasure removes their linkage
-even when an older diagnostic arrives later. `kill()` revokes both local paths.
-Ordinary report uploads progress independently while a health destination is
-unavailable. Rapid replacement before a pending segment activates can omit a
-prior segment's explicit end; coverage remains incomplete.
-
-To associate OS exit diagnostics, wait for release-health readiness before
-calling `setProcessExitDiagnosticsEnabled(true)` (or native-only recovery).
-The encrypted OS context freezes the exact ready segment. Arming earlier leaves
-the association unavailable, even if health becomes ready later. Recovery never
-substitutes the relaunch segment or infers an association from process ID alone.
-
-These observations have incomplete coverage and unknown queue loss counts.
-An end record is an SDK boundary, not proof of a healthy process.
-Missing records do not imply crashes, and no crash-free rate is calculated.
+Uncaught JVM exceptions, OS exit recovery and diagnostics, and the optional
+API26–30 signal collector carry the frozen pointer of a ready foreground session.
+Crashes in background, or before a session's start is durable, carry none.
+Opting in to native capture before release-health readiness is supported.
+Entering foreground keeps native capture armed with its pointer-free context;
+once the session start is durable, that context is replaced with one carrying
+the pointer. Background clears the OS exit token and pauses the signal handler
+before a completed end can be persisted, then re-arms a pointer-free context on
+the SDK's IO thread. A native crash between that background fence and the
+re-arm, or while a context is being replaced, is not captured. Recovery uses
+the exact prior frozen pointer, never the relaunch session or process ID alone.
+Fatal React Native JavaScript errors are reported without a session pointer, so
+on their own they do not mark their foreground session fatal.
 
 ## Triggers are host-app concern
 

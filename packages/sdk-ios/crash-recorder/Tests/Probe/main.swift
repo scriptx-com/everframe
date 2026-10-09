@@ -64,17 +64,14 @@ if mode.hasPrefix("ctx-") {
         check(EFCRSetEnabled(false), "disable after empty admission")
         check(EFCRSetContextIdentifier(contextB), "publish B after empty admission")
     case "ctx-capacity", "ctx-capacity-last":
-        // A occupies the first slot;255 other immutable identifiers fill the budget.
-        for index in 0..<255 {
+        // Reuse bounded slots across more rotations than the old lifetime limit.
+        for index in 0..<1024 {
             let identifier = String(format: "00000000-0000-0000-0000-%012x", index)
-            check(EFCRSetContextIdentifier(identifier), "slot within budget")
+            check(EFCRSetContextIdentifier(identifier), "reusable slot")
             check(EFCRSetContextIdentifier(identifier), "duplicate consumes no slot")
         }
-        // The fatal report, not a republication, shows which owner each rejection kept.
-        check(!EFCRSetContextIdentifier(contextB), "capacity rejects a new identifier")
         if mode == "ctx-capacity" {
-            check(EFCRSetContextIdentifier(contextA), "existing slot reusable after exhaustion")
-            check(!EFCRSetContextIdentifier(contextB), "capacity still rejects a new identifier")
+            check(EFCRSetContextIdentifier(contextA), "original owner can be published after rotations")
         }
     default: exit(93)
     }

@@ -109,7 +109,7 @@ class AndroidNativeExposureLinkTest {
     }
     @Test fun `health opt out after pointer read prevents a new E8 admission using the cached pointer`() {
         val epoch = AtomicInteger(1)
-        val health = ReleaseHealthController({ store("health") }, launch)
+        val health = ReleaseHealthController({ store("health") }, launch, initiallyForeground = true)
         assertTrue(health.activate(health.request(1, true), ReleaseHealthConfig("native-A"), "test", "key-A",
             "https://a.example", allowed, allowed))
         val selected = CountDownLatch(1); val resume = CountDownLatch(1)

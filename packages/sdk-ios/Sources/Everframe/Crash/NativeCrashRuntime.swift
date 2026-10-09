@@ -12,23 +12,31 @@ final class NativeCrashRuntime: @unchecked Sendable {
         let disable: () -> Void
         /// Publish the immutable context identifier, then enable the recorder.
         let publish: (UUID) -> Bool
+        /// Nil provides no safe retirement authority (e.g. an enabled recorder).
+        var retainedContextIdentifiers: () -> Set<UUID>? = { nil }
     }
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var installed = false
     private var publishedTicket: UInt64?
+    /// Durable context without a release-health pointer for `publishedTicket`: the
+    /// published context itself, or its unlinked twin when that one carries a pointer.
+    private var publishedUnlinked: UUID?
     private let worker = DispatchQueue(label: "dev.everframe.native-crash", qos: .utility)
     private let rootURL: URL
     private let outbox: JSONLOutbox
     private let recorder: Recorder
     private let keyProvider: @Sendable () throws -> Data
     private let scheduleAdmission: @Sendable (@escaping @Sendable () -> Void) -> Void
-    private enum Prepared: Sendable { case published; case context(URL, UUID) }
+    private enum Prepared: Sendable { case published; case context(URL, UUID, unlinked: UUID?) }
     // Worker-owned recovery and immutable context state.
     private var recovery: NativeCrashRecovery?
     private var run: NativeCrashRecovery.Run?
     private var didRecover = false
     private var contextIdentifiers: [String: UUID] = [:]
+    // Identifiers prepared for `preparedTicket`; their admission may still be queued.
+    private var preparedTicket: UInt64?
+    private var preparedIdentifiers: Set<UUID> = []
     // Main-admission-owned; installation is terminal and holds no leaf lock across UIKit.
     private var attemptedInstall = false
 
@@ -43,8 +51,26 @@ final class NativeCrashRuntime: @unchecked Sendable {
     @discardableResult func invalidate() -> UInt64 {
         lock.withLock {
             generation &+= 1
-            publishedTicket = nil
+            publishedTicket = nil; publishedUnlinked = nil
             if installed { recorder.disable() }
+            return generation
+        }
+    }
+
+    /// The same barrier for a withdrawn release-health pointer. On main, the published
+    /// ticket's durable unlinked context is rearmed under this lock, so work later in
+    /// the same callback is captured; otherwise the next refresh rearms capture.
+    @discardableResult func retireExposure() -> UInt64 {
+        lock.withLock {
+            let unlinked = publishedTicket == generation ? publishedUnlinked : nil
+            generation &+= 1
+            publishedTicket = nil; publishedUnlinked = nil
+            guard installed else { return generation }
+            recorder.disable()
+            if let unlinked, Thread.isMainThread {
+                guard recorder.publish(unlinked) else { recorder.disable(); return generation }
+                publishedTicket = generation; publishedUnlinked = unlinked
+            }
             return generation
         }
     }
@@ -56,18 +82,19 @@ final class NativeCrashRuntime: @unchecked Sendable {
         guard let prepared else { return false }
         switch prepared {
         case .published: return true
-        case .context(let directory, let identifier):
+        case .context(let directory, let identifier, let unlinked):
             // Never synchronously hop to main: SDK state and context persistence
             // may be waiting independently. The admission rechecks its generation.
             return await withCheckedContinuation { continuation in
                 scheduleAdmission {
-                    continuation.resume(returning: self.admitOnMain(ticket: ticket, directory: directory, identifier: identifier))
+                    continuation.resume(returning: self.admitOnMain(ticket: ticket, directory: directory,
+                        identifier: identifier, unlinked: unlinked))
                 }
             }
         }
     }
 
-    private func admitOnMain(ticket: UInt64, directory: URL, identifier: UUID) -> Bool {
+    private func admitOnMain(ticket: UInt64, directory: URL, identifier: UUID, unlinked: UUID?) -> Bool {
         precondition(Thread.isMainThread)
         guard isCurrent(ticket) else { return false }
         if !attemptedInstall {
@@ -82,7 +109,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
             if publishedTicket == ticket { return true }
             // The current-generation check and enable share opt-out's leaf lock.
             guard recorder.publish(identifier) else { recorder.disable(); return false }
-            publishedTicket = ticket
+            publishedTicket = ticket; publishedUnlinked = unlinked
             return true
         }
     }
@@ -117,20 +144,49 @@ final class NativeCrashRuntime: @unchecked Sendable {
             guard isCurrent(ticket) else { return nil }
             if run == nil { run = try recovery.prepareRun() }
             guard let run else { return nil }
-            let bytes = try context.encoded()
-            let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
-            let identifier: UUID
-            if let existing = contextIdentifiers[digest] { identifier = existing }
-            else {
-                identifier = try recovery.writeContext(context, runID: run.id)
-                contextIdentifiers[digest] = identifier
-            }
+            if preparedTicket != ticket { preparedTicket = ticket; preparedIdentifiers = [] }
+            guard let identifier = try contextIdentifier(context, ticket: ticket, recovery: recovery, run: run) else { return nil }
+            // A pointer-free twin lets a background withdrawal rearm capture without
+            // disk work. Without one, that withdrawal waits for a refresh instead.
+            let unlinked = context.releaseHealthExposure == nil ? identifier : (try? context.withoutReleaseHealthExposure())
+                .flatMap { try? contextIdentifier($0, ticket: ticket, recovery: recovery, run: run) }
             guard isCurrent(ticket) else { return nil }
-            return .context(run.recorderURL, identifier)
+            return .context(run.recorderURL, identifier, unlinked: unlinked)
         } catch {
             // The gate was closed before work began. Never replace or delete a
             // current run to work around unavailable keys, capacity, or I/O.
             return nil
         }
+    }
+
+    /// Immutable contexts are cached by content digest. At the cache bound, retire every
+    /// context that neither the recorder, a pending same-ticket admission nor the
+    /// published unlinked context can still reference. Nil means the ticket is stale.
+    private func contextIdentifier(_ context: NativeCrashRecoveryContext, ticket: UInt64,
+                                   recovery: NativeCrashRecovery, run: NativeCrashRecovery.Run) throws -> UUID? {
+        let bytes = try context.encoded()
+        let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        if let existing = contextIdentifiers[digest] { preparedIdentifiers.insert(existing); return existing }
+        if contextIdentifiers.count >= 128 {
+            let retained = lock.withLock { () -> Set<UUID>? in
+                guard generation == ticket, let current = recorder.retainedContextIdentifiers() else { return nil }
+                return current.union(preparedIdentifiers).union(publishedUnlinked.map { [$0] } ?? [])
+            }
+            if let retained {
+                do {
+                    let remaining = try recovery.retireUnusedContexts(runID: run.id, keeping: retained)
+                    contextIdentifiers = contextIdentifiers.filter { remaining.contains($0.value) }
+                } catch {
+                    // A partial unlink must not leave cached IDs pointing at
+                    // absent files. Retrying persists fresh immutable bytes.
+                    contextIdentifiers.removeAll()
+                    throw error
+                }
+            }
+        }
+        guard isCurrent(ticket) else { return nil }
+        let identifier = try recovery.writeContext(context, runID: run.id)
+        contextIdentifiers[digest] = identifier; preparedIdentifiers.insert(identifier)
+        return identifier
     }
 }

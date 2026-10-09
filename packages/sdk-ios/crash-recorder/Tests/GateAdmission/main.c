@@ -37,5 +37,25 @@ int main(void) {
     printf("shouldWriteReport=%d enabled=%d admitted=%s\n", plan.shouldWriteReport, efcr_gateGet(), captured);
     // The callback may preserve an already admitted A or observe disablement.
     // It must never admit B, which has not been enabled.
-    return efcr_gateGet() || (plan.shouldWriteReport && strcmp(captured, contextA)) ? 1 : 0;
+    if (efcr_gateGet() || (plan.shouldWriteReport && strcmp(captured, contextA))) return 1;
+    // Admit A, then keep its immutable bytes pinned through far more than the
+    // old lifetime capacity. Healthy publication must remain bounded/reusable.
+    if (!efcr_contextPublish(contextA)) return 2;
+    efcr_gateSet(true);
+    KSCrash_ExceptionHandlingPlan fatal = {.shouldWriteReport = true};
+    efcr_willWriteReport(&fatal, NULL);
+    efcr_gateSet(false);
+    for (unsigned i = 0; i < 1024; ++i) {
+        char next[37]; snprintf(next, sizeof(next), "%08x-3333-4333-8333-333333333333", i);
+        if (!efcr_contextPublish(next)) { fprintf(stderr, "publication exhausted at %u\n", i); return 3; }
+        efcr_writeContext(&fatal, &writer);
+        if (strcmp(captured, contextA)) return 4;
+        char current[37], admitted[37];
+        if (!efcr_contextRetained(current, admitted) || strcmp(current, next) || strcmp(admitted, contextA)) return 5;
+        efcr_gateSet(true);
+        if (efcr_contextRetained(current, admitted) || efcr_contextPublish(contextB)) return 6;
+        efcr_gateSet(false);
+    }
+    puts("1024 context rotations preserve admitted fatal ownership");
+    return 0;
 }

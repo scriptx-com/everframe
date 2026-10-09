@@ -28,7 +28,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         return await runtime.enable(ticket: ticket, sdkVersion: "1.0.0")
     }
     private func rows() throws -> [ReleaseHealthEntry] { try ReleaseHealthStore(root: root, keyProvider: { self.key }).pending() }
-    func testVersionTwoSubjectsAreFrozenAcrossAccountRotation() async throws {
+    func testForegroundSubjectsAreFrozenAcrossAccountRotation() async throws {
         let runtime = runtime()
         let first = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "bundle-a", loadedBundleStatus: .known, userId: "opaque-a")
         let ticket = runtime.requestEnable(configuration: first, sdkKey: "key-a", endpoint: "https://a.example/api/ingest/release-health")
@@ -41,12 +41,12 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertEqual(a.processLaunchID, runtime.readyPointer?.processLaunchID)
         let records = try rows().map { try JSONSerialization.jsonObject(with: $0.body) as! [String: Any] }
         XCTAssertEqual(records.count, 3)
-        for record in records { XCTAssertEqual(record["schemaVersion"] as? Int, 2) }
+        for record in records { XCTAssertEqual(record["schemaVersion"] as? Int, 3) }
         let exposures = records.map { $0["exposure"] as! [String: Any] }
         XCTAssertEqual(exposures[0]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-a"])
         XCTAssertEqual(exposures[1]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-a"])
         XCTAssertEqual(exposures[2]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-b"])
-        XCTAssertEqual(exposures[2]["sessionPolicy"] as? String, "launch-v1")
+        XCTAssertEqual(exposures[2]["sessionPolicy"] as? String, "foreground-v1")
         let erased = await runtime.finishRevocation(runtime.revoke()); XCTAssertTrue(erased)
         XCTAssertTrue(try rows().isEmpty)
     }
@@ -69,6 +69,15 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         }
         XCTAssertEqual(ids, [Array(composed.utf8), Array(composed.utf8), Array(decomposed.utf8)])
         runtime.boundary(); await runtime.barrier()
+    }
+    func testCompletedEndClampsWallClockRollbackAndKeepsMonotonicElapsed() throws {
+        let segment = ReleaseHealthSegment(configuration: try configuration(), sdkVersion: "test", sdkKey: "key",
+            endpoint: "https://example.test", processLaunchID: UUID(), now: now, uptime: 10)
+        let body = try JSONSerialization.jsonObject(with: segment.entry(end: true, now: now.addingTimeInterval(-30), uptime: 12).body) as! [String: Any]
+        XCTAssertEqual(body["schemaVersion"] as? Int, 3)
+        XCTAssertEqual(body["outcome"] as? String, "completed")
+        XCTAssertEqual(body["capturedAt"] as? String, "2026-10-08T01:02:03.456Z")
+        XCTAssertEqual(body["elapsedMs"] as? Int, 2000)
     }
     func testInvalidProvidedSubjectIsRefused() throws {
         for id in ["", " ", String(repeating: "a", count: 129), "a\u{0000}", "\u{feff}", " \u{feff}\u{00a0}"] {
@@ -140,7 +149,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertEqual(exposure["startedAt"] as? String, "2026-10-08T01:02:03.456Z")
         XCTAssertTrue(exposure["loadedBuildId"] is NSNull)
         XCTAssertEqual(exposure["subject"] as? [String: String], ["kind": "anonymous"])
-        XCTAssertEqual(body["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(body["schemaVersion"] as? Int, 3)
         XCTAssertEqual(body["capturedAt"] as? String, exposure["startedAt"] as? String)
         let pointer = try XCTUnwrap(runtime.readyPointer)
         XCTAssertEqual(Int64((pointer.startedAt.timeIntervalSince1970 * 1000).rounded()), Int64((now.timeIntervalSince1970 * 1000).rounded()))

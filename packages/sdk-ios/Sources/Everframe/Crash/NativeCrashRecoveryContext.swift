@@ -28,6 +28,11 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
         releaseHealthExposureBytes = try releaseHealthExposure.map { try ReleaseHealthDate.encoder().encode($0) }
         try validate()
     }
+    /// The same frozen routing, template and policy without a release-health pointer.
+    func withoutReleaseHealthExposure() throws -> Self {
+        try Self(sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
+            envelopeTemplate: envelopeTemplate, redaction: redaction)
+    }
     func encoded() throws -> Data {
         try validate()
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
