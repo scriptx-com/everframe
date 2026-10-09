@@ -1,0 +1,25 @@
+packages/cli/README.md
+  s_360d9eb003c487::t_b812f41e01ca84 21-25
+packages/cli/src/upload-snapshot.ts
+  s_360d9eb003c487::t_4589b42c71f2d6 118-125,136,139
+  s_360d9eb003c487::t_67324a7c26d9ff 4,16-47
+  s_360d9eb003c487::t_adb09508fc4c0f 48
+packages/cli/__tests__/large-dsym-upload.spec.ts
+  s_360d9eb003c487::t_c7788a5566c0e4 3,5,8-15,19,230-328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "95b536a7af3889515b46be3e2600255e562c2a3e",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
