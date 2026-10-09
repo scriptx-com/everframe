@@ -1,0 +1,29 @@
+packages/sdk-android/native/README.md
+  s_360d9eb003c487::t_e7ea5db4fe86c8 61-63
+packages/sdk-android/native/tests/test_build.py
+  s_97602a0a2d8f20::t_fbe7b092962636 5,24-33,36-42,49,54,76,81-162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75179057866b007a5c72e44ed065fbd1d5276e99",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
