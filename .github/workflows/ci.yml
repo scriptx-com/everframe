@@ -81,7 +81,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Test, assemble, and publish Android SDK locally
         working-directory: packages/sdk-android/android
         run: ./gradlew test assembleRelease publishAllToMavenLocal -PeverframeVersion=0.0.0-ci
