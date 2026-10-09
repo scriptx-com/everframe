@@ -137,7 +137,8 @@ public final class Everframe: @unchecked Sendable {
     }
 
     /// Opt in after start with explicit artifact identity and an optional opaque user ID. True means
-    /// this foreground session's start is durable. Background returns false and waits for foreground
+    /// this foreground session's start is durable. A launch-time call first waits for the SDK's first
+    /// application-state observation. Background returns false and waits for foreground
     /// before recording; its configuration remains opted in. Every new start requires new opt-in; a new
     /// configuration, such as another user ID after login or logout, ends the current foreground
     /// session and, while foreground, opens a new one.

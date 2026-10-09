@@ -7,9 +7,9 @@ An isolated recording foundation for future Everframe iOS/tvOS native crash
 integration. This standalone SwiftPM package is **not yet wired into the
 Everframe SDK's startup, recovery, upload or published XCFrameworks**.
 
-The `EverframeCrashRecorder` library exposes five C integration functions through
+The `EverframeCrashRecorder` library exposes six C integration functions through
 `EverframeCrashRecorder.h`: install, set enabled, read enabled, set context
-identifier, and version.
+identifier, copy retained context identifiers, and version.
 It builds for iOS 15/tvOS 15; macOS 14 is a qualification host. The vendor headers
 are private to the Clang target. The package uses no unsafe compiler flags.
 
@@ -181,7 +181,7 @@ Test helpers are not part of the library product.
 successful installation, persist the corresponding context durably, keep recording
 disabled, publish its canonical lowercase UUID, then enable only on success. NULL
 clears the current reference. Publishing or clearing while enabled fails. Invalid
-input and exhaustion leave the previous reference unchanged. Unlike installation and
+input leaves the previous reference unchanged. Unlike installation and
 enable/disable, publication may run on any healthy thread: it takes the same lock but
 calls no UIKit or vendor code. It must never run in a crash or signal handler. A
 caller that publishes off the main thread still enables on the main thread, after
@@ -189,9 +189,10 @@ publication returns true.
 
 Three bounded slots preserve the currently published context and the first
 fatal-admitted context; disabled healthy publication reuses only an unreferenced
-slot. A healthy snapshot exposes those two retained identifiers for safe disk
-retirement. The Swift runtime also preserves every validated raw-report reference;
-an incomplete or unsafe raw tree prevents retirement.
+slot, so it never runs out of capacity. A healthy snapshot exposes those two
+retained identifiers for safe disk retirement. The Swift runtime also preserves
+every validated raw-report reference; an incomplete or unsafe raw tree prevents
+retirement.
 The first admitted fatal event freezes its slot, including the no-context sentinel,
 for that terminating process. The writer emits only that identifier under
 `user.everframe_context_id`. Later publication cannot reassign it. The admitted slot
@@ -207,8 +208,9 @@ runs eight real fatal context cases. The admitted-A and empty-context cases
 explicitly invoke the admission callback before publishing B, then trigger a real
 fatal report; this exercises the boundary deterministically, not a scheduler race.
 The switched and admitted-A cases publish B from a background thread.
-The two capacity cases trap right after a rejected publication, so their reports
-show the owner each rejection kept: the last allocated slot, or a reused earlier one.
+The two capacity cases rotate 1024 identifiers through the reusable slots before
+trapping, so their reports show the last owner published: the original identifier
+republished after the rotations, or the last rotated one.
 
 `Tests/gate-admission.sh /path/to/new-output` compiles `Tests/GateAdmission/main.c`
 with the actual gate source and runs it. It disables recording and publishes another
