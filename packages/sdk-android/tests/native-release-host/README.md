@@ -21,7 +21,10 @@ Gradle root:
 ```
 
 `nativeProofVersion=2` builds the replacement application. `nativeProofModule=false`
-builds a core-only negative control. JNI code currently targets ARM64 for installed
+builds a core-only negative control. `nativeProofLegacyPackaging=false` keeps the
+default packaging, which does not extract native libraries: launched with mode
+`absent`, it must report `refused` and log the `Everframe` warning naming
+`native-libraries-not-extracted`. JNI code currently targets ARM64 for installed
 API26/30 qualification. The library build independently verifies all packaged ABIs.
 
 The host trusts the supplied test CA only for `everframe.dev`, matching the

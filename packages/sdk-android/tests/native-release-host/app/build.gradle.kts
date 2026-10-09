@@ -17,7 +17,8 @@ android {
     }
     sourceSets.getByName("main").res.srcDir(proofResources)
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
-    packaging { jniLibs { useLegacyPackaging = true; keepDebugSymbols += "**/*.so" } }
+    // nativeProofLegacyPackaging=false keeps AGP's default, unextracted libraries for the negative control.
+    packaging { jniLibs { if (providers.gradleProperty("nativeProofLegacyPackaging").getOrElse("true") == "true") useLegacyPackaging = true; keepDebugSymbols += "**/*.so" } }
     buildTypes.getByName("release") {
         isDebuggable = false; isMinifyEnabled = true; signingConfig = signingConfigs.getByName("debug")
         proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
