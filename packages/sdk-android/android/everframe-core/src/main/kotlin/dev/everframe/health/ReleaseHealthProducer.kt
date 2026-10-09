@@ -56,7 +56,7 @@ internal class ReleaseHealthProducer(
         started && !ended && currentAuthorization.isAllowed() && queue.hasCurrentLease()
     }
     @Synchronized fun start(): Boolean {
-        if (ended || !config.enabled || (config.userId != null && !validHealthText(config.userId, 128)) || !pointer.valid() || !validHealthText(sdkVersion, 64) || !currentAuthorization.isAllowed()) return false
+        if (ended || !config.enabled || (config.userId != null && (!validHealthText(config.userId, 128) || config.userId.replace("\ufeff", "").isBlank())) || !pointer.valid() || !validHealthText(sdkVersion, 64) || !currentAuthorization.isAllowed()) return false
         return try {
             prune()
             queue.enqueueSync(startEntry, currentAuthorization)

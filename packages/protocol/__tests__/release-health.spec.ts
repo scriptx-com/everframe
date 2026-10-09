@@ -118,7 +118,7 @@ describe('version 2 launch sessions', () => {
       expect(ReleaseHealthRecordSchema.parse(stopped)).toEqual(stopped);
     }
   });
-  it.each(['', ' ', 'x'.repeat(129), 'id\u0000', 'id\u001f', '\ud800'])('rejects unsafe supplied identity %j', id => {
+  it.each(['', ' ', 'x'.repeat(129), 'id\u0000', 'id\u001f', '\ud800', '\ufeff', ' \ufeff\u00a0'])('rejects unsafe supplied identity %j', id => {
     expect(ReleaseHealthRecordSchema.safeParse(v2('android', { kind: 'provided', id })).success).toBe(false);
   });
   it.each(['anonymous_exposure', { kind: 'verified', id: 'a' }, { kind: 'provided' }, { kind: 'anonymous', id: 'a' },

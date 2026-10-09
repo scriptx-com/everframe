@@ -50,8 +50,28 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         let erased = await runtime.finishRevocation(runtime.revoke()); XCTAssertTrue(erased)
         XCTAssertTrue(try rows().isEmpty)
     }
+    func testCanonicallyEquivalentOpaqueIDsRotateWithoutAnExplicitBoundary() async throws {
+        let runtime = runtime(), composed = "\u{00e9}", decomposed = "e\u{0301}"
+        let a = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: composed)
+        let first = runtime.requestEnable(configuration: a, sdkKey: "key", endpoint: "https://example.test")
+        let accepted = await runtime.enable(ticket: first, sdkVersion: "test"); XCTAssertTrue(accepted)
+        let pointer = try XCTUnwrap(runtime.readyPointer)
+        let b = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: decomposed)
+        let second = runtime.requestEnable(configuration: b, sdkKey: "key", endpoint: "https://example.test")
+        XCTAssertNotEqual(first, second); XCTAssertNil(runtime.readyPointer)
+        let changed = await runtime.enable(ticket: second, sdkVersion: "test"); XCTAssertTrue(changed)
+        XCTAssertNotEqual(pointer.exposureID, runtime.readyPointer?.exposureID)
+        XCTAssertEqual(pointer.processLaunchID, runtime.readyPointer?.processLaunchID)
+        let ids = try rows().map { entry -> [UInt8] in
+            let record = try JSONSerialization.jsonObject(with: entry.body) as! [String: Any]
+            let subject = (record["exposure"] as! [String: Any])["subject"] as! [String: String]
+            return Array(subject["id"]!.utf8)
+        }
+        XCTAssertEqual(ids, [Array(composed.utf8), Array(composed.utf8), Array(decomposed.utf8)])
+        runtime.boundary(); await runtime.barrier()
+    }
     func testInvalidProvidedSubjectIsRefused() throws {
-        for id in ["", " ", String(repeating: "a", count: 129), "a\u{0000}"] {
+        for id in ["", " ", String(repeating: "a", count: 129), "a\u{0000}", "\u{feff}", " \u{feff}\u{00a0}"] {
             XCTAssertThrowsError(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: id))
         }
         XCTAssertNoThrow(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: String(repeating: "a", count: 128)))

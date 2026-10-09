@@ -53,7 +53,7 @@ class ReleaseHealthProducerTest {
         }
     }
     @Test fun `invalid supplied subject never publishes readiness`() {
-        for (id in listOf("", " ", "x".repeat(129), "a\u0000", "\ud800")) {
+        for (id in listOf("", " ", "x".repeat(129), "a\u0000", "\ud800", "\ufeff", " \ufeff\u00a0")) {
             val owner = producer(config = ReleaseHealthConfig("native", userId = id))
             assertFalse(owner.start()); assertNull(owner.readyPointer())
         }

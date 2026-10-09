@@ -16,9 +16,22 @@ public struct ReleaseHealthConfiguration: Equatable, Sendable {
         guard Self.validText(nativeBuildId, maximum: 200),
               loadedBuildId.map({ Self.validText($0, maximum: 200) }) ?? true,
               (loadedBundleStatus == .known) == (loadedBuildId != nil) else { throw ValidationError.invalidBuildIdentity }
-        guard userId.map({ Self.validText($0, maximum: 128) }) ?? true else { throw ValidationError.invalidUserIdentity }
+        guard userId.map({ Self.validText($0, maximum: 128) &&
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{feff}"))).isEmpty }) ?? true else { throw ValidationError.invalidUserIdentity }
         self.userId = userId
         self.nativeBuildId = nativeBuildId; self.loadedBuildId = loadedBuildId; self.loadedBundleStatus = loadedBundleStatus
+    }
+    // Opaque artifact/account IDs compare by wire bytes, not Swift's canonical Unicode equality.
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        exact(lhs.nativeBuildId, rhs.nativeBuildId) && exact(lhs.loadedBuildId, rhs.loadedBuildId) &&
+            lhs.loadedBundleStatus == rhs.loadedBundleStatus && exact(lhs.userId, rhs.userId)
+    }
+    private static func exact(_ lhs: String?, _ rhs: String?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil): return true
+        case let (a?, b?): return a.utf8.elementsEqual(b.utf8)
+        default: return false
+        }
     }
     static func validText(_ value: String, maximum: Int) -> Bool {
         !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value.utf16.count <= maximum &&
