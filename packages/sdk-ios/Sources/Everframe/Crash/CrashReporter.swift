@@ -51,6 +51,9 @@ public enum CrashReporter {
     /// Production leaves this nil and closes `Everframe.shared`'s native capture.
     nonisolated(unsafe) internal static var __closeNativeCaptureForTesting: (() -> Void)?
 
+    /// Overrides only the memory-only foreground read; ownership still comes from the SDK lock.
+    nonisolated(unsafe) internal static var __exposureForTesting: (() -> EverframeNativeExposure?)?
+
     private enum Classification { case automatic, handled }
 
     /// Prime the device-metadata cache. Call at start()/configure() time.
@@ -273,7 +276,8 @@ public enum CrashReporter {
         // async-signal context: `captureFacts` is called from the RN bridge on
         // an ordinary thread and already parses JSON, allocates and writes to
         // disk below.
-        let captured = Everframe.shared.captureSessionSnapshot()
+        let snapshot = Everframe.shared.captureSessionWithNativeExposure(exposure: __exposureForTesting)
+        let captured = snapshot.session
         __afterUserSnapshotHookForTesting?()
 
         // Read AFTER the snapshot, so a still-matching epoch at `resolve()`
@@ -311,6 +315,7 @@ public enum CrashReporter {
             captured: captured,
             device: device,
             requireCurrentSession: false,
+            nativeExposure: snapshot.exposure,
             diagnostic: diagnostic
         )
     }
@@ -324,6 +329,7 @@ public enum CrashReporter {
         captured: EFCapturedSession,
         device: DeviceMetadata?,
         requireCurrentSession: Bool,
+        nativeExposure: EverframeNativeExposure? = nil,
         details: EverframeCrashDetails? = nil,
         causeChain: EverframeCrashCauseChain? = nil,
         diagnostic: CaptureObservation
@@ -367,6 +373,15 @@ public enum CrashReporter {
         let resolvedCauses = causeChain ?? normalizeCrashCauseChain(facts.causeChain, redact: { redactor.redact($0) }, stillOwned: {
             !captured.isSuperseded && !Everframe.killGenerationChanged(since: captured.killGeneration)
         })
+        let bundle = validJsBundle(facts.jsBundle)
+        let linkedExposure: EverframeNativeExposure? = {
+            guard classification == .automatic, fatal, (facts.mechanism ?? "errorutils") == "errorutils",
+                  let bundle, bundle.engine == .hermes, bundle.platform == .ios,
+                  let nativeExposure, nativeExposure.loadedBundleStatus == .known,
+                  let loadedBuild = nativeExposure.loadedBuildID,
+                  loadedBuild.utf8.elementsEqual(bundle.buildID.utf8) else { return nil }
+            return nativeExposure
+        }()
         let crash = EverframeCrash(
             causeChain: resolvedCauses,
             details: resolvedDetails,
@@ -375,7 +390,7 @@ public enum CrashReporter {
             fingerprint: fp,
             frames: framesRaw.map { EverframeFrame(col: nil, file: nil, function: nil, line: nil, raw: $0) },
             handled: handled,
-            jsBundle: validJsBundle(facts.jsBundle),
+            jsBundle: bundle,
             jvm: nil,
             mechanism: mechanism,
             message: message,
@@ -425,7 +440,7 @@ public enum CrashReporter {
             // blocks up: the vitals stamp is bound to the epoch the CRASH was captured under,
             // so a start()/kill() arriving while this envelope is being assembled degrades it
             // to no vitals instead of attributing another project's session to this crash.
-            let (bytes, idempotencyKey) = try EnvelopeBuilder(redactor: redactor, vitalsStartEpoch: capturedUser.startEpoch).buildEncoded(
+            let encoded = try EnvelopeBuilder(redactor: redactor, vitalsStartEpoch: capturedUser.startEpoch).buildEncoded(
                 reportId: reportId,
                 sdkName: sdkName,
                 sdkVersion: Everframe.SDK_VERSION,
@@ -440,6 +455,18 @@ public enum CrashReporter {
                 source: fatal ? .crash : .error,
                 crash: crash,
                 resources: ResourceRingBuffer.shared.snapshot())
+            let bytes: Data
+            let idempotencyKey: String
+            if let linkedExposure {
+                guard var envelope = try JSONSerialization.jsonObject(with: encoded.bytes) as? [String: Any],
+                      var payload = envelope["payload"] as? [String: Any],
+                      var crash = payload["crash"] as? [String: Any] else { return diagnostic.reject(.invalidInput) }
+                crash["nativeExposure"] = try JSONSerialization.jsonObject(with: ReleaseHealthDate.encoder().encode(linkedExposure))
+                payload["crash"] = crash; envelope["payload"] = payload
+                bytes = try JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys])
+                guard bytes.count <= EnvelopeBuilder.SIZE_CAP_BYTES else { return diagnostic.reject(.invalidInput) }
+                idempotencyKey = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+            } else { bytes = encoded.bytes; idempotencyKey = encoded.idempotencyKey }
             // Checked HERE, not at capture time: a kill() arriving during
             // redaction/fingerprinting/device assembly must still suppress the
             // report, and an earlier check would miss exactly that window.

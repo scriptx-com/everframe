@@ -119,8 +119,8 @@ object CrashReporter {
         // the FIRST statement, before the stack-frame mapping below: that maps
         // up to 256 StackTraceElements into Frame objects, and everything after
         // it is prep for a crash that has already happened.
-        val captured = dev.everframe.Everframe.captureSessionSnapshot()
-        val exposure = (__exposureForTesting ?: ReleaseHealthRuntime::readyPointer)(captured.user.startEpoch)
+        val (captured, exposure) = dev.everframe.Everframe.captureSessionWithNativeExposure(
+            __exposureForTesting ?: ReleaseHealthRuntime::readyPointer)
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.JVM_UNCAUGHT)
         try {
             val suppressed = acceptedHermesFatal.consume(throwable, captured.user.startEpoch, captured.killGeneration)
@@ -261,8 +261,16 @@ object CrashReporter {
         exceptionType: String, message: String, framesRaw: List<String>, mechanism: String,
         fatal: Boolean, occurredAt: String, jsBundle: JSBundle?, details: Any?, causeChain: Any?,
     ): Boolean {
+        val (captured, exposure) = dev.everframe.Everframe.captureSessionWithNativeExposure(
+            __exposureForTesting ?: ReleaseHealthRuntime::readyPointer)
         val attempt = if (fatal) acceptedHermesFatal.beginAttempt() else null
-        val captured = dev.everframe.Everframe.captureSessionSnapshot()
+        val bundle = jsBundle?.takeIf { validJsBundle(it) }
+        val linkedExposure = exposure?.takeIf {
+            fatal && mechanism == "errorutils" && bundle?.engine == dev.everframe.protocol.generated.Engine.Hermes &&
+                bundle.platform == dev.everframe.protocol.generated.JSBundlePlatform.Android &&
+                it.loadedBundleStatus == dev.everframe.config.ReleaseHealthBundleStatus.KNOWN &&
+                it.loadedBuildId == bundle.buildID
+        }
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.BRIDGE_AUTOMATIC)
         val accepted = runCatching {
             capture(
@@ -275,7 +283,8 @@ object CrashReporter {
                 threadName = null,
                 occurredAt = occurredAt,
                 captured = captured,
-                jsBundle = jsBundle?.takeIf { validJsBundle(it) },
+                jsBundle = bundle,
+                nativeExposure = linkedExposure,
                 rnDetails = details,
                 rnCauseChain = causeChain,
                 diagnostic = diagnostic,

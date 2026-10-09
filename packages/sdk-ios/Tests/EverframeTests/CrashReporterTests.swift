@@ -6,6 +6,7 @@
 // packages/protocol/__tests__/fixtures/crash-fingerprint.json — the same
 // fixture Android's Task 10 CrashReporterTest pins.
 import XCTest
+import CryptoKit
 @testable import EverframeKit
 import EverframeProtocol
 
@@ -15,6 +16,7 @@ final class CrashReporterTests: XCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
         CrashReporter.__afterUserSnapshotHookForTesting = nil
+        CrashReporter.__exposureForTesting = nil
         CrashReporter.__scheduleDrainForTesting = { _ in }
 
         tempDir = FileManager.default.temporaryDirectory
@@ -24,6 +26,7 @@ final class CrashReporterTests: XCTestCase {
 
     override func tearDownWithError() throws {
         CrashReporter.__afterUserSnapshotHookForTesting = nil
+        CrashReporter.__exposureForTesting = nil
         CrashReporter.__scheduleDrainForTesting = nil
         Everframe.shared.setUser(nil)
         Everframe.shared._identityHolder.set(nil)
@@ -33,6 +36,97 @@ final class CrashReporterTests: XCTestCase {
         Everframe.captureGate = false
         try FileManager.default.removeItem(at: tempDir)
         try super.tearDownWithError()
+    }
+
+    private func rnPointer(_ build: String? = "js-fixture", status: EverframeLoadedBundleStatus = .known) -> EverframeNativeExposure {
+        EverframeNativeExposure(exposureID: UUID().uuidString.lowercased(), loadedBuildID: build,
+            loadedBundleStatus: status, nativeBuildID: "native-fixture", processLaunchID: UUID().uuidString.lowercased(),
+            startedAt: ReleaseHealthDate.canonical(Date(timeIntervalSince1970: 1_791_539_200)))
+    }
+
+    private func rnFacts(build: String = "js-fixture", platform: String = "ios", fatal: Bool = true,
+                         mechanism: String = "errorutils", bundle: Bool = true) throws -> String {
+        var facts: [String: Any] = ["exceptionType": "Error", "message": "fatal fixture", "framesRaw": ["at f (index.bundle:1:0)"],
+            "fatal": fatal, "mechanism": mechanism, "occurredAt": "2026-10-09T10:00:01.000Z",
+            "nativeExposure": ["exposureId": "caller-forgery"], "details": ["nativeExposure": ["exposureId": "nested-forgery"]]]
+        if bundle { facts["jsBundle"] = ["engine": "hermes", "platform": platform, "buildId": build, "bundleName": "index.bundle"] }
+        return String(decoding: try JSONSerialization.data(withJSONObject: facts, options: [.sortedKeys]), as: UTF8.self)
+    }
+
+    func testRNFatalFreezesNativePointerBeforeHooksAndPersistsFinalDigestForRetry() throws {
+        let config = EverframeConfig(appId: "fixture-original")
+        Everframe.__setConfigForTesting(config); Everframe.captureGate = true
+        var pointer: EverframeNativeExposure? = rnPointer()
+        let original = try XCTUnwrap(pointer)
+        CrashReporter.__exposureForTesting = { pointer }
+        CrashReporter.__afterUserSnapshotHookForTesting = {
+            pointer = nil
+            Everframe.__setConfigForTesting(EverframeConfig(appId: "fixture-later"))
+        }
+        let outbox = makeOutbox()
+        XCTAssertTrue(CrashReporter.captureFacts(json: try rnFacts(), sdkName: "everframe-react-native", outbox: outbox))
+        let entry = try XCTUnwrap(try outbox.hydrate().first)
+        let expected = try JSONSerialization.jsonObject(with: ReleaseHealthDate.encoder().encode(original)) as! NSDictionary
+        XCTAssertEqual(try decodedCrash(entry)["nativeExposure"] as? NSDictionary, expected)
+        XCTAssertEqual(entry.sdkKey, config.appId)
+        XCTAssertEqual((try decode(entry)["sdk"] as? [String: Any])?["name"] as? String, "everframe-react-native")
+        XCTAssertEqual(entry.idempotencyKey, SHA256.hash(data: entry.envelopeBytes).map { String(format: "%02x", $0) }.joined())
+        let retry = try XCTUnwrap(try JSONLOutbox(testFileURL: outbox.resolvedFileURL).hydrate().first)
+        XCTAssertEqual(retry.envelopeBytes, entry.envelopeBytes); XCTAssertEqual(retry.idempotencyKey, entry.idempotencyKey)
+    }
+
+    func testRNAttributionRequiresExactKnownIOSFatalAndIgnoresForgedInput() throws {
+        Everframe.__setConfigForTesting(EverframeConfig(appId: "fixture")); Everframe.captureGate = true
+        let cases: [(EverframeNativeExposure?, String)] = [
+            (nil, try rnFacts()), (rnPointer("other"), try rnFacts()),
+            (rnPointer(nil, status: .unknown), try rnFacts()), (rnPointer(nil, status: .notApplicable), try rnFacts()),
+            (rnPointer(), try rnFacts(bundle: false)), (rnPointer(), try rnFacts(platform: "android")),
+            (rnPointer(), try rnFacts(build: " ")), (rnPointer(), try rnFacts(fatal: false)),
+            (rnPointer(), try rnFacts(mechanism: "captureException")),
+            (rnPointer("é"), try rnFacts(build: "e\u{301}"))]
+        for (pointer, json) in cases {
+            CrashReporter.__exposureForTesting = { pointer }
+            let outbox = JSONLOutbox(testFileURL: tempDir.appendingPathComponent(UUID().uuidString))
+            XCTAssertTrue(CrashReporter.captureFacts(json: json, sdkName: "everframe-react-native", outbox: outbox))
+            XCTAssertNil(try decodedCrash(XCTUnwrap(try outbox.hydrate().first))["nativeExposure"])
+        }
+        CrashReporter.__exposureForTesting = { self.rnPointer() }
+        let handled = makeOutbox()
+        XCTAssertTrue(CrashReporter.captureHandledFacts(json: try rnFacts(), sdkName: "everframe-react-native", outbox: handled))
+        XCTAssertNil(try decodedCrash(XCTUnwrap(try handled.hydrate().first))["nativeExposure"])
+    }
+
+    func testRevokedRNFatalCannotPersistCapturedExposure() throws {
+        Everframe.__setConfigForTesting(EverframeConfig(appId: "fixture")); Everframe.captureGate = true
+        CrashReporter.__exposureForTesting = { self.rnPointer() }
+        CrashReporter.__afterUserSnapshotHookForTesting = { Everframe.shared.kill() }
+        let outbox = makeOutbox()
+        XCTAssertFalse(CrashReporter.captureFacts(json: try rnFacts(), sdkName: "everframe-react-native", outbox: outbox))
+        XCTAssertTrue(try outbox.hydrate().isEmpty)
+    }
+
+    func testRNFatalPersistsTheDurableNativeProducerPointer() async throws {
+        let healthRoot = tempDir.appendingPathComponent("health")
+        let key = Data(repeating: 0x78, count: 32)
+        let runtime = ReleaseHealthRuntime(root: healthRoot, keyProvider: { key }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        let config = EverframeConfig(appId: "evf_live_" + String(repeating: "a", count: 32),
+            capture: .init(screenshot: false, focus: false, logs: false, network: false, crash: true), vitals: .init(enabled: false))
+        try sdk.start(config: config)
+        let health = try ReleaseHealthConfiguration(nativeBuildId: "native-fixture", loadedBuildId: "js-fixture", loadedBundleStatus: .known)
+        let enabled = await sdk.setReleaseHealth(health); XCTAssertTrue(enabled)
+        let pointer = try XCTUnwrap(runtime.readyPointer)
+        Everframe.__setConfigForTesting(config)
+        CrashReporter.__exposureForTesting = { runtime.readyPointer }
+        let outbox = makeOutbox()
+        XCTAssertTrue(CrashReporter.captureFacts(json: try rnFacts(), sdkName: "everframe-react-native", outbox: outbox))
+        let entry = try XCTUnwrap(try outbox.hydrate().first)
+        let expected = try JSONSerialization.jsonObject(with: ReleaseHealthDate.encoder().encode(pointer)) as! NSDictionary
+        XCTAssertEqual(try decodedCrash(entry)["nativeExposure"] as? NSDictionary, expected)
+        await sdk.releaseHealthForegroundChanged(false).value; await runtime.barrier()
+        let records = try ReleaseHealthStore(root: healthRoot, keyProvider: { key }).pending()
+        XCTAssertEqual(records.count, 2)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
 
     func testDiagnosticsSettleBridgeAndNativeAdmissionOnce() throws {
@@ -271,6 +365,7 @@ final class CrashReporterTests: XCTestCase {
             XCTAssertEqual(hookCalls, 1)
         }
         CrashReporter.__afterUserSnapshotHookForTesting = nil
+        CrashReporter.__exposureForTesting = nil
         XCTAssertTrue(CrashReporter.captureHandledFacts(json: json, outbox: outbox, config: config))
         XCTAssertEqual(try outbox.hydrate().count, 3)
     }
@@ -285,6 +380,7 @@ final class CrashReporterTests: XCTestCase {
         XCTAssertEqual(try outbox.hydrate().count, 0)
         XCTAssertEqual(drains, 0)
         CrashReporter.__afterUserSnapshotHookForTesting = nil
+        CrashReporter.__exposureForTesting = nil
         XCTAssertTrue(CrashReporter.captureHandledFacts(json: #"{"exceptionType":"Error"}"#, outbox: outbox, config: config))
         XCTAssertEqual(try outbox.hydrate().count, 1)
         XCTAssertEqual(drains, 1)

@@ -144,6 +144,85 @@ class CrashReporterTest {
         assertEquals(pointer!!.toJson(), persistedEnvelope("reentry")["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
     }
 
+    private fun rnPointer(build: String? = "test-android", status: dev.everframe.config.ReleaseHealthBundleStatus = dev.everframe.config.ReleaseHealthBundleStatus.KNOWN) =
+        dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), java.util.UUID.randomUUID().toString(),
+            "2026-10-09T10:00:00.000Z", "native-fixture", build, status)
+
+    private fun rnBundle(build: String = "test-android", platform: dev.everframe.protocol.generated.JSBundlePlatform = dev.everframe.protocol.generated.JSBundlePlatform.Android) =
+        dev.everframe.protocol.generated.JSBundle(buildID = build, bundleName = "index.android.bundle",
+            engine = dev.everframe.protocol.generated.Engine.Hermes, platform = platform)
+
+    @Test fun `automatic RN fatal freezes native ownership and digest before hooks or frame access`() {
+        var pointer: dev.everframe.health.NativeExposurePointer? = rnPointer()
+        val entryPointer = pointer!!
+        CrashReporter.__exposureForTesting = { pointer }
+        val frames = object : AbstractList<String>() {
+            override val size = 1
+            override fun get(index: Int): String { pointer = rnPointer("later-bundle"); return "at f (index.android.bundle:1:0)" }
+        }
+        CrashReporter.__afterUserSnapshotHookForTesting = {
+            pointer = null
+            Everframe.__setConfigForTesting(config.copy(sdkKey = "later-key"))
+        }
+        assertTrue(CrashReporter.captureFactsAcceptedWithCauses("Error", "fatal fixture", frames, "errorutils", true,
+            "2026-10-09T10:00:01.000Z", rnBundle(), mapOf("nativeExposure" to rnPointer().toJson()), null))
+        val outbox = encryptedOutbox()
+        val entry = runBlocking { outbox.hydrate() }.single()
+        val envelope = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals(entryPointer.toJson(), envelope["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+        assertEquals("everframe-android", envelope["sdk"]!!.jsonObject["name"]!!.jsonPrimitive.content)
+        assertEquals(config.sdkKey, entry.sdkKey)
+        assertEquals(java.security.MessageDigest.getInstance("SHA-256").digest(entry.envelopeBytes).joinToString("") { "%02x".format(it) }, entry.idempotencyKey)
+        runBlocking { outbox.drain { false } }
+        val retry = runBlocking { encryptedOutbox().hydrate() }.single()
+        assertTrue(entry.envelopeBytes.contentEquals(retry.envelopeBytes)); assertEquals(entry.idempotencyKey, retry.idempotencyKey)
+    }
+
+    @Test fun `RN attribution requires fatal errorutils exact known Android bundle and an entry pointer`() {
+        data class Case(val pointer: dev.everframe.health.NativeExposurePointer?, val bundle: dev.everframe.protocol.generated.JSBundle?, val fatal: Boolean = true, val mechanism: String = "errorutils")
+        val cases = listOf(Case(null, rnBundle()), Case(rnPointer("other"), rnBundle()),
+            Case(rnPointer(null, dev.everframe.config.ReleaseHealthBundleStatus.UNKNOWN), rnBundle()),
+            Case(rnPointer(null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE), rnBundle()),
+            Case(rnPointer(), null), Case(rnPointer(), rnBundle(platform = dev.everframe.protocol.generated.JSBundlePlatform.Ios)),
+            Case(rnPointer(), rnBundle(" ")), Case(rnPointer(), rnBundle(), fatal = false),
+            Case(rnPointer(), rnBundle(), mechanism = "captureException"))
+        for (case in cases) {
+            CrashReporter.__exposureForTesting = { case.pointer }
+            assertTrue(CrashReporter.captureFactsAccepted("Error", "unlinked", emptyList(), case.mechanism, case.fatal,
+                "2026-10-09T10:00:01.000Z", case.bundle))
+            assertFalse(persistedEnvelope("negative")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
+        }
+        CrashReporter.__exposureForTesting = { rnPointer() }
+        assertTrue(handled(bundle = rnBundle()))
+        assertFalse(persistedEnvelope("handled")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
+    }
+
+    @Test fun `revoked RN fatal entry never persists an attributed report`() {
+        CrashReporter.__exposureForTesting = { rnPointer() }
+        CrashReporter.__afterUserSnapshotHookForTesting = { Everframe.kill() }
+        assertFalse(hermesFatal())
+        assertTrue(runBlocking { encryptedOutbox().hydrate() }.isEmpty())
+    }
+
+    @Test fun `RN fatal persists its durable native producer pointer`() {
+        val queue = dev.everframe.outbox.OutboxStore(tmp.newFolder(), keys, JvmOutboxFileOps(), 8, 1024L * 1024, maintenanceReserveBytes = 1024)
+        val authorized = object : dev.everframe.outbox.OutboxAuthorization { override fun isAllowed() = true }
+        val producer = dev.everframe.health.ReleaseHealthProducer(queue,
+            dev.everframe.config.ReleaseHealthConfig("native-fixture", "test-android", dev.everframe.config.ReleaseHealthBundleStatus.KNOWN),
+            Everframe.SDK_VERSION, config.sdkKey, "http://127.0.0.1:9/api/ingest/release-health", authorized, authorized)
+        assertTrue(producer.start())
+        val pointer = requireNotNull(producer.readyPointer())
+        CrashReporter.__exposureForTesting = { producer.readyPointer() }
+        assertTrue(hermesFatal())
+        val entry = runBlocking { encryptedOutbox().hydrate() }.single()
+        val envelope = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals(pointer.toJson(), envelope["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+        assertTrue(producer.end("background"))
+        val records = queue.snapshotTokens().map { Json.parseToJsonElement(queue.readIfPresent(it)!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject }
+        assertEquals(2, records.size)
+
+    }
+
     @Test fun `diagnostics distinguish invalid bridge input disabled capture and reentrancy`() {
         dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
         assertFalse(CrashReporter.captureHandledFactsWithCauses("E", "", emptyList(), "2026-10-06T00:00:00Z", null, null, null, "invalid-sdk"))

@@ -13,6 +13,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
     }
     override func tearDownWithError() throws {
         Everframe.__bodyStateResetHookForTesting = nil
+        Everframe.__beforeReleaseHealthReservationForTesting = nil
         try FileManager.default.removeItem(at: root)
     }
     private func runtime() -> ReleaseHealthRuntime {
@@ -26,6 +27,90 @@ final class ReleaseHealthSDKTests: XCTestCase {
         try .init(nativeBuildId: build, loadedBuildId: nil, loadedBundleStatus: .notApplicable)
     }
     private func rows() throws -> [ReleaseHealthEntry] { try ReleaseHealthStore(root: root, keyProvider: { self.key }).pending() }
+    func testPreparedHealthReservesImmediatelyAndCannotOutliveDisableOrNativeOptIn() async throws {
+        let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        try sdk.start(config: config())
+        let old = try XCTUnwrap(sdk.prepareReleaseHealth(health(), expectedConfig: config()))
+        XCTAssertNil(runtime.readyPointer, "a reservation must not perform durable IO")
+        let disable = try XCTUnwrap(sdk.prepareReleaseHealth(nil, expectedConfig: config()))
+        let stale = await old(); XCTAssertFalse(stale)
+        let erased = await disable(); XCTAssertTrue(erased); XCTAssertTrue(try rows().isEmpty)
+        let queued = try XCTUnwrap(sdk.prepareReleaseHealth(health("queued"), expectedConfig: config()))
+        let native = try await sdk.setReleaseHealth(health("native-current")); XCTAssertTrue(native)
+        let rejected = await queued(); XCTAssertFalse(rejected)
+        XCTAssertEqual(runtime.readyPointer?.nativeBuildID, "native-current")
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+
+    func testPreparedHealthRejectsDifferentConfigAndRepeatedValueRestart() async throws {
+        let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        try sdk.start(config: config())
+        XCTAssertNil(try sdk.prepareReleaseHealth(health(), expectedConfig: config("b")))
+        let pending = try XCTUnwrap(sdk.prepareReleaseHealth(health(), expectedConfig: config()))
+        try sdk.start(config: config())
+        let stale = await pending(); XCTAssertFalse(stale); XCTAssertNil(runtime.readyPointer)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+
+    func testIdenticalPreparedHealthPreservesDurableSessionAndSnapshotOwnsPointer() async throws {
+        let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        try sdk.start(config: config())
+        let first = try XCTUnwrap(sdk.prepareReleaseHealth(health(), expectedConfig: config()))
+        let enabled = await first(); XCTAssertTrue(enabled)
+        let pointer = try XCTUnwrap(runtime.readyPointer)
+        let captured = sdk.captureSessionWithNativeExposure()
+        XCTAssertEqual(captured.session.config, config()); XCTAssertEqual(try ReleaseHealthDate.encoder().encode(XCTUnwrap(captured.exposure)), try ReleaseHealthDate.encoder().encode(pointer))
+        let duplicate = try XCTUnwrap(sdk.prepareReleaseHealth(health(), expectedConfig: config()))
+        let stillEnabled = await duplicate(); XCTAssertTrue(stillEnabled)
+        XCTAssertEqual(runtime.readyPointer?.exposureID, pointer.exposureID); XCTAssertEqual(try rows().count, 1)
+        await sdk.releaseHealthForegroundChanged(false).value
+        XCTAssertNil(sdk.captureSessionWithNativeExposure().exposure)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+
+    func testStartAndPrepareCannotBorrowSameValuedSupersedingStart() async throws {
+        let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        let entered = expectation(description: "first start reserved"), release = DispatchSemaphore(value: 0)
+        Everframe.__bodyStateResetHookForTesting = { entered.fulfill(); _ = release.wait(timeout: .now() + 5) }
+        let cfg = config(), health = try health()
+        let first = Task.detached { try sdk.startAndPrepareReleaseHealth(config: cfg, health: health) }
+        await fulfillment(of: [entered], timeout: 3)
+        Everframe.__bodyStateResetHookForTesting = nil
+        try sdk.start(config: cfg)
+        release.signal()
+        let stale = try await first.value
+        XCTAssertNil(stale, "the first configure did not publish this owner, even though config values match")
+        if let stale { _ = await stale() }
+        XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+
+    func testUnifiedConfigureDoesNotBorrowSameValuedRestartAfterUnchangedDecision() async throws {
+        let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        try sdk.start(config: config())
+        Everframe.__beforeReleaseHealthReservationForTesting = { try! sdk.start(config: self.config()) }
+        let stale = try sdk.configureAndPrepareReleaseHealth(config: config(), health: health())
+        Everframe.__beforeReleaseHealthReservationForTesting = nil
+        XCTAssertNil(stale, "unchanged values do not establish unchanged ownership")
+        if let stale { _ = await stale() }
+        XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+
+    func testUnifiedConfigureKeepsIdenticalSessionAndHonorsForcedRestart() async throws {
+        let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
+        let first = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config(), health: health()))
+        let enabled = await first(); XCTAssertTrue(enabled)
+        let original = try XCTUnwrap(runtime.readyPointer), epoch = sdk.currentStartEpoch
+        let same = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config(), health: health()))
+        let stillEnabled = await same(); XCTAssertTrue(stillEnabled)
+        XCTAssertEqual(sdk.currentStartEpoch, epoch); XCTAssertEqual(runtime.readyPointer?.exposureID, original.exposureID)
+        let forced = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config(), health: health(), forceRestart: true))
+        let replaced = await forced(); XCTAssertTrue(replaced)
+        XCTAssertNotEqual(sdk.currentStartEpoch, epoch); XCTAssertNotEqual(runtime.readyPointer?.exposureID, original.exposureID)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+
     func testDefaultOffAndIndependentOfCrashReplayAndVitals() async throws {
         let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
         let before = try await sdk.setReleaseHealth(health()); XCTAssertFalse(before)
