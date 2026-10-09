@@ -46,7 +46,7 @@ export interface R8MappingManifestV3 {
 }
 
 export const DSYM_ASSET_URL = "dsym://apple/dwarf";
-export const DSYM_MAX_BYTES = 64 * 1024 * 1024;
+export const DSYM_MAX_BYTES = 512 * 1024 * 1024;
 
 /** Raw DWARF file; image identity is derived from verified bytes by the server. */
 export interface DsymManifestV4 {

@@ -55,7 +55,7 @@ describe("raw dSYM collection and upload", () => {
     await expect(collectDsymBuild({ dwarfPath: f.path })).rejects.toThrow(
       "dsym_too_large"
     );
-    await truncate(f.path, 64 * 1024 * 1024 + 1);
+    await truncate(f.path, 512 * 1024 * 1024 + 1);
     await expect(collectDsymBuild({ dwarfPath: f.path })).rejects.toThrow(
       "dsym_too_large"
     );
@@ -87,7 +87,7 @@ describe("raw dSYM collection and upload", () => {
           authorization: "Bearer test-token",
         });
         if (init?.method === "PUT") {
-          expect(Buffer.from(init.body as Uint8Array)).toEqual(f.bytes);
+          expect(Buffer.from(await new Response(init.body).arrayBuffer())).toEqual(f.bytes);
           if (++puts === 1) return new Response("{}", { status: 503 });
           return new Response(null, { status: 204 });
         }
@@ -109,9 +109,9 @@ describe("raw dSYM collection and upload", () => {
     expect(puts).toBe(2);
     expect(await readFile(f.path)).toEqual(f.bytes);
   });
-  it("verifies ready native artifacts larger than the legacy32MiB map limit", async () => {
+  it("verifies ready native artifacts larger than the legacy64MiB map limit", async () => {
     const f = await fixture();
-    await truncate(f.path, 32 * 1024 * 1024 + 1);
+    await truncate(f.path, 64 * 1024 * 1024 + 1);
     const local = await collectDsymBuild({ dwarfPath: f.path });
     const fetcher = vi.fn(async () =>
       Response.json({
@@ -135,7 +135,7 @@ describe("raw dSYM collection and upload", () => {
         )
       ).status
     ).toBe("ready");
-    expect(local.manifest.artifacts[0]?.mapBytes).toBe(32 * 1024 * 1024 + 1);
+    expect(local.manifest.artifacts[0]?.mapBytes).toBe(64 * 1024 * 1024 + 1);
   });
   it("rejects changed bytes and destructive cleanup", async () => {
     const f = await fixture();
