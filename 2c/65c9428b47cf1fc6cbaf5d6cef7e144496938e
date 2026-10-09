@@ -1,0 +1,45 @@
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashContextStore.swift
+  s_97602a0a2d8f20::t_84931b9acf9d3c 86-100
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecorderAdapter.swift
+  s_97602a0a2d8f20::t_8b047fd3e29d99 25-28
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecovery.swift
+  s_97602a0a2d8f20::t_085cfa193866c0 119-136
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_97602a0a2d8f20::t_fab7e98914032e 15-16,127-141
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRecoveryTests.swift
+  s_97602a0a2d8f20::t_0bf24f2ee7fb5e 43-58
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_97602a0a2d8f20::t_f99413a4b7324d 104-144,199-202
+packages/sdk-ios/crash-recorder/README.md
+  s_97602a0a2d8f20::t_39237f615654a9 190-194
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Recorder.m
+  s_97602a0a2d8f20::t_6d2572d1bd1540 125-131
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/RecorderGate.c
+  s_97602a0a2d8f20::t_e6d7b18fc3e379 10-13,15,45,56,62-81,88
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/RecorderGate.h
+  s_97602a0a2d8f20::t_49798ca9998c7d 15
+packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/include/EverframeCrashRecorder.h
+  s_97602a0a2d8f20::t_5141a0488393af 46,49-53
+packages/sdk-ios/crash-recorder/Tests/GateAdmission/main.c
+  s_97602a0a2d8f20::t_c69c871bcc4047 40-60
+packages/sdk-ios/crash-recorder/Tests/Probe/main.swift
+  s_97602a0a2d8f20::t_7fff46733e4208 67-68,70,74
+packages/sdk-ios/crash-recorder/Tests/context-probes.py
+  s_97602a0a2d8f20::t_af7f2263f34daa 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c65c9428b47cf1fc6cbaf5d6cef7e144496938e",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
