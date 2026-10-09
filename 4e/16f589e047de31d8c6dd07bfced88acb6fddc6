@@ -1,0 +1,69 @@
+packages/sdk-android/android/README.md
+  s_97602a0a2d8f20::t_bb54cbeaaab1e9 92-93,102-130
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_4ebf7c13b37840 945,1703
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_97602a0a2d8f20::t_4d0719be356310 32-35
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_97602a0a2d8f20::t_18b9394d652815 6,37,39,44,90,162,177
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_97602a0a2d8f20::t_b2f47f18c05505 9,30,35-36,64,66,68,80-84,100-133
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalController.kt
+  s_97602a0a2d8f20::t_e5a2ccd9edb16c 7,35,37-39,42,58-69,71,100,102,118-119
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_97602a0a2d8f20::t_34208d4bd5a70b 33-35,84-85
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_97602a0a2d8f20::t_c0c9cca98f3ecb 21-23,46,123,155,418,525-534,538-539,617
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/NativeExposurePointer.kt
+  s_97602a0a2d8f20::t_64c1e16bfca816 7-10,18,28-33
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthController.kt
+  s_97602a0a2d8f20::t_1087a1a6e5af07 9,23,25-26,31,42-47,56-68,76,83-87,105,110,112,121,126
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthLifecycleObserver.kt
+  s_97602a0a2d8f20::t_0a47b043c4998a 1-42
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthProducer.kt
+  s_97602a0a2d8f20::t_1098b571503060 12,42,51-53,59,62,70-76,79-80,82,88,91,94
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_97602a0a2d8f20::t_21fb5daeea225a 8-10,12-14,16,18,31-34,37-41,48-50,53,59-61,64,72-103,107-108
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeExposureLinkTest.kt
+  s_97602a0a2d8f20::t_59c8135cd60096 112
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_97602a0a2d8f20::t_3c4e2d8678262a 52-63
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_97602a0a2d8f20::t_99b51cae54a688 61-102
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_97602a0a2d8f20::t_6f1bca82a0898a 48-75
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_360d9eb003c487::t_541ae5ba4fce0f 128-146
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/NativeExposurePointerTest.kt
+  s_97602a0a2d8f20::t_c1d469d26dccb7 1-29
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthControllerTest.kt
+  s_97602a0a2d8f20::t_5fa81dda512283 38,44-107,172,177
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthLifecycleObserverTest.kt
+  s_97602a0a2d8f20::t_f47752bd69b53f 1-42
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthProducerTest.kt
+  s_97602a0a2d8f20::t_e625052be486a2 48,50,55-93,110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e16f589e047de31d8c6dd07bfced88acb6fddc6",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
