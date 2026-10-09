@@ -1,0 +1,29 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_360d9eb003c487::t_fe8fd61ba202e5 112-163
+  s_360d9eb003c487::t_62f2ccf7482153 11,13-15,32,37
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_360d9eb003c487::t_058fb1170189d1 59-65,69-71
+  s_360d9eb003c487::t_772618610c95ca 8
+  s_360d9eb003c487::t_6a0531d6a4c4ba 30-42
+  s_360d9eb003c487::t_5774e87887ac4d 122-124
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalRuntimeTest.kt
+  s_360d9eb003c487::t_57e848f5025fc3 43
+  s_360d9eb003c487::t_6368499e1fa6fe 90,96
+  s_360d9eb003c487::t_ae734c4ed9a87d 1-42,44-89,91-95,97-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b132138db76f1026ba46e4fd1f85272495bd81c1",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
