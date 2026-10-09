@@ -63,7 +63,9 @@ recovered after login is not assigned to the newly logged-in account.
 
 Reported session/user fractions mean **without a reported fatal crash** in the
 current retained observations. They do not mean confirmed healthy sessions or
-population crash-free rates. Missing outcomes remain unknown; neither an end nor
+population crash-free rates. Only native crashes and Android Java crash exits
+count as fatal; a launch ended by an ANR or another OS exit counts as without a
+reported fatal crash. Missing outcomes remain unknown; neither an end nor
 its absence proves a healthy/crashed process. Duplicates are deduplicated, while
 late reports, retention and erasure can change the current counts. Anonymous
 subjects never become synthetic users. Web terminal attribution is unsupported,
