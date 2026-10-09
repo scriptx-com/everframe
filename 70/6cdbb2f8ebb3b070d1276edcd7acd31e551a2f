@@ -1,0 +1,24 @@
+packages/sdk-android/native/tests/test_build.py
+  s_360d9eb003c487::t_5ae13702f1df4c 1-47
+packages/sdk-android/native/README.md
+  s_360d9eb003c487::t_4667465e705ab1 60-62
+  s_360d9eb003c487::t_1be17aa77f48f2 63-64
+packages/sdk-android/native/build.py
+  s_360d9eb003c487::t_473a2db9f77f3c 16-19,80,82,91,96,100,105,108,110-112,136,141-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "706cdbb2f8ebb3b070d1276edcd7acd31e551a2f",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
