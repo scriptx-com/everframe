@@ -1,0 +1,31 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_97602a0a2d8f20::t_05fa290fe6ff93 384-391
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_97602a0a2d8f20::t_0e081dd6e78c09 122-123,264-265,267-273,286-287
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_97602a0a2d8f20::t_ce998623542240 147-225
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_97602a0a2d8f20::t_c1adfc239a6812 54-56,279-280,318,332,376-384,393,443,458-469
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_97602a0a2d8f20::t_6c36f8a1149d28 150-159,161-163,165-196,198-237,563-575,885-888,1148
+packages/sdk-ios/Tests/EverframeTests/CrashReporterTests.swift
+  s_97602a0a2d8f20::t_1bc91ff3a85624 9,19,29,41-131,368,383
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthSDKTests.swift
+  s_97602a0a2d8f20::t_078e4c0cf80749 16,30-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f5c82252363af2eeb24142129b236d8f3e03323",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
