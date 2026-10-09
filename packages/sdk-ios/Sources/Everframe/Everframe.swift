@@ -110,13 +110,13 @@ public final class Everframe: @unchecked Sendable {
     }
 
     /// Background retires the immutable native context together with a ready session
-    /// pointer before the UIKit callback returns, then rearms capture without one. A
-    /// transition that retires no pointer, as without an opt-in, leaves capture armed;
-    /// foreground keeps the unlinked context until a durable start is swapped in.
+    /// pointer before the UIKit callback returns and, on main, rearms its pointer-free
+    /// twin at once. A transition that retires no pointer, as without an opt-in, leaves
+    /// capture armed; foreground keeps the unlinked context until a durable start.
     @discardableResult internal func releaseHealthForegroundChanged(_ foreground: Bool) -> Task<Void, Never> {
         let captured: (UInt64, Bool, Int, UInt64)? = stateLock.withLock {
             guard let runtime = releaseHealthRuntime, let change = runtime.setForeground(foreground) else { return nil }
-            if change.retiredPointer { nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0 }
+            if change.retiredPointer { nativeCrashTicket = nativeCrashRuntime?.retireExposure() ?? 0 }
             return (change.ticket, change.retiredPointer, _startEpoch, _configGeneration)
         }
         return Task { [weak self] in
