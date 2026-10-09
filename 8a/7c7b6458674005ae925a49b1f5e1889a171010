@@ -1,0 +1,28 @@
+packages/sdk-android/tests/native-release-host/app/src/main/cpp/CMakeLists.txt
+  s_360d9eb003c487::t_61a44ca57873cc 6-8
+packages/sdk-android/tests/native-release-host/README.md
+  s_360d9eb003c487::t_d24885f9c385dd 68
+  s_360d9eb003c487::t_66c001de06aa9c 43-62
+packages/sdk-android/tests/native-release-host/app/src/main/cpp/plus_fault.cc
+  s_360d9eb003c487::t_065c7e1104f06b 1-9
+packages/sdk-android/tests/native-release-host/app/src/main/cpp/fault.cc
+  s_360d9eb003c487::t_dfbd27dab55f09 5,14-29
+packages/sdk-android/tests/native-release-host/app/src/main/kotlin/dev/everframe/releaseproof/MainActivity.kt
+  s_360d9eb003c487::t_c707f35f975cda 9,24-27,34-35,44-45,69-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a7c7b6458674005ae925a49b1f5e1889a171010",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
