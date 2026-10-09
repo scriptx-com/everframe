@@ -3,9 +3,12 @@
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open, realpath, unlink, lstat } from "node:fs/promises";
+import type { ReadStream } from "node:fs";
+import { finished } from "node:stream/promises";
+import { snapshotDsymFile, verifyDsymFile } from "./upload-snapshot.js";
 import { isIP } from "node:net";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { DSYM_MAX_BYTES, ELF_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
+import { ELF_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
 import { collectBuild, hashFile, type LocalBuild } from "./manifest.js";
 
 export interface UploadOptions {
@@ -163,17 +166,41 @@ async function request(
   url: string,
   init: RequestInit,
   acceptConflict = false,
+  bodyFactory?: () => ReadStream,
 ): Promise<{ response: Response; body: unknown }> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     let response: Response | undefined;
     let body: unknown;
+    let stream: ReadStream | undefined;
     try {
-      response = await fetcher(url, {
-        ...init,
-        redirect: "error",
-        headers: { authorization: `Bearer ${token}`, ...init.headers },
-      });
-      body = response.status === 204 ? undefined : await responseBody(response);
+      stream = bodyFactory?.();
+      // Listen before fetch reads the stream, which happens only after it
+      // connects: an open failure would otherwise be an uncaught exception.
+      const closed = stream && finished(stream).catch(() => undefined);
+      // A stream body cannot be replayed, so fetch's HTTP authentication step
+      // would turn a 401 into a network error. The token is sent explicitly.
+      const streamingBody: RequestInit & { duplex?: "half" } = stream
+        ? {
+            body: stream as unknown as BodyInit,
+            duplex: "half",
+            credentials: "omit",
+          }
+        : {};
+      try {
+        response = await fetcher(url, {
+          ...init,
+          ...streamingBody,
+          redirect: "error",
+          headers: { authorization: `Bearer ${token}`, ...init.headers },
+        });
+        body =
+          response.status === 204 ? undefined : await responseBody(response);
+      } finally {
+        if (stream) {
+          stream.destroy();
+          await closed;
+        }
+      }
     } catch (error) {
       if (error instanceof InvalidServerResponse) throw error;
       if (attempt === MAX_ATTEMPTS) throw new Error("request_failed:network");
@@ -229,11 +256,7 @@ async function readCheckedMapping(
   maxBytes = 32 * 1024 * 1024,
 ): Promise<Buffer> {
   const expected = artifact.mapBytes;
-  if (
-    !Number.isSafeInteger(expected) ||
-    expected <= 0 ||
-    expected > maxBytes
-  )
+  if (!Number.isSafeInteger(expected) || expected <= 0 || expected > maxBytes)
     throw new Error("source_map_changed");
   const resolved = await ensurePathInRoot(root, path);
   const file = await open(
@@ -282,9 +305,25 @@ async function verifyCollectedFiles(
     const mapPath = local.mapPaths.get(artifact.url);
     if (!mapPath) throw new Error("invalid_local_build");
     const roots = local.fileRoots?.get(artifact.url);
-    await readCheckedMapping(roots?.mapRoot ?? defaultRoot, mapPath, artifact,
-      local.manifest.version === 5 ? ELF_MAX_BYTES : local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined);
-    if (local.manifest.version === 3 || local.manifest.version === 4 || local.manifest.version === 5) continue;
+    if (local.manifest.version === 4) {
+      await verifyDsymFile(
+        await ensurePathInRoot(roots?.mapRoot ?? defaultRoot, mapPath),
+        artifact,
+      );
+    } else {
+      await readCheckedMapping(
+        roots?.mapRoot ?? defaultRoot,
+        mapPath,
+        artifact,
+        local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
+      );
+    }
+    if (
+      local.manifest.version === 3 ||
+      local.manifest.version === 4 ||
+      local.manifest.version === 5
+    )
+      continue;
     const generatedPath = local.generatedPaths?.get(artifact.url);
     if (!generatedPath) throw new Error("invalid_local_build");
     await ensurePathInRoot(roots?.generatedRoot ?? defaultRoot, generatedPath);
@@ -346,25 +385,45 @@ export async function uploadCollectedBuild(
       const mapPath = local.mapPaths.get(artifact.url);
       if (!mapPath) throw new Error("invalid_local_build");
       const roots = local.fileRoots?.get(artifact.url);
-      const mapBytes = await readCheckedMapping(
-        roots?.mapRoot ?? options.root,
-        mapPath,
-        artifact,
-        local.manifest.version === 5 ? ELF_MAX_BYTES : local.manifest.version === 4 ? DSYM_MAX_BYTES : undefined,
-      );
-      const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
-      const uploaded = await request(
-        fetcher,
-        waiter,
-        options.token,
-        uploadUrl,
-        {
-          method: "PUT",
-          headers: { "content-type": "application/octet-stream" },
-          body: new Uint8Array(mapBytes),
-        },
-        true,
-      );
+      const snapshot =
+        local.manifest.version === 4
+          ? await snapshotDsymFile(
+              await ensurePathInRoot(roots?.mapRoot ?? options.root, mapPath),
+              artifact,
+            )
+          : undefined;
+      let uploaded: Awaited<ReturnType<typeof request>>;
+      try {
+        const mapBytes = snapshot
+          ? undefined
+          : await readCheckedMapping(
+              roots?.mapRoot ?? options.root,
+              mapPath,
+              artifact,
+              local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
+            );
+        const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
+        uploaded = await request(
+          fetcher,
+          waiter,
+          options.token,
+          uploadUrl,
+          {
+            method: "PUT",
+            headers: {
+              "content-type": "application/octet-stream",
+              ...(snapshot
+                ? { "content-length": String(artifact.mapBytes) }
+                : {}),
+            },
+            ...(mapBytes ? { body: new Uint8Array(mapBytes) } : {}),
+          },
+          true,
+          snapshot?.stream,
+        );
+      } finally {
+        await snapshot?.dispose();
+      }
       if (uploaded.response.status === 409) {
         const resumed = await request(
           fetcher,

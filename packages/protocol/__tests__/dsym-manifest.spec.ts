@@ -9,11 +9,11 @@ const input = {
   platform: "apple",
   buildId: "dsym:" + sha,
   artifacts: [
-    { url: "dsym://apple/dwarf", mapSha256: sha, mapBytes: 64 * 1024 * 1024 },
+    { url: "dsym://apple/dwarf", mapSha256: sha, mapBytes: 512 * 1024 * 1024 },
   ],
 };
 describe("raw dSYM upload manifest", () => {
-  it("accepts a single digest-bound artifact at the native64MiB ceiling", () => {
+  it("accepts a single digest-bound artifact at the Apple512MiB ceiling", () => {
     expect(parseManifest(input)).toEqual(input);
     expect(artifactKind(parseManifest(input))).toBe("dsym");
   });
@@ -30,7 +30,7 @@ describe("raw dSYM upload manifest", () => {
       { url: "dsym://apple/other" },
       { generatedSha256: sha },
       { mapBytes: 0 },
-      { mapBytes: 64 * 1024 * 1024 + 1 },
+      { mapBytes: 512 * 1024 * 1024 + 1 },
       { mapSha256: sha + "\n" },
       { extra: true },
     ].map((change) => ({ artifacts: [{ ...input.artifacts[0], ...change }] })),
