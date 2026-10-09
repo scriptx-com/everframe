@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { createHash } from "node:crypto";
-import { constants, createReadStream } from "node:fs";
+import { constants, createReadStream, rmSync } from "node:fs";
 import { mkdtemp, open, rm, type FileHandle } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +12,39 @@ interface Identity {
   mapSha256: string;
 }
 const changed = () => new Error("source_map_changed");
+
+// A signal ends the process without running finally blocks, so remove live
+// snapshots and re-raise it. A host with its own handler keeps the signal;
+// if that handler exits, the exit hook removes them.
+const live = new Set<string>();
+const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+function hold(directory: string): void {
+  if (!live.size) {
+    for (const signal of signals) process.on(signal, interrupted);
+    process.on("exit", removeLive);
+  }
+  live.add(directory);
+}
+function release(directory: string): void {
+  live.delete(directory);
+  if (live.size) return;
+  for (const signal of signals) process.off(signal, interrupted);
+  process.off("exit", removeLive);
+}
+function removeLive(): void {
+  for (const directory of live) {
+    release(directory);
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+function interrupted(signal: NodeJS.Signals): void {
+  if (process.listenerCount(signal) > 1) return;
+  try {
+    removeLive();
+  } finally {
+    process.kill(process.pid, signal);
+  }
+}
 
 // The caller has checked root containment. All subsequent reads use this one
 // no-follow descriptor, so replacing a pathname cannot redirect the snapshot.
@@ -82,6 +115,14 @@ export async function verifyDsymFile(
 
 export async function snapshotDsymFile(path: string, identity: Identity) {
   const directory = await mkdtemp(join(tmpdir(), "everframe-dsym-upload-"));
+  hold(directory);
+  const dispose = async () => {
+    try {
+      await rm(directory, { recursive: true, force: true });
+    } finally {
+      release(directory);
+    }
+  };
   const snapshot = join(directory, "artifact");
   try {
     const file = await open(snapshot, "wx", 0o600);
@@ -92,10 +133,10 @@ export async function snapshotDsymFile(path: string, identity: Identity) {
     }
     return {
       stream: () => createReadStream(snapshot, { highWaterMark: 64 * 1024 }),
-      dispose: () => rm(directory, { recursive: true, force: true }),
+      dispose,
     };
   } catch (error) {
-    await rm(directory, { recursive: true, force: true });
+    await dispose();
     throw error;
   }
 }

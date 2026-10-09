@@ -18,9 +18,11 @@ Set `EVERFRAME_API_TOKEN` to a token with `artifacts:write` access to the app.
 file up to 512 MiB, including universal files; archives and dSYM directories are not
 accepted. The upload identity is derived from the exact file bytes. The service
 verifies the file and indexes its image UUID/CPU identities; a release label cannot
-substitute for matching symbols. Uploads use a private temporary disk snapshot and
-stream it with bounded memory; allow free temporary disk space for one copy of the
-file. Retries send that same snapshot. The service must support the 512 MiB Apple
+substitute for matching symbols. Uploads use a private snapshot in the system
+temporary directory (`TMPDIR`) and stream it with bounded memory; allow free space
+there for one copy of the file. Retries send that same snapshot. The snapshot is
+removed when the command ends, including after SIGINT, SIGTERM or SIGHUP; a process
+killed with SIGKILL can leave it behind. The service must support the 512 MiB Apple
 limit; older services may reject files above 64 MiB. Files remain on disk after upload. Configure this
 command in your build pipeline after dSYM generation; automatic native build-hook
 installation is not included.

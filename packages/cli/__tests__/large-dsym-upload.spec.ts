@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { once } from "node:events";
 import { rmSync } from "node:fs";
 import { createServer } from "node:http";
-import { mkdtemp, rm, truncate, writeFile, access } from "node:fs/promises";
+import {
+  mkdtemp,
+  readdir,
+  rm,
+  truncate,
+  writeFile,
+  access,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
+import { pathToFileURL } from "node:url";
 import { afterEach, expect, it } from "vitest";
 import { collectDsymBuild } from "../src/dsym.js";
 import { uploadCollectedBuild } from "../src/upload.js";
@@ -217,3 +227,102 @@ it("reports a snapshot that cannot be opened as a failed request", async () => {
     process.off("uncaughtException", record);
   }
 });
+const cli = join(import.meta.dirname, "..", "dist", "index.js");
+const snapshots = async (directory: string) =>
+  (await readdir(directory)).filter((name) =>
+    name.startsWith("everframe-dsym-upload-"),
+  );
+// Reserves the build, then stops reading the PUT so the upload stays open.
+async function stalledUpload() {
+  const f = await fixture();
+  await truncate(f.path, 32 * 1024 * 1024);
+  const tmp = await mkdtemp(join(tmpdir(), "everframe-interrupt-test-"));
+  roots.push(tmp);
+  let started = () => {};
+  const putStarted = new Promise<void>((resolve) => (started = resolve));
+  const server = createServer((req, res) => {
+    if (req.method === "PUT") {
+      req.once("data", () => {
+        req.pause();
+        started();
+      });
+      return;
+    }
+    req.resume();
+    req.on("end", () =>
+      res
+        .setHeader("content-type", "application/json")
+        .end(JSON.stringify(status())),
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const env = {
+    ...process.env,
+    TMPDIR: tmp,
+    EVERFRAME_API_TOKEN: "test-token",
+    EVERFRAME_API_URL: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
+  };
+  const args = ["dsym", "upload", "--app-id", "app", "--dwarf", f.path];
+  return {
+    tmp,
+    env,
+    args,
+    putStarted,
+    close: async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
+}
+it.each(["SIGINT", "SIGTERM"] as const)(
+  "removes the snapshot when the command is interrupted with %s",
+  async (signal) => {
+    const upload = await stalledUpload();
+    const child = spawn(process.execPath, [cli, ...upload.args], {
+      env: upload.env,
+      stdio: "ignore",
+    });
+    try {
+      const exited = once(child, "exit");
+      await upload.putStarted;
+      expect(await snapshots(upload.tmp)).toHaveLength(1);
+      child.kill(signal);
+      expect(await exited).toEqual([null, signal]);
+      expect(await snapshots(upload.tmp)).toEqual([]);
+    } finally {
+      child.kill("SIGKILL");
+      await upload.close();
+    }
+  },
+  15000,
+);
+it("leaves a host's own interrupt handling to the host", async () => {
+  const upload = await stalledUpload();
+  // A host that embeds the CLI handles SIGINT itself and exits shortly after.
+  const host = `
+    import { main } from ${JSON.stringify(pathToFileURL(cli).href)};
+    let interrupts = 0;
+    process.on("SIGINT", () => {
+      console.log("host interrupt " + ++interrupts);
+      setTimeout(() => process.exit(7), 200);
+    });
+    await main(${JSON.stringify(upload.args)}, process.env);
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", host], {
+    env: upload.env,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  let stdout = "";
+  child.stdout.on("data", (chunk) => (stdout += String(chunk)));
+  try {
+    const exited = once(child, "exit");
+    await upload.putStarted;
+    child.kill("SIGINT");
+    expect(await exited).toEqual([7, null]);
+    expect(stdout).toBe("host interrupt 1\n");
+    expect(await snapshots(upload.tmp)).toEqual([]);
+  } finally {
+    child.kill("SIGKILL");
+    await upload.close();
+  }
+}, 15000);
