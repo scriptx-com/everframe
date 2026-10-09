@@ -17,7 +17,10 @@
     "revision": "5e19d2fb166fbd4f6f32147fbb2f497091a54ad8",
     "macArm64ArchiveSha256": "bd485a3494c85341a59241e8307cdcbc1d244b58478ad331ede96449beae17ca"
   },
-  "ndk": "29.0.14033849",
+  "ndk": {
+    "revision": "29.0.14206865",
+    "releaseName": "r29"
+  },
   "buildOnlyOverlay": {
     "file": "mini-chromium-arm-gn.patch",
     "sha256": "126e3552230a5b57ce29fd2501660955d96c1a5dd0cbc524efcfc79043c41edd",

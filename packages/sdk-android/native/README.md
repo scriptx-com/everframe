@@ -61,13 +61,15 @@ other packaged ABIs require their own device qualification.
 
 ## Reproducible build
 
-Qualified build host: macOS ARM64, Python3.12+, Android NDK29.0.14033849, make,
-Perl and SDK CMake ninja. Source archive hashes or Git trees are pinned in
-`source-pins.json`; toolchain and OpenSSL inputs in `toolchain-pins.json`.
+Qualified build host: macOS ARM64, Python3.12+, the stable Android NDK r29
+(29.0.14206865), make, Perl and SDK CMake ninja. Source archive hashes or Git
+trees are pinned in `source-pins.json`; toolchain and OpenSSL inputs in
+`toolchain-pins.json`. The builder requires the exact NDK revision and release
+name, so a pre-release NDK with the same base revision is refused.
 
 ```sh
 python3 native/build.py --workspace /absolute/owned-build \
-  --ndk "$ANDROID_HOME/ndk/29.0.14033849" \
+  --ndk "$ANDROID_HOME/ndk/29.0.14206865" \
   --ninja "$ANDROID_HOME/cmake/3.22.1/bin/ninja" --abi all
 cd android
 ./gradlew :everframe-native-crash:assembleRelease \

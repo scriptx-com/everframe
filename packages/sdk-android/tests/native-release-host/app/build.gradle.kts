@@ -8,7 +8,7 @@ val copyProofCa by tasks.registering(Copy::class) {
 }
 android {
     namespace = "dev.everframe.releaseproof"
-    compileSdk = 35; ndkVersion = "29.0.14033849"
+    compileSdk = 35; ndkVersion = "29.0.14206865"
     defaultConfig {
         applicationId = "dev.everframe.releaseproof"; minSdk = 26; targetSdk = 35
         versionCode = providers.gradleProperty("nativeProofVersion").getOrElse("1").toInt(); versionName = "native-release-$versionCode"

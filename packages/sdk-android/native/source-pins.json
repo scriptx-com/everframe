@@ -33,11 +33,5 @@
       "bytes": 888705,
       "sha256": "900f7ebff191f60d963822341f3016ef7a58a108550230f73518c8491813fccc"
     }
-  ],
-  "hostToolchain": {
-    "gn": "1000 (5e19d2f)",
-    "clang": "Debian19.1.7 (pinned sources require C++23)",
-    "ninja": "1.11.1",
-    "openssl": "3.0.22"
-  }
+  ]
 }

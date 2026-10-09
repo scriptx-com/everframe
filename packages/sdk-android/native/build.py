@@ -58,6 +58,12 @@ def extract(archive, dest, strip=False):
             members.append(m)
         tar.extractall(dest,members=members,filter='data')
 
+def check_ndk(ndk, pin):
+    # Exact stable identity: a pre-release shares the base revision but must never build artifacts.
+    properties=dict(map(str.strip,line.split('=',1)) for line in (ndk/'source.properties').read_text().splitlines() if '=' in line)
+    found=(properties.get('Pkg.Revision'),properties.get('Pkg.ReleaseName'))
+    require(found==(pin['revision'],pin['releaseName']),f'wrong NDK revision {found}; pinned {pin["revision"]} ({pin["releaseName"]})')
+
 def source_hashes():
     return {p.name:digest(p) for p in sorted(SOURCE.iterdir()) if p.is_file() and p.suffix in ('.cc','.h','.gn','.json','.patch','.py')}
 
@@ -79,7 +85,7 @@ def main():
     if platform.system()!='Darwin' or platform.machine()!='arm64': raise SystemExit('qualified build host is macOS arm64')
     require(a.ndk and a.ninja,'--ndk and --ninja required for compilation')
     pins=json.loads((SOURCE/'toolchain-pins.json').read_text());ndk=a.ndk.resolve()
-    require(('Pkg.Revision = '+pins['ndk']) in (ndk/'source.properties').read_text(),'wrong NDK revision')
+    check_ndk(ndk,pins['ndk'])
     vendor=work/'vendor';vendor.mkdir(parents=True,exist_ok=True)
     upstream=vendor/'crashpad';upstream.mkdir(exist_ok=True);src=upstream/'source'
     destinations={'crashpad':'','mini_chromium':'third_party/mini_chromium/mini_chromium',
