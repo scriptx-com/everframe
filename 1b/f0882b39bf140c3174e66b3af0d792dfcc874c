@@ -1,0 +1,25 @@
+docs/crash-reporting-support.md
+  s_97602a0a2d8f20::t_128008316ae293 1-63
+packages/sdk-android/README.md
+  s_97602a0a2d8f20::t_5ae60c9dd03a4f 19-21
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_a7ec48e7f97aae 16-18
+packages/sdk-react-native/README.md
+  s_97602a0a2d8f20::t_4e2c8306c57948 14-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1bf0882b39bf140c3174e66b3af0d792dfcc874c",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
