@@ -1,0 +1,20 @@
+packages/sdk-android/native/client.cc
+  s_360d9eb003c487::t_7bf2fd0a53b654 7,9,11,16,20
+  s_360d9eb003c487::t_a6c38a96b3c0ab 57-91,95-99,101-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e671637a914c4d79ac193663cbfe24eb1b150016",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
