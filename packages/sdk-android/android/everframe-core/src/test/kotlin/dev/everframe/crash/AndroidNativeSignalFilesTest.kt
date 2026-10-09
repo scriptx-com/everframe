@@ -9,6 +9,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CyclicBarrier
 
 class AndroidNativeSignalFilesTest {
     @get:Rule val folder = TemporaryFolder()
@@ -24,6 +26,19 @@ class AndroidNativeSignalFilesTest {
         files.cleanup(setOf(a))
         assertTrue(File(files.records,a).isDirectory); assertFalse(File(files.records,b).exists())
         assertEquals(40,files.read(a)!!.size)
+    }
+    @Test fun `first use races another store creating the shared parent without failing`() {
+        // On a fresh install the SDK outbox creates dev.everframe on its own thread while the
+        // first opt-in builds this store; whichever creates a directory first, both proceed.
+        repeat(200) { round ->
+            val base = folder.newFolder("round$round")
+            val barrier = CyclicBarrier(4)
+            val failures = ConcurrentLinkedQueue<Throwable>()
+            val threads = List(4) { Thread { try { barrier.await(); AndroidNativeSignalFiles(base, JvmOutboxFileOps()) } catch (error: Throwable) { failures.add(error) } } }
+            threads.forEach { it.start() }; threads.forEach { it.join() }
+            assertTrue(failures.joinToString(), failures.isEmpty())
+            assertTrue(File(base, "dev.everframe/native-signal-v1/records").isDirectory)
+        }
     }
     @Test fun `parent link is refused without touching its target`() {
         val outside = folder.newFolder("outside")

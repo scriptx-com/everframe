@@ -4,6 +4,7 @@ package dev.everframe.crash
 
 import dev.everframe.outbox.OutboxFileOps
 import java.io.File
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.attribute.PosixFilePermissions
@@ -17,8 +18,12 @@ internal class AndroidNativeSignalFiles(base: File, private val ops: OutboxFileO
     private fun directory(parent: File, name: String): File {
         val child = File(parent, name); val path = child.toPath()
         if (!Files.exists(path, NOFOLLOW_LINKS)) {
-            Files.createDirectory(path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")))
-            ops.syncDirectory(parent)
+            try {
+                Files.createDirectory(path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")))
+                ops.syncDirectory(parent)
+            } catch (_: FileAlreadyExistsException) {
+                // The SDK outbox creates the shared parent on its own thread; the check below decides.
+            }
         }
         check(Files.isDirectory(path, NOFOLLOW_LINKS) && !Files.isSymbolicLink(path)) { "Native directory must be owned and regular" }
         return child
