@@ -4,16 +4,20 @@
 #include <android/api-level.h>
 #include <jni.h>
 #include <dlfcn.h>
+#include <elf.h>
 #include <fcntl.h>
+#include <link.h>
 #include <signal.h>
+#include <sys/auxv.h>
 #include <unistd.h>
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
-#include <cstdio>
+#include <cstring>
 #include <mutex>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 #include "client/crashpad_client.h"
 #include "util/linux/socket.h"
@@ -50,28 +54,52 @@ std::string String(JNIEnv* env,jstring s) {
 bool SameHandler(const struct sigaction& a,const struct sigaction& b) {
   return a.sa_sigaction==b.sa_sigaction && (a.sa_flags&SA_SIGINFO)==(b.sa_flags&SA_SIGINFO);
 }
+// Executable segments of the dynamic linker this process runs under. The kernel
+// loaded it at AT_BASE from the main executable's PT_INTERP, so its extent comes
+// from in-memory program headers, read once, without /proc.
+struct Linker { std::array<std::pair<uintptr_t,uintptr_t>,4> text{}; size_t count=0; };
+Linker FindLinker() {
+  const auto* program=reinterpret_cast<const ElfW(Phdr)*>(getauxval(AT_PHDR));
+  const size_t count=getauxval(AT_PHNUM);const uintptr_t base=getauxval(AT_BASE);
+  if(!program||!count||count>64||!base)return {};
+  const ElfW(Phdr)* self=nullptr;const ElfW(Phdr)* interp=nullptr;
+  for(size_t i=0;i<count;i++) {
+    if(program[i].p_type==PT_PHDR)self=&program[i];
+    else if(program[i].p_type==PT_INTERP)interp=&program[i];
+  }
+  if(!self||!interp||interp->p_filesz<2||interp->p_filesz>256)return {};
+  const auto* name=reinterpret_cast<const char*>(reinterpret_cast<uintptr_t>(program)-self->p_vaddr+interp->p_vaddr);
+  const std::string_view path(name,interp->p_filesz-1);
+  if(name[interp->p_filesz-1]!='\0'||(path!="/system/bin/linker64"&&path!="/system/bin/linker"&&
+      path!="/apex/com.android.runtime/bin/linker64"&&path!="/apex/com.android.runtime/bin/linker"))return {};
+  const auto* header=reinterpret_cast<const ElfW(Ehdr)*>(base);
+  if(memcmp(header->e_ident,ELFMAG,SELFMAG)!=0||header->e_ident[EI_CLASS]!=(sizeof(void*)==8?ELFCLASS64:ELFCLASS32)||
+     header->e_type!=ET_DYN||header->e_phentsize!=sizeof(ElfW(Phdr))||!header->e_phnum||header->e_phnum>64)return {};
+  const auto* segments=reinterpret_cast<const ElfW(Phdr)*>(base+header->e_phoff);
+  Linker linker;bool first=true;
+  for(size_t i=0;i<header->e_phnum;i++) {
+    const auto& segment=segments[i];
+    if(segment.p_type!=PT_LOAD)continue;
+    // Linked at zero, so AT_BASE is both the load bias and the mapped ELF header.
+    if(first&&(segment.p_vaddr!=0||segment.p_offset!=0))return {};
+    first=false;
+    if(!(segment.p_flags&PF_X))continue;
+    if(linker.count==linker.text.size()||!segment.p_memsz||segment.p_vaddr>UINTPTR_MAX-base-segment.p_memsz)return {};
+    linker.text[linker.count++]={base+segment.p_vaddr,base+segment.p_vaddr+segment.p_memsz};
+  }
+  return linker;
+}
 bool SystemHandler(const struct sigaction& a) {
   if(a.sa_handler==SIG_DFL)return true;
   if(a.sa_handler==SIG_IGN)return false;
+  // Android's linker installs the debuggerd handlers, which dladdr cannot resolve.
+  // Accept only the executable segments of the platform linker named by PT_INTERP.
+  static const Linker linker=FindLinker();
+  const auto address=reinterpret_cast<uintptr_t>(a.sa_sigaction);
+  for(size_t i=0;i<linker.count;i++)if(linker.text[i].first<=address&&address<linker.text[i].second)return true;
   Dl_info library{};
-  std::string path;
-  if(dladdr(reinterpret_cast<void*>(a.sa_sigaction),&library)&&library.dli_fname)path=library.dli_fname;
-  else {
-    // Android's linker installs debuggerd handlers that dladdr cannot resolve.
-    // Accept only its executable mapping at a platform-owned absolute path.
-    FILE* maps=fopen("/proc/self/maps","re");if(!maps)return false;
-    char line[4096];const auto address=reinterpret_cast<uintptr_t>(a.sa_sigaction);
-    for(size_t lines=0;lines<4096&&fgets(line,sizeof line,maps);lines++) {
-      unsigned long long begin=0,end=0;char permissions[5]{};int offset=0;
-      if(sscanf(line,"%llx-%llx %4s %*s %*s %*s %n",&begin,&end,permissions,&offset)==3 &&
-          begin<=address&&address<end&&permissions[2]=='x'&&offset>0) {
-        path=line+offset;while(!path.empty()&&(path.back()=='\n'||path.back()=='\r'))path.pop_back();break;
-      }
-    }
-    fclose(maps);
-    return path=="/system/bin/linker64"||path=="/system/bin/linker"||
-        path=="/apex/com.android.runtime/bin/linker64"||path=="/apex/com.android.runtime/bin/linker";
-  }
+  if(!dladdr(reinterpret_cast<void*>(a.sa_sigaction),&library)||!library.dli_fname)return false;
+  const std::string path=library.dli_fname;
   // Platform signal chaining is required for ART implicit null checks and debuggerd.
   // App-bundled crash collectors, even with these basenames, are never admitted.
   return (path.starts_with("/system/")||path.starts_with("/apex/")) &&
