@@ -23,7 +23,10 @@ temporary directory (`TMPDIR`) and stream it with bounded memory; allow free spa
 there for one copy of the file. Retries send that same snapshot. The snapshot is
 removed when the command ends, including after SIGINT, SIGTERM or SIGHUP; a process
 killed with SIGKILL can leave it behind. The service must support the 512 MiB Apple
-limit; older services may reject files above 64 MiB. Files remain on disk after upload. Configure this
+limit; older services may reject files above 64 MiB. Each upload attempt must be
+received and verified by the service within five minutes, so a 512 MiB dSYM needs
+about 15 Mbit/s of sustained upload bandwidth (about 11 Mbit/s for 400 MiB); slower
+links fail the attempt and its retries. Files remain on disk after upload. Configure this
 command in your build pipeline after dSYM generation; automatic native build-hook
 installation is not included.
 
