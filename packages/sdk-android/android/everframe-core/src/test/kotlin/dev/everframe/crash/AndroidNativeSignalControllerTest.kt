@@ -67,6 +67,24 @@ class AndroidNativeSignalControllerTest {
         assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
         assertEquals(3, p.arms)
     }
+    @Test fun `opt in armed before the session start is durable gains its pointer on refresh`() {
+        val launch = UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = null
+        val p = Producer()
+        val c = AndroidNativeSignalController(::engine, p, { null }, launch, { 3000 }, exposure = { pointer })
+        fun frozen() = store("capsules").let { queue ->
+            Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        }
+        assertTrue(enable(c)); assertFalse(frozen().containsKey("nativeExposure"))
+        // Foreground entry fences nothing; the refresh after the durable start replaces the capsule.
+        pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:00.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        assertTrue(c.refreshExposure(1))
+        assertEquals(pointer!!.toJson(), frozen()["nativeExposure"])
+        assertTrue(p.armed); assertTrue(c.ready(1)); assertEquals(2, p.arms)
+        assertTrue(c.refreshExposure(1)) // The same pointer keeps the armed capsule.
+        assertEquals(2, p.arms)
+    }
     @Test fun `background during native provisioning fences the stale arm and durable capsule`() {
         val p = Producer(); val c = owner(p)
         p.onArm = { c.invalidateExposure() }

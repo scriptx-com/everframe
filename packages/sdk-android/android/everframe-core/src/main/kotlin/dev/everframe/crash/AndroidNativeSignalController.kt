@@ -36,7 +36,7 @@ internal class AndroidNativeSignalController(
 ) {
     private data class Owner(val command: Long, val epoch: Int, val reportId: String, val engine: AndroidNativeRecordImport, val exposureRevision: Long,
         val authorization: OutboxAuthorization, val template: () -> OutboxEntry,
-        val admit: (OutboxEntry, OutboxAuthorization) -> Boolean)
+        val admit: (OutboxEntry, OutboxAuthorization) -> Boolean, val pointer: NativeExposurePointer?)
     private data class Setup(val command: Long, val epoch: Int, val authorization: OutboxAuthorization,
         val template: () -> OutboxEntry, val admit: (OutboxEntry, OutboxAuthorization) -> Boolean)
     @Volatile private var setup: Setup? = null
@@ -111,10 +111,14 @@ internal class AndroidNativeSignalController(
         // request() invalidates revoked setups; a physical purge must not erase a later opt-in.
         setup = Setup(command, epoch, authorization, template, admit)
         if (!finishRevocation() || !gate.isAllowed()) return@synchronized false
-        if (ready(epoch)) return@synchronized true
+        // An armed capsule is kept only while it carries the current session pointer: one that
+        // appeared or changed since arming must replace it, or later faults stay unattributed.
+        if (ready(epoch) && owner?.pointer == exposure(epoch)) return@synchronized true
         try {
-            // Pause already happened at the command fence. Wait for the handler to revoke
-            // before retiring this process's capsule; previous-process evidence is untouched.
+            readyCommand = -1
+            // A command or lifecycle fence paused the handler; a pointer change revokes it here.
+            // Wait for the handler to revoke before retiring this process's capsule;
+            // previous-process evidence is untouched.
             if (!producer.revoke()) return@synchronized false
             owner?.let { it.engine.retireArmed(it.reportId) }
             owner = null
@@ -124,8 +128,9 @@ internal class AndroidNativeSignalController(
             val nativeGeneration = producer.generation()
             if (!gate.isAllowed()) return@synchronized false
             val entry = template()
-            owner = Owner(command, epoch, entry.reportId, engine, exposureRevision, authorization, template, admit)
-            if (!engine.arm(entry, processLaunchId, gate, nativeExposure = exposure(epoch)) { id, key -> producer.arm(id, key, nativeGeneration) } || !gate.isAllowed()) {
+            val pointer = exposure(epoch)
+            owner = Owner(command, epoch, entry.reportId, engine, exposureRevision, authorization, template, admit, pointer)
+            if (!engine.arm(entry, processLaunchId, gate, nativeExposure = pointer) { id, key -> producer.arm(id, key, nativeGeneration) } || !gate.isAllowed()) {
                 producer.pause()
                 if (producer.revoke()) {
                     engine.retireArmed(entry.reportId)
