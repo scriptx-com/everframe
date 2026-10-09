@@ -121,7 +121,7 @@ subprojects {
         extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.apply {
             compileSdk = 35
             defaultConfig {
-                minSdk = 24
+                minSdk = if (project.name == "everframe-native-crash") 26 else 24
                 targetSdk = 35
             }
             compileOptions {

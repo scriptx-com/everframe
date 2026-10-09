@@ -23,6 +23,8 @@ internal class AndroidNativeRecoveryController(
     private val platform: AndroidNativeExitPlatform,
     private val processLaunchId: String = ProcessLaunchIdentity.id.toString(),
     private val exposure: (Int) -> NativeExposurePointer? = { null },
+    /** API30 overlap: whether optional signal capture owns an ended launch's native fault. */
+    private val signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE },
 ) {
     private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean) {
         var ready = false
@@ -64,7 +66,9 @@ internal class AndroidNativeRecoveryController(
         try {
             val exits = platform.history()
             if (!gate.isAllowed()) return false
-            owner.engine.recover(exits, nowMs, gate, allowDiagnostics = diagnostics) { if (gate.isAllowed()) admit(it) else false }
+            owner.engine.recover(exits, nowMs, gate, allowDiagnostics = diagnostics, signalCapture = signalCapture) {
+                if (gate.isAllowed()) admit(it) else false
+            }
             synchronized(lock) {
                 if (!gate.isAllowed()) return false
                 owner.engine.arm(template(), platform.pid, platform.processName, gate, diagnostics, processLaunchId, platform.apiLevel,

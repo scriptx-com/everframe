@@ -48,7 +48,8 @@ internal object AndroidNativeCrashRuntime {
                 maxEntries = 8, maxTotalBytes = 2L * 1024 * 1024)
             AndroidNativeRecovery(store("contexts"), store("prepared"))
         }, AndroidExitPlatform(context.applicationContext),
-            exposure = dev.everframe.health.ReleaseHealthRuntime::readyPointer).also { controller = it }
+            exposure = dev.everframe.health.ReleaseHealthRuntime::readyPointer,
+            signalCapture = { AndroidNativeSignalRuntime.capture(context, it) }).also { controller = it }
     }
 
     /** Off-main caller. Defaults to no state-summary ownership until explicitly requested by the host. */

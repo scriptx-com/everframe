@@ -637,6 +637,47 @@ object Everframe {
         }
     }
 
+    /** True only after the optional API26..30 signal module has durably armed this start. */
+    @JvmStatic
+    fun isNativeSignalCaptureReady(): Boolean = captureGate &&
+        dev.everframe.crash.AndroidNativeSignalRuntime.ready(currentStartEpochVolatile())
+
+    /**
+     * Opt in after each start() to encrypted partial native fault capture on API26..30.
+     * Requires the optional native-crash module and the default app process. Disabled by
+     * default; no full-unwind or arbitrary-thread stack-overflow guarantee. Another native
+     * collector prevents activation; the platform WebView's chaining crash handler does not.
+     * API31+ continues using setNativeCrashRecoveryEnabled.
+     * The app must extract native libraries for APKs and App Bundles:
+     * `android { packaging { jniLibs { useLegacyPackaging = true } } }`. With default packaging,
+     * readiness stays false and an `Everframe` warning names `native-libraries-not-extracted`.
+     * On API30 with setProcessExitDiagnosticsEnabled, a fault recorded here is reported once,
+     * by this path; the OS exit then adds no second crash.
+     * Explicit disable and kill() erase unadmitted native evidence outside the SDK stateLock, on
+     * the calling thread: they can wait for an in-progress setup and do local IO and handler IPC.
+     */
+    @JvmStatic
+    fun setNativeSignalCaptureEnabled(enabled: Boolean) {
+        val (captured, context, command) = stateLock.withLock {
+            if (enabled && _publishedStartEpoch != _startEpoch) return
+            val snapshot = captureSessionSnapshot()
+            Triple(snapshot, appContext,
+                if (enabled) dev.everframe.crash.AndroidNativeSignalRuntime.requestEnable(snapshot.user.startEpoch)
+                else dev.everframe.crash.AndroidNativeSignalRuntime.request(erase = true))
+        }
+        if (!enabled) {
+            txGuardVoid("nativeSignal.disable") { dev.everframe.crash.AndroidNativeSignalRuntime.finishErase(context) }
+            return
+        }
+        if (context == null || android.os.Build.VERSION.SDK_INT !in 26..30 || !captured.captureConsent || captured.config?.capture?.crash != true) return
+        launchCapturedWork(captured, requireCurrentStart = true) {
+            txGuardVoid("nativeSignal.enable") {
+                dev.everframe.crash.AndroidNativeSignalRuntime.enable(context, captured, sharedOutboxFor(context), command)
+                requestOutboxDrain()
+            }
+        }
+    }
+
     /** True after the current explicit opt-in has durably registered its OS context. */
     @JvmStatic
     fun isNativeCrashRecoveryReady(): Boolean = captureGate &&
@@ -662,6 +703,8 @@ object Everframe {
      * Call after each start. Disabled by default; no heartbeat observer is installed.
      * Reports are anonymous and retain the previous process's release/destination.
      * Either recovery switch set to false disables the shared owner and erases unadmitted evidence.
+     * On API30, a native fault that setNativeSignalCaptureEnabled recorded is reported once, by that
+     * path with its fault frame; this mode then sends no second, frameless crash for the exit.
      */
     @JvmStatic
     fun setProcessExitDiagnosticsEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = true)
@@ -891,6 +934,8 @@ object Everframe {
             _startEpochMirror.set(_startEpoch)
             dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, config.releaseHealth?.enabled == true)
             dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
+            val nativeSignalCommand = dev.everframe.crash.AndroidNativeSignalRuntime.request()
+            dev.everframe.crash.AndroidNativeSignalRuntime.retireAfterStart(nativeSignalCommand)
             _startEpoch
         } }
         // "Is this start() invocation still the newest one?" Every step below
@@ -1414,6 +1459,7 @@ object Everframe {
                 _killGenerationMirror.set(_killGeneration)
                 dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, false)
                 dev.everframe.crash.AndroidNativeCrashRuntime.noteKill()
+                dev.everframe.crash.AndroidNativeSignalRuntime.request(erase = true)
                 dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
@@ -1466,6 +1512,9 @@ object Everframe {
             val stillThisKill = { currentStartEpochVolatile() == killEpoch }
             txGuardVoid("kill.releaseHealthBoundary") {
                 dev.everframe.health.ReleaseHealthRuntime.boundary(appContext, killEpoch)
+            }
+            txGuardVoid("kill.nativeSignalBoundary") {
+                dev.everframe.crash.AndroidNativeSignalRuntime.finishErase(appContext)
             }
             txGuardVoid("kill.nativeCrashBoundary") {
                 dev.everframe.crash.AndroidNativeCrashRuntime.boundary(appContext, killEpoch, true, stillThisKill)
