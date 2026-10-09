@@ -77,8 +77,9 @@ cd android
 ```
 
 Run from `packages/sdk-android` before changing into `android`. The builder
-records source and output SHA256 values and ELF build IDs. Packaging verifies
-them again. Its checks are explicit, so they also run under `python3 -O`;
+records source and output SHA256 values and ELF build IDs, replacing earlier
+outputs. Packaging verifies them again and refuses any other file in the
+workspace `jniLibs`. Its checks are explicit, so they also run under `python3 -O`;
 `python3 -I -B -m unittest discover -s native/tests` covers the fail-closed
 paths without an NDK or network access. A single-ABI local build uses
 `--abi arm64-v8a` plus Gradle `-PeverframeNativeAbis=arm64-v8a`; publication

@@ -12,13 +12,14 @@ from pathlib import Path
 SOURCE = Path(__file__).resolve().parent
 ABIS = {'arm64-v8a': ('arm64','android-arm64'), 'armeabi-v7a': ('arm','android-arm'),
         'x86': ('x86','android-x86'), 'x86_64': ('x64','android-x86_64')}
+ROLES = ('client','handler','trampoline')
 
 def require(condition, message):
     # Explicit, so python3 -O and PYTHONOPTIMIZE cannot remove an integrity check.
     if not condition: raise ValueError(message)
 
 def digest(path):
-    return hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
+    with path.open('rb') as data: return hashlib.file_digest(data, 'sha256').hexdigest()
 
 def git_tree(data, strip):
     root = {}
@@ -68,12 +69,15 @@ def source_hashes():
     return {p.name:digest(p) for p in sorted(SOURCE.iterdir()) if p.is_file() and p.suffix in ('.cc','.h','.gn','.json','.patch','.py')}
 
 def verify(work, abis):
+    require((work/'native-build.json').is_file(),'missing native-build.json; build the workspace before packaging')
     proof=json.loads((work/'native-build.json').read_text())
     if proof['sources'] != source_hashes(): raise ValueError('native sources changed; rebuild before packaging')
-    for abi in abis:
-        for role in ('client','handler','trampoline'):
-            name=f'{abi}/libeverframe_native_{role}.so'
-            if digest(work/'jniLibs'/name)!=proof['artifacts'][name]['sha256']: raise ValueError('native artifact mismatch: '+name)
+    # Gradle packages the whole jniLibs directory, so it must hold exactly the verified artifacts.
+    libs=work/'jniLibs';expected={f'{abi}/libeverframe_native_{role}.so' for abi in abis for role in ROLES}
+    present={p.relative_to(libs).as_posix() for p in libs.rglob('*') if p.is_symlink() or not p.is_dir()} if libs.is_dir() else set()
+    require(present==expected,'workspace jniLibs differ from the verified artifacts: '+', '.join(sorted(present^expected)))
+    for name in sorted(expected):
+        if digest(libs/name)!=proof['artifacts'].get(name,{}).get('sha256'): raise ValueError('native artifact mismatch: '+name)
     return proof
 
 def main():
@@ -86,6 +90,9 @@ def main():
     require(a.ndk and a.ninja,'--ndk and --ninja required for compilation')
     pins=json.loads((SOURCE/'toolchain-pins.json').read_text());ndk=a.ndk.resolve()
     check_ndk(ndk,pins['ndk'])
+    # A new proof certifies only this run's outputs.
+    (work/'native-build.json').unlink(missing_ok=True)
+    if (work/'jniLibs').exists(): shutil.rmtree(work/'jniLibs')
     vendor=work/'vendor';vendor.mkdir(parents=True,exist_ok=True)
     upstream=vendor/'crashpad';upstream.mkdir(exist_ok=True);src=upstream/'source'
     destinations={'crashpad':'','mini_chromium':'third_party/mini_chromium/mini_chromium',
@@ -138,7 +145,7 @@ def main():
         run([gn,'gen',out,'--root-target=//everframe_native:artifacts','--args='+args],src,abi+'-gn')
         run([a.ninja,'-j2','-C',out,'everframe_native:artifacts'],src,abi+'-native')
         dest=work/'jniLibs'/abi;dest.mkdir(parents=True,exist_ok=True)
-        for role in ('client','handler','trampoline'):
+        for role in ROLES:
             name=f'libeverframe_native_{role}.so';files=list(out.rglob(name));require(len(files)==1,'expected one built '+name)
             shutil.copy2(files[0],dest/name)
             details=subprocess.check_output([str(ndkbin/'llvm-readelf'),'-d','-n',str(dest/name)],text=True)
