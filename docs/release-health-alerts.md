@@ -1,12 +1,12 @@
 # Reported fatal-session threshold webhooks
 
-`release_health.threshold_reached` (event schema1.2) reports that one configured
+`release_health.threshold_reached` (event schema 1.2) reports that one configured
 native cohort crossed an observed-session and fatal-session count threshold. It
 uses the normal signed webhook transport. `ReleaseHealthThresholdEventSchema`
 from `@everframe/protocol` validates the strict wire shape.
 
 The data contains app/project/rule IDs, exact native and loaded-bundle identity,
-a7or30day rolling segment-start window, observation time, configured minimums,
+a 7 or 30 day rolling segment-start window, observation time, configured minimums,
 and counts of observed launches, launches with qualified fatal evidence, and
 launches without qualified exit evidence. Only explicit launch-v1 session starts
 and retained exact-pointer fatal evidence qualify. Counts deduplicate launches
