@@ -1,0 +1,19 @@
+packages/sdk-android/tests/native-release-host/app/src/main/cpp/fault.cc
+  s_360d9eb003c487::t_293bedf7418223 13-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "97d11fa2a4c7224d68918913dd717d49c7a0ae60",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
