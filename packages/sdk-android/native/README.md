@@ -76,8 +76,11 @@ cd android
 
 Run from `packages/sdk-android` before changing into `android`. The builder
 records source and output SHA256 values and ELF build IDs. Packaging verifies
-them again. A single-ABI local build uses `--abi arm64-v8a` plus Gradle
-`-PeverframeNativeAbis=arm64-v8a`; publication rejects partial-ABI builds.
+them again. Its checks are explicit, so they also run under `python3 -O`;
+`python3 -I -B -m unittest discover -s native/tests` covers the fail-closed
+paths without an NDK or network access. A single-ABI local build uses
+`--abi arm64-v8a` plus Gradle `-PeverframeNativeAbis=arm64-v8a`; publication
+rejects partial-ABI builds.
 Third-party license texts ship as AAR assets. No downloaded or generated native
 binary is checked into this repository.
 
