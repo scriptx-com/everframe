@@ -1,0 +1,27 @@
+packages/protocol/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_babfad8f9f39f9 121
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthProducer.kt
+  s_97602a0a2d8f20::t_b9a61faf1b5283 59
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthProducerTest.kt
+  s_97602a0a2d8f20::t_96b325f4b849b5 56
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthConfiguration.swift
+  s_97602a0a2d8f20::t_063d3b48bbed85 19-20,24-35
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_97602a0a2d8f20::t_d559f42d01adb1 53-72,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "af0d53286e73f6a67f3bb729bb216354dddfaab5",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
