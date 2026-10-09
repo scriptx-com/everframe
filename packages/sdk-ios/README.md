@@ -13,6 +13,9 @@ contributors lives beside this README.
 
 ---
 
+See the [crash-reporting support matrix](../../docs/crash-reporting-support.md)
+for exact tested paths, unsupported combinations and remaining qualification.
+
 ## Install via Swift Package Manager
 
 In Xcode → **File → Add Package Dependencies…** add

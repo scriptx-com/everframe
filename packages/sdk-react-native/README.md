@@ -11,6 +11,9 @@ modal to RN host apps via a TurboModule + a thin React provider/hook API.
 
 ---
 
+See the [crash-reporting support matrix](../../docs/crash-reporting-support.md)
+for exact tested paths, unsupported combinations and remaining qualification.
+
 ## Installation
 
 ```bash

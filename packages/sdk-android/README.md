@@ -16,6 +16,9 @@ See the [complete Android integration guide](android/README.md) for Maven
 configuration, initialization, triggers, privacy controls, API usage, and
 platform limitations.
 
+See the [crash-reporting support matrix](../../docs/crash-reporting-support.md)
+for exact tested paths, unsupported combinations and remaining qualification.
+
 ## Modules
 
 | Gradle module | Maven artifact | Purpose |
