@@ -80,3 +80,8 @@ export { AppleDiagnosticEvidence, AppleDiagnosticFrame, AppleHang, AppleExitCoun
 export { RecoveredStallEvidence } from './recovered-stall.js';
 export { ReleaseHealthAlertCohortSchema, ReleaseHealthThresholdEventSchema } from './release-health-alert.js';
 export type { ReleaseHealthThresholdEvent, ReleaseHealthAlertCohort } from './release-health-alert.js';
+
+export { ReleaseHealthRateMetricSchema, ReleaseHealthRatePolicySchema, ReleaseHealthRateCountsSchema,
+  ReleaseHealthRateThresholdEventSchema } from './release-health-rate-alert.js';
+export type { ReleaseHealthRateMetric, ReleaseHealthRatePolicy, ReleaseHealthRateCounts,
+  ReleaseHealthRateThresholdEvent } from './release-health-rate-alert.js';
