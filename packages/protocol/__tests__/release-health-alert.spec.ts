@@ -33,4 +33,10 @@ describe('release-health threshold webhook', () => {
   ])('rejects malformed or overstated claims %#', change => {
     const value = event(); change(value); expect(ReleaseHealthThresholdEventSchema.safeParse(value).success).toBe(false);
   });
+  it.each([
+    (v: any) => v.schemaVersion = '1.3', (v: any) => v.deliveredAt = v.createdAt,
+    (v: any) => v.data.counts.conflictingSessions = 0, (v: any) => v.data.window.timeZone = 'UTC',
+  ])('stays the exact 1.2 producer shape, not a receiver filter for later 1.x additions %#', change => {
+    const value = event(); change(value); expect(ReleaseHealthThresholdEventSchema.safeParse(value).success).toBe(false);
+  });
 });
