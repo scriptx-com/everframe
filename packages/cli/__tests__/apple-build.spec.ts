@@ -383,11 +383,11 @@ it.each([
       dsym(root, "Legacy", macho({ uuid: UUID_B, cpu: 12, kind: 10 })),
   ],
   [
-    "an unrelated dSYM over 64 MiB",
+    "an unrelated dSYM over 512 MiB",
     async (root: string) =>
       truncate(
         await dsym(root, "Vendor", macho({ uuid: UUID_B, kind: 10 })),
-        64 * 1024 * 1024 + 1
+        512 * 1024 * 1024 + 1
       ),
   ],
   [
