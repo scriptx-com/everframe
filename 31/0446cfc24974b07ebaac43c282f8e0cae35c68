@@ -1,0 +1,30 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordReader.kt
+  s_360d9eb003c487::t_fa1fa069e5298f 49-50,57-66,69-70,75-87
+packages/sdk-android/native/minimal_record.h
+  s_360d9eb003c487::t_ae943fa7f01d3c 18,21-23,25
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_360d9eb003c487::t_c8f35a50d15461 169,171
+  s_360d9eb003c487::t_20402038ec2c72 163-165,167-168,172,174-175
+packages/sdk-android/native/minimal_record.cc
+  s_360d9eb003c487::t_d7a0ed4eda55c6 30-73,81-82,88-91,93,95-96,100-114,120-123,125-136
+packages/sdk-android/native/README.md
+  s_360d9eb003c487::t_fb916478a6ddb7 38-46
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_360d9eb003c487::t_eeb58db343ada6 229-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "310446cfc24974b07ebaac43c282f8e0cae35c68",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}

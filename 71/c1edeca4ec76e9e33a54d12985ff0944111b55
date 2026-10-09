@@ -1,0 +1,31 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_360d9eb003c487::t_c7234a9b6c4139 173-174
+packages/sdk-android/native/README.md
+  s_360d9eb003c487::t_e3c5cf203013da 26-30
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeWebViewPathsTest.kt
+  s_360d9eb003c487::t_1f8b32c37aa411 1-25
+packages/sdk-android/native/client.cc
+  s_360d9eb003c487::t_a6c38a96b3c0ab 108-139,142-144
+  s_360d9eb003c487::t_2c11ff47cd8da3 156-157,179,206-207,211-212,219
+packages/sdk-android/android/everframe-native-crash/src/main/java/dev/everframe/nativecrash/NativeCrashBridge.java
+  s_360d9eb003c487::t_108ba674323f60 10-13
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeWebViewPaths.kt
+  s_360d9eb003c487::t_5f8a885ca4bda9 1-27,30-31
+  s_360d9eb003c487::t_677d4905bc11ff 28-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71c1edeca4ec76e9e33a54d12985ff0944111b55",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
