@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
 cmake_minimum_required(VERSION 3.22.1)
 project(everframe_release_fault)
 add_library(everframe_release_fault SHARED fault.cc)
