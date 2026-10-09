@@ -1,0 +1,48 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_360d9eb003c487::t_cdfb54316e58b0 107,113-141,144
+  s_360d9eb003c487::t_879840790401e8 14-15,17-18
+  s_360d9eb003c487::t_6010b673e8a12d 62,142-143,145-152,176-177,181
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_360d9eb003c487::t_0a7cb5013db1d8 65
+  s_360d9eb003c487::t_b012c8ae48a232 122-129
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalController.kt
+  s_360d9eb003c487::t_3953cbdc599244 6,20-24,30-31
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_360d9eb003c487::t_7414eb0ca02d06 91-92
+  s_360d9eb003c487::t_0b9363f6137364 120-128
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_360d9eb003c487::t_2473a3e008802c 69-71
+  s_360d9eb003c487::t_110e8db564e5df 26-27
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_675694e365fe89 699-700
+  s_360d9eb003c487::t_56eefb987b111a 650-651
+packages/sdk-android/README.md
+  s_360d9eb003c487::t_ce4187f7c4bcc6 74-75
+packages/sdk-android/native/README.md
+  s_360d9eb003c487::t_3edd850215f92c 28-34
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalRuntimeTest.kt
+  s_360d9eb003c487::t_606b6ee6403965 129-152
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_360d9eb003c487::t_d4113a874a637f 51-52
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalExitOverlapTest.kt
+  s_360d9eb003c487::t_9da67e171dc564 1-119,125
+  s_360d9eb003c487::t_83bd1aea0082c2 120-124,126-136
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_360d9eb003c487::t_6ebc73c7e6be27 6,48-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c8e63880a96371937dd727482f36ac9f7ce57ba8",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
