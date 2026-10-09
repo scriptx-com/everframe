@@ -1,0 +1,25 @@
+LICENSES/Zlib.txt
+  s_360d9eb003c487::t_a8ebb72d91168c 1-11
+REUSE.toml
+  s_360d9eb003c487::t_a7d02962727b1a 6,53-82
+packages/sdk-android/tests/native-release-host/app/.gitignore
+  s_360d9eb003c487::t_914168ca330f0b 1-2
+packages/sdk-android/tests/native-release-host/app/src/main/cpp/CMakeLists.txt
+  s_360d9eb003c487::t_5615a541eccca0 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cbadf51de75a640dbaf750d88612aa79e78c7b97",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
