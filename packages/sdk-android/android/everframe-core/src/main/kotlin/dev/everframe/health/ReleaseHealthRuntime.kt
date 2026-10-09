@@ -3,6 +3,9 @@
 package dev.everframe.health
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import dev.everframe.Everframe
 import dev.everframe.TXCapturedSession
 import dev.everframe.crash.AndroidNativeCrashRuntime
@@ -18,12 +21,31 @@ import java.util.concurrent.atomic.AtomicReference
 /** The foreground owner is independent of replay, vitals and install identity. */
 internal object ReleaseHealthRuntime {
     @Volatile private var context: Context? = null
-    private val controller = ReleaseHealthController(factory = {
+    @Volatile private var controller = newController()
+    private fun newController() = ReleaseHealthController(factory = {
         val application = requireNotNull(context)
         OutboxStore(File(application.noBackupFilesDir, "dev.everframe/release-health-v1"),
-            AndroidOutboxKeyProvider("dev.everframe.release-health.v1"), AndroidOutboxFileOps(),
+            __keysForTesting ?: AndroidOutboxKeyProvider("dev.everframe.release-health.v1"), __fileOpsForTesting ?: AndroidOutboxFileOps(),
             maxEntries = 256, maxTotalBytes = 1024 * 1024, maintenanceReserveBytes = 16 * 1024)
     })
+
+    /** Test seams replacing Keystore keys, file operations and the process lifecycle. Never set in production. */
+    @VisibleForTesting internal var __keysForTesting: OutboxKeyProvider? = null
+    @VisibleForTesting internal var __fileOpsForTesting: OutboxFileOps? = null
+    @VisibleForTesting internal var __lifecycleOwnerForTesting: LifecycleOwner? = null
+
+    /** Simulates process death: in-memory sessions and obligations are lost, the durable journal remains. */
+    @VisibleForTesting
+    internal fun __resetForTesting() {
+        observer.getAndSet(null)?.uninstall()
+        preparedBoundaries.set(null)
+        controller = newController()
+    }
+
+    /** Lifecycle and delivery work launched so far, for tests that wait for it to settle. */
+    @VisibleForTesting
+    internal fun __pendingWorkForTesting(): List<Job> = scope.coroutineContext[Job]?.children?.toList().orEmpty()
+
     private val transport by lazy { OkHttpHealthTransport() }
     private val admission = HealthAdmission { allowed, prepared ->
         Everframe.withReportAuthorizationLock { if (allowed()) prepared() else null }
@@ -73,9 +95,14 @@ internal object ReleaseHealthRuntime {
             val boundary = Everframe.withReportAuthorizationLock {
                 if (controller.currentRequest(epoch) !== request || !current.isAllowed()) null else {
                     val closed = controller.foreground(request, foreground)
-                    // This memory/OS-token fence cannot clear a newer SDK generation's context.
-                    AndroidNativeCrashRuntime.invalidateExposure()
-                    AndroidNativeSignalRuntime.invalidateExposure()
+                    // Background clears actual native attribution before the end can persist; this
+                    // memory/OS-token fence cannot clear a newer SDK generation's context. Foreground
+                    // entry keeps capture armed: no pointer is live yet, and the refresh after the
+                    // durable start replaces the pointer-free context.
+                    if (!foreground) {
+                        AndroidNativeCrashRuntime.invalidateExposure()
+                        AndroidNativeSignalRuntime.invalidateExposure()
+                    }
                     closed?.let(controller::rememberForegroundBoundary)
                     Pair(true, closed)
                 }
@@ -94,7 +121,7 @@ internal object ReleaseHealthRuntime {
                     flush(epoch)
                 }
             }
-        })
+        }, { __lifecycleOwnerForTesting ?: ProcessLifecycleOwner.get() })
         Everframe.withReportAuthorizationLock {
             if (current.isAllowed() && controller.currentRequest(epoch) === request) {
                 observer.getAndSet(installed)?.uninstall()
