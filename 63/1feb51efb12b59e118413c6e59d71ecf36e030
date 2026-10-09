@@ -1,0 +1,23 @@
+packages/protocol/__tests__/release-health-rate-alert.spec.ts
+  s_97602a0a2d8f20::t_312a88edbd09c7 1-74
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_b73fc08cc466a4 83-87
+packages/protocol/src/release-health-rate-alert.ts
+  s_97602a0a2d8f20::t_2e31ca778e88e2 1-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "631feb51efb12b59e118413c6e59d71ecf36e030",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
