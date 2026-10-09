@@ -1,0 +1,39 @@
+docs/release-health.md
+  s_360d9eb003c487::t_d21e8112f78d53 46,49-52,57-59
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_1e14e7bcd8baff 90,93,99-100,109-119,143-144
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_51786af2987495 1703
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_360d9eb003c487::t_4d9b82162e1d87 98
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReleaseHealthConfig.kt
+  s_360d9eb003c487::t_487a13634a6918 11-14
+packages/sdk-ios/README.md
+  s_360d9eb003c487::t_b2b853f6f0a49b 108,126-135
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_cde293be971308 100-102
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthConfiguration.swift
+  s_360d9eb003c487::t_fefa8857a155fa 14-15
+packages/sdk-react/README.md
+  s_360d9eb003c487::t_d3d003e5c4d0cf 91,105-106,112-123
+packages/sdk-web/src/init.ts
+  s_360d9eb003c487::t_ecc2a136222405 71
+packages/sdk-web/src/internal/types.ts
+  s_360d9eb003c487::t_b0c2c1bdcd9d7b 8-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96f8983ce344b7c2a5694254abbed7bd9ce354f8",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
