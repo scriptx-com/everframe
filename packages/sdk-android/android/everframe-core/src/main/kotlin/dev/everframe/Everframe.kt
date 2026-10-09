@@ -649,7 +649,8 @@ object Everframe {
      * collector prevents activation. API31+ continues using setNativeCrashRecoveryEnabled.
      * On API30 with setProcessExitDiagnosticsEnabled, a fault recorded here is reported once,
      * by this path; the OS exit then adds no second crash.
-     * Explicit disable erases unadmitted native evidence outside the SDK stateLock.
+     * Explicit disable and kill() erase unadmitted native evidence outside the SDK stateLock, on
+     * the calling thread: they can wait for an in-progress setup and do local IO and handler IPC.
      */
     @JvmStatic
     fun setNativeSignalCaptureEnabled(enabled: Boolean) {

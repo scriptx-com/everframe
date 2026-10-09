@@ -16,8 +16,10 @@ After `Everframe.start(context, config)`, explicitly call
 `Everframe.isNativeSignalCaptureReady()` to observe successful asynchronous setup.
 Call the opt-in again after every start. A replacement start pauses capture;
 `setNativeSignalCaptureEnabled(false)` and `kill()` also erase native evidence
-that has not entered the ordinary encrypted report outbox. Reports already
-admitted to that outbox follow its existing delivery and revocation policy.
+that has not entered the ordinary encrypted report outbox. That erasure runs on
+the calling thread: it can wait for an in-progress setup and performs local
+storage IO and handler IPC. Reports already admitted to that outbox follow its
+existing delivery and revocation policy.
 
 This path supports API26–30 in the default application process. It grants
 exclusive ownership of the native fatal-signal handlers: another app-bundled
