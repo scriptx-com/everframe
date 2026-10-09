@@ -1,0 +1,37 @@
+packages/sdk-react-native/README.md
+  s_97602a0a2d8f20::t_183096da1204ed 102-168
+packages/sdk-react-native/__tests__/install-id-inheritance.spec.ts
+  s_97602a0a2d8f20::t_ae502873b6abfc 28-29
+packages/sdk-react-native/__tests__/release-health-bridge-wiring.spec.ts
+  s_97602a0a2d8f20::t_ab7f327da80a8f 1-34
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_97602a0a2d8f20::t_8bcaf50338914d 1-81
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_97602a0a2d8f20::t_b7c31739e68dd8 79-80,220-250,287
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReleaseHealthConfigureTest.kt
+  s_97602a0a2d8f20::t_deb6d306f83e17 1-73
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_97602a0a2d8f20::t_a9cd3e35cbcd9b 47-50,66-96,148-149,151-155,157-168
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_97602a0a2d8f20::t_3dfa2044c6be41 196-199
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_97602a0a2d8f20::t_119893d83b7fe6 213-217
+packages/sdk-react-native/src/runtime.ts
+  s_97602a0a2d8f20::t_b1c261a89f8172 27,96-99,113-122,777-789,793-797
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "063b0fa708f017111c60e072bde5ab347b2eb5c3",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
