@@ -68,7 +68,7 @@ import type { ReporterResult } from './reporter-types.js';
  * unmounting it.
  */
 export interface Everframe {
-  /** Durable anonymous exposure status; unavailable storage is explicitly reported. */
+  /** Durable exposure status; unavailable storage or an invalid user ID is explicitly reported. */
   releaseHealth: ReleaseHealthHandle;
   /**
    * Open the reporter. Resolves with the outcome, exactly like the React

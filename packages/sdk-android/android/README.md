@@ -87,15 +87,17 @@ identity and upload the matching mapping only from trusted CI.
 
 ---
 
-## Anonymous release exposures (opt in)
+## Release health observations (opt in)
 
 Set `EverframeConfig.releaseHealth` to observe SDK exposure segments independently
-of replay, session vitals, users, and install identifiers:
+of replay, session vitals, `setUser`, and install identifiers:
 
 ```kotlin
 releaseHealth = ReleaseHealthConfig(
     nativeBuildId = BuildConfig.EXACT_NATIVE_ARTIFACT_ID,
     loadedBundleStatus = ReleaseHealthBundleStatus.NOT_APPLICABLE,
+    // Optional: a project-local opaque account ID. Omit it for anonymous segments.
+    userId = signedInAccountId,
 )
 ```
 
@@ -103,6 +105,17 @@ Supply the exact native artifact identity from your build pipeline. For a loaded
 JavaScript bundle, use `KNOWN` with its actual `loadedBuildId`, or `UNKNOWN` with
 no ID. A downloaded update that has not loaded is not the running build. Blank
 or contradictory identities do not become ready.
+
+Segments are anonymous unless you set `userId`; it is never copied from
+`setUser`. It must be nonblank, at most 128 UTF-16 units and free of
+U+0000–U+001F control characters and unpaired surrogates. An invalid ID records
+nothing: release health does not become ready, and no exception is thrown. The ID
+is frozen for its segment. On login, logout or account switch, call
+`Everframe.start` again with a copy of your configuration whose `releaseHealth`
+carries the new `userId` (`null` on logout). That restart applies the whole
+configuration and opens a new segment within the same launch. These are version 2
+records: the receiving service must support version 2 before you enable them. See
+[release health observations](../../../docs/release-health.md).
 
 Every `start()` creates a new exposure segment, including replacement in the
 same process. `Everframe.isReleaseHealthReady()` means its start was committed
@@ -127,8 +140,8 @@ The encrypted OS context freezes the exact ready segment. Arming earlier leaves
 the association unavailable, even if health becomes ready later. Recovery never
 substitutes the relaunch segment or infers an association from process ID alone.
 
-These are anonymous observations with incomplete coverage and unknown queue
-loss counts. An end record is an SDK boundary, not proof of a healthy process.
+These observations have incomplete coverage and unknown queue loss counts.
+An end record is an SDK boundary, not proof of a healthy process.
 Missing records do not imply crashes, and no crash-free rate is calculated.
 
 ## Triggers are host-app concern

@@ -11,7 +11,8 @@ public struct ReleaseHealthConfiguration: Equatable, Sendable {
     public let loadedBuildId: String?
     public let loadedBundleStatus: LoadedBundleStatus
 
-    /// Supply artifact identity, and only a bundle actually loaded by the app.
+    /// Supply artifact identity, and only a bundle actually loaded by the app. An optional user ID
+    /// must be nonblank, at most 128 UTF-16 units and free of U+0000-U+001F control characters.
     public init(nativeBuildId: String, loadedBuildId: String?, loadedBundleStatus: LoadedBundleStatus, userId: String? = nil) throws {
         guard Self.validText(nativeBuildId, maximum: 200),
               loadedBuildId.map({ Self.validText($0, maximum: 200) }) ?? true,
