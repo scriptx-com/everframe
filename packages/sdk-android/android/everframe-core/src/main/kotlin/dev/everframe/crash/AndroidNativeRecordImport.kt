@@ -135,7 +135,8 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
     }
     /** Exit-info coordination for an ended launch's native fault; never imports, admits or retires. */
     @Synchronized fun captured(launch:String,nowMs:Long,readRecord:(String)->ByteArray?):NativeSignalCapture {
-        delivered?.let { store -> if(store.snapshotTokens().any { store.readIfPresent(it)?.entry?.let(::launchOf)==launch }) return NativeSignalCapture.DELIVERED }
+        // An unreadable receipt store still lets a held record be found below.
+        delivered?.let { store -> if(runCatching { store.snapshotTokens().any { store.readIfPresent(it)?.entry?.let(::launchOf)==launch } }.getOrDefault(false)) return NativeSignalCapture.DELIVERED }
         for(token in capsules.snapshotTokens()) {
             val context=capsules.readIfPresent(token)?.entry ?: continue
             val capsule=try { Json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject } catch(_:Exception) { continue }

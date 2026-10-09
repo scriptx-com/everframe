@@ -120,6 +120,16 @@ class AndroidNativeSignalExitOverlapTest {
         assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { outbox += it; true })
         assertEquals(listOf("android-native-handler"), crashes())
     }
+    @Test fun `an unreadable receipt store still finds a held record`() {
+        crashedLaunch(launch = "44444444-4444-4444-8444-444444444444", pid = 98); assertEquals(1, signalRecovery()) // a receipt exists
+        val exit = crashedLaunch()
+        val lostKey = object : OutboxKeyProvider by keys {
+            override fun loadGeneration(generation: String): javax.crypto.SecretKey = throw java.security.KeyStoreException("receipt key lost")
+        }
+        val query = AndroidNativeRecordImport(store("capsules"), store("prepared"), OutboxStore(File(folder.root, "delivered"), lostKey, JvmOutboxFileOps(), 8, 2 * 1024 * 1024))
+        assertEquals(NativeSignalCapture.PENDING, query.captured(crashed, 3000, files::read))
+        assertEquals(0, exits().recover(listOf(exit), 3000, allowed, allowDiagnostics = true, signalCapture = { query.captured(it, 3000, files::read) }) { outbox += it; true })
+    }
     @Test fun `delivery receipts expire with the exit-info contexts they settle`() {
         crashedLaunch(); assertEquals(1, signalRecovery())
         assertEquals(NativeSignalCapture.DELIVERED, signal().captured(crashed, 3000, files::read))
