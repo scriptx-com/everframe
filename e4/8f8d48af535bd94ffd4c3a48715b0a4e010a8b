@@ -1,0 +1,79 @@
+packages/cli/src/upload.ts
+  s_360d9eb003c487::t_742b540903b0d4 6-8,11,169,174,176-203,259,308-326,388-426
+packages/protocol/__tests__/release-health-alert.spec.ts
+  s_360d9eb003c487::t_742b540903b0d4 36-41
+packages/protocol/src/build-artifacts.ts
+  s_360d9eb003c487::t_742b540903b0d4 49
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_13ba0e8799c0e3 122,126-132
+  s_360d9eb003c487::t_509e48574586ce 100
+  s_360d9eb003c487::t_742b540903b0d4 90,101,123-125,133
+  s_360d9eb003c487::t_64eb074c3869ba 93-94
+packages/sdk-web/src/release-health/runtime.ts
+  s_360d9eb003c487::t_742b540903b0d4 3,75-77,83
+packages/sdk-android/README.md
+  s_360d9eb003c487::t_742b540903b0d4 19-21
+docs/release-health-alerts.md
+  s_360d9eb003c487::t_742b540903b0d4 1-3,8-16
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_360d9eb003c487::t_742b540903b0d4 88-100
+packages/cli/README.md
+  s_360d9eb003c487::t_742b540903b0d4 18,21-29,57,68
+packages/cli/src/upload-snapshot.ts
+  s_360d9eb003c487::t_742b540903b0d4 1-142
+packages/protocol/__tests__/dsym-manifest.spec.ts
+  s_360d9eb003c487::t_742b540903b0d4 12,16,33
+docs/release-health.md
+  s_360d9eb003c487::t_742b540903b0d4 46,49-52,57-59,66-68
+packages/sdk-web/src/internal/types.ts
+  s_360d9eb003c487::t_742b540903b0d4 8-12
+packages/cli/__tests__/upload-file-safety.spec.ts
+  s_360d9eb003c487::t_742b540903b0d4 9,11,19,42-49,52-62,99-102,130-146,148-151,154,165-186,201
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_360d9eb003c487::t_742b540903b0d4 97-98,109,122,129-139
+  s_360d9eb003c487::t_6f0ce93241d450 140
+packages/sdk-ios/README.md
+  s_360d9eb003c487::t_742b540903b0d4 16-18,141-143,147
+  s_360d9eb003c487::t_24d3b38ee9ceb4 140,144-146
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthConfiguration.swift
+  s_360d9eb003c487::t_742b540903b0d4 14-15,20,37,40-46
+  s_360d9eb003c487::t_7a9e5089a1dba2 47
+packages/cli/__tests__/large-dsym-upload.spec.ts
+  s_360d9eb003c487::t_742b540903b0d4 1-328
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_360d9eb003c487::t_742b540903b0d4 98
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReleaseHealthConfig.kt
+  s_360d9eb003c487::t_742b540903b0d4 11-14
+docs/crash-reporting-support.md
+  s_360d9eb003c487::t_742b540903b0d4 1-63
+packages/sdk-web/src/init.ts
+  s_360d9eb003c487::t_742b540903b0d4 71
+packages/cli/__tests__/apple-build.spec.ts
+  s_360d9eb003c487::t_742b540903b0d4 386,390,573-585,589
+packages/cli/__tests__/dsym.spec.ts
+  s_360d9eb003c487::t_742b540903b0d4 58,90,112,114,138,140-167
+packages/sdk-react/README.md
+  s_360d9eb003c487::t_742b540903b0d4 91,105-106,112-123
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_742b540903b0d4 14-16
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_9fef5b8756dfe9 135-137
+  s_360d9eb003c487::t_d97393e9ca456d 138
+  s_360d9eb003c487::t_742b540903b0d4 134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e48f8d48af535bd94ffd4c3a48715b0a4e010a8b",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
