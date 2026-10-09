@@ -6,6 +6,7 @@ import dev.everframe.health.NativeExposurePointer
 import dev.everframe.health.ProcessLaunchIdentity
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
+import java.util.concurrent.atomic.AtomicLong
 
 internal interface AndroidNativeExitPlatform {
     val apiLevel: Int
@@ -26,11 +27,13 @@ internal class AndroidNativeRecoveryController(
     /** API30 overlap: whether optional signal capture owns an ended launch's native fault. */
     private val signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE },
 ) {
-    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean) {
+    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry) {
         var ready = false
         var claimed = false
     }
     private val lock = Any()
+    private val publication = Any()
+    private val exposureGeneration = AtomicLong()
     @Volatile private var active: Active? = null
 
     fun enable(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, template: () -> OutboxEntry,
@@ -58,10 +61,11 @@ internal class AndroidNativeRecoveryController(
                     it.engine.revoke()
                 }
             }
-            Active(epoch, factory(), authorization, diagnostics).also { active = it }
+            Active(epoch, factory(), authorization, diagnostics, template).also { active = it }
         }
+        val generation = exposureGeneration.get()
         val gate = object : OutboxAuthorization {
-            override fun isAllowed() = active === owner && authorization.isAllowed()
+            override fun isAllowed() = exposureGeneration.get() == generation && active === owner && authorization.isAllowed()
         }
         try {
             val exits = platform.history()
@@ -73,8 +77,11 @@ internal class AndroidNativeRecoveryController(
                 if (!gate.isAllowed()) return false
                 owner.engine.arm(template(), platform.pid, platform.processName, gate, diagnostics, processLaunchId, platform.apiLevel,
                     nativeExposure = exposure(epoch)) {
-                    owner.claimed = true // An exception may follow a successful remote Binder write.
-                    platform.setStateSummary(it)
+                    synchronized(publication) {
+                        check(gate.isAllowed())
+                        owner.claimed = true // An exception may follow a successful remote Binder write.
+                        platform.setStateSummary(it)
+                    }
                 }
                 owner.ready = true
                 return true
@@ -86,6 +93,40 @@ internal class AndroidNativeRecoveryController(
                     active = null
                     if (owner.claimed) runCatching { platform.setStateSummary(null) }
                 }
+            }
+        }
+    }
+
+    /** Clears the OS token without waiting for journal IO; stale arm callbacks are fenced. */
+    fun invalidateExposure() {
+        exposureGeneration.incrementAndGet()
+        synchronized(publication) { if (active?.claimed == true) runCatching { platform.setStateSummary(null) } }
+    }
+
+    /** Replaces only the live context, preserving previous-process recovery receipts and mode. */
+    fun refreshExposure(epoch: Int): Boolean {
+        val generation = exposureGeneration.get()
+        synchronized(lock) {
+            val owner = active ?: return false
+            val gate = object : OutboxAuthorization {
+                override fun isAllowed() = active === owner && owner.epoch == epoch &&
+                    exposureGeneration.get() == generation && owner.authorization.isAllowed()
+            }
+            if (!gate.isAllowed()) return false
+            return try {
+                owner.engine.disarm()
+                owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics,
+                    processLaunchId, platform.apiLevel, nativeExposure = exposure(epoch)) { token ->
+                    synchronized(publication) {
+                        check(gate.isAllowed()); owner.claimed = true; platform.setStateSummary(token)
+                    }
+                }
+                owner.ready = gate.isAllowed()
+                owner.ready
+            } catch (_: Exception) {
+                owner.ready = false
+                synchronized(publication) { runCatching { platform.setStateSummary(null) } }
+                false
             }
         }
     }

@@ -89,8 +89,8 @@ identity and upload the matching mapping only from trusted CI.
 
 ## Anonymous release exposures (opt in)
 
-Set `EverframeConfig.releaseHealth` to observe SDK exposure segments independently
-of replay, session vitals, users, and install identifiers:
+Set `EverframeConfig.releaseHealth` to monitor foreground sessions independently
+of replay recording. This remains opt-in, with anonymous subjects by default:
 
 ```kotlin
 releaseHealth = ReleaseHealthConfig(
@@ -99,37 +99,35 @@ releaseHealth = ReleaseHealthConfig(
 )
 ```
 
-Supply the exact native artifact identity from your build pipeline. For a loaded
-JavaScript bundle, use `KNOWN` with its actual `loadedBuildId`, or `UNKNOWN` with
-no ID. A downloaded update that has not loaded is not the running build. Blank
-or contradictory identities do not become ready.
+Schema version 3 uses `sessionPolicy: foreground-v1`. A durable start opens only
+while the process lifecycle is foreground. Background closes that session with
+`outcome: completed` and `endReason: background`; reentry opens a fresh exposure
+UUID. Reconfiguration closes the previous foreground session with `sdk_stop`.
+These boundaries describe the monitored foreground interval. They do not prove
+healthy process termination. Process death leaves an unknown outcome, and a
+relaunch never invents a completed end.
 
-Every `start()` creates a new exposure segment, including replacement in the
-same process. `Everframe.isReleaseHealthReady()` means its start was committed
-to encrypted storage; it does not mean delivery succeeded. Starts and explicit
-replacement ends use a dedicated journal bounded to 256 records, 1 MiB, and
-seven days. `requestReleaseHealthFlush()` requests a retry, using each record's
-original SDK key and destination. HTTP redirects are not followed. `kill()` or
-starting with absent/disabled release health revokes pending health records
-across destinations. Failed erasure must complete before later re-enable.
-This control governs the health journal and future pointers. An OS diagnostic
-already admitted with a pointer retains its immutable bytes under the separate
-diagnostic delivery and retention policy. Health opt-out does not erase records
-already delivered to the server; server exposure erasure removes their linkage
-even when an older diagnostic arrives later. `kill()` revokes both local paths.
-Ordinary report uploads progress independently while a health destination is
-unavailable. Rapid replacement before a pending segment activates can omit a
-prior segment's explicit end; coverage remains incomplete.
+`Everframe.isReleaseHealthReady()` means an active foreground start has committed
+to the encrypted journal. Background immediately removes its attribution pointer.
+Foreground sessions persist subject/build ownership and reuse immutable bytes
+and record IDs across retries. The journal is bounded to 256 records and 1 MiB,
+with a seven-day local retry window; write failures can leave outcomes unknown.
+`requestReleaseHealthFlush()` requests a retry with each record's frozen SDK key
+and endpoint. Absent/disabled release health and `kill()` revoke pending health
+records rather than complete sessions.
 
-To associate OS exit diagnostics, wait for release-health readiness before
-calling `setProcessExitDiagnosticsEnabled(true)` (or native-only recovery).
-The encrypted OS context freezes the exact ready segment. Arming earlier leaves
-the association unavailable, even if health becomes ready later. Recovery never
-substitutes the relaunch segment or infers an association from process ID alone.
+A supplied `userId` is an opaque identifier chosen by the host and limited to
+128 characters. It stays frozen for that session. Reconfigure the SDK to change
+identity or the loaded OTA build. Anonymous sessions never infer install identity.
+Queue-loss accounting remains unavailable.
 
-These are anonymous observations with incomplete coverage and unknown queue
-loss counts. An end record is an SDK boundary, not proof of a healthy process.
-Missing records do not imply crashes, and no crash-free rate is calculated.
+OS exit diagnostics and the optional API26–30 signal collector refresh their
+actual encrypted frozen contexts when a durable foreground session starts, and
+clear foreground attribution before a completed end is persisted. Collectors
+continue capturing background crashes with no session pointer. Opting in before
+release-health readiness is supported; the live context refreshes when the
+foreground start becomes durable. Recovery uses the exact prior frozen pointer,
+never the relaunch session or process ID alone.
 
 ## Triggers are host-app concern
 

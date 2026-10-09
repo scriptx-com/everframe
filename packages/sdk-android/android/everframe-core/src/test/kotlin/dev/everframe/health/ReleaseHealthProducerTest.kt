@@ -45,12 +45,51 @@ class ReleaseHealthProducerTest {
         val records = entries().map(::record)
         assertEquals(3, records.size)
         for (body in records) {
-            assertEquals(2, body["schemaVersion"]!!.jsonPrimitive.int)
+            assertEquals(3, body["schemaVersion"]!!.jsonPrimitive.int)
             val exposure = body["exposure"]!!.jsonObject
-            assertEquals("launch-v1", exposure["sessionPolicy"]!!.jsonPrimitive.content)
+            assertEquals("foreground-v1", exposure["sessionPolicy"]!!.jsonPrimitive.content)
             val expected = if (exposure["loadedBuildId"]!!.jsonPrimitive.content == "bundle-a") "opaque-a" else "opaque-b"
             assertEquals(buildJsonObject { put("kind", "provided"); put("id", expected) }, exposure["subject"])
         }
+    }
+    @Test fun `background end completes once and clamps a backwards wall clock`() {
+        val owner = producer(); assertTrue(owner.start())
+        val started = owner.readyPointer()!!.startedAt
+        now -= 1000; elapsed += 2_000_000_000
+        assertTrue(owner.end("background")); assertNull(owner.readyPointer())
+        assertTrue(owner.end("sdk_stop"))
+        val end = entries().map(::record).single { it["phase"]!!.jsonPrimitive.content == "end" }
+        assertEquals("completed", end["outcome"]!!.jsonPrimitive.content)
+        assertEquals("background", end["endReason"]!!.jsonPrimitive.content)
+        assertEquals(started, end["capturedAt"]!!.jsonPrimitive.content)
+        assertEquals(1, end["sequence"]!!.jsonPrimitive.int)
+        assertEquals(2000, end["elapsedMs"]!!.jsonPrimitive.int)
+    }
+    @Test fun `new process does not invent an end for persisted starts`() {
+        assertTrue(producer().start())
+        assertTrue(producer().start())
+        assertEquals(listOf("start", "start"), entries().map(::record).map { it["phase"]!!.jsonPrimitive.content })
+    }
+    @Test fun `failed durable background end never republishes and retries the original boundary`() {
+        var failWrite = false
+        val failing = object : OutboxFileOps by ops {
+            override fun renameAtomic(from: File, to: File) {
+                if (failWrite) throw IOException("interrupted end append")
+                ops.renameAtomic(from, to)
+            }
+        }
+        val queue = OutboxStore(File(folder.root, "health"), keys, failing, 256, 1024 * 1024, maintenanceReserveBytes = 16384)
+        val owner = producer(queue); assertTrue(owner.start())
+        now += 1000; elapsed += 1_000_000_000
+        val closedAt = NativeExposurePointer.timestamp(now)
+        failWrite = true
+        assertFalse(owner.end("background")); assertNull(owner.readyPointer())
+        now += 1000; elapsed += 1_000_000_000; failWrite = false
+        assertTrue(owner.end("sdk_stop"))
+        val end = entries().map(::record).single { it["phase"]!!.jsonPrimitive.content == "end" }
+        assertEquals(closedAt, end["capturedAt"]!!.jsonPrimitive.content)
+        assertEquals("background", end["endReason"]!!.jsonPrimitive.content)
+        assertEquals(1000, end["elapsedMs"]!!.jsonPrimitive.int)
     }
     @Test fun `invalid supplied subject never publishes readiness`() {
         for (id in listOf("", " ", "x".repeat(129), "a\u0000", "\ud800", "\ufeff", " \ufeff\u00a0")) {
@@ -68,7 +107,7 @@ class ReleaseHealthProducerTest {
         val entry = entries().single()
         val body = record(entry)
         assertEquals("start", body["phase"]!!.jsonPrimitive.content)
-        assertEquals(2, body["schemaVersion"]!!.jsonPrimitive.int)
+        assertEquals(3, body["schemaVersion"]!!.jsonPrimitive.int)
         assertEquals(buildJsonObject { put("kind", "anonymous") }, body["exposure"]!!.jsonObject["subject"])
         assertEquals(0, body["sequence"]!!.jsonPrimitive.int)
         val exposure = body["exposure"]!!.jsonObject

@@ -125,6 +125,25 @@ class CrashReporterTest {
         Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject
     }
 
+    @Test fun `automatic JVM fatal freezes its entry foreground pointer and background has none`() {
+        val launch = java.util.UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
+            java.util.UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", "native", null,
+            dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        val first = pointer!!
+        CrashReporter.__exposureForTesting = { pointer }
+        CrashReporter.__afterUserSnapshotHookForTesting = { pointer = null }
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("foreground"))
+        assertEquals(first.toJson(), persistedEnvelope("foreground")["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+        CrashReporter.__afterUserSnapshotHookForTesting = null
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("background"))
+        assertFalse(persistedEnvelope("background")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
+        pointer = dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("reentry"))
+        assertEquals(pointer!!.toJson(), persistedEnvelope("reentry")["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+    }
+
     @Test fun `diagnostics distinguish invalid bridge input disabled capture and reentrancy`() {
         dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
         assertFalse(CrashReporter.captureHandledFactsWithCauses("E", "", emptyList(), "2026-10-06T00:00:00Z", null, null, null, "invalid-sdk"))

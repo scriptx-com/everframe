@@ -3,6 +3,7 @@
 package dev.everframe.crash
 
 import dev.everframe.outbox.*
+import dev.everframe.health.NativeExposurePointer
 import kotlinx.serialization.json.*
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -33,13 +34,14 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
     }
 
     /** Provision callback is synchronous; borrowed key bytes are cleared on every exit. */
-    @Synchronized fun arm(value:OutboxEntry,processLaunchId:String,authorization:OutboxAuthorization,provision:(String,ByteArray)->Boolean):Boolean {
+    @Synchronized fun arm(value:OutboxEntry,processLaunchId:String,authorization:OutboxAuthorization,nativeExposure:NativeExposurePointer?=null,provision:(String,ByteArray)->Boolean):Boolean {
         require(processLaunchId.isNotBlank() && processLaunchId.length<=128)
+        require(nativeExposure==null || (nativeExposure.valid() && nativeExposure.processLaunchId==processLaunchId))
         val frozen=template(value);val gate=gate(revision.get(),authorization);check(gate)
         val key=ByteArray(32).also { SecureRandom().nextBytes(it) };val epoch=value.reportId.replace("-","")
         var token:OutboxToken?=null
         try {
-            val capsule=buildJsonObject { put("version",1);put("launch",processLaunchId);put("key",Base64.getEncoder().encodeToString(key));put("envelope",frozen) }.toString().toByteArray()
+            val capsule=buildJsonObject { put("version",1);put("launch",processLaunchId);put("key",Base64.getEncoder().encodeToString(key));put("envelope",frozen);if(nativeExposure!=null) put("nativeExposure",nativeExposure.toJson()) }.toString().toByteArray()
             require(capsule.size<=MAX_CONTEXT)
             token=capsules.enqueueSync(value.copy(envelopeBytes=capsule,idempotencyKey=digest(capsule)),gate)
             check(gate)
@@ -85,7 +87,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             val frozen=capsule.getValue("envelope").jsonObject
             val original=context.copy(envelopeBytes=frozen.toString().toByteArray())
             template(original)
-            val report=report(original,frozen,native,nowMs)
+            val report=report(original,frozen,native,nowMs, (capsule["nativeExposure"] as? JsonObject)?.let(NativeExposurePointer::parse)?.takeIf { it.processLaunchId == capsule["launch"]?.jsonPrimitive?.content })
             prepared.enqueueSync(report,gate)
             count+=drain(nowMs,gate,admit)
         }
@@ -157,7 +159,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
     /** Retire only the current live process's armed context after its producer is paused. */
     @Synchronized fun retireArmed(reportId: String) { removeCapsules(reportId) }
     private fun removeCapsules(id:String) { for(token in capsules.snapshotTokens()) if(capsules.readIfPresent(token)?.entry?.reportId==id) capsules.removeIfPresent(token) }
-    private fun report(context:OutboxEntry,frozen:JsonObject,record:JsonObject,nowMs:Long):OutboxEntry {
+    private fun report(context:OutboxEntry,frozen:JsonObject,record:JsonObject,nowMs:Long,nativeExposure:NativeExposurePointer?=null):OutboxEntry {
         val timestamp=record.getValue("snapshotTimeMs").jsonPrimitive.long
         val native=JsonObject(record-"snapshotTimeMs")
         val frames=native.getValue("frames").jsonArray;require(frames.size<=1)
@@ -172,6 +174,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             put("mechanism","android-native-handler");put("handled",false);put("fatal",true)
             put("occurredAt",Instant.ofEpochMilli(timestamp).toString());put("timestampSource","handler-snapshot")
             put("fingerprint",digest(key.toByteArray()).take(16))
+            if(nativeExposure!=null) put("nativeExposure",nativeExposure.toJson())
             put("frames",buildJsonArray { if(raw!=null) add(buildJsonObject { put("raw",raw) }) });put("androidNative",native)
         }
         val bytes=JsonObject(frozen+mapOf("source" to JsonPrimitive("crash"),"submittedAt" to JsonPrimitive(Instant.ofEpochMilli(nowMs).toString()),"payload" to buildJsonObject { put("crash",crash) })).toString().toByteArray()

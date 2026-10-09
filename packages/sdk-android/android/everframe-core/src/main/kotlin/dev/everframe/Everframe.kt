@@ -942,7 +942,7 @@ object Everframe {
         // that publishes or unpublishes process-global state is gated on it.
         val stillNewest = { stateLock.withLock { _startEpoch == epoch } }
         txGuardVoid("start.releaseHealthBoundary") {
-            // Only an explicit disabled configuration waits for erasure on this thread.
+            // Health erasure runs on IO after the memory-only authorization fence.
             dev.everframe.health.ReleaseHealthRuntime.boundary(context.applicationContext, epoch,
                 erase = config.releaseHealth != null)
         }
@@ -1700,7 +1700,7 @@ object Everframe {
         }
     }
 
-    /** True only after this SDK segment's anonymous start was committed to encrypted storage. */
+    /** True only while a foreground monitoring session has a durable encrypted start. */
     @JvmStatic
     fun isReleaseHealthReady(): Boolean = captureGate &&
         dev.everframe.health.ReleaseHealthRuntime.readyPointer(currentStartEpochVolatile()) != null

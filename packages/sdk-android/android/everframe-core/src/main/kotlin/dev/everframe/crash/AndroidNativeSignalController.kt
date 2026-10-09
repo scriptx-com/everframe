@@ -4,6 +4,7 @@ package dev.everframe.crash
 
 import dev.everframe.envelope.txGuardVoid
 import dev.everframe.health.ProcessLaunchIdentity
+import dev.everframe.health.NativeExposurePointer
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
 import java.util.concurrent.atomic.AtomicBoolean
@@ -31,10 +32,14 @@ internal class AndroidNativeSignalController(
     private val processLaunchId: String = ProcessLaunchIdentity.id.toString(),
     private val now: () -> Long = System::currentTimeMillis,
     private val cleanup: (Set<String>) -> Unit = {},
+    private val exposure: (Int) -> NativeExposurePointer? = { null },
 ) {
-    private data class Owner(val command: Long, val epoch: Int, val reportId: String, val engine: AndroidNativeRecordImport)
+    private data class Owner(val command: Long, val epoch: Int, val reportId: String, val engine: AndroidNativeRecordImport, val exposureRevision: Long,
+        val authorization: OutboxAuthorization, val template: () -> OutboxEntry,
+        val admit: (OutboxEntry, OutboxAuthorization) -> Boolean)
     private val operations = Any()
     private val revision = AtomicLong()
+    private val exposureGeneration = AtomicLong()
     private val erasePending = AtomicBoolean()
     @Volatile private var owner: Owner? = null
     @Volatile private var readyCommand = -1L
@@ -50,8 +55,20 @@ internal class AndroidNativeSignalController(
         return command
     }
 
+    /** No storage or monitor wait: pause the native pointer before a session completes. */
+    fun invalidateExposure() {
+        exposureGeneration.incrementAndGet()
+        readyCommand = -1
+        txGuardVoid("nativeSignal.exposurePause") { producer.pause() }
+    }
+    fun refreshExposure(epoch: Int): Boolean = synchronized(operations) {
+        val prior = owner ?: return@synchronized false
+        if (prior.epoch != epoch || prior.command != revision.get() || !prior.authorization.isAllowed()) return@synchronized false
+        enable(prior.command, epoch, prior.authorization, prior.template, prior.admit)
+    }
+
     fun ready(epoch: Int): Boolean = owner?.let {
-        it.epoch == epoch && it.command == revision.get() && readyCommand == it.command && !erasePending.get()
+        it.exposureRevision == exposureGeneration.get() && it.epoch == epoch && it.command == revision.get() && readyCommand == it.command && !erasePending.get()
     } == true
 
     /** Complete durable erasure even when no producer was armed in this process. Retry on failure. */
@@ -80,8 +97,9 @@ internal class AndroidNativeSignalController(
     /** IO caller. Recover immutable prior-process reports before arming the new frozen context. */
     fun enable(command: Long, epoch: Int, authorization: OutboxAuthorization,
                template: () -> OutboxEntry, admit: (OutboxEntry, OutboxAuthorization) -> Boolean): Boolean = synchronized(operations) {
+        val exposureRevision = exposureGeneration.get()
         val gate = object : OutboxAuthorization {
-            override fun isAllowed() = revision.get() == command && !erasePending.get() && authorization.isAllowed()
+            override fun isAllowed() = exposureGeneration.get() == exposureRevision && revision.get() == command && !erasePending.get() && authorization.isAllowed()
         }
         if (revision.get() != command || !authorization.isAllowed() || !finishRevocation() || !gate.isAllowed()) return@synchronized false
         if (ready(epoch)) return@synchronized true
@@ -97,8 +115,8 @@ internal class AndroidNativeSignalController(
             val nativeGeneration = producer.generation()
             if (!gate.isAllowed()) return@synchronized false
             val entry = template()
-            owner = Owner(command, epoch, entry.reportId, engine)
-            if (!engine.arm(entry, processLaunchId, gate) { id, key -> producer.arm(id, key, nativeGeneration) } || !gate.isAllowed()) {
+            owner = Owner(command, epoch, entry.reportId, engine, exposureRevision, authorization, template, admit)
+            if (!engine.arm(entry, processLaunchId, gate, nativeExposure = exposure(epoch)) { id, key -> producer.arm(id, key, nativeGeneration) } || !gate.isAllowed()) {
                 producer.pause()
                 if (producer.revoke()) {
                     engine.retireArmed(entry.reportId)

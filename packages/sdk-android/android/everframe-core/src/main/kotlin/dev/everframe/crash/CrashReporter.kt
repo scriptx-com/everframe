@@ -18,6 +18,9 @@
 package dev.everframe.crash
 
 import dev.everframe.diagnostics.*
+import dev.everframe.health.NativeExposurePointer
+import dev.everframe.health.ReleaseHealthRuntime
+import kotlinx.serialization.json.*
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import dev.everframe.capture.DeviceMetadata
@@ -40,6 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 object CrashReporter {
 
+    @VisibleForTesting @Volatile internal var __exposureForTesting: ((Int) -> NativeExposurePointer?)? = null
     private val handling = AtomicBoolean(false)
     // Host getters can block indefinitely; native handled extraction must not own
     // the automatic collector latch until its entire Throwable graph is extracted.
@@ -116,6 +120,7 @@ object CrashReporter {
         // up to 256 StackTraceElements into Frame objects, and everything after
         // it is prep for a crash that has already happened.
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
+        val exposure = (__exposureForTesting ?: ReleaseHealthRuntime::readyPointer)(captured.user.startEpoch)
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.JVM_UNCAUGHT)
         try {
             val suppressed = acceptedHermesFatal.consume(throwable, captured.user.startEpoch, captured.killGeneration)
@@ -147,6 +152,7 @@ object CrashReporter {
                     occurredAt = Instant.now().toString(),
                     captured = captured,
                     jvmThrowable = throwable,
+                    nativeExposure = exposure,
                     details = normalizeCrashDetails(null),
                     handlingReserved = true,
                     diagnostic = diagnostic,
@@ -409,6 +415,7 @@ object CrashReporter {
         waitForStorage: Boolean = false,
         sdkName: String = "everframe-android",
         handlingReserved: Boolean = false,
+        nativeExposure: NativeExposurePointer? = null,
     ): Boolean {
         val context = appContext ?: return diagnostic.reject(CaptureOutcome.DISABLED)
         // From the crash-entry snapshot, not a field: same critical section as
@@ -515,11 +522,21 @@ object CrashReporter {
             // explicit here because a raw `TXCapturedUser` field (unlike
             // `.user`) has no built-in gate of its own to fall back on.
             val capturedEpochStillCurrent = captured.user.startEpoch == dev.everframe.Everframe.currentStartEpoch()
+            val bytes = if (nativeExposure == null) encoded.bytes else {
+                val root = Json.parseToJsonElement(encoded.bytes.toString(Charsets.UTF_8)).jsonObject
+                val payload = root.getValue("payload").jsonObject
+                val facts = payload.getValue("crash").jsonObject
+                JsonObject(root + ("payload" to JsonObject(payload + ("crash" to
+                    JsonObject(facts + ("nativeExposure" to nativeExposure.toJson()))))))
+                    .toString().toByteArray(Charsets.UTF_8).also { require(it.size <= EnvelopeBuilder.SIZE_CAP_BYTES) }
+            }
+            val key = if (nativeExposure == null) encoded.idempotencyKey else
+                MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
             val entry = OutboxEntry(
                     reportId = reportId.toString(),
                     createdAt = System.currentTimeMillis(),
-                    envelopeBytes = encoded.bytes,
-                    idempotencyKey = encoded.idempotencyKey,
+                    envelopeBytes = bytes,
+                    idempotencyKey = key,
                     attachmentRefs = emptyList(),
                     sdkKey = cfg.sdkKey,
                     endpoint = IngestEndpoint.url,
@@ -597,6 +614,7 @@ object CrashReporter {
         handledAdmission = HandledThrowableAdmission { dev.everframe.Everframe.currentStartEpochVolatile() }
         appContext = null
         __afterUserSnapshotHookForTesting = null
+        __exposureForTesting = null
         sidecarFactory = { CrashSidecar(it) }
     }
 

@@ -49,6 +49,18 @@ class AndroidNativeRecordImportTest {
         val c=Cipher.getInstance("AES/GCM/NoPadding");c.init(Cipher.ENCRYPT_MODE,SecretKeySpec(a.key,"AES"),GCMParameterSpec(128,nonce));c.updateAAD(header)
         return header+nonce+c.doFinal(finalText.toByteArray())
     }
+    @Test fun `handler report carries its durable frozen exposure only`() {
+        val launch = UUID.randomUUID().toString()
+        val pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "1970-01-01T00:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        val value = template(); var key = byteArrayOf(); var epoch = ""
+        importer().arm(value, launch, allowed, nativeExposure = pointer) { e, k -> epoch = e; key = k.copyOf(); true }
+        val a = Armed(value, epoch, key)
+        var recovered: OutboxEntry? = null
+        assertEquals(1, importer().recover("new", 3000, allowed, { cipher(a) }) { e, _ -> recovered = e; true })
+        val crash = Json.parseToJsonElement(recovered!!.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["payload"]!!.jsonObject["crash"]!!.jsonObject
+        assertEquals(pointer.toJson(), crash["nativeExposure"])
+    }
     @Test fun `capsule is encrypted and durable before provisioning and temporary key is cleared`() {
         val value=template();var borrowed:ByteArray?=null
         importer().arm(value,"old",allowed) { epoch,key ->

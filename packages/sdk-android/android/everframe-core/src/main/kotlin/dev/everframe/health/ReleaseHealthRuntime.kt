@@ -5,10 +5,17 @@ package dev.everframe.health
 import android.content.Context
 import dev.everframe.Everframe
 import dev.everframe.TXCapturedSession
+import dev.everframe.crash.AndroidNativeCrashRuntime
+import dev.everframe.crash.AndroidNativeSignalRuntime
+import dev.everframe.envelope.txGuardSuspend
 import dev.everframe.outbox.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.util.concurrent.atomic.AtomicReference
 
-/** The process owner is independent of replay, vitals and install/user identity. */
+/** The foreground owner is independent of replay, vitals and install identity. */
 internal object ReleaseHealthRuntime {
     @Volatile private var context: Context? = null
     private val controller = ReleaseHealthController(factory = {
@@ -21,29 +28,40 @@ internal object ReleaseHealthRuntime {
     private val admission = HealthAdmission { allowed, prepared ->
         Everframe.withReportAuthorizationLock { if (allowed()) prepared() else null }
     }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val lifecycleWork = Mutex()
+    private val observer = AtomicReference<ReleaseHealthLifecycleObserver?>()
+    private val preparedBoundaries = AtomicReference<ReleaseHealthRequest?>()
 
     /** SDK authorization lock held: publication and invalidation are memory-only. */
-    fun request(epoch: Int, enabled: Boolean) { controller.request(epoch, enabled) }
+    fun request(epoch: Int, enabled: Boolean) {
+        preparedBoundaries.set(null)
+        controller.request(epoch, enabled)
+        observer.getAndSet(null)?.uninstall()
+    }
     fun readyPointer(epoch: Int) = controller.readyPointer(epoch)
 
-    /** Disabled boundaries attempt durable erasure outside the SDK authorization lock. A start
-     * without health configuration passes [erase] false and leaves that erasure to [start]. */
     fun boundary(application: Context?, epoch: Int, erase: Boolean = true) {
         if (application != null) context = application.applicationContext
         if (!erase) return
         val request = controller.currentRequest(epoch) ?: return
-        if (!request.enabled) controller.finishBoundary(request)
+        if (!request.enabled) scope.launch {
+            txGuardSuspend("releaseHealth.erase") { controller.finishBoundary(request) }
+        }
     }
 
-    /** Runs on the SDK IO scope. Readiness is published only after encrypted commit. */
+    /** IO initialization registers lifecycle ownership; it never assumes a foreground app. */
     suspend fun start(application: Context, captured: TXCapturedSession, endpoint: String) {
         context = application.applicationContext
         val config = captured.config ?: return
         val epoch = captured.user.startEpoch
         val request = controller.currentRequest(epoch) ?: return
-        // Absent health still erases an earlier journal, here rather than on the start caller.
+        Everframe.withReportAuthorizationLock {
+            if (controller.currentRequest(epoch) === request) preparedBoundaries.set(request)
+        } // The SDK start tail follows its native context boundary.
         controller.finishBoundary(request)
         val health = config.releaseHealth ?: return
+        if (!request.enabled) return
         val current = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch &&
                 !Everframe.killGenerationChangedVolatile(captured.killGeneration)
@@ -51,11 +69,43 @@ internal object ReleaseHealthRuntime {
         val retained = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && !Everframe.killGenerationChangedVolatile(captured.killGeneration)
         }
-        if (controller.activate(request, health, Everframe.SDK_VERSION, config.sdkKey,
-                endpoint.trimEnd('/') + "/api/ingest/release-health", current, retained)) flush(epoch)
+        val installed = ReleaseHealthLifecycleObserver({ foreground ->
+            val boundary = Everframe.withReportAuthorizationLock {
+                if (controller.currentRequest(epoch) !== request || !current.isAllowed()) null else {
+                    val closed = controller.foreground(request, foreground)
+                    // This memory/OS-token fence cannot clear a newer SDK generation's context.
+                    AndroidNativeCrashRuntime.invalidateExposure()
+                    AndroidNativeSignalRuntime.invalidateExposure()
+                    closed?.let(controller::rememberForegroundBoundary)
+                    Pair(true, closed)
+                }
+            } ?: return@ReleaseHealthLifecycleObserver
+            val closed = boundary.second
+            scope.launch {
+                txGuardSuspend("releaseHealth.lifecycleWork") {
+                    lifecycleWork.withLock {
+                        if (controller.currentRequest(epoch) !== request || !current.isAllowed()) return@withLock
+                        if (foreground) controller.activate(request, health, Everframe.SDK_VERSION, config.sdkKey,
+                            endpoint.trimEnd('/') + "/api/ingest/release-health", current, retained)
+                        AndroidNativeCrashRuntime.refreshExposure(epoch)
+                        AndroidNativeSignalRuntime.refreshExposure(epoch)
+                        closed?.let(controller::finishForegroundBoundary)
+                    }
+                    flush(epoch)
+                }
+            }
+        })
+        Everframe.withReportAuthorizationLock {
+            if (current.isAllowed() && controller.currentRequest(epoch) === request) {
+                observer.getAndSet(installed)?.uninstall()
+                installed.install()
+            } else installed.uninstall()
+        }
     }
     suspend fun flush(epoch: Int) {
         val request = controller.currentRequest(epoch) ?: return
+        if (preparedBoundaries.get() === request) controller.finishBoundary(request)
+        // Retry only explicit live boundaries after the native registration fence.
         controller.flush(request, transport, admission)
     }
 }

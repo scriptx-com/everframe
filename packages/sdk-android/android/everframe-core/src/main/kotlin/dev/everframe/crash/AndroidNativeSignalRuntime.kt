@@ -30,6 +30,9 @@ internal object AndroidNativeSignalRuntime {
     @Volatile private var controller: AndroidNativeSignalController? = null
     @Volatile private var files: AndroidNativeSignalFiles? = null
 
+    fun invalidateExposure() { controller?.invalidateExposure() }
+    fun refreshExposure(epoch: Int) = synchronized(work) { controller?.refreshExposure(epoch) }
+
     /** Test seams replacing Keystore keys, Os file operations and the optional module. Never set in production. */
     @VisibleForTesting internal var __keysForTesting: OutboxKeyProvider? = null
     @VisibleForTesting internal var __fileOpsForTesting: OutboxFileOps? = null
@@ -78,7 +81,8 @@ internal object AndroidNativeSignalRuntime {
         controller?.let { return it }
         val storage = AndroidNativeSignalFiles(context.noBackupFilesDir, fileOps())
         val producer = __producerForTesting ?: OptionalProducer(context, storage)
-        return AndroidNativeSignalController({ engine(storage) }, producer, storage::read, cleanup = storage::cleanup).also {
+        return AndroidNativeSignalController({ engine(storage) }, producer, storage::read, cleanup = storage::cleanup,
+            exposure = dev.everframe.health.ReleaseHealthRuntime::readyPointer).also {
             files = storage; controller = it
         }
     }

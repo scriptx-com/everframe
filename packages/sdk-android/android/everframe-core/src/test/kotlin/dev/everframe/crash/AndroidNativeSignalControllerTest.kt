@@ -45,6 +45,34 @@ class AndroidNativeSignalControllerTest {
     private fun enable(c: AndroidNativeSignalController, command: Long = c.request(), epoch: Int = 1): Boolean =
         c.enable(command, epoch, allowed, ::template) { _, _ -> error("no prior record") }
 
+    @Test fun `refresh rotates frozen signal attribution and keeps background capture armed`() {
+        val launch = UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
+            UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", "native", null,
+            dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        val p = Producer()
+        val c = AndroidNativeSignalController(::engine, p, { null }, launch, { 3000 }, exposure = { pointer })
+        assertTrue(enable(c))
+        fun frozen() = store("capsules").let { queue ->
+            Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        }
+        assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+        pointer = null; c.invalidateExposure()
+        assertFalse(p.armed)
+        assertTrue(c.refreshExposure(1))
+        assertTrue(p.armed); assertTrue(c.ready(1)); assertFalse(frozen().containsKey("nativeExposure"))
+        pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        c.invalidateExposure(); assertTrue(c.refreshExposure(1))
+        assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+        assertEquals(3, p.arms)
+    }
+    @Test fun `background during native provisioning fences the stale arm and durable capsule`() {
+        val p = Producer(); val c = owner(p)
+        p.onArm = { c.invalidateExposure() }
+        assertFalse(enable(c)); assertFalse(c.ready(1)); assertFalse(p.armed)
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+    }
     @Test fun `capsules carry the process launch identity that exit-info contexts carry`() {
         val c = AndroidNativeSignalController(::engine, Producer(), { null }, now = { 3000 })
         assertTrue(enable(c))

@@ -35,12 +35,76 @@ class ReleaseHealthControllerTest {
         if (failFactory) throw IOException("key/storage factory blocked")
         return OutboxStore(File(folder.root, "health"), keys, ops, 256, 1024 * 1024, maintenanceReserveBytes = 16384)
     }
-    private fun controller() = ReleaseHealthController(::store, UUID.fromString("22222222-2222-4222-8222-222222222222"))
+    private fun controller() = ReleaseHealthController(::store, UUID.fromString("22222222-2222-4222-8222-222222222222"), initiallyForeground = true)
     private fun activate(owner: ReleaseHealthController, request: ReleaseHealthRequest, build: String = "build-A", key: String = "key-A"): Boolean =
         owner.activate(request, ReleaseHealthConfig(build), "test", key, "https://example.test/api/ingest/release-health", allowed, allowed)
     private fun builds() = store().snapshotTokens().mapNotNull { store().readIfPresent(it)?.entry }.map {
         Json.parseToJsonElement(it.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["exposure"]!!.jsonObject["nativeRelease"]!!.jsonObject["buildId"]!!.jsonPrimitive.content
     }.sorted()
+    @Test fun `initial background never persists a start and reentry rotates the pointer`() {
+        val owner = ReleaseHealthController(::store)
+        val request = owner.request(1, true)
+        assertFalse(activate(owner, request)); assertNull(owner.readyPointer(1))
+        assertFalse(File(folder.root, "health").exists())
+        owner.foreground(request, true)
+        assertTrue(activate(owner, request))
+        val first = owner.readyPointer(1)!!
+        val closed = owner.foreground(request, false)!!
+        assertNull(owner.readyPointer(1)) // Memory fence precedes any IO.
+        assertNull(owner.foreground(request, false))
+        assertTrue(closed.end("background"))
+        assertFalse(activate(owner, request))
+        owner.foreground(request, true)
+        assertTrue(activate(owner, request))
+        assertNotEquals(first.exposureId, owner.readyPointer(1)!!.exposureId)
+        assertEquals(3, builds().size)
+    }
+    @Test fun `stale lifecycle callbacks cannot revive revoked generations`() {
+        val owner = controller(); val prior = owner.request(1, true)
+        assertTrue(activate(owner, prior))
+        val revoked = owner.request(2, false)
+        owner.foreground(prior, true)
+        owner.foreground(prior, false)
+        assertFalse(activate(owner, prior))
+        assertTrue(owner.finishBoundary(revoked))
+        assertNull(owner.readyPointer(1)); assertTrue(builds().isEmpty())
+    }
+    @Test fun `background snapshot survives reconfiguration before its IO end runs`() {
+        val owner = controller(); val a = owner.request(1, true)
+        assertTrue(activate(owner, a))
+        val closed = owner.foreground(a, false)!!
+        owner.rememberForegroundBoundary(closed)
+        val b = owner.request(2, true)
+        assertTrue(owner.finishBoundary(b)); assertTrue(activate(owner, b, "build-B"))
+        owner.finishForegroundBoundary(closed)
+        val records = store().let { queue -> queue.snapshotTokens().map { queue.readIfPresent(it)!!.entry } }
+            .map { Json.parseToJsonElement(it.envelopeBytes.toString(Charsets.UTF_8)).jsonObject }
+        assertEquals(3, records.size)
+        assertEquals("background", records.single { it["phase"]!!.jsonPrimitive.content == "end" }["endReason"]!!.jsonPrimitive.content)
+    }
+    @Test fun `rapid foreground background callbacks fence a blocked durable start`() {
+        val entered = CountDownLatch(1); val release = CountDownLatch(1)
+        val owner = ReleaseHealthController({ entered.countDown(); check(release.await(5, TimeUnit.SECONDS)); store() })
+        val request = owner.request(1, true); owner.foreground(request, true)
+        val result = AtomicBoolean(true)
+        val worker = thread { result.set(activate(owner, request)) }
+        assertTrue(entered.await(5, TimeUnit.SECONDS))
+        owner.foreground(request, false)
+        release.countDown(); worker.join(5000)
+        assertFalse(worker.isAlive); assertFalse(result.get()); assertNull(owner.readyPointer(1))
+        assertTrue(builds().isEmpty())
+        owner.foreground(request, true); assertTrue(activate(owner, request))
+    }
+    @Test fun `an independent flush cannot complete background before native attribution is cleared`() {
+        val owner = controller(); val request = owner.request(1, true)
+        assertTrue(activate(owner, request))
+        val closed = owner.foreground(request, false)!!
+        owner.finishBoundary(request)
+        assertEquals(1, builds().size)
+        owner.rememberForegroundBoundary(closed) // Runtime calls this after clearing actual native contexts.
+        owner.finishBoundary(request)
+        assertEquals(2, builds().size)
+    }
     @Test fun `request reserves a new segment before any ready pointer can be read`() {
         val owner = controller(); val a = owner.request(1, true)
         assertNull(owner.readyPointer(1)); assertTrue(activate(owner, a))
@@ -105,10 +169,12 @@ class ReleaseHealthControllerTest {
             store()
         })
         val a = owner.request(1, true)
+        owner.foreground(a, true)
         val oldResult = AtomicBoolean(true)
         val old = thread { oldResult.set(activate(owner, a)) }
         assertTrue(entered.await(5, TimeUnit.SECONDS))
         val b = owner.request(2, true)
+        owner.foreground(b, true)
         release.countDown(); old.join(5000); assertFalse(old.isAlive); assertFalse(oldResult.get())
         assertTrue(activate(owner, b, "build-B"))
         assertEquals("build-B", owner.readyPointer(2)!!.nativeBuildId)
