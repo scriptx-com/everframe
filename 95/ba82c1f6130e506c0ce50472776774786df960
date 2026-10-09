@@ -1,0 +1,19 @@
+packages/cli/__tests__/upload-file-safety.spec.ts
+  s_360d9eb003c487::t_1f97fa30782286 9,11,19,42-49,52-62,99-102,130-146,148-151,154,165-186,201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "95ba82c1f6130e506c0ce50472776774786df960",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
