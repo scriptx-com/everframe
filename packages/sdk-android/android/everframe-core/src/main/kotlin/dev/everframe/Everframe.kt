@@ -647,6 +647,8 @@ object Everframe {
      * Requires the optional native-crash module and the default app process. Disabled by
      * default; no full-unwind or arbitrary-thread stack-overflow guarantee. Another native
      * collector prevents activation. API31+ continues using setNativeCrashRecoveryEnabled.
+     * On API30 with setProcessExitDiagnosticsEnabled, a fault recorded here is reported once,
+     * by this path; the OS exit then adds no second crash.
      * Explicit disable erases unadmitted native evidence outside the SDK stateLock.
      */
     @JvmStatic
@@ -694,6 +696,8 @@ object Everframe {
      * Call after each start. Disabled by default; no heartbeat observer is installed.
      * Reports are anonymous and retain the previous process's release/destination.
      * Either recovery switch set to false disables the shared owner and erases unadmitted evidence.
+     * On API30, a native fault that setNativeSignalCaptureEnabled recorded is reported once, by that
+     * path with its fault frame; this mode then sends no second, frameless crash for the exit.
      */
     @JvmStatic
     fun setProcessExitDiagnosticsEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = true)

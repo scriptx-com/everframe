@@ -3,6 +3,7 @@
 package dev.everframe.crash
 
 import dev.everframe.outbox.*
+import kotlinx.serialization.json.*
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -44,6 +45,13 @@ class AndroidNativeSignalControllerTest {
     private fun enable(c: AndroidNativeSignalController, command: Long = c.request(), epoch: Int = 1): Boolean =
         c.enable(command, epoch, allowed, ::template) { _, _ -> error("no prior record") }
 
+    @Test fun `capsules carry the process launch identity that exit-info contexts carry`() {
+        val c = AndroidNativeSignalController(::engine, Producer(), { null }, now = { 3000 })
+        assertTrue(enable(c))
+        val capsule = store("capsules").let { s -> s.readIfPresent(s.snapshotTokens().single())!!.entry }
+        val launch = Json.parseToJsonElement(capsule.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["launch"]!!.jsonPrimitive.content
+        assertEquals(dev.everframe.health.ProcessLaunchIdentity.id.toString(), launch)
+    }
     @Test fun `ordinary opt in is ready only after durable arm`() {
         val p = Producer(); val c = owner(p)
         assertFalse(c.ready(1)); assertTrue(enable(c)); assertTrue(c.ready(1)); assertTrue(p.armed)

@@ -62,7 +62,7 @@ internal object AndroidNativeSignalRuntime {
     private fun engine(storage: AndroidNativeSignalFiles): AndroidNativeRecordImport {
         fun store(name: String) = OutboxStore(File(storage.root, name),
             __keysForTesting ?: AndroidOutboxKeyProvider("dev.everframe.native-signal.v1.$name"), fileOps(), 8, 2L*1024*1024)
-        return AndroidNativeRecordImport(store("capsules"), store("prepared"))
+        return AndroidNativeRecordImport(store("capsules"), store("prepared"), store("delivered"))
     }
     @androidx.annotation.RequiresApi(26)
     private fun owner(context: Context): AndroidNativeSignalController {
@@ -118,6 +118,14 @@ internal object AndroidNativeSignalRuntime {
             files?.cleanup(emptySet())
         }
         true
+    }
+    /** API30 exit-info recovery asks whether this path owns an ended launch's native fault. Never
+     * imports or admits: only API26..30 opt-ins deliver records, and a pending erase removes them. */
+    fun capture(context: Context, launch: String): NativeSignalCapture = synchronized(work) {
+        if (Build.VERSION.SDK_INT !in 26..30 || erasePending.get() ||
+            !File(context.noBackupFilesDir, "dev.everframe/native-signal-v1").exists()) return@synchronized NativeSignalCapture.NONE
+        val storage = files ?: AndroidNativeSignalFiles(context.noBackupFilesDir, fileOps())
+        engine(storage).captured(launch, System.currentTimeMillis(), storage::read)
     }
     /** Replacement start pauses synchronously, then retires only this process's context on IO. */
     fun retireAfterStart(command: Long): Job? {

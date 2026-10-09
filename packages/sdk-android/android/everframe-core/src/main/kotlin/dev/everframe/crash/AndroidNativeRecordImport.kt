@@ -11,10 +11,11 @@ import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
-/** Durable import primitive. No signal installation or public SDK activation API. */
+/** Durable import primitive. No signal installation or public SDK activation API.
+ * [delivered] receipts name ended launches whose report entered the outbox (see [captured]). */
 @androidx.annotation.RequiresApi(26)
-internal class AndroidNativeRecordImport(private val capsules:OutboxStore,private val prepared:OutboxStore) {
-    companion object { const val MAX_AGE_MS=14L*24*60*60*1000; private const val MAX_CONTEXT=65536 }
+internal class AndroidNativeRecordImport(private val capsules:OutboxStore,private val prepared:OutboxStore,private val delivered:OutboxStore?=null) {
+    companion object { const val MAX_AGE_MS=14L*24*60*60*1000; private const val MAX_CONTEXT=65536; private const val MAX_RECEIPTS=8 }
     private val revision=AtomicLong()
     private fun gate(captured:Long,authorization:OutboxAuthorization)=object:OutboxAuthorization {
         override fun isAllowed()=revision.get()==captured && capsules.hasCurrentLease() && prepared.hasCurrentLease() && authorization.isAllowed()
@@ -58,6 +59,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
      * recover on every launch to keep per-launch arm() within the capsule store bound. */
     @Synchronized fun recover(currentProcessLaunchId:String,nowMs:Long,authorization:OutboxAuthorization,readRecord:(String)->ByteArray?,admit:(OutboxEntry,OutboxAuthorization)->Boolean):Int {
         val gate=gate(revision.get(),authorization);if(!gate.isAllowed()) return 0
+        expireReceipts(nowMs)
         var count=drain(nowMs,gate,admit)
         val ready=prepared.snapshotTokens().mapNotNull { prepared.readIfPresent(it)?.entry?.reportId }.toSet()
         for(token in capsules.snapshotTokens()) {
@@ -102,10 +104,51 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             check(gate)
             if(!admit(entry,gate)) continue
             check(gate)
+            receipt(entry,nowMs,gate)
             removeCapsules(entry.reportId)
             prepared.removeIfPresent(token);count++
         }
         return count
+    }
+    private fun launchOf(entry:OutboxEntry)=try { Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["launch"]?.jsonPrimitive?.contentOrNull } catch(_:Exception) { null }
+    /** Written before the capsule goes, so a captured launch always has a capsule or a receipt.
+     * Best effort and bounded: a lost receipt can only let exit-info report the fault again. */
+    private fun receipt(report:OutboxEntry,nowMs:Long,gate:OutboxAuthorization) {
+        val store=delivered ?: return
+        try {
+            val launch=capsules.snapshotTokens().firstNotNullOfOrNull { token -> capsules.readIfPresent(token)?.entry?.takeIf { it.reportId==report.reportId } }?.let(::launchOf) ?: return
+            expireReceipts(nowMs)
+            store.snapshotTokens().dropLast(MAX_RECEIPTS-1).forEach { store.removeIfPresent(it) }
+            val bytes=buildJsonObject { put("version",1);put("launch",launch) }.toString().toByteArray()
+            store.enqueueSync(OutboxEntry(report.reportId,nowMs,bytes,digest(bytes),emptyList(),"",""),gate)
+        } catch(_:Exception) {}
+    }
+    /** A receipt is younger than its launch's exit-info context, which also expires after MAX_AGE_MS. */
+    private fun expireReceipts(nowMs:Long) {
+        val store=delivered ?: return
+        try {
+            for(token in store.snapshotTokens()) {
+                val old=store.readIfPresent(token)?.entry ?: continue
+                if(nowMs>old.createdAt && nowMs-old.createdAt>MAX_AGE_MS) store.removeIfPresent(token)
+            }
+        } catch(_:Exception) {}
+    }
+    /** Exit-info coordination for an ended launch's native fault; never imports, admits or retires. */
+    @Synchronized fun captured(launch:String,nowMs:Long,readRecord:(String)->ByteArray?):NativeSignalCapture {
+        delivered?.let { store -> if(store.snapshotTokens().any { store.readIfPresent(it)?.entry?.let(::launchOf)==launch }) return NativeSignalCapture.DELIVERED }
+        for(token in capsules.snapshotTokens()) {
+            val context=capsules.readIfPresent(token)?.entry ?: continue
+            val capsule=try { Json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject } catch(_:Exception) { continue }
+            if(capsule["version"]?.jsonPrimitive?.intOrNull!=1 || capsule["launch"]?.jsonPrimitive?.contentOrNull!=launch) continue
+            val key=try { Base64.getDecoder().decode(capsule.getValue("key").jsonPrimitive.content) } catch(_:Exception) { continue }
+            val epoch=context.reportId.replace("-","")
+            // Only a record that recovery would import counts; anything else is the OS exit's to report.
+            val native=try { readRecord(epoch)?.let { AndroidNativeRecordReader.open(it,key,epoch,context.createdAt,nowMs) } } finally { key.fill(0) } ?: continue
+            val capturedAt=native.getValue("snapshotTimeMs").jsonPrimitive.long
+            if(nowMs>capturedAt && nowMs-capturedAt>MAX_AGE_MS) continue
+            return NativeSignalCapture.PENDING
+        }
+        return NativeSignalCapture.NONE
     }
     @Synchronized fun retainedEpochs(): Set<String> = capsules.snapshotTokens().mapNotNull {
         capsules.readIfPresent(it)?.entry?.reportId?.replace("-", "")
@@ -130,12 +173,12 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         // a potentially long-running process armed its crash context.
         return context.copy(createdAt=nowMs,envelopeBytes=bytes,idempotencyKey=digest(bytes))
     }
-    fun invalidate() { revision.incrementAndGet();capsules.invalidateSync();prepared.invalidateSync() }
-    /** Invalidate both generations before producer shutdown or any fallible disk operation. */
+    fun invalidate() { revision.incrementAndGet();capsules.invalidateSync();prepared.invalidateSync();delivered?.invalidateSync() }
+    /** Invalidate every generation before producer shutdown or any fallible disk operation. */
     fun revoke(stopProducer:()->Boolean={true}) {
         invalidate();var failure:Exception?=null
         try { check(stopProducer()) { "Native producer revocation failed" } } catch(error:Exception) { failure=error }
-        for(store in listOf(capsules,prepared)) try { store.revokeSync() } catch(error:Exception) { if(failure==null) failure=error else failure.addSuppressed(error) }
+        for(store in listOfNotNull(capsules,prepared,delivered)) try { store.revokeSync() } catch(error:Exception) { if(failure==null) failure=error else failure.addSuppressed(error) }
         failure?.let { throw it }
     }
 }

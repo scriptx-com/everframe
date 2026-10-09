@@ -126,6 +126,30 @@ class AndroidNativeSignalRuntimeTest {
         assertFalse(root.exists())
     }
 
+    private fun storeAt(name: String) = OutboxStore(File(root, name), keys, JvmOutboxFileOps(), 8, 2 * 1024 * 1024)
+    /** An ended launch's capsule, with the record its handler published when [recorded]. */
+    private fun endedLaunch(launch: String, recorded: Boolean) {
+        val files = AndroidNativeSignalFiles(context.noBackupFilesDir, JvmOutboxFileOps())
+        assertTrue(AndroidNativeRecordImport(storeAt("capsules"), storeAt("prepared")).arm(template(), launch, allowed) { epoch, key ->
+            files.prepare(epoch); if (recorded) File(files.records, "$epoch/$epoch").writeBytes(nativeSignalRecord(epoch, key, System.currentTimeMillis())); true })
+    }
+    @Test fun `exit-info coordination sees an ended launch's authenticated record, then its delivery`() {
+        endedLaunch("ended-recorded", recorded = true); endedLaunch("ended-clean", recorded = false)
+        assertEquals(NativeSignalCapture.PENDING, AndroidNativeSignalRuntime.capture(context, "ended-recorded"))
+        assertEquals(NativeSignalCapture.NONE, AndroidNativeSignalRuntime.capture(context, "ended-clean"))
+        val owner = AndroidNativeSignalRuntime.__ownerForTesting(context)
+        assertTrue(owner.enable(owner.request(), 1, allowed, ::template) { _, _ -> true })
+        assertEquals(NativeSignalCapture.DELIVERED, AndroidNativeSignalRuntime.capture(context, "ended-recorded"))
+        assertEquals(NativeSignalCapture.NONE, AndroidNativeSignalRuntime.capture(context, "ended-clean"))
+        AndroidNativeSignalRuntime.request(erase = true)
+        assertEquals("a pending erase owns every record", NativeSignalCapture.NONE, AndroidNativeSignalRuntime.capture(context, "ended-recorded"))
+    }
+    @Test @Config(sdk = [31])
+    fun `API31 exit-info recovery never defers to records this path cannot deliver`() {
+        endedLaunch("ended-recorded", recorded = true)
+        assertEquals(NativeSignalCapture.NONE, AndroidNativeSignalRuntime.capture(context, "ended-recorded"))
+    }
+
     /** A Keystore whose key loads fail transiently; the outbox reports that as KEY_UNAVAILABLE. */
     private class FlakyKeys(private val keys: OutboxKeyProvider) : OutboxKeyProvider by keys {
         @Volatile var failing = false

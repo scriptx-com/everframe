@@ -25,6 +25,13 @@ collector causes activation to fail closed. API24–25 are unsupported. API31+
 continues to use `setNativeCrashRecoveryEnabled(true)` and OS exit information.
 Absent optional binaries or a failed setup leave readiness false.
 
+On API30, `setProcessExitDiagnosticsEnabled(true)` also recovers native exits.
+With both enabled, a fault this handler recorded is reported once, with its fault
+frame, and the OS exit adds no second crash; a fault it did not record is still
+reported from the OS exit. For that check the module keeps an encrypted receipt
+per delivered report that holds only the ended launch's identifier (at most
+eight, expiring after 14 days).
+
 The report contains one partial fault-PC frame, signal, module, ELF build ID and
 relative address. It does not claim a full unwound stack or arbitrary-thread
 stack-overflow support. Exact matching ELF debug information is required for

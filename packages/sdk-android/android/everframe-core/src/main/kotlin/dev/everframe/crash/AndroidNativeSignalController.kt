@@ -3,9 +3,9 @@
 package dev.everframe.crash
 
 import dev.everframe.envelope.txGuardVoid
+import dev.everframe.health.ProcessLaunchIdentity
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -17,12 +17,18 @@ internal interface AndroidNativeSignalProducer {
     fun revoke(): Boolean
 }
 
+/** Whether this path owns an ended launch's native fault, so API30 exit-info recovery adds no
+ * second report: DELIVERED once its report entered the outbox, PENDING while its authenticated
+ * record awaits import or admission. */
+internal enum class NativeSignalCapture { NONE, PENDING, DELIVERED }
+
 /** One controller per app process; IO is serialized separately from immediate command fences. */
 internal class AndroidNativeSignalController(
     private val factory: () -> AndroidNativeRecordImport,
     private val producer: AndroidNativeSignalProducer,
     private val readRecord: (String) -> ByteArray?,
-    private val processLaunchId: String = UUID.randomUUID().toString(),
+    /** Shared with exit-info contexts, which match an OS exit to the same launch. */
+    private val processLaunchId: String = ProcessLaunchIdentity.id.toString(),
     private val now: () -> Long = System::currentTimeMillis,
     private val cleanup: (Set<String>) -> Unit = {},
 ) {
