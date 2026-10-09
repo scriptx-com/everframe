@@ -99,6 +99,73 @@ provider context and attach any non-sensitive context needed for diagnosis.
 The source API requires matching rebuilt native components; published `0.7.0`
 artifacts are not evidence of support.
 
+## Foreground-session monitoring
+
+Native foreground-session monitoring is separately opt-in on Android and iOS:
+
+```tsx
+<EverframeProvider config={{
+  apiKey: '…',
+  jsBundle: { buildId: 'ota-build-42', bundleName: 'index.bundle' },
+  releaseHealth: {
+    enabled: true,
+    nativeBuildId: 'native-build-17',
+    userId: 'opaque-project-user-id', // optional; never inferred from setUser
+  },
+}}>
+  <App />
+</EverframeProvider>
+```
+
+Use the actual installed native artifact ID and executing Hermes bundle ID.
+The loaded build comes from validated `jsBundle` metadata (or the existing
+Metro-injected build metadata); there is no separate release-health bundle
+option. Missing or invalid identity, unsupported engines, `enabled: false`,
+or removal of `releaseHealth` on the next configure disables monitoring and
+clears earlier health configuration. The optional user ID must be opaque, nonblank, at most 128 UTF-16
+units, and contain no U+0000–U+001F control characters or unpaired surrogates.
+Build IDs have the same text rules with a 200-unit limit. Values are preserved
+exactly, including spaces around a nonblank ID.
+
+Configuration is read when the Provider mounts. Changing its `config` prop
+alone does not reconfigure the SDK. Remount with a changed `key` to apply
+an enable/disable, user, native-build or loaded-bundle change:
+
+```tsx
+const config = {
+  apiKey,
+  jsBundle: { buildId: loadedBuildId, bundleName: 'index.bundle' },
+  releaseHealth: { enabled: healthEnabled, nativeBuildId, userId: opaqueUserId },
+};
+
+<EverframeProvider
+  key={JSON.stringify([healthEnabled, nativeBuildId, loadedBuildId, opaqueUserId])}
+  config={config}
+>
+  <App />
+</EverframeProvider>
+```
+
+Unmounting the Provider only removes JavaScript integrations; it does not stop
+native monitoring. To revoke it, remount with `enabled: false` (or without
+`releaseHealth`). Cleanup from an older Provider cannot revoke a newer owner's
+native configuration.
+
+Each foreground period gets a native session after its start is persisted.
+Backgrounding completes it and immediately removes its crash-attribution pointer;
+returning to the foreground starts a new session. Identity or bundle changes
+rotate the session. Identical configuration preserves it. Automatic ErrorUtils
+fatals can reference the session only when its pointer is ready and the captured
+known bundle matches exactly. Handled errors, promise rejections, background
+crashes and crashes before readiness still use ordinary reporting without an
+invented session link. A process that dies does not synthesize a completed end.
+
+These observations support counts of sessions without a reported fatal crash;
+they do not confirm that a session was healthy or that delivery succeeded.
+Install matching rebuilt native SDKs with this bridge. Physical-device timing,
+process-death delivery and production end-to-end qualification remain pending
+for this feature. The browser entry uses the separate React web configuration.
+
 ## Promise rejection observation
 
 Automatic Hermes rejection observation is opt-in:

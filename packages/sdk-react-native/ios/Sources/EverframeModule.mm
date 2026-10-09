@@ -193,6 +193,10 @@ RCT_EXPORT_MODULE(Everframe)
                        vitalsEnabled:vitalsEnabled
                     vitalsSampleRate:vitalsSampleRate
             vitalsCaptureSourceQuery:vitalsCaptureSourceQuery
+                releaseHealthEnabled:opts.releaseHealthEnabled().value_or(false)
+          releaseHealthNativeBuildId:opts.releaseHealthNativeBuildId()
+          releaseHealthLoadedBuildId:opts.releaseHealthLoadedBuildId()
+                 releaseHealthUserId:opts.releaseHealthUserId()
                                error:&err];
   if (err != nil) {
     // Configure is void-typed at the spec; we can't reject a promise here.

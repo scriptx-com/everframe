@@ -44,6 +44,10 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
 
     // MARK: - configure
 
+    // Serialize the bridge's start/idempotence decision with synchronous health reservation.
+    private static let configureLock = NSRecursiveLock()
+
+    /// Kept for callers compiled against the earlier Objective-C selector.
     @objc public static func configure(
         appId: NSString,
         endpoint: NSString,
@@ -59,6 +63,37 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         vitalsSampleRate: NSNumber?,
         vitalsCaptureSourceQuery: NSNumber?
     ) throws {
+        try configure(appId: appId, endpoint: endpoint,
+            networkBodiesDisabled: networkBodiesDisabled, installIdentifierDisabled: installIdentifierDisabled,
+            attachPinUi: attachPinUi, companionDeviceId: companionDeviceId,
+            companionBadgeEnabled: companionBadgeEnabled, shakeToReportEnabled: shakeToReportEnabled,
+            companionBadgePosition: companionBadgePosition, theme: theme,
+            vitalsEnabled: vitalsEnabled, vitalsSampleRate: vitalsSampleRate,
+            vitalsCaptureSourceQuery: vitalsCaptureSourceQuery, releaseHealthEnabled: false,
+            releaseHealthNativeBuildId: nil, releaseHealthLoadedBuildId: nil, releaseHealthUserId: nil)
+    }
+
+    @objc public static func configure(
+        appId: NSString,
+        endpoint: NSString,
+        networkBodiesDisabled: Bool,
+        installIdentifierDisabled: Bool,
+        attachPinUi: NSString?,
+        companionDeviceId: NSString?,
+        companionBadgeEnabled: Bool,
+        shakeToReportEnabled: Bool,
+        companionBadgePosition: NSString?,
+        theme: NSDictionary?,
+        vitalsEnabled: NSNumber?,
+        vitalsSampleRate: NSNumber?,
+        vitalsCaptureSourceQuery: NSNumber?,
+        releaseHealthEnabled: Bool,
+        releaseHealthNativeBuildId: NSString?,
+        releaseHealthLoadedBuildId: NSString?,
+        releaseHealthUserId: NSString?
+    ) throws {
+        configureLock.lock()
+        defer { configureLock.unlock() }
         // `endpoint` arg is retained for ObjC ABI compatibility with the
         // codegen .mm — value is ignored. The SDK bakes the ingest URL at
         // compile time (sdk-ios IngestEndpoint).
@@ -110,53 +145,27 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // precedes startCompanion() in every host's lifecycle, so this is the natural place to
         // parse the flat ConfigOpts string into the native enum; startCompanion is where it is
         // actually consumed (RelayWSClient's announce arg + the suppression seam), since a mode
-        // can't affect anything before a relay client exists. Parsed into a LOCAL: the gate
-        // below compares it against the stashed value, and only the start path adopts it.
+        // can't affect anything before a relay client exists. A changed value forces native
+        // reconfiguration even when the SDK configuration itself compares equal.
         let newAttachPinUi = Self.parseAttachPinUi(attachPinUi as String?)
-        // Codex round-6, H1 — IDEMPOTENT configure, twin of `EverframeModule.configure`'s gate on
-        // Android, and decided against the INSTALLED config rather than a cache of the last
-        // options this bridge started with.
-        //
-        // `Everframe.shared.start(...)` SUPERSEDES the running SDK: the outgoing controller's
-        // shutdown detaches every integration it had announced, so a Provider that merely
-        // REMOUNTS with the same config used to kill every live player registration for
-        // nothing. An identical configuration installs identical state, so the cheapest correct
-        // answer is not to start at all.
-        //
-        // Round-5 kept a cached snapshot of the options it last started with, and a cache can
-        // disagree with the singleton it claims to describe: two overlapping configures (A then
-        // B) can interleave so the cache says A while the SDK runs B, and a native host calling
-        // `Everframe.shared.start(configB)` between two bridge configures of A reproduces it with
-        // no concurrency at all — the second A matches the stale cached A, skips, and leaves B
-        // installed under a JS host that believes it configured A. `currentConfig` cannot drift:
-        // it IS the installed state.
-        //
-        // `captureGate` is the second term: a killed SDK must be restarted even by an identical
-        // config, or the host is left with a dead SDK and no way to revive it.
-        //
-        // Codex round-7, I3 — the comparison is the WHOLE config (`EverframeConfig` is now
-        // `Equatable`, matching Android's `data class`), not a rendering of the fields this
-        // bridge happens to set. Round-6 hand-built a string snapshot here, which meant any
-        // config field the snapshot's author had not listed — a new one, or one a native host
-        // set directly — read as "unchanged" and silently suppressed a start that was needed.
-        // `attachPinUi` is the one term that is NOT part of the config (it lands in module
-        // state), so it is compared separately.
-        //
-        // Everything else this method does still runs on the skip path — the presenter-resolver
-        // install and the crash-metadata prime — because both are idempotent and neither
-        // depends on a fresh start. The attach-PIN stash is the exception, and only nominally:
-        // on the skip path it would write the value it already holds.
-        let unchanged = Everframe.shared.captureGate
-            && Everframe.shared.currentConfig == cfg
-            && companionAttachPinUi == newAttachPinUi
-        if unchanged {
-            os_log("[everframe] configure: SDK already running this exact config — skipping start()",
-                   log: log, type: .debug)
+        let health: ReleaseHealthConfiguration?
+        if releaseHealthEnabled, let native = releaseHealthNativeBuildId, let loaded = releaseHealthLoadedBuildId {
+            health = try? ReleaseHealthConfiguration(nativeBuildId: native as String,
+                loadedBuildId: loaded as String, loadedBundleStatus: .known,
+                userId: releaseHealthUserId as String?)
         } else {
-            try Everframe.shared.start(config: cfg)
-            // Adopted only on the start path — the skip path has already established that the
-            // stashed value equals this one.
-            companionAttachPinUi = newAttachPinUi
+            health = nil
+        }
+        // Native code atomically checks installed config and reserves its exact owner.
+        // An identical configure preserves the session; a changed attach-PIN mode still
+        // requires the same full restart as the other native configuration changes.
+        let applyHealth = try Everframe.shared.configureAndPrepareReleaseHealth(
+            config: cfg, health: health, forceRestart: companionAttachPinUi != newAttachPinUi)
+        companionAttachPinUi = newAttachPinUi
+        // Reservation is tied to this configure's exact native start generation. Later
+        // configure/disable or a native restart invalidates the asynchronous operation.
+        if let applyHealth {
+            Task { _ = await applyHealth() }
         }
         installPresenterResolverIfNeeded()
         // Spec 2026-09-17 setExtra-resolver — installed unconditionally,

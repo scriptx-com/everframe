@@ -24,7 +24,7 @@ import type { ConfigOpts, Rect } from "./NativeEverframe.js";
 import { budgetExtra, EXTRA_MAX_CHARS } from "@everframe/sdk-core";
 import type { ExtraResolver } from "@everframe/sdk-core";
 import { getEmitter } from "./events.js";
-import type { JsBundleConfig } from "./js-bundle.js";
+import { captureJsBundleMetadata, type JsBundleConfig } from "./js-bundle.js";
 import { createCaptureController, type CaptureController } from "./errors.js";
 import { createPromiseRejectionObserver, type RejectionObserver } from './promise-rejections.js';
 import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
@@ -93,6 +93,10 @@ export interface RuntimeConfig
     | "vitalsEnabled"
     | "vitalsSampleRate"
     | "vitalsCaptureSourceQuery"
+    | "releaseHealthEnabled"
+    | "releaseHealthNativeBuildId"
+    | "releaseHealthLoadedBuildId"
+    | "releaseHealthUserId"
   > {
   /**
    * Per-app SDK key (publishable, not secret). Required on the host-facing
@@ -106,6 +110,16 @@ export interface RuntimeConfig
   appBuild?: string;
   /** Exact loaded Hermes bundle identity, independent of the native app build. */
   jsBundle?: JsBundleConfig;
+  /**
+   * Explicit opt-in to native foreground-session monitoring. The loaded build
+   * comes from validated Hermes jsBundle metadata. userId is an optional opaque
+   * identifier supplied for this purpose; setUser never supplies it implicitly.
+   */
+  releaseHealth?: {
+    enabled: boolean;
+    nativeBuildId: string;
+    userId?: string;
+  };
   /**
    * Opt-in JS-side capture integrations (spec 2026-07-14 RN-iOS parity).
    * Import from '@everframe/react-native/integrations/*'; nothing
@@ -760,7 +774,25 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   if (config.vitals?.captureSourceQuery !== undefined) {
     bridge.vitalsCaptureSourceQuery = config.vitals.captureSourceQuery;
   }
+  const health = config.releaseHealth;
+  if (health !== undefined) {
+    bridge.releaseHealthEnabled = false;
+    const bundle = health?.enabled === true ? captureJsBundleMetadata(config.jsBundle) : undefined;
+    if (bundle && validReleaseHealthText(bundle.buildId, 200) &&
+        validReleaseHealthText(health.nativeBuildId, 200) &&
+        (health.userId === undefined || validReleaseHealthText(health.userId, 128))) {
+      bridge.releaseHealthEnabled = true;
+      bridge.releaseHealthNativeBuildId = health.nativeBuildId;
+      bridge.releaseHealthLoadedBuildId = bundle.buildId;
+      if (health.userId !== undefined) bridge.releaseHealthUserId = health.userId;
+    }
+  }
   return bridge;
+}
+
+function validReleaseHealthText(value: unknown, maxLength: number): value is string {
+  return typeof value === "string" && value.length <= maxLength && value.trim().length > 0 &&
+    !/[\u0000-\u001f\ud800-\udfff]/u.test(value);
 }
 
 /** Test seam — the flattening rule is the one place JS and native shapes meet. */
