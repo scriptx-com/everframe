@@ -32,7 +32,8 @@ With both enabled, a fault this handler recorded is reported once, with its faul
 frame, and the OS exit adds no second crash; a fault it did not record is still
 reported from the OS exit. For that check the module keeps an encrypted receipt
 per delivered report that holds only the ended launch's identifier (at most
-eight, expiring after 14 days).
+eight, expiring after 14 days). A receipt that cannot be stored can let the OS
+exit report the same fault again.
 
 The report contains one partial fault-PC frame, signal, module, ELF build ID and
 relative address. It does not claim a full unwound stack or arbitrary-thread
