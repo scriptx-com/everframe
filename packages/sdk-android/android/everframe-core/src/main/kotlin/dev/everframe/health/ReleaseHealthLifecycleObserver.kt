@@ -4,6 +4,7 @@ package dev.everframe.health
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -23,6 +24,11 @@ internal class ReleaseHealthLifecycleObserver(
         if (!closed.get() && !installed) {
             installed = true
             val lifecycle = owner().lifecycle
+            // App Startup attaches ProcessLifecycleOwner eagerly, in the default process only; it
+            // refuses lazy initialization. An unattached owner never starts: say so once per start.
+            if (lifecycle.currentState == Lifecycle.State.INITIALIZED) Log.w("Everframe",
+                "Release health not ready: $LIFECYCLE_UNAVAILABLE. Keep androidx.lifecycle.ProcessLifecycleInitializer " +
+                    "in androidx.startup.InitializationProvider and start release health in the default process.")
             lifecycle.addObserver(this)
             update(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
         }
@@ -39,4 +45,9 @@ internal class ReleaseHealthLifecycleObserver(
         txGuardVoid("releaseHealth.lifecycle") { changed(value) }
     }
     private fun post(block: () -> Unit) { Handler(Looper.getMainLooper()).post { txGuardVoid("releaseHealth.observer", block) } }
+
+    companion object {
+        /** Documented not-ready reason, logged as an `Everframe` warning. */
+        const val LIFECYCLE_UNAVAILABLE = "process-lifecycle-unavailable"
+    }
 }

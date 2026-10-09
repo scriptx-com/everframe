@@ -3,6 +3,7 @@
 package dev.everframe.health
 
 import android.os.Looper
+import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.testing.TestLifecycleOwner
 import org.junit.Assert.*
@@ -11,6 +12,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -38,5 +40,20 @@ class ReleaseHealthLifecycleObserverTest {
         shadowOf(Looper.getMainLooper()).idle()
         observer.onStart(owner); observer.onStop(owner)
         assertTrue(events.isEmpty()); assertEquals(0, owner.observerCount)
+    }
+    @Test fun `an unattached process lifecycle warns instead of staying silently background`() {
+        ShadowLog.clear()
+        fun warnings() = ShadowLog.getLogsForTag("Everframe").filter { it.type == Log.WARN }.map { it.msg }
+        val attached = TestLifecycleOwner(Lifecycle.State.CREATED)
+        ReleaseHealthLifecycleObserver({}, { attached }).install()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(warnings().isEmpty())
+        // App Startup never attached this owner (provider removed, or a non-default process).
+        val events = mutableListOf<Boolean>()
+        val unattached = TestLifecycleOwner(Lifecycle.State.INITIALIZED)
+        ReleaseHealthLifecycleObserver({ events += it }, { unattached }).install()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(listOf(false), events)
+        assertTrue(warnings().single().contains("process-lifecycle-unavailable"))
     }
 }
