@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_360d9eb003c487::t_5b6096ddbbf048 95
+  s_360d9eb003c487::t_37833ee6a229b4 26-27
+  s_360d9eb003c487::t_07f94b5b577814 48,54-58
+  s_360d9eb003c487::t_227bd939776380 40
+  s_360d9eb003c487::t_3069da9210e88d 59
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_360d9eb003c487::t_89a5ed90254563 659-662
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalRuntimeTest.kt
+  s_360d9eb003c487::t_38e3391ddff442 7,10,41-42,46,48,194-215
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1bb7385e373d206321b2ea974c3382b2c470c5ea",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
