@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Reported fatal-session threshold webhooks
 
 `release_health.threshold_reached` (event schema 1.2) reports that one configured
