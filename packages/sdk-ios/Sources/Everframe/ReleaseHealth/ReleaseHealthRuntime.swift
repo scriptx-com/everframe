@@ -73,14 +73,17 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     }
     /// Called at the SDK's context invalidation boundary. No disk work occurs here.
     /// Inactive UIKit interruptions stay foreground; only background closes a session.
-    @discardableResult func setForeground(_ value: Bool) -> UInt64? {
+    /// `retiredPointer` reports, atomically with the change, whether a ready pointer
+    /// was withdrawn: only then can a native context carry a pointer that must go.
+    @discardableResult func setForeground(_ value: Bool) -> (ticket: UInt64, retiredPointer: Bool)? {
         let capturedAt = now(), capturedUptime = uptime()
-        let ticket: UInt64? = lock.withLock {
+        let change: (ticket: UInt64, retiredPointer: Bool)? = lock.withLock {
             guard foreground != value else { return nil }
+            let retired = ready != nil
             foreground = value; generation &+= 1; ready = nil
-            return generation
+            return (generation, retired)
         }
-        if let ticket, !value {
+        if let ticket = change?.ticket, !value {
             worker.async {
                 if let active = self.active, active.ticket < ticket {
                     self.closeActive(reason: .background, capturedAt: capturedAt, capturedUptime: capturedUptime)
@@ -88,7 +91,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
                 self.startDrain(ticket)
             }
         }
-        return ticket
+        return change
     }
     func boundary() {
         let capturedAt = now(), capturedUptime = uptime()

@@ -30,18 +30,18 @@ final class ReleaseHealthForegroundTests: XCTestCase {
         let runtime = runtime(foreground: false)
         let background = try await enable(runtime); XCTAssertFalse(background)
         XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
-        let ticket = try XCTUnwrap(runtime.setForeground(true))
+        let ticket = try XCTUnwrap(runtime.setForeground(true)).ticket
         let opened = await runtime.enable(ticket: ticket, sdkVersion: "test"); XCTAssertTrue(opened)
         let first = try XCTUnwrap(runtime.readyPointer)
         XCTAssertNil(runtime.setForeground(true))
-        _ = runtime.setForeground(false); XCTAssertNil(runtime.readyPointer)
+        XCTAssertEqual(runtime.setForeground(false)?.retiredPointer, true); XCTAssertNil(runtime.readyPointer)
         XCTAssertNil(runtime.setForeground(false))
         await runtime.barrier()
         let bodies = try rows()
         XCTAssertEqual(bodies.compactMap { $0["phase"] as? String }, ["start", "end"])
         XCTAssertEqual(bodies[1]["endReason"] as? String, "background")
         XCTAssertEqual(bodies[1]["outcome"] as? String, "completed")
-        let next = try XCTUnwrap(runtime.setForeground(true))
+        let next = try XCTUnwrap(runtime.setForeground(true)).ticket
         let reopened = await runtime.enable(ticket: next, sdkVersion: "test"); XCTAssertTrue(reopened)
         XCTAssertNotEqual(first.exposureID, runtime.readyPointer?.exposureID)
         XCTAssertEqual(first.processLaunchID, runtime.readyPointer?.processLaunchID)
@@ -52,12 +52,12 @@ final class ReleaseHealthForegroundTests: XCTestCase {
         _ = runtime.setForeground(false)
         let changed = try await enable(runtime, user: "opaque-b"); XCTAssertFalse(changed)
         XCTAssertNil(runtime.readyPointer)
-        let ticket = try XCTUnwrap(runtime.setForeground(true))
+        let ticket = try XCTUnwrap(runtime.setForeground(true)).ticket
         let erase = runtime.revoke()
         let stale = await runtime.enable(ticket: ticket, sdkVersion: "test"); XCTAssertFalse(stale)
         let erased = await runtime.finishRevocation(erase); XCTAssertTrue(erased)
-        _ = runtime.setForeground(false)
-        let later = try XCTUnwrap(runtime.setForeground(true))
+        XCTAssertEqual(runtime.setForeground(false)?.retiredPointer, false)
+        let later = try XCTUnwrap(runtime.setForeground(true)).ticket
         let revived = await runtime.enable(ticket: later, sdkVersion: "test"); XCTAssertFalse(revived)
         XCTAssertTrue(try rows().isEmpty)
     }

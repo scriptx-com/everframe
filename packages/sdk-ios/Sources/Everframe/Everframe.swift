@@ -109,22 +109,25 @@ public final class Everframe: @unchecked Sendable {
         return false
     }
 
-    /// The UIKit callback retires the old immutable native context and session
-    /// pointer together. Background capture is then rearmed without a pointer;
-    /// foreground publication waits for a durable start and current ownership.
+    /// Background retires the immutable native context together with a ready session
+    /// pointer before the UIKit callback returns, then rearms capture without one. A
+    /// transition that retires no pointer, as without an opt-in, leaves capture armed;
+    /// foreground keeps the unlinked context until a durable start is swapped in.
     @discardableResult internal func releaseHealthForegroundChanged(_ foreground: Bool) -> Task<Void, Never> {
-        let captured: (UInt64, Int, UInt64)? = stateLock.withLock {
-            guard let runtime = releaseHealthRuntime, let ticket = runtime.setForeground(foreground) else { return nil }
-            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
-            return (ticket, _startEpoch, _configGeneration)
+        let captured: (UInt64, Bool, Int, UInt64)? = stateLock.withLock {
+            guard let runtime = releaseHealthRuntime, let change = runtime.setForeground(foreground) else { return nil }
+            if change.retiredPointer { nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0 }
+            return (change.ticket, change.retiredPointer, _startEpoch, _configGeneration)
         }
         return Task { [weak self] in
-            guard let self, let (ticket, epoch, configGeneration) = captured, let runtime = self.releaseHealthRuntime else { return }
-            if foreground { _ = await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION) }
+            guard let self, let (ticket, retired, epoch, configGeneration) = captured, let runtime = self.releaseHealthRuntime else { return }
+            // Nothing to replace: no new durable start and no retired pointer.
+            if foreground { guard await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION) else { return } }
+            else if !retired { return }
             let current = self.stateLock.withLock { () -> Bool in
                 guard self.nativeCrashPublishedEpoch == epoch, self._startEpoch == epoch,
                       self._configGeneration == configGeneration, Self.captureGate else { return false }
-                self.nativeCrashTicket = self.nativeCrashRuntime?.invalidate() ?? 0
+                if foreground { self.nativeCrashTicket = self.nativeCrashRuntime?.invalidate() ?? 0 }
                 return true
             }
             if current { _ = await self.refreshNativeCrashContext() }
