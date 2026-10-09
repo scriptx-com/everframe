@@ -1,0 +1,45 @@
+docs/release-health.md
+  s_97602a0a2d8f20::t_dcb1eacfe87289 4,6-9,15-20,22,26-31,33,35-41,43-48,50-56,58-94
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReleaseHealthConfig.kt
+  s_97602a0a2d8f20::t_2674b3bf822897 5,11-12
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthProducer.kt
+  s_97602a0a2d8f20::t_0ec7f148f1eebe 41-46,59,81
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthProducerTest.kt
+  s_97602a0a2d8f20::t_7319b55d2281a8 40-62,71-72
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthConfiguration.swift
+  s_97602a0a2d8f20::t_c4fb6ed53b93e8 7-9,15,19-20
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthModels.swift
+  s_97602a0a2d8f20::t_22644ec6fc2641 65-66,68
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_97602a0a2d8f20::t_16c0e0979b92ae 31-58,109-110
+packages/sdk-react/src/release-health.ts
+  s_97602a0a2d8f20::t_e7358055ff5391 12
+packages/sdk-react/tests/release-health-browser.mjs
+  s_97602a0a2d8f20::t_6a39328b1e43bc 55,58-59,141-142
+packages/sdk-react/tests/release-health-host.tsx
+  s_97602a0a2d8f20::t_03a1b409c6babd 22,29,34-35
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_97602a0a2d8f20::t_48f888bd397ed8 3-4,87-133
+packages/sdk-web/src/internal/types.ts
+  s_97602a0a2d8f20::t_f3f6a56f3c662c 10
+packages/sdk-web/src/release-health/runtime.ts
+  s_97602a0a2d8f20::t_cc922aadbc104a 3,6,9,25,36,38,77,80-81,86,100
+packages/sdk-web/tests/release-health-browser.mjs
+  s_97602a0a2d8f20::t_ef65e802bfeb69 49,56-57,90-108,254
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "83ff3c90639c0e5fec6a04e3bcebf18fac1bf046",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
