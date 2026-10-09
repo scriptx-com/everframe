@@ -78,7 +78,8 @@ export function setupReleaseHealth(config: {
       exposureId: crypto.randomUUID(), pageLaunchId: pageLaunchId ??= crypto.randomUUID(),
       startedAt: new Date().toISOString(), platform: 'web', sdkVersion,
       nativeRelease: 'not_applicable', loadedBuildId, sessionPolicy: 'launch-v1',
-      subject: userId === undefined ? { kind: 'anonymous' } : { kind: 'provided', id: userId },
+      // null, as on Android and iOS, means no supplied ID.
+      subject: userId == null ? { kind: 'anonymous' } : { kind: 'provided', id: userId },
       coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: losses },
     };
     const mono = performance.now();

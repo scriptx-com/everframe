@@ -123,6 +123,18 @@ describe('frozen launch session subjects', () => {
     expect(rows[2].exposure.exposureId).not.toBe(rows[0].exposure.exposureId);
     await next.revoke(); expect(rows).toEqual([]);
   });
+  it('treats a null user ID as anonymous and keeps delivering earlier rows', async () => {
+    const rows = queued(); rows.push({ recordId: 'earlier' });
+    const sent: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => { sent.push(JSON.parse(String(init.body))); return new Response('{}', { status: 201 }); });
+    // Untyped hosts can pass null; like Android and iOS, it means no supplied ID.
+    const handle = setupReleaseHealth({ apiKey: 'pk_null_subject', releaseHealth: { enabled: true, userId: null as unknown as string } }, 'https://example.test', 'test');
+    expect(await handle.ready).toMatchObject({ state: 'active', exposure: { subject: { kind: 'anonymous' } } });
+    await handle.flush();
+    expect(sent).toContainEqual({ recordId: 'earlier' });
+    expect(rows[1]).toMatchObject({ schemaVersion: 2, exposure: { subject: { kind: 'anonymous' } } });
+    await handle.stop();
+  });
   it.each(['', ' ', 'x'.repeat(129), 'a\u0000', '\ud800'])('refuses invalid subject %j before publishing readiness', async userId => {
     const rows = queued();
     const config = { apiKey: 'pk_invalid', releaseHealth: { enabled: true, userId } };
