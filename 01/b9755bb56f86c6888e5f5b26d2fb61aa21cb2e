@@ -1,0 +1,23 @@
+packages/sdk-android/tests/native-release-host/README.md
+  s_5962212a426267::t_05a36afe84dec4 24-27
+packages/sdk-android/tests/native-release-host/app/build.gradle.kts
+  s_5962212a426267::t_c8fb920786a0f3 20-21
+packages/sdk-android/tests/native-release-host/app/src/main/AndroidManifest.xml
+  s_5962212a426267::t_78319d77d01854 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "01b9755bb56f86c6888e5f5b26d2fb61aa21cb2e",
+  "prompts": {},
+  "sessions": {
+    "s_5962212a426267": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa9beed1-8fd6-43b6-8213-e48bea82c638",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
