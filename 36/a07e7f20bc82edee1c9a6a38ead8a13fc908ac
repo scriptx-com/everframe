@@ -1,0 +1,25 @@
+docs/release-health-alerts.md
+  s_97602a0a2d8f20::t_cd43a21ef74414 1-27
+packages/protocol/__tests__/release-health-alert.spec.ts
+  s_97602a0a2d8f20::t_d8874e8f025909 1-36
+packages/protocol/src/index.ts
+  s_97602a0a2d8f20::t_b4123403017d35 80-81
+packages/protocol/src/release-health-alert.ts
+  s_97602a0a2d8f20::t_50d5163c816b64 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "36a07e7f20bc82edee1c9a6a38ead8a13fc908ac",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
