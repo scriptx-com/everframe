@@ -88,7 +88,8 @@ internal class AndroidNativeRecovery(
         armed = null
     }
 
-    fun recover(exits: List<AndroidNativeExit>, nowMs: Long, authorization: OutboxAuthorization, allowDiagnostics: Boolean = false, admit: (OutboxEntry) -> Boolean): Int {
+    fun recover(exits: List<AndroidNativeExit>, nowMs: Long, authorization: OutboxAuthorization, allowDiagnostics: Boolean = false,
+                signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE }, admit: (OutboxEntry) -> Boolean): Int {
         var admitted = drainPrepared(authorization, admit, allowDiagnostics)
         val alreadyPrepared = prepared.snapshotTokens().mapNotNull { prepared.readIfPresent(it)?.entry?.reportId }.toSet()
         for (key in contexts.snapshotTokens()) {
@@ -116,6 +117,15 @@ internal class AndroidNativeRecovery(
             if (matches.size != 1) continue
             val exit = matches.single()
             if (exit.reason != NATIVE_REASON && (!diagnostics || !allowDiagnostics)) { contexts.removeIfPresent(key); continue }
+            if (exit.reason == NATIVE_REASON && launchId != null) {
+                // API26..30 signal capture reports a fault it recorded once, with its fault frame. The
+                // protocol carries a native exit only as a crash envelope, so this exit then adds none.
+                when (runCatching { signalCapture(launchId) }.getOrDefault(NativeSignalCapture.NONE)) {
+                    NativeSignalCapture.DELIVERED -> { contexts.removeIfPresent(key); continue }
+                    NativeSignalCapture.PENDING -> continue // Decide again once that record is delivered or gone.
+                    NativeSignalCapture.NONE -> Unit
+                }
+            }
             var trace = AndroidExitDiagnostic.trace("not_requested")
             var tombstone: AndroidTombstone? = null
             if (exit.reason == NATIVE_REASON) {

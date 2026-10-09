@@ -8,4 +8,4 @@
 // `envelope.sdk.version` is always in lockstep with the npm metadata. The
 // committed literal exists so tests, type-checks, and in-IDE development
 // work without running the script first.
-export const PKG_VERSION = '1.0.0';
+export const PKG_VERSION = '1.1.0';

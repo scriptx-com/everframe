@@ -36,7 +36,7 @@ package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
 # no workspace path exists. Unset — every consumer install — the derivation
 # below is the only source of truth, unchanged.
 native_version_override = ENV['EVERFRAME_NATIVE_POD_VERSION'].to_s.strip
-native_minor_range = native_version_override.empty? ? '~> 1.0.0' : native_version_override
+native_minor_range = native_version_override.empty? ? '~> 1.1.0' : native_version_override
 
 Pod::Spec.new do |s|
   s.name         = 'EverframeRN'
