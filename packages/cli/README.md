@@ -15,10 +15,18 @@ everframe dsym upload --app-id "$EVERFRAME_APP_ID" --dwarf "App.app.dSYM/Content
 
 Set `EVERFRAME_API_TOKEN` to a token with `artifacts:write` access to the app.
 `EVERFRAME_API_URL` optionally selects the API endpoint. Uploads accept one raw
-file up to 64 MiB, including universal files; archives and dSYM directories are not
+file up to 512 MiB, including universal files; archives and dSYM directories are not
 accepted. The upload identity is derived from the exact file bytes. The service
 verifies the file and indexes its image UUID/CPU identities; a release label cannot
-substitute for matching symbols. Files remain on disk after upload. Configure this
+substitute for matching symbols. Uploads use a private snapshot in the system
+temporary directory (`TMPDIR`) and stream it with bounded memory; allow free space
+there for one copy of the file. Retries send that same snapshot. The snapshot is
+removed when the command ends, including after SIGINT, SIGTERM or SIGHUP; a process
+killed with SIGKILL can leave it behind. The service must support the 512 MiB Apple
+limit; older services may reject files above 64 MiB. Each upload attempt must be
+received and verified by the service within five minutes, so a 512 MiB dSYM needs
+about 15 Mbit/s of sustained upload bandwidth (about 11 Mbit/s for 400 MiB); slower
+links fail the attempt and its retries. Files remain on disk after upload. Configure this
 command in your build pipeline after dSYM generation; automatic native build-hook
 installation is not included.
 
@@ -46,7 +54,7 @@ still reject a later file after an earlier artifact is ready. The command does n
 infer coverage for unlisted modules or inspect compressed archives. Current native
 support covers little-endian64 arm64/arm64e/x86_64/x86_64h slices, including
 universal files. Limits: 16 listed binaries, 8 selected files, 64 bundles that
-hold a listed identity, 1024 directory entries and 64 MiB per selected DWARF file.
+hold a listed identity, 1024 directory entries and 512 MiB per selected DWARF file.
 
 A failed local check prints its code first, then the paths and image identities
 involved:
@@ -57,7 +65,7 @@ involved:
 | `ambiguous_dsym_identity` | Two different DWARF files hold the printed identity. Remove the stale copy from the directory. |
 | `invalid_apple_binary`, `unsupported_apple_architecture` | The printed file is not a supported 64-bit little-endian Mach-O. Do not list watchOS arm64_32 or other 32-bit binaries. |
 | `invalid_input_file` | The printed path is not a regular file. List the executable inside a bundle, such as `App.app/App`, not the bundle directory. |
-| `dsym_too_large` | The printed matching DWARF file exceeds 64 MiB. |
+| `dsym_too_large` | The printed matching DWARF file exceeds 512 MiB. |
 | `apple_build_limit` | The message names the limit. Pass a directory that holds only this build's dSYMs, or split the binaries across runs. |
 | `source_map_changed` | The printed file changed during the run. Run the command after the build has finished writing its outputs. |
 | `symlink_escapes_root` | The printed path resolves outside `--dsym-dir` or, for a listed binary, outside its own directory. Pass real paths instead of symlinks. |

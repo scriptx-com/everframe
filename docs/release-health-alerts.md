@@ -1,9 +1,19 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Reported fatal-session threshold webhooks
 
 `release_health.threshold_reached` (event schema 1.2) reports that one configured
 native cohort crossed an observed-session and fatal-session count threshold. It
-uses the normal signed webhook transport. `ReleaseHealthThresholdEventSchema`
-from `@everframe/protocol` validates the strict wire shape.
+uses the normal signed webhook transport. `ReleaseHealthThresholdEventSchema` in
+`packages/protocol/src/release-health-alert.ts` is the exact 1.2 shape; every
+event is checked against it before it is sent.
+
+Later `1.x` versions only add fields; a change that could break a `1.x` receiver
+needs a new major version. Receivers should ignore fields they do not recognize
+and accept any `1.x` `schemaVersion`. Do not use the strict 1.2 schema to reject
+deliveries: a 4xx response other than 408 or 429 is a permanent failure, so a
+rejected event is not retried.
 
 The data contains app/project/rule IDs, exact native and loaded-bundle identity,
 a 7 or 30 day rolling segment-start window, observation time, configured minimums,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { WebReleaseHealthExposureV2, ReleaseHealthRecord } from '@everframe/protocol';
+import { ReleaseHealthSubjectSchema, type WebReleaseHealthExposureV2, type ReleaseHealthRecord } from '@everframe/protocol';
 import { HealthJournalError, openReleaseHealthJournal, type ReleaseHealthJournal } from './journal.js';
 
 export interface ReleaseHealthOptions { enabled: boolean; loadedBuildId?: string; userId?: string }
@@ -72,13 +72,15 @@ export function setupReleaseHealth(config: {
   }
   async function begin() {
     if (!journal || stopped || revoked || hidden || pendingRevocations.has(routeIdentity)) return;
+    // Refuse an invalid supplied ID before it can reach durable storage;
+    // null, as on Android and iOS, means no supplied ID.
+    const subject = ReleaseHealthSubjectSchema.parse(userId == null ? { kind: 'anonymous' } : { kind: 'provided', id: userId });
     const current = await journal.list(route, generation);
     losses = current.losses;
     const next: WebReleaseHealthExposureV2 = {
       exposureId: crypto.randomUUID(), pageLaunchId: pageLaunchId ??= crypto.randomUUID(),
       startedAt: new Date().toISOString(), platform: 'web', sdkVersion,
-      nativeRelease: 'not_applicable', loadedBuildId, sessionPolicy: 'launch-v1',
-      subject: userId === undefined ? { kind: 'anonymous' } : { kind: 'provided', id: userId },
+      nativeRelease: 'not_applicable', loadedBuildId, sessionPolicy: 'launch-v1', subject,
       coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: losses },
     };
     const mono = performance.now();

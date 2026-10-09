@@ -87,15 +87,18 @@ identity and upload the matching mapping only from trusted CI.
 
 ---
 
-## Anonymous release exposures (opt in)
+## Release health observations (opt in)
 
 Set `EverframeConfig.releaseHealth` to monitor foreground sessions independently
-of replay recording. This remains opt-in, with anonymous subjects by default:
+of replay, session vitals, `setUser`, and install identifiers. This remains
+opt-in, with anonymous subjects by default:
 
 ```kotlin
 releaseHealth = ReleaseHealthConfig(
     nativeBuildId = BuildConfig.EXACT_NATIVE_ARTIFACT_ID,
     loadedBundleStatus = ReleaseHealthBundleStatus.NOT_APPLICABLE,
+    // Optional: a project-local opaque account ID. Omit it for anonymous sessions.
+    userId = signedInAccountId,
 )
 ```
 
@@ -116,10 +119,18 @@ with a seven-day local retry window; write failures can leave outcomes unknown.
 and endpoint. Absent/disabled release health and `kill()` revoke pending health
 records rather than complete sessions.
 
-A supplied `userId` is an opaque identifier chosen by the host and limited to
-128 characters. It stays frozen for that session. Reconfigure the SDK to change
-identity or the loaded OTA build. Anonymous sessions never infer install identity.
-Queue-loss accounting remains unavailable.
+Sessions are anonymous unless you set `userId`; it is never copied from
+`setUser`. It must be nonblank, at most 128 UTF-16 units and free of
+U+0000–U+001F control characters and unpaired surrogates. An invalid ID records
+nothing: release health does not become ready, and no exception is thrown. The ID
+is frozen for its session. On login, logout or account switch, or when the loaded
+OTA build changes, call `Everframe.start` again with a copy of your configuration
+whose `releaseHealth` carries the new values (`userId = null` on logout). That
+restart closes the previous foreground session with `sdk_stop` and opens a new one
+while foreground. Anonymous sessions never infer install identity. Queue-loss
+accounting remains unavailable. These are version 3 records: the receiving
+service must support version 3 before you enable them. See
+[release health observations](../../../docs/release-health.md).
 
 OS exit diagnostics and the optional API26–30 signal collector refresh their
 actual encrypted frozen contexts when a durable foreground session starts, and

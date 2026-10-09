@@ -8,7 +8,10 @@ data class ReleaseHealthConfig(
     val loadedBuildId: String? = null,
     val loadedBundleStatus: ReleaseHealthBundleStatus = ReleaseHealthBundleStatus.NOT_APPLICABLE,
     val enabled: Boolean = true,
-    /** Project-local opaque ID, frozen for this segment. Never inferred from setUser. */
+    /**
+     * Project-local opaque ID, frozen for this segment. Never inferred from setUser. Nonblank, at most 128
+     * UTF-16 units, no U+0000-U+001F or unpaired surrogates; otherwise release health does not become ready.
+     */
     val userId: String? = null,
 )
 enum class ReleaseHealthBundleStatus(val wireValue: String) {

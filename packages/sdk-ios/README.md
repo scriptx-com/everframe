@@ -13,6 +13,9 @@ contributors lives beside this README.
 
 ---
 
+See the [crash-reporting support matrix](../../docs/crash-reporting-support.md)
+for exact tested paths, unsupported combinations and remaining qualification.
+
 ## Install via Swift Package Manager
 
 In Xcode → **File → Add Package Dependencies…** add
@@ -134,9 +137,14 @@ and opens a new one if foreground. Sessions in the same process share a launch
 UUID but have distinct exposure UUIDs. Completion marks the end of foreground
 monitoring, not healthy process termination. Death never invents a completed end.
 
-Only the explicit optional `userId` supplies identity; `setUser` is independent.
-Use an opaque project-local ID and omit it on logout. Call `setReleaseHealth`
-again for identity or bundle changes. Queued records keep their original subject.
+Sessions are anonymous unless you pass `userId:`, an optional project-local
+opaque account ID that is never copied from `setUser`. It must be nonblank, at
+most 128 UTF-16 units and free of U+0000–U+001F control characters; otherwise
+the initializer throws `ValidationError.invalidUserIdentity`. The ID is frozen for
+its session. On login, logout or account switch, call `setReleaseHealth` with a
+new configuration (`userId: nil` on logout); do the same when the loaded bundle
+changes. Queued records keep their original subject. See
+[release health observations](../../docs/release-health.md).
 
 Collection works independently of replay, vitals and crash capture. When native
 crash capture is enabled, only a pointer already durably ready can be frozen into
