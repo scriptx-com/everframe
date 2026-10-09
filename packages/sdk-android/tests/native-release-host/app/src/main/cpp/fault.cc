@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 #include <jni.h>
 #include <signal.h>
-#include <sys/mman.h>
 #include <thread>
 #include <unistd.h>
 #include <dlfcn.h>
@@ -11,6 +10,8 @@ __attribute__((noinline)) void AuthoredReleaseFault() {
   // Deliberate address-zero store; optimized source-line acceptance target.
   asm volatile("str wzr, [%0]" :: "r"(static_cast<void*>(nullptr)) : "memory");
 }
+// Included below the authored fault so its store stays on the asserted line 11.
+#include <sys/mman.h>
 __attribute__((noinline)) void NullFunctionCall() {
   void (*target)() = nullptr;
   asm volatile("" : "+r"(target));  // An opaque, real indirect call: the fault PC is zero.
