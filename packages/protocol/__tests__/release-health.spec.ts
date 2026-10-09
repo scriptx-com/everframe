@@ -133,3 +133,27 @@ describe('version 2 launch sessions', () => {
     expect(ReleaseHealthRecordSchema.parse(start())).toEqual(start());
   });
 });
+
+describe('version 3 foreground monitoring sessions', () => {
+  const foreground = (platform: 'android' | 'ios' = 'android') => ({ ...androidStart(), schemaVersion: 3,
+    exposure: { ...androidExposure(), platform, sessionPolicy: 'foreground-v1', subject: { kind: 'provided', id: 'opaque' },
+      coverage: { ...androidExposure().coverage, policy: `${platform}-sdk-segment-v1` } } });
+  const completed = () => ({ ...foreground(), phase: 'end', sequence: 1, outcome: 'completed', endReason: 'background', elapsedMs: 1000,
+    capturedAt: '2026-10-07T12:00:01.000Z' });
+  it.each(['android', 'ios'] as const)('admits a native foreground start and explicit completed boundary for %s', platform => {
+    expect(ReleaseHealthRecordSchema.parse(foreground(platform))).toEqual(foreground(platform));
+    const value = { ...completed(), exposure: foreground(platform).exposure };
+    expect(ReleaseHealthRecordSchema.parse(value)).toEqual(value);
+    expect(ReleaseHealthRecordSchema.parse({ ...value, endReason: 'sdk_stop' }).phase).toBe('end');
+  });
+  it.each([{ outcome: undefined }, { outcome: 'crashed' }, { endReason: 'page_hide' }, { sequence: 2 },
+    { capturedAt: '2026-10-07T11:59:59.000Z' }, { elapsedMs: -1 }])('rejects invented or malformed completion %j', patch => {
+    expect(ReleaseHealthRecordSchema.safeParse({ ...completed(), ...patch }).success).toBe(false);
+  });
+  it('does not upgrade legacy starts or accept web foreground outcomes', () => {
+    expect(ReleaseHealthRecordSchema.safeParse({ ...foreground(), schemaVersion: 2 }).success).toBe(false);
+    expect(ReleaseHealthRecordSchema.safeParse({ ...start(), schemaVersion: 3,
+      exposure: { ...exposure, sessionPolicy: 'foreground-v1', subject: { kind: 'anonymous' } } }).success).toBe(false);
+    expect(ReleaseHealthRecordSchema.safeParse({ ...foreground(), outcome: 'completed' }).success).toBe(false);
+  });
+});

@@ -98,8 +98,28 @@ export const ReleaseHealthRecordV2Schema = z.discriminatedUnion('phase', [
   }).strict().refine(value => value.exposure.platform === 'web' || value.endReason === 'sdk_stop',
     { message: 'Native segments cannot end at a web page boundary' }),
 ]);
-export const ReleaseHealthExposureSchema = z.union([ReleaseHealthExposureV1Schema, ReleaseHealthExposureV2Schema]);
-export const ReleaseHealthRecordSchema = z.union([ReleaseHealthRecordV1Schema, ReleaseHealthRecordV2Schema]);
+/** A bounded native foreground monitoring session, not a claim about process termination. */
+const foreground = { sessionPolicy: z.literal('foreground-v1'), subject: ReleaseHealthSubjectSchema };
+export const AndroidReleaseHealthExposureV3Schema = z.object({ ...AndroidReleaseHealthExposureSchema.shape, ...foreground }).strict()
+  .refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
+export const IOSReleaseHealthExposureV3Schema = z.object({ ...IOSReleaseHealthExposureSchema.shape, ...foreground }).strict()
+  .refine(bundleConsistent, { message: 'Loaded bundle identity must match its status' });
+export const ReleaseHealthExposureV3Schema = z.discriminatedUnion('platform', [
+  AndroidReleaseHealthExposureV3Schema, IOSReleaseHealthExposureV3Schema,
+]);
+const commonV3 = { schemaVersion: z.literal(3), recordId: uuid, exposure: ReleaseHealthExposureV3Schema, capturedAt: timestamp };
+export const ReleaseHealthRecordV3Schema = z.discriminatedUnion('phase', [
+  z.object({ ...commonV3, phase: z.literal('start'), sequence: z.literal(0), elapsedMs: z.literal(0) }).strict()
+    .refine(value => value.capturedAt === value.exposure.startedAt, { message: 'Start must use its frozen timestamp' }),
+  z.object({ ...commonV3, phase: z.literal('end'), sequence: z.literal(1), outcome: z.literal('completed'),
+    elapsedMs: z.number().int().min(0).max(31 * 86_400_000), endReason: z.enum(['sdk_stop', 'background']),
+  }).strict().refine(value => value.capturedAt >= value.exposure.startedAt,
+    { message: 'A completed session cannot end before its start' }),
+]);
+export type AndroidReleaseHealthExposureV3 = z.infer<typeof AndroidReleaseHealthExposureV3Schema>;
+export type IOSReleaseHealthExposureV3 = z.infer<typeof IOSReleaseHealthExposureV3Schema>;
+export const ReleaseHealthExposureSchema = z.union([ReleaseHealthExposureV1Schema, ReleaseHealthExposureV2Schema, ReleaseHealthExposureV3Schema]);
+export const ReleaseHealthRecordSchema = z.union([ReleaseHealthRecordV1Schema, ReleaseHealthRecordV2Schema, ReleaseHealthRecordV3Schema]);
 export type WebReleaseHealthExposureV2 = z.infer<typeof WebReleaseHealthExposureV2Schema>;
 export type AndroidReleaseHealthExposureV2 = z.infer<typeof AndroidReleaseHealthExposureV2Schema>;
 export type IOSReleaseHealthExposureV2 = z.infer<typeof IOSReleaseHealthExposureV2Schema>;
