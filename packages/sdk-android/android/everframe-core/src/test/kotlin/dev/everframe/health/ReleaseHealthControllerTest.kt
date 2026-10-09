@@ -24,11 +24,16 @@ class ReleaseHealthControllerTest {
     private val keys = JceTestOutboxKeyProvider()
     private var failPurge = false
     private var failFactory = false
+    private var afterRename: () -> Unit = {}
     private val allowed = object : OutboxAuthorization { override fun isAllowed() = true }
     private val ops = object : OutboxFileOps by JvmOutboxFileOps() {
         override fun syncFile(file: File) {
             if (failPurge && file.name == "kill.pending") throw IOException("purge sync blocked")
             JvmOutboxFileOps().syncFile(file)
+        }
+        override fun renameAtomic(from: File, to: File) {
+            JvmOutboxFileOps().renameAtomic(from, to)
+            afterRename()
         }
     }
     private fun store(): OutboxStore {
@@ -94,6 +99,44 @@ class ReleaseHealthControllerTest {
         assertFalse(worker.isAlive); assertFalse(result.get()); assertNull(owner.readyPointer(1))
         assertTrue(builds().isEmpty())
         owner.foreground(request, true); assertTrue(activate(owner, request))
+    }
+    /** Runs [boundary] at the first authorization check after the start record's rename commits it. */
+    private fun committedThen(boundary: () -> Unit): OutboxAuthorization {
+        var committed = false; var fired = false
+        afterRename = { committed = true }
+        return object : OutboxAuthorization {
+            override fun isAllowed(): Boolean {
+                if (committed && !fired) { fired = true; boundary() }
+                return true
+            }
+        }
+    }
+    private fun records() = store().let { queue -> queue.snapshotTokens().map { queue.readIfPresent(it)!!.entry } }
+        .map { Json.parseToJsonElement(it.envelopeBytes.toString(Charsets.UTF_8)).jsonObject }
+    private fun JsonObject.text(key: String) = getValue(key).jsonPrimitive.content
+    @Test fun `background landing after the durable start commit still ends that start`() {
+        val owner = ReleaseHealthController(::store, UUID.fromString("22222222-2222-4222-8222-222222222222"))
+        val request = owner.request(1, true); owner.foreground(request, true)
+        val gate = committedThen { owner.foreground(request, false) }
+        assertFalse(owner.activate(request, ReleaseHealthConfig("build-A"), "test", "key-A",
+            "https://example.test/api/ingest/release-health", gate, gate))
+        assertNull(owner.readyPointer(1))
+        owner.finishBoundary(request)
+        val records = records()
+        assertEquals(listOf("end", "start"), records.map { it.text("phase") }.sorted())
+        assertEquals(1, records.map { it["exposure"]!!.jsonObject.text("exposureId") }.toSet().size)
+        assertEquals("background", records.single { it.text("phase") == "end" }.text("endReason"))
+    }
+    @Test fun `reconfiguration landing after the durable start commit ends that start as sdk_stop`() {
+        val owner = controller(); val a = owner.request(1, true)
+        lateinit var b: ReleaseHealthRequest
+        val gate = committedThen { b = owner.request(2, true) }
+        assertFalse(owner.activate(a, ReleaseHealthConfig("build-A"), "test", "key-A",
+            "https://example.test/api/ingest/release-health", gate, gate))
+        assertTrue(owner.finishBoundary(b))
+        val records = records()
+        assertEquals(listOf("end", "start"), records.map { it.text("phase") }.sorted())
+        assertEquals("sdk_stop", records.single { it.text("phase") == "end" }.text("endReason"))
     }
     @Test fun `an independent flush cannot complete background before native attribution is cleared`() {
         val owner = controller(); val request = owner.request(1, true)

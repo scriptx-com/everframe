@@ -52,9 +52,12 @@ internal class ReleaseHealthProducer(
     private data class Ending(val reason: String, val capturedMs: Long, val elapsedMs: Long)
     private val ending = AtomicReference<Ending?>()
     private var endEntry: OutboxEntry? = null
+    @Volatile private var committed = false
     @Volatile private var started = false
     @Volatile private var ended = false
 
+    /** The start record is durable, even when a boundary then kept this session from becoming ready. */
+    val startCommitted: Boolean get() = committed
     fun readyPointer(): NativeExposurePointer? = pointer.takeIf {
         started && !ended && ending.get() == null && currentAuthorization.isAllowed() && queue.hasCurrentLease()
     }
@@ -63,6 +66,7 @@ internal class ReleaseHealthProducer(
         return try {
             prune()
             queue.enqueueSync(startEntry, currentAuthorization)
+            committed = true
             started = currentAuthorization.isAllowed() && queue.hasCurrentLease()
             started
         } catch (_: Exception) { false }
@@ -74,7 +78,7 @@ internal class ReleaseHealthProducer(
             ((elapsedNanos() - startedNanos) / 1_000_000).coerceIn(0, 31L * 24 * 60 * 60 * 1000)))
     }
     @Synchronized fun end(reason: String = "sdk_stop"): Boolean {
-        if (!started || !retentionAuthorization.isAllowed()) return false
+        if (!committed || !retentionAuthorization.isAllowed()) return false
         if (ended) return true
         close(reason)
         val boundary = requireNotNull(ending.get())

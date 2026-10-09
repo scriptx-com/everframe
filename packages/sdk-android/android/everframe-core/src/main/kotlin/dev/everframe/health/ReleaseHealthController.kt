@@ -117,8 +117,16 @@ internal class ReleaseHealthController(
         val producer = ReleaseHealthProducer(queue, config, sdkVersion, sdkKey, endpoint,
             currentGate, retainedGate, processLaunchId)
         val expected = state.get() ?: return@synchronized false
-        if (expected.request !== request || !producer.start() || !currentGate.isAllowed()) return@synchronized false
-        state.compareAndSet(expected, expected.copy(producer = producer, drainProducer = producer))
+        if (expected.request !== request) return@synchronized false
+        if (producer.start() && currentGate.isAllowed() &&
+            state.compareAndSet(expected, expected.copy(producer = producer, drainProducer = producer))) return@synchronized true
+        // A background or replacement that landed after the durable start never saw this unpublished
+        // session, so its end is still owed. Its pointer never became readable; revocation purges it.
+        if (producer.startCommitted && request.revocation == revocation.get()) {
+            producer.close(if (state.get()?.request === request) "background" else "sdk_stop")
+            endings.offer(producer)
+        }
+        false
     }
     suspend fun flush(request: ReleaseHealthRequest, transport: HealthTransport, admission: HealthAdmission): Int {
         val current = state.get() ?: return 0
