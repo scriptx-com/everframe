@@ -1,6 +1,4 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The packaged healthy handler must execute from an APK-extracted, read-only library path. -->
-    <application android:extractNativeLibs="true" />
-</manifest>
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

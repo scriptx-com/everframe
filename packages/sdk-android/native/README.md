@@ -11,6 +11,26 @@ implementation("dev.everframe:core:<version>")
 implementation("dev.everframe:native-crash:<version>")
 ```
 
+The handler runs from the installed native library directory, so the
+application module must extract native libraries. A library cannot set this
+for the app; the setting covers both APKs and App Bundles:
+
+```kotlin
+android {
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+}
+```
+
+With the default packaging for `minSdk` 23 and later, the libraries stay inside
+the APK. Setup then stops before arming, readiness stays false, and an
+`Everframe` logcat warning names `native-libraries-not-extracted`. Extracted
+libraries that lack the handler for the running ABI report
+`native-handler-missing` instead.
+
 After `Everframe.start(context, config)`, explicitly call
 `Everframe.setNativeSignalCaptureEnabled(true)`. Read
 `Everframe.isNativeSignalCaptureReady()` to observe successful asynchronous setup.

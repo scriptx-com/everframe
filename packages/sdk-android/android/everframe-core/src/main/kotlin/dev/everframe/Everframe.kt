@@ -648,6 +648,9 @@ object Everframe {
      * default; no full-unwind or arbitrary-thread stack-overflow guarantee. Another native
      * collector prevents activation; the platform WebView's chaining crash handler does not.
      * API31+ continues using setNativeCrashRecoveryEnabled.
+     * The app must extract native libraries for APKs and App Bundles:
+     * `android { packaging { jniLibs { useLegacyPackaging = true } } }`. With default packaging,
+     * readiness stays false and an `Everframe` warning names `native-libraries-not-extracted`.
      * On API30 with setProcessExitDiagnosticsEnabled, a fault recorded here is reported once,
      * by this path; the OS exit then adds no second crash.
      * Explicit disable and kill() erase unadmitted native evidence outside the SDK stateLock, on

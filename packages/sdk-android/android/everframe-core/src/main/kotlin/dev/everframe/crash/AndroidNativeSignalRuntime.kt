@@ -93,6 +93,7 @@ internal object AndroidNativeSignalRuntime {
         val owner = owner(context)
         if (!finishErase(context) || !gate.isAllowed()) return@synchronized false
         if (owner.ready(epoch)) return@synchronized true // A repeated opt-in keeps this start's armed owner.
+        if (AndroidNativeSignalPackaging.refuses(context)) return@synchronized false
         val localCommand = owner.request()
         owner.enable(localCommand, epoch, gate, {
             val device = DeviceMetadata.collect(context)

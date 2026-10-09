@@ -18,7 +18,7 @@ android {
     namespace = "dev.everframe.nativecrash"
     defaultConfig { consumerProguardFiles("consumer-rules.pro") }
     sourceSets.getByName("main").jniLibs.srcDir(nativeWorkspace.map { it.resolve("jniLibs") })
-    packaging { jniLibs { useLegacyPackaging = true; keepDebugSymbols += "**/libeverframe_native_*.so" } }
+    packaging { jniLibs { keepDebugSymbols += "**/libeverframe_native_*.so" } }
 }
 val verifyNativeArtifacts by tasks.registering(Exec::class) {
     commandLine("python3", file("../../native/build.py"), "--workspace", nativeWorkspace.get(),
