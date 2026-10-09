@@ -12,6 +12,8 @@ final class NativeCrashRuntime: @unchecked Sendable {
         let disable: () -> Void
         /// Publish the immutable context identifier, then enable the recorder.
         let publish: (UUID) -> Bool
+        /// Nil provides no safe retirement authority (e.g. an enabled recorder).
+        var retainedContextIdentifiers: () -> Set<UUID>? = { nil }
     }
     private let lock = NSLock()
     private var generation: UInt64 = 0
@@ -122,6 +124,21 @@ final class NativeCrashRuntime: @unchecked Sendable {
             let identifier: UUID
             if let existing = contextIdentifiers[digest] { identifier = existing }
             else {
+                if contextIdentifiers.count >= 128 {
+                    let retained = lock.withLock { generation == ticket ? recorder.retainedContextIdentifiers() : nil }
+                    if let retained {
+                        do {
+                            let remaining = try recovery.retireUnusedContexts(runID: run.id, keeping: retained)
+                            contextIdentifiers = contextIdentifiers.filter { remaining.contains($0.value) }
+                        } catch {
+                            // A partial unlink must not leave cached IDs pointing at
+                            // absent files. Retrying persists fresh immutable bytes.
+                            contextIdentifiers.removeAll()
+                            throw error
+                        }
+                    }
+                }
+                guard isCurrent(ticket) else { return nil }
                 identifier = try recovery.writeContext(context, runID: run.id)
                 contextIdentifiers[digest] = identifier
             }

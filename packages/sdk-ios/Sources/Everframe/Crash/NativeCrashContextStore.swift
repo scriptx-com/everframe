@@ -83,6 +83,21 @@ final class NativeCrashContextStore: @unchecked Sendable {
         }
     }
 
+    /// Caller proves these unreferenced contexts cannot be published or read by
+    /// an admitted fatal writer. Validate the whole inventory before any unlink.
+    func retireContexts(runID: UUID, keeping: Set<UUID>) throws -> Set<UUID> {
+        try Self.lock.withLock {
+            let inventory = try scan()
+            guard inventory.counts[runID] != nil else { throw Failure.missingRun }
+            let ids = try Files.entries(runURL(runID), maximum: limits.maxContextsPerRun + 8).compactMap(contextID)
+            for id in ids where !keeping.contains(id) {
+                try FileManager.default.removeItem(at: contextURL(runID, id))
+            }
+            try Files.syncDirectory(runURL(runID))
+            return Set(ids).intersection(keeping)
+        }
+    }
+
     func readContext(runID: UUID, contextID: UUID) throws -> Data {
         try Self.lock.withLock {
             try Files.directory(rootURL)

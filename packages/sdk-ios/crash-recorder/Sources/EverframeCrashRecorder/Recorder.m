@@ -122,5 +122,12 @@ bool EFCRSetContextIdentifier(const char *identifier) {
     pthread_mutex_unlock(&installLock);
     return success;
 }
+bool EFCRCopyRetainedContextIdentifiers(char *current, char *admitted) {
+    if (!current || !admitted) return false;
+    pthread_mutex_lock(&installLock);
+    bool success = installed && efcr_contextRetained(current, admitted);
+    pthread_mutex_unlock(&installLock);
+    return success;
+}
 bool EFCRIsEnabled(void) { return efcr_gateGet(); }
 const char *EFCRVersion(void) { return "EverframeCrashRecorder/1 KSCrash/2.6.0 3f77f379c2db001e0c261c2a51b7e2b115d31f91"; }

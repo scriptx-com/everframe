@@ -187,7 +187,11 @@ calls no UIKit or vendor code. It must never run in a crash or signal handler. A
 caller that publishes off the main thread still enables on the main thread, after
 publication returns true.
 
-There are 256 immutable process-lifetime slots; repeated identifiers reuse a slot.
+Three bounded slots preserve the currently published context and the first
+fatal-admitted context; disabled healthy publication reuses only an unreferenced
+slot. A healthy snapshot exposes those two retained identifiers for safe disk
+retirement. The Swift runtime also preserves every validated raw-report reference;
+an incomplete or unsafe raw tree prevents retirement.
 The first admitted fatal event freezes its slot, including the no-context sentinel,
 for that terminating process. The writer emits only that identifier under
 `user.everframe_context_id`. Later publication cannot reassign it. The admitted slot

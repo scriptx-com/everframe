@@ -40,6 +40,22 @@ final class NativeCrashRecoveryTests: XCTestCase {
         let report = UUID(); try writeRaw(NativeRecoveryTestData.raw(context: context, report: report), run: run)
         return (run, report)
     }
+    func testLiveContextRetirementPreservesRecorderAndRawOwnersAndFailsClosedOnPartialRaw() throws {
+        let live = try recovery(), run = try live.prepareRun()
+        let published = try live.writeContext(NativeRecoveryTestData.context(owner: "published"), runID: run.id)
+        let admitted = try live.writeContext(NativeRecoveryTestData.context(owner: "admitted"), runID: run.id)
+        let recorded = try live.writeContext(NativeRecoveryTestData.context(owner: "recorded"), runID: run.id)
+        let unused = try live.writeContext(NativeRecoveryTestData.context(owner: "unused"), runID: run.id)
+        try writeRaw(Data("partial".utf8), run: run)
+        XCTAssertThrowsError(try live.retireUnusedContexts(runID: run.id, keeping: [published, admitted]))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: contextPath(run.id).appendingPathComponent(unused.uuidString.lowercased() + ".evctx").path))
+        try writeRaw(NativeRecoveryTestData.raw(context: recorded), run: run)
+        XCTAssertEqual(try live.retireUnusedContexts(runID: run.id, keeping: [published, admitted]), [published, admitted, recorded])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: contextPath(run.id).appendingPathComponent(unused.uuidString.lowercased() + ".evctx").path))
+        let key = key, store = try NativeCrashContextStore(rootURL: root.appendingPathComponent("contexts"), keyProvider: { key })
+        for identifier in [published, admitted, recorded] { XCTAssertFalse(try store.readContext(runID: run.id, contextID: identifier).isEmpty) }
+        XCTAssertThrowsError(try recovery().retireUnusedContexts(runID: run.id, keeping: []))
+    }
     func testOriginalContextImportsAndReceiptPreventsReimportAfterDrain() throws {
         let (run, id) = try prepared()
         let live = try recovery(active: [run.id]); let newRun = try live.prepareRun()

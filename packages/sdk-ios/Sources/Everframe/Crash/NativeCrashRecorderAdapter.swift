@@ -22,6 +22,10 @@ enum NativeCrashRecorderAdapter {
                 publish: { id in
                     guard id.uuidString.lowercased().withCString({ EFCRSetContextIdentifier($0) }) else { return false }
                     return EFCRSetEnabled(true)
+                }, retainedContextIdentifiers: {
+                    var current = [CChar](repeating: 0, count: 37), admitted = [CChar](repeating: 0, count: 37)
+                    guard EFCRCopyRetainedContextIdentifiers(&current, &admitted) else { return nil }
+                    return Set([String(cString: current), String(cString: admitted)].compactMap(UUID.init(uuidString:)))
                 }))
     }
 

@@ -12,5 +12,6 @@ bool efcr_gateGet(void);
 void efcr_willWriteReport(KSCrash_ExceptionHandlingPlan *plan, const struct KSCrash_MonitorContext *context);
 // Caller holds the healthy installation mutex; crash callbacks never call this.
 bool efcr_contextPublish(const char *identifier);
+bool efcr_contextRetained(char current[37], char admitted[37]);
 void efcr_writeContext(const KSCrash_ExceptionHandlingPlan *plan, const KSCrashReportWriter *writer);
 #endif
