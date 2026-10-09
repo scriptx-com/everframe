@@ -573,7 +573,7 @@ it("does not block on a FIFO masquerading as a binary", async () => {
 it("rejects oversized raw DWARF and more than eight selected files", async () => {
   const f = await fixture(),
     path = await dsym(f.root, "App");
-  await truncate(path, 64 * 1024 * 1024 + 1);
+  await truncate(path, 512 * 1024 * 1024 + 1);
   await expect(
     collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
   ).rejects.toThrow(

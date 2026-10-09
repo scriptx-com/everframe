@@ -178,13 +178,14 @@ async function request(
         ? { body: stream as unknown as BodyInit, duplex: "half" }
         : {};
       try {
-      response = await fetcher(url, {
-        ...init,
-        ...streamingBody,
-        redirect: "error",
-        headers: { authorization: `Bearer ${token}`, ...init.headers },
-      });
-      body = response.status === 204 ? undefined : await responseBody(response);
+        response = await fetcher(url, {
+          ...init,
+          ...streamingBody,
+          redirect: "error",
+          headers: { authorization: `Bearer ${token}`, ...init.headers },
+        });
+        body =
+          response.status === 204 ? undefined : await responseBody(response);
       } finally {
         if (stream) {
           const closed = finished(stream).catch(() => undefined);
@@ -247,11 +248,7 @@ async function readCheckedMapping(
   maxBytes = 32 * 1024 * 1024,
 ): Promise<Buffer> {
   const expected = artifact.mapBytes;
-  if (
-    !Number.isSafeInteger(expected) ||
-    expected <= 0 ||
-    expected > maxBytes
-  )
+  if (!Number.isSafeInteger(expected) || expected <= 0 || expected > maxBytes)
     throw new Error("source_map_changed");
   const resolved = await ensurePathInRoot(root, path);
   const file = await open(
@@ -301,12 +298,24 @@ async function verifyCollectedFiles(
     if (!mapPath) throw new Error("invalid_local_build");
     const roots = local.fileRoots?.get(artifact.url);
     if (local.manifest.version === 4) {
-      await verifyDsymFile(await ensurePathInRoot(roots?.mapRoot ?? defaultRoot, mapPath), artifact);
+      await verifyDsymFile(
+        await ensurePathInRoot(roots?.mapRoot ?? defaultRoot, mapPath),
+        artifact,
+      );
     } else {
-      await readCheckedMapping(roots?.mapRoot ?? defaultRoot, mapPath, artifact,
-        local.manifest.version === 5 ? ELF_MAX_BYTES : undefined);
+      await readCheckedMapping(
+        roots?.mapRoot ?? defaultRoot,
+        mapPath,
+        artifact,
+        local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
+      );
     }
-    if (local.manifest.version === 3 || local.manifest.version === 4 || local.manifest.version === 5) continue;
+    if (
+      local.manifest.version === 3 ||
+      local.manifest.version === 4 ||
+      local.manifest.version === 5
+    )
+      continue;
     const generatedPath = local.generatedPaths?.get(artifact.url);
     if (!generatedPath) throw new Error("invalid_local_build");
     await ensurePathInRoot(roots?.generatedRoot ?? defaultRoot, generatedPath);
@@ -368,21 +377,42 @@ export async function uploadCollectedBuild(
       const mapPath = local.mapPaths.get(artifact.url);
       if (!mapPath) throw new Error("invalid_local_build");
       const roots = local.fileRoots?.get(artifact.url);
-      const snapshot = local.manifest.version === 4
-        ? await snapshotDsymFile(await ensurePathInRoot(roots?.mapRoot ?? options.root, mapPath), artifact)
-        : undefined;
+      const snapshot =
+        local.manifest.version === 4
+          ? await snapshotDsymFile(
+              await ensurePathInRoot(roots?.mapRoot ?? options.root, mapPath),
+              artifact,
+            )
+          : undefined;
       let uploaded: Awaited<ReturnType<typeof request>>;
       try {
-        const mapBytes = snapshot ? undefined : await readCheckedMapping(
-          roots?.mapRoot ?? options.root, mapPath, artifact,
-          local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
-        );
+        const mapBytes = snapshot
+          ? undefined
+          : await readCheckedMapping(
+              roots?.mapRoot ?? options.root,
+              mapPath,
+              artifact,
+              local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
+            );
         const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
-        uploaded = await request(fetcher, waiter, options.token, uploadUrl, {
-          method: "PUT",
-          headers: { "content-type": "application/octet-stream", ...(snapshot ? { "content-length": String(artifact.mapBytes) } : {}) },
-          ...(mapBytes ? { body: new Uint8Array(mapBytes) } : {}),
-        }, true, snapshot?.stream);
+        uploaded = await request(
+          fetcher,
+          waiter,
+          options.token,
+          uploadUrl,
+          {
+            method: "PUT",
+            headers: {
+              "content-type": "application/octet-stream",
+              ...(snapshot
+                ? { "content-length": String(artifact.mapBytes) }
+                : {}),
+            },
+            ...(mapBytes ? { body: new Uint8Array(mapBytes) } : {}),
+          },
+          true,
+          snapshot?.stream,
+        );
       } finally {
         await snapshot?.dispose();
       }
