@@ -73,6 +73,47 @@ class AndroidNativeSignalControllerTest {
         assertFalse(enable(c)); assertFalse(c.ready(1)); assertFalse(p.armed)
         assertTrue(store("capsules").snapshotTokens().isEmpty())
     }
+    @Test fun `lifecycle cancellation of initial native arm preserves opt in for a fresh retry`() {
+        val p = Producer(); val c = owner(p)
+        p.onArm = { c.invalidateExposure(); p.available = false }
+        assertFalse(enable(c)); assertFalse(c.ready(1)); assertFalse(p.armed)
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+        p.onArm = {}; p.available = true
+        assertTrue(c.refreshExposure(1)); assertTrue(c.ready(1)); assertTrue(p.armed)
+        assertEquals(1, store("capsules").snapshotTokens().size)
+    }
+    @Test fun `lifecycle cancellation before signal owner publication stays retryable but revoke wins`() {
+        val p = Producer(); var first = true
+        lateinit var c: AndroidNativeSignalController
+        c = AndroidNativeSignalController({
+            if (first) { first = false; c.invalidateExposure() }
+            engine()
+        }, p, { null }, now = { 3000 })
+        assertFalse(enable(c)); assertFalse(c.ready(1))
+        assertTrue(c.refreshExposure(1)); assertTrue(c.ready(1))
+        c.request(erase = true); assertTrue(c.finishRevocation())
+        assertFalse(c.refreshExposure(1)); assertFalse(c.ready(1)); assertFalse(p.armed)
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+    }
+    @Test fun `superseded signal command cannot refresh a canceled initial setup`() {
+        val p = Producer(); val c = owner(p)
+        p.onArm = { c.invalidateExposure(); p.available = false }
+        assertFalse(enable(c))
+        c.request(); p.onArm = {}; p.available = true
+        assertFalse(c.refreshExposure(1)); assertFalse(c.ready(1)); assertFalse(p.armed)
+    }
+    @Test fun `lifecycle cancellation in the initial authorization window retains signal setup`() {
+        val p = Producer(); val c = owner(p); var first = true
+        val gate = object : OutboxAuthorization {
+            override fun isAllowed(): Boolean {
+                if (first) { first = false; c.invalidateExposure() }
+                return true
+            }
+        }
+        assertFalse(c.enable(c.request(), 1, gate, ::template) { _, _ -> true })
+        assertFalse(c.ready(1)); assertEquals(0, p.arms)
+        assertTrue(c.refreshExposure(1)); assertTrue(c.ready(1)); assertTrue(p.armed)
+    }
     @Test fun `capsules carry the process launch identity that exit-info contexts carry`() {
         val c = AndroidNativeSignalController(::engine, Producer(), { null }, now = { 3000 })
         assertTrue(enable(c))

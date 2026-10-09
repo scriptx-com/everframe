@@ -37,6 +37,9 @@ internal class AndroidNativeSignalController(
     private data class Owner(val command: Long, val epoch: Int, val reportId: String, val engine: AndroidNativeRecordImport, val exposureRevision: Long,
         val authorization: OutboxAuthorization, val template: () -> OutboxEntry,
         val admit: (OutboxEntry, OutboxAuthorization) -> Boolean)
+    private data class Setup(val command: Long, val epoch: Int, val authorization: OutboxAuthorization,
+        val template: () -> OutboxEntry, val admit: (OutboxEntry, OutboxAuthorization) -> Boolean)
+    @Volatile private var setup: Setup? = null
     private val operations = Any()
     private val revision = AtomicLong()
     private val exposureGeneration = AtomicLong()
@@ -48,6 +51,7 @@ internal class AndroidNativeSignalController(
     fun request(erase: Boolean = false): Long {
         if (erase) erasePending.set(true)
         val command = revision.incrementAndGet()
+        setup = null
         readyCommand = -1
         if (erase) owner?.engine?.invalidate()
         // A mismatched optional module's reflective pause must not break the start, kill or erase fence.
@@ -62,9 +66,9 @@ internal class AndroidNativeSignalController(
         txGuardVoid("nativeSignal.exposurePause") { producer.pause() }
     }
     fun refreshExposure(epoch: Int): Boolean = synchronized(operations) {
-        val prior = owner ?: return@synchronized false
-        if (prior.epoch != epoch || prior.command != revision.get() || !prior.authorization.isAllowed()) return@synchronized false
-        enable(prior.command, epoch, prior.authorization, prior.template, prior.admit)
+        val pending = setup ?: return@synchronized false
+        if (pending.epoch != epoch || pending.command != revision.get() || erasePending.get() || !pending.authorization.isAllowed()) return@synchronized false
+        enable(pending.command, epoch, pending.authorization, pending.template, pending.admit)
     }
 
     fun ready(epoch: Int): Boolean = owner?.let {
@@ -87,6 +91,7 @@ internal class AndroidNativeSignalController(
     }
 
     fun retireCurrent(): Boolean = synchronized(operations) {
+        setup = null
         readyCommand = -1
         if (!producer.revoke()) return@synchronized false
         owner?.let { it.engine.retireArmed(it.reportId); cleanup(it.engine.retainedEpochs()) }
@@ -101,7 +106,11 @@ internal class AndroidNativeSignalController(
         val gate = object : OutboxAuthorization {
             override fun isAllowed() = exposureGeneration.get() == exposureRevision && revision.get() == command && !erasePending.get() && authorization.isAllowed()
         }
-        if (revision.get() != command || !authorization.isAllowed() || !finishRevocation() || !gate.isAllowed()) return@synchronized false
+        if (revision.get() != command || !authorization.isAllowed()) return@synchronized false
+        // Retain the command before any lifecycle-cancellable gate or slow revocation step.
+        // request() invalidates revoked setups; a physical purge must not erase a later opt-in.
+        setup = Setup(command, epoch, authorization, template, admit)
+        if (!finishRevocation() || !gate.isAllowed()) return@synchronized false
         if (ready(epoch)) return@synchronized true
         try {
             // Pause already happened at the command fence. Wait for the handler to revoke

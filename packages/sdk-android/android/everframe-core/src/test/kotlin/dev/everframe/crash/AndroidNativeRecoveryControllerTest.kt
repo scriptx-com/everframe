@@ -100,6 +100,47 @@ class AndroidNativeRecoveryControllerTest {
         assertTrue(platform.registrations.none { it != null })
         assertTrue(OutboxStore(File(folder.root, "contexts"), keys, ops).snapshotTokens().isEmpty())
     }
+    @Test fun `lifecycle cancellation of initial history keeps the explicit opt in retryable`() {
+        val platform = Platform()
+        val launch = UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = null
+        val controller = AndroidNativeRecoveryController(::engine, platform, launch, exposure = { pointer })
+        platform.beforeHistory = { controller.invalidateExposure() }
+        assertFalse(controller.enable(1, allowed, 3000, ::template) { true })
+        assertFalse(controller.ready(1)); assertTrue(platform.registrations.none { it != null })
+        platform.beforeHistory = {}
+        pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        assertTrue(controller.refreshExposure(1)); assertTrue(controller.ready(1))
+        val queue = OutboxStore(File(folder.root, "contexts"), keys, ops)
+        val frozen = Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals(pointer!!.toJson(), frozen["nativeExposure"])
+        assertEquals(2, platform.historyCalls)
+    }
+    @Test fun `lifecycle retry of canceled diagnostic setup still recovers prior process evidence`() {
+        val platform = Platform(30).apply { exits = listOf(previous(98, 6)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        platform.beforeHistory = { controller.invalidateExposure() }
+        val admitted = mutableListOf<OutboxEntry>()
+        assertFalse(controller.enableDiagnostics(1, allowed, 3000, ::template) { admitted += it; true })
+        platform.beforeHistory = {}
+        assertTrue(controller.refreshExposure(1)); assertTrue(controller.ready(1))
+        assertEquals(listOf("diagnostic"), admitted.map(::source))
+        controller.retire(1, true) { true }
+        assertFalse(controller.refreshExposure(1))
+        assertFalse(controller.ready(1))
+    }
+    @Test fun `canceled OS setup cannot retry after revoked consent or a newer SDK epoch`() {
+        val platform = Platform()
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        platform.beforeHistory = { controller.invalidateExposure() }
+        assertFalse(controller.enable(1, allowed, 3000, ::template) { true })
+        consent = false
+        assertFalse(controller.refreshExposure(1))
+        consent = true; epoch.set(2)
+        assertFalse(controller.refreshExposure(1))
+        assertTrue(platform.registrations.none { it != null })
+    }
     @Test fun `selecting diagnostics after native-only in one start keeps previous process evidence`() {
         val platform = Platform().apply { exits = listOf(previous(98, 6)) }
         val controller = AndroidNativeRecoveryController(::engine, platform)
