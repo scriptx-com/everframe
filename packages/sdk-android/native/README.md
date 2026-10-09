@@ -83,7 +83,9 @@ workspace `jniLibs`. Its checks are explicit, so they also run under `python3 -O
 `python3 -I -B -m unittest discover -s native/tests` covers the fail-closed
 paths without an NDK or network access. A single-ABI local build uses
 `--abi arm64-v8a` plus Gradle `-PeverframeNativeAbis=arm64-v8a`; publication
-rejects partial-ABI builds.
+rejects partial-ABI builds. A workspace can be reused: changed native sources
+are rebuilt by content, while a changed builder, pin file or NDK path discards
+the earlier Crashpad and OpenSSL objects and keeps only verified downloads.
 Third-party license texts ship as AAR assets. No downloaded or generated native
 binary is checked into this repository.
 

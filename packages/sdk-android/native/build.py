@@ -65,6 +65,27 @@ def check_ndk(ndk, pin):
     found=(properties.get('Pkg.Revision'),properties.get('Pkg.ReleaseName'))
     require(found==(pin['revision'],pin['releaseName']),f'wrong NDK revision {found}; pinned {pin["revision"]} ({pin["releaseName"]})')
 
+def build_inputs(ndk):
+    # Archives restore old member mtimes, so build objects are reused only for identical pinned inputs.
+    return {'ndk':str(ndk),**{name:digest(SOURCE/name) for name in ('build.py','source-pins.json','toolchain-pins.json')}}
+
+def reset_changed_inputs(work, inputs):
+    marker=work/'build-inputs.json'
+    if marker.is_file() and json.loads(marker.read_text())==inputs: return
+    vendor=work/'vendor'
+    for stale in [work/'crypto',vendor/'crashpad'/'source',vendor/'gn',*vendor.glob('openssl-*')]:
+        if stale.is_dir(): shutil.rmtree(stale)
+    work.mkdir(parents=True,exist_ok=True);marker.write_text(json.dumps(inputs,indent=2)+'\n')
+
+def sync_sources(source, destination):
+    # Content decides, not mtime: a checkout older than the workspace objects must still rebuild them.
+    wanted={p.name:p.read_bytes() for p in source.iterdir() if p.is_file() and p.suffix in ('.cc','.h','.gn')}
+    destination.mkdir(exist_ok=True)
+    for p in destination.iterdir():
+        if p.name not in wanted: p.unlink()
+    for name,data in wanted.items():
+        if not (destination/name).is_file() or (destination/name).read_bytes()!=data: (destination/name).write_bytes(data)
+
 def source_hashes():
     return {p.name:digest(p) for p in sorted(SOURCE.iterdir()) if p.is_file() and p.suffix in ('.cc','.h','.gn','.json','.patch','.py')}
 
@@ -93,6 +114,7 @@ def main():
     # A new proof certifies only this run's outputs.
     (work/'native-build.json').unlink(missing_ok=True)
     if (work/'jniLibs').exists(): shutil.rmtree(work/'jniLibs')
+    reset_changed_inputs(work,build_inputs(ndk))
     vendor=work/'vendor';vendor.mkdir(parents=True,exist_ok=True)
     upstream=vendor/'crashpad';upstream.mkdir(exist_ok=True);src=upstream/'source'
     destinations={'crashpad':'','mini_chromium':'third_party/mini_chromium/mini_chromium',
@@ -123,9 +145,7 @@ def main():
     require(digest(config)==overlay['beforeSha256'],'mini_chromium build config differs from the overlay base')
     subprocess.run(['patch','-p1','-i',str(patch)],cwd=mini,check=True)
     require(digest(config)==overlay['afterSha256'],'mini_chromium build config differs from the overlay result')
-    destination=src/'everframe_native';destination.mkdir(exist_ok=True)
-    for p in SOURCE.iterdir():
-        if p.is_file() and p.suffix in ('.cc','.h','.gn'): shutil.copy2(p,destination/p.name)
+    sync_sources(SOURCE,src/'everframe_native')
     ndkbin=ndk/'toolchains/llvm/prebuilt/darwin-x86_64/bin';env=os.environ.copy()
     env.update(ANDROID_NDK_ROOT=str(ndk),PATH=str(ndkbin)+os.pathsep+env['PATH'])
     commands=[];logs=work/('logs-'+str(time.time_ns()));logs.mkdir(exist_ok=False);print('Build logs:',logs,flush=True)

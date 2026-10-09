@@ -5,10 +5,12 @@ import ast
 import hashlib
 import importlib.util
 import json
+import os
 import platform
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -158,6 +160,95 @@ class WorkspaceVerification(FakeNdk):
         self.assertIn('source pin mismatch: crashpad', result.stderr)
         self.assertFalse((work / 'jniLibs').exists())
         self.assertFalse((work / 'native-build.json').exists())
+
+
+class IncrementalReuse(FakeNdk):
+    DERIVED = ('crypto/x86', 'vendor/crashpad/source/out/Android-x86', 'vendor/gn', 'vendor/openssl-3.5.9')
+    DOWNLOADS = ('vendor/crashpad/crashpad.tar.gz', 'vendor/openssl-3.5.9.tar.gz', 'vendor/gn-mac-arm64.zip')
+
+    def setUp(self):
+        self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+
+    def sources(self, **files):
+        source = self.root / 'source'
+        source.mkdir(exist_ok=True)
+        for name, text in files.items():
+            (source / name.replace('_', '.')).write_text(text)
+        return source
+
+    def test_changed_source_is_rewritten_even_when_the_checkout_is_older(self):
+        destination = self.root / 'everframe_native'
+        build.sync_sources(self.sources(client_cc='v1'), destination)
+        copied = time.time() - 7200
+        os.utime(destination / 'client.cc', (copied, copied))
+        source = self.sources(client_cc='v2')
+        os.utime(source / 'client.cc', (copied - 3600, copied - 3600))
+        build.sync_sources(source, destination)
+        self.assertEqual((destination / 'client.cc').read_text(), 'v2')
+        self.assertGreater((destination / 'client.cc').stat().st_mtime, copied + 3600)
+
+    def test_unchanged_source_keeps_its_time_for_incremental_builds(self):
+        destination = self.root / 'everframe_native'
+        source = self.sources(client_cc='same')
+        build.sync_sources(source, destination)
+        copied = time.time() - 7200
+        os.utime(destination / 'client.cc', (copied, copied))
+        build.sync_sources(source, destination)
+        self.assertEqual(int((destination / 'client.cc').stat().st_mtime), int(copied))
+
+    def test_removed_and_non_source_files_are_not_compiled(self):
+        destination = self.root / 'everframe_native'
+        destination.mkdir()
+        (destination / 'removed.h').write_text('stale')
+        source = self.sources(client_cc='c', BUILD_gn='g', README_md='r', build_py='p')
+        (source / 'tests').mkdir()
+        build.sync_sources(source, destination)
+        self.assertEqual(sorted(p.name for p in destination.iterdir()), ['BUILD.gn', 'client.cc'])
+
+    def workspace(self, recorded):
+        work = self.root / 'work'
+        for directory in self.DERIVED:
+            (work / directory).mkdir(parents=True)
+        for download in self.DOWNLOADS:
+            (work / download).write_bytes(b'cached download')
+        if recorded is not None:
+            (work / 'build-inputs.json').write_text(json.dumps(recorded))
+        return work
+
+    def assert_reset(self, work, reset):
+        for directory in self.DERIVED:
+            self.assertEqual((work / directory).exists(), not reset, directory)
+        for download in self.DOWNLOADS:
+            self.assertTrue((work / download).is_file(), download)
+
+    def test_changed_inputs_discard_reused_build_state_but_keep_downloads(self):
+        work = self.workspace({'toolchain-pins.json': 'old'})
+        build.reset_changed_inputs(work, {'toolchain-pins.json': 'new'})
+        self.assert_reset(work, True)
+        self.assertEqual(json.loads((work / 'build-inputs.json').read_text()), {'toolchain-pins.json': 'new'})
+
+    def test_identical_inputs_keep_build_state(self):
+        work = self.workspace({'toolchain-pins.json': 'same'})
+        build.reset_changed_inputs(work, {'toolchain-pins.json': 'same'})
+        self.assert_reset(work, False)
+
+    def test_workspace_without_recorded_inputs_is_rebuilt(self):
+        work = self.workspace(None)
+        build.reset_changed_inputs(work, {'toolchain-pins.json': 'new'})
+        self.assert_reset(work, True)
+
+    def test_inputs_cover_the_builder_its_pins_and_the_ndk(self):
+        inputs = build.build_inputs(Path('/ndk/a'))
+        self.assertEqual(set(inputs), {'ndk', 'build.py', 'source-pins.json', 'toolchain-pins.json'})
+        self.assertNotEqual(inputs, build.build_inputs(Path('/ndk/b')))
+
+    @unittest.skipUnless(QUALIFIED_HOST, 'the builder refuses other hosts before its toolchain checks')
+    def test_compilation_resets_state_built_from_other_inputs(self):
+        work = self.workspace(None)
+        result = compile_with(self.root, f"Pkg.Revision = {NDK['revision']}\nPkg.ReleaseName = {NDK['releaseName']}\n")
+        self.assertIn('source pin mismatch: crashpad', result.stderr)
+        self.assert_reset(work, True)
+        self.assertEqual(json.loads((work / 'build-inputs.json').read_text()), build.build_inputs((self.root / 'ndk').resolve()))
 
 
 if __name__ == '__main__':
