@@ -35,10 +35,15 @@ per delivered report that holds only the ended launch's identifier (at most
 eight, expiring after 14 days). A receipt that cannot be stored can let the OS
 exit report the same fault again.
 
-The report contains one partial fault-PC frame, signal, module, ELF build ID and
-relative address. It does not claim a full unwound stack or arbitrary-thread
-stack-overflow support. Exact matching ELF debug information is required for
-source lines. Recovery occurs at the next explicit opt-in after a process death;
+Every report carries the signal, signal code, ABI and crashing thread. A fault
+PC inside a loaded module adds one partial fault-PC frame: the module name, the
+relative address and, when the module has one, its ELF build ID. A fault outside
+every loaded module (a call through a null function pointer, or into anonymous
+or JIT memory), or inside a module whose name contains a control character or
+backslash, produces a report without frames. It does not claim a full unwound
+stack or arbitrary-thread stack-overflow support. Exact matching ELF debug
+information is required for source lines; a frame without a build ID stays
+unsymbolicated. Recovery occurs at the next explicit opt-in after a process death;
 reports preserve the original application version/build and destination, are
 anonymous, and do not fabricate release-health sessions.
 

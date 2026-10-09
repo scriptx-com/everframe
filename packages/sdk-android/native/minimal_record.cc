@@ -27,6 +27,50 @@ bool Atom(const std::string& text, size_t max) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
   });
 }
+bool Hex(const std::string& text, size_t max) {
+  return !text.empty() && text.size() % 2 == 0 && text.size() <= max && std::all_of(text.begin(), text.end(), [](unsigned char c) {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+  });
+}
+// The report protocol's module name: well-formed UTF-8 without '/', '\', C0
+// controls or DEL. Crashpad names modules by DT_SONAME, so '+', '@' and other
+// characters occur (libc++_shared.so, HIDL passthrough libraries).
+bool ModuleName(const std::string& text) {
+  if (text.empty() || text.size() > 255) return false;
+  for (size_t i = 0; i < text.size();) {
+    const auto c = static_cast<unsigned char>(text[i]);
+    if (c < 0x80) {
+      if (c < 0x20 || c == 0x7f || c == '/' || c == '\\') return false;
+      i++; continue;
+    }
+    size_t length = 0; uint32_t point = 0;
+    if (c >= 0xc2 && c <= 0xdf) { length = 2; point = c & 0x1f; }
+    else if (c >= 0xe0 && c <= 0xef) { length = 3; point = c & 0x0f; }
+    else if (c >= 0xf0 && c <= 0xf4) { length = 4; point = c & 0x07; }
+    else return false;
+    if (length > text.size() - i) return false;
+    for (size_t j = 1; j < length; j++) {
+      const auto next = static_cast<unsigned char>(text[i + j]);
+      if ((next & 0xc0) != 0x80) return false;
+      point = (point << 6) | (next & 0x3f);
+    }
+    // Overlong forms, UTF-16 surrogates and code points above U+10FFFF are invalid.
+    if ((length == 3 && point < 0x800) || (length == 4 && (point < 0x10000 || point > 0x10ffff)) ||
+        (point >= 0xd800 && point <= 0xdfff)) return false;
+    i += length;
+  }
+  return true;
+}
+void Quote(std::ostringstream& out, const std::string& text) {
+  constexpr char kDigits[] = "0123456789abcdef";
+  out << '"';
+  for (unsigned char c : text) {
+    if (c == '"' || c == '\\') out << '\\' << static_cast<char>(c);
+    else if (c < 0x20) out << "\\u00" << kDigits[c >> 4] << kDigits[c & 0xf];
+    else out << static_cast<char>(c);
+  }
+  out << '"';
+}
 using Cipher = std::unique_ptr<EVP_CIPHER_CTX, decltype(&EVP_CIPHER_CTX_free)>;
 }
 std::optional<MinimalRecord> ProjectSnapshot(const crashpad::ProcessSnapshot& snapshot, const FrozenIdentity& identity) {
@@ -34,40 +78,62 @@ std::optional<MinimalRecord> ProjectSnapshot(const crashpad::ProcessSnapshot& sn
   if (!exception || !exception->Context()) return std::nullopt;
   MinimalRecord record;
   record.identity = identity; record.signal = exception->Exception();
+  // Linux exception snapshots carry si_code here; user-sent signals are negative.
+  record.signal_code = static_cast<int32_t>(exception->ExceptionInfo());
   record.thread_id = exception->ThreadID();
   timeval snapshot_time{}; snapshot.SnapshotTime(&snapshot_time);
   if (snapshot_time.tv_sec <= 0 || snapshot_time.tv_usec < 0 || snapshot_time.tv_usec >= 1000000) return std::nullopt;
   record.snapshot_time_ms = static_cast<uint64_t>(snapshot_time.tv_sec) * 1000 + snapshot_time.tv_usec / 1000;
   record.architecture = static_cast<uint32_t>(exception->Context()->architecture);
-  record.pc = exception->Context()->InstructionPointer();
+  const uint64_t pc = exception->Context()->InstructionPointer();
+  // A fault outside every module (a null or wild call, JIT or anonymous code), in
+  // overlapping modules, or in a module whose name the report cannot carry still
+  // commits a frameless record. No caller frame is inferred.
   const crashpad::ModuleSnapshot* match = nullptr;
+  bool unique = true;
   for (const auto* module : snapshot.Modules()) {
-    if (record.pc >= module->Address() && record.pc - module->Address() < module->Size()) {
-      if (match) return std::nullopt;
+    if (pc >= module->Address() && pc - module->Address() < module->Size()) {
+      if (match) unique = false;
       match = module;
     }
   }
-  if (!match) return std::nullopt;
-  record.module_base = match->Address(); record.module_offset = record.pc - record.module_base;
-  const auto name = match->Name(); record.module = name.substr(name.find_last_of('/') + 1);
-  const auto build = match->BuildID();
-  if (build.empty() || build.size() > 64) return std::nullopt;
-  std::ostringstream hex; hex << std::hex << std::setfill('0');
-  for (uint8_t byte : build) hex << std::setw(2) << static_cast<unsigned>(byte);
-  record.build_id = hex.str();
+  if (pc && match && unique) {
+    const auto name = match->Name();
+    auto base = name.substr(name.find_last_of('/') + 1);
+    if (ModuleName(base)) {
+      record.frame = true; record.pc = pc; record.module_base = match->Address();
+      record.module_offset = pc - record.module_base; record.module = std::move(base);
+      // A module without a GNU build ID keeps its frame; it cannot be symbolized.
+      const auto build = match->BuildID();
+      if (!build.empty() && build.size() <= 64) {
+        std::ostringstream hex; hex << std::hex << std::setfill('0');
+        for (uint8_t byte : build) hex << std::setw(2) << static_cast<unsigned>(byte);
+        record.build_id = hex.str();
+      }
+    }
+  }
   if (!SerializeRecord(record)) return std::nullopt;
   return record;
 }
 std::optional<std::string> SerializeRecord(const MinimalRecord& r) {
   if (!Atom(r.identity.report_id,64) || !Atom(r.identity.epoch,64) || !Atom(r.identity.owner,128) ||
-      !Atom(r.identity.release,200) || !Atom(r.module,255) || !Atom(r.build_id,128) || !r.pc ||
-      r.pc < r.module_base || r.pc - r.module_base != r.module_offset) return std::nullopt;
+      !Atom(r.identity.release,200)) return std::nullopt;
+  if (r.frame ? !r.pc || r.pc < r.module_base || r.pc - r.module_base != r.module_offset || !ModuleName(r.module) ||
+          (!r.build_id.empty() && !Hex(r.build_id,128))
+      : r.pc || r.module_base || r.module_offset || !r.module.empty() || !r.build_id.empty()) return std::nullopt;
   std::ostringstream out;
-  out << "{\"version\":1,\"reportId\":\"" << r.identity.report_id << "\",\"epoch\":\"" << r.identity.epoch
-      << "\",\"owner\":\"" << r.identity.owner << "\",\"release\":\"" << r.identity.release
-      << "\",\"threadId\":" << r.thread_id << ",\"snapshotTimeMs\":" << r.snapshot_time_ms << ",\"signal\":" << r.signal << ",\"architecture\":" << r.architecture << ",\"pc\":" << r.pc
-      << ",\"moduleBase\":" << r.module_base << ",\"moduleOffset\":" << r.module_offset
-      << ",\"module\":\"" << r.module << "\",\"buildId\":\"" << r.build_id << "\",\"partial\":true}";
+  out << "{\"version\":1,\"reportId\":"; Quote(out, r.identity.report_id);
+  out << ",\"epoch\":"; Quote(out, r.identity.epoch);
+  out << ",\"owner\":"; Quote(out, r.identity.owner);
+  out << ",\"release\":"; Quote(out, r.identity.release);
+  out << ",\"threadId\":" << r.thread_id << ",\"snapshotTimeMs\":" << r.snapshot_time_ms << ",\"signal\":" << r.signal
+      << ",\"signalCode\":" << r.signal_code << ",\"architecture\":" << r.architecture;
+  if (r.frame) {
+    out << ",\"pc\":" << r.pc << ",\"moduleBase\":" << r.module_base << ",\"moduleOffset\":" << r.module_offset << ",\"module\":";
+    Quote(out, r.module);
+    if (!r.build_id.empty()) { out << ",\"buildId\":"; Quote(out, r.build_id); }
+  }
+  out << ",\"partial\":true}";
   return out.str();
 }
 std::optional<std::vector<uint8_t>> SealRecord(const MinimalRecord& record, const Key& key) {

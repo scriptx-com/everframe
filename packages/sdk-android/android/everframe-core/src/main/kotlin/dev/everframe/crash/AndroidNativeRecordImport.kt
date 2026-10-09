@@ -160,14 +160,19 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
     private fun report(context:OutboxEntry,frozen:JsonObject,record:JsonObject,nowMs:Long):OutboxEntry {
         val timestamp=record.getValue("snapshotTimeMs").jsonPrimitive.long
         val native=JsonObject(record-"snapshotTimeMs")
-        val frame=native.getValue("frames").jsonArray.single().jsonObject
-        val raw="${frame.getValue("module").jsonPrimitive.content} ${frame.getValue("relativePc").jsonPrimitive.content}"
+        val frames=native.getValue("frames").jsonArray;require(frames.size<=1)
+        val frame=frames.firstOrNull()?.jsonObject
+        val raw=frame?.let { "${it.getValue("module").jsonPrimitive.content} ${it.getValue("relativePc").jsonPrimitive.content}" }
         val kind="Native signal ${native.getValue("signalNumber").jsonPrimitive.int}"
+        // A frame groups by its ELF-relative identity. A frameless fault groups by signal,
+        // with the same key as an OS exit-info report without frames.
+        val key=if(frame==null) "$kind|" else kind+(frame["buildId"]?.jsonPrimitive?.content ?: "")+":"+raw
         val crash=buildJsonObject {
-            put("exceptionType",kind);put("message","Native fault (partial handler snapshot)");put("mechanism","android-native-handler");put("handled",false);put("fatal",true)
+            put("exceptionType",kind);put("message",if(frame==null) "Native fault (partial handler snapshot without a module frame)" else "Native fault (partial handler snapshot)")
+            put("mechanism","android-native-handler");put("handled",false);put("fatal",true)
             put("occurredAt",Instant.ofEpochMilli(timestamp).toString());put("timestampSource","handler-snapshot")
-            put("fingerprint",digest((kind+frame.getValue("buildId").jsonPrimitive.content+":"+raw).toByteArray()).take(16))
-            put("frames",buildJsonArray { add(buildJsonObject { put("raw",raw) }) });put("androidNative",native)
+            put("fingerprint",digest(key.toByteArray()).take(16))
+            put("frames",buildJsonArray { if(raw!=null) add(buildJsonObject { put("raw",raw) }) });put("androidNative",native)
         }
         val bytes=JsonObject(frozen+mapOf("source" to JsonPrimitive("crash"),"submittedAt" to JsonPrimitive(Instant.ofEpochMilli(nowMs).toString()),"payload" to buildJsonObject { put("crash",crash) })).toString().toByteArray()
         // The retry window begins when a valid record is first recovered, not when

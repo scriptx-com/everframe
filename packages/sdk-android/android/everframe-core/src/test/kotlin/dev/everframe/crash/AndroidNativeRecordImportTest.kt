@@ -226,4 +226,55 @@ class AndroidNativeRecordImportTest {
         assertEquals(1,importer().recover("later",now+1000,allowed,{null}) { e,_ -> assertEquals(staged,e);true })
     }
 
+    // Records exactly as the native serializer writes each crash shape.
+    private fun record(epoch: String, frame: String, signal: Int = 11, code: Int = 1) =
+        """{"version":1,"reportId":"$epoch","epoch":"$epoch","owner":"anonymous","release":"frozen","threadId":4242,"snapshotTimeMs":2000,"signal":$signal,"signalCode":$code,"architecture":4$frame,"partial":true}"""
+    private fun crash(a: Armed, plain: String): JsonObject {
+        var entry: OutboxEntry? = null
+        assertEquals(1, importer().recover("next",3000,allowed,{ cipher(a,plain=plain) }) { e,_ -> entry=e;true })
+        return Json.parseToJsonElement(entry!!.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["payload"]!!.jsonObject["crash"]!!.jsonObject
+    }
+    private fun sha(text: String) = java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
+    @Test fun `fault outside every module imports a frameless report grouped by signal`() {
+        for ((signal, code) in listOf(11 to 1, 6 to -6)) {
+            val a=arm();val crash=crash(a,record(a.epoch,"",signal,code));val native=crash["androidNative"]!!.jsonObject
+            assertEquals(JsonArray(emptyList()),native["frames"]);assertEquals(JsonArray(emptyList()),crash["frames"])
+            assertEquals(code,native["signalCode"]!!.jsonPrimitive.int);assertEquals(signal,native["signalNumber"]!!.jsonPrimitive.int)
+            assertTrue(native["framesIncomplete"]!!.jsonPrimitive.boolean)
+            // The same key as an OS exit-info report without frames.
+            assertEquals(sha("Native signal $signal|").take(16),crash["fingerprint"]!!.jsonPrimitive.content)
+        }
+    }
+    @Test fun `module without a build ID keeps its frame`() {
+        val a=arm();val crash=crash(a,record(a.epoch,""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"libnobuildid.so""""))
+        val frame=crash["androidNative"]!!.jsonObject["frames"]!!.jsonArray.single().jsonObject
+        assertEquals("libnobuildid.so",frame["module"]!!.jsonPrimitive.content);assertNull(frame["buildId"])
+        assertEquals("libnobuildid.so 0x10",crash["frames"]!!.jsonArray.single().jsonObject["raw"]!!.jsonPrimitive.content)
+        assertEquals(sha("Native signal 11:libnobuildid.so 0x10").take(16),crash["fingerprint"]!!.jsonPrimitive.content)
+    }
+    @Test fun `module names keep every character the report protocol allows`() {
+        for ((json, module) in listOf("libc++_shared.so" to "libc++_shared.so", "libc++.so" to "libc++.so",
+            "android.hardware.graphics.mapper@4.0-impl.so" to "android.hardware.graphics.mapper@4.0-impl.so",
+            """lib\"quoted\".so""" to "lib\"quoted\".so", "libété.so" to "libété.so")) {
+            val a=arm();val crash=crash(a,record(a.epoch,""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"$json","buildId":"aabb""""))
+            val frame=crash["androidNative"]!!.jsonObject["frames"]!!.jsonArray.single().jsonObject
+            assertEquals(module,frame["module"]!!.jsonPrimitive.content);assertEquals("aabb",frame["buildId"]!!.jsonPrimitive.content)
+            assertEquals(sha("Native signal 11aabb:$module 0x10").take(16),crash["fingerprint"]!!.jsonPrimitive.content)
+        }
+    }
+    @Test fun `frame fields the report protocol cannot carry are refused`() {
+        val a=arm()
+        for (frame in listOf(""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"lib\u0001.so"""",
+            ""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"lib\\x.so"""",
+            ""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"lib/x.so"""",
+            ""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"lib\ud800.so"""",
+            ""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":null""",
+            ""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"libx.so","buildId":"AABB"""",
+            ""","pc":4112,"moduleBase":4096,"moduleOffset":16,"module":"libx.so","buildId":null""",
+            ""","pc":0,"moduleBase":0,"moduleOffset":0,"module":"libx.so"""",
+            ""","buildId":"aabb"""", ""","pc":4112""")) {
+            assertNull(frame,AndroidNativeRecordReader.open(cipher(a,plain=record(a.epoch,frame)),a.key,a.epoch,1000,3000))
+        }
+        assertNull(AndroidNativeRecordReader.open(cipher(a,plain=record(a.epoch,"").replace("\"signalCode\":1","\"signalCode\":2147483648")),a.key,a.epoch,1000,3000))
+    }
 }

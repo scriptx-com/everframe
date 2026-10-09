@@ -46,22 +46,43 @@ internal object AndroidNativeRecordReader {
             identity == listOf(epoch, "anonymous", "frozen"))
         require(record["partial"]?.jsonPrimitive?.boolean==true)
         val signal=record.getValue("signal").jsonPrimitive.int;require(signal in 1..64)
+        // Records written before signal codes were captured have none.
+        val code=record["signalCode"]?.jsonPrimitive?.long;require(code==null || code in Int.MIN_VALUE..Int.MAX_VALUE)
         val tid=record.getValue("threadId").jsonPrimitive.long;require(tid in 1..4294967295L)
         val captured=record.getValue("snapshotTimeMs").jsonPrimitive.long
         // Both clocks are wall clocks. A clock adjustment is not evidence that an
         // authenticated native record is invalid; age is applied by the importer.
         require(captured > 0)
         val abi=when(record.getValue("architecture").jsonPrimitive.int) { 1->"x86";2->"x86_64";3->"armeabi-v7a";4->"arm64-v8a";else->error("architecture") }
-        fun address(name:String)=record.getValue(name).jsonPrimitive.content.toULong()
-        val pc=address("pc");val base=address("moduleBase");val relative=address("moduleOffset")
-        require(pc>0u && pc>=base && pc-base==relative)
-        val module=record.getValue("module").jsonPrimitive.content;val build=record.getValue("buildId").jsonPrimitive.content
-        require(module.matches(Regex("[A-Za-z0-9._-]{1,255}")) && build.matches(Regex("(?:[0-9a-f]{2}){1,64}")))
+        // A fault PC outside one nameable loaded module is recorded without a frame.
+        val frame=if("module" !in record) { require(frameFields.none { it in record });null } else {
+            fun address(name:String)=record.getValue(name).jsonPrimitive.content.toULong()
+            val pc=address("pc");val base=address("moduleBase");val relative=address("moduleOffset")
+            require(pc>0u && pc>=base && pc-base==relative)
+            val module=record.getValue("module").jsonPrimitive.also { require(it.isString) }.content
+            val build=record["buildId"]?.jsonPrimitive?.also { require(it.isString) }?.content
+            require(moduleName(module) && (build==null || build.matches(Regex("(?:[0-9a-f]{2}){1,64}"))))
+            buildJsonObject { put("pc","0x${pc.toString(16)}");put("relativePc","0x${relative.toString(16)}");put("module",module);if(build!=null) put("buildId",build) }
+        }
         buildJsonObject {
             put("source","android-native-handler");put("abi",abi);put("crashedThreadId",tid);put("framesIncomplete",true);put("signalNumber",signal)
-            put("frames",buildJsonArray { add(buildJsonObject { put("pc","0x${pc.toString(16)}");put("relativePc","0x${relative.toString(16)}");put("module",module);put("buildId",build) }) })
+            if(code!=null) put("signalCode",code)
+            put("frames",buildJsonArray { if(frame!=null) add(frame) })
             // Internal projection field, removed before serializing AndroidNativeMetadata.
             put("snapshotTimeMs",captured)
         }
     } catch(_:Exception) { null }
+    private val frameFields=listOf("pc","moduleBase","moduleOffset","buildId")
+    /** The report protocol's module rule: 1..256 UTF-16 units, well-formed, and no
+     * path separator or control character. */
+    private fun moduleName(text:String):Boolean {
+        if(text.length !in 1..256 || text.any { it=='/' || it=='\\' || it.code<32 || it.code==127 }) return false
+        var index=0
+        while(index<text.length) {
+            val c=text[index]
+            if(c.isLowSurrogate() || (c.isHighSurrogate() && (index+1==text.length || !text[index+1].isLowSurrogate()))) return false
+            index+=if(c.isHighSurrogate()) 2 else 1
+        }
+        return true
+    }
 }
