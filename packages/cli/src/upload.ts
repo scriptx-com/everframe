@@ -174,8 +174,17 @@ async function request(
     let stream: ReadStream | undefined;
     try {
       stream = bodyFactory?.();
+      // Listen before fetch reads the stream, which happens only after it
+      // connects: an open failure would otherwise be an uncaught exception.
+      const closed = stream && finished(stream).catch(() => undefined);
+      // A stream body cannot be replayed, so fetch's HTTP authentication step
+      // would turn a 401 into a network error. The token is sent explicitly.
       const streamingBody: RequestInit & { duplex?: "half" } = stream
-        ? { body: stream as unknown as BodyInit, duplex: "half" }
+        ? {
+            body: stream as unknown as BodyInit,
+            duplex: "half",
+            credentials: "omit",
+          }
         : {};
       try {
         response = await fetcher(url, {
@@ -188,7 +197,6 @@ async function request(
           response.status === 204 ? undefined : await responseBody(response);
       } finally {
         if (stream) {
-          const closed = finished(stream).catch(() => undefined);
           stream.destroy();
           await closed;
         }
