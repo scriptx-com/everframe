@@ -495,9 +495,12 @@ CLI:
   Rebuilding identical sources yields the same ID, so retries are idempotent.
 - **Native libraries** (`uploadEverframe<Variant>NativeSymbols`). Every shipped
   `.so` is matched to its unstripped copy from `merge<Variant>NativeLibs` by GNU
-  build ID and ABI. Prebuilt libraries from AARs without debug information
-  (`libc++_shared.so`, prebuilt Hermes) print a warning; a variant without
-  native code does nothing.
+  build ID and ABI, for the ABIs the variant packages (`ndk.abiFilters`, ABI
+  splits). Prebuilt libraries from AARs without debug information
+  (`libc++_shared.so`, prebuilt Hermes, AndroidX) are expected and only listed
+  at `--info`. Your own libraries without symbols produce one warning with
+  their count, and `--info` lists them. A variant without native code does
+  nothing.
 
 Set `EVERFRAME_API_TOKEN` (a token with `artifacts:write`) in CI. **Symbols
 never fail the build by default**: without the token, without an app ID, or

@@ -43,7 +43,10 @@ everframe dsym upload-build --binary App.app/App --dsym-dir dSYMs   # explicit l
 
 The command finds the app executable and the app extensions (`PlugIns/`,
 `Extensions/`, including a tvOS Top Shelf extension). These are required. It
-also finds embedded frameworks and dylibs, which are optional. `libswift*` and
+also finds embedded frameworks and dylibs, which are optional. With `--xcode`
+it also follows the app's run-path links to frameworks that are built but not
+embedded yet, such as CocoaPods frameworks under `use_frameworks!`, whose
+"[CP] Embed Pods Frameworks" phase runs after the upload phase. `libswift*` and
 watchOS content are skipped. dSYM folders are searched recursively, up to four
 levels deep, without entering bundles. A missing dSYM for an optional binary
 prints `warning: no dSYM for …` (an Xcode build warning). With `--xcode`,
@@ -206,10 +209,13 @@ everframe elf upload-build \
 ```
 
 `--binaries-dir` uploads every shipped `.so` that has a matching unstripped
-library (same GNU build ID and ABI). Prebuilt libraries from AARs, such as
-`libhermes.so` or `libc++_shared.so`, usually ship without debug info; each
-prints `warning: no symbols for <path>: …` and the command still succeeds. A
-directory without libraries does nothing.
+library (same GNU build ID and ABI); `--abi arm64-v8a` (repeatable) limits it to
+the ABIs you ship. Prebuilt libraries from AARs, such as `libhermes.so` or
+`libc++_shared.so`, usually ship without debug info: one line names them, and
+their frames stay raw. Your own libraries without a matching unstripped copy
+print `warning: no symbols for <path>: …`; the command still succeeds.
+`--summary` prints one `detail:` line per library instead, for build
+integrations to summarize. A directory without libraries does nothing.
 
 **It never fails your build by default.** In `--binaries-dir` mode a missing
 `EVERFRAME_API_TOKEN` or a failed upload prints `warning:` lines and exits 0.
