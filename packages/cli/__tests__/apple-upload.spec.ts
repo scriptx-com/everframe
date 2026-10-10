@@ -29,8 +29,8 @@ async function fixture() {
     binaries,
     files,
     options: {
-      binaries,
-      dsymDir: root,
+      binaries: binaries.map((path) => ({ path, required: true })),
+      dsymDirs: [root],
       appId: "app",
       apiUrl: "http://localhost:12345/api/v1",
       token: "fixture-secret",

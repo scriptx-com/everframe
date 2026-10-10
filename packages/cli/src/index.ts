@@ -236,7 +236,8 @@ export async function main(
       const appId = parsed.values["app-id"], binaries = parsed.values.binary,
         dsymDir = parsed.values["dsym-dir"], token = env.EVERFRAME_API_TOKEN;
       if (!appId || !binaries?.length || !dsymDir || !token) throw new Error("missing_required_option");
-      const result = await uploadAppleBuild({ appId, binaries, dsymDir, token,
+      const result = await uploadAppleBuild({ appId, token,
+        binaries: binaries.map((path) => ({ path, required: true })), dsymDirs: [dsymDir],
         apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1" });
       console.log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} dSYM files).`);
       return 0;

@@ -91,3 +91,16 @@ export function segmented({ uuid = UUID_A, kind = 10 } = {}) {
   b.writeUInt32LE(256, 176);
   return b;
 }
+import type { AppleBinaryInput, AppleBuildLimits } from "../src/apple-build.js";
+/** The pre-automation limits, so the existing boundary tests keep small fixtures. */
+export const LEGACY_LIMITS: AppleBuildLimits = {
+  binaries: 16,
+  selectedFiles: 8,
+  matchedBundles: 64,
+  directoryEntries: 1024,
+  depth: 4,
+};
+export const listed = (binaries: string[], dsymDir: string) => ({
+  binaries: binaries.map((path): AppleBinaryInput => ({ path, required: true })),
+  dsymDirs: [dsymDir],
+});

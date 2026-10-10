@@ -5,6 +5,7 @@ import {
   collectAppleBuild,
   readAppleBinaryImages,
   withPath,
+  type AppleBinaryInput,
   type CollectedAppleBuild,
 } from "./apple-build.js";
 import { collectDsymBuild } from "./dsym.js";
@@ -37,15 +38,19 @@ async function verify(build: CollectedAppleBuild) {
 /** A CI gate over independent immutable artifacts, not a multi-file transaction. */
 export async function uploadAppleBuild(
   options: {
-    binaries: string[];
-    dsymDir: string;
+    binaries: AppleBinaryInput[];
+    dsymDirs: string[];
     appId: string;
     apiUrl: string;
     token: string;
   },
   dependencies: UploadDependencies = {}
-) {
-  const build = await collectAppleBuild(options);
+): Promise<{
+  artifacts: BuildUploadStatus[];
+  images: CollectedAppleBuild["images"];
+  uncovered: CollectedAppleBuild["uncovered"];
+}> {
+  const build = await collectAppleBuild({ binaries: options.binaries, dsymDirs: options.dsymDirs });
   await verify(build);
   const artifacts: BuildUploadStatus[] = [];
   for (const local of build.artifacts) {
@@ -65,5 +70,5 @@ export async function uploadAppleBuild(
     );
   }
   await verify(build);
-  return { artifacts, images: build.images };
+  return { artifacts, images: build.images, uncovered: build.uncovered };
 }
