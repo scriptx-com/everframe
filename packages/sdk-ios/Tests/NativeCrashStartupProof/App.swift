@@ -43,6 +43,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
                 if NativeProofRecorderEnabled() {
                     ready(["enabled": true, "mode": mode])
                     if original { try? await Task.sleep(nanoseconds: 200_000_000); Self.crash(mode) }
+                    if Self.terminationModes.contains(mode) { Self.runTerminationMode(mode, nonce: nonce, limit: argument("--grow-mib").flatMap(Int.init) ?? 1024) }
                     return
                 }
                 try? await Task.sleep(nanoseconds: 100_000_000)
@@ -52,6 +53,41 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     static let faults = ["swift", "objc", "memory", "abort"]
+    /// Foreground-termination inference: the harness ends these processes itself.
+    static let terminationModes: Set<String> = ["grow", "idle", "exit"]
+    static var held: [UnsafeMutableRawPointer] = []
+    static func marker(_ name: String, _ nonce: String, _ state: [String: Any]) {
+        try? JSONSerialization.data(withJSONObject: state, options: [.sortedKeys]).write(
+            to: markers.appendingPathComponent(name + "-" + nonce + ".json"), options: .atomic)
+    }
+    /// Real allocation and a real UIKit memory-warning post. The simulator does not enforce jetsam,
+    /// so the harness ends the process with a host SIGKILL unless the system killed it first.
+    static func runTerminationMode(_ mode: String, nonce: String, limit: Int) {
+        Task { @MainActor in
+            switch mode {
+            case "grow":
+                var warned = false
+                for step in stride(from: 64, through: max(64, limit), by: 64) {
+                    // Touch every page so the allocation counts toward the physical footprint.
+                    guard let chunk = malloc(64 << 20) else { break }
+                    memset(chunk, 0xA5, 64 << 20); held.append(chunk)
+                    if !warned, step * 2 >= limit {
+                        warned = true
+                        NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: UIApplication.shared)
+                    }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                }
+                try? await Task.sleep(nanoseconds: 6_000_000_000)   // at least one 5 s sample after the warning
+                marker("grown", nonce, ["mib": held.count * 64, "warnings": warned ? 1 : 0])
+            case "idle":
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                marker("idle", nonce, ["mode": mode])
+            default:
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                exit(0)
+            }
+        }
+    }
     // tvOS apps cannot write Documents, so markers live in Caches on both platforms.
     static let markers = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     static func crash(_ fault: String) {

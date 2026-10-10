@@ -86,7 +86,10 @@ count as fatal: iOS native crash reports, Android OS crash exit records (native 
 Java), Android SDK crash reports from the JVM uncaught-exception handler or the
 native signal handler, and the React Native JavaScript fatal reports described
 below. A launch ended by an ANR or another OS exit counts as
-without a reported fatal crash. Missing outcomes remain unknown; neither an end nor
+without a reported fatal crash. So does an iOS foreground termination that the SDK
+infers on the next launch (low memory, unresponsive or unexplained, labelled
+inferred): it links to its exact frozen pointer as an other exit and never lowers
+the crash-free rate. tvOS has no release-health sessions. Missing outcomes remain unknown; neither an end nor
 its absence proves a healthy/crashed process. Duplicates are deduplicated, while
 late reports, retention and erasure can change the current counts. Anonymous
 subjects never become synthetic users. Web terminal attribution is unsupported,
