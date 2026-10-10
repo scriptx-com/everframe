@@ -115,6 +115,12 @@ Install the phase once per project:
 npx @everframe/cli setup xcode --project App.xcodeproj --app-id "$EVERFRAME_APP_ID"
 ```
 
+`--app-id` is the App ID: the UUID of the Everframe app the target reports to,
+shown on the app's Setup tab in the dashboard. It is not the `evf_live_…` SDK
+key that the app passes to `EverframeConfig(appId:)`. The installer writes it
+into the phase; without `--app-id`, the upload reads `EVERFRAME_APP_ID` from
+the build environment, which includes every build setting of the target.
+
 It adds an "Upload Everframe Symbols" Run Script phase as the last phase of
 every application target (narrow it with `--target <name>`, repeatable). The
 phase runs `everframe dsym upload-build --xcode` on every build, after Xcode
@@ -168,6 +174,30 @@ targets:
 ```
 
 The native sample app (`examples/ios-native/project.yml` in the repository) is wired this way.
+
+An iPhone target and an Apple TV target that report to two Everframe apps need
+one App ID each. Run the installer once per target; each run changes only the
+target it names:
+
+```sh
+npx @everframe/cli setup xcode --project App.xcodeproj --target App --app-id "$PHONE_APP_ID"
+npx @everframe/cli setup xcode --project App.xcodeproj --target AppTV --app-id "$TV_APP_ID"
+```
+
+With XcodeGen, print the script once without `--app-id` and set
+`EVERFRAME_APP_ID` in each target's settings:
+
+```yaml
+targets:
+  App:
+    settings:
+      base:
+        EVERFRAME_APP_ID: 00000000-0000-4000-8000-000000000001 # the phone app's App ID
+  AppTV:
+    settings:
+      base:
+        EVERFRAME_APP_ID: 00000000-0000-4000-8000-000000000002 # the TV app's App ID
+```
 
 ## Android ELF upload
 
