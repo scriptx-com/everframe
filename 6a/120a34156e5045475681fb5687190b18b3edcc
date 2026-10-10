@@ -1,0 +1,25 @@
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticRuntime.swift
+  s_97602a0a2d8f20::t_55da04653b9200 13-23,33,48-51,53-59,74-75,80-87,91,93,98,101-102,105,119-121,123,127,143-151,153,162-178
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleMetricKitAdapter.swift
+  s_97602a0a2d8f20::t_f3709e070d2f28 19,23,27,31,96-110
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_97602a0a2d8f20::t_7c6abb6af10493 47,53,67,270-277,286,295,921-923,1072
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticDelayedTests.swift
+  s_97602a0a2d8f20::t_ff3e8e3c386604 1-217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a120a34156e5045475681fb5687190b18b3edcc",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
