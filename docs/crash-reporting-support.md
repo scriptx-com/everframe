@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 # Crash-reporting support and qualification
 
-This is the source-tree qualification boundary as of October 9, 2026. It is not
+This is the source-tree qualification boundary as of October 10, 2026. It is not
 an SDK release announcement. An implementation, a compiled target, an installed
 emulator test and a physical-device test are different kinds of evidence. A
 platform listed below has only the evidence stated in its row.
@@ -19,8 +19,8 @@ platform listed below has only the evidence stated in its row.
 | Android historical ANR/exit categories | Opt-in OS exit diagnostics and bounded ANR trace projection, supported on API 30+. Installed: one API 35 arm64 emulator, including an OS-terminated ANR recovered with main-thread frames | The API 30 floor is unit-tested only. API 30 native exits carry metadata only; native tombstones need API 31. Hosts must grant exclusive process-state-summary ownership |
 | Android recovered main-thread delay | Opt-in foreground eligibility and bounded 5–60 second recovered observations, supported on API 26+. Installed: one API 35 arm64 emulator | Not an OS-confirmed ANR or fatal crash. The API 26 floor is unit-tested only; API 24/25 unsupported. Broad device false-positive and battery qualification remain open |
 | Android signal collector Release lifecycle | Optional `dev.everframe:native-crash` module, opt-in after each start; it arms only on API 26–30 in the default app process (API 31+ uses the OS exit recovery above). Release fault → relaunch → retry → exact ELF mapping, installed on API 26 and API 30 arm64 emulators | API 24/25 unsupported; one-frame snapshot is not full unwinding. Other ABIs are compile-only; arbitrary-thread alternate stacks are unqualified. Another app-bundled crash collector makes activation fail closed; a collector installed before WebView's crash handler is not detected or refused |
-| Apple native crash capture | Normal SDK startup, supported Swift/Objective-C/memory faults and relaunch recovery in an installed iOS Release simulator | Capture begins after durable context setup. Verified identity and continuously refreshed logs/breadcrumbs/replay are excluded. Physical lock/protection, stack overflow and broader OS/compiler checks remain open |
-| tvOS native crash capture | Target compilation | Installed signal-path qualification remains open. The recorder has no tvOS Mach detector or alternate signal stack; stack-overflow capture is unsupported |
+| Apple native crash capture | Normal SDK startup, supported Swift/Objective-C/memory/`abort()` faults and relaunch recovery in an installed iOS Release simulator | Capture begins after durable context setup. Verified identity and continuously refreshed logs/breadcrumbs/replay are excluded. Physical lock/protection, stack overflow and broader OS/compiler checks remain open |
+| tvOS native crash capture | Normal SDK startup in an installed Release app on arm64 tvOS 26.5 and 27.0 simulators. Swift trap (SIGTRAP), Objective-C exception, invalid memory (SIGBUS) and `abort()` are each captured, recovered on relaunch, delivered through a 503 and retry with receiver dedup and no reimport, and mapped to the authored file and line from the uploaded dSYM | Simulator smoke proof only: physical Apple TV, device file protection and other OS/compiler versions remain open. The recorder has no tvOS Mach detector or alternate signal stack, so faults are caught only by signal and exception handlers, and stack overflow is unsupported |
 | Apple MetricKit | Opt-in iOS collector, synthetic receipt/retry/erasure checks and target compilation | Physical OS-produced hang/watchdog/memory-exit receipt delivery is unqualified. tvOS/macOS collectors are unavailable. Aggregate periods cannot be assigned to exact sessions |
 
 The Apple collector admits only reporting intervals wholly inside the current
