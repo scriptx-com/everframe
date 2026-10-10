@@ -1,0 +1,29 @@
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_dbd309ddf8ec5b::t_7c79c5144b0419 3210-3230
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_dbd309ddf8ec5b::t_6e76fc860d066e 55-79
+packages/protocol/src/diagnostic.ts
+  s_dbd309ddf8ec5b::t_6d0dda57b0ead2 44-50
+packages/protocol/src/envelope.ts
+  s_dbd309ddf8ec5b::t_ed53c27e91b930 231,233-235
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_dbd309ddf8ec5b::t_3e178c860e9370 857-858,860-867
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_dbd309ddf8ec5b::t_7260db113425f3 2561-2562,2564,2566,2568-2575,2577-2578,2580,2582,2606-2607,2609-2611,2615-2616,2618-2620
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "655c7a23c7cbf143dda180f7d7c4a8125fa92727",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
