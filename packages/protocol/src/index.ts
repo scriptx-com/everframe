@@ -37,7 +37,7 @@ export * as vtree from './vtree/index.js';
 export * from './network-body.js';
 export * from './crash.js';
 export * from './crash-causes.js';
-export { JWT_PATTERN, JWT_REPLACEMENT, redactJwt } from './redaction.js';
+export { JWT_CANDIDATE_PATTERN, JWT_REPLACEMENT, MAX_JWT_GLUE, MAX_JWT_HEADER_DECODE, redactJwt } from './redaction.js';
 export * from './crash-details.js';
 export * from './native-crash.js';
 export * from './build-artifacts.js';

@@ -4,9 +4,10 @@
   "patterns": [
     {
       "id": "jwt",
-      "regex": "\\b(?:eyJ|eyA|ewo|ewk|ew0)[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]{8,}(?:\\.[A-Za-z0-9_-]{8,}){0,2}|(?:eyJ|eyA|ewo|ewk|ew0)[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]*(?:\\.[A-Za-z0-9_-]{8,}){3}|(?:eyJ|eyA|ewo|ewk|ew0)[A-Za-z0-9_-]{5,}\\.(?:eyJ|eyA|ewo|ewk|ew0)[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{8,}",
+      "scanner": "jwt",
+      "regex": "[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*(?:\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*)?",
       "replacement": "[REDACTED:JWT]",
-      "description": "JWT (RFC 7519) or JWE. The header is base64url JSON, so it starts with eyJ, eyA, ewo, ewk or ew0 ({\", { , {\\n, {\\t, {\\r). At the start of a word: a JWS or JWE (an optional second segment, then one to three segments of at least 8 characters). Glued to the text before it (%3D, x_, \\n in JSON): a five-segment JWE, or a JWS whose payload is JSON too. Same string as JWT_PATTERN in packages/protocol/src/redaction.ts"
+      "description": "JWT (RFC 7519) and JWE, by structure. The scanner named in 'scanner' is authoritative (redactJwt in packages/protocol/src/redaction.ts, JwtScan on Android and iOS): it redacts header.payload.signature, or a five-segment JWE, only when the header decodes to a JOSE header, meaning optional JSON whitespace, '{', and an \"alg\" member (RFC 7515/7516). This regex is the candidate shape only, for an engine that cannot run the scanner; on its own it also matches dotted names."
     },
     {
       "id": "bearer",

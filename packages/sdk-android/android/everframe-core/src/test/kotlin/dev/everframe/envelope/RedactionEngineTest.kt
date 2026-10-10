@@ -7,6 +7,9 @@ package dev.everframe.envelope
 
 import androidx.test.core.app.ApplicationProvider
 import dev.everframe.shared.SharedData
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -86,40 +89,36 @@ class RedactionEngineTest {
         }
     }
 
-    /** Decided: short dotted names with these prefixes stay; a full JWT shape is masked (the accepted cost). */
+    /** The decode check keeps dotted names that start like an encoded `{`, however long their segments. */
     @Test
-    fun `dotted names starting like a spaced JSON header keep their shape rule`() {
-        for (name in listOf("ewok.something.else", "eyAudit.Foo.Bar", "com.example.ewokFactory.create(EwokFactory.kt:7)"))
+    fun `dotted names starting like a JSON header stay readable`() {
+        for (name in listOf("ewok.something.else", "eyAudit.Foo.Bar", "com.example.ewokFactory.create(EwokFactory.kt:7)",
+                "ewokFactory.createInstance.something", "com.example.SurveyJobScheduler.internal.coroutines.dispatcher.something",
+                "version 1.2.3.4567890"))
             assertEquals(name, RedactionEngine.redact(name))
-        assertEquals("[REDACTED:JWT]", RedactionEngine.redact("ewokFactory.createInstance.something"))
     }
 
-    /** JwtScan gives exactly the plain regex result, and stays linear where the plain scan is quadratic. */
+    /** One reference implementation (TS) wrote the expected output for every case; this scanner must match it. */
     @Test
-    fun `the JWT scan matches the plain regex and stays linear`() {
-        val rule = Regex(SharedData.redactionPatterns.single { it.id == "jwt" }.regex)
-        var seed = 0x2545f491
-        fun random(n: Int): Int { seed = seed xor (seed shl 13); seed = seed xor (seed ushr 17); seed = seed xor (seed shl 5); return Math.floorMod(seed, n) }
-        val alphabet = "aZ09_-eyJwAok"
-        val glue = listOf("", " ", "_", "-", "x", "%3D", "é", "\\n", ".", "=", "..")
-        val prefixes = listOf("eyJ", "eyA", "ewo", "ewk", "ew0")
-        var redacted = 0
-        repeat(5_000) {
-            val value = buildString {
-                repeat(1 + random(3)) {
-                    append(glue[random(glue.size)])
-                    append((0..random(6)).joinToString(".") {
-                        buildString { if (random(2) == 0) append(prefixes[random(prefixes.size)]); repeat(random(13)) { append(alphabet[random(alphabet.length)]) } }
-                    })
-                }
-            }
-            val expected = rule.replace(value, "[REDACTED:JWT]")
-            assertEquals(value, expected, JwtScan.replace(rule.toPattern(), value, "[REDACTED:JWT]"))
-            if (expected != value) redacted++
+    fun `JwtScan matches the shared corpus`() {
+        val corpus = kotlinx.serialization.json.Json.parseToJsonElement(
+            java.io.File("../../../protocol/__tests__/fixtures/jwt-redaction-corpus.v1.json").readText()).jsonObject
+        val replacement = corpus["replacement"]!!.jsonPrimitive.content
+        val cases = corpus["cases"]!!.jsonArray.map { it.jsonObject }
+        assertTrue("the corpus must not be empty", cases.size > 400)
+        for (case in cases) {
+            val input = case["input"]!!.jsonPrimitive.content
+            assertEquals(case["name"]!!.jsonPrimitive.content, case["expected"]!!.jsonPrimitive.content, JwtScan.replace(input, replacement))
         }
-        assertTrue("the corpus must exercise matches, got $redacted", redacted > 500)
-        for (value in listOf("eyJ-".repeat(262_144), "eyJabcde.eyJabcde.".repeat(58_254), "-eyJ".repeat(262_143) + ".abcdefgh",
-                "ewo-eyA-ewk-ew0-".repeat(65_536), "xewoabcde..abcdefgh.abcdefgh.".repeat(36_158))) {
+    }
+
+    @Test
+    fun `the JWT scan stays linear on hostile megabytes`() {
+        val compact = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        for (value in listOf("eyJ-".repeat(262_144), "a.".repeat(524_288), "abcdefgh.ab.c ".repeat(74_899),
+                ("e30".repeat(370) + ".e30.x ").repeat(940), ("Zm9vYmFy".repeat(140) + ".YmF6.cXV4 ").repeat(925),
+                ("x".repeat(64) + "e30e30e30e30.e30. ").repeat(12_337), "$compact.e30.sig ".repeat(23_000))) {
+            assertTrue(value.length >= 1_000_000)
             val started = System.nanoTime()
             RedactionEngine.redact(value)
             val ms = (System.nanoTime() - started) / 1_000_000

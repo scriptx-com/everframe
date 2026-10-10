@@ -33,8 +33,7 @@ object RedactionEngine {
         for (pattern in SharedData.redactionPatterns) {
             val regex = regexCache.getOrPut(pattern.id) {
                 // RFC: pattern.regex strings come from packages/protocol/data/redaction-patterns.json
-                // (vetted). T-05-02-D mitigation. The JWT rule backtracks quadratically when scanned
-                // naively, so it runs through JwtScan.
+                // (vetted). T-05-02-D mitigation. The JWT rule runs through JwtScan instead.
                 runCatching { Regex(pattern.regex) }.getOrNull() ?: return@getOrPut Regex("$^") // never matches
             }
             val replacement = pattern.replacement ?: REDACTED
@@ -45,8 +44,9 @@ object RedactionEngine {
                     val digitsOnly = match.value.filter(Char::isDigit)
                     if (isLuhnValid(digitsOnly)) replacement else match.value
                 }
-                // The same rule in linear time: the plain scan is quadratic on `eyJ-eyJ-…`.
-                "jwt" -> JwtScan.replace(regex.toPattern(), out, replacement)
+                // The JSON names a scanner for this rule: it decodes each candidate's header and
+                // redacts only JOSE headers. Its regex is a candidate shape for other engines.
+                "jwt" -> JwtScan.replace(out, replacement)
                 else -> regex.replace(out, replacement)
             }
         }

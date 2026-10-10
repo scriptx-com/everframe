@@ -2,96 +2,118 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.envelope
 
-import java.util.regex.Matcher
-import java.util.regex.Pattern
-
 /**
- * Applies the shared JWT rule (`jwt` in redaction-patterns.json) in linear time, with exactly the
- * regex's own result; mirrors redactJwt in packages/protocol/src/redaction.ts.
+ * JWT and JWE redaction by structure; mirrors redactJwt in packages/protocol/src/redaction.ts, and
+ * the shared corpus (packages/protocol/__tests__/fixtures/jwt-redaction-corpus.v1.json) pins both.
  *
- * The plain scan retries the pattern at every header prefix (`eyJ`, `eyA`, `ewo`, `ewk`, `ew0`: a
- * JSON `{` followed by `"`, a space, a newline, a tab or a carriage return), and each try runs to the
- * end of its segment, so `eyJ-eyJ-…` costs O(n²): seconds for a 64 KB body. Every match starts with
- * a header prefix and a header that runs to the end of its [A-Za-z0-9_-] segment, where a '.' must
- * follow. All starts inside one
- * segment therefore end their header at the same place and succeed or fail on the same text after
- * it; a later start only has a shorter header. So the leftmost start, then the leftmost start at a
- * word boundary (inside a segment only '-' gives one), decide the whole segment.
+ * A candidate is a header segment of base64url characters (at least 8), a '.', a payload or
+ * encrypted-key segment, a '.', and a third segment (possibly empty); a JWE adds two more. It is
+ * redacted only when the header decodes to a JOSE header: RFC 7515 and RFC 7516 require a JSON
+ * object with an "alg" member, so after any leading JSON whitespace the decoded header must start
+ * with '{' and contain "alg". Dotted class, package and module names never decode to that.
+ *
+ * Linear: each segment run is a header candidate once, a candidate reads at most four more
+ * segments, and it tries at most [MAX_GLUE] + 1 starts (text glued before the header, such as `x_`
+ * or the `3D` of `%3D`, stays), each decoding at most [MAX_HEADER_DECODE] characters.
  */
 internal object JwtScan {
-    /** A three-character prefix plus five: the shortest header the rule accepts. */
+    const val MAX_GLUE = 64
+    const val MAX_HEADER_DECODE = 1024
     private const val MIN_HEADER = 8
+    private val BASE64URL = IntArray(128) { -1 }.also { table ->
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".forEachIndexed { index, c -> table[c.code] = index }
+    }
+    private val ALG = "\"alg\"".toByteArray(Charsets.US_ASCII)
+    private val ENC = "\"enc\"".toByteArray(Charsets.US_ASCII)
 
-    fun replace(pattern: Pattern, input: String, replacement: String): String {
-        // Transparent bounds let `\b` see the character before a try's start.
-        val matcher = pattern.matcher(input).useTransparentBounds(true).useAnchoringBounds(false)
+    fun replace(input: String, replacement: String): String {
+        val decoded = ByteArray(MAX_HEADER_DECODE / 4 * 3)
         var out: StringBuilder? = null
         var copied = 0
-        var from = 0
-        while (true) {
-            val first = nextHeaderPrefix(input, from)
-            if (first < 0) break
-            var end = first + 3
-            while (end < input.length && isSegmentChar(input[end])) end++
-            if (end - first >= MIN_HEADER && end < input.length && input[end] == '.') {
-                var start = first
-                var matchEnd = endAt(matcher, input, first)
-                if (matchEnd < 0) {
-                    val boundary = boundaryStart(input, first + 1, end)
-                    if (boundary >= 0) {
-                        start = boundary
-                        matchEnd = endAt(matcher, input, boundary)
-                    }
-                }
-                if (matchEnd >= 0) {
-                    val builder = out ?: StringBuilder(input.length).also { out = it }
-                    builder.append(input, copied, start).append(replacement)
-                    copied = matchEnd
-                    from = matchEnd
-                    continue
-                }
-            }
-            from = end
+        var index = 0
+        while (index < input.length) {
+            if (!isSegmentChar(input[index])) { index++; continue }
+            val runEnd = segmentEnd(input, index)
+            val token = if (runEnd - index >= MIN_HEADER && runEnd < input.length && input[runEnd] == '.')
+                tokenAt(input, index, runEnd, decoded) else null
+            if (token == null) { index = runEnd; continue }
+            val builder = out ?: StringBuilder(input.length).also { out = it }
+            builder.append(input, copied, token.first).append(replacement)
+            copied = token.second
+            index = token.second
         }
         val builder = out ?: return input
         return builder.append(input, copied, input.length).toString()
     }
 
-    private fun endAt(matcher: Matcher, input: String, start: Int): Int {
-        matcher.region(start, input.length)
-        return if (matcher.lookingAt()) matcher.end() else -1
-    }
-
-    /** Whether a JSON header's base64url can start at [index]: `eyJ`, `eyA`, `ewo`, `ewk` or `ew0`. */
-    private fun headerPrefixAt(input: String, index: Int): Boolean {
-        if (index + 3 > input.length || input[index] != 'e') return false
-        val third = input[index + 2]
-        return when (input[index + 1]) {
-            'y' -> third == 'J' || third == 'A'
-            'w' -> third == 'o' || third == 'k' || third == '0'
-            else -> false
+    /** A JWE header with two more segments takes all five; otherwise three, with a payload of 2+. */
+    private fun tokenAt(input: String, runStart: Int, headerEnd: Int, decoded: ByteArray): Pair<Int, Int>? {
+        val payloadEnd = segmentEnd(input, headerEnd + 1)
+        if (payloadEnd >= input.length || input[payloadEnd] != '.') return null
+        val thirdEnd = segmentEnd(input, payloadEnd + 1)
+        var fifthEnd = -1
+        if (thirdEnd < input.length && input[thirdEnd] == '.') {
+            val fourthEnd = segmentEnd(input, thirdEnd + 1)
+            if (fourthEnd < input.length && input[fourthEnd] == '.') fifthEnd = segmentEnd(input, fourthEnd + 1)
         }
+        val payloadLength = payloadEnd - headerEnd - 1
+        val last = minOf(runStart + MAX_GLUE, headerEnd - MIN_HEADER)
+        for (start in runStart..last) {
+            val kind = joseHeaderKind(input, start, headerEnd, decoded)
+            if (kind == 0) continue
+            if (kind == 2 && fifthEnd >= 0) return start to fifthEnd
+            if (payloadLength >= 2) return start to thirdEnd
+        }
+        return null
     }
 
-    private fun nextHeaderPrefix(input: String, from: Int): Int {
-        var index = from
-        while (index + 3 <= input.length) {
-            if (headerPrefixAt(input, index)) return index
+    /** 0: not a JOSE header; 1: a header with "alg"; 2: it also names "enc" (a JWE). */
+    internal fun joseHeaderKind(input: String, start: Int, end: Int, decoded: ByteArray): Int {
+        val stop = minOf(end, start + MAX_HEADER_DECODE)
+        var length = 0
+        var opened = false
+        var index = start
+        while (stop - index >= 2) {
+            val remaining = stop - index
+            val a = BASE64URL[input[index].code]
+            val b = BASE64URL[input[index + 1].code]
+            val c = if (remaining > 2) BASE64URL[input[index + 2].code] else -1
+            val d = if (remaining > 3) BASE64URL[input[index + 3].code] else -1
+            val count = if (c < 0) 1 else if (d < 0) 2 else 3
+            for (k in 0 until count) {
+                val byte = when (k) {
+                    0 -> (a shl 2) or (b shr 4)
+                    1 -> ((b and 15) shl 4) or (c shr 2)
+                    else -> ((c and 3) shl 6) or d
+                }
+                if (!opened) {
+                    if (byte == 0x7B) opened = true
+                    else if (byte != 0x20 && byte != 0x09 && byte != 0x0A && byte != 0x0D) return 0
+                }
+                decoded[length++] = byte.toByte()
+            }
+            index += 4
+        }
+        if (!opened || !contains(decoded, length, ALG)) return 0
+        return if (contains(decoded, length, ENC)) 2 else 1
+    }
+
+    private fun contains(bytes: ByteArray, length: Int, needle: ByteArray): Boolean {
+        var index = 0
+        while (index + needle.size <= length) {
+            var k = 0
+            while (k < needle.size && bytes[index + k] == needle[k]) k++
+            if (k == needle.size) return true
             index++
         }
-        return -1
+        return false
     }
 
-    /** The first header prefix after a '-' in [from, end) that still leaves a full header; -1 when none. */
-    private fun boundaryStart(input: String, from: Int, end: Int): Int {
-        var index = from
-        while (index + MIN_HEADER <= end) {
-            if (input[index - 1] == '-' && headerPrefixAt(input, index)) return index
-            index++
-        }
-        return -1
+    private fun segmentEnd(input: String, from: Int): Int {
+        var end = from
+        while (end < input.length && isSegmentChar(input[end])) end++
+        return end
     }
 
-    private fun isSegmentChar(c: Char) =
-        c in '0'..'9' || c in 'A'..'Z' || c in 'a'..'z' || c == '_' || c == '-'
+    private fun isSegmentChar(c: Char) = c.code < 128 && BASE64URL[c.code] >= 0
 }

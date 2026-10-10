@@ -14,7 +14,7 @@ import { Buffer } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CrashPayload } from '../src/crash.js';
-import { JWT_PATTERN } from '../src/redaction.js';
+import { redactJwt } from '../src/redaction.js';
 
 const rootCause = () => ({
   exceptionType: 'TypeError',
@@ -277,12 +277,11 @@ describe('generic crash cause contract', () => {
   });
 
   it('drops a secret cut by the scan window instead of keeping its unmatched prefix', () => {
-    const jwt = new RegExp(JWT_PATTERN, 'g'); // the shared rule
     const token = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(9_000)}.${'S'.repeat(43)}`;
     const normalized = normalizeCrashCauseChain({
       causes: [{ exceptionType: 'Error', message: `${'x'.repeat(4_000)} ${token}`, frames: [], framesTruncated: false }],
       truncated: false,
-    }, value => value.replace(jwt, '[REDACTED:JWT]'));
+    }, value => redactJwt(value));
 
     expect(normalized?.causes[0]?.message).toBe('x'.repeat(4_000));
     expect(normalized?.truncated).toBe(true);
@@ -299,9 +298,8 @@ describe('generic crash cause contract', () => {
   });
 
   it('drops an email address cut by the scan window before an email rule can miss it', () => {
-    const jwt = new RegExp(JWT_PATTERN, 'g'); // the shared rule
     const email = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const redact = (value: string) => value.replace(jwt, '[REDACTED:JWT]').replace(email, '[REDACTED:EMAIL]');
+    const redact = (value: string) => redactJwt(value).replace(email, '[REDACTED:EMAIL]');
     // Redacted tokens shrink the text, so the address would fit the message cap.
     const tokens = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(250)}.${'S'.repeat(13)} `.repeat(28);
     for (const address of ['john.doe@example.com', 'john%doe@example.com']) {

@@ -1,0 +1,2236 @@
+{
+  "version": 1,
+  "replacement": "[REDACTED:JWT]",
+  "cases": [
+    {
+      "name": "header {\"alg\"",
+      "input": "token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token [REDACTED:JWT]"
+    },
+    {
+      "name": "header { \"alg\"",
+      "input": "token eyAiYWxnIjogIkhTMjU2IiB9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token [REDACTED:JWT]"
+    },
+    {
+      "name": "header  {\"alg\" (leading space)",
+      "input": "token IHsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token [REDACTED:JWT]"
+    },
+    {
+      "name": "header \\n{\"alg\" (leading newline)",
+      "input": "token CnsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token [REDACTED:JWT]"
+    },
+    {
+      "name": "header {\\r\\n\"alg\"",
+      "input": "token ew0KImFsZyI6IkhTMjU2In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token [REDACTED:JWT]"
+    },
+    {
+      "name": "payload {} (e30)",
+      "input": "token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token [REDACTED:JWT]"
+    },
+    {
+      "name": "payload with leading whitespace",
+      "input": "token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token [REDACTED:JWT]"
+    },
+    {
+      "name": "unsecured token with an empty signature",
+      "input": "token eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ. next",
+      "expected": "token [REDACTED:JWT] next"
+    },
+    {
+      "name": "glued after x_",
+      "input": "x_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "x_[REDACTED:JWT]"
+    },
+    {
+      "name": "glued after token",
+      "input": "tokeneyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token[REDACTED:JWT]"
+    },
+    {
+      "name": "glued after %3D",
+      "input": "id_token%3DeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "id_token%3D[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "glued after =",
+      "input": "id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "id_token=[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "glued after a literal \\n in JSON",
+      "input": "{\"log\":\"auth\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"}",
+      "expected": "{\"log\":\"auth\\n[REDACTED:JWT]\"}"
+    },
+    {
+      "name": "glued after %3D, payload {}",
+      "input": "token%3DeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token%3D[REDACTED:JWT]"
+    },
+    {
+      "name": "glued after \\n, payload {}",
+      "input": "{\"log\":\"auth\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"}",
+      "expected": "{\"log\":\"auth\\n[REDACTED:JWT]\"}"
+    },
+    {
+      "name": "glued after %3D, payload with leading whitespace",
+      "input": "token%3DeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token%3D[REDACTED:JWT]"
+    },
+    {
+      "name": "glued after %3D, header with leading whitespace",
+      "input": "token%3DIHsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "token%3D[REDACTED:JWT]"
+    },
+    {
+      "name": "glue of 64 characters",
+      "input": "ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg[REDACTED:JWT]"
+    },
+    {
+      "name": "glue past 64 characters is not searched",
+      "input": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "dir JWE",
+      "input": "jwe eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ",
+      "expected": "jwe [REDACTED:JWT]"
+    },
+    {
+      "name": "dir JWE glued after x_",
+      "input": "x_eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ",
+      "expected": "x_[REDACTED:JWT]"
+    },
+    {
+      "name": "dir JWE glued after %3D",
+      "input": "token%3DeyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ",
+      "expected": "token%3D[REDACTED:JWT]"
+    },
+    {
+      "name": "RSA JWE",
+      "input": "jwe eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGeipsEdY3mx_etLbbWSrFr05kLzc.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ end",
+      "expected": "jwe [REDACTED:JWT] end"
+    },
+    {
+      "name": "RSA JWE glued after %3D",
+      "input": "token%3DeyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGeipsEdY3mx_etLbbWSrFr05kLzc.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ",
+      "expected": "token%3D[REDACTED:JWT]"
+    },
+    {
+      "name": "RSA JWE glued after session",
+      "input": "sessioneyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGeipsEdY3mx_etLbbWSrFr05kLzc.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ",
+      "expected": "session[REDACTED:JWT]"
+    },
+    {
+      "name": "RSA JWE after =",
+      "input": "token=eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGeipsEdY3mx_etLbbWSrFr05kLzc.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ&next=1",
+      "expected": "token=[REDACTED:JWT]&next=1"
+    },
+    {
+      "name": "Bearer header",
+      "input": "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "Authorization: Bearer [REDACTED:JWT]"
+    },
+    {
+      "name": "URL query",
+      "input": "https://auth.example.com/cb?id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&state=abc",
+      "expected": "https://auth.example.com/cb?id_token=[REDACTED:JWT]&state=abc"
+    },
+    {
+      "name": "two tokens",
+      "input": "a eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c b eyAiYWxnIjogIkhTMjU2IiB9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c c",
+      "expected": "a [REDACTED:JWT] b [REDACTED:JWT] c"
+    },
+    {
+      "name": "Kotlin lambda frame",
+      "input": "dev.everframe.crashdefault.ProofActivity$onCreate$2.run$lambda$0(SourceFile:5)",
+      "expected": "dev.everframe.crashdefault.ProofActivity$onCreate$2.run$lambda$0(SourceFile:5)"
+    },
+    {
+      "name": "ewokFactory",
+      "input": "ewokFactory.createInstance.something",
+      "expected": "ewokFactory.createInstance.something"
+    },
+    {
+      "name": "SurveyJobScheduler frame",
+      "input": "com.example.survey.SurveyJobScheduler.schedule.invokeSuspend(SurveyJobScheduler.kt:30)",
+      "expected": "com.example.survey.SurveyJobScheduler.schedule.invokeSuspend(SurveyJobScheduler.kt:30)"
+    },
+    {
+      "name": "SurveyJobScheduler package path",
+      "input": "com.example.SurveyJobScheduler.internal.coroutines.dispatcher.something",
+      "expected": "com.example.SurveyJobScheduler.internal.coroutines.dispatcher.something"
+    },
+    {
+      "name": "com.example.app.extension",
+      "input": "com.example.app.extension",
+      "expected": "com.example.app.extension"
+    },
+    {
+      "name": "kotlinx DispatchedTask",
+      "input": "kotlinx.coroutines.internal.DispatchedTask.run(DispatchedTask.kt:108)",
+      "expected": "kotlinx.coroutines.internal.DispatchedTask.run(DispatchedTask.kt:108)"
+    },
+    {
+      "name": "Swift module path",
+      "input": "SurveyKit.SurveyJobScheduler.scheduleNextRun(_:)",
+      "expected": "SurveyKit.SurveyJobScheduler.scheduleNextRun(_:)"
+    },
+    {
+      "name": "Swift mangled name",
+      "input": "$s9SurveyKit18SurveyJobSchedulerC8scheduleyyFTf4n_g",
+      "expected": "$s9SurveyKit18SurveyJobSchedulerC8scheduleyyFTf4n_g"
+    },
+    {
+      "name": "ObjC selector",
+      "input": "-[SurveyJobScheduler scheduleWithCompletion:]",
+      "expected": "-[SurveyJobScheduler scheduleWithCompletion:]"
+    },
+    {
+      "name": "bundle ID",
+      "input": "com.example.surveyjobs.extension.widget",
+      "expected": "com.example.surveyjobs.extension.widget"
+    },
+    {
+      "name": "short names that start like a header",
+      "input": "ewok.something.else eyAudit.Foo.Bar",
+      "expected": "ewok.something.else eyAudit.Foo.Bar"
+    },
+    {
+      "name": "version string",
+      "input": "version 1.2.3.4567890",
+      "expected": "version 1.2.3.4567890"
+    },
+    {
+      "name": "build string",
+      "input": "app-release-2026.10.10.1234567890",
+      "expected": "app-release-2026.10.10.1234567890"
+    },
+    {
+      "name": "base64 segments that are not JSON",
+      "input": "QUJDREVGR0hJSktMTU5PUA.UVJTVFVWV1hZWg.YWJjZGVmZ2hpams",
+      "expected": "QUJDREVGR0hJSktMTU5PUA.UVJTVFVWV1hZWg.YWJjZGVmZ2hpams"
+    },
+    {
+      "name": "a JSON header without \"alg\"",
+      "input": "eyJmb28iOiJiYXIifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "eyJmb28iOiJiYXIifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "a JSON array header",
+      "input": "W3siYWxnIjoiSFMyNTYifV0.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "W3siYWxnIjoiSFMyNTYifV0.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "long base64 runs with dots",
+      "input": "Zm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFy.YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6.cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4",
+      "expected": "Zm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFy.YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6.cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4cXV4"
+    },
+    {
+      "name": "random 0",
+      "input": "abc.AZkZIZJ.x..Z0I.ow.&x=1",
+      "expected": "abc.AZkZIZJ.x..Z0I.ow.&x=1"
+    },
+    {
+      "name": "random 1",
+      "input": "Bearer .k9IkJ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1Bearer .OKOawDo-3gRp2ojaHV7LF.x\"tokenA_AaIa.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.Ca.5eym8TW_c8SuK0lt",
+      "expected": "Bearer .k9IkJ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1Bearer .OKOawDo-3gRp2ojaHV7LF.x\"tokenA_AaIa.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.Ca.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 2",
+      "input": "id_token=ky0.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"Bearer eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "id_token=ky0.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"Bearer [REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 3",
+      "input": "é_J9k_J9oe.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b.Iy-JkC.Ik.yC.k9yAa-J9wyw .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1id_token=ew0KImFsZyI6IkhTMjU2In0.-I9.eA9.x\"",
+      "expected": "é_J9k_J9oe.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b.Iy-JkC.Ik.yC.k9yAa-J9wyw .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1id_token=[REDACTED:JWT].x\""
+    },
+    {
+      "name": "random 4",
+      "input": "\\n.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c  CnsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.x.Z.0yo-y.oaZCAI.I.tailid_token=ewokFactory.e30.x.9.JAI9A0oo.5eym8TW_c8SuK0lt ",
+      "expected": "\\n.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c  [REDACTED:JWT].Z.0yo-y.oaZCAI.I.tailid_token=ewokFactory.e30.x.9.JAI9A0oo.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 5",
+      "input": "a.eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.e.-w9akw.x.tail",
+      "expected": "a.[REDACTED:JWT]"
+    },
+    {
+      "name": "random 6",
+      "input": "abcCnsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1-ew0KImFsZyI6IkhTMjU2In0.IHsic3ViIjoiMSJ9.&x=1",
+      "expected": "abc[REDACTED:JWT]&x=1-[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 7",
+      "input": "éwooZeZIJ.-Z9AoCZao__.  eyJhbGciOiJIUzI1NiIsInR5cCIxIkpXVCJ9.w.9wJ.x Bearer eyJhbGciOiJub25lIn0..48V1_ALb6US04U3b.o9wJJJwIe.A-JakIkw0\"",
+      "expected": "éwooZeZIJ.-Z9AoCZao__.  eyJhbGciOiJIUzI1NiIsInR5cCIxIkpXVCJ9.w.9wJ.x Bearer eyJhbGciOiJub25lIn0..48V1_ALb6US04U3b.o9wJJJwIe.A-JakIkw0\""
+    },
+    {
+      "name": "random 8",
+      "input": "token.e0eyowJ0ke_.x.k-oe-JaZ.5eym8TW_c8SuK0lt\"",
+      "expected": "token.e0eyowJ0ke_.x.k-oe-JaZ.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 9",
+      "input": "Bearer eyJhbGciOiJkaXxiLCJlbmMiOiJBMjU2R0NNIn0...taileyJhbGciOiJub25lIn0.0.&x=1",
+      "expected": "Bearer [REDACTED:JWT].&x=1"
+    },
+    {
+      "name": "random 10",
+      "input": "\"eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.e30..J.5eym8TW_c8SuK0lt",
+      "expected": "\"[REDACTED:JWT]"
+    },
+    {
+      "name": "random 11",
+      "input": "WzEsMiwzXQ.a.48V1_ALb6US04U3b._JaAIJ9AI.a-ww0aIo-a \\n.AeCAoC.x.tail\"IHsiYWxnIjoiSFMyNTYifQ.A-.x&x=1",
+      "expected": "WzEsMiwzXQ.a.48V1_ALb6US04U3b._JaAIJ9AI.a-ww0aIo-a \\n.AeCAoC.x.tail\"[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 12",
+      "input": "=eyAiYWxnIjogIkhTMjU2IiB9.oJ-.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c _A9o-y9kwA9-.OKOawDo13gRp2ojaHV7LF..yIa.5eym8TW_c8SuK0lt&x=1 _A0a-k.Jaw.a.48V1_ALb6US04U3b.ZwaweZw0e.90A.tail",
+      "expected": "=[REDACTED:JWT] _A9o-y9kwA9-.OKOawDo13gRp2ojaHV7LF..yIa.5eym8TW_c8SuK0lt&x=1 _A0a-k.Jaw.a.48V1_ALb6US04U3b.ZwaweZw0e.90A.tail"
+    },
+    {
+      "name": "random 13",
+      "input": "a.eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..oA0J.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"=ewokFactory.IHsic3ViIjoiMSJ9.x ",
+      "expected": "a.eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..oA0J.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"=ewokFactory.IHsic3ViIjoiMSJ9.x "
+    },
+    {
+      "name": "random 14",
+      "input": "\\nCnsiYWxnIjoiSFMyNTYifQ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.CCkka.we.5eym8TW_c8SuK0lt\"x_kCa_9koAk.o_0...AJwI9CJo._.ZJCC9_oe.tail",
+      "expected": "\\nCnsiYWxnIjoiSFMyNTYifQ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.CCkka.we.5eym8TW_c8SuK0lt\"x_kCa_9koAk.o_0...AJwI9CJo._.ZJCC9_oe.tail"
+    },
+    {
+      "name": "random 15",
+      "input": "a.ew0KImFsZyI6IkhTMjU2In0.OKOawDo13gRp2ojaHV7LF._o-9aaIA0oJ..oI-e..48V1_ALb6US04U3bid_token=eyAiYWxnIjogIkhTMjU2IiB9.a.",
+      "expected": "a.[REDACTED:JWT]..oI-e..48V1_ALb6US04U3bid_token=eyAiYWxnIjogIkhTMjU2IiB9.a."
+    },
+    {
+      "name": "random 16",
+      "input": "\\nwIJeZICA.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.JZ.-90 a..a.id_token=9y.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c._.5eym8TW_c8SuK0lt",
+      "expected": "\\nwIJeZICA.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.JZ.-90 a..a.id_token=9y.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c._.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 17",
+      "input": "abck_eAayAy_I.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x ",
+      "expected": "abck_eAayAy_I.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x "
+    },
+    {
+      "name": "random 18",
+      "input": "-eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.OKOawDo13gRp2ojaHV7LF.x.-eo.0_ZwCwew.JeI%3D..SflKxwR-SMeKKF2QT4fwpMeJf36POk6yJV_adQssw5cabcewokFactory.e30.x&x=1",
+      "expected": "-[REDACTED:JWT].JeI%3D..SflKxwR-SMeKKF2QT4fwpMeJf36POk6yJV_adQssw5cabcewokFactory.e30.x&x=1"
+    },
+    {
+      "name": "random 19",
+      "input": "\"eyJhbGciOiJub25lIn0.oJeJk.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c =eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ..9A9..0.x.kZekZCC.5eym8TW_c8SuK0lt&x=1",
+      "expected": "\"[REDACTED:JWT] =[REDACTED:JWT].x.kZekZCC.5eym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 20",
+      "input": "id_token=IHsiYW-nIjoiSFMyNTYifQ.e30.x\"",
+      "expected": "id_token=IHsiYW-nIjoiSFMyNTYifQ.e30.x\""
+    },
+    {
+      "name": "random 21",
+      "input": "id_token=eyJ.Z_Zay0Z9Zwe.x..5eym8TW_c8SuK0lt ",
+      "expected": "id_token=eyJ.Z_Zay0Z9Zwe.x..5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 22",
+      "input": "%3DewokFactory.OKOawDo13gRp2ojaHV7LF.x.oy._a.tail\"eyJ.IHsic3ViIjoiMSJ9.x.tail",
+      "expected": "%3DewokFactory.OKOawDo13gRp2ojaHV7LF.x.oy._a.tail\"eyJ.IHsic3ViIjoiMSJ9.x.tail"
+    },
+    {
+      "name": "random 23",
+      "input": "éeyJ..48V1_ALb6US04U3b.ewCe.-JA_0AAC-Akid_token=eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.oyJ.48V1_ALb6US04U3b.J0J.5eym8TW_c8SuK0lt%3DeyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.AIowy.x\"",
+      "expected": "éeyJ..48V1_ALb6US04U3b.ewCe.-JA_0AAC-Akid_token=[REDACTED:JWT]%3D[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 24",
+      "input": "x_CnsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b\"",
+      "expected": "x_[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 25",
+      "input": "Bearer ..48V1_ALb6US04U3b.-CkC.5eym8TW_c8SuK0lt&x=1abceyAiYWxnIjogIkhTMjU2IiB9.IHsic3ViIjoiMSJ9. x_aGVsbG8gd29ybGQh..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "Bearer ..48V1_ALb6US04U3b.-CkC.5eym8TW_c8SuK0lt&x=1abc[REDACTED:JWT] x_aGVsbG8gd29ybGQh..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 26",
+      "input": "a.-.0Iaw.0w..é...x&x=1",
+      "expected": "a.-.0Iaw.0w..é...x&x=1"
+    },
+    {
+      "name": "random 27",
+      "input": " eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ...&x=1tokeneyJ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.ow.IeZ-A9Z.Z_-oC&x=1\"ewokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x\"",
+      "expected": " [REDACTED:JWT]..&x=1tokeneyJ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.ow.IeZ-A9Z.Z_-oC&x=1\"ewokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x\""
+    },
+    {
+      "name": "random 28",
+      "input": "tokeneyJmb28iOjF9._A9Iw0IJe0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "tokeneyJmb28iOjF9._A9Iw0IJe0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "random 29",
+      "input": "\"IJ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b\"",
+      "expected": "\"IJ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 30",
+      "input": "id_token=IHsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9..k9.5eym8TW_c8SuK0lt\"x_oey9Jyyw0.9ACCAyC_aJ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1a.IwAw9.e0I.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b..5eym8TW_c8SuK0lt ",
+      "expected": "id_token=[REDACTED:JWT].k9.5eym8TW_c8SuK0lt\"x_oey9Jyyw0.9ACCAyC_aJ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1a.IwAw9.e0I.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b..5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 31",
+      "input": "eyAiYWxnIjogIkhTMjU2IiB9.waJ.J..tail-eyJhbGciOiJub25lIn0.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.tail",
+      "expected": "[REDACTED:JWT]..tail-[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 32",
+      "input": "abcI0.e30.\\newokFactory.e30.\"",
+      "expected": "abcI0.e30.\\newokFactory.e30.\""
+    },
+    {
+      "name": "random 33",
+      "input": " aGVsbG8gd29ybGQh.y..x\"",
+      "expected": " aGVsbG8gd29ybGQh.y..x\""
+    },
+    {
+      "name": "random 34",
+      "input": " k.OK.awDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": " k.OK.awDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail"
+    },
+    {
+      "name": "random 35",
+      "input": "abcIHsiYWxnIjoiSFMyNTYifQ.e30.48V1_ALb6US04U3b\"abcIHsiYWxnIjoiSFMyNTYifQ.wI.SflKxwRJSMeK.F2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "abc[REDACTED:JWT]\"abc[REDACTED:JWT].F2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 36",
+      "input": "abcIHsiYWxnIjoiSFMyNTYifQ.e30..taila.eyJhbGciOiJub25lIn0.OKOawDo13gRp2ojaHV7LF..I_9oIoC..5eym8TW_c8SuK0lt&x=1 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.Iw0ZakkAZke.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "abc[REDACTED:JWT].taila.[REDACTED:JWT].I_9oIoC..5eym8TW_c8SuK0lt&x=1 [REDACTED:JWT]\""
+    },
+    {
+      "name": "random 37",
+      "input": "%3D-y9-J.CeC_.IHsic3ViIjoiMSJ9..o_oI0w.oa-ea_ZIeo.o0\"",
+      "expected": "%3D-y9-J.CeC_.IHsic3ViIjoiMSJ9..o_oI0w.oa-ea_ZIeo.o0\""
+    },
+    {
+      "name": "random 38",
+      "input": "Bearer ewokFactory.OKOawDo13gRp2ojaHV7LF..AAy0oZIAo..Ckw0\"%3DewokFactory.OKOawDo13gRp2ojaHV7LF.x&x=1",
+      "expected": "Bearer ewokFactory.OKOawDo13gRp2ojaHV7LF..AAy0oZIAo..Ckw0\"%3DewokFactory.OKOawDo13gRp2ojaHV7LF.x&x=1"
+    },
+    {
+      "name": "random 39",
+      "input": "a.0ZweZ_ww..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-..5eym8TW_c8SuK0lt&x=1%3DaGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.xtokenC_-yZIkC9yAC.weJ0ky.SflKxwRJSMeKKF2QT4fwpMeJf36P.k6yJV_adQssw5c",
+      "expected": "a.0ZweZ_ww..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-..5eym8TW_c8SuK0lt&x=1%3DaGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.xtokenC_-yZIkC9yAC.weJ0ky.SflKxwRJSMeKKF2QT4fwpMeJf36P.k6yJV_adQssw5c"
+    },
+    {
+      "name": "random 40",
+      "input": "\"IHsiYWxnIjoiSFMyNTYifQ.a.48V1_ALb6US04U3b \"eyAiYWxnIjogIkhTMjU2IiB9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b",
+      "expected": "\"IHsiYWxnIjoiSFMyNTYifQ.a.48V1_ALb6US04U3b \"[REDACTED:JWT]"
+    },
+    {
+      "name": "random 41",
+      "input": "-eyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c -0Z.IHsic3ViIjoiMSJ9.",
+      "expected": "-eyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c -0Z.IHsic3ViIjoiMSJ9."
+    },
+    {
+      "name": "random 42",
+      "input": "\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..x x_.e30.x -eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.e30.x&x=1",
+      "expected": "\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..x x_.e30.x -[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 43",
+      "input": "%3DaA_C__IeI-I.C..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.I.5eym8TW_c8SuK0lt&x=1éWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3OD wIiwibmFtZSI6IkpvaG4ifQ.x ék.AIJCI.48V1_ALb6US04U3b&x=1",
+      "expected": "%3DaA_C__IeI-I.C..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.I.5eym8TW_c8SuK0lt&x=1éWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3OD wIiwibmFtZSI6IkpvaG4ifQ.x ék.AIJCI.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 44",
+      "input": "token9Zo.0aw9AZw_.Zw.ko-ZC.48V1_ALb6US04U3b.eI_0_o.Cyw.5eym8TW_c8SuK0lt\"abceyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.ekZCy.y&x=1 eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.9oCIe_ayJCaC.48V1_ALb6US04U3b.-.5eym8TW_c8SuK0lt.tail",
+      "expected": "token9Zo.0aw9AZw_.Zw.ko-ZC.48V1_ALb6US04U3b.eI_0_o.Cyw.5eym8TW_c8SuK0lt\"abc[REDACTED:JWT]&x=1 [REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 45",
+      "input": "x_CnsiYWxnIjoiSFMyNTYifQ.A0-ao0_kAIA.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.k.aaC9IZC9-_Z.AkkZ_.tail=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.48V1_ALb6US04U3bBearer eyJmb28iOjF9.e30.x&x=1",
+      "expected": "x_[REDACTED:JWT].k.aaC9IZC9-_Z.AkkZ_.tail=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.48V1_ALb6US04U3bBearer eyJmb28iOjF9.e30.x&x=1"
+    },
+    {
+      "name": "random 46",
+      "input": "x_WzEsMiwzXQ..\" aGVsbG8gd29ybGQh.e30..-Ia_ICZ.eC",
+      "expected": "x_WzEsMiwzXQ..\" aGVsbG8gd29ybGQh.e30..-Ia_ICZ.eC"
+    },
+    {
+      "name": "random 47",
+      "input": "a.eyJhbGciOiJub25lIn0.kkw9Ayo..C-wa-JC_AIC.5eym8TW_c8SuK0lt&x=1",
+      "expected": "a.[REDACTED:JWT].C-wa-JC_AIC.5eym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 48",
+      "input": "=eyJ..48V1_ALb6US04U3b\"",
+      "expected": "=eyJ..48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 49",
+      "input": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e..tail%3DaGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c =eyJhbGciOiJub25.In0.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.wa-kow_Cy_.5eym8TW_c8SuK0lt\"",
+      "expected": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e..tail%3DaGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c =[REDACTED:JWT].SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.wa-kow_Cy_.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 50",
+      "input": "\\neyJ.e30.x",
+      "expected": "\\neyJ.e30.x"
+    },
+    {
+      "name": "random 51",
+      "input": "=aGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.&x=1token.a.48V1_ALb6US04U3b ",
+      "expected": "=aGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.&x=1token.a.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 52",
+      "input": "id_token=yJeA.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b",
+      "expected": "id_token=yJeA.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b"
+    },
+    {
+      "name": "random 53",
+      "input": "abcWzEsMiwzXQ.e30.48V1_ALb6US04U3b eyJ.yk.48V1_ALb6US04U3b ",
+      "expected": "abcWzEsMiwzXQ.e30.48V1_ALb6US04U3b eyJ.yk.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 54",
+      "input": "-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.aeI.aeCZy_JZ.48V1_ALb6US04U3b ",
+      "expected": "-[REDACTED:JWT].48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 55",
+      "input": "x_aGVsbG8gd29ybGQh..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5céaGVsbG8gd29ybGQh.a.x.e.ZyA.5eym8TW_c8SuK0lt ",
+      "expected": "x_aGVsbG8gd29ybGQh..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5céaGVsbG8gd29ybGQh.a.x.e.ZyA.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 56",
+      "input": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a. ",
+      "expected": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a. "
+    },
+    {
+      "name": "random 57",
+      "input": "x_eyAiYWxnIjogIkhTMjU2IiB9._wCewZJey9A. Bearer eyJ.0o9o_ewJC.x.wo_yA.-_9aay.eCkka-9weC9-_.tail\\neyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ...5eym8TW_c8SuK0lt",
+      "expected": "x_[REDACTED:JWT] Bearer eyJ.0o9o_ewJC.x.wo_yA.-_9aay.eCkka-9weC9-_.tail\\n[REDACTED:JWT]..5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 58",
+      "input": "id_token=eZw.-oo.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c abcewokFactory.0o.48V1_ALb6US04U3b&x=1\"w-k.a..oIIA-90ZwAJk.yko0A_.tail",
+      "expected": "id_token=eZw.-oo.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c abcewokFactory.0o.48V1_ALb6US04U3b&x=1\"w-k.a..oIIA-90ZwAJk.yko0A_.tail"
+    },
+    {
+      "name": "random 59",
+      "input": "-CnsiYWxnIjoiSFMyNTYifQ.9k-.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.CaI-_w-o.5eym8TW_c8SuK0lt.tail",
+      "expected": "-[REDACTED:JWT].CaI-_w-o.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 60",
+      "input": " CnsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.x Bearer eyJhbGciOiJub25lIn0.ZyIoCCIkA_a..tail",
+      "expected": " [REDACTED:JWT] Bearer [REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 61",
+      "input": "Bearer eyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1-Z9.IHsic3ViIjoiMSJ9..tail",
+      "expected": "Bearer eyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1-Z9.IHsic3ViIjoiMSJ9..tail"
+    },
+    {
+      "name": "random 62",
+      "input": "tokenC00_a.ACaAyA0C9.\"",
+      "expected": "tokenC00_a.ACaAyA0C9.\""
+    },
+    {
+      "name": "random 63",
+      "input": "a.eyJ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"éeyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "a.eyJ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"éeyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail"
+    },
+    {
+      "name": "random 64",
+      "input": "\"eyJhbGciOiJub25lIn0.-y.C0a.wCk.&x=1=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x\"",
+      "expected": "\"[REDACTED:JWT].wCk.&x=1=[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 65",
+      "input": "x_IHsiYWxnIjoiSFMyNTYifQ.Z9Ca-__w-AI.x \"w_kIkyoJ0.ya9aeakZe.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJx_adQssw5c\"",
+      "expected": "x_[REDACTED:JWT] \"w_kIkyoJ0.ya9aeakZe.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJx_adQssw5c\""
+    },
+    {
+      "name": "random 66",
+      "input": "tokenCIJ_9_0__.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.9wkJ.5eym8TW_c8SuK0lt ",
+      "expected": "tokenCIJ_9_0__.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.9wkJ.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 67",
+      "input": "\"ewokFactory.e30.x.tail",
+      "expected": "\"ewokFactory.e30.x.tail"
+    },
+    {
+      "name": "random 68",
+      "input": " eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.. tokenIHsiYWxnIjoiSFMyNTYifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"%3D..x\"",
+      "expected": " eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.. token[REDACTED:JWT]\"%3D..x\""
+    },
+    {
+      "name": "random 69",
+      "input": "abceyAiYWxnIjogIkhTMjU2IiB9.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.I9.I_wy\" IHsiYWxnIjoiSFMyNTYifQ.w.y...tail\"ew0KImFsZyI6IkhTMjU2In0..x.tail",
+      "expected": "abc[REDACTED:JWT].I9.I_wy\" IHsiYWxnIjoiSFMyNTYifQ.w.y...tail\"ew0KImFsZyI6IkhTMjU2In0..x.tail"
+    },
+    {
+      "name": "random 70",
+      "input": " Jy9JI-wC.aeA..A.a-.JyIZ_9k.ZJ",
+      "expected": " Jy9JI-wC.aeA..A.a-.JyIZ_9k.ZJ"
+    },
+    {
+      "name": "random 71",
+      "input": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ...kA_wIoA.-.I.5eym8TW_c8SuK0lt.tail",
+      "expected": "[REDACTED:JWT].-.I.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 72",
+      "input": "eyJ..48V1_ALb6US04U3b.tail",
+      "expected": "eyJ..48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 73",
+      "input": "éaGVsbG8gd29ybGQh.wwy.48V1_ALb6US04U3b\"",
+      "expected": "éaGVsbG8gd29ybGQh.wwy.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 74",
+      "input": "a.-ZZ-9eI-9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.9Zeka0kZJZ-JA.ak_w.IeA0.tail\\n-o.9kA.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b.C.ea__Ik.k.e\"a.eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "a.-ZZ-9eI-9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.9Zeka0kZJZ-JA.ak_w.IeA0.tail\\n-o.9kA.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b.C.ea__Ik.k.e\"a.[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 75",
+      "input": "a.ew0KImFsZyI6IkhTMjU2In0.e30.48V1_ALb6US04U3b eyJ.e30.x.taila.ew0KImFsZyI6IkhTMjU2In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "a.[REDACTED:JWT] eyJ.e30.x.taila.[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 76",
+      "input": "abcIaIA..OKOawDo13gRp2ojaHV7LF.x%3DZkICJe0a.e30.48V1_ALb6US04U3b&x=1 ew0KImFsZyI6IkhTMjU2In0.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.Jw9-yyyyey.eC",
+      "expected": "abcIaIA..OKOawDo13gRp2ojaHV7LF.x%3DZkICJe0a.e30.48V1_ALb6US04U3b&x=1 ew0KImFsZyI6IkhTMjU2In0.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.Jw9-yyyyey.eC"
+    },
+    {
+      "name": "random 77",
+      "input": "a.eyJ.eAke..x&x=1\"C._.aC_.oCk.48V1_ALb6US04U3b&x=1 CnsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.aCwowC.5eym8TW_c8SuK0lt ",
+      "expected": "a.eyJ.eAke..x&x=1\"C._.aC_.oCk.48V1_ALb6US04U3b&x=1 [REDACTED:JWT].aCwowC.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 78",
+      "input": "Bearer 0JkkAZ.A-..OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1abcZIkAZy.aoA9.C-._oJAJ0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "Bearer 0JkkAZ.A-..OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1abcZIkAZy.aoA9.C-._oJAJ0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "random 79",
+      "input": "=.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "=.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 80",
+      "input": "tokeneyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..48V1_ALb6US04U3btokenew0KImFsZyI6IkhTMjU2In0..x.9ACAyw.0-.5eym8TW_c8SuK0lteyJ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.kkoey.oeIyoaJo.tail",
+      "expected": "tokeneyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..48V1_ALb6US04U3btokenew0KImFsZyI6IkhTMjU2In0..x.9ACAyw.0-.5eym8TW_c8SuK0lteyJ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.kkoey.oeIyoaJo.tail"
+    },
+    {
+      "name": "random 81",
+      "input": "-ew0KImFsZyI6IkhTMjU2In0.OKOawDo13gRp2ojaHV7LF..tail\"ew.kFactory.C--Ia.eJ..tailabcewokFactory.a.x ",
+      "expected": "-[REDACTED:JWT].tail\"ew.kFactory.C--Ia.eJ..tailabcewokFactory.a.x "
+    },
+    {
+      "name": "random 82",
+      "input": "\\n9oJ-eJ_.w.48V1_ALb6US04U3bid_token=WzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"tokenA_eC...SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "\\n9oJ-eJ_.w.48V1_ALb6US04U3bid_token=WzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"tokenA_eC...SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 83",
+      "input": "é-y0.A9o_.e30.48V1_ALb6US04U3b  eyAiYWxnIjogIkhTMjU2IiB9.e30.id_token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.e30.",
+      "expected": "é-y0.A9o_.e30.48V1_ALb6US04U3b  [REDACTED:JWT]=[REDACTED:JWT]"
+    },
+    {
+      "name": "random 84",
+      "input": " _aAA9kZI0Iy.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.CJkIw-IA.-eeo.CoZ00yA\"=0wy09IyZI.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.o.o0Jo\"",
+      "expected": " _aAA9kZI0Iy.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.CJkIw-IA.-eeo.CoZ00yA\"=0wy09IyZI.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.o.o0Jo\""
+    },
+    {
+      "name": "random 85",
+      "input": "\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..o.9J_Zaao.x..eo-A.ek-&x=1\"eyJhbGciOiJub25lIn0.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1\\nCnsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..o.9J_Zaao.x..eo-A.ek-&x=1\"eyJhbGciOiJub25lIn0.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1\\n[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 86",
+      "input": "-eyJhbGciOiJub25lIn0.e30.x&x=1a.y.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.AAa..Zo0.wJ&x=1",
+      "expected": "-[REDACTED:JWT]&x=1a.y.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.AAa..Zo0.wJ&x=1"
+    },
+    {
+      "name": "random 87",
+      "input": "\"eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.A__II-..tailid_token=ewokFactory.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b \\naGVsbG8gd29ybGQh.JA.48V1_ALb6US04U3b\"",
+      "expected": "\"[REDACTED:JWT].tailid_token=ewokFactory.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b \\naGVsbG8gd29ybGQh.JA.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 88",
+      "input": "-IHsiYWxnIjoiSFMyNTYifQ.a.x Bearer .e30.48V1_ALb6US04U3b token9Cy09aeC.Z0a.x.kJ.5eym8TW_c8SuK0lt ",
+      "expected": "-IHsiYWxnIjoiSFMyNTYifQ.a.x Bearer .e30.48V1_ALb6US04U3b token9Cy09aeC.Z0a.x.kJ.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 89",
+      "input": "éew0KImFsZyI6IkhTMjU2In0.IHsic3ViIjoiMSJ9.\"",
+      "expected": "é[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 90",
+      "input": "-eyJ.e30.48V1_ALb6US04U3b.wk.I--.aCeAe0JZa9&x=1tokeneyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.IHsic3ViIjoiMSJ9..we.e_yaA-.5eym8TW_c8SuK0lt éaGVsbG8gd29ybGQh..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "-eyJ.e30.48V1_ALb6US04U3b.wk.I--.aCeAe0JZa9&x=1token[REDACTED:JWT].5eym8TW_c8SuK0lt éaGVsbG8gd29ybGQh..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 91",
+      "input": "\"WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF..9-o9.5eym8TW_c8SuK0lt eyJ..x.ya.9.5ey.8TW_c8SuK0lt&x=1%3Dew0KImFsZyI6IkhTMjU2In0.JoIk_eoA...k_e-IAA.I.&x=1",
+      "expected": "\"WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF..9-o9.5eym8TW_c8SuK0lt eyJ..x.ya.9.5ey.8TW_c8SuK0lt&x=1%3D[REDACTED:JWT]..k_e-IAA.I.&x=1"
+    },
+    {
+      "name": "random 92",
+      "input": "\"wkyw.oookk-.yw.yeeA-y.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "\"wkyw.oookk-.yw.yeeA-y.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "random 93",
+      "input": "a.a.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c._ke.5eym8TW_c8SuK0lt.tail-e0_AZw.. ",
+      "expected": "a.a.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c._ke.5eym8TW_c8SuK0lt.tail-e0_AZw.. "
+    },
+    {
+      "name": "random 94",
+      "input": "a.eyJhbGciOiJub25lIn0.OKOawDo13gRp2ojaHV7LF..0.eIAekJI9A9eIZ.tail",
+      "expected": "a.[REDACTED:JWT].0.eIAekJI9A9eIZ.tail"
+    },
+    {
+      "name": "random 95",
+      "input": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.x  aGVsbG8gd29ybGQh.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.a_eZ0eCew-e.5eym8TW_c8SuK0lteyJ.e30..0Ak9waea-ke.ko&x=1",
+      "expected": " [REDACTED:JWT]  aGVsbG8gd29ybGQh.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.a_eZ0eCew-e.5eym8TW_c8SuK0lteyJ.e30..0Ak9waea-ke.ko&x=1"
+    },
+    {
+      "name": "random 96",
+      "input": "a.aGVsbG8gd29ybGQh.e30.xBearer eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.a.x..IJyJaZAe__..00ywwayw0A.tail-.e30.48V1_ALb6US04U3b.tail",
+      "expected": "a.aGVsbG8gd29ybGQh.e30.xBearer [REDACTED:JWT]..00ywwayw0A.tail-.e30.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 97",
+      "input": "%3D9J.9kCZ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.ICw9Zo_yIyZ0_.5eym8TW_c8SuK0lt&x=1x_.Z.yy9k.0aCw.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ZwZ-CZwwCyk.5eym8TW_c8SuK0lt&x=1WzEsMiwzXQ.a.x&x=1",
+      "expected": "%3D9J.9kCZ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.ICw9Zo_yIyZ0_.5eym8TW_c8SuK0lt&x=1x_.Z.yy9k.0aCw.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ZwZ-CZwwCyk.5eym8TW_c8SuK0lt&x=1WzEsMiwzXQ.a.x&x=1"
+    },
+    {
+      "name": "random 98",
+      "input": "é9.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailabceyAiYWxnIjogIkhTMjU2IiB9.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b&x=1abceyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.oewk_A.ow-.x&x=1",
+      "expected": "é9.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailabc[REDACTED:JWT]&x=1abc[REDACTED:JWT].x&x=1"
+    },
+    {
+      "name": "random 99",
+      "input": " aGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF..e_CC_-J.5eym8TW_c8SuK0lt\"eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ..xa.ewokFactory.e30.48 1_ALb6US04U3b.0w.yCZ.oAyy.5eym8TW_c8SuK0lt.tail",
+      "expected": " aGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF..e_CC_-J.5eym8TW_c8SuK0lt\"[REDACTED:JWT].48 1_ALb6US04U3b.0w.yCZ.oAyy.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 100",
+      "input": "x_ew0KImFsZyI6IkhTMjU2In0.a.",
+      "expected": "x_ew0KImFsZyI6IkhTMjU2In0.a."
+    },
+    {
+      "name": "random 101",
+      "input": "=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c._o.JZ0AC9-9.a-9.tail%3DIHsiYWxnIjoiSFMyNTYifQ.JZA.48V1_ALb6US04U3b..5eym8TW_c8SuK0lt&x=1 eyAiYWxnIjogIkhTMjU2IiB9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b",
+      "expected": "=[REDACTED:JWT].a-9.tail%3D[REDACTED:JWT]..5eym8TW_c8SuK0lt&x=1 [REDACTED:JWT]"
+    },
+    {
+      "name": "random 102",
+      "input": "-eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.9w9.5eym8TW_c8SuK0lt\"x_eyJmb28iOjF9.eZwI-_-IZ0wCZ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "-[REDACTED:JWT]\"x_eyJmb28iOjF9.eZwI-_-IZ0wCZ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\""
+    },
+    {
+      "name": "random 103",
+      "input": "\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-C.5eym8TW_c8SuK0lt eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.9Ca-k.48V1_ALb6US04U3b\"",
+      "expected": "\\n[REDACTED:JWT].-C.5eym8TW_c8SuK0lt [REDACTED:JWT]\""
+    },
+    {
+      "name": "random 104",
+      "input": "%3DIHsiYWxnIjoiSFMyNTYifQ..C9IwkCJ9wk..tailéeyAiYWxnIjogIkhTMjU2IiB9.e30.48V1_ALb6US04U3b.CAI.oJoaaw_yCCid.token=Z.IHsic3ViIjoiMSJ9.x.tail",
+      "expected": "%3DIHsiYWxnIjoiSFMyNTYifQ..C9IwkCJ9wk..tailé[REDACTED:JWT].CAI.oJoaaw_yCCid.token=Z.IHsic3ViIjoiMSJ9.x.tail"
+    },
+    {
+      "name": "random 105",
+      "input": "x_aGV-bG8gd29ybGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "x_aGV-bG8gd29ybGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\""
+    },
+    {
+      "name": "random 106",
+      "input": "-J0.Z-e_aZJa.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b..I0.9ak_Iyk.tail",
+      "expected": "-J0.Z-e_aZJa.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b..I0.9ak_Iyk.tail"
+    },
+    {
+      "name": "random 107",
+      "input": "\\newokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b-ewokFactory.e30.x.aA9w9-0I0A.5eym8TW_c8SuK0lt.tail",
+      "expected": "\\newokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b-ewokFactory.e30.x.aA9w9-0I0A.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 108",
+      "input": "abcw_.IHsic3ViIjoiMSJ9.\"Bearer eyJ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "abcw_.IHsic3ViIjoiMSJ9.\"Bearer eyJ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 109",
+      "input": "éaGVsbG8gd29ybGQh.e30.",
+      "expected": "éaGVsbG8gd29ybGQh.e30."
+    },
+    {
+      "name": "random 110",
+      "input": "x_-oa-ko9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c..0ZI.tail kw.9aoJ__.a_yoAC_AC0.48V1_ALb6US04U3b ",
+      "expected": "x_-oa-ko9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c..0ZI.tail kw.9aoJ__.a_yoAC_AC0.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 111",
+      "input": "a.aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.\"=eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.w0y9k_I-_C0.ewaJJBearer WzEsMiwzXQ..48V1_ALb6US04U3b.y9o.I_J0Zko_.IwaZwZkJwa",
+      "expected": "a.aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.\"=eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.w0y9k_I-_C0.ewaJJBearer WzEsMiwzXQ..48V1_ALb6US04U3b.y9o.I_J0Zko_.IwaZwZkJwa"
+    },
+    {
+      "name": "random 112",
+      "input": "abcWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x\"",
+      "expected": "abcWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x\""
+    },
+    {
+      "name": "random 113",
+      "input": "Bearer ewokFactory.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.yI-AJ_JwIo_k..5eym8TW_c8SuK0lt.tail=eyAiYWxnIjogIkhTMjU2IiB9.a.xabcaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..9oJ0I-0ayC..IkJCC.tail",
+      "expected": "Bearer ewokFactory.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.yI-AJ_JwIo_k..5eym8TW_c8SuK0lt.tail=eyAiYWxnIjogIkhTMjU2IiB9.a.xabcaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..9oJ0I-0ayC..IkJCC.tail"
+    },
+    {
+      "name": "random 114",
+      "input": "\"eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ao-Z_y.yJ\"%3DCnsiYWxnIjoiSFMyNTYifQ.a.48V1_ALb6US04U3b.0J_kZwI09I.5eym8TW_c8SuK0lt.tailéWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b ",
+      "expected": "\"[REDACTED:JWT]\"%3DCnsiYWxnIjoiSFMyNTYifQ.a.48V1_ALb6US04U3b.0J_kZwI09I.5eym8TW_c8SuK0lt.tailéWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 115",
+      "input": "\"e0k_wowe0A..x-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "\"e0k_wowe0A..x-[REDACTED:JWT]"
+    },
+    {
+      "name": "random 116",
+      "input": "-.owo_eywZkZ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1x_eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c%3DewokFactory.0wwIC0e.48V1_ALb6US04U3b&x=1",
+      "expected": "-.owo_eywZkZ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1x_[REDACTED:JWT]%3DewokFactory.0wwIC0e.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 117",
+      "input": "x_eyJhbGciOiJub25lIn0.a.48V1_ALb6US04U3b\"aGVsbG8gd29ybGQh.A-ky.A-o.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.e9ykoZC.5eym8TW_c8SuK0lt id_token=eyJ.y0J--e.AZIJoZ.48V1_ALb6US04U3b.9k.a9Jyw&x=1",
+      "expected": "x_eyJhbGciOiJub25lIn0.a.48V1_ALb6US04U3b\"aGVsbG8gd29ybGQh.A-ky.A-o.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.e9ykoZC.5eym8TW_c8SuK0lt id_token=eyJ.y0J--e.AZIJoZ.48V1_ALb6US04U3b.9k.a9Jyw&x=1"
+    },
+    {
+      "name": "random 118",
+      "input": "abcewokFactory.a.48V1_ALb6US04U3b.tailtoken.I.",
+      "expected": "abcewokFactory.a.48V1_ALb6US04U3b.tailtoken.I."
+    },
+    {
+      "name": "random 119",
+      "input": "=CnsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b&x=1\\nIZ.aAwZwIeZ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.0IaIeJ..&x=1",
+      "expected": "=[REDACTED:JWT]&x=1\\nIZ.aAwZwIeZ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.0IaIeJ..&x=1"
+    },
+    {
+      "name": "random 120",
+      "input": "a.aGVsbG8gd29ybGQh._wa.48V1_ALb6US04U3b.o.a00C\"Bearer eyJ.9ko.x ",
+      "expected": "a.aGVsbG8gd29ybGQh._wa.48V1_ALb6US04U3b.o.a00C\"Bearer eyJ.9ko.x "
+    },
+    {
+      "name": "random 121",
+      "input": " .-Jy..48V1_ALb6US04U3bid_token=Iy9w-9ZoaC.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": " .-Jy..48V1_ALb6US04U3bid_token=Iy9w-9ZoaC.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\""
+    },
+    {
+      "name": "random 122",
+      "input": "Bearer .IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "Bearer .IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 123",
+      "input": "éWzEsMiwzXQ.IHsic3ViIjoiMS-9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail CnsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\"",
+      "expected": "éWzEsMiwzXQ.IHsic3ViIjoiMS-9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail [REDACTED:JWT]\""
+    },
+    {
+      "name": "random 124",
+      "input": "Bearer CnsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.x..-JJ._.5eym8TW_c8SuK0lt.tail",
+      "expected": "Bearer [REDACTED:JWT]..-JJ._.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 125",
+      "input": "=eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.Ja0yk_ey.x.I0ZIJI__Jo-y.5eym8TW_c8SuK0lt\"-.-_ZyaJ..x&x=1",
+      "expected": "=[REDACTED:JWT]\"-.-_ZyaJ..x&x=1"
+    },
+    {
+      "name": "random 126",
+      "input": "\"eyJmb28iOjF9..48V1_ALb6US04U3b..9.wea0-we\"x_ewokFactory.IHsic3ViIjoiMSJ9..tail",
+      "expected": "\"eyJmb28iOjF9..48V1_ALb6US04U3b..9.wea0-we\"x_ewokFactory.IHsic3ViIjoiMSJ9..tail"
+    },
+    {
+      "name": "random 127",
+      "input": "é_ykkIJ9I-.Aa9kC.48V1_ALb6US04U3b&x=1",
+      "expected": "é_ykkIJ9I-.Aa9kC.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 128",
+      "input": "%3D-IJea.e30.48V1_ALb6US04U3b -IHsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.x\"x_CnsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.x ",
+      "expected": "%3D-IJea.e30.48V1_ALb6US04U3b -[REDACTED:JWT]\"x_[REDACTED:JWT] "
+    },
+    {
+      "name": "random 129",
+      "input": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.IHsic3ViIjoiMSJ9..tail\"eyAiYWxnIjogIkhTMjU2IiB9.-CoewkCI..._Z.a.5eym8TW_c8SuK0lt",
+      "expected": " [REDACTED:JWT].tail\"[REDACTED:JWT].._Z.a.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 130",
+      "input": "id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.Iao.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.A9.ka0k.5eym8TW_c8SuK0lt.tail\"eyJ...SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5cBearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.48V1_ALb6US04U3b.AIJ0yAI9Zo_--.eI-ACaa0A-.&x=1",
+      "expected": "id_token=[REDACTED:JWT].A9.ka0k.5eym8TW_c8SuK0lt.tail\"eyJ...SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5cBearer [REDACTED:JWT].&x=1"
+    },
+    {
+      "name": "random 131",
+      "input": "\"CnsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.x\"a.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b.Awwo.Zoy_yZo_AC_\"éeyJ.a.",
+      "expected": "\"[REDACTED:JWT]\"a.[REDACTED:JWT].Awwo.Zoy_yZo_AC_\"éeyJ.a."
+    },
+    {
+      "name": "random 132",
+      "input": "éeyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "é[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 133",
+      "input": "éeyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.tail",
+      "expected": "éeyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 134",
+      "input": "%3D.0Jy.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1éeyJmb28iOjF9..0.o_Ao_. ",
+      "expected": "%3D.0Jy.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1éeyJmb28iOjF9..0.o_Ao_. "
+    },
+    {
+      "name": "random 135",
+      "input": "\"ewokFactory.a.48V1_ALb6US04U3b&x=1",
+      "expected": "\"ewokFactory.a.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 136",
+      "input": "éeyJ.AI09C-J9.x ",
+      "expected": "éeyJ.AI09C-J9.x "
+    },
+    {
+      "name": "random 137",
+      "input": "x_eyJmb28iOjF9..\"id_token=eyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c abceyJ.OKOawDo13gRp2ojaHV7LF..o0-ke.5eym8TW_c8SuK0lt.tail",
+      "expected": "x_eyJmb28iOjF9..\"id_token=eyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c abceyJ.OKOawDo13gRp2ojaHV7LF..o0-ke.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 138",
+      "input": "-wA_.0AC9..x.o.5eym8TW_c8SuK0ltid_token=-oZ9o_.IHsic3ViIjoiMSJ9.\"éeyJhbGciOiJub25lIn0..\"",
+      "expected": "-wA_.0AC9..x.o.5eym8TW_c8SuK0ltid_token=-oZ9o_.IHsic3ViIjoiMSJ9.\"éeyJhbGciOiJub25lIn0..\""
+    },
+    {
+      "name": "random 139",
+      "input": "=A0eeA...48V1_ALb6US04U3b =IIy9CwwJZeJ_.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQss.5c&x=1",
+      "expected": "=A0eeA...48V1_ALb6US04U3b =IIy9CwwJZeJ_.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQss.5c&x=1"
+    },
+    {
+      "name": "random 140",
+      "input": "x_ew0KImFsZyI6IkhTMjU2In0..Jkk.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.aoy_Jo-I-Z.5eym8TW_c8SuK0lt&x=1%3DaGVsbG8gd29ybGQh.a.48V1_ALb6US04U3b.AJ9yZ.I.eCZ9J-A_.J0=eyAiYWxnIjogIkhTMjU2IiB9..x&x=1",
+      "expected": "x_ew0KImFsZyI6IkhTMjU2In0..Jkk.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.aoy_Jo-I-Z.5eym8TW_c8SuK0lt&x=1%3DaGVsbG8gd29ybGQh.a.48V1_ALb6US04U3b.AJ9yZ.I.eCZ9J-A_.J0=eyAiYWxnIjogIkhTMjU2IiB9..x&x=1"
+    },
+    {
+      "name": "random 141",
+      "input": " eyJ.axIIawCw.\"",
+      "expected": " eyJ.axIIawCw.\""
+    },
+    {
+      "name": "random 142",
+      "input": "id_token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.A..J-ZJI-C\"tokenIHsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF. \\neyAiYWxnIjogIkhTMjU2IiB9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b&x=1",
+      "expected": "id_token=[REDACTED:JWT].J-ZJI-C\"token[REDACTED:JWT] \\n[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 143",
+      "input": "\\new0KImFsZyI6IkhTMjU2In0.e30.48V1_ALb6US04U3b..CJaeoJCCaa&x=1",
+      "expected": "\\n[REDACTED:JWT]..CJaeoJCCaa&x=1"
+    },
+    {
+      "name": "random 144",
+      "input": "\\neyJhbGciOiJkaXIiLCJlbmM.OiJBMjU2R0NNIn0.JwekCaJJ.0.e_.x&x=1-WzEsMiwzXQ.CoeAJw..Z.eo..5eym8TW_c8SuK0lt Bearer _e9aI0-w0_.yeIAko-.x ",
+      "expected": "\\n[REDACTED:JWT].0.e_.x&x=1-WzEsMiwzXQ.CoeAJw..Z.eo..5eym8TW_c8SuK0lt Bearer _e9aI0-w0_.yeIAko-.x "
+    },
+    {
+      "name": "random 145",
+      "input": "id_token=.eCI99-y.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ZZJa90.5eym8TW_c8SuK0lt&x=1Bearer 9.CJ_9e-AA.OKOawDo13gRp2ojaHV7LF.x x_aGVsbG8gd29ybGQh.w.48V1_ALb6US04U3b ",
+      "expected": "id_token=.eCI99-y.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ZZJa90.5eym8TW_c8SuK0lt&x=1Bearer 9.CJ_9e-AA.OKOawDo13gRp2ojaHV7LF.x x_aGVsbG8gd29ybGQh.w.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 146",
+      "input": "-ewokFactory.a..Z-C9.5eym8TW_c8SuK0lt\"Bearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1-IJCCwaA.-0eweeeak.y-.48V1_ALb6US04U3b",
+      "expected": "-ewokFactory.a..Z-C9.5eym8TW_c8SuK0lt\"Bearer [REDACTED:JWT]&x=1-IJCCwaA.-0eweeeak.y-.48V1_ALb6US04U3b"
+    },
+    {
+      "name": "random 147",
+      "input": "id_token=CnsiYWxnIjoiSFMyNTYifQ.ekw..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c..a_-9A.5eym8TW_c8SuK0lt ew0KImFsZyI6IkhTMjU2In0.-.48V1_ALb6US04U3b.w.-.w9_I.5eym8TW_c8SuK0ltabceyxhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.e30.x",
+      "expected": "id_token=[REDACTED:JWT].SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c..a_-9A.5eym8TW_c8SuK0lt ew0KImFsZyI6IkhTMjU2In0.-.48V1_ALb6US04U3b.w.-.w9_I.5eym8TW_c8SuK0ltabceyxhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.e30.x"
+    },
+    {
+      "name": "random 148",
+      "input": "x_eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b a.IHsiYWxnIjoiSFMyNTYifQ.k..ZJI.AIoAo-9.CIe\\naGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZ I6IkpvaG4ifQ.48V1_ALb6US04U3b ",
+      "expected": "x_[REDACTED:JWT] a.IHsiYWxnIjoiSFMyNTYifQ.k..ZJI.AIoAo-9.CIe\\naGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZ I6IkpvaG4ifQ.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 149",
+      "input": "eyJ.a.x\"-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.90yAJe.x.CA.5eym8TW_c8SuK0lt&x=1",
+      "expected": "eyJ.a.x\"-[REDACTED:JWT].CA.5eym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 150",
+      "input": "=ww90kI-J-yo0-.IHsic3ViIjoiMSJ9.-",
+      "expected": "=ww90kI-J-yo0-.IHsic3ViIjoiMSJ9.-"
+    },
+    {
+      "name": "random 151",
+      "input": "-eyJ.-.x\"Bearer eyJhbGciOiJub25lIn0.eCaI.48V1_ALb6US04U3b&x=1",
+      "expected": "-eyJ.-.x\"Bearer [REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 152",
+      "input": "%3DaGVsbG8gd29ybGQh...-Zeye. ",
+      "expected": "%3DaGVsbG8gd29ybGQh...-Zeye. "
+    },
+    {
+      "name": "random 153",
+      "input": "\"eyJ.OKOawDo13gRp2ojaHV7LF.-aGVsbG8gd29ybGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"abceyJhbGciOiJub25lIn0.k0ACaI9kea.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "\"eyJ.OKOawDo13gRp2ojaHV7LF.-aGVsbG8gd29ybGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"abc[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 154",
+      "input": "Bearer CnsiYWxnIjoiSFMyNTYifQ.e30.\"a.WzEsMiwzXQ.a.48V1_ALb6US04U3b.w9.ww9Za.ok9-AIy ",
+      "expected": "Bearer [REDACTED:JWT]\"a.WzEsMiwzXQ.a.48V1_ALb6US04U3b.w9.ww9Za.ok9-AIy "
+    },
+    {
+      "name": "random 155",
+      "input": "id_token=aGVsbG8gd29ybGQh.IHs c3ViIjoiMSJ9.48V1_ALb6US04U3b\"",
+      "expected": "id_token=aGVsbG8gd29ybGQh.IHs c3ViIjoiMSJ9.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 156",
+      "input": "id_token=aCy..9e.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1abcewokFactory.9.9Jkey99J.48V1_ALb6xS04U3b&x=1",
+      "expected": "id_token=aCy..9e.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1abcewokFactory.9.9Jkey99J.48V1_ALb6xS04U3b&x=1"
+    },
+    {
+      "name": "random 157",
+      "input": "\\nIHsiYWxnIjoiSFMyNTYifQ.-..oC.5eym8TW_c8SuK0lt&x=1a.aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.-eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "\\nIHsiYWxnIjoiSFMyNTYifQ.-..oC.5eym8TW_c8SuK0lt&x=1a.aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.-eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\""
+    },
+    {
+      "name": "random 158",
+      "input": "abceyJ.OKOawDo13gRp2ojaHV7LF.x.CZ_9.e.AAw\"-eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ...5eym8TW_c8SuK0lt\"id_token=aGVsbG8gd29ybGQh.k.x.IZ..-9woIJ\"",
+      "expected": "abceyJ.OKOawDo13gRp2ojaHV7LF.x.CZ_9.e.AAw\"-[REDACTED:JWT]\"id_token=aGVsbG8gd29ybGQh.k.x.IZ..-9woIJ\""
+    },
+    {
+      "name": "random 159",
+      "input": "token..JAICo..CZI-0y_-9..waeC_oekAa.tail\\new0KImFsZyI6IkhTMjU2-n0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.tail",
+      "expected": "token..JAICo..CZI-0y_-9..waeC_oekAa.tail\\n[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 160",
+      "input": "A_oa_II0o0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..IewACyw-e-0a.a.Z...w.y-J.&x=1 I.OKOawDo13gRp2ojaHV7LF.x -CnsiYWxnIjoiSFMyNTYifQ..48V1_ALb6US04U3b.kkIkJ9..CoaI0e--9.Z ",
+      "expected": "A_oa_II0o0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..IewACyw-e-0a.a.Z...w.y-J.&x=1 I.OKOawDo13gRp2ojaHV7LF.x -CnsiYWxnIjoiSFMyNTYifQ..48V1_ALb6US04U3b.kkIkJ9..CoaI0e--9.Z "
+    },
+    {
+      "name": "random 161",
+      "input": "Bearer eyJmb28iOjF9.IHsic3ViIjoiMSJ9..AJayZke9..-",
+      "expected": "Bearer eyJmb28iOjF9.IHsic3ViIjoiMSJ9..AJayZke9..-"
+    },
+    {
+      "name": "random 162",
+      "input": "abceyJ.IHsic3ViIjoiMSJ9.x.wI0y.-_0ok.Zey ",
+      "expected": "abceyJ.IHsic3ViIjoiMSJ9.x.wI0y.-_0ok.Zey "
+    },
+    {
+      "name": "random 163",
+      "input": "id_token=eyJ.ZACaCZ-Ae_IZo...w_o0I9-A-A._\"abcIZ.e..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "id_token=eyJ.ZACaCZ-Ae_IZo...w_o0I9-A-A._\"abcIZ.e..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 164",
+      "input": "tokenaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ. ",
+      "expected": "tokenaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ. "
+    },
+    {
+      "name": "random 165",
+      "input": "x_aGVsbG8gd29ybGQh.e30.48V1_ALb6US04U3b.w.a-CACA.ZeJw.wkI\"\"eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.oIa.48V1_ALb6US04U3b._Iee0-a9.wZ0Z.Z.aoe9wtokenCnsiYWxnIjoiSFMyNTYifQ.oCCw0Iyw. ",
+      "expected": "x_aGVsbG8gd29ybGQh.e30.48V1_ALb6US04U3b.w.a-CACA.ZeJw.wkI\"\"[REDACTED:JWT].Z.ao[REDACTED:JWT] "
+    },
+    {
+      "name": "random 166",
+      "input": "\\neyJmb28iOjF9.9kw.oka.48V1_ALb6US04U3b&x=1tokeneyJmb28iOjF9.IHsic3ViIjoiMSJ9.x.wZJ.5eym8TW_c8SuK0lt\" eyJ.a.x.ke0A0Z.aIZJJe_wCo9.C&x=1",
+      "expected": "\\neyJmb28iOjF9.9kw.oka.48V1_ALb6US04U3b&x=1tokeneyJmb28iOjF9.IHsic3ViIjoiMSJ9.x.wZJ.5eym8TW_c8SuK0lt\" eyJ.a.x.ke0A0Z.aIZJJe_wCo9.C&x=1"
+    },
+    {
+      "name": "random 167",
+      "input": "=ew0KImFsZyI6IkhTMjU2In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"Bearer CnsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x\"tokeneyJ.a.x.9ya-.eAaa0IJ.5eym8TW_c8SuK0lt\"",
+      "expected": "=[REDACTED:JWT]\"Bearer [REDACTED:JWT]\"tokeneyJ.a.x.9ya-.eAaa0IJ.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 168",
+      "input": "éeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.aAZCZ-.x.._&x=1x_CnsiYWxnIjoiSFMyNTYifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "é[REDACTED:JWT].._&x=1x_[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 169",
+      "input": "id_token=ew0KImFsZyI6IkhTMjU2In0.wJ. -eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.\"x_IHsiYWxnIjoiSFMyNTYifQ.kZk.48V1_ALb6US04U3b\"",
+      "expected": "id_token=[REDACTED:JWT] -eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.\"x_[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 170",
+      "input": "tokeneyAiYWxnIjogIkhTMjU2IiB9.JZZ0_w.&x=1x_CwkZJ0eJk.0..oCaw..CaCIJ.k0Z9ZJ9.wC&x=1Bearer 9kAA..IHsic3ViIjoiMSJ9. ",
+      "expected": "token[REDACTED:JWT]&x=1x_CwkZJ0eJk.0..oCaw..CaCIJ.k0Z9ZJ9.wC&x=1Bearer 9kAA..IHsic3ViIjoiMSJ9. "
+    },
+    {
+      "name": "random 171",
+      "input": "%3DeyJmb28iOjF9...wJak-oky0.eoCw.9Cwke9JZeyJ.o.9Aw-0ewoA.48V1_ALb6US04U3b\\nWzEsMiwzXQ.eyJzdWIiOiIxM M0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ...J ",
+      "expected": "%3DeyJmb28iOjF9...wJak-oky0.eoCw.9Cwke9JZeyJ.o.9Aw-0ewoA.48V1_ALb6US04U3b\\nWzEsMiwzXQ.eyJzdWIiOiIxM M0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ...J "
+    },
+    {
+      "name": "random 172",
+      "input": "tokenwACC-.ZeIkCyJ..x.ee0.5eym8TW_c8SuK0lt\"\\n.JkJ0eyw.-o-.x.ekeyeJ.9-A00eAJ\"",
+      "expected": "tokenwACC-.ZeIkCyJ..x.ee0.5eym8TW_c8SuK0lt\"\\n.JkJ0eyw.-o-.x.ekeyeJ.9-A00eAJ\""
+    },
+    {
+      "name": "random 173",
+      "input": "\\nCnsiYWxnIjoiSFMyNTYifQ.a.48V1_ALb6US04U3b..J-wk0abcoeeAw9.e30.48V1_ALb6US04U3b\"\"IHsiYWxnIjoiSFMyNTYifQ..ay.48V1_ALb6US04U3b.tail",
+      "expected": "\\nCnsiYWxnIjoiSFMyNTYifQ.a.48V1_ALb6US04U3b..J-wk0abcoeeAw9.e30.48V1_ALb6US04U3b\"\"IHsiYWxnIjoiSFMyNTYifQ..ay.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 174",
+      "input": "ew0KImFsZyI6IkhTMjU2In0.a.x ",
+      "expected": "ew0KImFsZyI6IkhTMjU2In0.a.x "
+    },
+    {
+      "name": "random 175",
+      "input": "a.eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b IeIaJw0-yw0AJ.IHsic3ViIjoiMSJ9..tail",
+      "expected": "a.eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b IeIaJw0-yw0AJ.IHsic3ViIjoiMSJ9..tail"
+    },
+    {
+      "name": "random 176",
+      "input": "abceyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eoek-0-oy0_.\"eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.xabc0kZwwJ9A9ZkJ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "abc[REDACTED:JWT]\"[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 177",
+      "input": "\\n.e.kw_JkZwA.48V1_ALb6US04U3b-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b&x=1eyAiYWxnIjogIkhTMjU2IiB9.I0w9eo.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.90ZZ_--Aka.-CyyaI_JoCy&x=1",
+      "expected": "\\n.e.kw_JkZwA.48V1_ALb6US04U3b-[REDACTED:JWT]&x=1[REDACTED:JWT].90ZZ_--Aka.-CyyaI_JoCy&x=1"
+    },
+    {
+      "name": "random 178",
+      "input": "abc.OKOawDo13gRp2ojaHV7LF..a.5eym8TW_c8SuK0lt.tailBearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "abc.OKOawDo13gRp2ojaHV7LF..a.5eym8TW_c8SuK0lt.tailBearer [REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 179",
+      "input": "abcWzEsMiwzXQ.A.x.I9Zo09oZA.9ky\\new0KImFsZyI6IkhTMjU2In0.e30.x\"éeyJmb28iOjF9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.k-Cea-.a.tail",
+      "expected": "abcWzEsMiwzXQ.A.x.I9Zo09oZA.9ky\\n[REDACTED:JWT]\"éeyJmb28iOjF9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.k-Cea-.a.tail"
+    },
+    {
+      "name": "random 180",
+      "input": "\"WzEsMiwzXQ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "\"WzEsMiwzXQ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "random 181",
+      "input": " -.a...w0_w.5eym8TW_c8SuK0lt&x=1eyJ..48V1_ALb6US04U3btokenaGVsbG8gd29ybGQh...y..ok.",
+      "expected": " -.a...w0_w.5eym8TW_c8SuK0lt&x=1eyJ..48V1_ALb6US04U3btokenaGVsbG8gd29ybGQh...y..ok."
+    },
+    {
+      "name": "random 182",
+      "input": "abc0_yCIo99JJwkZ.y..JA0w_k9090C.5eym8TW_c8SuK0lt  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.x",
+      "expected": "abc0_yCIo99JJwkZ.y..JA0w_k9090C.5eym8TW_c8SuK0lt  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.x"
+    },
+    {
+      "name": "random 183",
+      "input": "=CnsiYWxnIjoiSFMyNTYifQ.y_ZJ JoCAC-Ck.48V1_ALb6US04U3b\" ewokFactory.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-koZ9.Aae0Cya.5eym8TW_c8SuK0lt.tail",
+      "expected": "=CnsiYWxnIjoiSFMyNTYifQ.y_ZJ JoCAC-Ck.48V1_ALb6US04U3b\" ewokFactory.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-koZ9.Aae0Cya.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 184",
+      "input": "ewokFactory.OKOawDo13gRp2ojaHV7LF..tail\\neyJhbGciOiJub25lIn0.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.II.0kyaa_I.I_.-CJJaa09\" eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c..aZJoo0o.-JCZCo",
+      "expected": "ewokFactory.OKOawDo13gRp2ojaHV7LF..tail\\n[REDACTED:JWT].II.0kyaa_I.I_.-CJJaa09\" [REDACTED:JWT].-JCZCo"
+    },
+    {
+      "name": "random 185",
+      "input": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.y-0AJ-w0.48V1_ALb6US04U3b.tail",
+      "expected": " [REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 186",
+      "input": "tokenw.Jk_.a.48V1_ALb6US04U3b\"=CnsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x ",
+      "expected": "tokenw.Jk_.a.48V1_ALb6US04U3b\"=[REDACTED:JWT] "
+    },
+    {
+      "name": "random 187",
+      "input": "token..abc-.koAIo-_.oIok.CkJCwC..tail",
+      "expected": "token..abc-.koAIo-_.oIok.CkJCwC..tail"
+    },
+    {
+      "name": "random 188",
+      "input": "\\neyJ.e30.48V1_ALb6US04U3b\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.y-yIwoJ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "\\neyJ.e30.48V1_ALb6US04U3b\"[REDACTED:JWT]"
+    },
+    {
+      "name": "random 189",
+      "input": "x_eyJ.a. -eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5ctoken.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..Z-wAJy.5eym8TW_c8SuK0lt.tail",
+      "expected": "x_eyJ.a. -[REDACTED:JWT].Z-wAJy.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 190",
+      "input": "\".IHsic3ViIjoiMSJ9.",
+      "expected": "\".IHsic3ViIjoiMSJ9."
+    },
+    {
+      "name": "random 191",
+      "input": "-IHsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..0_.CJwJ.5eym8TW_c8SuK0lt&x=1%3DeyJhbGciOiJub25lIn0.IHsic3ViIjoiMSJ9.x&x=1=wy0ywJ09..Z.oAkakIwkkAa.SflKxwRJ-MeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "-[REDACTED:JWT].0_.CJwJ.5eym8TW_c8SuK0lt&x=1%3D[REDACTED:JWT]&x=1=wy0ywJ09..Z.oAkakIwkkAa.SflKxwRJ-MeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 192",
+      "input": "Bearer .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFt-SI6IkpvaG4ifQ.x ",
+      "expected": "Bearer .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFt-SI6IkpvaG4ifQ.x "
+    },
+    {
+      "name": "random 193",
+      "input": "=eyAiYWxnIjogIkhTMjU2IiB9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailid_token=CnsiYWxnIjoiSFMyNTYifQ.ZyAZZyya.-.",
+      "expected": "=eyAiYWxnIjogIkhTMjU2IiB9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailid_token=[REDACTED:JWT]."
+    },
+    {
+      "name": "random 194",
+      "input": "=WzEsMiwzXQ.09_JI. =eyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.wk.5eym8TW_c8SuK0lt ",
+      "expected": "=WzEsMiwzXQ.09_JI. =eyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.wk.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 195",
+      "input": "CnsiYWxnIjoiSFMyNTYifQ.09eaAIJo..o90-Jw.5eym8TW_c8SuK0lt\"",
+      "expected": "[REDACTED:JWT].o90-Jw.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 196",
+      "input": "id_token=WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\"id_token=.a.48V1_ALb6US04U3b.9.kJC.9a.0-wy-eZwC.9I&x=1tokenJ9-ZCI.oJ.IHsic3ViIjoiMSJ9..a-.5eym8TW_c8SuK0lt.tail",
+      "expected": "id_token=WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\"id_token=.a.48V1_ALb6US04U3b.9.kJC.9a.0-wy-eZwC.9I&x=1tokenJ9-ZCI.oJ.IHsic3ViIjoiMSJ9..a-.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 197",
+      "input": "x_eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eIkJZy0I-.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"id_token=9.w-_Z-_Io.Z.ko.48V1_ALb6US04U3b.C9o-9yA0.&x=1",
+      "expected": "x_[REDACTED:JWT]\"id_token=9.w-_Z-_Io.Z.ko.48V1_ALb6US04U3b.C9o-9yA0.&x=1"
+    },
+    {
+      "name": "random 198",
+      "input": "éewokFactory.o-9JZ.Io.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.eIw9.5eym8TW_c8SuK0lt",
+      "expected": "éewokFactory.o-9JZ.Io.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.eIw9.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 199",
+      "input": "a.eyJmb28iOjF9.IHsic3ViIjoiMSJ9.x ",
+      "expected": "a.eyJmb28iOjF9.IHsic3ViIjoiMSJ9.x "
+    },
+    {
+      "name": "random 200",
+      "input": "Bearer Iy-kJC_J9a.OKOawDo13gRp2ojaHV7LF.x.IC.JZJIa-_A_CaoA\"\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.0AZZI.yJaZ0a.5eym8TW_c8SuK0lt.tail",
+      "expected": "Bearer Iy-kJC_J9a.OKOawDo13gRp2ojaHV7LF.x.IC.JZJIa-_A_CaoA\"\"[REDACTED:JWT].0AZZI.yJaZ0a.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 201",
+      "input": "tokeneyAiYWxnIjogIkhTMjU2IiB9.A.-k-Iow.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c tokenaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailBearer e-C9Aeyk_kw-.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.--_e9wk-0.5eym8TW_c8SuK0lt\"",
+      "expected": "tokeneyAiYWxnIjogIkhTMjU2IiB9.A.-k-Iow.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c tokenaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailBearer e-C9Aeyk_kw-.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.--_e9wk-0.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 202",
+      "input": "éeyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.48V1_ALb6US04U3b x_AA9w9Ck..-oa.Jko.48V1_ALb6US04U3b&x=1",
+      "expected": "éeyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.48V1_ALb6US04U3b x_AA9w9Ck..-oa.Jko.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 203",
+      "input": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.IIye_Jyo0JeJ.owZZJe %3Dk0-I.aIAwk_.IHsic3ViIjoiMSJ9..tail",
+      "expected": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.IIye_Jyo0JeJ.owZZJe %3Dk0-I.aIAwk_.IHsic3ViIjoiMSJ9..tail"
+    },
+    {
+      "name": "random 204",
+      "input": "=C.__ooe.w_waJo.48V1_ALb6US04U3b\"-y.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..tail",
+      "expected": "=C.__ooe.w_waJo.48V1_ALb6US04U3b\"-y.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..tail"
+    },
+    {
+      "name": "random 205",
+      "input": "-w0weCe9ok.k.a-Ce.48V1_ALb6US04U3b._yI0w_I.-.Zo-oCZx_eyAiYWxnIjogIkhTMjU2IiB9.a.x.Ja.ka_ke0.oaZ.a_w éeyJhbGciOiJub25lIn0.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.A.AeJwZIoJ.5eym8TW_c8SuK0lt.tail",
+      "expected": "-w0weCe9ok.k.a-Ce.48V1_ALb6US04U3b._yI0w_I.-.Zo-oCZx_eyAiYWxnIjogIkhTMjU2IiB9.a.x.Ja.ka_ke0.oaZ.a_w é[REDACTED:JWT].A.AeJwZIoJ.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 206",
+      "input": "token..",
+      "expected": "token.."
+    },
+    {
+      "name": "random 207",
+      "input": "ewokFactory.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1a.AJCIy.__yCy..IHsic3ViIjoiMSJ9.x",
+      "expected": "ewokFactory.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1a.AJCIy.__yCy..IHsic3ViIjoiMSJ9.x"
+    },
+    {
+      "name": "random 208",
+      "input": "é0_.OKOawDo13gRp2ojaHV7LF.x\"é.Z-oekJkZwew9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3béeyJmb28iOjF9.-.-_C0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "é0_.OKOawDo13gRp2ojaHV7LF.x\"é.Z-oekJkZwew9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3béeyJmb28iOjF9.-.-_C0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\""
+    },
+    {
+      "name": "random 209",
+      "input": "\"eyJmb28iOjF9.e30.x.tail%3DeyJ.0_kyyI.._Iy_Ae.eIw9Z&x=1a.eyAiYWxnIjogIkhTMjU2IiB9.o0Io__yww..x.CayIakCy9IZeo.5eym8TW_c8SuK0lt.tail",
+      "expected": "\"eyJmb28iOjF9.e30.x.tail%3DeyJ.0_kyyI.._Iy_Ae.eIw9Z&x=1a.[REDACTED:JWT].x.CayIakCy9IZeo.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 210",
+      "input": "x_WzEsMiwzXQ..Jy.ZJ0.48V1_ALb6US04U3b&x=1",
+      "expected": "x_WzEsMiwzXQ..Jy.ZJ0.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 211",
+      "input": "Bearer eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ZJ_Awe--ke.5eym8TW_c8SuK0lt\"",
+      "expected": "Bearer [REDACTED:JWT]\""
+    },
+    {
+      "name": "random 212",
+      "input": "IkwZe_JJ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\"",
+      "expected": "IkwZe_JJ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 213",
+      "input": "x_eyJmb28iOjF9.y-.",
+      "expected": "x_eyJmb28iOjF9.y-."
+    },
+    {
+      "name": "random 214",
+      "input": "\".ea0ya-.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5céewokFactory.I.C.48V1_A.b6US04U3b\"",
+      "expected": "\".ea0ya-.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5céewokFactory.I.C.48V1_A.b6US04U3b\""
+    },
+    {
+      "name": "random 215",
+      "input": "a.ewokFactory-IHsic3ViIjoiMSJ9.x ",
+      "expected": "a.ewokFactory-IHsic3ViIjoiMSJ9.x "
+    },
+    {
+      "name": "random 216",
+      "input": "Bearer eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ..x.9.5eym8TW_c8SuK0lt.tail",
+      "expected": "Bearer [REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 217",
+      "input": "-ew0KImFsZyI6IkhTMjU2In0.yw_JAaI. ",
+      "expected": "-[REDACTED:JWT] "
+    },
+    {
+      "name": "random 218",
+      "input": "Bearer WzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..AwZoJoC.Cwkw-I0oeC",
+      "expected": "Bearer WzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..AwZoJoC.Cwkw-I0oeC"
+    },
+    {
+      "name": "random 219",
+      "input": "Bearer eyJhbGciOiJub25lIn0..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailéeyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "Bearer eyJhbGciOiJub25lIn0..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tailéeyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "random 220",
+      "input": "tokeneoC0o-.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x abcWzEsMiwzXQ..Zy9ae-we.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.k.a.k_a\"",
+      "expected": "tokeneoC0o-.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x abcWzEsMiwzXQ..Zy9ae-we.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.k.a.k_a\""
+    },
+    {
+      "name": "random 221",
+      "input": "\"CnsiYWxnIjoiSFMyNTYifQ.e30.48V1_ALb6US04U3b\"id_token=yoJk-k_CZe-.e30.48V1_ALb6US04U3b&x=1=eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.0yJeA0ZZJ-.5eym8TW_c8SuK0lt&x=1",
+      "expected": "\"[REDACTED:JWT]\"id_token=yoJk-k_CZe-.e30.48V1_ALb6US04U3b&x=1=[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 222",
+      "input": "x_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.48V1_ALb6US04U3b éIHsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.&x=1Bearer -eCy0k_0oo.CIZ..JaZaokw.Z_.5eym8TW_c8SuK0lt",
+      "expected": "x_[REDACTED:JWT] é[REDACTED:JWT]&x=1Bearer -eCy0k_0oo.CIZ..JaZaokw.Z_.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 223",
+      "input": "id_token=ew0KImFsZyI6IkhTMjU2In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c..Zew-oZIk.I9\"éeyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b&x=1",
+      "expected": "id_token=[REDACTED:JWT]..Zew-oZIk.I9\"é[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 224",
+      "input": "\"IaZeCyoeC9..48V1_ALb6US04U3b.kye-ywZ_9.5eym8TW_c8SuK0lt\"WzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.Ayy.-I.--0CaC.Aew é-HsiYWxnIjoiSFMyNTYifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "\"IaZeCyoeC9..48V1_ALb6US04U3b.kye-ywZ_9.5eym8TW_c8SuK0lt\"WzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.Ayy.-I.--0CaC.Aew é-HsiYWxnIjoiSFMyNTYifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 225",
+      "input": "a.AwyyC00kCa..eyJhbGciOiJub25lIn0..x\"",
+      "expected": "a.AwyyC00kCa..eyJhbGciOiJub25lIn0..x\""
+    },
+    {
+      "name": "random 226",
+      "input": "abc.oIya.I_wIwoJ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.C.CIAwIoI9-yZZ",
+      "expected": "abc.oIya.I_wIwoJ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.C.CIAwIoI9-yZZ"
+    },
+    {
+      "name": "random 227",
+      "input": " eyJ.e30.48V1_ALb6US04U3b tokeneyAiYWxnIjogIkhTMjU2IiB9.yA9k0C9k_-.48V1_ALb6US04U3b._CyCo0w._.tailA0JkAwCAIe.w0o.x.A.AkAweI9J.we.9e.0yeeae",
+      "expected": " eyJ.e30.48V1_ALb6US04U3b token[REDACTED:JWT]._CyCo0w._.tailA0JkAwCAIe.w0o.x.A.AkAweI9J.we.9e.0yeeae"
+    },
+    {
+      "name": "random 228",
+      "input": "=IHsiYWxnIjoiSFMyNTYifQ.e30..Z9k.Jk0Iky.-9o009ZwwZ9A&x=1",
+      "expected": "=[REDACTED:JWT].Z9k.Jk0Iky.-9o009ZwwZ9A&x=1"
+    },
+    {
+      "name": "random 229",
+      "input": "Bearer eyJ.a.48V1_ALb6US04U3b\"x_e.IkeI.e.48V1_ALb6US04U3bx_J-JoZ9J-Z..\"",
+      "expected": "Bearer eyJ.a.48V1_ALb6US04U3b\"x_e.IkeI.e.48V1_ALb6US04U3bx_J-JoZ9J-Z..\""
+    },
+    {
+      "name": "random 230",
+      "input": " eyJ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.\"\"aGVsbG8gd29ybGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": " eyJ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.\"\"aGVsbG8gd29ybGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 231",
+      "input": "éyak.J9-.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1-eyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x&x=1",
+      "expected": "éyak.J9-.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1-eyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x&x=1"
+    },
+    {
+      "name": "random 232",
+      "input": "id_token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.e30.48V1_ALb6US04U3b-eyAiYWxnIjogIkhTMjU2IiB9.eoywoww.48V1_ALb6US04U3b %3DIZ_a.k.-kZZIk.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "id_token=[REDACTED:JWT] %3DIZ_a.k.-kZZIk.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail"
+    },
+    {
+      "name": "random 233",
+      "input": " eyJhbGciOiJub25lI.0.a.48V1_ALb6US04U3b.AAZ-J._ZAJk09.5eym8TW_c8SuK0lt.tail",
+      "expected": " eyJhbGciOiJub25lI.0.a.48V1_ALb6US04U3b.AAZ-J._ZAJk09.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 234",
+      "input": "Bearer ew0KImFsZyI6IkhTMjU2In0.Z.9Cw0y.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.9kA.I-a_-CwoeeA&x=1tokeneyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.48V1_ALb6US04U3b.woaA9k-Jo0.9y9C.JyAy-IC\"",
+      "expected": "Bearer ew0KImFsZyI6IkhTMjU2In0.Z.9Cw0y.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.9kA.I-a_-CwoeeA&x=1token[REDACTED:JWT].JyAy-IC\""
+    },
+    {
+      "name": "random 235",
+      "input": "éyC_CZ ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c a.ewokFactory..x.tailabcIHsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b\"",
+      "expected": "éyC_CZ ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c a.ewokFactory..x.tailabc[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 236",
+      "input": "x_eyAiYWxnIjogIkhTMjU2IiB9.IHsic3ViIjoiMSJ9...9Z999.Z. id_token=ewokFactory.IJyIa_k.48V1_ALb6US04U3b\"",
+      "expected": "x_[REDACTED:JWT]..9Z999.Z. id_token=ewokFactory.IJyIa_k.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 237",
+      "input": "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-J.5eym8TW_c8SuK0lt ",
+      "expected": "[REDACTED:JWT] "
+    },
+    {
+      "name": "random 238",
+      "input": "\\n.OKOawDo13gRp2ojaHV7LF..tailx_eyJ.IHsic3ViIjoiMSJ9.x&x=1-ko.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c...Jke0aCZo-9a0.&x=1",
+      "expected": "\\n.OKOawDo13gRp2ojaHV7LF..tailx_eyJ.IHsic3ViIjoiMSJ9.x&x=1-ko.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c...Jke0aCZo-9a0.&x=1"
+    },
+    {
+      "name": "random 239",
+      "input": "id_token=eyJmb28iOjF9.CZJ-Z0.x.oo..5eym8TW_c8SuK0lt&x=1-_9y....CA.5eym8TW_c8SuK0lt.taila.eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.Ck9IkC_we.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "id_token=eyJmb28iOjF9.CZJ-Z0.x.oo..5eym8TW_c8SuK0lt&x=1-_9y....CA.5eym8TW_c8SuK0lt.taila.[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 240",
+      "input": "abceyJ..x.CwZZa.9Ik\"=99-C9.a.x",
+      "expected": "abceyJ..x.CwZZa.9Ik\"=99-C9.a.x"
+    },
+    {
+      "name": "random 241",
+      "input": "%3DJI..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "%3DJI..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 242",
+      "input": "a.eyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1 eyJhbGciOiJub25lIn0.IIZkkJI0CJZ9k. ",
+      "expected": "a.eyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1 [REDACTED:JWT] "
+    },
+    {
+      "name": "random 243",
+      "input": "id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a..-ACZekA-.5eym8TW_c8SuK0lt.tail",
+      "expected": "id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a..-ACZekA-.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 244",
+      "input": "\"eyJhbGciOiJub25lIn0.-_A-ko.9e0x.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c =eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.x&x=1abceyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.OKOawDo13gRp2ojaHV7LF.x ",
+      "expected": "\"[REDACTED:JWT].SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c =eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.a.x&x=1abc[REDACTED:JWT] "
+    },
+    {
+      "name": "random 245",
+      "input": "-eyJhbGciOiJub25lIn0.a.\"",
+      "expected": "-eyJhbGciOiJub25lIn0.a.\""
+    },
+    {
+      "name": "random 246",
+      "input": "tokeneyJmb28iOjF9.k.Z0__JkC_.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "tokeneyJmb28iOjF9.k.Z0__JkC_.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "random 247",
+      "input": "A-0.9_ZaZk.0CkwIJkwakZ.. ",
+      "expected": "A-0.9_ZaZk.0CkwIJkwakZ.. "
+    },
+    {
+      "name": "random 248",
+      "input": "éeyJhbGciOiJub25lIn0.99C0_09y0C..J_.5eym8TW_c8SuK0ltabcICykk.OKOawDo13gRp2ojaHV7LF...5eym8TW_c8SuK0lt.tailid_token=...48V1_ALb6US04U3b&x=1",
+      "expected": "é[REDACTED:JWT].J_.5eym8TW_c8SuK0ltabcICykk.OKOawDo13gRp2ojaHV7LF...5eym8TW_c8SuK0lt.tailid_token=...48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 249",
+      "input": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.48V1_ALb6US04U3b..5eym8TW_c8SuK0ltx_WzEsMiwzXQ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b..a0C9_eZIo9",
+      "expected": " [REDACTED:JWT]..5eym8TW_c8SuK0ltx_WzEsMiwzXQ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b..a0C9_eZIo9"
+    },
+    {
+      "name": "random 250",
+      "input": "-eC-A.oJICJyo.x id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.48V1_ALb6US04U3b.e-aak00AA0ee.IC ew0KImFsZyI6IkhTMjU2In0.e30.48V1_ALb6US04U3b ",
+      "expected": "-eC-A.oJICJyo.x id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.48V1_ALb6US04U3b.e-aak00AA0ee.IC [REDACTED:JWT] "
+    },
+    {
+      "name": "random 251",
+      "input": "\\nIHsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.\"kaAeyo0y-Jw-_._JCkCA.w_aA_A.&x=1x_ew0KImFsZyI6IkhTMjU2In0..48V1_ALb6US04U3b.Aw9I.ZCA-AI.-99C_ ",
+      "expected": "\\n[REDACTED:JWT]\"kaAeyo0y-Jw-_._JCkCA.w_aA_A.&x=1x_ew0KImFsZyI6IkhTMjU2In0..48V1_ALb6US04U3b.Aw9I.ZCA-AI.-99C_ "
+    },
+    {
+      "name": "random 252",
+      "input": "éew0KImFsZyI6IkhTMjU2In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.eaew-o..CwwCZo.-9wo&x=1",
+      "expected": "é[REDACTED:JWT].eaew-o..CwwCZo.-9wo&x=1"
+    },
+    {
+      "name": "random 253",
+      "input": "\\na..a.xid_token=eyJhbGciOiJub25lIn0.Z.aJ..J. -IAZa..w0I0yy.-.k_o..9oo0a.y0.ko&x=1",
+      "expected": "\\na..a.xid_token=eyJhbGciOiJub25lIn0.Z.aJ..J. -IAZa..w0I0yy.-.k_o..9oo0a.y0.ko&x=1"
+    },
+    {
+      "name": "random 254",
+      "input": "\"xzEsMiwzXQ.Zy.e.&x=1..a.x.tail-eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ..ZJk00k9I.x.tail",
+      "expected": "\"xzEsMiwzXQ.Zy.e.&x=1..a.x.tail-[REDACTED:JWT]"
+    },
+    {
+      "name": "random 255",
+      "input": "-eoAyAJ9.e30.x.A.5eym8TW_c8SuK0ltBearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.&x=1",
+      "expected": "-eoAyAJ9.e30.x.A.5eym8TW_c8SuK0ltBearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.&x=1"
+    },
+    {
+      "name": "random 256",
+      "input": "\\neyAiYWxnIjogIkhTMjU2IiB9.a.\"%3Dk.._ZeJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x 1",
+      "expected": "\\neyAiYWxnIjogIkhTMjU2IiB9.a.\"%3Dk.._ZeJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x 1"
+    },
+    {
+      "name": "random 257",
+      "input": "=keawCekykao.-..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-ok0J-.5eym8TW_c8SuK0lt.tail",
+      "expected": "=keawCekykao.-..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-ok0J-.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 258",
+      "input": " eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.ak-yk..JyJkya.x.IeIZ-CZAC.A..JwC..ACJ",
+      "expected": " [REDACTED:JWT].IeIZ-CZAC.A..JwC..ACJ"
+    },
+    {
+      "name": "random 259",
+      "input": "éIHsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.\"",
+      "expected": "é[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 260",
+      "input": "éew0KImFsZyI6IkhTMjU2In0.a...k..Aya.o0..tailid_token=IHsiYWxnIjoiSFMyNTYifQ.ZI._0.x.CI0Iyak-k-.5eym8TW_c8SuK0lt\"",
+      "expected": "éew0KImFsZyI6IkhTMjU2In0.a...k..Aya.o0..tailid_token=[REDACTED:JWT].x.CI0Iyak-k-.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 261",
+      "input": "abceyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x&x=1",
+      "expected": "abc[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 262",
+      "input": "éwJJJ-we9k.JZakwI0_kI-..tail",
+      "expected": "éwJJJ-we9k.JZakwI0_kI-..tail"
+    },
+    {
+      "name": "random 263",
+      "input": "x_eyJhbGciOiJub25lIn0.aJ..taileyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...w.0C..yw.ZeZa-Zabca-yAAJJAa.oAA.yk.aZwa_..48V1_ALb6US04U3b ",
+      "expected": "x_[REDACTED:JWT].taileyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...w.0C..yw.ZeZa-Zabca-yAAJJAa.oAA.yk.aZwa_..48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 264",
+      "input": "IHsiYWxnIjoiSFMyNTYif-.IwAy..48V1_ALb6US04U3b\"eyJhbGciOiJub25lIn0.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b\"",
+      "expected": "[REDACTED:JWT].48V1_ALb6US04U3b\"[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 265",
+      "input": "\"aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "\"aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 266",
+      "input": "Bearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.Z..9_k-0oI..tail",
+      "expected": "Bearer [REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 267",
+      "input": "éy.0._Aky_.Z0Jye_I.\" ZJykk0o.a.x.kAIy_-Ao.ox.ay9yIo=.AoC_..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.._eCw9IZkweI0.ykJwa9Z.AJo0 ",
+      "expected": "éy.0._Aky_.Z0Jye_I.\" ZJykk0o.a.x.kAIy_-Ao.ox.ay9yIo=.AoC_..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.._eCw9IZkweI0.ykJwa9Z.AJo0 "
+    },
+    {
+      "name": "random 268",
+      "input": "abcoZ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1aGVsbG8gd29ybGQh.9_owACJ_J.48V1_ALb6US04U3b.eAyZ.IA9ky.ZCwk&x=1x_kyeI.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "abcoZ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1aGVsbG8gd29ybGQh.9_owACJ_J.48V1_ALb6US04U3b.eAyZ.IA9ky.ZCwk&x=1x_kyeI.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 269",
+      "input": "-aGVsbG8gd29ybGQh.e30..k9.I.k_a00-..0oewCJ9-ZaZCZ id_token=wAA0ka-y9yAae.e30. x_J..IJ-AJaJ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "-aGVsbG8gd29ybGQh.e30..k9.I.k_a00-..0oewCJ9-ZaZCZ id_token=wAA0ka-y9yAae.e30. x_J..IJ-AJaJ.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 270",
+      "input": " w_Jae.kyw_..x.o9aAeekA--Jo.5eym8TW_c8SuK0lt",
+      "expected": " w_Jae.kyw_..x.o9aAeekA--Jo.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 271",
+      "input": "éeyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail",
+      "expected": "éeyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail"
+    },
+    {
+      "name": "random 272",
+      "input": "abcewokFactory.IoC.ZCAIek.48V1_ALb6US04U3b..IIZw9a WzEsMiwzXQ.Ca90_y9JIZ.48V1_ALb6US04U3b...5eym8TW_c8SuK0lt \\nJJAww-Ckw9AJC.a.48V1_ALb6US04U3b.IAAC--0.-_ow.k..w ",
+      "expected": "abcewokFactory.IoC.ZCAIek.48V1_ALb6US04U3b..IIZw9a WzEsMiwzXQ.Ca90_y9JIZ.48V1_ALb6US04U3b...5eym8TW_c8SuK0lt \\nJJAww-Ckw9AJC.a.48V1_ALb6US04U3b.IAAC--0.-_ow.k..w "
+    },
+    {
+      "name": "random 273",
+      "input": "Bearer wCJw.w._C-J.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..tail",
+      "expected": "Bearer wCJw.w._C-J.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..tail"
+    },
+    {
+      "name": "random 274",
+      "input": "%3DCnsiYWxnIjoiSFMyNT.ifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail\\neyJhbGciOiJub25lIn0.a.48V1_ALb6US04U3b&x=1 WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF.x.o..Z0aaCa.Zoo0-k.0.ZCy.tail",
+      "expected": "%3D[REDACTED:JWT].SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail\\neyJhbGciOiJub25lIn0.a.48V1_ALb6US04U3b&x=1 WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF.x.o..Z0aaCa.Zoo0-k.0.ZCy.tail"
+    },
+    {
+      "name": "random 275",
+      "input": "aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.wAyeI.5eym8TW_c8SuK0lt.tail",
+      "expected": "aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.wAyeI.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 276",
+      "input": "x_e.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "x_e.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\""
+    },
+    {
+      "name": "random 277",
+      "input": "id_token=I.AeZ.Zo0o.x&x=1é.e30..9AaA_w.e.0\"%3DeyAiYWxnIjogIkhTMjU2IiB9...CZwJy-ZI.k.-C9ZeI9Ie.AI&x=1",
+      "expected": "id_token=I.AeZ.Zo0o.x&x=1é.e30..9AaA_w.e.0\"%3DeyAiYWxnIjogIkhTMjU2IiB9...CZwJy-ZI.k.-C9ZeI9Ie.AI&x=1"
+    },
+    {
+      "name": "random 278",
+      "input": "\"eyJ..48V1_ALb6US04U3b",
+      "expected": "\"eyJ..48V1_ALb6US04U3b"
+    },
+    {
+      "name": "random 279",
+      "input": "%3DeyJhbGciOiJub25lIn0._JZo0_J..x..wC0C0JoI_J",
+      "expected": "%3D[REDACTED:JWT].x..wC0C0JoI_J"
+    },
+    {
+      "name": "random 280",
+      "input": "=.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.tail",
+      "expected": "=.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 281",
+      "input": "IHsiYWxnIjoiSFMyNTYifQ.o-JwZ_IZyaC0-.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.Zk0oa0y-C.5eym8TW_c8SuK0lt",
+      "expected": "[REDACTED:JWT].Zk0oa0y-C.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 282",
+      "input": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..48V1_ALb6US04U3b&x=1-eyAiYWxnIjogIkhTMjU2IiB9.a.48V1_ALb6US04U3b.tail",
+      "expected": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..48V1_ALb6US04U3b&x=1-eyAiYWxnIjogIkhTMjU2IiB9.a.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 283",
+      "input": "éeyAiYWxnIjogIkhTMjU2IiB9.. ",
+      "expected": "éeyAiYWxnIjogIkhTMjU2IiB9.. "
+    },
+    {
+      "name": "random 284",
+      "input": "abceyJ.Ae.48V1_ALb6US04U3b.oo000AJoC.e-oA.9 token.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.A9I.J_wZa0.tail",
+      "expected": "abceyJ.Ae.48V1_ALb6US04U3b.oo000AJoC.e-oA.9 token.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.A9I.J_wZa0.tail"
+    },
+    {
+      "name": "random 285",
+      "input": "abceyAiYWxnIjogIkhTMjU2IiB9.ky.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1\\neyJmb28iOjF9.k_yZek9-.x abcew0KImFsZyI6IkhTMjU2In0.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b",
+      "expected": "abc[REDACTED:JWT]&x=1\\neyJmb28iOjF9.k_yZek9-.x abc[REDACTED:JWT]"
+    },
+    {
+      "name": "random 286",
+      "input": "éeyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.IeoJ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.9y_y-.5eym8TW_c8SuK0lt.taila.eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "é[REDACTED:JWT].taila.eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 287",
+      "input": "-eyJ.e30.._0Jo0CeJCoe9.AAAAkZJk-&x=1id_token=WzEsMiwzXQ.e30.é-o-akZ00C.OKOawDo13gRp2ojaHV7LF.x",
+      "expected": "-eyJ.e30.._0Jo0CeJCoe9.AAAAkZJk-&x=1id_token=WzEsMiwzXQ.e30.é-o-akZ00C.OKOawDo13gRp2ojaHV7LF.x"
+    },
+    {
+      "name": "random 288",
+      "input": "%3D0o9JJZ-9.OKOawDo13gRp2ojaHV7LF.x\"x___yeJy-y-weo.a.48V1_ALb6US04U3b..JCwI09.._.Cke-aoAoI éeyJhbGciOiJub25lIn0.e30.\"",
+      "expected": "%3D0o9JJZ-9.OKOawDo13gRp2ojaHV7LF.x\"x___yeJy-y-weo.a.48V1_ALb6US04U3b..JCwI09.._.Cke-aoAoI é[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 289",
+      "input": "a.eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b",
+      "expected": "a.eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b"
+    },
+    {
+      "name": "random 290",
+      "input": "\\nCnsiYWxnIjoiSFMyNTYifQ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "\\nCnsiYWxnIjoiSFMyNTYifQ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 291",
+      "input": "-aGVsbG8gd29ybGQh.a..wk0-0ee.48V1_ALb6US04U3b..5eym8TW_c8SuK0lt\"=aGVsbG8gd29ybGQh.a.48V1_ALb6US04U3b.9A-0.Za0oCZ0 tokeneyJ.yy_y9-I0aaJk.x\"",
+      "expected": "-aGVsbG8gd29ybGQh.a..wk0-0ee.48V1_ALb6US04U3b..5eym8TW_c8SuK0lt\"=aGVsbG8gd29ybGQh.a.48V1_ALb6US04U3b.9A-0.Za0oCZ0 tokeneyJ.yy_y9-I0aaJk.x\""
+    },
+    {
+      "name": "random 292",
+      "input": "-e-J..9oZo..9o_0CeJwewaao.y_CkC_.-&x=1tokenZ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b&x=1",
+      "expected": "-e-J..9oZo..9o_0CeJwewaao.y_CkC_.-&x=1tokenZ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 293",
+      "input": "id_token=WzEsMiwzXQ.oIZI.oJ.x  eyAiYWxnIjogIkhTMjU2IiB9.OKOawDo13gRp2ojaHV7LF.x",
+      "expected": "id_token=WzEsMiwzXQ.oIZI.oJ.x  [REDACTED:JWT]"
+    },
+    {
+      "name": "random 294",
+      "input": "\"IHsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.tail\"IHsiYWxnIjoiSFMyNTYifQ.aJk0oae.  WzEsMiwzXQ.OKOawDo-3gRp2ojaHV7LF.",
+      "expected": "\"[REDACTED:JWT].tail\"[REDACTED:JWT]  WzEsMiwzXQ.OKOawDo-3gRp2ojaHV7LF."
+    },
+    {
+      "name": "random 295",
+      "input": " eyJhbGciOiJub25lIn0.eyJxdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.yo-.5eym8TW_c8SuK0lt.tailabceyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b.k..-",
+      "expected": " [REDACTED:JWT].yo-.5eym8TW_c8SuK0lt.tailabc[REDACTED:JWT].-"
+    },
+    {
+      "name": "random 296",
+      "input": "Bearer _aCao9.e30.48V1_ALb6US04U3b.tail",
+      "expected": "Bearer _aCao9.e30.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 297",
+      "input": "\\na00y-_-e0oyJ9.y.x._okI.5eym8TW_c8SuK0lt tokenyACeZ0wC..IHsic3ViIjoiMSJ9.\"",
+      "expected": "\\na00y-_-e0oyJ9.y.x._okI.5eym8TW_c8SuK0lt tokenyACeZ0wC..IHsic3ViIjoiMSJ9.\""
+    },
+    {
+      "name": "random 298",
+      "input": "\"Jo0ZaA.ZAy9J-kkZaw.48V1_ALb6US04U3b.Z-_AZ-I0yIJ.9\"a.IHsiYWxnIjoiSFMyNTYifQ..48V1_ALb6US04U3b.kI.5eym8TW_c8SuK0lt&x=1",
+      "expected": "\"Jo0ZaA.ZAy9J-kkZaw.48V1_ALb6US04U3b.Z-_AZ-I0yIJ.9\"a.IHsiYWxnIjoiSFMyNTYifQ..48V1_ALb6US04U3b.kI.5eym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 299",
+      "input": "=eyJhbGciOiJub25lIn0.Cy9yZyw..kyke_Jeya.Aa9o0aIZy99  y-yyew_.kC.e30.x..5eym8TW_c8SuK0lt eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.kkeA-Z.0ky9CwJkJo.Cw",
+      "expected": "=[REDACTED:JWT].kyke_Jeya.Aa9o0aIZy99  y-yyew_.kC.e30.x..5eym8TW_c8SuK0lt [REDACTED:JWT].kkeA-Z.0ky9CwJkJo.Cw"
+    },
+    {
+      "name": "random 300",
+      "input": "-eyJmb28iOjF9.e.oAI.._A_A0eoC_C.5eym8TW_c8SuK0lt.tail-.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.tailBearer 9w0_-.IHsic3ViIjoiMSJ9.&x=1",
+      "expected": "-eyJmb28iOjF9.e.oAI.._A_A0eoC_C.5eym8TW_c8SuK0lt.tail-.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.tailBearer 9w0_-.IHsic3ViIjoiMSJ9.&x=1"
+    },
+    {
+      "name": "random 301",
+      "input": "éIHsiYWxnIjoiSFMyNTYifQ.ak-..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail\\n..48V1_ALb6US04U3b\"abceyJhbGciOiJub25lIn0.9k9o.x.tail",
+      "expected": "é[REDACTED:JWT].SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.tail\\n..48V1_ALb6US04U3b\"abc[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 302",
+      "input": "abc0A.I.Ik99.x\"x_...0aJZ-.5eym8TW_c8SuK0lt&x=1",
+      "expected": "abc0A.I.Ik99.x\"x_...0aJZ-.5eym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 303",
+      "input": "x_WzEsMiwzXQ.e30.x\"eyJ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "x_WzEsMiwzXQ.e30.x\"eyJ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1"
+    },
+    {
+      "name": "random 304",
+      "input": " k9CkoZ.ay.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"x_CnsiYWxnIjoiSFMyNTYifQ.ZJa_..C..&x=1",
+      "expected": " k9CkoZ.ay.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"x_[REDACTED:JWT].C..&x=1"
+    },
+    {
+      "name": "random 305",
+      "input": "x_eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.e30.48V1_ALb6US04U3b.Ze.5eym8TW_c8SuK0lt\"",
+      "expected": "x_[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 306",
+      "input": " eyJhbGciOiJub25lIn0.Joaeyww.48V1_ALb6US04U3b.e.k90oe.9_-.tail",
+      "expected": " [REDACTED:JWT].e.k90oe.9_-.tail"
+    },
+    {
+      "name": "random 307",
+      "input": "a.eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.aC_.e9J9_JCw. ewokFactory...-a_Ao9..5eym8TW_c8SuK0lt=CnsiYWxnIjoiSFMyNTYifQ._ww_I.x&x=1",
+      "expected": "a.[REDACTED:JWT]. ewokFactory...-a_Ao9..5eym8TW_c8SuK0lt=[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 308",
+      "input": "\"WzEsMiwzXQ.IHsic3ViIjoiMSJ9.ew0KImFsZyI6IkhTMjU2In0.IHsic3ViIjoiMSJ9. ",
+      "expected": "\"WzEsMiwzXQ.IHsic3ViIjoiMSJ9.[REDACTED:JWT] "
+    },
+    {
+      "name": "random 309",
+      "input": "x_eyJhbGciOiJIUzI1NiIsI.R5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.tailx_eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x éeyAiYWxnIjogIkhTMjU2IiB9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x&x=1",
+      "expected": "x_[REDACTED:JWT].48V1_ALb6US04U3b.tailx_[REDACTED:JWT] é[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 310",
+      "input": "-aGVsbG8gd29ybGQh.e30.",
+      "expected": "-aGVsbG8gd29ybGQh.e30."
+    },
+    {
+      "name": "random 311",
+      "input": "abcWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.o_aw.y0wJy.II0-w90_JabcIHsiYWxnIjoiSFMyNTYifQ.a.%3DeyJhbGciOiJub25lIn0.e30.48V1_ALb6US04U3b.tail",
+      "expected": "abcWzEsMiwzXQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.o_aw.y0wJy.II0-w90_JabcIHsiYWxnIjoiSFMyNTYifQ.a.%3D[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 312",
+      "input": "-eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.-kyCy9oA9y_-.00AwZee0o.tailéeyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.0k990J.48V1_ALb6US04U3b&x=1",
+      "expected": "-[REDACTED:JWT].tailé[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 313",
+      "input": "tokenIHsiYWxnIjoiSFMyNTYifQ.J_aC0o.48V1_ALb6US04U3b&x=1",
+      "expected": "token[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 314",
+      "input": "éeyAiYWxnIjogIkhTMjU2IiB9.IHsic3ViIjoiMSJ9.x\" eyJ.k_aoACa.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1tokeneyJmb28iOjF9.e30.48V1_ALb6US04U3b.tail",
+      "expected": "é[REDACTED:JWT]\" eyJ.k_aoACa.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1tokeneyJmb28iOjF9.e30.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 315",
+      "input": "a.kI-oa.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1%3DeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.taila.eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ..48V1_ALb6US04U3b.kkoZ-oyw.5eym8TW_c8SuK0lt.tail",
+      "expected": "a.kI-oa.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1%3D[REDACTED:JWT].taila.[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 316",
+      "input": "x_eyAiYWxnIjogIkhTMjU2IiB9.a.x.x.__C.IJk9yk_",
+      "expected": "x_eyAiYWxnIjogIkhTMjU2IiB9.a.x.x.__C.IJk9yk_"
+    },
+    {
+      "name": "random 317",
+      "input": "-CJewee.OKOawDo13gRp2ojaHV7LF.x&x=1\\newokFactory.ZZ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.w--ow.ACC-y_9 abceyJhbGciOiJub25lIn0.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\"",
+      "expected": "-CJewee.OKOawDo13gRp2ojaHV7LF.x&x=1\\newokFactory.ZZ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.w--ow.ACC-y_9 abc[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 318",
+      "input": "x_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.o--0a_C-.x&x=1éaGVsbG8gd29ybGQh.e30...5eym8TW_c8SuK0lt&x=1",
+      "expected": "x_[REDACTED:JWT]&x=1éaGVsbG8gd29ybGQh.e30...5eym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 319",
+      "input": "%3DeyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..tail",
+      "expected": "%3DeyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..tail"
+    },
+    {
+      "name": "random 320",
+      "input": "abcewokFactory.OKO.wDo13gRp2ojaHV7LF.48V1_ALb6US04U3b ",
+      "expected": "abcewokFactory.OKO.wDo13gRp2ojaHV7LF.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 321",
+      "input": "Bearer .e30.&x=1",
+      "expected": "Bearer .e30.&x=1"
+    },
+    {
+      "name": "random 322",
+      "input": "x_WzEsMiwz.Q.e30.&x=1a.IHsiYWxnIjoiSFMyNTYifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"abceyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.ew9J.5eym8TW_c8SuK0lt ",
+      "expected": "x_WzEsMiwz.Q.e30.&x=1a.[REDACTED:JWT]\"abc[REDACTED:JWT] "
+    },
+    {
+      "name": "random 323",
+      "input": "=WzE.MiwzXQ._ewJoe.48V1_ALb6US04U3b._Je. aGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.._9JkyyAaway-.IoZ.ye--k ",
+      "expected": "=WzE.MiwzXQ._ewJoe.48V1_ALb6US04U3b._Je. aGVsbG8gd29ybGQh.OKOawDo13gRp2ojaHV7LF.._9JkyyAaway-.IoZ.ye--k "
+    },
+    {
+      "name": "random 324",
+      "input": "%3DAe..AooIa-CJ.\\new0KImFsZyI6IkhTMjU2In0.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3btokenWzEsMiwzXQ.a.48V1_ALb6US04U3b\"",
+      "expected": "%3DAe..AooIa-CJ.\\n[REDACTED:JWT].a.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 325",
+      "input": "token.a.x&x=1 IHsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.9Z9__-.okZ -eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9._w_k9-JIw0Cya.",
+      "expected": "token.a.x&x=1 [REDACTED:JWT].9Z9__-.okZ -[REDACTED:JWT]"
+    },
+    {
+      "name": "random 326",
+      "input": "tokenCnsiYWxnIjoiSFMyNTYifQ.awe-oA0.Z-oA.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5ceyJ..x",
+      "expected": "token[REDACTED:JWT].SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5ceyJ..x"
+    },
+    {
+      "name": "random 327",
+      "input": "id_token=eyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ZCeIyawI9C.5eym8TW_c8SuK0lt.tailIHsiYWxnIjoiSFMyNTYifQ.CaAkaya-.48V1_ALb6US04U3bid_token=k.Ja9ekA9.o.e30.",
+      "expected": "id_token=eyJ.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.ZCeIyawI9C.5eym8TW_c8SuK0lt.tail[REDACTED:JWT]=k.Ja9ekA9.o.e30."
+    },
+    {
+      "name": "random 328",
+      "input": "%3D.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5cBearer eyAiYWxnIjogIkhTMjU2IiB9.e30.48V1_ALb6US04U3b.kkoy9e.5eym8TW_c8SuK0lt",
+      "expected": "%3D.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5cBearer [REDACTED:JWT].kkoy9e.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 329",
+      "input": "\"eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x\"a.ewokFactory.ek0ACZ.x",
+      "expected": "\"[REDACTED:JWT]\"a.ewokFactory.ek0ACZ.x"
+    },
+    {
+      "name": "random 330",
+      "input": "\\nIHsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ..tailtokeneyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LF..tail eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "\\n[REDACTED:JWT].tailtoken[REDACTED:JWT].tail [REDACTED:JWT]\""
+    },
+    {
+      "name": "random 331",
+      "input": "éewokFactory.e30.x&x=1tokeneyAiYWxnIjogIkhTMjU2IiB9.-Z.48V1_ALb6US04U3b\"",
+      "expected": "éewokFactory.e30.x&x=1token[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 332",
+      "input": "%3DeyJhbGciOiJub25lIn0.I-wCaZw.48V1_ALb6US04U3b..5eym8TW_c8SuK0lt.tailéWzEsMiwzXQ._.\"",
+      "expected": "%3D[REDACTED:JWT]..5eym8TW_c8SuK0lt.tailéWzEsMiwzXQ._.\""
+    },
+    {
+      "name": "random 333",
+      "input": "éWzEsMiwz.Q.IHsic3ViIjoiMSJ9.x.Co-I-a.y-.5eym8TW_c8SuK0lt\"",
+      "expected": "éWzEsMiwz.Q.IHsic3ViIjoiMSJ9.x.Co-I-a.y-.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 334",
+      "input": "Bearer WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF..._ACIkkJo0wwe.oIo-CyyAooek.taileyJ.bGciOiJub25lIn0..x=eyJ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "Bearer WzEsMiwzXQ.OKOawDo13gRp2ojaHV7LF..._ACIkkJo0wwe.oIo-CyyAooek.taileyJ.bGciOiJub25lIn0..x=eyJ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 335",
+      "input": "\"eyAiYWxnIjogIkhTMjU2IiB9.-y0ky.48V1_ALb6US04U3b.akaIwAIo-_0.5eym8TW_c8SuK0lt eyJhbGciOiJub25lIn0.ZI_oJCC.e.x.ak wyI.Jy_a0_.-.&x=1x_-Jeey.e_oo..._IZk_o-we.Zk-&x=1",
+      "expected": "\"[REDACTED:JWT].akaIwAIo-_0.5eym8TW_c8SuK0lt [REDACTED:JWT].x.ak wyI.Jy_a0_.-.&x=1x_-Jeey.e_oo..._IZk_o-we.Zk-&x=1"
+    },
+    {
+      "name": "random 336",
+      "input": "=eyAiYWxnIjogIkhTMjU2IiB9.e30.x.taila.ew0KImFsZyI6IkhTMjU2In0.w.48V1_ALb6US04U3b.wC_o_ICya.5eym8TW_c8SuK0lt\"tokenIHsiYWxnIjoiSFMyNTYifQ.0C.yoaa-a-wI.x&x=1",
+      "expected": "=[REDACTED:JWT].taila.ew0KImFsZyI6IkhTMjU2In0.w.48V1_ALb6US04U3b.wC_o_ICya.5eym8TW_c8SuK0lt\"token[REDACTED:JWT].x&x=1"
+    },
+    {
+      "name": "random 337",
+      "input": "%3DeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.OKOawDo13gRp2ojaHV7LF.x.AokJeAa.-ye-.5eym8TW_c8SuK0lt\"-eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b..kZawA9.Ie.a_",
+      "expected": "%3D[REDACTED:JWT].AokJeAa.-ye-.5eym8TW_c8SuK0lt\"-[REDACTED:JWT].Ie.a_"
+    },
+    {
+      "name": "random 338",
+      "input": "%3DewokFactory.e30.48V1_ALb6US04U3b ",
+      "expected": "%3DewokFactory.e30.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 339",
+      "input": "\\ne.aoZwaoyyIA.ake_9eCyZykwk.48V1_ALb6US04U3b.taix=Ceea_AC0y.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.-ekIo_I.C.5eym8TW_c8SuK0lt.tail",
+      "expected": "\\ne.aoZwaoyyIA.ake_9eCyZykwk.48V1_ALb6US04U3b.taix=Ceea_AC0y.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.-ekIo_I.C.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 340",
+      "input": "=eyAiYWxnIjogIkhTMjU2IiB9.IHsic3ViIjoiMSJ9. \"ew0KImFsZyI6IkhTMjU2In0.exJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.\"",
+      "expected": "=[REDACTED:JWT] \"[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 341",
+      "input": "a.CnsiYWxnIjoiSFMyNTYifQ.ww_eAZJaZI_.x\\neyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..x=aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.-AAo_CI.5eym8TW_c8SuK0lt ",
+      "expected": "a.[REDACTED:JWT]\\neyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..x=aGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.-AAo_CI.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 342",
+      "input": "éeyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.JJ.a.kZ. ",
+      "expected": "é[REDACTED:JWT] "
+    },
+    {
+      "name": "random 343",
+      "input": "id_token=WzEsMiwzXQ..48V1_ALb6US04U3b..-y_Ze9C.ktokenyowye.-IC.wCk.x.-IooC9Z0..5-ym8TW_c8SuK0lt&x=1",
+      "expected": "id_token=WzEsMiwzXQ..48V1_ALb6US04U3b..-y_Ze9C.ktokenyowye.-IC.wCk.x.-IooC9Z0..5-ym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 344",
+      "input": "a.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.IHsic3ViIjoiMSJ9.x&x=1",
+      "expected": "a.[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 345",
+      "input": "Bearer eyJhbGciOiJub25lIn0..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c token.eI9Cy.48V1_ALb6US04U3b.eA.5eym8TW_c8SuK0lt\"",
+      "expected": "Bearer eyJhbGciOiJub25lIn0..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c token.eI9Cy.48V1_ALb6US04U3b.eA.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 346",
+      "input": "éeyAiYWxnIjogIkhTMjU2IiB9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"9.CeI.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      "expected": "éeyAiYWxnIjogIkhTMjU2IiB9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"9.CeI.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    },
+    {
+      "name": "random 347",
+      "input": "%3DWzEsMiwzXQ.Caw.90.yeZI.x&x=1Bearer kCJe-oZo.-yAo.48V1_ALb6US04U3b.tail.e30.48V1_ALb6US04U3b&x=1",
+      "expected": "%3DWzEsMiwzXQ.Caw.90.yeZI.x&x=1Bearer kCJe-oZo.-yAo.48V1_ALb6US04U3b.tail.e30.48V1_ALb6US04U3b&x=1"
+    },
+    {
+      "name": "random 348",
+      "input": "\\n.ICIkZZya._A.I.48V1_ALb6US04U3b ",
+      "expected": "\\n.ICIkZZya._A.I.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 349",
+      "input": "B-arer aGVsbG8gd29ybGQh.9_ZA.48V1_ALb6US04U3b\"",
+      "expected": "B-arer aGVsbG8gd29ybGQh.9_ZA.48V1_ALb6US04U3b\""
+    },
+    {
+      "name": "random 350",
+      "input": "-ewokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.J.._aw.0.eAJ ",
+      "expected": "-ewokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b.J.._aw.0.eAJ "
+    },
+    {
+      "name": "random 351",
+      "input": "=ew0KImFsZyI6IkhTMjU2In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.0oI.5eym8TW_c8SuK0lt.tail",
+      "expected": "=[REDACTED:JWT].0oI.5eym8TW_c8SuK0lt.tail"
+    },
+    {
+      "name": "random 352",
+      "input": "IHsiYWxnIjoiSFMyNTYifQ.y0.9ZIkCkaZA.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c Bearer eyJmb28iOjF9.e30.48V1_ALb6US04U3babceyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..0w.x\"",
+      "expected": "[REDACTED:JWT].SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c Bearer eyJmb28iOjF9.e30.48V1_ALb6US04U3babceyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..0w.x\""
+    },
+    {
+      "name": "random 353",
+      "input": "tokenaGVsbG8gd29ybGQh..x\"Bearer WzEsMiwzXQ.I_ZC.Cy-y.48V1_ALb6US04U3b.tail",
+      "expected": "tokenaGVsbG8gd29ybGQh..x\"Bearer WzEsMiwzXQ.I_ZC.Cy-y.48V1_ALb6US04U3b.tail"
+    },
+    {
+      "name": "random 354",
+      "input": "-earer J.-eC.IHsic3ViIjoiMSJ9.x&x=1",
+      "expected": "-earer J.-eC.IHsic3ViIjoiMSJ9.x&x=1"
+    },
+    {
+      "name": "random 355",
+      "input": "x_.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\\newokFactory.a..w-ww0.5eym8TW_c8SuK0lt\"",
+      "expected": "x_.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\\newokFactory.a..w-ww0.5eym8TW_c8SuK0lt\""
+    },
+    {
+      "name": "random 356",
+      "input": "_.wk_e.Iwe..48V1_ALb6US04U3b\"\"eyJ.OKOawDo13gRp2ojaHV7LF..tail",
+      "expected": "_.wk_e.Iwe..48V1_ALb6US04U3b\"\"eyJ.OKOawDo13gRp2ojaHV7LF..tail"
+    },
+    {
+      "name": "random 357",
+      "input": "a.ewokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "a.ewokFactory.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 358",
+      "input": "Bearer IHsiYWxnIjoiSFMyNTYifQ.ax\"",
+      "expected": "Bearer IHsiYWxnIjoiSFMyNTYifQ.ax\""
+    },
+    {
+      "name": "random 359",
+      "input": "%3DewokFactory.wJ.wywJ0.48V1_ALb6US04U3b",
+      "expected": "%3DewokFactory.wJ.wywJ0.48V1_ALb6US04U3b"
+    },
+    {
+      "name": "random 360",
+      "input": "tokeneyJ.IHsic3ViIjoiMSJ9. ",
+      "expected": "tokeneyJ.IHsic3ViIjoiMSJ9. "
+    },
+    {
+      "name": "random 361",
+      "input": "éewokFactory.0..J9Z0k_wJJZ9-.\\n0A..\"",
+      "expected": "éewokFactory.0..J9Z0k_wJJZ9-.\\n0A..\""
+    },
+    {
+      "name": "random 362",
+      "input": "\\ny.IHsic3ViIjoiMSJ9.\"",
+      "expected": "\\ny.IHsic3ViIjoiMSJ9.\""
+    },
+    {
+      "name": "random 363",
+      "input": "x_aGVsbG8gd29ybGQh.a..aI.k_-oa.A0w..wA_CJayw.9a.tail",
+      "expected": "x_aGVsbG8gd29ybGQh.a..aI.k_-oa.A0w..wA_CJayw.9a.tail"
+    },
+    {
+      "name": "random 364",
+      "input": " 0_C.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5ctokenCnsiYWxnIjoiSFMyNTYifQ..y9I..-o.x.tail",
+      "expected": " 0_C.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5ctokenCnsiYWxnIjoiSFMyNTYifQ..y9I..-o.x.tail"
+    },
+    {
+      "name": "random 365",
+      "input": "-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.9ke.x.tail\"eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF..A__.5eym8TW_c8SuK0lt\"abceyJmb28iOjF9.aw-9_JIJoCa.x",
+      "expected": "-[REDACTED:JWT].tail\"eyJmb28iOjF9.OKOawDo13gRp2ojaHV7LF..A__.5eym8TW_c8SuK0lt\"abceyJmb28iOjF9.aw-9_JIJoCa.x"
+    },
+    {
+      "name": "random 366",
+      "input": "éCnsiYWxnIjoiSFMyN YifQ.IHsic3ViIjoiMSJ9. ",
+      "expected": "éCnsiYWxnIjoiSFMyN YifQ.IHsic3ViIjoiMSJ9. "
+    },
+    {
+      "name": "random 367",
+      "input": "id_token=.a.48V1_ALb6US04U3b\"x_I.a...A.ewoy_o.e\"",
+      "expected": "id_token=.a.48V1_ALb6US04U3b\"x_I.a...A.ewoy_o.e\""
+    },
+    {
+      "name": "random 368",
+      "input": "oJ..&x=1id_token=ICAokCZ.kk0IJ..0kZCwwA-e9C.48V1_ALb6US04U3b.Z-Co_.5eym8TW_c8SuK0lt ",
+      "expected": "oJ..&x=1id_token=ICAokCZ.kk0IJ..0kZCwwA-e9C.48V1_ALb6US04U3b.Z-Co_.5eym8TW_c8SuK0lt "
+    },
+    {
+      "name": "random 369",
+      "input": "token.k.e30.xtokenaGVsbG8gd29ybGQh..\"id_token=.e30.48V1_ALb6US04U3b ",
+      "expected": "token.k.e30.xtokenaGVsbG8gd29ybGQh..\"id_token=.e30.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 370",
+      "input": "abceyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.kyC. \"eyAiYWxnIjogIkhTMjU2IiB9.e30.48V1_ALb6US04U3b.kyA.oZJ.Z0AJZ&x=1=eyJmb28iOjF9.e30.x.kew.CAZCIJa0ICy.tail",
+      "expected": "abc[REDACTED:JWT] \"[REDACTED:JWT].kyA.oZJ.Z0AJZ&x=1=eyJmb28iOjF9.e30.x.kew.CAZCIJa0ICy.tail"
+    },
+    {
+      "name": "random 371",
+      "input": "tokenIHsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.9-..9aw.aa.5eym8TW_c8SuK0lt\"=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.k-weeIAI-_.x ",
+      "expected": "token[REDACTED:JWT].9-..9aw.aa.5eym8TW_c8SuK0lt\"=[REDACTED:JWT] "
+    },
+    {
+      "name": "random 372",
+      "input": "\\neyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.tail",
+      "expected": "\\n[REDACTED:JWT].tail"
+    },
+    {
+      "name": "random 373",
+      "input": "=IHsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x \"eyJmb28iOjF9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"\\nk-y.e30.48V1_ALb6US04U3b ",
+      "expected": "=[REDACTED:JWT] \"eyJmb28iOjF9..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"\\nk-y.e30.48V1_ALb6US04U3b "
+    },
+    {
+      "name": "random 374",
+      "input": "Bearer IHsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.-C.0a9.a0-_\"",
+      "expected": "Bearer [REDACTED:JWT].-C.0a9.a0-_\""
+    },
+    {
+      "name": "random 375",
+      "input": "ewokFactory.OKOawDo13gRp2ojaHV7LF.&x=1x_..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "ewokFactory.OKOawDo13gRp2ojaHV7LF.&x=1x_..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 376",
+      "input": "é.OKOawDo13gRp2ojaHV7LF.&x=1",
+      "expected": "é.OKOawDo13gRp2ojaHV7LF.&x=1"
+    },
+    {
+      "name": "random 377",
+      "input": "x_aGVsbG8gd29yxGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.taila.eyAiYWxnIjogIkhTMjU2IiB9.IHsic3ViIjoiMSJ9.48V1_ALb6US04U3b.I.eeeyJJ.5eym8TW_c8SuK0lt.tailabceyAiYWxnIjogIkhTMjU2IiB9.w_9akZ9y.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1",
+      "expected": "x_aGVsbG8gd29yxGQh.a.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.taila.[REDACTED:JWT].I.eeeyJJ.5eym8TW_c8SuK0lt.tailabc[REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 378",
+      "input": "x_CnsiYWxnIjoiSFMyNTYifQ...-CwACe-_I..okoyZII_wJ%3DCnsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b\"-eyJhbGciOiJSU0EtT0xFUCIsImVuYyI6IkEyNTZHQ00ifQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+      "expected": "x_CnsiYWxnIjoiSFMyNTYifQ...-CwACe-_I..okoyZII_wJ%3D[REDACTED:JWT]\"-[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 379",
+      "input": " I_9o0eA.AZeZk.Z9.wk.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.eIy9Jy.aZ.ACo.5eym8TW_c8SuK0lt",
+      "expected": " I_9o0eA.AZeZk.Z9.wk.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.eIy9Jy.aZ.ACo.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 380",
+      "input": "x_eyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b\"%3De.OKOawDo13gRp2ojaHV7LF.x..IJAaowaZAw..5eym8TW_c8SuK0lt",
+      "expected": "x_eyJmb28iOjF9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.48V1_ALb6US04U3b\"%3De.OKOawDo13gRp2ojaHV7LF.x..IJAaowaZAw..5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 381",
+      "input": "token.JC-0.a..yAJwZ0.5eym8TW_c8SuK0ltid_token=eyJ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.0o_CkoyZ0.AZ.5eym8TW_c8SuK0lt\"\\nIHsiYWxnIjoiSFMyNTYifQ.IHsic3ViIjoiMSJ9.\"",
+      "expected": "token.JC-0.a..yAJwZ0.5eym8TW_c8SuK0ltid_token=eyJ.OKOawDo13gRp2ojaHV7LF.48V1_ALb6US04U3b.0o_CkoyZ0.AZ.5eym8TW_c8SuK0lt\"\\n[REDACTED:JWT]\""
+    },
+    {
+      "name": "random 382",
+      "input": " 00ZaA0y0oy.Z..x&x=1-eyJ.IHsic3ViIjoiMSJ9..tail=CnsiYWxnIjoiSFMyNTYifQ.Aw.48V1_ALb6US04U3b.JweA_.yywA9aIeAC&x=1",
+      "expected": " 00ZaA0y0oy.Z..x&x=1-eyJ.IHsic3ViIjoiMSJ9..tail=[REDACTED:JWT].JweA_.yywA9aIeAC&x=1"
+    },
+    {
+      "name": "random 383",
+      "input": "abcWzEsMiwzXQ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.e00A..0kIk.wo.Z9_AA9.tailBearer .e30..tail CnsiYWxnIjoiSFMyNTYifQ.e30.x&x=1",
+      "expected": "abcWzEsMiwzXQ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.e00A..0kIk.wo.Z9_AA9.tailBearer .e30..tail [REDACTED:JWT]&x=1"
+    },
+    {
+      "name": "random 384",
+      "input": "-ewokFactory.0-J.e.48V1_ALb6US04U3b.o.-ZJCykoka.w.9ke-&x=1",
+      "expected": "-ewokFactory.0-J.e.48V1_ALb6US04U3b.o.-ZJCykoka.w.9ke-&x=1"
+    },
+    {
+      "name": "random 385",
+      "input": "abceyJhbGciOiJub25lIn0..x\"eyJhbGciOiJub25lIn0...IZI9I.00Zoo.5eym8TW_c8SuK0lt",
+      "expected": "abceyJhbGciOiJub25lIn0..x\"eyJhbGciOiJub25lIn0...IZI9I.00Zoo.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 386",
+      "input": "a.eyJhbGciOiJub25lIn0.0.48V1_ALb6US04U3b.k-ow--Cea..e00&x=1",
+      "expected": "a.eyJhbGciOiJub25lIn0.0.48V1_ALb6US04U3b.k-ow--Cea..e00&x=1"
+    },
+    {
+      "name": "random 387",
+      "input": "Bearer eyJmb28iOjF9...CoJI-A.5eym8TW_c8SuK0lt&x=1id_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ZwyCo.C_wJywZ.48V1_ALb6US04U3b.tailéeyJmb28iOjF9.a.",
+      "expected": "Bearer eyJmb28iOjF9...CoJI-A.5eym8TW_c8SuK0lt&x=1id_token=[REDACTED:JWT].48V1_ALb6US04U3b.tailéeyJmb28iOjF9.a."
+    },
+    {
+      "name": "random 388",
+      "input": "\\neyAiYWxnIjogIkhTMjU2IiB9.e30.x.Ao-a9.5eym8TW_c8SuK0lt&x=1",
+      "expected": "\\n[REDACTED:JWT].Ao-a9.5eym8TW_c8SuK0lt&x=1"
+    },
+    {
+      "name": "random 389",
+      "input": "a.eyJhbGciOiJIUzI1-iIsInR5cCI6IkpXVCJ9.ZywZ0Je0w.48V1_ALb6US04U3b ",
+      "expected": "a.[REDACTED:JWT] "
+    },
+    {
+      "name": "random 390",
+      "input": "ZICyA.a..Je_Za0owo..5eym8TW_c8SuK0lt\"éew0KImFsZyI6IkhTMjU2In0.a.x&x=1",
+      "expected": "ZICyA.a..Je_Za0owo..5eym8TW_c8SuK0lt\"éew0KImFsZyI6IkhTMjU2In0.a.x&x=1"
+    },
+    {
+      "name": "random 391",
+      "input": "tokenCnsiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x&x=1tokeneyJmb28iOjF9.aoaow_Cwy..tail",
+      "expected": "token[REDACTED:JWT]&x=1tokeneyJmb28iOjF9.aoaow_Cwy..tail"
+    },
+    {
+      "name": "random 392",
+      "input": "%3DeyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1tokenaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c \\newZ0.a.x.tail",
+      "expected": "%3DeyJmb28iOjF9.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c&x=1tokenaGVsbG8gd29ybGQh.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c \\newZ0.a.x.tail"
+    },
+    {
+      "name": "random 393",
+      "input": "-o-JZI-.oAyo-.OKOawDo13gRp2ojaHV7LF. k90Z--Aw_J.e30.48V1_ALb6US04U3b.y.5eym8TW_c8SuK0lt",
+      "expected": "-o-JZI-.oAyo-.OKOawDo13gRp2ojaHV7LF. k90Z--Aw_J.e30.48V1_ALb6US04U3b.y.5eym8TW_c8SuK0lt"
+    },
+    {
+      "name": "random 394",
+      "input": "Bearer eyJmb28iOjF9.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5ctokenWzEsMiwzXQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c ",
+      "expected": "Bearer eyJmb28iOjF9.IHsic3ViIjoiMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5ctokenWzEsMiwzXQ.e30.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+    },
+    {
+      "name": "random 395",
+      "input": "x_.IHsic3ViIjoiMSJ9. ",
+      "expected": "x_.IHsic3ViIjoiMSJ9. "
+    },
+    {
+      "name": "random 396",
+      "input": " eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.x.CCk-k.5eym8TW_c8SuK0lt\"x_eyJ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c...wee0",
+      "expected": " [REDACTED:JWT].CCk-k.5eym8TW_c8SuK0lt\"x_eyJ..SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c...wee0"
+    },
+    {
+      "name": "random 397",
+      "input": "a.eyAiYWxnIjogIkhTMjU2IiB9.Aao9JyJZA9e.x.eyZye.5eym8TW_c8SuK0lt.tail=a9ykAkow.Z.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.w9Ay.Cy..&x=1",
+      "expected": "a.[REDACTED:JWT].eyZye.5eym8TW_c8SuK0lt.tail=a9ykAkow.Z.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.w9Ay.Cy..&x=1"
+    },
+    {
+      "name": "random 398",
+      "input": " CnsiYWxnIjoiSFMyNTYifQ.OKOawDo13gRp2ojaHV7LF. eyJhbGciOiJub25lIn0.a.48V1_ALb6US04U3b",
+      "expected": " [REDACTED:JWT] eyJhbGciOiJub25lIn0.a.48V1_ALb6US04U3b"
+    },
+    {
+      "name": "random 399",
+      "input": "\\naGVsbG8gd29ybGQh...tailx_ew0KImFsZyI6IkhTMjU2In0.IIyy.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c =I-_.-0weya.C9CeI-9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.oa_IA.5eym8TW_c8SuK0lt&x=1",
+      "expected": "\\naGVsbG8gd29ybGQh...tailx_[REDACTED:JWT] =I-_.-0weya.C9CeI-9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c.oa_IA.5eym8TW_c8SuK0lt&x=1"
+    }
+  ]
+}

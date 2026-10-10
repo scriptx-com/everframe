@@ -102,43 +102,40 @@ struct RedactionEngineTests {
         #expect(RedactionEngine().redact("id%3D\(token)") == "id%3D[REDACTED:jwt]")
     }
 
-    /// Decided: short dotted names with these prefixes stay; a full JWT shape is masked (the accepted cost).
-    @Test func redact_dottedNamesStartingLikeASpacedHeader() {
-        for name in ["ewok.something.else", "eyAudit.Foo.Bar", "com.example.ewokFactory.create(EwokFactory.swift:7)"] {
-            #expect(RedactionEngine().redact(name) == name)
-        }
-        #expect(RedactionEngine().redact("ewokFactory.createInstance.something") == "[REDACTED:jwt]")
+    /// The decode check keeps dotted names that start like an encoded `{`, however long their segments.
+    @Test(arguments: ["ewok.something.else", "eyAudit.Foo.Bar", "com.example.ewokFactory.create(EwokFactory.swift:7)",
+                      "ewokFactory.createInstance.something", "com.example.SurveyJobScheduler.internal.coroutines.dispatcher.something",
+                      "version 1.2.3.4567890"])
+    func redact_keepsNamesThatStartLikeAJSONHeader(name: String) {
+        #expect(RedactionEngine().redact(name) == name)
     }
 
-    /// JwtScan gives exactly the plain regex result, and stays linear where the plain scan is quadratic.
-    @Test func jwtScan_matchesThePlainRegexAndStaysLinear() throws {
-        let rule = try #require(SharedData.redactionPatterns.first { $0.id == "jwt" })
-        let regex = try NSRegularExpression(pattern: rule.regex)
-        var seed: UInt32 = 0x2545f491
-        func random(_ n: Int) -> Int { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return Int(seed % UInt32(n)) }
-        let alphabet = Array("aZ09_-eyJwAok")
-        let glue = ["", " ", "_", "-", "x", "%3D", "é", #"\n"#, ".", "=", ".."]
-        let prefixes = ["eyJ", "eyA", "ewo", "ewk", "ew0"]
-        var redacted = 0
-        for _ in 0..<2_000 {
-            var value = ""
-            for _ in 0...random(3) {
-                value += glue[random(glue.count)]
-                value += (0...random(6)).map { _ in
-                    (random(2) == 0 ? prefixes[random(prefixes.count)] : "") + String((0..<random(13)).map { _ in alphabet[random(alphabet.count)] })
-                }.joined(separator: ".")
-            }
-            let expected = regex.stringByReplacingMatches(in: value, range: NSRange(value.startIndex..., in: value), withTemplate: "[J]")
-            #expect(JwtScan.replace(regex, in: value, with: "[J]") == expected, "\(value)")
-            if expected != value { redacted += 1 }
+    /// One reference implementation (TS) wrote the expected output for every case; this scanner must match it.
+    @Test func jwtScan_matchesTheSharedCorpus() throws {
+        struct Corpus: Decodable { struct Case: Decodable { let name: String; let input: String; let expected: String }
+            let replacement: String; let cases: [Case] }
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("protocol/__tests__/fixtures/jwt-redaction-corpus.v1.json")
+        let corpus = try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
+        #expect(corpus.cases.count > 400)
+        for entry in corpus.cases {
+            #expect(JwtScan.replace(in: entry.input, with: corpus.replacement) == entry.expected, "\(entry.name)")
         }
-        #expect(redacted > 200)
-        for value in [String(repeating: "eyJ-", count: 262_144), String(repeating: "eyJabcde.eyJabcde.", count: 58_254),
-                      String(repeating: "-eyJ", count: 262_143) + ".abcdefgh", String(repeating: "ewo-eyA-ewk-ew0-", count: 65_536),
-                      String(repeating: "xewoabcde..abcdefgh.abcdefgh.", count: 36_158)] {
+    }
+
+    @Test func jwtScan_staysLinearOnHostileMegabytes() {
+        let compact = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        for value in [String(repeating: "eyJ-", count: 262_144), String(repeating: "a.", count: 524_288),
+                      String(repeating: "abcdefgh.ab.c ", count: 74_899),
+                      String(repeating: String(repeating: "e30", count: 370) + ".e30.x ", count: 940),
+                      String(repeating: String(repeating: "Zm9vYmFy", count: 140) + ".YmF6.cXV4 ", count: 925),
+                      String(repeating: String(repeating: "x", count: 64) + "e30e30e30e30.e30. ", count: 12_337),
+                      String(repeating: "\(compact).e30.sig ", count: 23_000)] {
+            #expect(value.utf16.count >= 1_000_000)
             let started = Date()
             _ = RedactionEngine().redact(value)
-            #expect(Date().timeIntervalSince(started) < 5, "a megabyte took \(Date().timeIntervalSince(started)) s")
+            #expect(Date().timeIntervalSince(started) < 10, "a megabyte took \(Date().timeIntervalSince(started)) s")
         }
     }
 

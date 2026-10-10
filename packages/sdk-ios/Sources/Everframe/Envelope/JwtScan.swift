@@ -1,98 +1,133 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Applies the shared JWT rule (`jwt` in redaction-patterns.json) in linear time, with exactly the
-// regex's own result; mirrors redactJwt in packages/protocol/src/redaction.ts.
+// JWT and JWE redaction by structure; mirrors redactJwt in packages/protocol/src/redaction.ts, and
+// the shared corpus (packages/protocol/__tests__/fixtures/jwt-redaction-corpus.v1.json) pins both.
 //
-// The plain scan retries the pattern at every header prefix (`eyJ`, `eyA`, `ewo`, `ewk`, `ew0`: a
-// JSON `{` followed by `"`, a space, a newline, a tab or a carriage return), and each try runs to the
-// end of its segment, so `eyJ-eyJ-…` costs O(n²): seconds for a 64 KB body. Every match starts with
-// a header prefix and a header that runs to the end of its [A-Za-z0-9_-] segment, where a '.' must
-// follow. All starts inside one
-// segment therefore end their header at the same place and succeed or fail on the same text after
-// it; a later start only has a shorter header. So the leftmost start, then the leftmost start at a
-// word boundary (inside a segment only '-' gives one), decide the whole segment.
+// A candidate is a header segment of base64url characters (at least 8), a '.', a payload or
+// encrypted-key segment, a '.', and a third segment (possibly empty); a JWE adds two more. It is
+// redacted only when the header decodes to a JOSE header: RFC 7515 and RFC 7516 require a JSON
+// object with an "alg" member, so after any leading JSON whitespace the decoded header must start
+// with '{' and contain "alg". Dotted class, package and module names never decode to that.
+//
+// Linear: each segment run is a header candidate once, a candidate reads at most four more
+// segments, and it tries at most `maxGlue` + 1 starts (text glued before the header, such as `x_`
+// or the `3D` of `%3D`, stays), each decoding at most `maxHeaderDecode` characters.
 import Foundation
 
 enum JwtScan {
-    /// A three-character prefix plus five: the shortest header the rule accepts.
+    static let maxGlue = 64
+    static let maxHeaderDecode = 1024
     private static let minHeader = 8
-    private static let e: UInt16 = 0x65, y: UInt16 = 0x79, w: UInt16 = 0x77, dot: UInt16 = 0x2E, dash: UInt16 = 0x2D
+    private static let dot: UInt16 = 0x2E
+    private static let base64url: [Int8] = {
+        var table = [Int8](repeating: -1, count: 128)
+        for (index, unit) in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".utf16.enumerated() {
+            table[Int(unit)] = Int8(index)
+        }
+        return table
+    }()
+    private static let alg: [UInt8] = Array("\"alg\"".utf8)
+    private static let enc: [UInt8] = Array("\"enc\"".utf8)
 
-    static func replace(_ regex: NSRegularExpression, in input: String, with replacement: String) -> String {
+    static func replace(in input: String, with replacement: String) -> String {
         let units = Array(input.utf16)
-        // One UTF-16 backed string for every anchored try, so no try transcodes the whole input.
-        let subject = NSMutableString(string: input) as String
-        var out = ""
+        var decoded = [UInt8](repeating: 0, count: maxHeaderDecode / 4 * 3)
+        var out: [UInt16] = []
         var copied = 0
-        var from = 0
+        var index = 0
         var changed = false
-        while let first = nextHeaderPrefix(units, from: from) {
-            var end = first + 3
-            while end < units.count && isSegmentUnit(units[end]) { end += 1 }
-            if end - first >= minHeader && end < units.count && units[end] == dot {
-                var start = first
-                var matchEnd = endAt(regex, subject, units.count, first)
-                if matchEnd < 0, let boundary = boundaryStart(units, from: first + 1, end: end) {
-                    start = boundary
-                    matchEnd = endAt(regex, subject, units.count, boundary)
-                }
-                if matchEnd >= 0 {
-                    out += String(utf16CodeUnits: Array(units[copied..<start]), count: start - copied)
-                    out += replacement
-                    copied = matchEnd
-                    from = matchEnd
-                    changed = true
-                    continue
-                }
+        while index < units.count {
+            guard isSegment(units[index]) else { index += 1; continue }
+            let runEnd = segmentEnd(units, from: index)
+            guard runEnd - index >= minHeader, runEnd < units.count, units[runEnd] == dot,
+                  let token = tokenAt(units, runStart: index, headerEnd: runEnd, decoded: &decoded) else {
+                index = runEnd
+                continue
             }
-            from = end
+            if !changed { out.reserveCapacity(units.count); changed = true }
+            out.append(contentsOf: units[copied..<token.start])
+            out.append(contentsOf: replacement.utf16)
+            copied = token.end
+            index = token.end
         }
         guard changed else { return input }
-        out += String(utf16CodeUnits: Array(units[copied...]), count: units.count - copied)
-        return out
+        out.append(contentsOf: units[copied...])
+        return String(utf16CodeUnits: out, count: out.count)
     }
 
-    /// End of the rule's match starting exactly at `start`, or -1. Transparent bounds let `\b` see
-    /// the character before `start`.
-    private static func endAt(_ regex: NSRegularExpression, _ subject: String, _ length: Int, _ start: Int) -> Int {
-        guard let match = regex.firstMatch(in: subject, options: [.anchored, .withTransparentBounds],
-                                           range: NSRange(location: start, length: length - start)) else { return -1 }
-        return match.range.location + match.range.length
-    }
-
-    /// Whether a JSON header's base64url can start at `index`: `eyJ`, `eyA`, `ewo`, `ewk` or `ew0`.
-    private static func headerPrefixAt(_ units: [UInt16], _ index: Int) -> Bool {
-        guard index + 3 <= units.count, units[index] == e else { return false }
-        let third = units[index + 2]
-        switch units[index + 1] {
-        case y: return third == 0x4A || third == 0x41 // J, A
-        case w: return third == 0x6F || third == 0x6B || third == 0x30 // o, k, 0
-        default: return false
+    /// A JWE header with two more segments takes all five; otherwise three, with a payload of 2+.
+    private static func tokenAt(_ units: [UInt16], runStart: Int, headerEnd: Int,
+                                decoded: inout [UInt8]) -> (start: Int, end: Int)? {
+        let payloadEnd = segmentEnd(units, from: headerEnd + 1)
+        guard payloadEnd < units.count, units[payloadEnd] == dot else { return nil }
+        let thirdEnd = segmentEnd(units, from: payloadEnd + 1)
+        var fifthEnd = -1
+        if thirdEnd < units.count, units[thirdEnd] == dot {
+            let fourthEnd = segmentEnd(units, from: thirdEnd + 1)
+            if fourthEnd < units.count, units[fourthEnd] == dot { fifthEnd = segmentEnd(units, from: fourthEnd + 1) }
         }
-    }
-
-    private static func nextHeaderPrefix(_ units: [UInt16], from: Int) -> Int? {
-        var index = from
-        while index + 3 <= units.count {
-            if headerPrefixAt(units, index) { return index }
-            index += 1
+        let payloadLength = payloadEnd - headerEnd - 1
+        let last = min(runStart + maxGlue, headerEnd - minHeader)
+        guard last >= runStart else { return nil }
+        for start in runStart...last {
+            let kind = joseHeaderKind(units, start: start, end: headerEnd, decoded: &decoded)
+            if kind == 0 { continue }
+            if kind == 2 && fifthEnd >= 0 { return (start, fifthEnd) }
+            if payloadLength >= 2 { return (start, thirdEnd) }
         }
         return nil
     }
 
-    /// The first header prefix after a '-' in [from, end) that still leaves a full header.
-    private static func boundaryStart(_ units: [UInt16], from: Int, end: Int) -> Int? {
-        var index = from
-        while index + minHeader <= end {
-            if units[index - 1] == dash && headerPrefixAt(units, index) { return index }
-            index += 1
+    /// 0: not a JOSE header; 1: a header with "alg"; 2: it also names "enc" (a JWE).
+    static func joseHeaderKind(_ units: [UInt16], start: Int, end: Int, decoded: inout [UInt8]) -> Int {
+        let stop = min(end, start + maxHeaderDecode)
+        var length = 0
+        var opened = false
+        var index = start
+        while stop - index >= 2 {
+            let remaining = stop - index
+            let a = Int(base64url[Int(units[index])])
+            let b = Int(base64url[Int(units[index + 1])])
+            let c = remaining > 2 ? Int(base64url[Int(units[index + 2])]) : -1
+            let d = remaining > 3 ? Int(base64url[Int(units[index + 3])]) : -1
+            let count = c < 0 ? 1 : (d < 0 ? 2 : 3)
+            for k in 0..<count {
+                let byte: Int
+                switch k {
+                case 0: byte = (a << 2) | (b >> 4)
+                case 1: byte = ((b & 15) << 4) | (c >> 2)
+                default: byte = ((c & 3) << 6) | d
+                }
+                if !opened {
+                    if byte == 0x7B { opened = true }
+                    else if byte != 0x20 && byte != 0x09 && byte != 0x0A && byte != 0x0D { return 0 }
+                }
+                decoded[length] = UInt8(byte)
+                length += 1
+            }
+            index += 4
         }
-        return nil
+        guard opened, contains(decoded, length, alg) else { return 0 }
+        return contains(decoded, length, enc) ? 2 : 1
     }
 
-    private static func isSegmentUnit(_ unit: UInt16) -> Bool {
-        (unit >= 0x30 && unit <= 0x39) || (unit >= 0x41 && unit <= 0x5A) || (unit >= 0x61 && unit <= 0x7A)
-            || unit == 0x5F || unit == dash
+    private static func contains(_ bytes: [UInt8], _ length: Int, _ needle: [UInt8]) -> Bool {
+        var index = 0
+        while index + needle.count <= length {
+            var k = 0
+            while k < needle.count && bytes[index + k] == needle[k] { k += 1 }
+            if k == needle.count { return true }
+            index += 1
+        }
+        return false
     }
+
+    private static func segmentEnd(_ units: [UInt16], from: Int) -> Int {
+        var end = from
+        while end < units.count && isSegment(units[end]) { end += 1 }
+        return end
+    }
+
+    private static func isSegment(_ unit: UInt16) -> Bool { unit < 128 && base64url[Int(unit)] >= 0 }
 }
