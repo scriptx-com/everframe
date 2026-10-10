@@ -73,6 +73,37 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
         } catch let error as Failure { throw error }
         catch { throw Failure.invalidContext }
     }
+    /// One anonymous, attachment-free, stackless fatal for an inferred foreground termination, built
+    /// from this frozen context. Like Android's OS exit records it carries no user, session, identity
+    /// subject, breadcrumbs or logs; the release-health pointer comes only from this context.
+    func inferredTerminationEntry(record: TerminationRunRecord, cause: TerminationInference.Cause, reportID: UUID,
+                                  collectedAt: Date) throws -> OutboxEntry {
+        try validate()
+        do {
+            let template = try EverframeReportEnvelope(data: envelopeTemplate)
+            let collected = ReleaseHealthDate.canonical(collectedAt)
+            // A wall clock that moved backwards is clamped so last seen never follows collection.
+            let lastSeen = min(ReleaseHealthDate.canonical(record.lastSeenAt), collected)
+            let id = reportID.uuidString.lowercased()
+            let crash = EverframeCrash(causeChain: nil, details: nil, exceptionType: cause.exceptionType, fatal: true,
+                fingerprint: cause.fingerprint, frames: [], handled: false, jsBundle: nil, jvm: nil,
+                mechanism: TerminationInference.mechanism, message: TerminationInference.message(cause, record),
+                native: nil, occurredAt: lastSeen, threadName: nil)
+            let evidence = TerminationInference.evidence(record: record, cause: cause, evidenceID: id, lastSeen: lastSeen,
+                collectedAt: collected, exposure: releaseHealthExposure)
+            let payload = EverframePayload(annotations: nil, appleDiagnostic: nil, breadcrumbs: nil, crash: crash, diagnostic: nil,
+                extra: nil, focus: nil, inferredTermination: evidence, logs: nil, network: nil, networkBodies: nil,
+                recoveredStall: nil, redactions: nil, resources: nil, vitals: nil)
+            let envelope = template.with(attachments: [], payload: payload, reporter: template.reporter.with(user: .some(nil)),
+                reportID: id, sessionID: .some(nil), source: .some(.crash), submittedAt: collected)
+            let bytes = try ReleaseHealthDate.encoder().encode(envelope)
+            guard bytes.count <= 512 * 1024 else { throw Failure.oversized }
+            let idempotency = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+            return OutboxEntry(reportId: reportID, createdAt: collected, envelopeBytes: bytes, idempotencyKey: idempotency,
+                attachmentRefs: [], sdkKey: sdkKey, endpoint: endpoint, identitySubject: nil)
+        } catch let error as Failure { throw error }
+        catch { throw Failure.invalidContext }
+    }
     private func validate() throws {
         guard schemaVersion == 1 else { throw Failure.unsupported }
         guard !sdkKey.isEmpty, sdkKey.utf8.count <= 4096, !sdkKey.contains(where: { $0.isNewline }),
