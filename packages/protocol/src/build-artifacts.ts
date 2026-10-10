@@ -17,10 +17,16 @@ export interface SourceMapManifestV1 {
   }>;
 }
 
+/**
+ * Where a Hermes bundle runs. `vega` (Amazon Vega OS) bundles keep JavaScript
+ * line/column debug info, so its frames map with the plain Metro source map.
+ */
+export type HermesBundlePlatform = 'android' | 'ios' | 'vega';
+
 export interface SourceMapManifestV2 {
   version: 2;
   runtime: 'hermes';
-  platform: 'android' | 'ios';
+  platform: HermesBundlePlatform;
   buildId: string;
   artifacts: [{
     url: string;
@@ -158,7 +164,7 @@ const ManifestV2Schema = z
   .object({
     version: z.literal(2),
     runtime: z.literal('hermes'),
-    platform: z.enum(['android', 'ios']),
+    platform: z.enum(['android', 'ios', 'vega']),
     buildId: BuildIdSchema,
     artifacts: z.array(ArtifactSchema).length(1),
   })
@@ -289,11 +295,11 @@ export function normalizeAssetUrl(input: string): string {
 const BundleNameSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
 
 export function hermesAssetUrl(
-  platform: 'android' | 'ios',
+  platform: HermesBundlePlatform,
   bundleName: string,
 ): string {
   if (
-    (platform !== 'android' && platform !== 'ios') ||
+    (platform !== 'android' && platform !== 'ios' && platform !== 'vega') ||
     !BundleNameSchema.safeParse(bundleName).success
   ) {
     throw new SourceMapManifestError('invalid_asset_url');
@@ -303,9 +309,9 @@ export function hermesAssetUrl(
 
 function parseHermesAssetUrl(
   input: string,
-  platform: 'android' | 'ios',
+  platform: HermesBundlePlatform,
 ): string {
-  const match = /^hermes:\/\/(android|ios)\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/.exec(input);
+  const match = /^hermes:\/\/(android|ios|vega)\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/.exec(input);
   if (!match || match[1] !== platform) {
     throw new SourceMapManifestError('invalid_asset_url');
   }

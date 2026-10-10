@@ -14,6 +14,7 @@
     "@everframe/sdk-core",
     "@everframe/sdk-ios-marker",
     "@everframe/swc-plugin-displayname",
+    "@everframe/vega",
     "@everframe/web"
   ],
   "allowedTopLevel": [
@@ -89,6 +90,7 @@
     "packages/sdk-react-native/package.json",
     "packages/sdk-react/package.json",
     "packages/sdk-roku/package.json",
+    "packages/sdk-vega/package.json",
     "packages/sdk-web/package.json",
     "packages/swc-plugin-displayname/package.json",
     "patches/@expo__cli@56.1.0.patch",
