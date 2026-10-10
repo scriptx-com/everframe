@@ -123,6 +123,8 @@ export async function resolveXcodeSource(env: NodeJS.ProcessEnv): Promise<AppleS
       kind: "skip",
       reason: `DEBUG_INFORMATION_FORMAT is ${env.DEBUG_INFORMATION_FORMAT}; set it to dwarf-with-dsym for ${CONFIGURATION} to upload symbols`,
     };
+  if (env.ENABLE_USER_SCRIPT_SANDBOXING === "YES")
+    throw new Error(`xcode_script_sandboxed: Xcode sandboxes this Run Script phase. ${SANDBOX_ADVICE}`);
   try {
     const binaries = await discoverAppBundle(
       join(TARGET_BUILD_DIR, WRAPPER_NAME),

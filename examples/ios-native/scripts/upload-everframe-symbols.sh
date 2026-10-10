@@ -12,8 +12,15 @@ if [ -z "${EVERFRAME_API_TOKEN:-}" ] && [ "$EVERFRAME_STRICT" = 0 ]; then
   echo "warning: everframe: no EVERFRAME_API_TOKEN, skipping symbol upload. Crashes from this build will show raw addresses. Set EVERFRAME_API_TOKEN to a token with the artifacts:write scope, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."
   exit 0
 fi
+if [ "${ENABLE_USER_SCRIPT_SANDBOXING:-}" = "YES" ]; then
+  if [ "$EVERFRAME_STRICT" = 1 ]; then echo "error: everframe: xcode_script_sandboxed: Xcode sandboxes this Run Script phase, so it cannot read the app bundle, dSYM folders or node_modules. Set ENABLE_USER_SCRIPT_SANDBOXING = NO for this target (everframe setup xcode does this)."; exit 1; fi
+  echo "warning: everframe: xcode_script_sandboxed: Xcode sandboxes this Run Script phase, so it cannot read the app bundle, dSYM folders or node_modules. Set ENABLE_USER_SCRIPT_SANDBOXING = NO for this target (everframe setup xcode does this)."
+  exit 0
+fi
+set +u
 if [ -f "$SRCROOT/.xcode.env" ]; then . "$SRCROOT/.xcode.env"; fi
 if [ -f "$SRCROOT/.xcode.env.local" ]; then . "$SRCROOT/.xcode.env.local"; fi
+set -u
 export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
 EVERFRAME_NODE="${NODE_BINARY:-node}"
 if [ -z "${EVERFRAME_CLI_JS:-}" ]; then EVERFRAME_CLI_JS="$(cd "$SRCROOT" && "$EVERFRAME_NODE" -p "require.resolve('@everframe/cli')" 2>/dev/null || true)"; fi

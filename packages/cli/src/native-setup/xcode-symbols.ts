@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { checkedAppId } from "./script.js";
+import { checkedAppId, sandboxCheck } from "./script.js";
 
 export const SYMBOLS_PHASE_NAME = "Upload Everframe Symbols";
 /** Declared inputs order the phase after dSYM generation and Info.plist processing. */
@@ -54,8 +54,12 @@ export function symbolsPhaseScript(options: { appId?: string; cliVersion: string
     '  echo "warning: everframe: no EVERFRAME_API_TOKEN, skipping symbol upload. Crashes from this build will show raw addresses. Set EVERFRAME_API_TOKEN to a token with the artifacts:write scope, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."',
     "  exit 0",
     "fi",
+    ...sandboxCheck(),
+    // The project's env files are not ours to hold to `set -u`.
+    "set +u",
     'if [ -f "$SRCROOT/.xcode.env" ]; then . "$SRCROOT/.xcode.env"; fi',
     'if [ -f "$SRCROOT/.xcode.env.local" ]; then . "$SRCROOT/.xcode.env.local"; fi',
+    "set -u",
     'export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"',
     'EVERFRAME_NODE="${NODE_BINARY:-node}"',
     `if [ -z "\${EVERFRAME_CLI_JS:-}" ]; then EVERFRAME_CLI_JS="$(cd "$SRCROOT" && "$EVERFRAME_NODE" -p "require.resolve('@everframe/cli')" 2>/dev/null || true)"; fi`,

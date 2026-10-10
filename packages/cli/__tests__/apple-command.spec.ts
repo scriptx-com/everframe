@@ -129,6 +129,14 @@ it("prints one Xcode warning per uncovered optional binary", async () => {
     `warning: no dSYM for /b/Feature (arm64 ${UUID_B}); its frames stay raw. Prebuilt frameworks need their vendor's dSYMs; pass --strict to fail instead.`,
   ]);
 });
+it("explains an optional binary it could not read", async () => {
+  const f = await xcode();
+  const r = recorder([{ path: "/b/Vendor", images: [], reason: "unsupported_apple_architecture" }]);
+  await dsymUploadBuildCommand(["--xcode"], f.env, r.deps);
+  expect(r.warnings).toEqual([
+    "warning: no dSYM for /b/Vendor: not a supported 64-bit Mach-O (unsupported_apple_architecture); its frames stay raw. Pass --strict to fail instead.",
+  ]);
+});
 it("caps uncovered-binary warnings at sixteen lines plus a count", async () => {
   const f = await xcode();
   const image = { uuid: UUID_B, cpuType: 0x100000c, cpuSubtype: 0, architecture: "arm64" as const };

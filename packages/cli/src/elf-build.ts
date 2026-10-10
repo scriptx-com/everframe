@@ -31,7 +31,11 @@ export interface ElfBuildLimits {
 }
 export const ELF_BUILD_LIMITS: ElfBuildLimits = { binaries: 256, artifacts: 128, inspectedBytes: 4 * 1024 ** 3, directoryEntries: 16384, depth: 8 };
 /** Why an optional shipped file is not an uploadable image. */
-const NOT_AN_IMAGE = new Map([['invalid_elf_binary', 'no GNU build ID or not a shared library'], ['unsupported_elf_architecture', 'unsupported ABI']]);
+const NOT_AN_IMAGE = new Map([['invalid_elf_binary', 'no GNU build ID or not a shared library'], ['unsupported_elf_architecture', 'unsupported ABI'], ['elf_too_large', 'larger than 64 MiB']]);
+/** Names the file behind a bare failure code; other errors pass through. */
+function named(error: unknown, path: string): unknown {
+    return error instanceof Error && /^[a-z0-9_]+$/.test(error.message) ? new Error(`${error.message}: ${path}`) : error;
+}
 export interface CollectedAndroidElfBuild {
     /** Images covered by a selected unstripped library. */
     images: ElfBuildImage[];
@@ -110,13 +114,14 @@ export async function collectAndroidElfBuild(
         catch (error) {
             const reason = error instanceof Error ? NOT_AN_IMAGE.get(error.message) : undefined;
             if (input.required || !reason)
-                throw error;
+                throw named(error, path);
             uncovered.push({ path, reason });
         }
     }
     if (!binaries.length)
         return { images: [], binaries, artifacts: [], uncovered };
     const expected = new Map(binaries.map(b => [key(b.image), b.image])), selected = new Map<string, LocalBuild>(), published = new Map<string, string>();
+    const skipped: string[] = [];
     let entries = 0;
     const visited = new Set<string>();
     async function walk(path: string, depth: number) {
@@ -142,7 +147,19 @@ export async function collectAndroidElfBuild(
             if (metadata.isDirectory())
                 await walk(child, depth + 1);
             else if (name.endsWith('.so')) {
-                const item = await inspect(child, { root }, budget), identity = key(item.image);
+                let item: InspectedElf;
+                try {
+                    item = await inspect(child, { root }, budget);
+                }
+                catch (error) {
+                    // Unrelated files (a huge third-party library, a stray non-ELF .so)
+                    // cannot hold a listed identity; they must not stop the others.
+                    if (!(error instanceof Error) || !NOT_AN_IMAGE.has(error.message))
+                        throw named(error, child);
+                    skipped.push(`  ${child} (${error.message})`);
+                    continue;
+                }
+                const identity = key(item.image);
                 if (!expected.has(identity) || !item.hasDebugInfo)
                     continue;
                 const previous = published.get(identity);
@@ -174,7 +191,8 @@ export async function collectAndroidElfBuild(
     }
     if (missing.length)
         throw new Error([`missing_matching_elf: no unstripped library with debug info under ${root} matches these required images:`,
-            ...(missing.length > 8 ? [...missing.slice(0, 8), `  and ${missing.length - 8} more`] : missing)].join('\n'));
+            ...(missing.length > 8 ? [...missing.slice(0, 8), `  and ${missing.length - 8} more`] : missing),
+            ...(skipped.length ? ['Skipped files that are not readable shared libraries:', ...(skipped.length > 8 ? [...skipped.slice(0, 8), `  and ${skipped.length - 8} more`] : skipped)] : [])].join('\n'));
     const covered = new Map(binaries.filter(b => published.has(key(b.image))).map(b => [key(b.image), b.image]));
     return { images: [...covered.values()], binaries, artifacts: [...selected.values()], uncovered };
 }

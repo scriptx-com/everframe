@@ -126,7 +126,7 @@ describe("the phase script", () => {
       });
     const ran = async () => access(record).then(() => true, () => false);
     const args = async () => JSON.parse(await readFile(record, "utf8")) as string[];
-    return { run, ran, args };
+    return { root, run, ran, args };
   }
   it.each([{}, { CI: "true" }, { CI: "1" }])("warns and skips without a token, locally and in CI, without starting Node (%o)", async (env) => {
     const h = await harness();
@@ -159,6 +159,25 @@ describe("the phase script", () => {
     expect(lenient.status).toBe(0);
     expect(lenient.stdout).toContain("warning: everframe: the symbol upload stopped with exit status 3");
     expect(h.run({ EVERFRAME_API_TOKEN: "t", EVERFRAME_SYMBOLS_STRICT: "1" }).status).toBe(3);
+  });
+  it("warns about a sandboxed Run Script before starting Node, and fails when strict", async () => {
+    const h = await harness();
+    const lenient = h.run({ EVERFRAME_API_TOKEN: "t", ENABLE_USER_SCRIPT_SANDBOXING: "YES" });
+    expect(lenient.status).toBe(0);
+    expect(lenient.stdout).toContain("warning: everframe: xcode_script_sandboxed: ");
+    expect(lenient.stdout).toContain("Set ENABLE_USER_SCRIPT_SANDBOXING = NO");
+    expect(await h.ran()).toBe(false);
+    const strict = h.run({ EVERFRAME_API_TOKEN: "t", ENABLE_USER_SCRIPT_SANDBOXING: "YES", EVERFRAME_SYMBOLS_STRICT: "1" });
+    expect(strict.status).toBe(1);
+    expect(strict.stdout).toContain("error: everframe: xcode_script_sandboxed: ");
+  });
+  it("tolerates unset variables in the project's .xcode.env", async () => {
+    const h = await harness();
+    await writeFile(join(h.root, ".xcode.env"), 'export EVERFRAME_TEST_FROM_ENV="$EVERFRAME_TEST_NEVER_SET"\n');
+    const result = h.run({ EVERFRAME_API_TOKEN: "t" });
+    expect(result.stderr).not.toContain("unbound variable");
+    expect(result.status).toBe(0);
+    expect(await h.ran()).toBe(true);
   });
   it("keeps the build going when Node is missing", async () => {
     const h = await harness();

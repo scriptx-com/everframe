@@ -39,8 +39,11 @@ export interface CollectedAppleBuild {
   /** Images covered by a selected DWARF file. */
   images: AppleBuildImage[];
   binaries: Array<{ path: string; required: boolean; images: AppleBuildImage[] }>;
-  /** Optional binaries, or slices of them, that no DWARF file covers. */
-  uncovered: Array<{ path: string; images: AppleBuildImage[] }>;
+  /**
+   * Optional binaries, or slices of them, that no DWARF file covers. `reason`
+   * names an optional binary that could not be read at all (no `images`).
+   */
+  uncovered: Array<{ path: string; images: AppleBuildImage[]; reason?: string }>;
 }
 /** Bundles and module folders never hold separately generated dSYMs. */
 const OPAQUE_DIRECTORY =
@@ -375,6 +378,7 @@ export async function collectAppleBuild(
   );
   const where = roots.join(", ");
   const binaries: CollectedAppleBuild["binaries"] = [];
+  const unreadable: CollectedAppleBuild["uncovered"] = [];
   const byPath = new Map<string, CollectedAppleBuild["binaries"][number]>();
   for (const input of options.binaries) {
     const path = resolve(input.path);
@@ -383,10 +387,21 @@ export async function collectAppleBuild(
       previous.required ||= input.required;
       continue;
     }
+    let images: AppleBuildImage[];
+    try {
+      images = await withPath(path, () => readAppleBinaryImages(path));
+    } catch (error) {
+      // An optional vendor binary that still carries, say, a 32-bit armv7
+      // slice cannot be matched; it must not cost the app its own symbols.
+      const code = error instanceof Error ? /^([a-z0-9_]+)(?::|$)/.exec(error.message)?.[1] : undefined;
+      if (input.required || !code || !NOT_A_DSYM.has(code)) throw error;
+      unreadable.push({ path, images: [], reason: code });
+      continue;
+    }
     const entry = {
       path,
       required: input.required,
-      images: await withPath(path, () => readAppleBinaryImages(path)),
+      images,
     };
     byPath.set(path, entry);
     binaries.push(entry);
@@ -484,7 +499,7 @@ export async function collectAppleBuild(
       }
     });
   const missing = new Map<string, string>(),
-    uncovered: CollectedAppleBuild["uncovered"] = [];
+    uncovered: CollectedAppleBuild["uncovered"] = [...unreadable];
   for (const binary of binaries) {
     const absent = binary.images.filter((image) => !published.has(key(image)));
     if (!absent.length) continue;

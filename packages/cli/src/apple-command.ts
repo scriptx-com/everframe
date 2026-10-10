@@ -99,7 +99,9 @@ export async function dsymUploadBuildCommand(
     log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} dSYM files).`);
     for (const entry of result.uncovered.slice(0, 16))
       warn(
-        `warning: no dSYM for ${entry.path} (${entry.images.map((i) => `${i.architecture} ${i.uuid}`).join(", ")}); its frames stay raw. Prebuilt frameworks need their vendor's dSYMs; pass --strict to fail instead.`
+        entry.reason
+          ? `warning: no dSYM for ${entry.path}: not a supported 64-bit Mach-O (${entry.reason}); its frames stay raw. Pass --strict to fail instead.`
+          : `warning: no dSYM for ${entry.path} (${entry.images.map((i) => `${i.architecture} ${i.uuid}`).join(", ")}); its frames stay raw. Prebuilt frameworks need their vendor's dSYMs; pass --strict to fail instead.`
       );
     if (result.uncovered.length > 16) warn(`warning: and ${result.uncovered.length - 16} more binaries without dSYMs`);
     return 0;

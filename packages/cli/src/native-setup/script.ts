@@ -19,10 +19,33 @@ const BUNDLE: Record<'android' | 'ios', { bundle: string; map: string }> = {
     map: '"app/build/generated/sourcemaps/react/${EVERFRAME_VARIANT:-release}/index.android.bundle.map"',
   },
   ios: {
-    bundle: '"$CONFIGURATION_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/main.jsbundle"',
+    bundle: '"${CONFIGURATION_BUILD_DIR:-}/${UNLOCALIZED_RESOURCES_FOLDER_PATH:-}/main.jsbundle"',
     map: '"${SOURCEMAP_FILE:-}"',
   },
 };
+
+/**
+ * A sandboxed Run Script cannot read the bundle, the dSYM folders or
+ * node_modules, and Node would fail with a bare EPERM. Say so before starting
+ * it. Expects EVERFRAME_STRICT to be set.
+ */
+export function sandboxCheck(): string[] {
+  const message = "xcode_script_sandboxed: Xcode sandboxes this Run Script phase, so it cannot read the app bundle, dSYM folders or node_modules. Set ENABLE_USER_SCRIPT_SANDBOXING = NO for this target (everframe setup xcode does this).";
+  return [
+    'if [ "${ENABLE_USER_SCRIPT_SANDBOXING:-}" = "YES" ]; then',
+    `  if [ "$EVERFRAME_STRICT" = 1 ]; then echo "error: everframe: ${message}"; exit 1; fi`,
+    `  echo "warning: everframe: ${message}"`,
+    "  exit 0",
+    "fi",
+  ];
+}
+
+const WARNING =
+  'echo "warning: everframe: artifact upload failed (exit status $EVERFRAME_STATUS); the build continues. Crashes from this build will show raw frames until its artifacts are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."';
+/** A failed step: strict exits with its status; otherwise warn and run the next step. */
+const FAILED_CONTINUE = `if [ "$EVERFRAME_STRICT" = 1 ]; then exit "$EVERFRAME_STATUS"; fi; ${WARNING}`;
+/** A failed setup line (env files, Node, CLI resolution): nothing else can run. */
+const FAILED = `${FAILED_CONTINUE}; exit 0`;
 
 const APP_ID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -64,18 +87,25 @@ export function buildPhaseScript(options: BuildPhaseOptions): string {
     '  echo "warning: everframe: no EVERFRAME_API_TOKEN, skipping artifact upload. Crashes from this build will show raw frames. Set EVERFRAME_API_TOKEN to a token with the artifacts:write scope, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."',
     '  exit 0',
     'fi',
-    `trap 'EVERFRAME_STATUS=$?; if [ "$EVERFRAME_STRICT" = 1 ]; then exit "$EVERFRAME_STATUS"; fi; echo "warning: everframe: artifact upload failed (exit status $EVERFRAME_STATUS); the build continues. Crashes from this build will show raw frames until its artifacts are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."; exit 0' ERR`,
+    ...(options.platform === 'ios' ? sandboxCheck() : []),
+    `trap 'EVERFRAME_STATUS=$?; ${FAILED}' ERR`,
     ...(options.platform === 'ios'
       ? [
+          // The project's env files are not ours to hold to `set -u`.
+          'set +u',
           'if [ -f "$SRCROOT/.xcode.env" ]; then . "$SRCROOT/.xcode.env"; fi',
           'if [ -f "$SRCROOT/.xcode.env.local" ]; then . "$SRCROOT/.xcode.env.local"; fi',
+          'set -u',
         ]
       : []),
     'EVERFRAME_NODE="${NODE_BINARY:-node}"',
     `EVERFRAME_CLI="$(cd "${options.projectRoot}" && "$EVERFRAME_NODE" -p "require.resolve('@everframe/cli')")"`,
-    `${run} build collect --staging ${staging} --platform ${options.platform} --bundle ${paths.bundle} --source-map ${paths.map}`,
-    `${run} build verify --staging ${staging} --platform ${options.platform} --release`,
-    `${run} sourcemaps upload-hermes --manifest ${staging} --platform ${options.platform} --app-id ${appId}`,
-    ...(options.platform === 'ios' ? [`${run} dsym upload-build --xcode --app-id ${appId}`] : []),
+    // A failed Hermes upload must not cost the iOS dSYMs: steps in an `if`
+    // list do not trip the ERR trap, so each step reports on its own.
+    `if ${run} build collect --staging ${staging} --platform ${options.platform} --bundle ${paths.bundle} --source-map ${paths.map} && ${run} build verify --staging ${staging} --platform ${options.platform} --release && ${run} sourcemaps upload-hermes --manifest ${staging} --platform ${options.platform} --app-id ${appId}; then :; else EVERFRAME_STATUS=$?; ${FAILED_CONTINUE}; fi`,
+    ...(options.platform === 'ios'
+      ? [`if ${run} dsym upload-build --xcode --app-id ${appId}; then :; else EVERFRAME_STATUS=$?; ${FAILED_CONTINUE}; fi`]
+      : []),
+    'exit 0',
   ].join('\n');
 }

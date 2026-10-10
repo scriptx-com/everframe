@@ -657,3 +657,22 @@ it("accepts more than sixteen binaries by default", async () => {
   expect(result.artifacts).toHaveLength(1);
   expect(result.uncovered).toHaveLength(20);
 });
+it("reports an optional binary it cannot read instead of failing the whole upload", async () => {
+  const f = await fixture(),
+    vendor = join(f.root, "Vendor");
+  // A fat vendor framework that still carries a 32-bit armv7 slice.
+  await writeFile(vendor, universal([macho({ cpu: 12, subtype: 9, kind: 6 }), macho({ uuid: UUID_B, kind: 6 })]));
+  await dsym(f.root, "App");
+  const result = await collectAppleBuild({
+    binaries: [
+      { path: f.binary, required: true },
+      { path: vendor, required: false },
+    ],
+    dsymDirs: [f.root],
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.uncovered).toEqual([{ path: vendor, images: [], reason: "unsupported_apple_architecture" }]);
+  await expect(
+    collectAppleBuild({ binaries: [{ path: vendor, required: true }], dsymDirs: [f.root] })
+  ).rejects.toThrow(`unsupported_apple_architecture: ${vendor}`);
+});

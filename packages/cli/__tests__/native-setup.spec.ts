@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import xcode from 'xcode';
@@ -79,8 +81,39 @@ describe('buildPhaseScript', () => {
     expect(run(script, { ...env, EVERFRAME_SYMBOLS_STRICT: '1' }).status).not.toBe(0);
   });
 
+  it('warns about a sandboxed iOS phase before starting Node, and fails when strict', () => {
+    const lenient = run(ios, { EVERFRAME_API_TOKEN: 't', ENABLE_USER_SCRIPT_SANDBOXING: 'YES', NODE_BINARY: '/nonexistent/node' });
+    expect(lenient.status).toBe(0);
+    expect(lenient.stdout).toContain('warning: everframe: xcode_script_sandboxed: ');
+    expect(lenient.stdout).not.toContain('artifact upload failed');
+    const strict = run(ios, { EVERFRAME_API_TOKEN: 't', ENABLE_USER_SCRIPT_SANDBOXING: 'YES', EVERFRAME_SYMBOLS_STRICT: '1' });
+    expect(strict.status).toBe(1);
+  });
+
+  it("tolerates unset variables in the project's .xcode.env", () => {
+    const srcroot = mkdtempSync(join(tmpdir(), 'everframe-rn-env-'));
+    writeFileSync(join(srcroot, '.xcode.env'), 'export EVERFRAME_TEST_FROM_ENV="$EVERFRAME_TEST_NEVER_SET"\n');
+    const result = run(ios, { EVERFRAME_API_TOKEN: 't', SRCROOT: srcroot, NODE_BINARY: '/nonexistent/node' });
+    expect(result.stderr).not.toContain('unbound variable');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('warning: everframe: artifact upload failed');
+  });
+
+  it('still uploads iOS dSYMs when the Hermes upload fails', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'everframe-rn-steps-'));
+    const record = join(dir, 'steps.txt'), node = join(dir, 'node');
+    // A fake Node: resolves the CLI, records each command and fails the Hermes steps.
+    writeFileSync(node, `#!/bin/bash\nif [ "$1" = "-p" ]; then echo /fake/cli.js; exit 0; fi\necho "$2 $3" >> "${record}"\nif [ "$2" = "build" ]; then exit 4; fi\nexit 0\n`);
+    chmodSync(node, 0o755);
+    const lenient = run(ios, { EVERFRAME_API_TOKEN: 't', SRCROOT: dir, NODE_BINARY: node });
+    expect(lenient.status).toBe(0);
+    expect(lenient.stdout).toContain('warning: everframe: artifact upload failed (exit status 4)');
+    expect(readFileSync(record, 'utf8').trim().split('\n')).toEqual(['build collect', 'dsym upload-build']);
+    expect(run(ios, { EVERFRAME_API_TOKEN: 't', SRCROOT: dir, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(4);
+  });
+
   it('uploads dSYMs after the Hermes map on iOS only', () => {
-    expect(ios.split('\n').at(-1)).toBe(`"$EVERFRAME_NODE" "$EVERFRAME_CLI" dsym upload-build --xcode --app-id "${APP}"`);
+    expect(ios).toContain(`"$EVERFRAME_NODE" "$EVERFRAME_CLI" dsym upload-build --xcode --app-id "${APP}"`);
     expect(ios.indexOf('upload-hermes')).toBeLessThan(ios.indexOf('dsym upload-build'));
     expect(android).not.toContain('dsym upload-build');
   });

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -170,4 +170,41 @@ it("rejects mixed modes and does nothing for a variant without libraries", async
   expect(await elfUploadBuildCommand(["--binaries-dir", empty, "--symbols-dir", f.symbols], env, r.deps)).toBe(0);
   expect(r.upload).not.toHaveBeenCalled();
   expect(r.lines).toEqual([`No native libraries under ${empty}; nothing to upload.`]);
+});
+it("skips oversized and unreadable libraries in the symbols directory and names them", async () => {
+  const f = await agp();
+  const huge = join(f.symbols, "arm64-v8a", "libhuge.so"),
+    junk = join(f.symbols, "arm64-v8a", "libjunk.so");
+  await writeFile(huge, elfFixture({ id: "cc".repeat(20) }));
+  await truncate(huge, 64 * 1024 * 1024 + 1);
+  await writeFile(junk, "not an elf");
+  const build = await collectAndroidElfBuild({
+    binaries: [
+      { path: f.app, required: true },
+      { path: f.hermes, required: false },
+    ],
+    symbolsDir: f.symbols,
+  });
+  expect(build.artifacts).toHaveLength(1);
+  const error = await collectAndroidElfBuild({ binaries: [{ path: f.hermes, required: true }], symbolsDir: f.symbols }).catch((e: Error) => e);
+  expect((error as Error).message).toMatch(/^missing_matching_elf: /);
+  expect((error as Error).message).toContain(`${huge} (elf_too_large)`);
+  expect((error as Error).message).toContain(`${junk} (invalid_elf_binary)`);
+});
+it("reports an oversized optional shipped library instead of failing", async () => {
+  const f = await agp();
+  const big = join(f.shipped, "arm64-v8a", "libbig.so");
+  await writeFile(big, elfFixture({ id: "dd".repeat(20), sections: false }));
+  await truncate(big, 64 * 1024 * 1024 + 1);
+  const build = await collectAndroidElfBuild({
+    binaries: [
+      { path: f.app, required: true },
+      { path: big, required: false },
+    ],
+    symbolsDir: f.symbols,
+  });
+  expect(build.uncovered).toEqual([{ path: big, reason: "larger than 64 MiB" }]);
+  await expect(collectAndroidElfBuild({ binaries: [{ path: big, required: true }], symbolsDir: f.symbols })).rejects.toThrow(
+    `elf_too_large: ${big}`
+  );
 });

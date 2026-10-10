@@ -83,6 +83,14 @@ it.each([
   expect(resolved.kind).toBe("skip");
   expect(resolved.kind === "skip" ? resolved.reason : "").toMatch(reason);
 });
+it("refuses a sandboxed Run Script up front, after the Debug skip", async () => {
+  const root = await temp();
+  await appBundle(root);
+  await expect(resolveXcodeSource(xcodeEnv(root, { ENABLE_USER_SCRIPT_SANDBOXING: "YES" }))).rejects.toThrow(
+    /^xcode_script_sandboxed: .*Set ENABLE_USER_SCRIPT_SANDBOXING = NO/
+  );
+  expect((await resolveXcodeSource(xcodeEnv(root, { ENABLE_USER_SCRIPT_SANDBOXING: "YES", CONFIGURATION: "Debug" }))).kind).toBe("skip");
+});
 it("uploads Debug symbols only when asked", async () => {
   const root = await temp();
   await appBundle(root);
