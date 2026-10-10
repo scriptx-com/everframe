@@ -502,22 +502,31 @@ CLI:
   Rebuilding identical sources yields the same ID, so retries are idempotent.
 - **Native libraries** (`uploadEverframe<Variant>NativeSymbols`). Every shipped
   `.so` is matched to its unstripped copy from `merge<Variant>NativeLibs` by GNU
-  build ID and ABI, for the ABIs the variant packages (`ndk.abiFilters`, ABI
-  splits). Prebuilt libraries from AARs without debug information
+  build ID and ABI, for the ABIs the build packages: APKs follow
+  `ndk.abiFilters` narrowed by ABI splits, a bundle (`bundle<Variant>`) every
+  `ndk.abiFilters` ABI, and `assemble` with `bundle` in one build the union.
+  Prebuilt libraries from AARs without debug information
   (`libc++_shared.so`, prebuilt Hermes, AndroidX) are expected and only listed
-  at `--info`. Your own libraries without symbols produce one warning with
-  their count, and `--info` lists them. A variant without native code does
-  nothing.
+  at `--info`. Libraries your own CMake or ndk-build produces without debug
+  information (`-g0`, `-s`) get one warning naming them and the fix: build with
+  `-g` (CMake `RelWithDebInfo`, AGP's release default) and leave stripping to
+  AGP. Other libraries without symbols produce one warning with their count,
+  and `--info` lists them. A variant without native code does nothing.
 
 Set `EVERFRAME_API_TOKEN` (a token with `artifacts:write`) in CI. **Symbols
 never fail the build by default**: without the token, without an app ID, or
 when an upload fails, the plugin prints a `warning:` line and the build
 continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Uploads
-stop after `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` (600 by default).
+stop after `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` (600 by default). The plugin stops
+the CLI process itself once it has run that long plus up to a minute (no more
+than the budget again) for `npx` to fetch it, and warns.
 
 The plugin runs the CLI from `EVERFRAME_CLI_JS` (a built `dist/index.js`), then
-`node_modules/@everframe/cli`, then `npx --yes @everframe/cli@<version>`, which
-needs the published CLI and Node. Override it with `everframe { cliCommand }`.
+`node_modules/@everframe/cli`, then `npx --yes --prefer-offline @everframe/cli@<version>`,
+which needs the published CLI and Node. npm gets a 20-second fetch timeout and
+one retry unless your environment sets `npm_config_fetch_timeout`,
+`npm_config_fetch_retries` or `npm_config_fetch_retry_maxtimeout`. Override the
+command with `everframe { cliCommand }`.
 
 The plugin also applies `everframe-keep.pro` (a copy of `:everframe-core`'s
 `consumer-rules.pro`) to the host module's R8 keep set, and adds

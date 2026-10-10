@@ -19,6 +19,13 @@ internal class PluginFixture private constructor(val root: File) {
         val abiFilters: List<String> = emptyList(),
         /** Lines the fake CLI prints before exiting. */
         val cliOutput: List<String> = emptyList(),
+        /** APK ABI splits (`splits.abi.include`), with or without a universal APK. */
+        val abiSplits: List<String> = emptyList(),
+        val universalApk: Boolean = false,
+        /** The fake CLI waits this long in a child process before it exits, as a stalled `npx` would. */
+        val cliSleepSeconds: Int = 0,
+        /** A CMake library `libnative.so` the project builds itself, with these C flags. */
+        val cmakeFlags: String? = null,
     )
 
     fun run(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
@@ -40,6 +47,10 @@ internal class PluginFixture private constructor(val root: File) {
     fun recordedMappingBytes(): ByteArray = File(root, "cli-mapping.bin").readBytes()
     fun recordedSymbolFiles(): List<String> = File(root, "cli-symbols.txt").readLines()
     fun recordedBudget(): String = File(root, "cli-budget.txt").readText().trim()
+    /** npm_config_fetch_timeout|npm_config_fetch_retries|npm_config_fetch_retry_maxtimeout as the CLI saw them. */
+    fun recordedNpmLimits(): String = File(root, "cli-npm.txt").readText().trim()
+    /** The fake CLI's sleeping child, when it was asked to stall. */
+    fun recordedSleeper(): Long = File(root, "cli-sleep.pid").readText().trim().toLong()
     fun apkAsset(variantDir: String, entry: String): String {
         val apk = File(root, "build/outputs/apk/$variantDir").walkTopDown().first { it.extension == "apk" }
         ZipFile(apk).use { zip -> return zip.getInputStream(zip.getEntry(entry)).bufferedReader().readText() }
@@ -55,6 +66,7 @@ internal class PluginFixture private constructor(val root: File) {
         private val SCRUBBED = setOf(
             "CI", "EVERFRAME_API_TOKEN", "EVERFRAME_APP_ID", "EVERFRAME_CLI_JS",
             "EVERFRAME_SYMBOLS_STRICT", "EVERFRAME_UPLOAD_TIMEOUT_SECONDS",
+            "npm_config_fetch_timeout", "npm_config_fetch_retries", "npm_config_fetch_retry_maxtimeout",
         )
 
         fun create(directory: File, options: Options = Options()): PluginFixture {
@@ -71,6 +83,8 @@ internal class PluginFixture private constructor(val root: File) {
             val mapping = File(directory, "cli-mapping.bin").absolutePath
             val symbols = File(directory, "cli-symbols.txt").absolutePath
             val budget = File(directory, "cli-budget.txt").absolutePath
+            val npm = File(directory, "cli-npm.txt").absolutePath
+            val sleeper = File(directory, "cli-sleep.pid").absolutePath
             val d = "$"
             val recorder = File(directory, "record cli.sh").apply {
                 writeText(
@@ -78,6 +92,7 @@ internal class PluginFixture private constructor(val root: File) {
                     #!/bin/sh
                     { printf '%s\n' "${d}EVERFRAME_API_TOKEN"; printf '%s\n' "${d}@"; printf '%s\n' '---'; } >> '$record'
                     printf '%s\n' "${d}{EVERFRAME_UPLOAD_TIMEOUT_SECONDS:-}" > '$budget'
+                    printf '%s|%s|%s\n' "${d}{npm_config_fetch_timeout:-}" "${d}{npm_config_fetch_retries:-}" "${d}{npm_config_fetch_retry_maxtimeout:-}" > '$npm'
                     previous=""
                     for arg in "${d}@"; do
                       if [ "${d}previous" = "--mapping" ]; then cp "${d}arg" '$mapping'; fi
@@ -86,6 +101,7 @@ internal class PluginFixture private constructor(val root: File) {
                     done
                     """.trimIndent() + "\n" +
                     options.cliOutput.joinToString("") { "printf '%s\\n' ${shellQuote(it)}\n" } +
+                    (if (options.cliSleepSeconds > 0) "sleep ${options.cliSleepSeconds} & printf '%s\\n' \"${d}!\" > '$sleeper'; wait\n" else "") +
                     "exit ${options.cliExit}\n",
                 )
                 setExecutable(true)
@@ -96,6 +112,10 @@ internal class PluginFixture private constructor(val root: File) {
             val packaging = if (options.nativeLibrary) "packaging { jniLibs { keepDebugSymbols += \"**/*.so\" } }" else ""
             val abiFilters = if (options.abiFilters.isEmpty()) "" else
                 "defaultConfig { ndk { abiFilters += listOf(${options.abiFilters.joinToString { quote(it) }}) } }"
+            val splits = if (options.abiSplits.isEmpty()) "" else
+                "splits { abi { isEnable = true; reset(); include(${options.abiSplits.joinToString { quote(it) }}); isUniversalApk = ${options.universalApk} } }"
+            val cmake = if (options.cmakeFlags == null) "" else
+                "externalNativeBuild { cmake { path = file(\"src/main/cpp/CMakeLists.txt\") } }"
             File(directory, "build.gradle.kts").writeText(
                 """
                 plugins {
@@ -110,6 +130,8 @@ internal class PluginFixture private constructor(val root: File) {
                     $flavors
                     $packaging
                     $abiFilters
+                    $splits
+                    $cmake
                 }
                 everframe {
                     uploadEnabled.set(${options.uploadEnabled})
@@ -123,6 +145,13 @@ internal class PluginFixture private constructor(val root: File) {
             File(directory, "src/main/java/test/fixture/MainActivity.java").writeText("package test.fixture; public final class MainActivity { public static String value() { return \"mapped\"; } }")
             if (options.nativeLibrary) for (abi in listOf("arm64-v8a", "x86_64"))
                 File(directory, "src/main/jniLibs/$abi").apply { mkdirs() }.resolve("libfixture.so").writeText("fixture")
+            if (options.cmakeFlags != null) File(directory, "src/main/cpp").apply { mkdirs() }.let { cpp ->
+                cpp.resolve("CMakeLists.txt").writeText(
+                    "cmake_minimum_required(VERSION 3.22.1)\nproject(native C)\n" +
+                        "set(CMAKE_C_FLAGS \"${d}{CMAKE_C_FLAGS} ${options.cmakeFlags}\")\nadd_library(native SHARED native.c)\n",
+                )
+                cpp.resolve("native.c").writeText("int everframe_fixture(int value) { return value * 2; }\n")
+            }
             return PluginFixture(directory)
         }
 

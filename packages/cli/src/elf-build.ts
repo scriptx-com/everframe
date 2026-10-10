@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import { constants, type BigIntStats } from 'node:fs';
 import { open, opendir, readdir, realpath, stat } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { ELF_ASSET_URL, ELF_MAX_BYTES, parseManifest } from '@everframe/protocol';
 import { checkedRealPath, type LocalBuild } from './manifest.js';
 import { parseElfBuildImage } from './elf-identity.js';
@@ -48,10 +48,12 @@ export interface CollectedAndroidElfBuild {
     /**
      * Optional libraries without uploaded symbols, with the reason. `prebuilt`:
      * every copy in the build lacks debug information, as for libraries that
-     * AARs and SDKs ship stripped. `missing`: no unstripped copy was found.
-     * `not_an_image`: not a symbolicatable shared library.
+     * AARs and SDKs ship stripped. `no_debug_info`: the same, for a library the
+     * project's own native build produced (one of `projectDirs`), which the
+     * project can fix. `missing`: no unstripped copy was found. `not_an_image`:
+     * not a symbolicatable shared library.
      */
-    uncovered: Array<{ path: string; reason: string; kind: 'prebuilt' | 'missing' | 'not_an_image' }>;
+    uncovered: Array<{ path: string; reason: string; kind: 'prebuilt' | 'no_debug_info' | 'missing' | 'not_an_image' }>;
 }
 const key = (image: ElfBuildImage) => `${image.abi}/${image.buildId}`;
 const unchanged = (a: BigIntStats, b: BigIntStats) => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs;
@@ -99,8 +101,37 @@ async function inspect(path: string, options: {
 export function inspectElfFile(path: string, options: {
     root?: string;
 } = {}): Promise<InspectedElf> { return inspect(path, options); }
+/**
+ * Identities of the `.so` files called [names] under the project's own native
+ * build output folders. Best effort: a file it cannot read counts as not the
+ * project's, which only keeps the quieter `prebuilt` classification.
+ */
+async function projectImages(dirs: string[], names: Set<string>, limits: ElfBuildLimits): Promise<Set<string>> {
+    const found = new Set<string>(), budget: Budget = { bytes: 0, seen: new Set(), limit: limits.inspectedBytes };
+    let entries = 0;
+    async function walk(root: string, path: string, depth: number): Promise<void> {
+        if (depth > limits.depth)
+            return;
+        const children = await readdir(path, { withFileTypes: true }).catch(() => []);
+        for (const entry of children) {
+            if (++entries > limits.directoryEntries)
+                return;
+            const child = join(path, entry.name);
+            if (entry.isDirectory())
+                await walk(root, child, depth + 1);
+            else if (entry.isFile() && names.has(entry.name))
+                await inspect(child, { root }, budget).then(item => found.add(key(item.image)), () => undefined);
+        }
+    }
+    for (const dir of dirs) {
+        const root = await realpath(resolve(dir)).catch(() => undefined);
+        if (root)
+            await walk(root, root, 0);
+    }
+    return found;
+}
 export async function collectAndroidElfBuild(
-    options: { binaries: ElfBinaryInput[]; symbolsDir: string },
+    options: { binaries: ElfBinaryInput[]; symbolsDir: string; projectDirs?: string[] | undefined },
     limits: ElfBuildLimits = ELF_BUILD_LIMITS,
 ): Promise<CollectedAndroidElfBuild> {
     if (!options.binaries.length || options.binaries.length > limits.binaries)
@@ -189,12 +220,20 @@ export async function collectAndroidElfBuild(
             throw new Error('source_map_changed');
     }
     await walk(root, 0);
+    // Libraries without debug information anywhere are quiet only when they do not come from the
+    // project's own native build (its CMake or ndk-build outputs): those the project can fix.
+    const stripped = binaries.filter(b => !b.required && !published.has(key(b.image)) && withoutDebugInfo.has(key(b.image)));
+    const own = stripped.length && options.projectDirs?.length
+        ? await projectImages(options.projectDirs, new Set(stripped.map(b => basename(b.path))), limits)
+        : new Set<string>();
     const missing: string[] = [];
     for (const binary of binaries) {
         if (published.has(key(binary.image)))
             continue;
         if (binary.required)
             missing.push(`  ${binary.image.abi} ${binary.image.buildId} in ${binary.path}`);
+        else if (own.has(key(binary.image)))
+            uncovered.push({ path: binary.path, kind: 'no_debug_info', reason: `built by this project without debug information (build ID ${binary.image.buildId}, ${binary.image.abi}); build it with -g (CMake: RelWithDebInfo) and do not strip it before packaging` });
         else if (withoutDebugInfo.has(key(binary.image)))
             uncovered.push({ path: binary.path, kind: 'prebuilt', reason: `prebuilt without debug information (build ID ${binary.image.buildId}, ${binary.image.abi})` });
         else

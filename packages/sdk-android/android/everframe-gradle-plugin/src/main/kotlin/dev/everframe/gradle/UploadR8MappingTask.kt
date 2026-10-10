@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.gradle
 
-import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
@@ -15,7 +14,6 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
 
 /** Uploads the variant's final `mapping.txt` under the ID packaged in its APK/AAB. */
@@ -25,7 +23,6 @@ public abstract class UploadR8MappingTask : DefaultTask() {
     @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) public abstract val identityDirectory: DirectoryProperty
     @get:Input @get:Optional public abstract val appId: Property<String>
     @get:Input public abstract val cliCommand: ListProperty<String>
-    @get:Inject protected abstract val execOperations: ExecOperations
 
     init { outputs.upToDateWhen { false } }
 
@@ -35,7 +32,6 @@ public abstract class UploadR8MappingTask : DefaultTask() {
         val mapping = mappingFile.asFile.get()
         val mappingId = readR8MappingId(identityDirectory.get().asFile.resolve(BUILD_IDENTITY_ASSET))
         runCli(
-            execOperations,
             cliCommand.get() + listOf("r8", "upload", "--app-id", applicationId, "--mapping-id", mappingId, "--mapping", mapping.absolutePath),
             logger,
             "R8 mapping",
