@@ -1874,6 +1874,7 @@ public enum EverframeEngine: String, Codable {
 public enum EverframeJSBundlePlatform: String, Codable {
     case android = "android"
     case ios = "ios"
+    case vega = "vega"
 }
 
 // MARK: - EverframeJVMCrashMetadata
@@ -3913,6 +3914,7 @@ public enum EverframeName: String, Codable {
     case everframeReact = "everframe-react"
     case everframeReactNative = "everframe-react-native"
     case everframeRoku = "everframe-roku"
+    case everframeVega = "everframe-vega"
     case everframeWeb = "everframe-web"
 }
 
@@ -3924,6 +3926,7 @@ public enum EverframePlatform: String, Codable {
     case roku = "roku"
     case tizen = "tizen"
     case tvos = "tvos"
+    case vega = "vega"
     case web = "web"
     case webos = "webos"
 }

@@ -43,7 +43,8 @@
             "everframe-kmp",
             "everframe-ios",
             "everframe-android",
-            "everframe-roku"
+            "everframe-roku",
+            "everframe-vega"
           ]
         },
         "version": {
@@ -59,7 +60,8 @@
             "tizen",
             "webos",
             "androidtv",
-            "roku"
+            "roku",
+            "vega"
           ],
           "$id": "SDKPlatform",
           "description": "All TV form factors enumerated from v1 (PLAT-04)"
@@ -561,7 +563,8 @@
                   "type": "string",
                   "enum": [
                     "android",
-                    "ios"
+                    "ios",
+                    "vega"
                   ],
                   "title": "JsBundlePlatform"
                 },

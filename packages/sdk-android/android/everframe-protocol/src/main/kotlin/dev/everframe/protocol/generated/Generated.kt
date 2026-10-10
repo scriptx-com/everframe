@@ -688,7 +688,8 @@ enum class Engine(val value: String) {
 @Serializable
 enum class JSBundlePlatform(val value: String) {
     @SerialName("android") Android("android"),
-    @SerialName("ios") Ios("ios");
+    @SerialName("ios") Ios("ios"),
+    @SerialName("vega") Vega("vega");
 }
 
 @Serializable
@@ -1300,6 +1301,7 @@ enum class Name(val value: String) {
     @SerialName("everframe-react") EverframeReact("everframe-react"),
     @SerialName("everframe-react-native") EverframeReactNative("everframe-react-native"),
     @SerialName("everframe-roku") EverframeRoku("everframe-roku"),
+    @SerialName("everframe-vega") EverframeVega("everframe-vega"),
     @SerialName("everframe-web") EverframeWeb("everframe-web");
 }
 
@@ -1314,6 +1316,7 @@ enum class Platform(val value: String) {
     @SerialName("roku") Roku("roku"),
     @SerialName("tizen") Tizen("tizen"),
     @SerialName("tvos") Tvos("tvos"),
+    @SerialName("vega") Vega("vega"),
     @SerialName("web") Web("web"),
     @SerialName("webos") Webos("webos");
 }
