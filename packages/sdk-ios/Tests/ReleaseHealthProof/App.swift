@@ -5,7 +5,7 @@ import EverframeKit
 
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
+    static var mode = ""
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         let args = ProcessInfo.processInfo.arguments
         func argument(_ name: String) -> String? { guard let index = args.firstIndex(of: name), args.indices.contains(index + 1) else { return nil }; return args[index + 1] }
@@ -14,23 +14,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             fatalError("Qualification requires an explicit loopback endpoint and synthetic key")
         }
         LoopbackTransport.endpoint = endpoint
-        LoopbackTransport.logURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("transport-" + nonce + ".jsonl")
+        LoopbackTransport.logURL = Self.markers.appendingPathComponent("transport-" + nonce + ".jsonl")
         URLProtocol.registerClass(LoopbackTransport.self)
         NativeProofInstallTransport(LoopbackTransport.self)
-        let controller = UIViewController(); controller.view.backgroundColor = .systemBackground
-        let stack = UIStackView(); stack.axis = .vertical; stack.spacing = 20
-        let label = UILabel(); label.text = "Native crash startup proof: " + mode; label.numberOfLines = 0
-        stack.addArrangedSubview(label)
-        for fault in ["swift", "objc", "memory"] {
-            let button = UIButton(type: .system); button.setTitle("Trigger " + fault, for: .normal)
-            button.addAction(UIAction { _ in Self.crash(fault) }, for: .touchUpInside); stack.addArrangedSubview(button)
-        }
-        stack.translatesAutoresizingMaskIntoConstraints = false; controller.view.addSubview(stack)
-        NSLayoutConstraint.activate([stack.centerXAnchor.constraint(equalTo: controller.view.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: controller.view.centerYAnchor), stack.widthAnchor.constraint(equalToConstant: 300)])
-        let window = UIWindow(frame: UIScreen.main.bounds); window.rootViewController = controller; window.makeKeyAndVisible(); self.window = window
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        Self.mode = mode
+        let documents = Self.markers
         func ready(_ state: [String: Any]) {
             try? JSONSerialization.data(withJSONObject: state, options: [.sortedKeys]).write(
                 to: documents.appendingPathComponent("ready-" + nonce + ".json"), options: .atomic)
@@ -88,13 +76,44 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         return true
     }
-    private static func crash(_ fault: String) {
+    static let faults = ["swift", "objc", "memory"]
+    // The installed-delivery harness reads iOS markers from Documents. tvOS apps cannot write
+    // Documents, so on tvOS they live in Caches.
+    #if os(tvOS)
+    static let markers = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    #else
+    static let markers = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    #endif
+    static func crash(_ fault: String) {
         switch fault {
         case "swift": fatalError("synthetic startup Swift trap")
         case "objc": NativeProofObjCException()
         case "memory": NativeProofMemoryFault()
         default: fatalError("Unknown fault")
         }
+    }
+}
+
+/// Apps built with the iOS/tvOS 27 SDKs must use the scene life cycle or the
+/// 27 runtimes refuse to launch them. The SDK still starts in the app delegate.
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        guard let scene = scene as? UIWindowScene else { return }
+        let controller = UIViewController() // systemBackground is unavailable on tvOS.
+        controller.view.backgroundColor = UIColor { $0.userInterfaceStyle == .dark ? .black : .white }
+        let stack = UIStackView(); stack.axis = .vertical; stack.spacing = 20
+        let label = UILabel(); label.text = "Release health proof: " + AppDelegate.mode; label.numberOfLines = 0
+        stack.addArrangedSubview(label)
+        for fault in AppDelegate.faults {
+            // Primary action covers a tap on iOS and a remote select on tvOS.
+            let button = UIButton(type: .system); button.setTitle("Trigger " + fault, for: .normal)
+            button.addAction(UIAction { _ in AppDelegate.crash(fault) }, for: .primaryActionTriggered); stack.addArrangedSubview(button)
+        }
+        stack.translatesAutoresizingMaskIntoConstraints = false; controller.view.addSubview(stack)
+        NSLayoutConstraint.activate([stack.centerXAnchor.constraint(equalTo: controller.view.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: controller.view.centerYAnchor), stack.widthAnchor.constraint(equalToConstant: 300)])
+        let window = UIWindow(windowScene: scene); window.rootViewController = controller; window.makeKeyAndVisible(); self.window = window
     }
 }
 

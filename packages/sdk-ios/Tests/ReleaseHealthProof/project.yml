@@ -7,6 +7,7 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TVOS_DEPLOYMENT_TARGET: "15.0"
     SWIFT_OPTIMIZATION_LEVEL: "-O"
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     CODE_SIGNING_ALLOWED: YES
@@ -19,6 +20,13 @@ targets:
   ReleaseHealthProof:
     type: application
     platform: iOS
+    # One target serves both simulators, like the SDK project; the runner picks
+    # the slice with -sdk iphonesimulator or -sdk appletvsimulator. Set at
+    # target level so XcodeGen's iOS preset does not narrow the device family.
+    settings:
+      base:
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator appletvos appletvsimulator"
+        TARGETED_DEVICE_FAMILY: "1,2,3"
     sources:
       - path: .
         excludes: ["project.yml", "README.md"]
@@ -30,6 +38,12 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         NSLocalNetworkUsageDescription: Send synthetic crash reports to the loopback qualification API.
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
     dependencies:
       - framework: ${EVERFRAME_PROOF_FRAMEWORKS}/EverframeKit.framework
         embed: true
