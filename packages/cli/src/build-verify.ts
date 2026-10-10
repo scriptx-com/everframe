@@ -38,7 +38,7 @@ const ADVICE: Record<string, string> = {
   missing_api_token:
     'missing_api_token: set EVERFRAME_API_TOKEN to a token with the artifacts:write scope.',
   'request_failed:project_quota_exceeded':
-    'request_failed:project_quota_exceeded: the project has used its artifact storage quota. Delete or let older builds expire, or ask for a larger quota.',
+    'request_failed:project_quota_exceeded: the project\'s artifact storage quota is full even after removing older builds. Builds uploaded in the last 24 hours, and builds used for symbolication in the last 7 days, are kept. Retry later or ask for a larger quota.',
   // The codes below are raised by `build collect`, not by verify itself.
   // Under the generated build phase's `set -e`, collect aborts the script
   // before verify ever runs, so these would otherwise surface only as a bare

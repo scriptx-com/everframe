@@ -222,7 +222,10 @@ it("routes main() to the command", async () => {
   }
 });
 it("explains a full project artifact quota", () => {
-  expect(adviceFor("request_failed:project_quota_exceeded")).toMatch(/^request_failed:project_quota_exceeded: .*storage quota/);
+  const advice = adviceFor("request_failed:project_quota_exceeded");
+  expect(advice).toMatch(/^request_failed:project_quota_exceeded: .*storage quota is full even after removing older builds/);
+  expect(advice).toMatch(/last 24 hours.*last 7 days/);
+  expect(advice).not.toMatch(/Delete/);
 });
 it("the archive shell example runs the CLI without demanding a token", async () => {
   const root = await mkdtemp(join(tmpdir(), "everframe-apple-command-"));
