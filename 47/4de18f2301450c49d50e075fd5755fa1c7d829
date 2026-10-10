@@ -1,0 +1,23 @@
+packages/sdk-react-native/src/runtime.ts
+  s_360d9eb003c487::t_51f2c453ece5df 781-800
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_360d9eb003c487::t_e8bbd00ada53f8 12-14,16
+  s_360d9eb003c487::t_9e3755492d17b6 56-85
+  s_360d9eb003c487::t_5865187c0c0bb9 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "474de18f2301450c49d50e075fd5755fa1c7d829",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
