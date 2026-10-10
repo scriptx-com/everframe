@@ -1,0 +1,21 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_dbd309ddf8ec5b::t_7ad82f09b8c00e 61-62,100-101
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/CrashCaptureStartTest.kt
+  s_dbd309ddf8ec5b::t_2260a4be90a04c 200-218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c38865f9371633a0571630fa980141b852f96dce",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
