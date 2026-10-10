@@ -1,0 +1,30 @@
+packages/everframe_flutter/test/native_bridge_test.dart
+  s_dbd309ddf8ec5b::t_9c3a22cedafa3b 48,68,72-75
+  s_dbd309ddf8ec5b::t_c6a3beb7694fcd 76-77
+packages/everframe_flutter/android/src/main/kotlin/dev/everframe/flutter/EverframeFlutterPlugin.kt
+  s_dbd309ddf8ec5b::t_9c3a22cedafa3b 74-75,80
+packages/everframe_flutter/CHANGELOG.md
+  s_dbd309ddf8ec5b::t_9c3a22cedafa3b 4-7
+packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift
+  s_dbd309ddf8ec5b::t_9c3a22cedafa3b 44-45
+packages/everframe_flutter/README.md
+  s_dbd309ddf8ec5b::t_9c3a22cedafa3b 82-83
+packages/everframe_flutter/lib/src/native_bridge.dart
+  s_dbd309ddf8ec5b::t_9c3a22cedafa3b 16-18,23,37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e3cf7018ead078f2927b7c8383a23e4a1de9db3",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
