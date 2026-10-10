@@ -1,0 +1,40 @@
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthRuntime.swift
+  s_360d9eb003c487::t_177e9905b25ba9 108-112,118
+  s_360d9eb003c487::t_31bb2fb0131738 56-59,61,63,65,74
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_360d9eb003c487::t_20fc8c67702968 93,99,105
+  s_360d9eb003c487::t_c33c0acfe28b2e 25-26,33
+  s_360d9eb003c487::t_27508347ec7fdf 80-85
+  s_360d9eb003c487::t_56c8f3fd786560 120
+  s_360d9eb003c487::t_a695ced37b4dd2 56,69
+  s_360d9eb003c487::t_fdcae20c17cc3c 159-160,163
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_360d9eb003c487::t_b8d849704de320 246,250-251,253-254,256-257
+  s_360d9eb003c487::t_f3e1a19cc47d8b 2153
+  s_360d9eb003c487::t_21c1f0b986be1d 114-124
+  s_360d9eb003c487::t_3cee66bff76788 166-168
+  s_360d9eb003c487::t_09c1029f730013 210,212,214-218,228-234
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_360d9eb003c487::t_37cbd12cc728ad 212-329
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_360d9eb003c487::t_10d1520ff5fe4b 114-130
+  s_360d9eb003c487::t_96cc237f3dc94f 27,34,39,50,56,60,103,144-145,153,181,184,199
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthForegroundTests.swift
+  s_360d9eb003c487::t_b1a6679778b078 23,56,79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "557f840fccc47f8d4e6bf2a4206a5f9c531ea490",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
