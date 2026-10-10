@@ -22,13 +22,15 @@ final class NativeCrashRuntime: @unchecked Sendable {
     /// Durable context without a release-health pointer for `publishedTicket`: the
     /// published context itself, or its unlinked twin when that one carries a pointer.
     private var publishedUnlinked: UUID?
+    /// Exposure ID of the release-health pointer the `publishedTicket` context carries.
+    private var publishedExposureID: String?
     private let worker = DispatchQueue(label: "dev.everframe.native-crash", qos: .utility)
     private let rootURL: URL
     private let outbox: JSONLOutbox
     private let recorder: Recorder
     private let keyProvider: @Sendable () throws -> Data
     private let scheduleAdmission: @Sendable (@escaping @Sendable () -> Void) -> Void
-    private enum Prepared: Sendable { case published; case context(URL, UUID, unlinked: UUID?) }
+    private enum Prepared: Sendable { case published; case context(URL, UUID, unlinked: UUID?, exposureID: String?) }
     // Worker-owned recovery and immutable context state.
     private var recovery: NativeCrashRecovery?
     private var run: NativeCrashRecovery.Run?
@@ -51,7 +53,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
     @discardableResult func invalidate() -> UInt64 {
         lock.withLock {
             generation &+= 1
-            publishedTicket = nil; publishedUnlinked = nil
+            publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
             if installed { recorder.disable() }
             return generation
         }
@@ -64,7 +66,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
         lock.withLock {
             let unlinked = publishedTicket == generation ? publishedUnlinked : nil
             generation &+= 1
-            publishedTicket = nil; publishedUnlinked = nil
+            publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
             guard installed else { return generation }
             recorder.disable()
             if let unlinked, Thread.isMainThread {
@@ -75,6 +77,12 @@ final class NativeCrashRuntime: @unchecked Sendable {
         }
     }
 
+    /// Whether the current generation is armed with a context carrying exactly this
+    /// release-health pointer (nil: none). Such capture needs no invalidation barrier.
+    func isArmed(exposureID: String?) -> Bool {
+        lock.withLock { publishedTicket == generation && publishedExposureID == exposureID }
+    }
+
     func refresh(ticket: UInt64, context: @escaping @Sendable () throws -> NativeCrashRecoveryContext?) async -> Bool {
         let prepared: Prepared? = await withCheckedContinuation { continuation in
             worker.async { continuation.resume(returning: self.prepareOnWorker(ticket: ticket, context: context)) }
@@ -82,19 +90,19 @@ final class NativeCrashRuntime: @unchecked Sendable {
         guard let prepared else { return false }
         switch prepared {
         case .published: return true
-        case .context(let directory, let identifier, let unlinked):
+        case .context(let directory, let identifier, let unlinked, let exposureID):
             // Never synchronously hop to main: SDK state and context persistence
             // may be waiting independently. The admission rechecks its generation.
             return await withCheckedContinuation { continuation in
                 scheduleAdmission {
                     continuation.resume(returning: self.admitOnMain(ticket: ticket, directory: directory,
-                        identifier: identifier, unlinked: unlinked))
+                        identifier: identifier, unlinked: unlinked, exposureID: exposureID))
                 }
             }
         }
     }
 
-    private func admitOnMain(ticket: UInt64, directory: URL, identifier: UUID, unlinked: UUID?) -> Bool {
+    private func admitOnMain(ticket: UInt64, directory: URL, identifier: UUID, unlinked: UUID?, exposureID: String?) -> Bool {
         precondition(Thread.isMainThread)
         guard isCurrent(ticket) else { return false }
         if !attemptedInstall {
@@ -109,7 +117,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
             if publishedTicket == ticket { return true }
             // The current-generation check and enable share opt-out's leaf lock.
             guard recorder.publish(identifier) else { recorder.disable(); return false }
-            publishedTicket = ticket; publishedUnlinked = unlinked
+            publishedTicket = ticket; publishedUnlinked = unlinked; publishedExposureID = exposureID
             return true
         }
     }
@@ -148,10 +156,11 @@ final class NativeCrashRuntime: @unchecked Sendable {
             guard let identifier = try contextIdentifier(context, ticket: ticket, recovery: recovery, run: run) else { return nil }
             // A pointer-free twin lets a background withdrawal rearm capture without
             // disk work. Without one, that withdrawal waits for a refresh instead.
-            let unlinked = context.releaseHealthExposure == nil ? identifier : (try? context.withoutReleaseHealthExposure())
+            let exposureID = context.releaseHealthExposure?.exposureID
+            let unlinked = exposureID == nil ? identifier : (try? context.withoutReleaseHealthExposure())
                 .flatMap { try? contextIdentifier($0, ticket: ticket, recovery: recovery, run: run) }
             guard isCurrent(ticket) else { return nil }
-            return .context(run.recorderURL, identifier, unlinked: unlinked)
+            return .context(run.recorderURL, identifier, unlinked: unlinked, exposureID: exposureID)
         } catch {
             // The gate was closed before work began. Never replace or delete a
             // current run to work around unavailable keys, capacity, or I/O.

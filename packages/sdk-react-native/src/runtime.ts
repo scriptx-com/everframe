@@ -113,12 +113,13 @@ export interface RuntimeConfig
   /**
    * Explicit opt-in to native foreground-session monitoring. The loaded build
    * comes from validated Hermes jsBundle metadata. userId is an optional opaque
-   * identifier supplied for this purpose; setUser never supplies it implicitly.
+   * identifier supplied for this purpose; null or omitted means anonymous, and
+   * setUser never supplies it implicitly.
    */
   releaseHealth?: {
     enabled: boolean;
     nativeBuildId: string;
-    userId?: string;
+    userId?: string | null;
   };
   /**
    * Opt-in JS-side capture integrations (spec 2026-07-14 RN-iOS parity).
@@ -777,14 +778,26 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   const health = config.releaseHealth;
   if (health !== undefined) {
     bridge.releaseHealthEnabled = false;
-    const bundle = health?.enabled === true ? captureJsBundleMetadata(config.jsBundle) : undefined;
-    if (bundle && validReleaseHealthText(bundle.buildId, 200) &&
-        validReleaseHealthText(health.nativeBuildId, 200) &&
-        (health.userId === undefined || validReleaseHealthText(health.userId, 128))) {
-      bridge.releaseHealthEnabled = true;
-      bridge.releaseHealthNativeBuildId = health.nativeBuildId;
-      bridge.releaseHealthLoadedBuildId = bundle.buildId;
-      if (health.userId !== undefined) bridge.releaseHealthUserId = health.userId;
+    if (health?.enabled === true) {
+      const bundle = captureJsBundleMetadata(config.jsBundle);
+      const rejected: string[] = [];
+      if (!bundle || !validReleaseHealthText(bundle.buildId, 200)) rejected.push("jsBundle (no valid Hermes bundle identity)");
+      if (!validReleaseHealthText(health.nativeBuildId, 200)) rejected.push("releaseHealth.nativeBuildId");
+      // A null user ID is anonymous, as on the native, web and React SDKs.
+      if (health.userId != null && !validReleaseHealthText(health.userId, 128)) rejected.push("releaseHealth.userId");
+      if (bundle && rejected.length === 0) {
+        bridge.releaseHealthEnabled = true;
+        bridge.releaseHealthNativeBuildId = health.nativeBuildId;
+        bridge.releaseHealthLoadedBuildId = bundle.buildId;
+        if (typeof health.userId === "string") bridge.releaseHealthUserId = health.userId;
+      } else {
+        // Not DEV-only: a rejected opt-in also revokes monitoring and erases queued records in
+        // release builds. Name the fields only; identifiers are never logged.
+        console.warn(
+          `[everframe] releaseHealth rejected: invalid ${rejected.join(", ")}. Foreground-session ` +
+            "monitoring is off for this configuration; turning it off erases undelivered health records on this device.",
+        );
+      }
     }
   }
   return bridge;
