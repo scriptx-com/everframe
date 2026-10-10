@@ -22,6 +22,7 @@ import { symbolsPhaseScript } from "./native-setup/index.js";
 import { CLI_VERSION } from "./version.js";
 import { uploadStagedHermes } from "./staged-upload.js";
 import { uploadBuild, uploadCollectedBuild } from "./upload.js";
+import { collectVegaBuilds, VEGA_DEFAULT_DIR } from "./vega.js";
 
 export type { LocalBuild } from "./manifest.js";
 export { collectBuild } from "./manifest.js";
@@ -44,11 +45,14 @@ export type {
 export { uploadBuild, uploadCollectedBuild } from "./upload.js";
 export { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
 export { uploadStagedHermes } from "./staged-upload.js";
+export type { CollectedVegaBuilds, VegaBuild } from "./vega.js";
+export { collectVegaBuilds } from "./vega.js";
 
 const HELP = `Usage:
   everframe sourcemaps upload --app-id <uuid> --build <id> --dir <path> [--url-prefix <url>] [--delete-after-upload]
-  everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios> --bundle-name <name> --bundle <path> --source-map <path>
+  everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios|vega> --bundle-name <name> --bundle <path> --source-map <path>
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
+  everframe sourcemaps upload-vega [--app-id <uuid>] [--dir build/lib/rn-bundles/Release]
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe setup react-native --app-id <uuid> [--project <dir>]
   everframe setup xcode --project <App.xcodeproj> [--target <name>]... [--app-id <uuid>] [--print-script]
@@ -78,7 +82,7 @@ export async function main(
   }
   const isSourceMapCommand =
     argv[0] === "sourcemaps" &&
-    (argv[1] === "upload" || argv[1] === "upload-hermes");
+    (argv[1] === "upload" || argv[1] === "upload-hermes" || argv[1] === "upload-vega");
   const isDsymBuildCommand = argv[0] === "dsym" && argv[1] === "upload-build";
   const isElfBuildCommand = argv[0] === "elf" && argv[1] === "upload-build";
   const isElfCommand = argv[0] === "elf" && argv[1] === "upload";
@@ -366,6 +370,42 @@ export async function main(
       return 0;
     }
 
+    if (argv[1] === "upload-vega") {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          dir: { type: "string", default: VEGA_DEFAULT_DIR },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"] ?? env.EVERFRAME_APP_ID;
+      const token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !token) throw new Error("missing_required_option");
+      const dir = parsed.values.dir;
+      const { builds, stale } = await collectVegaBuilds(dir);
+      for (const bundleId of stale)
+        console.log(`Skipped ${bundleId}.bundle.map: no JavaScript bundle in ${dir} hashes to it (a map from an earlier build).`);
+      if (builds.length === 0) throw new Error("vega_bundle_not_found");
+      for (const { bundleId, local } of builds) {
+        const result = await uploadCollectedBuild(local, {
+          appId,
+          root: resolve(dir),
+          apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+          token,
+          deleteAfterUpload: false,
+        });
+        console.log(`Source-map build ${result.buildUuid} is ready (Vega bundle ${bundleId}).`);
+      }
+      return 0;
+    }
+
     if (argv[1] === "upload-hermes") {
       const parsed = parseArgs({
         args: argv.slice(2),
@@ -428,7 +468,7 @@ export async function main(
       if (
         !appId ||
         !buildId ||
-        (platform !== "android" && platform !== "ios") ||
+        (platform !== "android" && platform !== "ios" && platform !== "vega") ||
         !bundleName ||
         !bundlePath ||
         !sourceMapPath ||
