@@ -28,7 +28,7 @@ export const CrashFrame = z
 /** Exact loaded JS artifact identity; lengths are UTF-16 code units. */
 export const JsBundleMetadata = z.object({
   engine: z.literal('hermes'),
-  platform: z.enum(['android', 'ios']).meta({ title: 'JsBundlePlatform' }),
+  platform: z.enum(['android', 'ios', 'vega']).meta({ title: 'JsBundlePlatform' }),
   buildId: z.string().min(1).max(200)
     .regex(/\S/u).regex(/^(?:[^\u0000\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u),
   bundleName: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 
 export const SDKPlatform = z
-  .enum(['web', 'ios', 'android', 'tvos', 'tizen', 'webos', 'androidtv', 'roku'])
+  .enum(['web', 'ios', 'android', 'tvos', 'tizen', 'webos', 'androidtv', 'roku', 'vega'])
   .meta({
     // Use Draft 2020-12 keyword `$id` (Zod 4 passes meta keys through verbatim,
     // and ajv 2020 rejects bare `id`).

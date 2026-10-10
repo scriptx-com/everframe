@@ -196,6 +196,49 @@ describe('Hermes manifest identity', () => {
     'rejects a nonpersistable bundle name: %j',
     (bundleName) => expect(() => hermesAssetUrl('android', bundleName)).toThrow(),
   );
+
+  // Vega OS names each bundle by its SHA-256 and keeps JavaScript line and
+  // column debug info, so the plain Metro map uploads under the bundle id.
+  describe('Vega bundles', () => {
+    const bundleId = 'c'.repeat(64);
+    const vega = {
+      version: 2,
+      runtime: 'hermes',
+      platform: 'vega',
+      buildId: bundleId,
+      artifacts: [{
+        url: `hermes://vega/${bundleId}.bundle`,
+        generatedSha256: bundleId,
+        mapSha256: 'b'.repeat(64),
+        mapBytes: 12,
+      }],
+    } as const;
+
+    it('constructs and parses a vega artifact identity', () => {
+      expect(hermesAssetUrl('vega', `${bundleId}.bundle`)).toBe(`hermes://vega/${bundleId}.bundle`);
+      expect(parseManifest(vega)).toEqual(vega);
+      expect(artifactKind(parseManifest(vega))).toBe('source_map');
+    });
+
+    it.each([
+      `hermes://android/${bundleId}.bundle`,
+      `hermes://vega/a/${bundleId}.bundle`,
+    ])('rejects a vega manifest whose URI names another platform or path: %s', (url) => {
+      expect(() => parseManifest({ ...vega, artifacts: [{ ...vega.artifacts[0], url }] })).toThrow();
+    });
+
+    it('rejects a vega URI inside an android manifest', () => {
+      expect(() => parseManifest({
+        ...valid,
+        artifacts: [{ ...valid.artifacts[0], url: `hermes://vega/${bundleId}.bundle` }],
+      })).toThrow();
+    });
+
+    it('still rejects platforms Hermes does not ship on', () => {
+      expect(() => hermesAssetUrl('kepler' as never, 'index.bundle')).toThrow();
+      expect(() => parseManifest({ ...vega, platform: 'kepler' })).toThrow();
+    });
+  });
 });
 
 describe('R8 manifest identity', () => {
