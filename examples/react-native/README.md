@@ -127,8 +127,7 @@ The sample exists to **prove the integration boundary**:
 
 - **Host-owned triggers only.** One floating corner button + the TV remote
   listener — no shake-detection, no gesture library in the SDK; those are
-  HOST-app concerns
-  ([feedback_triggers_are_host_concern.md](../../.claude/projects/-Users-evaldasstonys-scriptx-everframe/memory/feedback_triggers_are_host_concern.md)).
+  HOST-app concerns.
   See the [Trigger recipes](#trigger-recipes-host-app-snippets) section for motion + hardware-key snippets integrators copy into their own host code.
 - **Provider-owned configuration.** `App.tsx` wraps the subtree in
   `<EverframeProvider config={...}>` (Plan 06-05). Nothing reaches into
