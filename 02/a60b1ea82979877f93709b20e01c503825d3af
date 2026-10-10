@@ -1,0 +1,193 @@
+.changeset/android-crash-default-on.md
+  s_dbd309ddf8ec5b::t_38ff596d63f659 1-10
+.changeset/android-internet-permission.md
+  s_dbd309ddf8ec5b::t_da37a6ec5af825 1-8
+.changeset/tvos-install-resolver.md
+  s_dbd309ddf8ec5b::t_6dc267fdc1305d 1-8
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_3b9558d330a3d8 5,18-19,21-24
+docs/release-health.md
+  s_dbd309ddf8ec5b::t_0c8c151d3dd4c7 107-111
+examples/react-native/app.json
+  s_dbd309ddf8ec5b::t_83b427d0af853b 39-40
+examples/react-native/package.json
+  s_dbd309ddf8ec5b::t_15b2e857b32a08 26-27
+examples/react-native/plugins/with-pod-deployment-targets.js
+  s_dbd309ddf8ec5b::t_4e6bb42f5c4186 1-39
+packages/everframe_flutter/CHANGELOG.md
+  s_dbd309ddf8ec5b::t_a4ef14c79e02fc 4-7
+packages/everframe_flutter/README.md
+  s_dbd309ddf8ec5b::t_66ffb5e2cc92ac 79-84
+packages/everframe_flutter/android/src/main/kotlin/dev/everframe/flutter/EverframeFlutterPlugin.kt
+  s_dbd309ddf8ec5b::t_3971710d9ef61e 74-75,80
+packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift
+  s_dbd309ddf8ec5b::t_4adf58e796cc18 44-45
+packages/everframe_flutter/lib/src/native_bridge.dart
+  s_dbd309ddf8ec5b::t_3e42c046b292f7 16-18,23,37
+packages/everframe_flutter/test/native_bridge_test.dart
+  s_dbd309ddf8ec5b::t_1bebf7f2127b19 48,68,72-77
+packages/everframe_kmp/README.md
+  s_dbd309ddf8ec5b::t_10cb0e476e1c0a 10
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_dbd309ddf8ec5b::t_274393d332c23b 55-79
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_dbd309ddf8ec5b::t_3dcc2c6229f189 3210-3230
+packages/protocol/src/diagnostic.ts
+  s_dbd309ddf8ec5b::t_a7b33cdf96b683 44-50
+packages/protocol/src/envelope.ts
+  s_dbd309ddf8ec5b::t_024ed33305c57a 231,233-235
+packages/sdk-android/README.md
+  s_dbd309ddf8ec5b::t_81abfc961cf622 71,73,75-80,82,84,86-92,98
+packages/sdk-android/android/README.md
+  s_dbd309ddf8ec5b::t_05cab8d2b61567 10,24,51-52,56-59,69,85-87,172,187-189,637-639
+packages/sdk-android/android/everframe-core/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_2784e41c6d18a7 4-12
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_a28b3950510ed3 154-156,652-658,661-666,917-928,994-1002,1059-1071,1423
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/DeviceMetadata.kt
+  s_dbd309ddf8ec5b::t_28b7a954a6bb5a 14-15,18-19
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionBadge.kt
+  s_dbd309ddf8ec5b::t_df3df79816238b 35-36
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidExitDiagnostic.kt
+  s_dbd309ddf8ec5b::t_12104af4a743b9 89-93,95,99,103-112
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_dbd309ddf8ec5b::t_a95e14bfac0c96 17,21,27-28,31-32,35-40,68,70-71,102-104,110-114,119,130-139,141,154-155
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_dbd309ddf8ec5b::t_286b5858d2d21b 19-23,84-85,87,110-114,141,156,185-188
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_dbd309ddf8ec5b::t_e8006961568595 8,11,19,30-36,55-70,78-80,91,95-97,105,117-179,194-201,204-206,208-218,242,245-248,252,255-257,305,312-322,331-333,335,342-347
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_dbd309ddf8ec5b::t_dbc665ac5a21d0 29-32,34,36-40,46-47,49,51-52,55-56,59,70-72,74,89-90,98,102,114,123,141-142,144,151,158-159,161-181,184-193,201-202,204,210-214
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRequests.kt
+  s_dbd309ddf8ec5b::t_7ecb886a2de076 15-17
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalPackaging.kt
+  s_dbd309ddf8ec5b::t_3d72504a4d1fb1 38
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_dbd309ddf8ec5b::t_a3a0dd42abc05d 63-65,84,117
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AppProcess.kt
+  s_dbd309ddf8ec5b::t_848eb7d5bba4ed 1-23
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashCapturePlan.kt
+  s_dbd309ddf8ec5b::t_72b5d10d6b55f5 1-34
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_dbd309ddf8ec5b::t_0e3b6b72bb6e4f 580-585
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/ProcessStateSummaryConflict.kt
+  s_dbd309ddf8ec5b::t_42b7d4f8141595 1-24
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/CrashCapturePublicSurfaceTest.kt
+  s_dbd309ddf8ec5b::t_53a103c321e435 1-20
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidExitDiagnosticTest.kt
+  s_dbd309ddf8ec5b::t_5880ecc60c6011 22,28,56-60,62-69,72-179
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_dbd309ddf8ec5b::t_4919f7660db9cb 35,117-139,179
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_dbd309ddf8ec5b::t_c3569f315d53a5 59,364-474
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_dbd309ddf8ec5b::t_28c00389477703 116-122,124-135,137-144,146,174-177,179-205
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalRuntimeTest.kt
+  s_dbd309ddf8ec5b::t_aa9a57a1de6a67 66-71
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashCapturePlanTest.kt
+  s_dbd309ddf8ec5b::t_30f03ed664f703 3,8-12,15-19,22-26,29-36,39-44
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/ProcessStateSummaryConflictTest.kt
+  s_dbd309ddf8ec5b::t_226ba0a196f424 7,9-18
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/AndroidNativeCrashRuntimeTest.kt
+  s_dbd309ddf8ec5b::t_5ccd14d29fba5f 34,38,48,66,114,116,120,122-123,141-142,144,147-153,155,161,163,167,169-171,178,186
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/CrashCaptureStartTest.kt
+  s_dbd309ddf8ec5b::t_f30c744ebcb920 1-334
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/health/ReleaseHealthRuntimeTest.kt
+  s_dbd309ddf8ec5b::t_dc0253335c3dea 200-201,214,224,231,243,249,254,259,264,269
+packages/sdk-android/android/everframe-protocol/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_249c9a94aa2d30 4
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_dbd309ddf8ec5b::t_1f1b282e1dcc0d 857-858,860-867
+packages/sdk-android/android/everframe-reporter-ui/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_aba4c86846439c 4
+packages/sdk-android/android/settings.gradle.kts
+  s_dbd309ddf8ec5b::t_24d5839de457f3 44-49
+packages/sdk-android/native/README.md
+  s_dbd309ddf8ec5b::t_9a27a930404769 34-42,48,50,53,68,75-79
+packages/sdk-android/tests/crash-default-host/README.md
+  s_dbd309ddf8ec5b::t_11261f443201da 1-13
+packages/sdk-android/tests/crash-default-host/app/.gitignore
+  s_dbd309ddf8ec5b::t_22ce90ee91c5ed 1-4
+packages/sdk-android/tests/crash-default-host/app/build.gradle.kts
+  s_dbd309ddf8ec5b::t_2ce31bde3dc78b 1-33
+packages/sdk-android/tests/crash-default-host/app/proguard-rules.pro
+  s_dbd309ddf8ec5b::t_5f9b289cca7a2d 1-5
+packages/sdk-android/tests/crash-default-host/app/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_700decd9964752 1-17
+packages/sdk-android/tests/crash-default-host/app/src/main/cpp/CMakeLists.txt
+  s_dbd309ddf8ec5b::t_29f613a60eca12 1-7
+packages/sdk-android/tests/crash-default-host/app/src/main/cpp/fault.cc
+  s_dbd309ddf8ec5b::t_66a30d5349e0ee 1-36
+packages/sdk-android/tests/crash-default-host/app/src/main/kotlin/dev/everframe/crashdefault/ProofActivity.kt
+  s_dbd309ddf8ec5b::t_96f489930d12f1 1-59
+packages/sdk-android/tests/crash-default-host/app/src/main/kotlin/dev/everframe/crashdefault/ProofApplication.kt
+  s_dbd309ddf8ec5b::t_11d4fd3300f4e4 1-15
+packages/sdk-android/tests/crash-default-host/app/src/main/res/xml/network_security_config.xml
+  s_dbd309ddf8ec5b::t_e52e542661eeba 1-5
+packages/sdk-android/tests/native-crash-host/README.md
+  s_dbd309ddf8ec5b::t_edad29b4661be6 7,15,17
+packages/sdk-android/tests/native-crash-host/app/src/main/java/dev/everframe/nativeproof/MainActivity.kt
+  s_dbd309ddf8ec5b::t_9168f5ba641ada 55,110-111,113
+packages/sdk-android/tests/native-release-host/README.md
+  s_dbd309ddf8ec5b::t_50b4001bb137b5 6,42-44,46-47,55,57,61-62,70
+packages/sdk-android/tests/native-release-host/app/src/main/kotlin/dev/everframe/releaseproof/MainActivity.kt
+  s_dbd309ddf8ec5b::t_fa0214bf200dee 43,46-47,50,56-57,59,72,77,81-85,90,93,98
+packages/sdk-ios/README.md
+  s_dbd309ddf8ec5b::t_6f2b223f073d99 42-45,47-48,54-57,59-69,78-80
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_dbd309ddf8ec5b::t_07bb2ac324aa4d 2561-2562,2564,2566,2568-2575,2577-2578,2580,2582,2606-2607,2609-2611,2615-2616,2618-2620
+packages/sdk-ios/Sources/EverframeReporterUI/CompanionPinPresenter.swift
+  s_dbd309ddf8ec5b::t_0c475e4bf86840 8
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_dbd309ddf8ec5b::t_714624a5e798e2 23-24,55-59,241-254
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_dbd309ddf8ec5b::t_40d0199c25aad1 8,17,20,23,30,54-57,62,68-90
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.h
+  s_dbd309ddf8ec5b::t_2323e85d7c3366 9
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.m
+  s_dbd309ddf8ec5b::t_21fb21fbf729c7 5,25-27
+packages/sdk-ios/Tests/NativeCrashStartupProof/README.md
+  s_dbd309ddf8ec5b::t_428bbdabeac383 8-9,15-17,27-28,31,35-37
+packages/sdk-ios/Tests/NativeCrashStartupProof/project.yml
+  s_dbd309ddf8ec5b::t_0b260eaa3eaa60 10,23-29,38-43
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_d72385092ee571 281-284
+packages/sdk-react-native/__tests__/crash-reporting-config.spec.ts
+  s_dbd309ddf8ec5b::t_825b930c9a38e6 1-23
+packages/sdk-react-native/__tests__/crash-reporting-native-wiring.spec.ts
+  s_dbd309ddf8ec5b::t_49499b50c44be2 1-26
+packages/sdk-react-native/__tests__/release-health-bridge-wiring.spec.ts
+  s_dbd309ddf8ec5b::t_d76d717f67a4dc 24-25
+packages/sdk-react-native/android/build.gradle.kts
+  s_dbd309ddf8ec5b::t_aeccfbd0ca4827 24-27
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_dbd309ddf8ec5b::t_46e2b62f4482ed 269-271,288
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleConfigureTest.kt
+  s_dbd309ddf8ec5b::t_caa2e3050bfe4c 146-172
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_dbd309ddf8ec5b::t_9beec3d4943085 55,85-87,209-211
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_dbd309ddf8ec5b::t_4b55f8157bf152 130-131,189
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_dbd309ddf8ec5b::t_f45574cb0aac2b 134-141
+packages/sdk-react-native/src/runtime.ts
+  s_dbd309ddf8ec5b::t_ca50c28195038c 76,136,706-710
+pnpm-lock.yaml
+  s_dbd309ddf8ec5b::t_f73086424cc44f 90,98-99,101-102,1888-1889,3741-3742,3748-3749,3753-3754,3782-3783,3792-3793,3801-3802,7223,7233,7235,7242,7259,7375,7377,7407,7474,7476,7478,7483,7509,7615,7618-7620,7894,7896,8782,8829,9362,9365-9366,9373,9376,9380,9383,9388,9390,9393,9395,9400,9402,9415,9418,9423,9429,9432,9436,9438,9440,9442-9447,9449,9456
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "02a60b1ea82979877f93709b20e01c503825d3af",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
