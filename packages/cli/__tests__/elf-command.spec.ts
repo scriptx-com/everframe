@@ -37,7 +37,7 @@ async function agp() {
 function recorder(failure?: Error) {
   const upload = vi.fn<typeof uploadAndroidElfBuild>(async () => {
     if (failure) throw failure;
-    return { artifacts: [], images: [], uncovered: [] };
+    return { artifacts: [], images: [], uncovered: [], failed: [] };
   });
   const lines: string[] = [],
     warnings: string[] = [];
@@ -101,7 +101,7 @@ it("does not warn about prebuilt libraries without debug information, and names 
   const r = recorder();
   r.upload.mockImplementation(async (options) => {
     const build = await collectAndroidElfBuild({ binaries: options.binaries, symbolsDir: options.symbolsDir });
-    return { artifacts: [], images: build.images, uncovered: build.uncovered };
+    return { artifacts: [], images: build.images, uncovered: build.uncovered, failed: [] };
   });
   const env = { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID };
   expect(await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols], env, r.deps)).toBe(0);
@@ -130,6 +130,7 @@ it("prints one detail line per library without symbols in summary mode and no wa
       { path: f.hermes, kind: "prebuilt", reason: "prebuilt without debug information (build ID x, x86_64)" },
       { path: f.app, kind: "missing", reason: "no unstripped library with build ID y (arm64-v8a) under z" },
     ],
+    failed: [],
   });
   const env = { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID };
   expect(await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, "--summary"], env, r.deps)).toBe(0);
@@ -143,7 +144,7 @@ it("prints one detail line per library without symbols in summary mode and no wa
 it("discovers libraries for the command, keeps them optional and prints warnings", async () => {
   const f = await agp();
   const r = recorder();
-  r.upload.mockResolvedValue({ artifacts: [], images: [], uncovered: [{ path: f.hermes, kind: "missing", reason: "no unstripped library" }] });
+  r.upload.mockResolvedValue({ artifacts: [], images: [], uncovered: [{ path: f.hermes, kind: "missing", reason: "no unstripped library" }], failed: [] });
   const code = await elfUploadBuildCommand(
     ["--binaries-dir", f.shipped, "--symbols-dir", f.symbols],
     { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID },
@@ -248,3 +249,29 @@ it("gives discovery mode the build-integration upload budget, and the explicit l
   await elfUploadBuildCommand(["--binary", f.app, "--symbols-dir", f.symbols], env, r.deps);
   expect(r.upload.mock.calls[1]![1]?.deadline).toBeUndefined();
 });
+it.each([[[]], [["--summary"]]])(
+  "uploads every library in lenient mode and warns about each rejected one afterwards (%j)",
+  async (extra) => {
+    const f = await agp();
+    const r = recorder();
+    r.upload.mockResolvedValue({
+      artifacts: [],
+      images: [],
+      uncovered: [],
+      failed: [{ path: f.app, message: "request_failed:invalid_elf_binary secret-token" }],
+    });
+    const env = { EVERFRAME_API_TOKEN: "secret-token", EVERFRAME_APP_ID: APP_ID };
+    expect(await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, ...extra], env, r.deps)).toBe(0);
+    expect(r.upload.mock.calls[0]![0]).toMatchObject({ lenient: true });
+    expect(r.warnings).toEqual([
+      `warning: everframe: upload failed for ${f.app}: request_failed:invalid_elf_binary [redacted]`,
+      "warning: everframe: crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.",
+    ]);
+    const strict = recorder();
+    await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, "--strict"], env, strict.deps);
+    expect(strict.upload.mock.calls[0]![0]).toMatchObject({ lenient: false });
+    const manual = recorder();
+    await elfUploadBuildCommand(["--binary", f.app, "--symbols-dir", f.symbols], env, manual.deps);
+    expect(manual.upload.mock.calls[0]![0]).toMatchObject({ lenient: false });
+  }
+);

@@ -123,3 +123,21 @@ export async function appBundle(parent: string, name = "App") {
     watch: await put(join(app, "Watch", "Watch.app", "Watch"), macho({ uuid: "66666666-7777-4888-8999-aaaaaaaaaaaa" })),
   };
 }
+/** A 64-bit Mach-O header with LC_UUID and one LC_LOAD_DYLIB per name. */
+export function linking(uuid: string, names: string[], kind = 2): Buffer {
+  const base = macho({ uuid, kind });
+  const commands = names.map((name, i) => {
+    const text = Buffer.from(name + "\0");
+    const size = Math.ceil((24 + text.length) / 8) * 8;
+    const command = Buffer.alloc(size);
+    command.writeUInt32LE(i % 2 ? 0x80000018 : 0xc, 0);
+    command.writeUInt32LE(size, 4);
+    command.writeUInt32LE(24, 8);
+    text.copy(command, 24);
+    return command;
+  });
+  const out = Buffer.concat([base, ...commands]);
+  out.writeUInt32LE(1 + names.length, 16);
+  out.writeUInt32LE(24 + commands.reduce((n, c) => n + c.length, 0), 20);
+  return out;
+}

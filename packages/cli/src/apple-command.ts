@@ -58,16 +58,19 @@ export async function dsymUploadBuildCommand(
   const strict = symbolsStrict(env, values.strict);
   const failHard = strict || explicit.length > 0;
   const token = env.EVERFRAME_API_TOKEN;
+  /** Build products `--xcode` could not search for linked frameworks. */
+  const discovery: string[] = [];
 
   async function run(): Promise<number> {
     let source: AppleSymbolSource | undefined;
     if (values.xcode) {
-      const resolved = await resolveXcodeSource(env);
+      const resolved = await resolveXcodeSource(env, { strict });
       if (resolved.kind === "skip") {
         log(`everframe: skipping symbol upload: ${resolved.reason}`);
         return 0;
       }
       source = resolved.source;
+      discovery.push(...resolved.warnings);
     }
     if (!token) {
       if (failHard) throw new Error(MISSING_TOKEN);
@@ -109,6 +112,7 @@ export async function dsymUploadBuildCommand(
       );
     if (result.uncovered.length > 16) warn(`warning: and ${result.uncovered.length - 16} more binaries without dSYMs`);
     const problems = [
+      ...discovery.map((line) => redact(line, token)),
       ...(result.missingRequired?.split("\n") ?? []),
       ...result.warnings,
       ...result.failed.map((entry) => `upload failed for ${entry.path}: ${redact(entry.message, token)}`),
@@ -123,6 +127,7 @@ export async function dsymUploadBuildCommand(
   } catch (error) {
     if (failHard) throw error;
     const message = error instanceof Error ? error.message : "upload_failed";
+    for (const line of discovery) warn(`warning: everframe: ${redact(line, token)}`);
     for (const line of uploadFailureWarnings(adviceFor(message), token)) warn(line);
     return 0;
   }

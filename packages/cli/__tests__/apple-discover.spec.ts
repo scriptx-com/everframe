@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { chmod, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import { dirname } from "node:path";
 import { collectAppleBuild } from "../src/apple-build.js";
-import { discoverAppBundle, linkedFrameworks, resolveArchiveSource, resolveXcodeSource } from "../src/apple-discover.js";
-import { appBundle, dsym, macho, universal } from "./apple-build-fixture.js";
+import {
+  discoverAppBundle,
+  linkedFrameworks,
+  linkedProductFrameworks,
+  resolveArchiveSource,
+  resolveXcodeSource,
+} from "../src/apple-discover.js";
+import { appBundle, dsym, linking, macho, universal } from "./apple-build-fixture.js";
 
 const roots: string[] = [];
 async function temp() {
@@ -63,6 +69,7 @@ it("resolves an Xcode Release build to the bundle and both symbol folders", asyn
       ],
       dsymDirs: [join(root, "dsyms"), root],
     },
+    warnings: [],
   });
 });
 it("uses EXECUTABLE_PATH when it differs from the bundle name", async () => {
@@ -133,24 +140,6 @@ it("rejects archives without exactly one app or without dSYMs", async () => {
   await expect(resolveArchiveSource(archive)).rejects.toThrow(/^archive_dsyms_missing: /);
 });
 
-/** A 64-bit Mach-O header with LC_UUID and one LC_LOAD_DYLIB per name. */
-function linking(uuid: string, names: string[], kind = 2): Buffer {
-  const base = macho({ uuid, kind });
-  const commands = names.map((name, i) => {
-    const text = Buffer.from(name + "\0");
-    const size = Math.ceil((24 + text.length) / 8) * 8;
-    const command = Buffer.alloc(size);
-    command.writeUInt32LE(i % 2 ? 0x80000018 : 0xc, 0);
-    command.writeUInt32LE(size, 4);
-    command.writeUInt32LE(24, 8);
-    text.copy(command, 24);
-    return command;
-  });
-  const out = Buffer.concat([base, ...commands]);
-  out.writeUInt32LE(1 + names.length, 16);
-  out.writeUInt32LE(24 + commands.reduce((n, c) => n + c.length, 0), 20);
-  return out;
-}
 const POD_A = "aaaaaaaa-0000-4000-8000-000000000001",
   POD_B = "bbbbbbbb-0000-4000-8000-000000000002",
   HERMES = "cccccccc-0000-4000-8000-000000000003",
@@ -215,4 +204,88 @@ it("uploads pod framework dSYMs from their per-pod build dirs and reports the pr
   expect(build.images.map((image) => image.uuid).sort()).toEqual(["01234567-89ab-cdef-0123-456789abcdef", POD_A, POD_B].sort());
   expect(build.uncovered.map((entry) => entry.path)).toEqual(expect.arrayContaining([f.hermes]));
   expect(build.images.some((image) => image.uuid === UNUSED)).toBe(false);
+});
+it("keeps the app and the reachable pods when the build products hold a symlink loop or an unreadable folder", async () => {
+  const f = await podsLayout();
+  await symlink("loop", join(f.root, "loop"));
+  const locked = join(f.root, "Locked");
+  await mkdir(locked);
+  const unreadable = process.getuid?.() !== 0;
+  if (unreadable) await chmod(locked, 0o000);
+  try {
+    const env = xcodeEnv(f.root, { DWARF_DSYM_FOLDER_PATH: f.root });
+    const resolved = await resolveXcodeSource(env);
+    if (resolved.kind !== "source") throw new Error("expected a source");
+    expect(resolved.source.binaries).toEqual([
+      { path: f.b.executable, required: true },
+      { path: f.b.framework, required: false },
+      { path: f.b.extension, required: true },
+      { path: f.podA, required: false },
+      { path: f.hermes, required: false },
+      { path: f.podB, required: false },
+    ]);
+    expect(resolved.warnings).toEqual([
+      ...(unreadable ? [`skipped ${locked} while looking for linked frameworks: EACCES`] : []),
+      `skipped ${join(f.root, "loop")} while looking for linked frameworks: ELOOP`,
+    ]);
+    // Strict mode still fails on a build products folder it cannot search.
+    await expect(resolveXcodeSource(env, { strict: true })).rejects.toThrow(unreadable ? /EACCES|xcode_script_sandboxed/ : /ELOOP/);
+  } finally {
+    await chmod(locked, 0o755);
+  }
+});
+it.skipIf(process.getuid?.() === 0)("skips a pod it cannot read and keeps the app's own symbols when the products folder is unreadable", async () => {
+  const f = await podsLayout();
+  // The pod binary cannot be opened: that pod (and what only it links) is skipped.
+  await chmod(f.podA, 0o000);
+  try {
+    const resolved = await resolveXcodeSource(xcodeEnv(f.root, { DWARF_DSYM_FOLDER_PATH: f.root }));
+    if (resolved.kind !== "source") throw new Error("expected a source");
+    expect(resolved.source.binaries).toEqual([
+      { path: f.b.executable, required: true },
+      { path: f.b.framework, required: false },
+      { path: f.b.extension, required: true },
+      { path: f.hermes, required: false },
+    ]);
+    expect(resolved.warnings).toEqual([`skipped ${dirname(f.podA)} while looking for linked frameworks: EACCES`]);
+  } finally {
+    await chmod(f.podA, 0o755);
+  }
+  // A products folder that cannot be listed at all costs only the linked frameworks.
+  const products = join(f.root, "Products");
+  await mkdir(products);
+  await chmod(products, 0o000);
+  try {
+    const env = xcodeEnv(f.root, { DWARF_DSYM_FOLDER_PATH: f.root, BUILT_PRODUCTS_DIR: products });
+    const resolved = await resolveXcodeSource(env);
+    if (resolved.kind !== "source") throw new Error("expected a source");
+    expect(resolved.source.binaries).toEqual([
+      { path: f.b.executable, required: true },
+      { path: f.b.framework, required: false },
+      { path: f.b.extension, required: true },
+    ]);
+    expect(resolved.warnings).toEqual([
+      `could not follow run-path links to frameworks in ${products}: EACCES; frameworks not embedded yet keep raw frames`,
+    ]);
+    const build = await collectAppleBuild({ ...resolved.source, lenient: true });
+    expect(build.images.map((image) => image.uuid)).toContain("01234567-89ab-cdef-0123-456789abcdef");
+    await expect(resolveXcodeSource(env, { strict: true })).rejects.toThrow(/^xcode_script_sandboxed: Xcode denied access to /);
+  } finally {
+    await chmod(products, 0o755);
+  }
+});
+it("warns when the build products search stops at its entry cap", async () => {
+  const f = await podsLayout();
+  const warnings: string[] = [];
+  const found = await linkedProductFrameworks([{ path: f.b.executable, required: true }], f.root, {
+    entries: 2,
+    warn: (line) => warnings.push(line),
+  });
+  expect(found).toEqual([]);
+  expect(warnings).toEqual([
+    `stopped looking for linked frameworks in ${f.root} after 2 entries; frameworks beyond that keep raw frames`,
+  ]);
+  const complete: string[] = [];
+  await linkedProductFrameworks([{ path: f.b.executable, required: true }], f.root, { warn: (line) => complete.push(line) });
+  expect(complete).toEqual([]);
 });
