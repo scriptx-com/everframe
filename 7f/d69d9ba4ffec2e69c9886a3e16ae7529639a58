@@ -1,0 +1,49 @@
+packages/cli/__tests__/setup-xcode.spec.ts
+  s_dbd309ddf8ec5b::t_a4726229c791b4 1-174
+examples/ios-native/SampleApp.xcodeproj/project.pbxproj
+  s_dbd309ddf8ec5b::t_42842ed66015a0 159,182,260-280,300-320,378,465,485,505
+examples/ios-native/package.json
+  s_dbd309ddf8ec5b::t_f35ffba1b02d1f 8-10
+examples/ios-native/project.yml
+  s_dbd309ddf8ec5b::t_1d95797f9b477e 58,63-70,95,99-106
+examples/ios-native/scripts/upload-everframe-symbols.sh
+  s_dbd309ddf8ec5b::t_254b950637a931 1-26
+packages/cli/README.md
+  s_dbd309ddf8ec5b::t_de562c75772c4e 102-151
+packages/cli/build-constants.ts
+  s_dbd309ddf8ec5b::t_b300fe72f6c183 1-11
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_c482153e1abdea 18-20,52,88,91,105-129
+packages/cli/src/native-setup/index.ts
+  s_dbd309ddf8ec5b::t_2b5b529a6f3248 8-9
+packages/cli/src/native-setup/xcode-symbols.ts
+  s_dbd309ddf8ec5b::t_4eb6faedde2f7a 1-122
+packages/cli/src/setup-xcode.ts
+  s_dbd309ddf8ec5b::t_6118b5749154b7 1-24
+packages/cli/src/version.ts
+  s_dbd309ddf8ec5b::t_cb27e210795a7b 1-5
+packages/cli/tsconfig.test.json
+  s_dbd309ddf8ec5b::t_c7da4184154e9d 4
+packages/cli/tsup.config.ts
+  s_dbd309ddf8ec5b::t_749804fed1e3d1 4,18
+packages/cli/vitest.config.ts
+  s_dbd309ddf8ec5b::t_e0bb42a17b8cd8 4,7
+pnpm-lock.yaml
+  s_dbd309ddf8ec5b::t_832fd66cf6a558 77-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7fd69d9ba4ffec2e69c9886a3e16ae7529639a58",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
