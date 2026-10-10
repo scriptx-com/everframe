@@ -1,0 +1,91 @@
+packages/sdk-core/__tests__/sdk-key-alias.spec.ts
+  s_dbd309ddf8ec5b::t_499dc7eebc13cf 1-70
+packages/sdk-react/__tests__/provider-sdk-key-alias.spec.tsx
+  s_dbd309ddf8ec5b::t_c6eeac25dcd870 1-69
+.changeset/sdk-key-name.md
+  s_dbd309ddf8ec5b::t_0cc01823fade6e 13,15-18,20
+packages/everframe_flutter/CHANGELOG.md
+  s_dbd309ddf8ec5b::t_649f60ed251196 6
+packages/everframe_flutter/README.md
+  s_dbd309ddf8ec5b::t_00de426080b91a 19-20
+packages/everframe_flutter/ios/everframe_flutter.podspec
+  s_dbd309ddf8ec5b::t_210099536f4054 15-17
+packages/everframe_flutter/ios/everframe_flutter/Package.swift
+  s_dbd309ddf8ec5b::t_a8f5a3df2d2f3d 17,19
+packages/everframe_kmp/README.md
+  s_dbd309ddf8ec5b::t_e34effe70e57ff 38
+packages/sdk-core/src/client.ts
+  s_dbd309ddf8ec5b::t_cd619cfa20915a 5-6,137,267,269
+packages/sdk-core/src/index.ts
+  s_dbd309ddf8ec5b::t_e70c1ff9a051d3 14
+packages/sdk-core/src/sdk-key.ts
+  s_dbd309ddf8ec5b::t_d63d72bdf654b4 1-42
+packages/sdk-core/src/types/config.ts
+  s_dbd309ddf8ec5b::t_70ef1c491904c3 17-46
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_dbd309ddf8ec5b::t_f4130d1d9271ee 174-192
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_dbd309ddf8ec5b::t_2bd635bd2b7ef1 113-143
+packages/sdk-ios/Tests/EverframeTests/EverframeConfigEquatableTests.swift
+  s_dbd309ddf8ec5b::t_fb111ba8e56a22 89-99
+packages/sdk-react-native/EverframeRN.podspec
+  s_dbd309ddf8ec5b::t_19bfe3dc6ddeaf 38-41,43
+packages/sdk-react-native/__tests__/EverframeProvider.spec.tsx
+  s_dbd309ddf8ec5b::t_0dd872e056fa5c 11-12,134-176
+packages/sdk-react-native/__tests__/everframe-bridge-identity.spec.ts
+  s_dbd309ddf8ec5b::t_19c8866912aafe 32-37
+packages/sdk-react-native/android/build.gradle.kts
+  s_dbd309ddf8ec5b::t_b5f1d61145c370 154-156
+packages/sdk-react-native/src/EverframeProvider.tsx
+  s_dbd309ddf8ec5b::t_1d7fa25f397645 12,21
+packages/sdk-react-native/src/runtime.ts
+  s_dbd309ddf8ec5b::t_2e1ea94163ca93 24-25,388-396
+packages/sdk-react/src/provider.tsx
+  s_dbd309ddf8ec5b::t_2af43e24eeb587 27,30,55,103-110
+packages/sdk-react/src/release-health.ts
+  s_dbd309ddf8ec5b::t_cd61139b421322 3,6
+packages/sdk-web/__tests__/transport/draft-to-envelope.spec.ts
+  s_dbd309ddf8ec5b::t_fb1942d183d130 8,11
+packages/sdk-web/__tests__/transport/submit-device-token.spec.ts
+  s_dbd309ddf8ec5b::t_a0513845cec47a 9,11,347,420
+packages/sdk-web/__tests__/transport/submit-user.spec.ts
+  s_dbd309ddf8ec5b::t_54935b0419c561 7,12
+packages/sdk-web/__tests__/vitals/wiring.spec.ts
+  s_dbd309ddf8ec5b::t_2f57cbc6896c89 23,87,91,843
+packages/sdk-web/__tests__/wire/sdk-key-wire-shape.spec.ts
+  s_dbd309ddf8ec5b::t_9646a4b82dbb6e 14,73-85
+packages/sdk-web/src/adapter.ts
+  s_dbd309ddf8ec5b::t_52edf1424bd23d 65,499
+packages/sdk-web/src/companion/host-seam.ts
+  s_dbd309ddf8ec5b::t_81a3c108ac5cfd 21,25
+packages/sdk-web/src/index.ts
+  s_dbd309ddf8ec5b::t_762f293a707b77 29-32
+packages/sdk-web/src/init.ts
+  s_dbd309ddf8ec5b::t_71cfee3aae39b9 22,61,132,171,173-174
+packages/sdk-web/src/internal/types.ts
+  s_dbd309ddf8ec5b::t_65d449f6d1f947 3,7-14
+packages/sdk-web/src/transport/draft-to-envelope.ts
+  s_dbd309ddf8ec5b::t_3c3ae9f93d488b 22,185
+packages/sdk-web/src/transport/submit.ts
+  s_dbd309ddf8ec5b::t_4f06ace3cdbf32 22,207,494
+packages/sdk-web/src/vitals/index.ts
+  s_dbd309ddf8ec5b::t_c645fa0300f36b 45,48
+scripts/release-readiness.test.mjs
+  s_dbd309ddf8ec5b::t_ac877f88ff7821 45-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0796a7f908037ab33ba9716a35f4e43bdc2889f2",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
