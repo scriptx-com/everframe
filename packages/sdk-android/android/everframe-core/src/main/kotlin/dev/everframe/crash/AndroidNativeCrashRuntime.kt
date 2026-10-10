@@ -14,20 +14,29 @@ import dev.everframe.TXCapturedSession
 import dev.everframe.capture.DeviceMetadata
 import dev.everframe.config.IngestEndpoint
 import dev.everframe.envelope.EnvelopeBuilder
+import dev.everframe.envelope.txGuardVoid
 import dev.everframe.outbox.*
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.launch
 
 internal object AndroidNativeCrashRuntime {
     private val lock = Any()
     @Volatile private var requests = AndroidNativeRecoveryRequests()
     fun noteKill() { requests.invalidate() }
-    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false, supported: Boolean = true): Long =
-        requests.request(epoch, enabled, diagnostics, supported)
+    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false): Long =
+        requests.request(epoch, enabled, diagnostics)
     fun diagnosticsReady(epoch: Int): Boolean = requests.diagnosticsEnabled(epoch) && ready(epoch)
     fun ready(epoch: Int): Boolean = requests.enabled(epoch) && synchronized(lock) { controller }?.ready(epoch) == true
-    private var controller: AndroidNativeRecoveryController? = null
+    // Volatile: the JVM crash handler reads it without the lock (noteJvmFatal).
+    @Volatile private var controller: AndroidNativeRecoveryController? = null
     private var eraseWhenContextAvailable = false
+
+    /**
+     * The JVM uncaught-exception handler admitted this process's fatal crash; a low-memory kill that
+     * ends the process now is the same death and must not become a second issue. Never blocks.
+     */
+    fun noteJvmFatal() { runCatching { controller?.markJvmFatal() } }
 
     /** Lifecycle clear is independent of durable context replacement. */
     fun invalidateExposure() { controller?.invalidateExposure() }
@@ -56,9 +65,10 @@ internal object AndroidNativeCrashRuntime {
             signalCapture = { AndroidNativeSignalRuntime.capture(context, it) }).also { controller = it }
     }
 
-    /** Off-main caller. Defaults to no state-summary ownership until explicitly requested by the host. */
+    /** Off-main caller. While capture.crash is on, the SDK owns this process's state summary. */
     fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, request: Long, diagnostics: Boolean = false): Boolean {
-        if (Build.VERSION.SDK_INT < (if (diagnostics) 30 else 31) || !captured.captureConsent || captured.config?.capture?.crash != true) return false
+        if (Build.VERSION.SDK_INT < (if (diagnostics) 30 else 31) || !captured.captureConsent ||
+            captured.config?.capture?.crash != true || !AppProcess.isDefault(context)) return false
         val epoch = captured.user.startEpoch
         val gate = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch && requests.allows(request, epoch, true)
@@ -89,18 +99,24 @@ internal object AndroidNativeCrashRuntime {
         val admit: (OutboxEntry) -> Boolean = { entry ->
             try { outbox.store.enqueueSync(entry, gate); true } catch (_: Exception) { false }
         }
-        return if (diagnostics) owner.enableDiagnostics(epoch, gate, System.currentTimeMillis(), template, admit)
-            else owner.enable(epoch, gate, System.currentTimeMillis(), template, admit)
+        val appId = captured.config.appId
+        return if (diagnostics) owner.enableDiagnostics(epoch, gate, System.currentTimeMillis(), template, appId, admit)
+            else owner.enable(epoch, gate, System.currentTimeMillis(), template, appId, admit)
     }
 
     /** Outside SDK stateLock. Pending OS reads cannot block this transition. */
     fun boundary(context: Context?, epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean, request: Long? = null) {
         if (Build.VERSION.SDK_INT < 30 || !isCurrent()) return
+        // Journals are shared by every process of the app; only the default process owns them. The
+        // check reads /proc before API 28, so a replacement start makes it only where it could touch
+        // the journals instead of on the caller's thread every time.
+        val defaultProcess by lazy(LazyThreadSafetyMode.NONE) { context == null || AppProcess.isDefault(context) }
+        if (erasePersisted && !defaultProcess) return
         val command = request ?: requests.boundary(epoch)
         val owns = { isCurrent() && requests.allows(command, epoch, false) }
         if (!owns()) return
         if (context != null && !requests.finishRevocation {
-            if (!owns()) false else {
+            if (!owns()) false else if (!defaultProcess) true else {
                 val existing = synchronized(lock) { controller }
                 val owner = existing ?: if (File(context.noBackupFilesDir, "dev.everframe/native-exit-v1").exists()) controller(context) else null
                 owner?.retire(epoch, true, owns)
@@ -111,9 +127,18 @@ internal object AndroidNativeCrashRuntime {
             if (erasePersisted && context == null) eraseWhenContextAvailable = true
             controller
         }
-        val owner = prior ?: if (erasePersisted && context != null &&
+        if (!erasePersisted) {
+            // Replacement start: clear the OS token now, without the controller lock an in-flight
+            // arm holds across IO, so a crash from here on is never attributed to the old start.
+            // Dropping the old owner's own context is journal IO and runs off the caller's thread.
+            prior ?: return
+            prior.invalidateExposure()
+            Everframe.sdkScope.launch { txGuardVoid("nativeCrash.retire") { prior.retire(epoch, false, owns) } }
+            return
+        }
+        val owner = prior ?: if (context != null &&
             File(context.noBackupFilesDir, "dev.everframe/native-exit-v1").exists()) controller(context) else null
-        owner?.retire(epoch, erasePersisted, owns)
+        owner?.retire(epoch, true, owns)
     }
 }
 
@@ -126,5 +151,6 @@ private class AndroidExitPlatform(private val context: Context) : AndroidNativeE
     override fun setStateSummary(value: ByteArray?) { manager.setProcessStateSummary(value) }
     override fun history(): List<AndroidNativeExit> = manager.getHistoricalProcessExitReasons(context.packageName, 0, 32)
         .take(32).map { exit -> AndroidNativeExit(exit.pid, exit.processName, exit.timestamp, exit.reason,
-            exit.processStateSummary?.takeIf { it.size <= 128 }?.copyOf(), { exit.traceInputStream }, exit.status) }
+            exit.processStateSummary?.takeIf { it.size <= 128 }?.copyOf(), { exit.traceInputStream }, exit.status,
+            exit.importance, exit.pss, exit.rss, exit.description) }
 }

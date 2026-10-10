@@ -52,6 +52,31 @@ describe('process-exit evidence', () => {
     value.payload.crash.fatal = false;
     expect(ReportEnvelope.safeParse(value).success).toBe(false);
   });
+  const lowMemory = () => {
+    const value = envelope(); value.source = 'crash'; value.payload.crash = legacy().payload.crash;
+    Object.assign(value.payload.crash, { exceptionType: 'Low memory kill', message: 'Killed for low memory', frames: [],
+      fatal: true, handled: false, mechanism: 'android-exit-info' });
+    Object.assign(value.payload.diagnostic, { cause: 'system_low_memory' });
+    Object.assign(value.payload.diagnostic.android, { reason: 3, importance: 100, pssKb: 512000, rssKb: 640000, description: 'low memory' });
+    return value;
+  };
+  it('carries a visible low-memory kill as one fatal crash with its memory evidence', () => {
+    const parsed = ReportEnvelope.parse(lowMemory());
+    expect(parsed.payload.diagnostic?.android).toEqual({ apiLevel: 30, reason: 3, pid: 100, importance: 100, pssKb: 512000, rssKb: 640000, description: 'low memory' });
+    const unhandled = lowMemory(); unhandled.payload.crash.handled = true;
+    expect(ReportEnvelope.safeParse(unhandled).success).toBe(false);
+    const other = lowMemory(); other.payload.diagnostic.cause = 'user_requested'; other.payload.diagnostic.android.reason = 10;
+    expect(ReportEnvelope.safeParse(other).success).toBe(false);
+  });
+  it.each([
+    (v: any) => { v.payload.diagnostic.android.importance = -1; },
+    (v: any) => { v.payload.diagnostic.android.pssKb = -1; },
+    (v: any) => { v.payload.diagnostic.android.description = 'x'.repeat(129); },
+    (v: any) => { v.payload.diagnostic.android.description = 'line\nbreak'; },
+  ])('bounds the low-memory evidence %#', (mutate) => {
+    const value = lowMemory(); mutate(value);
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
   it.each([
     (v: any) => { delete v.payload.diagnostic; },
     (v: any) => { v.source = 'manual'; },

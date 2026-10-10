@@ -21,6 +21,7 @@ artifact name.
 | `dev.everframe:reporter-ui` | Compose Material 3 reporter UI for phone + tablet (bubble, modal, annotation) | yes for in-app reporting |
 | `dev.everframe:media3` | Media3 and ExoPlayer diagnostics | optional |
 | `dev.everframe:gradle-plugin` | Optional R8 keep rules and Compose display name preservation | optional; available with 0.10.2 |
+| `dev.everframe:native-crash` | Native fault frames on Android 8–11 (API 26–30); needs `useLegacyPackaging = true` | optional; not yet on Maven Central, see [`../native`](../native/README.md) |
 
 Android modules ship under one version. The older `0.10.0` plugin uses the
 older `dev.everframe:everframe-gradle-plugin` artifact; Gradle plugin users keep
@@ -80,6 +81,9 @@ class MyApp : Application() {
 `start()` is synchronous and returns in <5ms (heavy work runs on a coroutine
 scope). It throws `EverframeConfigError` on bad config — let that exception
 escape; the SDK never crashes the host app from inside `start()`.
+
+Crash capture — JVM exceptions, native crashes and ANRs — is on by default.
+See [crash capture](../README.md#crash-capture-on-by-default).
 
 `r8MappingId` is optional and must match
 `[A-Za-z0-9][A-Za-z0-9._-]{0,127}` exactly. Treat it as immutable build
@@ -164,7 +168,7 @@ service must support version 3 before you enable them. See
 Uncaught JVM exceptions, OS exit recovery and diagnostics, and the optional
 API26–30 signal collector carry the frozen pointer of a ready foreground session.
 Crashes in background, or before a session's start is durable, carry none.
-Opting in to native capture before release-health readiness is supported.
+Native capture arms at start, before release-health readiness.
 Entering foreground keeps native capture armed with its pointer-free context;
 once the session start is durable, that context is replaced with one carrying
 the pointer. Background clears the OS exit token and pauses the signal handler
@@ -179,9 +183,9 @@ foreground session is ready carries that session's frozen pointer if its loaded
 bundle exactly matches the session's known loaded build, and marks the session
 fatal. Handled errors, promise rejections, fatals captured in background or
 before readiness, and fatals with a missing or different bundle identity carry
-none. With OS exit diagnostics enabled, the OS crash exit record of the process
-that React Native then terminates can carry the pointer too; the session still
-counts once. See [release health observations](../../../docs/release-health.md).
+none. On API 30+, the OS exit record of the process that React Native then
+terminates is reported only when it is a native crash, and can carry the
+pointer too; the session still counts once. See [release health observations](../../../docs/release-health.md).
 
 ## Triggers are host-app concern
 

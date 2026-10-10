@@ -86,16 +86,30 @@ internal object AndroidExitDiagnostic {
         } catch (_: Exception) { return trace("malformed", truncated = truncated) }
     }
 
+    /** The OS exit description as bounded printable ASCII; null when nothing printable remains. */
+    fun description(raw: String?): String? =
+        raw?.filter { it in ' '..'~' }?.trim()?.take(128)?.takeIf { it.isNotEmpty() }
+
+    /** [collectedMs] is never before the exit's own timestamp: the caller takes the later of the two. */
     fun evidence(reportId: String, processLaunchId: String, apiLevel: Int, exit: AndroidNativeExit,
-                 nowMs: Long, trace: JsonObject) = buildJsonObject {
+                 collectedMs: Long, trace: JsonObject) = buildJsonObject {
         put("version", 1); put("evidenceId", reportId); put("processLaunchId", processLaunchId)
         put("kind", "process_exit"); put("provenance", "android_application_exit_info"); put("scope", "os_process")
         put("outcome", "terminated"); put("cause", cause(exit.reason))
-        put("occurredAt", Instant.ofEpochMilli(exit.timestamp).toString()); put("collectedAt", Instant.ofEpochMilli(nowMs).toString())
+        put("occurredAt", Instant.ofEpochMilli(exit.timestamp).toString()); put("collectedAt", Instant.ofEpochMilli(collectedMs).toString())
         put("attribution", buildJsonObject {
             put("process", "exact_os_token"); put("release", "frozen"); put("session", "unavailable"); put("webExposure", "unavailable")
         })
-        put("android", buildJsonObject { put("apiLevel", apiLevel); put("reason", exit.reason); put("pid", exit.pid) })
+        put("android", buildJsonObject {
+            put("apiLevel", apiLevel); put("reason", exit.reason); put("pid", exit.pid)
+            if (AndroidNativeRecovery.userFacing(exit)) {
+                put("importance", exit.importance)
+                // 0 means the OS recorded no size (lmkd kills often), not zero bytes.
+                if (exit.pss > 0) put("pssKb", exit.pss.coerceAtMost(1_000_000_000))
+                if (exit.rss > 0) put("rssKb", exit.rss.coerceAtMost(1_000_000_000))
+                description(exit.description)?.let { put("description", it) }
+            }
+        })
         put("trace", trace)
     }
 }

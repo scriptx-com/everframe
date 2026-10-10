@@ -47,37 +47,12 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     // Serialize the bridge's start/idempotence decision with synchronous health reservation.
     private static let configureLock = NSRecursiveLock()
 
-    /// Kept for callers compiled against the earlier Objective-C selector.
     @objc public static func configure(
         appId: NSString,
         endpoint: NSString,
         networkBodiesDisabled: Bool,
         installIdentifierDisabled: Bool,
-        attachPinUi: NSString?,
-        companionDeviceId: NSString?,
-        companionBadgeEnabled: Bool,
-        shakeToReportEnabled: Bool,
-        companionBadgePosition: NSString?,
-        theme: NSDictionary?,
-        vitalsEnabled: NSNumber?,
-        vitalsSampleRate: NSNumber?,
-        vitalsCaptureSourceQuery: NSNumber?
-    ) throws {
-        try configure(appId: appId, endpoint: endpoint,
-            networkBodiesDisabled: networkBodiesDisabled, installIdentifierDisabled: installIdentifierDisabled,
-            attachPinUi: attachPinUi, companionDeviceId: companionDeviceId,
-            companionBadgeEnabled: companionBadgeEnabled, shakeToReportEnabled: shakeToReportEnabled,
-            companionBadgePosition: companionBadgePosition, theme: theme,
-            vitalsEnabled: vitalsEnabled, vitalsSampleRate: vitalsSampleRate,
-            vitalsCaptureSourceQuery: vitalsCaptureSourceQuery, releaseHealthEnabled: false,
-            releaseHealthNativeBuildId: nil, releaseHealthLoadedBuildId: nil, releaseHealthUserId: nil)
-    }
-
-    @objc public static func configure(
-        appId: NSString,
-        endpoint: NSString,
-        networkBodiesDisabled: Bool,
-        installIdentifierDisabled: Bool,
+        crashReportingDisabled: Bool,
         attachPinUi: NSString?,
         companionDeviceId: NSString?,
         companionBadgeEnabled: Bool,
@@ -107,6 +82,9 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // (`installIdentifierDisabled`), native stores the permission —
         // identical to `networkBodies` above.
         cfg.installIdentifierEnabled = !installIdentifierDisabled
+        // Polarity flips exactly once, here: JS sends the veto
+        // (`crashReportingDisabled`), native stores the permission.
+        cfg.capture.crash = !crashReportingDisabled
         // Explicit companion device-identity override (naming spec
         // 2026-08-24) — read straight off the flat ConfigOpts field, same
         // shape as attachPinUi below. nil/absent falls through to the

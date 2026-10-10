@@ -31,28 +31,26 @@ the APK. Setup then stops before arming, readiness stays false, and an
 libraries that lack the handler for the running ABI report
 `native-handler-missing` instead.
 
-After `Everframe.start(context, config)`, explicitly call
-`Everframe.setNativeSignalCaptureEnabled(true)`. Read
-`Everframe.isNativeSignalCaptureReady()` to observe successful asynchronous setup.
-Call the opt-in again after every start. A replacement start pauses capture;
-`setNativeSignalCaptureEnabled(false)` and `kill()` also erase native evidence
-that has not entered the ordinary encrypted report outbox. That erasure runs on
-the calling thread: it can wait for an in-progress setup and performs local
-storage IO and handler IPC. Reports already admitted to that outbox follow its
-existing delivery and revocation policy.
+`Everframe.start(context, config)` arms the collector when this module is in the
+app and `capture.crash` is on (the default); no other call is needed.
+`Everframe.isNativeCrashCaptureReady()` reports successful asynchronous setup. A
+replacement start pauses capture and re-arms it; a start with
+`capture.crash = false` leaves it paused and keeps recorded evidence. `kill()`
+erases native evidence that has not entered the ordinary encrypted report
+outbox. That erasure runs on the calling thread: it can wait for an in-progress
+setup and performs local storage IO and handler IPC. Reports already admitted to
+that outbox follow its existing delivery and revocation policy.
 
 This path supports API26–30 in the default application process. It grants
 exclusive ownership of the native fatal-signal handlers: another app-bundled
 collector causes activation to fail closed. The platform WebView's in-process
 crash handler restores the previous handler and re-raises, so it is accepted
-whether WebView initializes before or after the opt-in. While WebView's handler
+whether WebView initializes before or after the collector arms. While WebView's handler
 is the most recent one, a collector installed before it cannot be seen and is
-not refused. API24–25 are unsupported. API31+
-continues to use `setNativeCrashRecoveryEnabled(true)` and OS exit information.
+not refused. API24–25 are unsupported. API31+ uses OS exit information.
 Absent optional binaries or a failed setup leave readiness false.
 
-On API30, `setProcessExitDiagnosticsEnabled(true)` also recovers native exits.
-With both enabled, a fault this handler recorded is reported once, with its fault
+On API30, OS exit capture also recovers native exits. With this module present, a fault this handler recorded is reported once, with its fault
 frame, and the OS exit adds no second crash; a fault it did not record is still
 reported from the OS exit. For that check the module keeps an encrypted receipt
 per delivered report that holds only the ended launch's identifier (at most
@@ -67,16 +65,18 @@ or JIT memory), or inside a module whose name contains a control character or
 backslash, produces a report without frames. It does not claim a full unwound
 stack or arbitrary-thread stack-overflow support. Exact matching ELF debug
 information is required for source lines; a frame without a build ID stays
-unsymbolicated. Recovery occurs at the next explicit opt-in after a process death;
+unsymbolicated. Recovery occurs at the next start after a process death;
 reports preserve the original application version/build and destination, are
 anonymous, and do not fabricate release-health sessions.
 
 Native capture writes a bounded AES-GCM encrypted record. Its key and frozen
 report context live in Android Keystore-backed capsule storage. Capsule and
 prepared stores are each bounded to eight entries and two MiB; native records
-are bounded to 4096 bytes. Authenticated reports expire after 14 days from capture;
-prepared retries have a 14-day recovery window. Backward clock changes do not
-count as elapsed time. API26/30 ARM64 are the installed qualification targets;
+are bounded to 4096 bytes. An authenticated record is reported however far the
+wall clock moved; a prepared report is offered for admission before its age is
+judged and, if refused, expires once the clock is more than 14 days away from its
+preparation in either direction. Unreadable records and delivery receipts follow
+the same two-sided 14-day rule. API26/30 ARM64 are the installed qualification targets;
 other packaged ABIs require their own device qualification.
 
 ## Reproducible build

@@ -56,7 +56,7 @@ class AndroidNativeRecoveryControllerTest {
                               diagnostics: Boolean, admit: (OutboxEntry) -> Boolean): Boolean {
         val gate = object : OutboxAuthorization { override fun isAllowed() = requests.allows(request, 1, true) }
         if (!requests.finishRevocation { if (!gate.isAllowed()) false else { controller.retire(1, true) { gate.isAllowed() }; gate.isAllowed() } }) return false
-        return if (diagnostics) controller.enableDiagnostics(1, gate, 3000, ::template, admit) else controller.enable(1, gate, 3000, ::template, admit)
+        return if (diagnostics) controller.enableDiagnostics(1, gate, 3000, ::template, admit = admit) else controller.enable(1, gate, 3000, ::template, admit = admit)
     }
     @Test fun `foreground changes refresh the actual OS frozen context and clear before IO`() {
         val platform = Platform()
@@ -360,5 +360,116 @@ class AndroidNativeRecoveryControllerTest {
         controller.retire(2, erasePersisted = true) { false }
         assertEquals(1, platform.registrations.size)
         assertNotNull(platform.registrations.single())
+    }
+    @Test fun `a foreign process state summary is reported and its exit is never matched`() {
+        var conflicts = 0
+        val platform = Platform().apply { exits = listOf(AndroidNativeExit(98, "app", 2000, 5, "host-owned".toByteArray()) { null }) }
+        val controller = AndroidNativeRecoveryController(::engine, platform, onSummaryConflict = { conflicts++ })
+        var admitted = 0
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { admitted++; true })
+        assertEquals(1, conflicts)
+        assertEquals("an exit Everframe did not register is never reported", 0, admitted)
+    }
+    @Test fun `a replacement start keeps earlier processes' unadmitted evidence for the next owner`() {
+        val open = object : OutboxAuthorization { override fun isAllowed() = true }
+        val platform = Platform().apply { exits = listOf(previous(98, 5)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        // The first owner prepared the previous process's crash, but the outbox refused it.
+        assertTrue(controller.enableDiagnostics(1, open, 3000, ::template) { false })
+        controller.retire(2, erasePersisted = false) { true }
+        assertNull("a replacement clears the old owner's OS token", platform.registrations.last())
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(controller.enableDiagnostics(2, open, 4000, ::template) { admitted += it; true })
+        assertEquals("the previous crash must still be reported once", listOf("crash"), admitted.map(::source))
+        assertEquals("only the new owner's own context remains", 1,
+            OutboxStore(File(folder.root, "contexts"), keys, ops).snapshotTokens().size)
+    }
+    @Test fun `a newer epoch's enable replaces an older owner without erasing earlier evidence`() {
+        val open = object : OutboxAuthorization { override fun isAllowed() = true }
+        var firstAllowed = true
+        val first = object : OutboxAuthorization { override fun isAllowed() = firstAllowed }
+        val platform = Platform().apply { exits = listOf(previous(98, 5)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enableDiagnostics(1, first, 3000, ::template) { false })
+        firstAllowed = false // the next start fenced the first owner; no boundary retire ran yet
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(controller.enableDiagnostics(2, open, 4000, ::template) { admitted += it; true })
+        assertEquals(listOf("crash"), admitted.map(::source))
+    }
+
+    /** A context armed by an earlier process, created at [createdAt]; [token] receives its OS summary. */
+    private fun earlierContext(pid: Int, createdAt: Long, token: (ByteArray) -> Unit = {}) {
+        val id = UUID.randomUUID().toString()
+        val entry = OutboxEntry(id, createdAt, """{"reportId":"$id","reporter":{},"payload":{}}""".toByteArray(), "template", emptyList(), "key", "https://example.test")
+        engine().arm(entry, pid, "app", allowed, diagnostics = true, register = token)
+    }
+    private fun contexts() = OutboxStore(File(folder.root, "contexts"), keys, ops)
+    @Test fun `a full context journal frees one slot that can no longer be reported and arms`() {
+        // Eight earlier processes ended with no matching OS exit record (a reboot, an evicted record).
+        val armed = ArrayList<Int>()
+        for (pid in 10 until 18) { earlierContext(pid, 1000L + pid); armed += pid }
+        val reclaimed = ArrayList<Pair<Int, Int>>()
+        val platform = Platform()
+        val controller = AndroidNativeRecoveryController(::engine, platform, onJournalFull = { u, o -> reclaimed += u to o })
+        assertTrue("a full journal must not stop capture", controller.enableDiagnostics(1, allowed, 3000, ::template) { true })
+        assertNotNull(platform.registrations.single())
+        assertEquals("only as many slots as needed", listOf(1 to 0), reclaimed)
+        val left = contexts().let { store -> store.snapshotTokens().mapNotNull { store.readIfPresent(it)?.entry?.createdAt } }
+        assertEquals(8, left.size)
+        assertFalse("the oldest goes first", 1010L in left)
+    }
+    @Test fun `a full journal frees unmatched contexts before reportable ones and never the newest`() {
+        val exits = ArrayList<AndroidNativeExit>()
+        // Oldest four still wait for a signal record (reportable); the next three have no exit record;
+        // the newest has none either, but its exit may simply not be in the history yet.
+        for (pid in 10 until 18) earlierContext(pid, 1000L + pid) { token ->
+            if (pid < 14) exits += AndroidNativeExit(pid, "app", 2000, 5, token) { null }
+        }
+        val reclaimed = ArrayList<Pair<Int, Int>>()
+        val platform = Platform().apply { this.exits = exits }
+        val controller = AndroidNativeRecoveryController(::engine, platform, signalCapture = { NativeSignalCapture.PENDING },
+            onJournalFull = { u, o -> reclaimed += u to o })
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { true })
+        assertEquals(listOf(1 to 0), reclaimed)
+        val left = contexts().let { store -> store.snapshotTokens().mapNotNull { store.readIfPresent(it)?.entry?.createdAt } }
+        assertFalse("the oldest unmatched context goes", 1014L in left)
+        assertTrue("reportable contexts stay", (1010L..1013L).all { it in left })
+        assertTrue("the newest held context stays", 1017L in left)
+    }
+    @Test fun `a full journal of still reportable contexts drops the oldest and arms`() {
+        val exits = ArrayList<AndroidNativeExit>()
+        for (pid in 10 until 18) earlierContext(pid, 1000L + pid) { token -> exits += AndroidNativeExit(pid, "app", 2000, 5, token) { null } }
+        val reclaimed = ArrayList<Pair<Int, Int>>()
+        val platform = Platform().apply { this.exits = exits }
+        // API30 overlap: each crash still waits for its signal record, so recovery keeps every context.
+        val controller = AndroidNativeRecoveryController(::engine, platform, signalCapture = { NativeSignalCapture.PENDING },
+            onJournalFull = { u, o -> reclaimed += u to o })
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { true })
+        assertEquals(listOf(0 to 1), reclaimed)
+        val left = contexts().let { store -> store.snapshotTokens().mapNotNull { store.readIfPresent(it)?.entry?.createdAt } }
+        assertEquals(8, left.size)
+        assertFalse("the oldest context goes first", 1010L in left)
+    }
+
+    @Test fun `a JVM fatal tags only the token the OS currently holds`() {
+        val platform = Platform()
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        controller.markJvmFatal()
+        assertTrue("nothing is published before arming", platform.registrations.isEmpty())
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template, appId = "app-a") { true })
+        val token = platform.registrations.single()!!
+        controller.markJvmFatal()
+        assertArrayEquals(token + AndroidNativeRecovery.JVM_FATAL_SUFFIX, platform.registrations.last())
+        controller.invalidateExposure()
+        assertNull(platform.registrations.last())
+        val writes = platform.registrations.size
+        controller.markJvmFatal()
+        assertEquals("a cleared token is never brought back", writes, platform.registrations.size)
+    }
+    @Test fun `the app ID is frozen into the context the next launch recovers`() {
+        val platform = Platform(apiLevel = 30)
+        assertTrue(AndroidNativeRecoveryController(::engine, platform).enableDiagnostics(1, allowed, 3000, ::template, appId = "app-a") { true })
+        val context = contexts().let { store -> store.readIfPresent(store.snapshotTokens().single())!!.entry }
+        assertEquals("app-a", Json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["appId"]!!.jsonPrimitive.content)
     }
 }

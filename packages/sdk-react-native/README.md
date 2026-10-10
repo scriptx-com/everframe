@@ -278,6 +278,10 @@ browser SDK's own error handling.
 
 ## Error capture and diagnostics
 
+### Native crashes and ANRs
+
+Crash reporting also turns on the native SDKs' automatic crash capture. On Android that covers JVM exceptions, native crashes (OS exit records on API 30+, with tombstone frames on API 31+) and ANRs on API 30+; see the [Android SDK guide](../sdk-android/README.md#crash-capture-on-by-default). On iOS it is the native crash recorder. `crashReporting: { disabled: true }` turns all of it off on both platforms.
+
 ### React error boundary callback
 
 An existing React class boundary can opt into handled capture. Render the

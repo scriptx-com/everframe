@@ -1007,57 +1007,6 @@ class EverframeTest {
     }
 
     @Test
-    @Config(sdk = [31])
-    fun `native recovery refuses old destination during reserved start and still permits disable`() {
-        Everframe.start(context, validConfig())
-        awaitHeavyInit()
-        val oldEpoch = Everframe.currentStartEpochVolatile()
-        val field = dev.everframe.crash.AndroidNativeCrashRuntime::class.java.getDeclaredField("requests").apply { isAccessible = true }
-        val requests = field.get(dev.everframe.crash.AndroidNativeCrashRuntime) as dev.everframe.crash.AndroidNativeRecoveryRequests
-        dev.everframe.vitals.VitalsServerConfigSignal.flow.value =
-            dev.everframe.vitals.VitalsServerConfig(vitalsEnabled = true, vitalsSampleRate = 1.0)
-        val previous = vitalsControllerForTest()
-        dev.everframe.vitals.VitalsRuntime.install(previous)
-        val deadline = System.currentTimeMillis() + 5_000
-        while (!previous.isRunning && System.currentTimeMillis() < deadline) Thread.sleep(2)
-        assertTrue(previous.isRunning)
-        var attempted = false
-        var nativeAdmitted = false
-        var diagnosticsAdmitted = false
-        var disabled = false
-        previous.trackPlayer(object : dev.everframe.vitals.PlayerIntegration {
-            override val library = "fake"
-            override val version: String? = null
-            override fun attach(ctx: dev.everframe.vitals.PlayerIntegrationContext) = true
-            override fun snapshot(onResult: (dev.everframe.vitals.PlayerSnapshot?) -> Boolean) { onResult(null) }
-            override fun startupTimings(): dev.everframe.vitals.StartupTimings? = null
-            override fun describe(ctx: dev.everframe.vitals.PlayerIntegrationContext) {}
-            override fun detach() {
-                if (attempted) return
-                attempted = true
-                assertEquals(oldEpoch + 1, Everframe.currentStartEpochVolatile())
-                assertEquals(validConfig().sdkKey, Everframe.currentConfig!!.sdkKey)
-                Everframe.setNativeCrashRecoveryEnabled(true)
-                nativeAdmitted = requests.enabled(oldEpoch + 1)
-                Everframe.setProcessExitDiagnosticsEnabled(true)
-                diagnosticsAdmitted = requests.diagnosticsEnabled(oldEpoch + 1)
-                // Model an already queued command so this checks real revocation,
-                // including when no replacement config has been published yet.
-                requests.request(oldEpoch + 1, true, true)
-                Everframe.setProcessExitDiagnosticsEnabled(false)
-                disabled = !requests.enabled(oldEpoch + 1)
-            }
-        }, "main")
-        Everframe.start(context, validConfig().copy(sdkKey = "txx_live_nextdestination"))
-        assertTrue(attempted)
-        assertFalse("native recovery must not arm the previous key with the reserved epoch", nativeAdmitted)
-        assertFalse("diagnostics must not arm the previous key with the reserved epoch", diagnosticsAdmitted)
-        assertTrue("disable must still revoke during publication", disabled)
-        Everframe.setNativeCrashRecoveryEnabled(true)
-        assertTrue("post-publication opt-in remains supported", requests.enabled(Everframe.currentStartEpochVolatile()))
-    }
-
-    @Test
     @Config(application = PublicationReentrantApplication::class)
     fun `superseded start cannot launch health or heavy work using a later start snapshot`() {
         val app = context as PublicationReentrantApplication

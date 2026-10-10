@@ -854,8 +854,17 @@ data class DiagnosticEvidence (
 @Serializable
 data class Android (
     val apiLevel: Long,
+    val description: String? = null,
+    val importance: Long? = null,
     val pid: Long,
-    val reason: Long
+
+    @SerialName("pssKb")
+    val pssKB: Long? = null,
+
+    val reason: Long,
+
+    @SerialName("rssKb")
+    val rssKB: Long? = null
 )
 
 @Serializable

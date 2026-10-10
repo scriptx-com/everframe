@@ -143,6 +143,33 @@ class EverframeModuleConfigureTest {
         assertTrue(Everframe.currentConfig!!.installIdentifierEnabled)
     }
 
+    /** The crash-reporting veto must reach native capture.crash: JVM, native and ANR capture all stop. */
+    @Test
+    fun crashReportingDisabledTrueTurnsOffCrashCapture() {
+        val opts = JavaOnlyMap()
+        opts.putString("apiKey", "k")
+        opts.putBoolean("crashReportingDisabled", true)
+        module.configure(opts)
+        assertFalse(Everframe.currentConfig!!.capture.crash)
+    }
+
+    @Test
+    fun crashCaptureDefaultsToOnWhenTheFlagIsAbsent() {
+        val opts = JavaOnlyMap()
+        opts.putString("apiKey", "k")
+        module.configure(opts)
+        assertTrue(Everframe.currentConfig!!.capture.crash)
+    }
+
+    @Test
+    fun crashReportingDisabledFalseLeavesCrashCaptureOn() {
+        val opts = JavaOnlyMap()
+        opts.putString("apiKey", "k")
+        opts.putBoolean("crashReportingDisabled", false)
+        module.configure(opts)
+        assertTrue(Everframe.currentConfig!!.capture.crash)
+    }
+
     @Test
     fun additiveConfigureSyncAcknowledgesCompletedStartupAndPreservesLegacyDescriptor() {
         val opts = JavaOnlyMap.of("apiKey", "k")

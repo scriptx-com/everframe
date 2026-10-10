@@ -32,6 +32,7 @@ class AndroidNativeRecordImportTest {
     }
     private fun store(name: String, count: Int = 8) = OutboxStore(File(folder.root, name), keys, ops, count, 2*1024*1024)
     private fun importer() = AndroidNativeRecordImport(store("capsules"), store("prepared"))
+    private val day = 24L * 60 * 60 * 1000
     private fun template() : OutboxEntry {
         val id = UUID.randomUUID().toString()
         return OutboxEntry(id,1000,"""{"reportId":"$id","submittedAt":"2026-10-08T00:00:00Z","context":{"app":{"name":"old","version":"1","build":"old-build"}},"reporter":{"title":"","description":""},"payload":{}}""".toByteArray(),"template",emptyList(),"old-key","https://old.example")
@@ -113,8 +114,29 @@ class AndroidNativeRecordImportTest {
         val b=arm();val denied=object:OutboxAuthorization { override fun isAllowed()=false }
         assertEquals(0,importer().recover("new",3000,denied,{ cipher(b) }) { it, admission -> error("stale") })
     }
-    @Test fun `expired authenticated record is removed after checking capture time`() {
-        val a=arm();assertEquals(0,importer().recover("new",15L*24*60*60*1000,allowed,{ cipher(a) }) { it, admission -> error("expired") })
+    @Test fun `a fault stamped after this launch's clock is never submitted before it happened`() {
+        // The clock moved back between the fault and this launch (a TV before network time).
+        val a=arm();var recovered:OutboxEntry?=null
+        assertEquals(1,importer().recover("new",3000,allowed,{ cipher(a,captured=5000) }) { e,_ -> recovered=e;true })
+        val body=Json.parseToJsonElement(recovered!!.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals("1970-01-01T00:00:05Z",body["payload"]!!.jsonObject["crash"]!!.jsonObject["occurredAt"]!!.jsonPrimitive.content)
+        assertEquals("1970-01-01T00:00:05Z",body["submittedAt"]!!.jsonPrimitive.content)
+    }
+    @Test fun `an authenticated record is reported however far the clock jumped forward`() {
+        // Captured at the box's build-date clock; the next launch runs after network time moved it years ahead.
+        val a=arm();assertEquals(1,importer().recover("new",56L*365*day,allowed,{ cipher(a) }) { _,_ -> true })
+        assertTrue(store("capsules").snapshotTokens().isEmpty())
+    }
+    @Test fun `a prepared record is offered for admission before its age is judged`() {
+        val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { _,_ -> false }
+        assertEquals(1,importer().recover("later",3000+15*day,allowed,{error("imported")}) { _,_ -> true })
+    }
+    @Test fun `a refused prepared record expires 14 days away in either clock direction`() {
+        val a=arm();importer().recover("new",20*day,allowed,{cipher(a)}) { _,_ -> false }
+        assertEquals(0,importer().recover("later",19*day,allowed,{error("imported")}) { _,_ -> false })
+        assertEquals("within 14 days it stays for another attempt",1,store("prepared").snapshotTokens().size)
+        assertEquals(0,importer().recover("later",2*day,allowed,{error("imported")}) { _,_ -> false })
+        assertTrue("a clock behind by more than 14 days must not keep it forever",store("prepared").snapshotTokens().isEmpty())
         assertTrue(store("capsules").snapshotTokens().isEmpty())
     }
     @Test fun `launches that end without a native fault retire their capsules`() {
@@ -154,7 +176,7 @@ class AndroidNativeRecordImportTest {
     }
     @Test fun `prepared record also expires and cannot survive erasure boundary`() {
         val a=arm();importer().recover("new",3000,allowed,{cipher(a)}) { it, admission -> false }
-        assertEquals(0,importer().recover("later",15L*24*60*60*1000,allowed,{error("expired")}) { it, admission -> error("expired prepared") })
+        assertEquals(0,importer().recover("later",15L*24*60*60*1000,allowed,{error("expired")}) { it, admission -> false })
         assertTrue(store("capsules").snapshotTokens().isEmpty());assertTrue(store("prepared").snapshotTokens().isEmpty())
     }
     @Test fun `invalid native addresses time and thread identity cannot be projected`() {
