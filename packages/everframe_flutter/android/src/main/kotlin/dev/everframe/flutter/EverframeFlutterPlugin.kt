@@ -71,12 +71,13 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                         ?.let { Environment.entries.firstOrNull { entry -> entry.name == it } }
                         ?: return result.error("invalid_arguments", "environment invalid", null)
                     // Flutter pixels are captured only through the masked Dart boundary.
-                    // Native crash capture also enables explicit handled Dart errors.
+                    // Crash capture (JVM, native and ANR) also gates explicit handled Dart errors.
+                    val crash = call.argument<Boolean>("crash") ?: true
                     Everframe.start(appContext, EverframeConfig(
                         appId = appId,
                         sdkKey = sdkKey,
                         environment = environment,
-                        capture = CaptureConfig(screenshot = false, crash = true),
+                        capture = CaptureConfig(screenshot = false, crash = crash),
                     ), activity)
                     result.success(null)
                 }

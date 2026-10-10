@@ -45,6 +45,7 @@ void main() {
       'appId': 'app_test',
       'sdkKey': 'txx_dev_test',
       'environment': 'development',
+      'crash': true,
     });
     expect(calls[1].arguments, {'id': 'u1', 'email': 'a@example.com'});
   });
@@ -64,7 +65,14 @@ void main() {
       'appId': 'app_test',
       'sdkKey': 'evf_live_test',
       'environment': 'production',
+      'crash': true,
     });
+  });
+
+  test('forwards the crash capture switch to the native SDK', () async {
+    const bridge = EverframeNativeBridge();
+    await bridge.start(appId: 'app_test', sdkKey: 'evf_live_test', crash: false);
+    expect(calls.single.arguments['crash'], false);
   });
 
   test('passes staging configuration to the native bridge', () async {

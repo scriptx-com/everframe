@@ -13,10 +13,14 @@ class EverframeNativeBridge {
 
   static const MethodChannel _channel = MethodChannel('dev.everframe/flutter');
 
+  /// Starts the native SDK. [crash] is its crash capture switch (`capture.crash`): on Android it
+  /// covers JVM exceptions, native crashes and ANRs; on iOS native crashes. It also gates
+  /// [captureException]. On by default, as in the native SDKs.
   Future<void> start({
     required String appId,
     required String sdkKey,
     String environment = 'production',
+    bool crash = true,
   }) {
     if (appId.isEmpty || sdkKey.isEmpty) {
       throw ArgumentError('appId and sdkKey are required');
@@ -30,6 +34,7 @@ class EverframeNativeBridge {
       'appId': appId,
       'sdkKey': sdkKey,
       'environment': environment,
+      'crash': crash,
     });
   }
 
