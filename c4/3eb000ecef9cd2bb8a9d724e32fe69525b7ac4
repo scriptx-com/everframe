@@ -1,0 +1,19 @@
+packages/sdk-android/tests/crash-default-host/app/src/main/kotlin/dev/everframe/crashdefault/ProofActivity.kt
+  s_dbd309ddf8ec5b::t_292325505dbb5e 22-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c43eb000ecef9cd2bb8a9d724e32fe69525b7ac4",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
