@@ -137,7 +137,11 @@ create a session.
 For an embedded JavaScript bundle, pass its actual loaded build ID with
 `loadedBundleStatus: .known`; use `.unknown` when its identity is unavailable.
 Use `.notApplicable` for a native-only app. Do not pass a bundle
-that was downloaded but has not loaded.
+that was downloaded but has not loaded. In a React Native app, enable release
+health with the React Native Provider's `releaseHealth` option instead: each
+Provider configure applies its own setting, so one without `releaseHealth`, with
+`enabled: false` or with a rejected identity revokes a native opt-in and erases
+its queued, undelivered records.
 
 Each SDK start requires a new opt-in. Version-3 records use `foreground-v1`:
 entering foreground opens a fresh session; entering background closes it with

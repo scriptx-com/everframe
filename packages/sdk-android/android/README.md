@@ -105,7 +105,11 @@ releaseHealth = ReleaseHealthConfig(
 Supply the exact native artifact identity from your build pipeline. For a loaded
 JavaScript bundle, use `KNOWN` with its actual `loadedBuildId`, or `UNKNOWN` with
 no ID. A downloaded update that has not loaded is not the running build. Blank
-or contradictory identities do not become ready.
+or contradictory identities do not become ready. In a React Native app, enable
+release health with the React Native Provider's `releaseHealth` option instead:
+each Provider configure installs its own SDK configuration, so one without
+`releaseHealth`, with `enabled: false` or with a rejected identity revokes a
+native opt-in and erases its queued, undelivered records.
 
 Schema version 3 uses `sessionPolicy: foreground-v1`. A durable start opens only
 while the process lifecycle is foreground. Background closes that session with

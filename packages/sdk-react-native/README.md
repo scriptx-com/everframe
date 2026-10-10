@@ -120,13 +120,25 @@ Native foreground-session monitoring is separately opt-in on Android and iOS:
 Use the actual installed native artifact ID and executing Hermes bundle ID.
 The loaded build comes from validated `jsBundle` metadata (or the existing
 Metro-injected build metadata); there is no separate release-health bundle
-option. Missing or invalid identity, unsupported engines, `enabled: false`,
-or removal of `releaseHealth` on the next configure disables monitoring and
-clears earlier health configuration. The user ID is optional: null or omitted
-means anonymous. A supplied ID must be opaque, nonblank, at most 128 UTF-16
-units, and contain no U+0000–U+001F control characters or unpaired surrogates.
-Build IDs have the same text rules with a 200-unit limit. Values are preserved
-exactly, including spaces around a nonblank ID.
+option. The user ID is optional: null or omitted means anonymous. A supplied ID
+must be opaque, nonblank, at most 128 UTF-16 units, and contain no U+0000–U+001F
+control characters or unpaired surrogates. Build IDs have the same text rules
+with a 200-unit limit. Values are preserved exactly, including spaces around a
+nonblank ID.
+
+Every Provider configure applies the release-health setting it carries,
+including the first one of each launch. A configure without `releaseHealth`,
+with `enabled: false`, or with an identity the SDK rejects (missing or invalid
+bundle metadata, an engine other than Hermes, an invalid `nativeBuildId` or
+`userId`) turns monitoring off. Turning it off revokes native monitoring and
+erases the queued, undelivered health records on the device, including records
+from earlier launches and those of a native opt-in (`ReleaseHealthConfig` on
+Android, `setReleaseHealth` on iOS). A rejected `enabled: true` logs an
+`[everframe]` warning that names the rejected fields. Mount with
+`enabled: false` only for a real opt-out. While consent or the user ID is still
+loading, defer mounting the Provider (everything it configures waits too) or
+the keyed remount below until the value is known; do not mount with a
+placeholder.
 
 Configuration is read when the Provider mounts. Changing its `config` prop
 alone does not reconfigure the SDK. Remount with a changed `key` to apply
