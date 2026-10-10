@@ -65,9 +65,6 @@ class MyApp : Application() {
                 endpoint = "https://ingest.your-tenant.example/api/ingest",
                 sdkKey = BuildConfig.EVERFRAME_SDK_KEY,
                 environment = Environment.production,
-                // Exact public identity of this optimized build's R8 mapping.
-                // Generate a fresh value in CI for every distinct mapping.txt.
-                r8MappingId = BuildConfig.EVERFRAME_R8_MAPPING_ID,
                 // Hint to the host that a bubble UX is desired. Only mobile
                 // shake-to-report is built in; the bubble remains host-owned.
                 bubble = true,
@@ -81,9 +78,10 @@ class MyApp : Application() {
 scope). It throws `EverframeConfigError` on bad config — let that exception
 escape; the SDK never crashes the host app from inside `start()`.
 
-`r8MappingId` is optional and must match
-`[A-Za-z0-9][A-Za-z0-9._-]{0,127}` exactly. Treat it as immutable build
-identity and upload the matching mapping only from trusted CI.
+With the `dev.everframe` Gradle plugin (below), `start()` reads the build's R8
+mapping ID from the APK, so crashes from minified builds retrace without any
+configuration. Set `r8MappingId` only to override it; it must match
+`[A-Za-z0-9][A-Za-z0-9._-]{0,127}` exactly.
 
 ---
 
@@ -470,44 +468,51 @@ at `examples/android-compose/app/src/tv/kotlin/com/example/composesample/tv/Samp
 below for the full Android TV recipe and the reserved-key list (`KEYCODE_BACK
 / HOME / MENU / single-press KEYCODE_MEDIA_PLAY_PAUSE`).
 
-### Optional Gradle plugin
+### Gradle plugin: automatic symbol upload
 
 ```kotlin
-// settings.gradle.kts (or root build.gradle.kts)
+// app/build.gradle.kts
 plugins {
-    id("dev.everframe") version "0.10.0"
+    id("com.android.application")
+    id("dev.everframe") version "<everframe version>"
+}
+
+everframe {
+    appId.set("00000000-0000-4000-8000-000000000000") // defaults to EVERFRAME_APP_ID
+    // uploadEnabled.set(true)              // default
+    // buildTypes.set(setOf("release"))     // default
 }
 ```
 
-What it does:
-- Auto-applies `everframe-keep.pro` (a copy of `:everframe-core`'s
-  `consumer-rules.pro`) to the host module's R8 keep set.
-- Adds `-Xandroidx-compose-runtime-keep-all-composables` to KotlinCompile so
-  composable function names survive R8 minification (used by Everframe's
-  `componentPath` reflection).
-- Optionally embeds and uploads the exact final mapping for selected minified
-  application variants:
+After `assembleRelease` or `bundleRelease` (and every selected flavor, such as
+`assembleTvRelease`), the plugin uploads the build's symbols with the Everframe
+CLI:
 
-```kotlin
-everframeR8 {
-    enabled.set(true)
-    buildId.set(providers.environmentVariable("EVERFRAME_R8_BUILD_ID"))
-    appId.set(providers.environmentVariable("EVERFRAME_APP_ID"))
-}
+- **R8 mapping** (`uploadEverframe<Variant>R8Mapping`, minified variants). The
+  mapping ID is `r8-` plus the SHA-256 of the final `mapping.txt`. The plugin
+  packages it as `assets/everframe/build-identity.properties`, and
+  `Everframe.start` reports it, so there is no `r8MappingId` to wire up.
+  Rebuilding identical sources yields the same ID, so retries are idempotent.
+- **Native libraries** (`uploadEverframe<Variant>NativeSymbols`). Every shipped
+  `.so` is matched to its unstripped copy from `merge<Variant>NativeLibs` by GNU
+  build ID and ABI. Prebuilt libraries from AARs without debug information
+  (`libc++_shared.so`, prebuilt Hermes) print a warning; a variant without
+  native code does nothing.
 
-// In app startup:
-// r8MappingId = BuildConfig.EVERFRAME_R8_MAPPING_ID.takeIf { it.isNotEmpty() }
-```
+Set `EVERFRAME_API_TOKEN` (a token with `artifacts:write`) in CI. **Symbols
+never fail the build by default**: without the token, without an app ID, or
+when an upload fails, the plugin prints a `warning:` line and the build
+continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Uploads
+stop after `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` (600 by default).
 
-CI sets `EVERFRAME_API_TOKEN` and runs
-`./gradlew :app:assembleRelease :app:uploadEverframeR8ReleaseMapping`. Retain the
-same build ID for retries of that build; generate a fresh ID before rebuilding.
-The upload task is explicit and always contacts the service. Configure its
-build type and credentials only in trusted CI.
+The plugin runs the CLI from `EVERFRAME_CLI_JS` (a built `dist/index.js`), then
+`node_modules/@everframe/cli`, then `npx --yes @everframe/cli@<version>`, which
+needs the published CLI and Node. Override it with `everframe { cliCommand }`.
 
-The plugin is OPTIONAL: `:everframe-core`'s `consumer-rules.pro` already
-auto-merges via the AAR. The plugin is a customer-opt-in convenience for
-stricter R8 setups that prefer explicit keep files.
+The plugin also applies `everframe-keep.pro` (a copy of `:everframe-core`'s
+`consumer-rules.pro`) to the host module's R8 keep set, and adds
+`-Xandroidx-compose-runtime-keep-all-composables` to Kotlin compilation so
+composable function names survive R8 (used by Everframe's `componentPath`).
 
 ---
 
