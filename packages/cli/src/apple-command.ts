@@ -11,18 +11,13 @@ import {
 } from "./apple-discover.js";
 import { uploadAppleBuild } from "./apple-upload.js";
 import { adviceFor } from "./build-verify.js";
-import { DEFAULT_API_URL, MISSING_TOKEN, redact, symbolsStrict } from "./defaults.js";
+import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, symbolsStrict, uploadFailureWarnings } from "./defaults.js";
 
 export interface DsymCommandDependencies {
   upload?: typeof uploadAppleBuild;
   log?: (line: string) => void;
   warn?: (line: string) => void;
 }
-
-const NO_TOKEN =
-  "warning: everframe: no EVERFRAME_API_TOKEN, skipping symbol upload. Crashes from this build will show raw addresses. Set EVERFRAME_API_TOKEN to a token with the artifacts:write scope, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.";
-const RAW_FRAMES =
-  "warning: everframe: crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.";
 
 /**
  * `--xcode`, `--archive` and `--app` are build integrations: unless strict,
@@ -76,7 +71,7 @@ export async function dsymUploadBuildCommand(
     }
     if (!token) {
       if (failHard) throw new Error(MISSING_TOKEN);
-      warn(NO_TOKEN);
+      warn(NO_TOKEN_WARNING);
       return 0;
     }
     const appId = values["app-id"] ?? env.EVERFRAME_APP_ID;
@@ -115,8 +110,7 @@ export async function dsymUploadBuildCommand(
   } catch (error) {
     if (failHard) throw error;
     const message = error instanceof Error ? error.message : "upload_failed";
-    warn(`warning: everframe: symbol upload failed: ${redact(adviceFor(message), token)}`);
-    warn(RAW_FRAMES);
+    for (const line of uploadFailureWarnings(adviceFor(message), token)) warn(line);
     return 0;
   }
 }

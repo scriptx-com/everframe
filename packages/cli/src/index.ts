@@ -9,6 +9,7 @@ import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
 import { dsymUploadBuildCommand } from "./apple-command.js";
+import { elfUploadBuildCommand } from "./elf-command.js";
 import { uploadAndroidElfBuild } from "./elf-upload.js";
 import { collectElfBuild } from "./elf.js";
 import { collectDsymBuild } from "./dsym.js";
@@ -52,7 +53,7 @@ const HELP = `Usage:
   everframe setup xcode --project <App.xcodeproj> [--target <name>]... [--app-id <uuid>] [--print-script]
   everframe dsym upload-build (--xcode | --archive <x.xcarchive> | --app <App.app> --dsym-dir <dir>... | --binary <file>... --dsym-dir <dir>...) [--app-id <uuid>] [--strict]
   everframe dsym upload --app-id <uuid> --dwarf <raw-file>
-  everframe elf upload-build --app-id <uuid> --binary <shipped.so> [--binary <library.so>] --symbols-dir <directory>
+  everframe elf upload-build (--binaries-dir <dir> | --binary <file>...) --symbols-dir <dir> [--app-id <uuid>] [--strict]
   everframe elf upload --app-id <uuid> --library <unstripped-elf>
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
@@ -293,23 +294,8 @@ export async function main(
     }
 
     if (isElfBuildCommand) {
-      const parsed = parseArgs({
-        args: argv.slice(2), allowPositionals: false, strict: true,
-        options: {
-          "app-id": { type: "string" },
-          binary: { type: "string", multiple: true },
-          "symbols-dir": { type: "string" },
-          help: { type: "boolean", short: "h" },
-        },
-      });
-      if (parsed.values.help) { console.log(HELP); return 0; }
-      const appId = parsed.values["app-id"], binaries = parsed.values.binary,
-        symbolsDir = parsed.values["symbols-dir"], token = env.EVERFRAME_API_TOKEN;
-      if (!appId || !binaries?.length || !symbolsDir || !token) throw new Error("missing_required_option");
-      const result = await uploadAndroidElfBuild({ appId, binaries, symbolsDir, token,
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1" });
-      console.log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`);
-      return 0;
+      if (argv.slice(2).some((arg) => arg === "--help" || arg === "-h")) { console.log(HELP); return 0; }
+      return await elfUploadBuildCommand(argv.slice(2), env);
     }
 
     if (isElfCommand) {
@@ -509,7 +495,7 @@ export async function main(
     const message = adviceFor(error instanceof Error ? error.message : "upload_failed");
     const token = env.EVERFRAME_API_TOKEN;
     // upload-build failures list bounded paths and image identities.
-    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, isDsymBuildCommand ? 8192 : 256));
+    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, isDsymBuildCommand || isElfBuildCommand ? 8192 : 256));
     return 1;
   }
 }

@@ -173,37 +173,55 @@ not ready. Retrying the same file resumes its content-addressed upload. This
 command does not install a Gradle task or discover build outputs. A ready artifact
 establishes symbol availability; readable crashes still require device testing.
 
-### Gate Android native builds on exact symbols
+### Upload a native Android build
 
-After a successful native build, list the **actual shipped libraries** and an
-unstripped symbol directory. GNU build ID and ABI must match for every listed
-image; file names and release labels are not used for matching.
+Point the command at the stripped libraries the build ships and at the
+unstripped libraries Gradle keeps beside them. With the Android Gradle plugin
+these are the `strip<Variant>DebugSymbols` and `merge<Variant>NativeLibs`
+outputs, laid out as `lib/<abi>/*.so`:
 
 ```sh
 export EVERFRAME_APP_ID='your-app-id'
 # Set EVERFRAME_API_TOKEN from your CI secret store (artifacts:write scope).
+everframe elf upload-build \
+  --binaries-dir app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib \
+  --symbols-dir app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib
+```
+
+`--binaries-dir` uploads every shipped `.so` that has a matching unstripped
+library (same GNU build ID and ABI). Prebuilt libraries from AARs, such as
+`libhermes.so` or `libc++_shared.so`, usually ship without debug info; each
+prints `warning: no symbols for <path>: …` and the command still succeeds. A
+directory without libraries does nothing.
+
+**It never fails your build by default.** In `--binaries-dir` mode a missing
+`EVERFRAME_API_TOKEN` or a failed upload prints `warning:` lines and exits 0.
+Pass `--strict` or set `EVERFRAME_SYMBOLS_STRICT=1` to fail instead and to
+require symbols for every shipped library; a required library without them
+fails with `missing_matching_elf`, naming its ABI, build ID and path.
+
+To check an explicit list instead, pass `--binary` once per shipped library.
+Every listed library is required, and failures exit nonzero:
+
+```sh
 everframe elf upload-build --app-id "$EVERFRAME_APP_ID" \
   --binary shipped/arm64-v8a/libapp.so \
   --binary shipped/armeabi-v7a/libapp.so \
   --symbols-dir symbols/release
 ```
 
-The gate checks complete binary and symbol hashes before and after uploading.
-Missing, wrong-ABI, stripped-only or ambiguous symbol coverage fails before any
-request. A late local change or service rejection fails the command. Artifacts
-already accepted remain reusable on retry; no source files are deleted. Preserve
-these outputs unchanged through the gate and promote those exact build outputs.
-The command does not enumerate an APK or prove coverage for unlisted libraries.
+The command checks complete binary and symbol hashes before and after uploading.
+Wrong-ABI, stripped-only or ambiguous symbol coverage is never uploaded. Artifacts
+already accepted remain reusable on retry; no source files are deleted.
 
 Use [the Bash wrapper](examples/upload-android-symbols.sh) or adapt the explicit
 [Gradle Kotlin task](examples/upload-android-symbols.gradle.kts) to your variant.
-Copy the wrapper into `ci/` for that Gradle example. Invoke the symbol task in CI
-before promotion; ordinary `assembleRelease` does not upload automatically.
-`EVERFRAME_CLI_JS` optionally points the wrapper to a locally built CLI entry.
-Tokens stay in inherited environment variables, not command-line arguments.
+Copy the wrapper into `ci/` for that Gradle example. `EVERFRAME_CLI_JS`
+optionally points the wrapper to a locally built CLI entry. Tokens stay in
+inherited environment variables, not command-line arguments.
 
-Limits: 1–16 binaries, 16 selected artifacts, 1024 traversed directory entries,
-8 nested directory levels, 64 MiB per file and 512 MiB inspected per pass.
+Limits: 256 libraries, 128 selected artifacts, 16384 traversed directory
+entries, 8 nested directory levels, 64 MiB per file and 4 GiB inspected per run.
 Only `.so` candidates are inspected, including nested directories. Exact duplicate
 bytes deduplicate; different unstripped bytes claiming the same build ID and ABI
 are rejected. Use embedded, uncompressed `.debug_info` and `.debug_line`; split,

@@ -13,3 +13,12 @@ export const symbolsStrict = (env: NodeJS.ProcessEnv, flag = false): boolean =>
 /** A configured token never reaches build output, even inside a path. */
 export const redact = (message: string, token: string | undefined): string =>
   token ? message.split(token).join("[redacted]") : message;
+export const NO_TOKEN_WARNING =
+  "warning: everframe: no EVERFRAME_API_TOKEN, skipping symbol upload. Crashes from this build will show raw addresses. Set EVERFRAME_API_TOKEN to a token with the artifacts:write scope, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.";
+/** The two `warning:` lines a lenient build integration prints instead of failing. */
+export function uploadFailureWarnings(message: string, token: string | undefined): string[] {
+  return [
+    `warning: everframe: symbol upload failed: ${redact(message, token)}`,
+    "warning: everframe: crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.",
+  ];
+}
