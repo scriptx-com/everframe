@@ -86,4 +86,15 @@ final class EverframeConfigEquatableTests: XCTestCase {
         var headers = makeConfig(); headers.redaction.allowlistedHeaders = ["Content-Type"]
         XCTAssertNotEqual(makeConfig(), headers)
     }
+
+    /// SDK 1.1 named the key `appId`. The deprecated spelling still compiles and
+    /// builds the same config, so a 1.1 call site keeps working in a minor release.
+    @available(*, deprecated)
+    func test_deprecated_appId_spelling_builds_the_same_config() {
+        let legacy = EverframeConfig(appId: sdkKey, release: "1.2.3", installIdentifierEnabled: false)
+        let current = EverframeConfig(sdkKey: sdkKey, release: "1.2.3", installIdentifierEnabled: false)
+        XCTAssertEqual(legacy, current)
+        XCTAssertEqual(legacy.sdkKey, sdkKey)
+        XCTAssertEqual(legacy.appId, sdkKey)
+    }
 }

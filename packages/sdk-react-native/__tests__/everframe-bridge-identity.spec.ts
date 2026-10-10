@@ -29,9 +29,12 @@ describe('Everframe React Native bridge identity', () => {
   });
 
   // The ranges are literals, so a release that bumps package.json without them
-  // ships a bridge that still resolves the previous native minor.
-  it('requires the native minor matching its own version', () => {
-    const [major, minor] = JSON.parse(read('package.json')).version.split('.').map(Number);
+  // ships a bridge that still resolves the previous native minor. The bridge
+  // also calls EverframeConfig(sdkKey:), which first ships in native 1.2.0, so
+  // the floor is never below 1.2 even while package.json is still 1.1.0.
+  it('requires the native minor matching its own version, and at least 1.2', () => {
+    const [ownMajor, ownMinor] = JSON.parse(read('package.json')).version.split('.').map(Number);
+    const [major, minor] = ownMajor > 1 || (ownMajor === 1 && ownMinor >= 2) ? [ownMajor, ownMinor] : [1, 2];
     const floor = `${major}.${minor}.0`;
     const ceiling = `${major}.${minor + 1}.0`;
 

@@ -19,7 +19,7 @@ import type {
   UserMetadata,
 } from '@everframe/sdk-core';
 import type { ReportEnvelope } from '@everframe/protocol';
-import type { WebEverframeConfig } from '../internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../internal/types.js';
 import { INGEST_URL } from '../constants.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 import { draftToEnvelope, type CaptureBundle } from './draft-to-envelope.js';
@@ -204,7 +204,7 @@ export interface SubmitOutcome {
  *   - PayloadTooLargeError thrown by buildMultipart → non-retryable, no enqueue
  */
 export async function submitReportFromDraft(opts: {
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
   /**
    * Which SDK produced this report — envelope `sdk.name`. Defaults to
    * `everframe-react` (see draftToEnvelope): every caller predates
@@ -491,7 +491,7 @@ export async function submitReportFromDraft(opts: {
  */
 type DrainOutboxOptions = {
   outbox: OutboxAdapter;
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
   sdkVersion: string;
   fetch?: typeof globalThis.fetch;
   retryScheduleMs?: readonly number[];

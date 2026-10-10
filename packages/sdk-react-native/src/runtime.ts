@@ -21,8 +21,8 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // into the RN bundle. Dedupe to sdk-core post-v0.1.0.
 import NativeEverframe from "./NativeEverframe.js";
 import type { ConfigOpts, Rect } from "./NativeEverframe.js";
-import { budgetExtra, EXTRA_MAX_CHARS } from "@everframe/sdk-core";
-import type { ExtraResolver } from "@everframe/sdk-core";
+import { budgetExtra, EXTRA_MAX_CHARS, resolveSdkKey } from "@everframe/sdk-core";
+import type { ExtraResolver, WithSdkKeyField } from "@everframe/sdk-core";
 import { getEmitter } from "./events.js";
 import { captureJsBundleMetadata, type JsBundleConfig } from "./js-bundle.js";
 import { createCaptureController, type CaptureController } from "./errors.js";
@@ -385,7 +385,15 @@ function installExtraResolveHandler(): boolean {
   }
 }
 
-export function createRuntime(config: RuntimeConfig): Runtime {
+/**
+ * The provider config as a host passes it: the SDK key as `sdkKey`, or as the
+ * deprecated `apiKey` (its name before 1.2).
+ */
+export type EverframeProviderConfig = WithSdkKeyField<RuntimeConfig>;
+
+export function createRuntime(input: EverframeProviderConfig): Runtime {
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const config: RuntimeConfig = resolveSdkKey(input);
   const sensitiveRegistry = new Map<number, Rect>();
   type Mount = {
     teardowns: Array<{ name: string; teardown: () => void }>;

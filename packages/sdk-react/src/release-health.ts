@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { INGEST_URL, setupReleaseHealth, type WebEverframeConfig } from '@everframe/web';
+import { INGEST_URL, setupReleaseHealth, type ResolvedWebEverframeConfig } from '@everframe/web';
 
 /** Pure during render: only a committed Provider effect starts durable work. */
-export function createProviderReleaseHealth(config: WebEverframeConfig, sdkVersion: string) {
+export function createProviderReleaseHealth(config: ResolvedWebEverframeConfig, sdkVersion: string) {
   const captured = {
     sdkKey: config.sdkKey,
     disabled: config.disabled === true,

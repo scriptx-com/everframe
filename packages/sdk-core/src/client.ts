@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { safeWrap } from './safe-wrap.js';
 import type { PlatformAdapter } from './types/platform.js';
-import type { EverframeConfig, UserMetadata, EverframeError } from './types/config.js';
+import type { EverframeConfig, ResolvedEverframeConfig, UserMetadata, EverframeError } from './types/config.js';
+import { resolveSdkKey } from './sdk-key.js';
 import { createBreadcrumbBuffer, type BreadcrumbBuffer } from './breadcrumbs/buffer.js';
 import { createNetworkBodyBuffer, type NetworkBodyBuffer } from './capture/network-body-buffer.js';
 import { BreadcrumbKind, BreadcrumbLevel, type Breadcrumb } from '@everframe/protocol';
@@ -133,7 +134,7 @@ export type ExtraState =
   | { kind: 'resolver'; resolve: ExtraResolver };
 
 interface ClientState {
-  config: EverframeConfig | null;
+  config: ResolvedEverframeConfig | null;
   user: UserMetadata | null;
   extra: ExtraState;
   killed: boolean;
@@ -263,8 +264,9 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
   state.identityToken = new IdentityTokenHolder();
 
   const handlers = {
-    init(config: EverframeConfig): void {
+    init(input: EverframeConfig): void {
       if (state.killed) return;
+      const config = resolveSdkKey(input);
       const prior = state.config;
       state.config = config;
       // Follow-up (spec 2026-08-12-followups-cleanup-round): everything below

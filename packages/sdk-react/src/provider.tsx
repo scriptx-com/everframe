@@ -24,8 +24,10 @@ import {
   INGEST_URL,
   createScreenRecorder,
   sha256Hex,
+  resolveSdkKey,
   type WebPlatformAdapter,
   type WebEverframeConfig,
+  type ResolvedWebEverframeConfig,
   type ReporterResult,
 } from '@everframe/web';
 import { useIdentityProp, type IdentityProp } from './identity-prop.js';
@@ -50,7 +52,7 @@ import { createProviderReleaseHealth } from './release-health.js';
 export interface InternalContext {
   client: EverframeClient;
   adapter: WebPlatformAdapter;
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
   releaseHealth: ReturnType<typeof createProviderReleaseHealth>;
   stopClient: () => void;
   /** Freeze-then-open helper — freezes the replay buffer before mounting the modal. */
@@ -98,10 +100,14 @@ function sha256OfBytes(bytes: Uint8Array): Promise<string> {
 export const EverframeProvider = ({ config, identity, children }: EverframeProviderProps) => {
   // Repairable client contexts share the same real-mount configuration. A
   // child's effect may mutate the caller's object before StrictMode repairs it.
-  const [mountConfig] = useState<WebEverframeConfig>(() => ({
-    ...config,
-    ...(config.releaseHealth ? { releaseHealth: { ...config.releaseHealth } } : {}),
-  }));
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const [mountConfig] = useState<ResolvedWebEverframeConfig>(() => {
+    const resolved = resolveSdkKey(config);
+    return {
+      ...resolved,
+      ...(resolved.releaseHealth ? { releaseHealth: { ...resolved.releaseHealth } } : {}),
+    };
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({

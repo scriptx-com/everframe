@@ -6,9 +6,9 @@ import { submitReportFromDraft, drainOutbox } from '../../src/transport/submit.j
 import { createInMemoryOutbox } from '@everframe/sdk-core';
 import type { OutboxAdapter, ReportDraft, ReporterCredentialStore } from '@everframe/sdk-core';
 import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { WebEverframeConfig } from '../../src/internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../../src/internal/types.js';
 
-const config: WebEverframeConfig = {
+const config: ResolvedWebEverframeConfig = {
   sdkKey: 'txx_live_test',
   appName: 'test-app',
   appVersion: '1.0.0',
@@ -344,7 +344,7 @@ describe('drainOutbox — replies opt-out header', () => {
 
   async function drainOneItem(opts: {
     fetchImpl: ReturnType<typeof vi.fn>;
-    driveConfig: WebEverframeConfig;
+    driveConfig: ResolvedWebEverframeConfig;
     credentials?: ReporterCredentialStore | null;
   }) {
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -417,7 +417,7 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
 
   const APP_A_KEY = 'txx_live_app_a';
   const APP_B_KEY = 'txx_live_app_b';
-  const configB: WebEverframeConfig = { ...config, sdkKey: APP_B_KEY };
+  const configB: ResolvedWebEverframeConfig = { ...config, sdkKey: APP_B_KEY };
 
   async function seedTwoAppOutbox(): Promise<OutboxAdapter> {
     const outbox: OutboxAdapter = createInMemoryOutbox();

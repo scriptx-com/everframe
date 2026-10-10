@@ -171,6 +171,25 @@ public final class ReplaySession: NSObject {
         )
     }
 
+    /// The SDK 1.1 spelling of `init(baseURL:sdkKey:locallyDisabled:startEpoch:installIdProvider:)`.
+    @available(*, deprecated, renamed: "init(baseURL:sdkKey:locallyDisabled:startEpoch:installIdProvider:)")
+    public convenience init(
+        baseURL: URL, apiKey: String, locallyDisabled: Bool,
+        startEpoch: Int,
+        installIdProvider: @escaping @Sendable () -> String? = { nil }
+    ) {
+        self.init(
+            baseURL: baseURL, sdkKey: apiKey, locallyDisabled: locallyDisabled,
+            startEpoch: startEpoch, installIdProvider: installIdProvider
+        )
+    }
+
+    /// The SDK 1.1 spelling of `init(baseURL:sdkKey:locallyDisabled:)`.
+    @available(*, deprecated, renamed: "init(baseURL:sdkKey:locallyDisabled:)")
+    public convenience init(baseURL: URL, apiKey: String, locallyDisabled: Bool) {
+        self.init(baseURL: baseURL, sdkKey: apiKey, locallyDisabled: locallyDisabled)
+    }
+
     /// Test seam: construct with a pre-built `ReplayConfigProvider` (e.g. wired
     /// to a stub `URLSessionFetching` + injectable clock) so specs can drive
     /// `refreshConfigNow()` deterministically — flip the server response

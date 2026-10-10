@@ -8,7 +8,8 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 
 import NativeEverframe from "../src/NativeEverframe.js";
-import { createRuntime } from "../src/runtime.js";
+import { __resetSdkKeyWarning } from "@everframe/sdk-core";
+import { createRuntime, type EverframeProviderConfig } from "../src/runtime.js";
 import {
   __setCurrentContext,
   addBreadcrumb as topLevelAddBreadcrumb,
@@ -129,6 +130,49 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       warn.mockRestore();
     },
   );
+
+  // `apiKey` was the config's name for the SDK key until 1.2. A 1.1 config
+  // still passes it, so it is a deprecated alias; native only ever sees sdkKey.
+  describe("SDK key name", () => {
+    let warn: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      __resetSdkKeyWarning();
+      warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      nativeMock.configureSync.mockReturnValue(true);
+    });
+    afterEach(() => warn.mockRestore());
+    const configured = () =>
+      nativeMock.configureSync.mock.calls[0]![0] as Record<string, unknown>;
+    const deprecationWarnings = () =>
+      warn.mock.calls.filter(([message]: unknown[]) => String(message).includes("`apiKey`"));
+
+    it("sends the deprecated apiKey to native as sdkKey and warns", () => {
+      const rt = createRuntime({ apiKey: "alias-key" });
+      rt.mount();
+      expect(configured().sdkKey).toBe("alias-key");
+      expect(configured()).not.toHaveProperty("apiKey");
+      expect(deprecationWarnings()).toHaveLength(1);
+      rt.unmount();
+    });
+
+    it("uses sdkKey when both names are set", () => {
+      const rt = createRuntime({ sdkKey: "new-key", apiKey: "old-key" });
+      rt.mount();
+      expect(configured().sdkKey).toBe("new-key");
+      expect(configured()).not.toHaveProperty("apiKey");
+      expect(deprecationWarnings()).toHaveLength(1);
+      rt.unmount();
+    });
+
+    it("sends no key when neither name is set, as before, without a warning", () => {
+      const rt = createRuntime({} as unknown as EverframeProviderConfig);
+      rt.mount();
+      expect(configured()).not.toHaveProperty("sdkKey");
+      expect(configured()).not.toHaveProperty("apiKey");
+      expect(deprecationWarnings()).toHaveLength(0);
+      rt.unmount();
+    });
+  });
 
   it("open() delegates to NativeEverframe.openReporter and returns its result", async () => {
     nativeMock.openReporter.mockResolvedValue({

@@ -151,7 +151,9 @@ val nativeVersionOverride = (findProperty("everframeNativeVersion") as String?)
 val rnSdkPkg = groovy.json.JsonSlurper()
     .parse(file("../package.json")) as Map<*, *>
 val rnSdkVersion = rnSdkPkg["version"] as String
-val nativeMinorRange: String = nativeVersionOverride ?: "[1.1.0,1.2.0)"
+// Native 1.2.0 is the release that renamed the SDK key to `sdkKey`; the
+// bridge moves with it, ahead of package.json, which the 1.2.0 release bumps.
+val nativeMinorRange: String = nativeVersionOverride ?: "[1.2.0,1.3.0)"
 if (nativeVersionOverride != null) {
     logger.lifecycle(
         "[everframe-rn] native AAR pinned to $nativeVersionOverride via everframeNativeVersion " +

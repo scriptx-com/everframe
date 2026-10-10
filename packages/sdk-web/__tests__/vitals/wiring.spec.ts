@@ -20,7 +20,7 @@ import {
   __getVitalsServerConfig,
   __setVitalsServerConfig,
 } from '../../src/vitals/server-config.js';
-import type { WebEverframeConfig } from '../../src/internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../../src/internal/types.js';
 
 interface SampleDeps {
   onSample(s: { t: number; mem: number; extras: Record<string, number> }): void;
@@ -84,11 +84,11 @@ let adapterDeps:
     })
   | undefined;
 
-function baseConfig(overrides?: Partial<WebEverframeConfig>): WebEverframeConfig {
+function baseConfig(overrides?: Partial<ResolvedWebEverframeConfig>): ResolvedWebEverframeConfig {
   return { sdkKey: 'k', appVersion: '1.2.3', ...overrides };
 }
 
-function baseDeps(overrides?: Partial<WebEverframeConfig>) {
+function baseDeps(overrides?: Partial<ResolvedWebEverframeConfig>) {
   return {
     config: baseConfig(overrides),
     sdkKey: 'test-key',
@@ -840,7 +840,7 @@ describe('adapter.ts — applyLiveConfig writes the vitals server-config box', (
 });
 
 describe('setupVitals — phase 4 public API', () => {
-  function startEnabled(overrides?: Partial<WebEverframeConfig>) {
+  function startEnabled(overrides?: Partial<ResolvedWebEverframeConfig>) {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     __setVitalsServerConfig({ vitalsEnabled: true, vitalsSampleRate: 1 });
     return setupVitals(baseDeps(overrides));

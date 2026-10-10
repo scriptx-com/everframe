@@ -26,6 +26,10 @@ export type { WebPlatformAdapter } from './adapter.js';
 
 // ── Configuration + result shapes ───────────────────────────────────────
 export type { WebEverframeConfig } from './internal/types.js';
+/** @internal Shared with `@everframe/react`, which normalises its provider config the same way. */
+export type { ResolvedWebEverframeConfig } from './internal/types.js';
+/** @internal Shared with `@everframe/react`, which normalises its provider config the same way. */
+export { resolveSdkKey } from '@everframe/sdk-core';
 export { EverframeNotMountedError } from './reporter-types.js';
 export type { ReporterResult } from './reporter-types.js';
 

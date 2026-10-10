@@ -18,11 +18,11 @@
 
 import type { UserMetadata } from '@everframe/sdk-core';
 import type { WebPlatformAdapter } from '../adapter.js';
-import type { WebEverframeConfig } from '../internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../internal/types.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 
 export interface CompanionHost {
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
   adapter: WebPlatformAdapter;
   /**
    * Which SDK is hosting — passed to submitReportFromDraft as envelope

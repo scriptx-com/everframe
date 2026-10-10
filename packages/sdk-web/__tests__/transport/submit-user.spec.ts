@@ -4,12 +4,12 @@
 import { describe, expect, it } from 'vitest';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
 import type { ReportDraft, UserMetadata } from '@everframe/sdk-core';
-import type { WebEverframeConfig } from '../../src/internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../../src/internal/types.js';
 
 // Fixture shapes mirror draft-to-envelope.spec.ts's baseConfig/baseBundle/baseDraft
 // (this package has no shared __helpers__ module to import from).
 
-function baseConfig(): WebEverframeConfig {
+function baseConfig(): ResolvedWebEverframeConfig {
   return {
     sdkKey: 'txx_live_test',
     appName: 'test-app',

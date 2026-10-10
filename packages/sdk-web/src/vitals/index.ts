@@ -42,10 +42,10 @@ import { __getVitalsServerConfig, __subscribeVitalsServerConfig } from './server
 import { createPlayerRegistry } from './registry.js';
 import { hlsIntegration } from './integrations/hls.js';
 import { shakaIntegration } from './integrations/shaka.js';
-import type { WebEverframeConfig } from '../internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../internal/types.js';
 
 export interface SetupVitalsDeps {
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
   sdkKey: string;
   /** Ingest base URL — `${apiUrl}/api/ingest/vitals` is the transport endpoint. */
   apiUrl: string;

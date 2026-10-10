@@ -12,8 +12,9 @@ Pod::Spec.new do |s|
   s.source = { :path => '.' }
   s.source_files = 'everframe_flutter/Sources/everframe_flutter/**/*.swift'
   s.dependency 'Flutter'
-  s.dependency 'Everframe/Core', '~> 1.0.0'
-  s.dependency 'Everframe/ReporterUI', '~> 1.0.0'
+  # The plugin calls EverframeConfig(sdkKey:), which first ships in native 1.2.0.
+  s.dependency 'Everframe/Core', '~> 1.2.0'
+  s.dependency 'Everframe/ReporterUI', '~> 1.2.0'
   s.platform = :ios, '15.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.10'

@@ -35,8 +35,12 @@ package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
 # evaluated from inside the published npm tarball at a consumer's install, where
 # no workspace path exists. Unset — every consumer install — the derivation
 # below is the only source of truth, unchanged.
+#
+# The bridge calls `EverframeConfig(sdkKey:)`, which first ships in native
+# 1.2.0, so the range already asks for 1.2 while package.json is still 1.1.0.
+# The 1.2.0 release moves package.json to match.
 native_version_override = ENV['EVERFRAME_NATIVE_POD_VERSION'].to_s.strip
-native_minor_range = native_version_override.empty? ? '~> 1.1.0' : native_version_override
+native_minor_range = native_version_override.empty? ? '~> 1.2.0' : native_version_override
 
 Pod::Spec.new do |s|
   s.name         = 'EverframeRN'

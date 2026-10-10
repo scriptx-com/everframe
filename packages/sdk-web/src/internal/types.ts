@@ -1,10 +1,17 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { EverframeConfig } from '@everframe/sdk-core';
+import type { ResolvedEverframeConfig, WithSdkKeyField } from '@everframe/sdk-core';
 import type { ReporterTheme } from '../branding/theme.js';
 import type { HostVisualCapture } from '../capture/host-visual.js';
 
-export interface WebEverframeConfig extends EverframeConfig {
+/**
+ * The web config as a host passes it to `init` or `<EverframeProvider>`: the
+ * SDK key as `sdkKey`, or as the deprecated `apiKey` (its name before 1.2).
+ */
+export type WebEverframeConfig = WithSdkKeyField<ResolvedWebEverframeConfig>;
+
+/** The web config after `resolveSdkKey`: the key is always under `sdkKey`. */
+export interface ResolvedWebEverframeConfig extends ResolvedEverframeConfig {
   /** Opt-in release exposures for imperative init; independent of replay/vitals.
    * Supply only the actually executed bundle ID. Explicit false erases its pending journal.
    * Optional `userId`: a project-local opaque account ID, frozen until the next init and never

@@ -19,7 +19,7 @@ import type {
   CaptureControlRender,
 } from '@everframe/protocol';
 import { DOM_SNAPSHOT_CONTENT_TYPE, domSnapshotPartName } from '@everframe/protocol';
-import type { WebEverframeConfig } from '../internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../internal/types.js';
 import { REACT_SDK_NAME, type HostSdkName } from '../internal/sdk-identity.js';
 import { stampActiveVitals } from '../vitals/stamp-active-vitals.js';
 import { stampResources } from '../resources/stamp.js';
@@ -182,7 +182,7 @@ export interface DraftToEnvelopeOutput {
 export function draftToEnvelope(
   draft: ReportDraft,
   bundle: CaptureBundle,
-  config: WebEverframeConfig,
+  config: ResolvedWebEverframeConfig,
   sdkVersion: string,
   /**
    * The self-declared `setUser` value for this report, or null/undefined for
