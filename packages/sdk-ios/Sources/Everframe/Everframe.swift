@@ -111,6 +111,17 @@ public final class Everframe: @unchecked Sendable {
         return false
     }
 
+    /// Invalidates native capture only when the current owner's context must be rebuilt:
+    /// nothing is armed, or the armed context carries a pointer other than the ready one.
+    /// The caller holds stateLock and refreshes when this returns true.
+    private func invalidateStaleNativeCrashContext() -> Bool {
+        guard let runtime = nativeCrashRuntime, nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
+              _config?.capture.crash == true,
+              !runtime.isArmed(exposureID: releaseHealthRuntime?.readyPointer?.exposureID) else { return false }
+        nativeCrashTicket = runtime.invalidate()
+        return true
+    }
+
     /// Background retires the immutable native context together with a ready session
     /// pointer before the UIKit callback returns and, on main, rearms its pointer-free
     /// twin at once. A transition that retires no pointer, as without an opt-in, leaves
@@ -152,7 +163,9 @@ public final class Everframe: @unchecked Sendable {
     }
 
     /// Configure a bridge owner and reserve its health intent before deferring durable work.
-    /// Identical SDK and health configuration retains the current foreground session.
+    /// Identical SDK and health configuration retains the current foreground session and
+    /// leaves native crash capture armed. Always run the returned operation: it completes
+    /// erasure and, after a withdrawn session pointer, rearms native crash capture.
     public func configureAndPrepareReleaseHealth(config: EverframeConfig, health: ReleaseHealthConfiguration?, forceRestart: Bool = false) throws -> (@Sendable () async -> Bool)? {
         let unchanged: (epoch: Int, configGeneration: UInt64)? = stateLock.withLock {
             guard !forceRestart, Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, _config == config else { return nil }
@@ -194,13 +207,15 @@ public final class Everframe: @unchecked Sendable {
                 guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, _config != nil else { return nil }
             }
             releaseHealthCommand &+= 1
-            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
-            let ticket: UInt64
+            let change: (UInt64, Bool)
             if let configuration, let config = _config {
-                ticket = runtime.requestEnable(configuration: configuration, sdkKey: config.appId,
+                change = runtime.requestEnable(configuration: configuration, sdkKey: config.appId,
                     endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString)
-            } else { ticket = runtime.revoke() }
-            return (releaseHealthCommand, _startEpoch, _configGeneration, ticket)
+            } else { change = runtime.revoke() }
+            // Only a withdrawn pointer can be carried by an armed or pending native context. An
+            // unchanged owner, or one that was never ready, leaves native capture untouched.
+            if change.1 { nativeCrashTicket = nativeCrashRuntime?.retireExposure() ?? 0 }
+            return (releaseHealthCommand, _startEpoch, _configGeneration, change.0)
         }
         guard let reserved else { return nil }
         let isCurrent: @Sendable () -> Bool = { [self] in stateLock.withLock {
@@ -210,8 +225,13 @@ public final class Everframe: @unchecked Sendable {
             guard let configuration else {
                 // Explicit erasure remains an obligation even when another request overtakes its tail.
                 let erased = await runtime.finishRevocation(reserved.ticket)
-                guard isCurrent() else { return false }
-                _ = await refreshNativeCrashContext()
+                let refresh: Bool? = stateLock.withLock {
+                    guard releaseHealthCommand == reserved.command, _startEpoch == reserved.epoch,
+                          _configGeneration == reserved.configGeneration else { return nil }
+                    return invalidateStaleNativeCrashContext()
+                }
+                guard let refresh else { return false }
+                if refresh { _ = await refreshNativeCrashContext() }
                 return erased
             }
             guard isCurrent() else { return false }
@@ -223,18 +243,18 @@ public final class Everframe: @unchecked Sendable {
                       _configGeneration == reserved.configGeneration, Self.captureGate,
                       nativeCrashPublishedEpoch == _startEpoch, let config = _config else { return nil }
                 return runtime.requestEnable(configuration: configuration, sdkKey: config.appId,
-                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString)
+                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString).ticket
             }
             guard let ticket else { return false }
             let enabled = await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION)
-            let current = stateLock.withLock { () -> Bool in
+            // Like foreground entry, the armed context stays until another pointer must replace it.
+            let current: (owned: Bool, refresh: Bool) = stateLock.withLock {
                 guard releaseHealthCommand == reserved.command, _startEpoch == reserved.epoch,
-                      _configGeneration == reserved.configGeneration, Self.captureGate else { return false }
-                nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
-                return true
+                      _configGeneration == reserved.configGeneration, Self.captureGate else { return (false, false) }
+                return (true, invalidateStaleNativeCrashContext())
             }
-            if current { _ = await refreshNativeCrashContext() }
-            return enabled && current
+            if current.refresh { _ = await refreshNativeCrashContext() }
+            return enabled && current.owned
         }
     }
 
@@ -2130,7 +2150,7 @@ public final class Everframe: @unchecked Sendable {
         // `reset()`/`clear()` running before the epoch bump.
         stateLock.lock()
         let appleErasure = appleDiagnosticRuntime?.revoke()
-        let healthErasure = releaseHealthRuntime?.revoke()
+        let healthErasure = releaseHealthRuntime?.revoke().request
         nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         nativeCrashPublishedEpoch = nil
         let killEpoch = bumpStartEpoch()

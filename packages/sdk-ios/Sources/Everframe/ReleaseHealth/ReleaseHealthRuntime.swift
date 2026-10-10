@@ -53,14 +53,16 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     deinit { timer?.cancel(); drainTask?.cancel() }
     var readyPointer: EverframeNativeExposure? { lock.withLock { ready } }
 
-    /// Called only with the SDK's published configuration ownership captured.
-    func requestEnable(configuration: ReleaseHealthConfiguration, sdkKey: String, endpoint: String) -> UInt64 {
+    /// Called only with the SDK's published configuration ownership captured. `retiredPointer`
+    /// reports, atomically with the change, whether a ready pointer was withdrawn: an unchanged
+    /// owner keeps its pointer, so native capture needs no change.
+    func requestEnable(configuration: ReleaseHealthConfiguration, sdkKey: String, endpoint: String) -> (ticket: UInt64, retiredPointer: Bool) {
         let capturedAt = now(), capturedUptime = uptime()
-        let transition: (UInt64, Bool) = lock.withLock {
+        let transition: (UInt64, Bool, Bool) = lock.withLock {
             let next = Owner(configuration: configuration, sdkKey: sdkKey, endpoint: endpoint)
-            let changed = desired != next
+            let changed = desired != next, retired = changed && ready != nil
             if changed { generation &+= 1; desired = next; ready = nil }
-            return (generation, changed)
+            return (generation, changed, retired)
         }
         if transition.1 {
             worker.async {
@@ -69,7 +71,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
                 }
             }
         }
-        return transition.0
+        return (transition.0, transition.2)
     }
     /// Called at the SDK's context invalidation boundary. No disk work occurs here.
     /// Inactive UIKit interruptions stay foreground; only background closes a session.
@@ -103,15 +105,17 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
             if self.lock.withLock({ self.generation == ticket && self.desired == nil }) { self.stopDrain() }
         }
     }
-    @discardableResult func revoke() -> UInt64 {
-        let request = lock.withLock { () -> (UInt64, UInt64) in
-            generation &+= 1; desired = nil; ready = nil; requestedErasure &+= 1; return (requestedErasure, generation)
+    /// `retiredPointer` reports, atomically with the revocation, whether a ready pointer was withdrawn.
+    @discardableResult func revoke() -> (request: UInt64, retiredPointer: Bool) {
+        let request = lock.withLock { () -> (UInt64, UInt64, Bool) in
+            let retired = ready != nil
+            generation &+= 1; desired = nil; ready = nil; requestedErasure &+= 1; return (requestedErasure, generation, retired)
         }
         worker.async {
             if let active = self.active, active.ticket < request.1 { self.active = nil }
             if self.lock.withLock({ self.generation == request.1 && self.desired == nil }) { self.stopDrain() }
         }
-        return request.0
+        return (request.0, request.2)
     }
     func enable(ticket: UInt64, sdkVersion: String) async -> Bool {
         await onWorker {

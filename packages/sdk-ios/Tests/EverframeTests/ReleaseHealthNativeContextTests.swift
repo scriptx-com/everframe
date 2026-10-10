@@ -209,6 +209,124 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         XCTAssertFalse(closed.enabled); XCTAssertFalse(probe.snapshot().enabled)
         sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
+    func testIdenticalConfigureWithoutReleaseHealthNeverPausesNativeCapture() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x69, count: 32), probe = HealthNativeRecorderProbe()
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        let config = EverframeConfig(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
+        let first = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: nil))
+        _ = await first()
+        let armed = await sdk.refreshNativeCrashContext()
+        XCTAssertTrue(armed)
+        let before = probe.snapshot(), epoch = sdk.currentStartEpoch
+        // A remounted React Native provider repeats its configuration. Without a session
+        // pointer nothing is withdrawn, so neither the call nor its deferred work may close the gate.
+        let again = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: nil))
+        let returned = probe.snapshot()
+        XCTAssertEqual(sdk.currentStartEpoch, epoch)
+        XCTAssertTrue(returned.enabled, "identical configure paused capture"); XCTAssertEqual(returned.pauses, before.pauses)
+        let erased = await again(); XCTAssertTrue(erased)
+        let after = probe.snapshot()
+        XCTAssertTrue(after.enabled); XCTAssertEqual(after.pauses, before.pauses)
+        XCTAssertEqual(after.publications, before.publications); XCTAssertEqual(after.context, before.context)
+        XCTAssertNil(health.readyPointer)
+    }
+    func testIdenticalConfigureWithUnchangedReleaseHealthKeepsTheLinkedContextArmed() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x6a, count: 32), probe = HealthNativeRecorderProbe()
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        let config = EverframeConfig(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
+        let settings = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "bundle", loadedBundleStatus: .known)
+        let first = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: settings))
+        let enabled = await first(); XCTAssertTrue(enabled)
+        let pointer = try XCTUnwrap(health.readyPointer)
+        let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
+        let linked = probe.snapshot()
+        let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(linked.path).deletingLastPathComponent().lastPathComponent))
+        func decoded(_ id: UUID?) throws -> NativeCrashRecoveryContext {
+            try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(id)))
+        }
+        XCTAssertTrue(linked.enabled); XCTAssertEqual(try decoded(linked.context).releaseHealthExposure?.exposureID, pointer.exposureID)
+        // The same pointer stays ready, so the context that carries it stays armed throughout.
+        let same = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: settings))
+        let returned = probe.snapshot()
+        XCTAssertTrue(returned.enabled, "identical configure paused capture")
+        XCTAssertEqual(returned.context, linked.context); XCTAssertEqual(returned.pauses, linked.pauses)
+        let still = await same(); XCTAssertTrue(still)
+        let after = probe.snapshot()
+        XCTAssertEqual(health.readyPointer?.exposureID, pointer.exposureID)
+        XCTAssertTrue(after.enabled); XCTAssertEqual(after.context, linked.context)
+        XCTAssertEqual(after.pauses, linked.pauses); XCTAssertEqual(after.publications, linked.publications)
+        // Its pointer-free twin stays published too: a background callback before the
+        // deferred work finishes still rearms capture at once.
+        let again = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: settings))
+        let (transition, background) = await MainActor.run { () -> (Task<Void, Never>, HealthNativeRecorderProbe.State) in
+            (sdk.releaseHealthForegroundChanged(false), probe.snapshot())
+        }
+        XCTAssertTrue(background.enabled, "background after an identical configure left capture closed")
+        XCTAssertNil(try decoded(background.context).releaseHealthExposure)
+        await transition.value
+        let backgrounded = await again(); XCTAssertFalse(backgrounded)
+        let settled = probe.snapshot()
+        XCTAssertTrue(settled.enabled); XCTAssertEqual(settled.context, background.context); XCTAssertNil(health.readyPointer)
+        sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+    func testConfigureThatWithdrawsTheReadyPointerRetiresItsNativeContext() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let key = Data(repeating: 0x6b, count: 32), probe = HealthNativeRecorderProbe()
+        let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
+            outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        let config = EverframeConfig(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
+        func settings(_ user: String) throws -> ReleaseHealthConfiguration {
+            try .init(nativeBuildId: "native", loadedBuildId: "bundle", loadedBundleStatus: .known, userId: user)
+        }
+        let first = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: settings("opaque-a")))
+        let enabled = await first(); XCTAssertTrue(enabled)
+        let a = try XCTUnwrap(health.readyPointer)
+        let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
+        let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(probe.snapshot().path).deletingLastPathComponent().lastPathComponent))
+        func armedExposure(_ state: HealthNativeRecorderProbe.State) throws -> EverframeNativeExposure? {
+            guard state.enabled else { return nil }
+            return try NativeCrashRecoveryContext.decode(contexts.readContext(runID: runID, contextID: XCTUnwrap(state.context))).releaseHealthExposure
+        }
+        XCTAssertEqual(try armedExposure(probe.snapshot())?.exposureID, a.exposureID)
+        // A new user ID ends the session before configure returns. On main its pointer-free
+        // twin is armed at once; the deferred work then links the replacement session.
+        let rotatedSettings = try settings("opaque-b")
+        let rotated = try await MainActor.run { try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: rotatedSettings)) }
+        let withdrawn = probe.snapshot()
+        XCTAssertNil(health.readyPointer)
+        XCTAssertTrue(withdrawn.enabled, "the withdrawn pointer's twin was not armed"); XCTAssertNil(try armedExposure(withdrawn))
+        let replaced = await rotated(); XCTAssertTrue(replaced)
+        let b = try XCTUnwrap(health.readyPointer); XCTAssertNotEqual(a.exposureID, b.exposureID)
+        XCTAssertEqual(try armedExposure(probe.snapshot())?.exposureID, b.exposureID)
+        // Disabling from the bridge's thread withdraws the pointer before returning, erases
+        // the journal and rearms capture without a pointer.
+        let disable = try await Task.detached { try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: nil)) }.value
+        XCTAssertNil(health.readyPointer); XCTAssertNil(try armedExposure(probe.snapshot()))
+        let erased = await disable(); XCTAssertTrue(erased)
+        let disabled = probe.snapshot()
+        XCTAssertTrue(disabled.enabled); XCTAssertNil(try armedExposure(disabled)); XCTAssertNil(health.readyPointer)
+        XCTAssertTrue(try ReleaseHealthStore(root: root.appendingPathComponent("health"), keyProvider: { key }).pending().isEmpty)
+        sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
     func testMoreThan256ForegroundCyclesKeepCaptureArmedAndRetainReferencedContexts() async throws {
         let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])

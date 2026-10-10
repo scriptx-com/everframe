@@ -20,7 +20,7 @@ final class ReleaseHealthForegroundTests: XCTestCase {
     }
     private func enable(_ runtime: ReleaseHealthRuntime, user: String = "opaque-a") async throws -> Bool {
         let config = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: user)
-        let ticket = runtime.requestEnable(configuration: config, sdkKey: "key", endpoint: "https://example.test")
+        let ticket = runtime.requestEnable(configuration: config, sdkKey: "key", endpoint: "https://example.test").ticket
         return await runtime.enable(ticket: ticket, sdkVersion: "test")
     }
     private func rows() throws -> [[String: Any]] {
@@ -53,7 +53,7 @@ final class ReleaseHealthForegroundTests: XCTestCase {
         let changed = try await enable(runtime, user: "opaque-b"); XCTAssertFalse(changed)
         XCTAssertNil(runtime.readyPointer)
         let ticket = try XCTUnwrap(runtime.setForeground(true)).ticket
-        let erase = runtime.revoke()
+        let erase = runtime.revoke().request
         let stale = await runtime.enable(ticket: ticket, sdkVersion: "test"); XCTAssertFalse(stale)
         let erased = await runtime.finishRevocation(erase); XCTAssertTrue(erased)
         XCTAssertEqual(runtime.setForeground(false)?.retiredPointer, false)
@@ -76,7 +76,7 @@ final class ReleaseHealthForegroundTests: XCTestCase {
     func testConfigurationBoundaryCompletesOldSessionEvenWhenReplacementCannotStart() async throws {
         let runtime = runtime(); let opened = try await enable(runtime); XCTAssertTrue(opened)
         let config = try ReleaseHealthConfiguration(nativeBuildId: "replacement", loadedBuildId: nil, loadedBundleStatus: .notApplicable)
-        let ticket = runtime.requestEnable(configuration: config, sdkKey: "key", endpoint: "https://example.test")
+        let ticket = runtime.requestEnable(configuration: config, sdkKey: "key", endpoint: "https://example.test").ticket
         let rejected = await runtime.enable(ticket: ticket, sdkVersion: ""); XCTAssertFalse(rejected)
         await runtime.barrier()
         XCTAssertEqual(try rows().compactMap { $0["phase"] as? String }, ["start", "end"])
