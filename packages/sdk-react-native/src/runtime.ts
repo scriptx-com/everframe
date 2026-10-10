@@ -73,6 +73,7 @@ export interface RuntimeConfig
     ConfigOpts,
     | "sdkVersion"
     | "installIdentifierDisabled"
+    | "crashReportingDisabled"
     | "companionBadgeEnabled"
     | "companionBadgePosition"
     | "shakeToReportEnabled"
@@ -132,7 +133,7 @@ export interface RuntimeConfig
    * ErrorUtils handler on mount — deliberately NOT gated behind
    * `integrations` (deviation from the RN integrations doctrine, recorded in
    * the spec): crash capture is a safety net, not an opt-in enrichment. Set
-   * `disabled: true` to veto it entirely.
+   * `disabled: true` to veto it entirely, including native crash and ANR capture.
    */
   crashReporting?: {
     disabled?: boolean;
@@ -701,6 +702,11 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   // (`installIdentifierEnabled`).
   if (config.installIdentifier?.disabled !== undefined) {
     bridge.installIdentifierDisabled = config.installIdentifier.disabled;
+  }
+  // Crash reporting veto (crash default-on, 2026-10-10). The same switch also turns off native
+  // crash and ANR capture. Polarity flips exactly once, natively (`capture.crash`).
+  if (config.crashReporting?.disabled !== undefined) {
+    bridge.crashReportingDisabled = config.crashReporting.disabled;
   }
   // Attach-PIN UI mode (spec 2026-08-19). `RuntimeConfig` inherits
   // `attachPinUi?` structurally from `ConfigOpts` (it isn't `Omit`ted like
