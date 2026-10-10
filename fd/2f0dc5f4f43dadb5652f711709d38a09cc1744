@@ -1,0 +1,23 @@
+.changeset/android-crash-default-on.md
+  s_dbd309ddf8ec5b::t_304965f2bac8e4 9
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_5d44df4838e7b2 19,21
+packages/sdk-android/README.md
+  s_dbd309ddf8ec5b::t_8e1e3271f8765c 75-80,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fd2f0dc5f4f43dadb5652f711709d38a09cc1744",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
