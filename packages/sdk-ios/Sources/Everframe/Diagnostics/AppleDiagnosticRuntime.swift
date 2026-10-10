@@ -10,7 +10,17 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     private var desired = false
     private var requestedErasure: UInt64 = 0
     private var completedErasure: UInt64 = 0
-    private var callbackPending = false
+    private var callbackPending: Set<AppleDiagnosticCallback.Kind> = []
+    private var requestedScope: AppleDiagnosticConsentScope = .currentProcess
+    private var hasStarted = false
+    private struct Close {
+        let id: UUID
+        let at: Date
+        let unlessOwner: String?
+    }
+    // At most the first conditional start and one unconditional boundary. These
+    // obligations outlive callback generations and failed storage attempts.
+    private var closes: [Close] = []
     private let worker = DispatchQueue(label: "dev.everframe.apple-diagnostics", qos: .utility)
     private let owner = UUID()
     private let root: URL
@@ -20,7 +30,7 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     private let now: @Sendable () -> Date
     private let retryInterval: TimeInterval
     private var store: AppleDiagnosticStore?
-    private var window: (ticket: UInt64, id: UUID, begin: Date, context: AppleDiagnosticContext)?
+    private var window: (ticket: UInt64, id: UUID, begin: Date, context: AppleDiagnosticContext, scope: AppleDiagnosticConsentScope)?
     private var driver: ((Bool) -> Void)?
     private var drain: (@Sendable () async -> Void)?
     private var drainTask: Task<Void, Never>?
@@ -35,8 +45,18 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     deinit { retryTimer?.cancel(); drainTask?.cancel(); AppleDiagnosticDelivery.remove(owner: owner) }
 
     /// Called under SDK stateLock: no disk, framework or host calls.
-    func boundary() {
+    func boundary() { recordBoundary(startedOwner: nil) }
+    func boundary(startedOwner: String?) { recordBoundary(startedOwner: startedOwner) }
+    private func recordBoundary(startedOwner: String?) {
+        let date = now()
         let ticket = lock.withLock { () -> UInt64 in
+            let unlessOwner = hasStarted ? nil : startedOwner
+            hasStarted = true
+            if let index = closes.firstIndex(where: { $0.unlessOwner == nil }) {
+                closes[index] = Close(id: UUID(), at: min(closes[index].at, date), unlessOwner: nil)
+            } else {
+                closes.append(Close(id: UUID(), at: date, unlessOwner: unlessOwner))
+            }
             generation &+= 1; desired = false; AppleDiagnosticDelivery.remove(owner: owner); return generation
         }
         stopIfCurrent(ticket)
@@ -51,28 +71,38 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     }
     private func stopIfCurrent(_ ticket: UInt64) {
         worker.async {
+            // Closing persisted authority cannot be cancelled by a later enable.
+            _ = self.finishCloses()
             guard self.lock.withLock({ self.generation == ticket && !self.desired }) else { return }
             self.window = nil; self.driver?(false); self.retryTimer?.cancel(); self.retryTimer = nil
         }
     }
-    func requestEnable() -> UInt64 {
-        lock.withLock { if !desired { generation &+= 1; desired = true }; return generation }
+    func requestEnable(scope: AppleDiagnosticConsentScope = .currentProcess) -> UInt64 {
+        lock.withLock {
+            if !desired || requestedScope != scope {
+                generation &+= 1; desired = true; requestedScope = scope
+                AppleDiagnosticDelivery.remove(owner: owner)
+            }
+            return generation
+        }
     }
     private func current(_ ticket: UInt64) -> Bool { lock.withLock { desired && generation == ticket } }
 
-    func enable(context: AppleDiagnosticContext, ticket: UInt64? = nil,
+    func enable(context: AppleDiagnosticContext, scope: AppleDiagnosticConsentScope = .currentProcess, ticket: UInt64? = nil,
                 drain: (@Sendable () async -> Void)? = nil) async -> Bool {
-        let ticket = ticket ?? requestEnable()
+        let ticket = ticket ?? requestEnable(scope: scope)
         return await onWorker {
             guard self.current(ticket) else { return false }
             do {
                 try self.prepareStore()
-                guard self.finishErasure(), self.current(ticket), let store = self.store else { return false }
+                guard self.finishErasure(), self.finishCloses(), self.current(ticket), let store = self.store else { return false }
                 self.outboxExpiryOwed = true
                 try self.maintain(now: self.now()); try store.activate()
+                _ = try store.authorize(context: context, scope: scope, now: self.now())
+                guard self.current(ticket) else { return false }
                 if self.window?.ticket != ticket {
                     self.retryTimer?.cancel(); self.retryTimer = nil
-                    self.window = (ticket, UUID(), self.now(), context)
+                    self.window = (ticket, UUID(), self.now(), context, scope)
                 }
                 self.drain = drain
                 self.retryPending(ticket: ticket, context: context)
@@ -86,15 +116,15 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     func finishRevocation(_ request: UInt64) async -> Bool {
         await onWorker { self.finishErasure() && self.lock.withLock { self.completedErasure >= request } }
     }
-    /// One pending platform callback job, with a bounded projection supplied by
-    /// the adapter. Work never captures an unbounded backlog of OS payloads.
-    func receive(_ projection: @escaping @Sendable () -> [AppleDiagnosticCandidate]) {
+    /// One pending job per callback kind. Repeated same-kind callbacks are
+    /// dropped until its projection and staging complete.
+    func receive(kind: AppleDiagnosticCallback.Kind = .diagnostic, _ projection: @escaping @Sendable () -> [AppleDiagnosticCandidate]) {
         let ticket = lock.withLock { () -> UInt64? in
-            guard desired, !callbackPending else { return nil }; callbackPending = true; return generation
+            guard desired, !callbackPending.contains(kind) else { return nil }; callbackPending.insert(kind); return generation
         }
         guard let ticket else { return }
         worker.async {
-            defer { self.lock.withLock { self.callbackPending = false } }
+            defer { _ = self.lock.withLock { self.callbackPending.remove(kind) } }
             guard self.current(ticket) else { return }
             for candidate in projection().prefix(8) { _ = self.acceptOnWorker(candidate, ticket: ticket) }
         }
@@ -108,17 +138,41 @@ final class AppleDiagnosticRuntime: @unchecked Sendable {
     private func acceptOnWorker(_ candidate: AppleDiagnosticCandidate, ticket: UInt64) -> Bool {
         guard current(ticket), let window, window.ticket == ticket, let store else { return false }
         let collected = now()
-        guard window.context.accepts(candidate, since: window.begin, now: collected) else { return false }
         do {
             try maintain(now: collected)
-            let hash = try window.context.hash(candidate)
+            let context: AppleDiagnosticContext
+            if window.scope == .installation {
+                guard let grant = try store.grant(for: candidate, context: window.context, now: collected) else { return false }
+                context = grant.context
+            } else {
+                guard window.context.accepts(candidate, since: window.begin, now: collected) else { return false }
+                context = window.context
+            }
+            let hash = try context.hash(candidate)
             guard store.existing(hash: hash) == nil else { return false }
-            let entry = try window.context.entry(candidate, ownershipID: window.id, now: collected)
+            let entry = try context.entry(candidate, ownershipID: window.id, now: collected)
             guard current(ticket) else { return false }
             // This is capture admission. A boundary after here cannot retarget
             // the immutable receipt; explicit erasure will remove it on this worker.
             try store.stage(entry, hash: hash)
             retryPending(ticket: ticket, context: window.context)
+            return true
+        } catch { return false }
+    }
+    private func finishCloses() -> Bool {
+        do {
+            while let close = lock.withLock({ closes.first }) {
+                // Initial setup without a journal is a read-only no-op, including
+                // no key creation. An existing unsafe/corrupt root fails closed.
+                if store == nil, try NativeCrashContextFiles.info(root) == nil {
+                    lock.withLock { closes.removeAll { $0.id == close.id } }
+                    continue
+                }
+                try prepareStore()
+                guard let store else { return false }
+                try store.closeConsent(at: close.at, unlessOwner: close.unlessOwner)
+                lock.withLock { closes.removeAll { $0.id == close.id } }
+            }
             return true
         } catch { return false }
     }

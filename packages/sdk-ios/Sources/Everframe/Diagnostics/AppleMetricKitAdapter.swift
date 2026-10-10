@@ -16,19 +16,19 @@ private final class AppleMetricKitAdapter: NSObject, MXMetricManagerSubscriber, 
     }
     private final class DiagnosticBatch: @unchecked Sendable {
         let values: [MXDiagnosticPayload]
-        init(_ values: [MXDiagnosticPayload]) { self.values = Array(values.prefix(8)) }
+        init(_ values: [MXDiagnosticPayload]) { self.values = AppleDiagnosticCallback.newest(values, end: { $0.timeStampEnd }) }
     }
     private final class MetricBatch: @unchecked Sendable {
         let values: [MXMetricPayload]
-        init(_ values: [MXMetricPayload]) { self.values = Array(values.prefix(8)) }
+        init(_ values: [MXMetricPayload]) { self.values = AppleDiagnosticCallback.newest(values, end: { $0.timeStampEnd }) }
     }
     func didReceive(_ payloads: [MXDiagnosticPayload]) {
         let batch = DiagnosticBatch(payloads)
-        runtime?.receive { batch.values.compactMap(Self.hangs) }
+        runtime?.receive(kind: .diagnostic) { batch.values.compactMap(Self.hangs) }
     }
     func didReceive(_ payloads: [MXMetricPayload]) {
         let batch = MetricBatch(payloads)
-        runtime?.receive { batch.values.compactMap(Self.exits) }
+        runtime?.receive(kind: .metric) { batch.values.compactMap(Self.exits) }
     }
     private static func hangs(_ payload: MXDiagnosticPayload) -> AppleDiagnosticCandidate? {
         guard let all = payload.hangDiagnostics, let first = all.first else { return nil }
@@ -91,5 +91,20 @@ enum AppleDiagnosticPlatform {
         #else
         return nil
         #endif
+    }
+}
+
+/// Keep only the eight newest periods without retaining an additional unbounded
+/// array. Equal timestamps preserve OS order.
+enum AppleDiagnosticCallback {
+    enum Kind: Hashable { case diagnostic, metric }
+    static func newest<T>(_ values: [T], end: (T) -> Date) -> [T] {
+        var selected: [T] = []
+        for value in values {
+            let index = selected.firstIndex { end($0) < end(value) } ?? selected.count
+            if index < 8 { selected.insert(value, at: index) }
+            if selected.count > 8 { selected.removeLast() }
+        }
+        return selected
     }
 }

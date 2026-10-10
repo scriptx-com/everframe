@@ -44,11 +44,13 @@ public final class Everframe: @unchecked Sendable {
                   appleDiagnosticRuntime: AppleDiagnosticRuntime? = AppleDiagnosticPlatform.makeRuntime(),
                   releaseHealthRuntime: ReleaseHealthRuntime? = ReleaseHealthRuntime.makeRuntime(),
                   appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
+                  appleDiagnosticBundle: Bundle = .main,
                   nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() }) {
         self.nativeCrashRuntime = nativeCrashRuntime
         self.appleDiagnosticRuntime = appleDiagnosticRuntime
         self.releaseHealthRuntime = releaseHealthRuntime
         self.appleDiagnosticSession = appleDiagnosticSession
+        self.appleDiagnosticBundle = appleDiagnosticBundle
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
         #if os(iOS)
         if releaseHealthRuntime != nil {
@@ -62,6 +64,7 @@ public final class Everframe: @unchecked Sendable {
         }
         #endif
     }
+    private let appleDiagnosticBundle: Bundle
     private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
     private let releaseHealthRuntime: ReleaseHealthRuntime?
     private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
@@ -264,6 +267,14 @@ public final class Everframe: @unchecked Sendable {
     /// Unsupported platforms return false. Disable closes admission immediately;
     /// a false result means persistent cleanup must be retried.
     @discardableResult public func setAppleDiagnosticsEnabled(_ enabled: Bool) async -> Bool {
+        await setAppleDiagnosticsEnabled(enabled, scope: .currentProcess)
+    }
+
+    /// Installation consent covers whole reporting periods for up to seven days
+    /// after reaffirmation. Each launch must still explicitly enable collection
+    /// and delivery. Only false or kill withdraws consent; skipping enable does
+    /// not. False means the durable transition failed or was superseded.
+    @discardableResult public func setAppleDiagnosticsEnabled(_ enabled: Bool, scope: AppleDiagnosticConsentScope) async -> Bool {
         guard let runtime = appleDiagnosticRuntime else { return false }
         if !enabled {
             let request = stateLock.withLock { runtime.revoke() }
@@ -272,7 +283,7 @@ public final class Everframe: @unchecked Sendable {
         let captured: (UInt64, Int, EverframeConfig)? = stateLock.withLock {
             guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch,
                   let config = _config, config.capture.crash else { return nil }
-            return (runtime.requestEnable(), _startEpoch, config)
+            return (runtime.requestEnable(scope: scope), _startEpoch, config)
         }
         guard let (ticket, epoch, config) = captured else { return false }
         let device = await nativeDeviceSnapshot()
@@ -281,7 +292,7 @@ public final class Everframe: @unchecked Sendable {
             let frozen = try NativeCrashStartupContext.make(config: config, user: nil, device: device,
                 endpoint: IngestEndpoint.url.absoluteString)
             let context = AppleDiagnosticContext(frozen: frozen, applicationVersion: version, applicationBuild: build)
-            return await runtime.enable(context: context, ticket: ticket) { [weak self, weak runtime] in
+            return await runtime.enable(context: context, scope: scope, ticket: ticket) { [weak self, weak runtime] in
                 guard let self, let runtime else { return }
                 let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox, session: self.appleDiagnosticSession())
                     .restrictingOutboxToAppleDiagnostics()
@@ -907,6 +918,9 @@ public final class Everframe: @unchecked Sendable {
 
     private func start(config: EverframeConfig, publication: ((Int, UInt64) -> Void)?) throws {
         try ConfigValidator.validate(config)
+        let appleStartedOwner = config.capture.crash
+            ? try? AppleDiagnosticContext.ownerDigest(config: config, endpoint: IngestEndpoint.url.absoluteString, bundle: appleDiagnosticBundle)
+            : nil
 
         // Round-5 review Finding F23 — `start(A) -> start(B)` is NOT a safe
         // app/session boundary by itself: everything below this point
@@ -1055,7 +1069,7 @@ public final class Everframe: @unchecked Sendable {
         // OWN lock, never `stateLock`, so calling it from inside this
         // critical section cannot deadlock or invert lock ordering.
         stateLock.lock()
-        appleDiagnosticRuntime?.boundary()
+        appleDiagnosticRuntime?.boundary(startedOwner: appleStartedOwner)
         releaseHealthRuntime?.boundary()
         nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         nativeCrashPublishedEpoch = nil
