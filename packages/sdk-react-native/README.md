@@ -63,7 +63,7 @@ export default function App() {
     // compile-time constant in the SDK and is not configurable in v1.
     <EverframeProvider
       config={{
-        sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
+        sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
         // Recommended in RN/Expo development: shake also opens the dev menu.
         shakeToReport: { enabled: !__DEV__ },
       }}

@@ -34,7 +34,7 @@ npm install @everframe/web
 import { init } from '@everframe/web';
 
 const everframe = init({
-  sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
   appVersion: '1.0.0',
 });
 
@@ -57,10 +57,10 @@ nothing left to resolve. Don't point one at `dist/index.js`.
 
 ```html
 <script type="module">
-  import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@0.7.0/dist/browser/index.js';
+  import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@1.2.0/dist/browser/index.js';
 
   const everframe = init({
-    sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
+    sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
     appVersion: '1.0.0',
   });
   document.getElementById('report-bug').addEventListener('click', () => {
@@ -68,6 +68,9 @@ nothing left to resolve. Don't point one at `dist/index.js`.
   });
 </script>
 ```
+
+`sdkKey` arrives in 1.2.0; 1.1.0 and earlier read `apiKey`, which 1.2.0 still
+accepts as deprecated.
 
 **jsDelivr is the CDN.** It serves every npm package automatically, so
 `@everframe/web`'s ordinary `npm publish` *is* the CDN publish — there is no
@@ -116,7 +119,7 @@ import { onMounted } from 'vue';
 import { init } from '@everframe/web';
 
 onMounted(() => {
-  init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+  init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
 });
 </script>
 ```
@@ -129,7 +132,7 @@ onMounted(() => {
   import { init } from '@everframe/web';
 
   onMount(() => {
-    init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+    init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
   });
 </script>
 ```
@@ -143,7 +146,7 @@ import { init } from '@everframe/web';
 @Component({ selector: 'app-root', template: '...' })
 export class AppComponent implements OnInit {
   ngOnInit(): void {
-    init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+    init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
   }
 }
 ```
@@ -162,7 +165,7 @@ a build-time warning, not a way to make it run there:
 ---
 <script>
   import { init } from '@everframe/web';
-  init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+  init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
 </script>
 ```
 
@@ -246,7 +249,7 @@ inherit a privacy call that silently does nothing, this handle omits it.
 
 ```ts
 const everframe = init({
-  sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
   appVersion: '2.4.0',
   appBuild: 'web-abc123',
 });
@@ -400,7 +403,7 @@ yourself:
 import { companion, __getCompanionApi } from '@everframe/web';
 
 companion.start({
-  sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
   attachPinUi: 'custom', // you're taking responsibility for rendering it
 });
 
@@ -446,7 +449,7 @@ If you want a badge on a vanilla host, render your own:
 ```ts
 import { companion, __getCompanionApi } from '@everframe/web';
 
-companion.start({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx' });
+companion.start({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx' });
 
 const api = __getCompanionApi();
 api.onAttachedUserName((name) => {

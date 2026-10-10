@@ -27,11 +27,14 @@ Apple TV).
 
 ```swift
 // Package.swift consumer example
-.package(url: "https://github.com/scriptx-com/everframe.git", from: "0.8.1"),
+.package(url: "https://github.com/scriptx-com/everframe.git", from: "1.2.0"),
 // Then in your target dependencies:
 .product(name: "Everframe", package: "everframe"),
 .product(name: "EverframeReporterUI", package: "everframe"),
 ```
+
+`EverframeConfig(sdkKey:)` arrives in 1.2.0; 1.1.0 and earlier spell it
+`EverframeConfig(appId:)`, which 1.2.0 still accepts as deprecated.
 
 The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
 

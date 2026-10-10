@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html>
       <body>
-        <EverframeProvider config={{ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx' }}>
+        <EverframeProvider config={{ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx' }}>
           {children}
         </EverframeProvider>
       </body>
@@ -145,7 +145,7 @@ import { headers } from 'next/headers';
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get('x-nonce') ?? '';
   return (
-    <EverframeProvider config={{ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
+    <EverframeProvider config={{ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
       {children}
     </EverframeProvider>
   );
