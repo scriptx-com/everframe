@@ -1,0 +1,43 @@
+.changeset/jwt-redaction-class-names.md
+  s_dbd309ddf8ec5b::t_32dec6ecc3ecb5 1-11
+packages/protocol/__tests__/crash-causes.spec.ts
+  s_dbd309ddf8ec5b::t_adb7a04060ecd8 279,301
+packages/protocol/__tests__/redaction-patterns.spec.ts
+  s_dbd309ddf8ec5b::t_7989980fd6a9b2 1-32
+packages/protocol/data/redaction-patterns.json
+  s_dbd309ddf8ec5b::t_b2d9dd7c0d08a9 7,9
+packages/sdk-android/android/everframe-core/src/main/assets/everframe/redaction-patterns.json
+  s_dbd309ddf8ec5b::t_d6c0751f4c7b65 7,9
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/RedactionEngineTest.kt
+  s_dbd309ddf8ec5b::t_032bb5c2cd6416 37-48
+packages/sdk-core/__tests__/crash-causes.spec.ts
+  s_dbd309ddf8ec5b::t_0e8413f315bfd3 410
+packages/sdk-core/__tests__/redaction-jwt-shape.spec.ts
+  s_dbd309ddf8ec5b::t_d6bb3447993b2e 1-31
+packages/sdk-core/src/redaction/engine.ts
+  s_dbd309ddf8ec5b::t_4a133047c49b78 38-40,137
+packages/sdk-ios/Sources/Everframe/Resources/redaction-patterns.json
+  s_dbd309ddf8ec5b::t_b3d4e87fe140af 7,9
+packages/sdk-ios/Tests/EverframeTests/HandledErrorCaptureTests.swift
+  s_dbd309ddf8ec5b::t_71fe9b7d78c6ec 69,74
+packages/sdk-ios/Tests/EverframeTests/RedactionEngineTests.swift
+  s_dbd309ddf8ec5b::t_924bf645d8cf63 52-63
+packages/sdk-react-native/__tests__/error-causes.test.ts
+  s_dbd309ddf8ec5b::t_6921c03c39d402 66,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53278260b90dceb1a618b338c9a7aac75cc69ec1",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
