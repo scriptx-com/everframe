@@ -1,0 +1,32 @@
+packages/cli/__tests__/apple-command.spec.ts
+  s_dbd309ddf8ec5b::t_c66473fd79871b 1-217
+  s_dbd309ddf8ec5b::t_96aea79855d418 218-232
+packages/cli/README.md
+  s_dbd309ddf8ec5b::t_581afa37bc5c1a 29-30,32,34-35,38-41,44-89
+packages/cli/examples/upload-apple-symbols.sh
+  s_dbd309ddf8ec5b::t_1efd45e3d5e6dd 4,6-7,14,16-18
+packages/cli/src/apple-command.ts
+  s_dbd309ddf8ec5b::t_86bed8d3c2a425 1-122
+packages/cli/src/build-verify.ts
+  s_dbd309ddf8ec5b::t_a4c2822ab5fc5c 40-41
+packages/cli/src/defaults.ts
+  s_dbd309ddf8ec5b::t_3a16e8cd74100b 1-15
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_8ad01c7981d486 11,49,60-61,228-229,478
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ace19e33eb87a04ad5121ac150262c867bb40ed",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
