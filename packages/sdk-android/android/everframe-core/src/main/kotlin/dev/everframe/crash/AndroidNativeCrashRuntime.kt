@@ -62,7 +62,8 @@ internal object AndroidNativeCrashRuntime {
             AndroidNativeRecovery(store("contexts"), store("prepared"))
         }, AndroidExitPlatform(context.applicationContext),
             exposure = dev.everframe.health.ReleaseHealthRuntime::readyPointer,
-            signalCapture = { AndroidNativeSignalRuntime.capture(context, it) }).also { controller = it }
+            signalCapture = { AndroidNativeSignalRuntime.capture(context, it) },
+            signalRetain = { AndroidNativeSignalRuntime.retainReceipts(context, it) }).also { controller = it }
     }
 
     /** Off-main caller. While capture.crash is on, the SDK owns this process's state summary. */
@@ -130,9 +131,11 @@ internal object AndroidNativeCrashRuntime {
         if (!erasePersisted) {
             // Replacement start: clear the OS token now, without the controller lock an in-flight
             // arm holds across IO, so a crash from here on is never attributed to the old start.
+            // Ownership is checked again under the controller's publication lock: a call delayed
+            // past a newer start's arm must not clear that start's token while readiness stays true.
             // Dropping the old owner's own context is journal IO and runs off the caller's thread.
             prior ?: return
-            prior.invalidateExposure()
+            prior.retireExposure(epoch, owns)
             Everframe.sdkScope.launch { txGuardVoid("nativeCrash.retire") { prior.retire(epoch, false, owns) } }
             return
         }

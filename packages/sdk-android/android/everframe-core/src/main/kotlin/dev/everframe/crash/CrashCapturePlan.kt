@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.crash
 
+import dev.everframe.envelope.txGuard
+
 /**
  * The OS and native crash mechanisms one start arms. They are chosen only from the API level,
  * the process and whether the optional native-crash module is in the app; there is no per-start
@@ -13,12 +15,13 @@ internal data class CrashCapturePlan(val processExit: Boolean, val nativeSignal:
     /**
      * Arms the signal collector before OS-exit recovery. On API 30 both run; the signal path first
      * admits the faults it recorded for ended launches, so exit recovery then finds them delivered
-     * and sends no second, frameless crash. A failed signal arm never skips exit recovery.
+     * and sends no second, frameless crash. A failed signal arm, whether it returns false or throws
+     * (its storage setup, the optional module), never skips exit recovery: each is guarded alone.
      * Returns true when at least one selected mechanism armed.
      */
     fun arm(armSignal: () -> Boolean, armProcessExit: () -> Boolean): Boolean {
-        val signal = nativeSignal && armSignal()
-        val exit = processExit && armProcessExit()
+        val signal = nativeSignal && txGuard("start.crashCapture.signal", armSignal) == true
+        val exit = processExit && txGuard("start.crashCapture.processExit", armProcessExit) == true
         return signal || exit
     }
 

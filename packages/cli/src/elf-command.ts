@@ -20,6 +20,9 @@ export interface ElfCommandDependencies {
  * discovers every shipped library, treats them as optional, and unless strict
  * turns a missing token or an upload failure into `warning:` lines with exit 0.
  * The explicit `--binary` list is a manual command and stays strict.
+ * `--project-native-dir` names the project's own native build outputs (CMake,
+ * ndk-build): their libraries without debug information are warnings with the
+ * fix, while prebuilt ones from dependencies stay quiet.
  */
 export async function elfUploadBuildCommand(
   args: string[],
@@ -37,6 +40,7 @@ export async function elfUploadBuildCommand(
       binary: { type: "string", multiple: true },
       "binaries-dir": { type: "string" },
       "symbols-dir": { type: "string" },
+      "project-native-dir": { type: "string", multiple: true },
       abi: { type: "string", multiple: true },
       summary: { type: "boolean", default: false },
       strict: { type: "boolean", default: false },
@@ -82,6 +86,7 @@ export async function elfUploadBuildCommand(
         apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         binaries,
         symbolsDir: symbolsDir!,
+        projectDirs: values["project-native-dir"],
         lenient: !failHard,
       },
       uploadBudget(env, explicit.length === 0)

@@ -353,6 +353,32 @@ class AndroidNativeRecoveryControllerTest {
         assertFalse(result)
         assertTrue(platform.registrations.none { it != null })
     }
+    @Test fun `a replacement start fences an older arm in flight without touching a newer one`() {
+        val platform = Platform()
+        val open = object : OutboxAuthorization { override fun isAllowed() = true }
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        platform.beforeHistory = { entered.countDown(); check(release.await(5, TimeUnit.SECONDS)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        var result = true
+        // Only the epoch fences this owner: its own authorization stays open.
+        val worker = Thread { result = controller.enable(1, open, 3000, ::template) { true } }
+        worker.start()
+        try {
+            assertTrue(entered.await(5, TimeUnit.SECONDS))
+            controller.retireExposure(2) { true }
+        } finally { release.countDown(); worker.join(5000) }
+        assertFalse(worker.isAlive)
+        assertFalse(result)
+        assertFalse(controller.ready(1))
+        assertTrue(platform.registrations.none { it != null })
+        // A late call from an older start fences nothing the newer start arms.
+        platform.beforeHistory = {}
+        assertTrue(controller.enable(2, open, 4000, ::template) { true })
+        controller.retireExposure(1) { true }
+        assertTrue(controller.ready(2))
+        assertNotNull(platform.registrations.last())
+    }
     @Test fun `delayed older boundary does not erase newer registration`() {
         val platform = Platform()
         val controller = AndroidNativeRecoveryController(::engine, platform)

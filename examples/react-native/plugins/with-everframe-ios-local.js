@@ -192,6 +192,11 @@ function ensureXcframeworks(sdkRoot) {
 
   const buildReason = (() => {
     if (!fs.existsSync(flagFramework)) return 'dist/ missing';
+    // Each slice carries its dSYM, which CocoaPods copies into the build for
+    // the app's symbol upload phase; an older dist/ has none.
+    if (!fs.existsSync(path.join(flagFramework, 'ios-arm64', 'dSYMs'))) {
+      return 'dist/ predates the dSYM in each xcframework slice';
+    }
     const distConfig = fs.existsSync(configFile)
       ? fs.readFileSync(configFile, 'utf8').trim()
       : 'unknown configuration';

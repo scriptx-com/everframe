@@ -183,8 +183,13 @@ internal class AndroidNativeRecovery(
         armed = null
     }
 
+    /**
+     * [retainSignalReceipts] receives the launches whose contexts remain once recovery has run to the
+     * end: the API26..30 signal path keeps a delivery receipt exactly as long as its launch's context.
+     */
     fun recover(exits: List<AndroidNativeExit>, nowMs: Long, authorization: OutboxAuthorization, allowDiagnostics: Boolean = false,
-                signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE }, admit: (OutboxEntry) -> Boolean): Int {
+                signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE },
+                retainSignalReceipts: (Set<String>) -> Unit = {}, admit: (OutboxEntry) -> Boolean): Int {
         var admitted = drainPrepared(authorization, admit, allowDiagnostics)
         val alreadyPrepared = prepared.snapshotTokens().mapNotNull { prepared.readIfPresent(it)?.entry?.reportId }.toSet()
         for (key in contexts.snapshotTokens()) {
@@ -257,6 +262,14 @@ internal class AndroidNativeRecovery(
             val report = recovered(context, envelope, exit, tombstone, collectedMs, diagnostic, appId)
             try { prepared.enqueueSync(report, authorization) } catch (_: Exception) { continue }
             admitted += drainPrepared(authorization, admit, allowDiagnostics)
+        }
+        // Only a complete pass knows which contexts are left; an interrupted one keeps every receipt.
+        if (authorization.isAllowed()) runCatching {
+            val held = contexts.snapshotTokens().map { token ->
+                val context = contexts.readIfPresent(token)?.entry ?: return@map null
+                parse(context)?.json?.get("processLaunchId")?.jsonPrimitive?.contentOrNull
+            }
+            retainSignalReceipts(held.filterNotNull().toSet())
         }
         return admitted
     }

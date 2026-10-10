@@ -13,7 +13,10 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
 /** Durable import primitive. No signal installation or public SDK activation API.
- * [delivered] receipts name ended launches whose report entered the outbox (see [captured]). */
+ * [delivered] receipts name ended launches whose report entered the outbox (see [captured]). A receipt
+ * lasts as long as the exit-info context of its launch, which exit recovery reports through
+ * [retainReceipts], and at most [MAX_RECEIPTS] are kept; it never expires by age, because a matched
+ * exit-info context is reported however far the clock moved. */
 @androidx.annotation.RequiresApi(26)
 internal class AndroidNativeRecordImport(private val capsules:OutboxStore,private val prepared:OutboxStore,private val delivered:OutboxStore?=null) {
     companion object {
@@ -65,7 +68,6 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
      * recover on every launch to keep per-launch arm() within the capsule store bound. */
     @Synchronized fun recover(currentProcessLaunchId:String,nowMs:Long,authorization:OutboxAuthorization,readRecord:(String)->ByteArray?,admit:(OutboxEntry,OutboxAuthorization)->Boolean):Int {
         val gate=gate(revision.get(),authorization);if(!gate.isAllowed()) return 0
-        expireReceipts(nowMs)
         var count=drain(nowMs,gate,admit)
         val ready=prepared.snapshotTokens().mapNotNull { prepared.readIfPresent(it)?.entry?.reportId }.toSet()
         for(token in capsules.snapshotTokens()) {
@@ -121,24 +123,25 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
     }
     private fun launchOf(entry:OutboxEntry)=try { Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["launch"]?.jsonPrimitive?.contentOrNull } catch(_:Exception) { null }
     /** Written before the capsule goes, so a captured launch always has a capsule or a receipt.
-     * Best effort and bounded: a lost receipt can only let exit-info report the fault again. */
+     * Best effort and bounded: a lost receipt can only let exit-info report the fault again. The
+     * exit-info journal holds at most 8 contexts, one of them the live process's, so the 8 newest
+     * receipts cover every ended launch it can still report. */
     private fun receipt(report:OutboxEntry,nowMs:Long,gate:OutboxAuthorization) {
         val store=delivered ?: return
         try {
             val launch=capsules.snapshotTokens().firstNotNullOfOrNull { token -> capsules.readIfPresent(token)?.entry?.takeIf { it.reportId==report.reportId } }?.let(::launchOf) ?: return
-            expireReceipts(nowMs)
             store.snapshotTokens().dropLast(MAX_RECEIPTS-1).forEach { store.removeIfPresent(it) }
             val bytes=buildJsonObject { put("version",1);put("launch",launch) }.toString().toByteArray()
             store.enqueueSync(OutboxEntry(report.reportId,nowMs,bytes,digest(bytes),emptyList(),"",""),gate)
         } catch(_:Exception) {}
     }
-    /** A receipt is younger than its launch's exit-info context, which also expires after MAX_AGE_MS. */
-    private fun expireReceipts(nowMs:Long) {
+    /** Exit-info recovery finished with contexts for [launches] only: every other receipt has no OS
+     * exit left to settle, including the one whose context recovery just retired as delivered. */
+    @Synchronized fun retainReceipts(launches:Set<String>) {
         val store=delivered ?: return
         try {
             for(token in store.snapshotTokens()) {
-                val old=store.readIfPresent(token)?.entry ?: continue
-                if(expired(old.createdAt,nowMs)) store.removeIfPresent(token)
+                if(store.readIfPresent(token)?.entry?.let(::launchOf) !in launches) store.removeIfPresent(token)
             }
         } catch(_:Exception) {}
     }

@@ -246,8 +246,12 @@ everframe elf upload-build \
 library (same GNU build ID and ABI); `--abi arm64-v8a` (repeatable) limits it to
 the ABIs you ship. Prebuilt libraries from AARs, such as `libhermes.so` or
 `libc++_shared.so`, usually ship without debug info: one line names them, and
-their frames stay raw. Your own libraries without a matching unstripped copy
-print `warning: no symbols for <path>: …`; the command still succeeds.
+their frames stay raw. Pass `--project-native-dir` (repeatable) with your own
+native build's output folders, such as AGP's `externalNativeBuild` outputs: a
+library found there without debug info is yours to fix, so it prints a warning
+with the fix (build with `-g`, do not strip before packaging) instead. Your own
+libraries without a matching unstripped copy print
+`warning: no symbols for <path>: …`; the command still succeeds.
 `--summary` prints one `detail:` line per library instead, for build
 integrations to summarize. A directory without libraries does nothing.
 

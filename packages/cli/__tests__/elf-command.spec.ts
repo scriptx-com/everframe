@@ -85,6 +85,64 @@ it("reports an optional non-ELF file and fails a required one", async () => {
     "invalid_elf_binary"
   );
 });
+/** The project's own CMake output: libnative.so built without debug information, as with -g0 or -s. */
+async function ownStripped(f: Awaited<ReturnType<typeof agp>>) {
+  const OWN_STRIPPED = "cc".repeat(20);
+  const shipped = join(f.shipped, "arm64-v8a", "libnative.so"),
+    cxx = join(f.root, "cxx", "RelWithDebInfo", "obj", "arm64-v8a");
+  await mkdir(cxx, { recursive: true });
+  await writeFile(shipped, elfFixture({ id: OWN_STRIPPED, sections: false }));
+  await writeFile(join(f.symbols, "arm64-v8a", "libnative.so"), elfFixture({ id: OWN_STRIPPED, debug: false }));
+  await writeFile(join(cxx, "libnative.so"), elfFixture({ id: OWN_STRIPPED, debug: false }));
+  return { id: OWN_STRIPPED, shipped, project: join(f.root, "cxx") };
+}
+it("reports the project's own libraries without debug information apart from prebuilt ones", async () => {
+  const f = await agp();
+  const own = await ownStripped(f);
+  const binaries = [
+    { path: f.app, required: false },
+    { path: f.hermes, required: false },
+    { path: own.shipped, required: false },
+  ];
+  const build = await collectAndroidElfBuild({ binaries, symbolsDir: f.symbols, projectDirs: [own.project] });
+  expect(build.uncovered).toEqual([
+    { path: f.hermes, kind: "prebuilt", reason: `prebuilt without debug information (build ID ${PREBUILT}, x86_64)` },
+    {
+      path: own.shipped,
+      kind: "no_debug_info",
+      reason: `built by this project without debug information (build ID ${own.id}, arm64-v8a); build it with -g (CMake: RelWithDebInfo) and do not strip it before packaging`,
+    },
+  ]);
+  // Without the project's native output folders every stripped library counts as prebuilt.
+  const unknown = await collectAndroidElfBuild({ binaries, symbolsDir: f.symbols });
+  expect(unknown.uncovered.map((entry) => entry.kind)).toEqual(["prebuilt", "prebuilt"]);
+  // A missing project folder never fails the upload.
+  const missing = await collectAndroidElfBuild({ binaries, symbolsDir: f.symbols, projectDirs: [join(f.root, "absent")] });
+  expect(missing.uncovered.map((entry) => entry.kind)).toEqual(["prebuilt", "prebuilt"]);
+});
+it("passes the project's native output folders through and warns about its stripped libraries with the fix", async () => {
+  const f = await agp();
+  const own = await ownStripped(f);
+  const r = recorder();
+  r.upload.mockImplementation(async (options) => {
+    const build = await collectAndroidElfBuild({ binaries: options.binaries, symbolsDir: options.symbolsDir, projectDirs: options.projectDirs });
+    return { artifacts: [], images: build.images, uncovered: build.uncovered, failed: [] };
+  });
+  const env = { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID };
+  const args = ["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, "--project-native-dir", own.project];
+  expect(await elfUploadBuildCommand(args, env, r.deps)).toBe(0);
+  expect(r.upload.mock.calls[0]![0].projectDirs).toEqual([own.project]);
+  expect(r.warnings).toEqual([
+    `warning: no symbols for ${own.shipped}: built by this project without debug information (build ID ${own.id}, arm64-v8a); build it with -g (CMake: RelWithDebInfo) and do not strip it before packaging; its frames stay raw.`,
+  ]);
+  expect(r.lines).toContain("1 prebuilt library ships without debug information; their frames stay raw: libhermes.so");
+  const summary = recorder();
+  summary.upload.mockImplementation(r.upload.getMockImplementation()!);
+  expect(await elfUploadBuildCommand([...args, "--summary"], env, summary.deps)).toBe(0);
+  expect(summary.lines).toContain(
+    `detail: no_debug_info ${own.shipped}: built by this project without debug information (build ID ${own.id}, arm64-v8a); build it with -g (CMake: RelWithDebInfo) and do not strip it before packaging`
+  );
+});
 it("accepts more than sixteen libraries by default", async () => {
   const f = await agp();
   const binaries = [{ path: f.app, required: true }];

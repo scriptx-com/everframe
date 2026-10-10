@@ -54,7 +54,7 @@ const HELP = `Usage:
   everframe setup xcode --project <App.xcodeproj> [--target <name>]... [--app-id <uuid>] [--print-script]
   everframe dsym upload-build (--xcode | --archive <x.xcarchive> | --app <App.app> --dsym-dir <dir>... | --binary <file>... --dsym-dir <dir>...) [--app-id <uuid>] [--strict]
   everframe dsym upload --app-id <uuid> --dwarf <raw-file>
-  everframe elf upload-build (--binaries-dir <dir> [--abi <abi>]... | --binary <file>...) --symbols-dir <dir> [--app-id <uuid>] [--summary] [--strict]
+  everframe elf upload-build (--binaries-dir <dir> [--abi <abi>]... | --binary <file>...) --symbols-dir <dir> [--project-native-dir <dir>]... [--app-id <uuid>] [--summary] [--strict]
   everframe elf upload --app-id <uuid> --library <unstripped-elf>
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]

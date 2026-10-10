@@ -80,6 +80,8 @@ final class TerminationTracker: @unchecked Sendable {
     }
     /// Queue only (tests call it directly with a private queue they never use concurrently).
     /// An outstanding main-thread ping becomes the stall; a new ping is sent only once it returns.
+    /// The returning ping clears the stored stall at once: a stall that resolved must not turn a
+    /// later force-quit, before the next sample, into an unresponsive termination.
     func sampleOnce() {
         let uptime = readers.uptimeMs()
         file.store(pingSince.map { uptime &- $0 } ?? 0, at: TerminationLayout.stallAt)
@@ -95,7 +97,10 @@ final class TerminationTracker: @unchecked Sendable {
         ping { [weak self] in
             guard let self else { return }
             self.file.store(self.readers.uptimeMs(), at: TerminationLayout.mainSeenAt)
-            self.queue.async { self.pingSince = nil }
+            self.file.store(0, at: TerminationLayout.stallAt)
+            // Again on the queue: a sample that read the outstanding ping before this ran may have
+            // stored the stall after the clear above.
+            self.queue.async { self.pingSince = nil; self.file.store(0, at: TerminationLayout.stallAt) }
         }
     }
     func drainForTesting() { queue.sync {} }

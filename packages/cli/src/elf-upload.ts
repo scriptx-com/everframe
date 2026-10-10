@@ -7,6 +7,8 @@ import { BUDGET_EXHAUSTED, uploadCollectedBuild, type UploadDependencies } from 
 /** Independent immutable uploads: a later failure leaves earlier ready artifacts reusable. */
 export async function uploadAndroidElfBuild(options: {
     binaries: ElfBinaryInput[];
+    /** The project's own native build outputs; see collectAndroidElfBuild. */
+    projectDirs?: string[] | undefined;
     symbolsDir: string;
     appId: string;
     apiUrl: string;
@@ -20,7 +22,7 @@ export async function uploadAndroidElfBuild(options: {
     /** Lenient mode: files the service did not accept, with the reason. */
     failed: Array<{ path: string; message: string }>;
 }> {
-    const build = await collectAndroidElfBuild({ binaries: options.binaries, symbolsDir: options.symbolsDir });
+    const build = await collectAndroidElfBuild({ binaries: options.binaries, symbolsDir: options.symbolsDir, projectDirs: options.projectDirs });
     await verifyAndroidElfBuild(build);
     const artifacts: BuildUploadStatus[] = [], failed: Array<{ path: string; message: string }> = [];
     for (const local of build.artifacts) {

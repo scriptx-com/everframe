@@ -77,8 +77,28 @@ final class TerminationTrackerTests: XCTestCase {
         clock.ms += 6_000; tracker.sampleOnce()
         XCTAssertEqual(try record().mainStallMs, 6_000); XCTAssertEqual(pings.count, 1)
         pings.run(0); tracker.drainForTesting()
-        XCTAssertEqual(try record().mainStallMs, 6_000)   // cleared by the next sample, not by the ping itself
+        XCTAssertEqual(try record().mainStallMs, 0)   // the returning ping ends the stall
         clock.ms += 5_000; tracker.sampleOnce(); XCTAssertEqual(try record().mainStallMs, 0); XCTAssertEqual(pings.count, 2)
+    }
+    func testARecoveredStallDoesNotMakeALaterForceQuitUnresponsive() throws {
+        let tracker = makeTracker(available: 8 << 30, initial: .active)   // ample headroom: no memory evidence
+        tracker.sampleOnce(); clock.ms += 6_000; tracker.sampleOnce()
+        XCTAssertEqual(try record().mainStallMs, 6_000)
+        pings.run(0)   // the main thread answers
+        XCTAssertEqual(try record().mainStallMs, 0, "cleared on the main thread, before the queue or the next sample runs")
+        tracker.drainForTesting()
+        XCTAssertEqual(try record().mainStallMs, 0)
+        // The user force-quits before the next sample: no stall evidence is left for the next launch.
+        var run = try record(); run.armed = true; run.contextID = UUID()
+        XCTAssertEqual(TerminationInference.evaluate(run, current: TerminationStateFileTests.identity, now: run.lastSeenAt),
+            .inferred(.unexplained))
+    }
+    func testAStallStillOutstandingAtDeathStaysUnresponsive() throws {
+        let tracker = makeTracker(available: 8 << 30, initial: .active)   // ample headroom: no memory evidence
+        tracker.sampleOnce(); clock.ms += 6_000; tracker.sampleOnce(); tracker.drainForTesting()
+        var run = try record(); run.armed = true; run.contextID = UUID()
+        XCTAssertEqual(TerminationInference.evaluate(run, current: TerminationStateFileTests.identity, now: run.lastSeenAt),
+            .inferred(.unresponsive))
     }
     func testBackgroundClearsAnOutstandingStall() throws {
         let tracker = makeTracker()
