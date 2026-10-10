@@ -3,6 +3,9 @@
 
 # Reported fatal-session threshold webhooks
 
+For alerts on a configured crash-free target for foreground sessions or
+identified users, see [foreground crash-free target webhooks](release-health-rate-alerts.md).
+
 `release_health.threshold_reached` (event schema 1.2) reports that one configured
 native cohort crossed an observed-session and fatal-session count threshold. It
 uses the normal signed webhook transport. `ReleaseHealthThresholdEventSchema` in

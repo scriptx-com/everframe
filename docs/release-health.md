@@ -142,4 +142,7 @@ purge succeeds. If the document exits while all persistent writes fail, it canno
 retain that intent; preserve the disabled preference across future loads until
 storage recovers. Diagnostics expose the unavailable state. SDK opt-in, missing
 outcomes, queue losses and offline expiry keep population coverage incomplete at
-any volume; these observations alone do not enable health-rate alerts.
+any volume, so these observations do not provide population crash-free rates.
+Configured crash-free target alerts are a separate check on retained Android and
+iOS foreground evidence that counts unknown outcomes as healthy; see
+[foreground crash-free target webhooks](release-health-rate-alerts.md).
