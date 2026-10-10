@@ -76,6 +76,8 @@ import dev.everframe.companion.CompanionSubmissionComposer
 import dev.everframe.companion.PreviewCapture
 import dev.everframe.companion.RelayWSClient
 import dev.everframe.companion.parseCompanionBadgePosition
+import dev.everframe.config.ReleaseHealthConfig
+import dev.everframe.config.ReleaseHealthBundleStatus
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.Environment
 import dev.everframe.config.ReportResult
@@ -215,6 +217,37 @@ class EverframeModule(
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun configureSync(opts: ReadableMap): Boolean = configureInternal(opts)
 
+    private fun parseReleaseHealth(opts: ReadableMap): ReleaseHealthConfig? {
+        // Invalid bridge input revokes earlier monitoring instead of retaining an old subject.
+        return runCatching {
+            if (opts.takeIfHasBoolean("releaseHealthEnabled") != true) return null
+            val native = opts.takeIfHasString("releaseHealthNativeBuildId") ?: return null
+            val loaded = opts.takeIfHasString("releaseHealthLoadedBuildId") ?: return null
+            val user = opts.takeIfHasString("releaseHealthUserId")
+            if (!validHealthText(native, 200) || !validHealthText(loaded, 200) ||
+                (user != null && !validHealthText(user, 128))) return null
+            ReleaseHealthConfig(nativeBuildId = native, loadedBuildId = loaded,
+                loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN, userId = user)
+        }.getOrNull()
+    }
+
+    private fun validHealthText(value: String, maximum: Int): Boolean {
+        // Match the wire's UTF-16 limit and ECMAScript blank definition, preserving ID bytes.
+        fun blank(c: Char) = c in '\u0009'..'\u000d' || c == ' ' || c == '\u00a0' ||
+            c == '\u1680' || c in '\u2000'..'\u200a' || c == '\u2028' || c == '\u2029' ||
+            c == '\u202f' || c == '\u205f' || c == '\u3000' || c == '\ufeff'
+        if (value.length > maximum || value.all(::blank)) return false
+        var index = 0
+        while (index < value.length) {
+            val c = value[index++]
+            if (c.code < 32 || Character.isLowSurrogate(c)) return false
+            if (Character.isHighSurrogate(c)) {
+                if (index >= value.length || !Character.isLowSurrogate(value[index++])) return false
+            }
+        }
+        return true
+    }
+
     private fun configureInternal(opts: ReadableMap): Boolean {
         var completed = false
         txGuardSurface("configure") {
@@ -251,6 +284,7 @@ class EverframeModule(
                 release = sdkVersion,
                 capture = CaptureConfig(networkBodies = !networkBodiesDisabled),
                 installIdentifierEnabled = !installIdentifierDisabled,
+                releaseHealth = parseReleaseHealth(opts),
                 // Explicit companion device-identity override (naming spec
                 // 2026-08-24) — read straight off the flat ConfigOpts field,
                 // same shape as attachPinUi above. Absent/blank falls

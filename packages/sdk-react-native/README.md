@@ -99,6 +99,108 @@ provider context and attach any non-sensitive context needed for diagnosis.
 The source API requires matching rebuilt native components; published `0.7.0`
 artifacts are not evidence of support.
 
+## Foreground-session monitoring
+
+Native foreground-session monitoring is separately opt-in on Android and iOS:
+
+```tsx
+<EverframeProvider config={{
+  apiKey: '…',
+  jsBundle: { buildId: 'ota-build-42', bundleName: 'index.bundle' },
+  releaseHealth: {
+    enabled: true,
+    nativeBuildId: 'native-build-17',
+    userId: 'opaque-project-user-id', // optional; never inferred from setUser
+  },
+}}>
+  <App />
+</EverframeProvider>
+```
+
+Use the actual installed native artifact ID and executing Hermes bundle ID.
+The loaded build comes from validated `jsBundle` metadata (or the existing
+Metro-injected build metadata); there is no separate release-health bundle
+option. The user ID is optional: null or omitted means anonymous. A supplied ID
+must be opaque, nonblank, at most 128 UTF-16 units, and contain no U+0000–U+001F
+control characters or unpaired surrogates. Build IDs have the same text rules
+with a 200-unit limit. Values are preserved exactly, including spaces around a
+nonblank ID.
+
+Every Provider configure applies the release-health setting it carries,
+including the first one of each launch. A configure without `releaseHealth`,
+with `enabled: false`, or with an identity the SDK rejects (missing or invalid
+bundle metadata, an engine other than Hermes, an invalid `nativeBuildId` or
+`userId`) turns monitoring off. Turning it off revokes native monitoring and
+erases the queued, undelivered health records on the device, including records
+from earlier launches and those of a native opt-in (`ReleaseHealthConfig` on
+Android, `setReleaseHealth` on iOS). A rejected `enabled: true` logs an
+`[everframe]` warning that names the rejected fields. Mount with
+`enabled: false` only for a real opt-out. While consent or the user ID is still
+loading, defer mounting the Provider (everything it configures waits too) or
+the keyed remount below until the value is known; do not mount with a
+placeholder.
+
+Configuration is read when the Provider mounts. Changing its `config` prop
+alone does not reconfigure the SDK. Remount with a changed `key` to apply
+an enable/disable, user, native-build or loaded-bundle change:
+
+```tsx
+const config = {
+  apiKey,
+  jsBundle: { buildId: loadedBuildId, bundleName: 'index.bundle' },
+  releaseHealth: { enabled: healthEnabled, nativeBuildId, userId: opaqueUserId },
+};
+
+<EverframeProvider
+  key={JSON.stringify([healthEnabled, nativeBuildId, loadedBuildId, opaqueUserId])}
+  config={config}
+>
+  <App />
+</EverframeProvider>
+```
+
+A changed `key` remounts the Provider and everything under it, so all component
+state below it resets. On Android, a changed configuration also restarts the
+native SDK: the open foreground session ends (with `sdk_stop` while monitoring
+stays enabled) and a new one starts in foreground; replay restarts and vitals
+player integrations detach; breadcrumb, log and network history is dropped; and
+the `setUser` user and any natively set identity token are cleared. On iOS, a
+change confined to `releaseHealth` or the loaded bundle does not restart the
+SDK; it only starts, rotates or turns off the foreground session. Other
+configuration changes restart the SDK on iOS as well, which likewise ends the
+session and clears the user and identity token. Call `setUser` from a
+`useEffect` in a component inside the new Provider, which runs after the
+Provider configures, and set a native identity token again after a restart.
+
+Unmounting the Provider only removes JavaScript integrations; it does not stop
+native monitoring. To revoke it, remount with `enabled: false` (or without
+`releaseHealth`). Cleanup from an older Provider cannot revoke a newer owner's
+native configuration.
+
+Each foreground period gets a native session after its start is persisted.
+Backgrounding completes it and immediately removes its crash-attribution pointer;
+returning to the foreground starts a new session. Identity or bundle changes
+rotate the session. Identical configuration preserves it. Automatic ErrorUtils
+fatals can reference the session only when its pointer is ready and the captured
+known bundle matches exactly. Handled errors, promise rejections, background
+crashes and crashes before readiness still use ordinary reporting without an
+invented session link. A process that dies does not synthesize a completed end.
+
+A JavaScript reload inside the same process (a development reload, or an
+over-the-air update applied by reloading) does not end the native session on
+Android or iOS. Until the reloaded bundle's Provider configures, the previous
+bundle's session keeps its crash-attribution pointer, so a native crash in that
+window, including the native termination that React Native release builds
+perform for a fatal JavaScript error thrown before the Provider mounts, is
+attributed to the previous bundle's session. Mount the Provider early in the
+reloaded bundle; its configure with the new loaded build rotates the session.
+
+These observations support counts of sessions without a reported fatal crash;
+they do not confirm that a session was healthy or that delivery succeeded.
+Install matching rebuilt native SDKs with this bridge. Physical-device timing,
+process-death delivery and production end-to-end qualification remain pending
+for this feature. The browser entry uses the separate React web configuration.
+
 ## Promise rejection observation
 
 Automatic Hermes rejection observation is opt-in:
@@ -429,7 +531,9 @@ inside a native view and never reaches JS.
 
 **Reconfiguring.** A Provider remount with the *same* config does not restart
 the SDK: both native sides compare the incoming config against the *installed*
-one and skip the start entirely. A **changed** config does restart it — and a
+one and skip the start entirely. A **changed** config does restart it (on iOS,
+except a change confined to `releaseHealth` or the loaded bundle; see
+[Foreground-session monitoring](#foreground-session-monitoring)) — and a
 start supersedes the running SDK, detaching every player integration it had
 announced. **Limitation:** players tracked before that restart stay untracked
 until their screens remount; nothing re-registers them automatically. Two React

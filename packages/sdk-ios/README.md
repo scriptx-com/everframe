@@ -137,7 +137,11 @@ create a session.
 For an embedded JavaScript bundle, pass its actual loaded build ID with
 `loadedBundleStatus: .known`; use `.unknown` when its identity is unavailable.
 Use `.notApplicable` for a native-only app. Do not pass a bundle
-that was downloaded but has not loaded.
+that was downloaded but has not loaded. In a React Native app, enable release
+health with the React Native Provider's `releaseHealth` option instead: each
+Provider configure applies its own setting, so one without `releaseHealth`, with
+`enabled: false` or with a rejected identity revokes a native opt-in and erases
+its queued, undelivered records.
 
 Each SDK start requires a new opt-in. Version-3 records use `foreground-v1`:
 entering foreground opens a fresh session; entering background closes it with
@@ -161,11 +165,17 @@ crash capture is enabled, only a pointer already durably ready can be frozen int
 its immutable fatal context. Background removes that pointer synchronously;
 independent background crash capture continues with no session pointer, so a crash
 in background is not attributed to any session or launch. A stored React Native
-JavaScript fatal carries no session pointer and closes native capture, so the
-session it ends keeps an unknown outcome. Recovery never borrows the relaunch's
-session. Apple MetricKit reporting windows are not joined to these sessions. The
-receiving service must support v3 before enabling this producer; previously queued
-records retain their original wire version.
+JavaScript fatal closes native capture, so the abort that follows is not reported
+as a second crash. When release health is enabled through the React Native
+Provider, an automatic unhandled Hermes fatal captured while a session is ready
+carries that session's pointer if its bundle exactly matches the session's known
+loaded build, and marks the session fatal. Other JavaScript fatals (in background,
+before readiness, or with a missing or different bundle identity) carry none, and
+a foreground session that such a fatal ends keeps an unknown outcome. Handled
+errors and promise rejections never carry a pointer. Recovery never borrows the
+relaunch's session. Apple MetricKit reporting windows are not joined to these
+sessions. The receiving service must support v3 before enabling this producer;
+previously queued records retain their original wire version.
 
 The encrypted app-private journal retains at most 256 records, 1 MiB total and
 seven days. Capacity failure does not evict earlier records to invent coverage;

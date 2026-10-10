@@ -381,6 +381,14 @@ object Everframe {
             )
         }
 
+    /** Crash entry owns SDK state and its ready foreground pointer in one memory-only section. */
+    internal fun captureSessionWithNativeExposure(
+        pointer: (Int) -> dev.everframe.health.NativeExposurePointer? = dev.everframe.health.ReleaseHealthRuntime::readyPointer,
+    ): Pair<TXCapturedSession, dev.everframe.health.NativeExposurePointer?> = stateLock.withLock {
+        val captured = captureSessionSnapshot()
+        captured to if (captured.captureConsent) pointer(captured.user.startEpoch) else null
+    }
+
     /** Startup work belongs to the invocation that published this configuration. */
     private fun capturePublishedSessionSnapshot(epoch: Int): TXCapturedSession? =
         stateLock.withLock {

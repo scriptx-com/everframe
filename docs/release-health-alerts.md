@@ -28,9 +28,14 @@ cohorts.
 Version 3 producers attach no session pointer while the app is in background. With
 them, a launch that never reaches the foreground is not observed, and a crash in
 background does not make its launch fatal; version 2 producers counted both. Keep
-this in mind when comparing cohorts across that SDK upgrade. React Native
-JavaScript fatal reports carry no pointer and do not count; see
-[release health observations](release-health.md).
+this in mind when comparing cohorts across that SDK upgrade.
+
+React Native apps can configure rules for their Android or iOS cohorts.
+An automatic unhandled Hermes JavaScript fatal counts as fatal evidence when it
+carries the exact pointer of a ready session whose known loaded build matches the
+fatal's bundle; handled errors, promise rejections and other JavaScript reports do
+not count. A launch with both such a JavaScript fatal and native or Java crash
+evidence counts once; see [release health observations](release-health.md).
 
 Coverage is always `incomplete`, and the metric is `reported_fatal_sessions`.
 This is not a population crash-free rate, statistical regression, complete count
