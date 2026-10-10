@@ -31,9 +31,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowApplication
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.createTempDirectory
 
 /** The SDK's own start/kill/enable boundaries around a registration that survives process death. */
@@ -43,6 +45,7 @@ class AndroidNativeCrashRuntimeTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
     private val config = EverframeConfig(appId = "native-runtime", sdkKey = "txx_live_native_runtime_test",
         capture = CaptureConfig(logs = false))
+    private val crashOff = config.copy(capture = config.capture.copy(crash = false))
     private val keys = mapOf("contexts" to JceTestOutboxKeyProvider(), "prepared" to JceTestOutboxKeyProvider())
     private val outboxField = Everframe::class.java.getDeclaredField("sharedOutbox").apply { isAccessible = true }
     private val storage = createTempDirectory("everframe-native-runtime").toFile()
@@ -60,6 +63,7 @@ class AndroidNativeCrashRuntimeTest {
     }
 
     @Before fun setUp() {
+        ShadowApplication.setProcessName(context.packageName)
         server = MockWebServer().apply {
             dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest) = if (request.path!!.startsWith("/api/config"))
@@ -107,17 +111,16 @@ class AndroidNativeCrashRuntimeTest {
         assertTrue("start never finished its initial drain", Everframe._replaySession.let { it != null && it !== previous })
     }
 
-    private fun start() {
+    private fun start(cfg: EverframeConfig = config) {
         val previous = Everframe._replaySession
-        Everframe.start(context, config)
+        Everframe.start(context, cfg)
         awaitStarted(previous)
     }
 
-    private fun enable() {
-        Everframe.setNativeCrashRecoveryEnabled(true)
+    private fun awaitReady() {
         val deadline = System.nanoTime() + 5_000_000_000L
-        while (!Everframe.isNativeCrashRecoveryReady() && System.nanoTime() < deadline) Thread.sleep(5)
-        assertTrue(Everframe.isNativeCrashRecoveryReady())
+        while (!Everframe.isNativeCrashCaptureReady() && System.nanoTime() < deadline) Thread.sleep(5)
+        assertTrue(Everframe.isNativeCrashCaptureReady())
     }
 
     /** Process death after registration: memory is lost; journals and the OS exit record remain. */
@@ -135,54 +138,44 @@ class AndroidNativeCrashRuntimeTest {
             ?.get("crash")?.jsonObject?.get("mechanism")?.jsonPrimitive?.content == "android-exit-info"
     }
 
-    /** Public opt-in. Reads the outbox where admission's follow-up drain would launch, then keeps delivery out. */
-    private fun enableAndReadAdmitted(): List<String> {
+    /** Relaunch start. Reads the outbox at the drain crash capture requests after arming, then keeps delivery out. */
+    private fun startAndReadAdmitted(): List<String> {
         val admitted = CountDownLatch(1)
+        val calls = AtomicInteger()
         var reports = emptyList<String>()
         Everframe.__beforeDrainLaunchForTesting = {
-            Everframe.__beforeDrainLaunchForTesting = null
-            reports = nativeReports().map { it.reportId }
-            admitted.countDown()
-            Everframe.kill()
+            // The first call is start()'s own drain; the second follows crash capture arming.
+            if (calls.incrementAndGet() == 2) {
+                Everframe.__beforeDrainLaunchForTesting = null
+                reports = nativeReports().map { it.reportId }
+                admitted.countDown()
+                Everframe.kill()
+            }
         }
-        Everframe.setNativeCrashRecoveryEnabled(true)
+        Everframe.start(context, config)
         assertTrue("recovery never completed registration", admitted.await(5, TimeUnit.SECONDS))
         return reports
     }
 
     @Test fun `ordinary start keeps the previous process registration for relaunch recovery`() {
-        start(); enable()
+        start(); awaitReady()
         val crashed = crashAndRelaunch()
-        start()
-        assertEquals(listOf(crashed), enableAndReadAdmitted())
-    }
-
-    @Test fun `explicit disable displaced by a newer enable still erases previous process evidence`() {
-        start(); enable()
-        val crashed = crashAndRelaunch()
-        start()
-        val captured = Everframe.captureSessionSnapshot()
-        val epoch = captured.user.startEpoch
-        val disabled = AndroidNativeCrashRuntime.request(epoch, false)
-        val enabled = AndroidNativeCrashRuntime.request(epoch, true)
-        // The disable tail lost its command before its own erasure could run.
-        AndroidNativeCrashRuntime.boundary(context, epoch, true, { Everframe.currentStartEpochVolatile() == epoch }, disabled)
-        assertTrue(AndroidNativeCrashRuntime.enable(context, captured, outbox, enabled))
-        assertTrue(AndroidNativeCrashRuntime.ready(epoch))
-        assertTrue("disabled evidence was admitted", nativeReports().none { it.reportId == crashed })
+        assertEquals(listOf(crashed), startAndReadAdmitted())
     }
 
     @Test fun `kill displaced by a racing start still erases previous process evidence`() {
-        start(); enable()
+        start(); awaitReady()
         val crashed = crashAndRelaunch()
-        start() // The relaunched process has journals but no live recovery owner yet.
+        // The relaunched process has journals but no live recovery owner yet; keep these starts
+        // from arming so the kill below is the first owner of that evidence.
+        start(crashOff)
         var killing = false
         var racedInsideKill = false
         // kill() cancels this lazy child after its state-lock section and before its native
         // boundary; the completion handler is a start() landing in exactly that window.
         Everframe.sdkScope.launch(start = CoroutineStart.LAZY) { }.invokeOnCompletion {
             racedInsideKill = killing
-            Everframe.start(context, config)
+            Everframe.start(context, crashOff)
         }
         killing = true
         Everframe.kill()
@@ -190,6 +183,6 @@ class AndroidNativeCrashRuntimeTest {
         assertTrue(racedInsideKill)
         awaitStarted(null)
         freshOutbox()
-        assertTrue("killed evidence was admitted", enableAndReadAdmitted().none { it == crashed })
+        assertTrue("killed evidence was admitted", startAndReadAdmitted().none { it == crashed })
     }
 }

@@ -151,6 +151,9 @@ object Everframe {
     // Reservation precedes customer teardown; only publication pairs this epoch
     // with its configuration. Guarded by stateLock, never inferred from captureGate.
     private var _publishedStartEpoch: Int? = null
+    // The crash capture this published start armed or is arming. Null with capture.crash off,
+    // where no OS or native mechanism exists, and after kill(). Written under stateLock.
+    @Volatile private var _crashCapture: dev.everframe.crash.CrashCaptureStart? = null
 
     /**
      * Lock-free mirror of [_startEpoch] — see [currentStartEpochVolatile] for
@@ -645,111 +648,22 @@ object Everframe {
         }
     }
 
-    /** True only after the optional API26..30 signal module has durably armed this start. */
-    @JvmStatic
-    fun isNativeSignalCaptureReady(): Boolean = captureGate &&
-        dev.everframe.crash.AndroidNativeSignalRuntime.ready(currentStartEpochVolatile())
-
     /**
-     * Opt in after each start() to encrypted partial native fault capture on API26..30.
-     * Requires the optional native-crash module and the default app process. Disabled by
-     * default; no full-unwind or arbitrary-thread stack-overflow guarantee. Another native
-     * collector prevents activation; the platform WebView's chaining crash handler does not.
-     * API31+ continues using setNativeCrashRecoveryEnabled.
-     * The app must extract native libraries for APKs and App Bundles:
-     * `android { packaging { jniLibs { useLegacyPackaging = true } } }`. With default packaging,
-     * readiness stays false and an `Everframe` warning names `native-libraries-not-extracted`.
-     * On API30 with setProcessExitDiagnosticsEnabled, a fault recorded here is reported once,
-     * by this path; the OS exit then adds no second crash.
-     * Explicit disable and kill() erase unadmitted native evidence outside the SDK stateLock, on
-     * the calling thread: they can wait for an in-progress setup and do local IO and handler IPC.
+     * True once native crash and ANR capture is armed for the current start: OS exit records on
+     * API 30+ and, on API 26–30 when the app includes dev.everframe:native-crash, its signal
+     * collector. False before start(), after kill(), with capture.crash = false, while setup runs,
+     * when a mechanism refused to arm (another app-bundled native crash collector, or native
+     * libraries that are not extracted), in secondary processes, and where no native mechanism
+     * exists (API 24–25, or API 26–29 without the module). JVM exceptions are captured
+     * independently of this.
      */
     @JvmStatic
-    fun setNativeSignalCaptureEnabled(enabled: Boolean) {
-        val (captured, context, command) = stateLock.withLock {
-            if (enabled && _publishedStartEpoch != _startEpoch) return
-            val snapshot = captureSessionSnapshot()
-            Triple(snapshot, appContext,
-                if (enabled) dev.everframe.crash.AndroidNativeSignalRuntime.requestEnable(snapshot.user.startEpoch)
-                else dev.everframe.crash.AndroidNativeSignalRuntime.request(erase = true))
-        }
-        if (!enabled) {
-            txGuardVoid("nativeSignal.disable") { dev.everframe.crash.AndroidNativeSignalRuntime.finishErase(context) }
-            return
-        }
-        if (context == null || android.os.Build.VERSION.SDK_INT !in 26..30 || !captured.captureConsent || captured.config?.capture?.crash != true) return
-        launchCapturedWork(captured, requireCurrentStart = true) {
-            txGuardVoid("nativeSignal.enable") {
-                dev.everframe.crash.AndroidNativeSignalRuntime.enable(context, captured, sharedOutboxFor(context), command)
-                requestOutboxDrain()
-            }
-        }
-    }
-
-    /** True after the current explicit opt-in has durably registered its OS context. */
-    @JvmStatic
-    fun isNativeCrashRecoveryReady(): Boolean = captureGate &&
-        dev.everframe.crash.AndroidNativeCrashRuntime.ready(currentStartEpochVolatile())
-
-    /**
-     * Opt in to OS-recorded native crash recovery on Android 12/API31+ after start().
-     * Call after each start; disabled by default. The host grants exclusive use of
-     * ActivityManager.setProcessStateSummary while enabled. Setup/recovery runs on IO.
-     * Older APIs remain unchanged, except that API30 releases and erases an active diagnostics mode.
-     * Reports are anonymous, with frozen release/destination.
-     * Disable, kill and replacement start erase unadmitted native contexts; their durable
-     * erasure may do bounded local IO. This does not install a signal handler.
-     */
-    @JvmStatic
-    fun setNativeCrashRecoveryEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = false)
-
-    /**
-     * Opt in to OS-recorded previous-process diagnostics on Android 11/API30+.
-     * Includes native recovery, ANR terminations and qualified ordinary/unknown exits.
-     * Replaces native-only mode and grants the same exclusive OS-summary ownership.
-     * Changing mode keeps previous-process evidence; native-only drops unadmitted non-native exits.
-     * Call after each start. Disabled by default; no heartbeat observer is installed.
-     * Reports are anonymous and retain the previous process's release/destination.
-     * Either recovery switch set to false disables the shared owner and erases unadmitted evidence.
-     * On API30, a native fault that setNativeSignalCaptureEnabled recorded is reported once, by that
-     * path with its fault frame; this mode then sends no second, frameless crash for the exit.
-     */
-    @JvmStatic
-    fun setProcessExitDiagnosticsEnabled(enabled: Boolean) = setProcessExitRecovery(enabled, diagnostics = true)
-
-    @JvmStatic
-    fun isProcessExitDiagnosticsReady(): Boolean = captureGate &&
-        dev.everframe.crash.AndroidNativeCrashRuntime.diagnosticsReady(currentStartEpochVolatile())
-
-    private fun setProcessExitRecovery(enabled: Boolean, diagnostics: Boolean) {
-        // Narrowing API30 diagnostics to unsupported native-only mode still
-        // releases the existing shared owner and durably erases its context.
-        // Otherwise an unsupported mode records the request and erases nothing.
-        val supported = android.os.Build.VERSION.SDK_INT >= (if (diagnostics) 30 else 31)
-        val (captured, context, request) = stateLock.withLock {
-            // Customer teardown can re-enter this setter after a new epoch was
-            // reserved but before its config is published. Disable must still
-            // revoke; enable must never adopt the previous destination.
-            if (enabled && supported && _publishedStartEpoch != _startEpoch) return
-            val snapshot = captureSessionSnapshot()
-            Triple(snapshot, appContext, dev.everframe.crash.AndroidNativeCrashRuntime.request(
-                snapshot.user.startEpoch, enabled, diagnostics, supported))
-        }
-        if (!enabled || !supported) {
-            txGuardVoid("nativeCrash.disable") {
-                dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context, captured.user.startEpoch, true,
-                    { currentStartEpochVolatile() == captured.user.startEpoch }, request)
-            }
-            return
-        }
-        if (context == null || captured.config?.capture?.crash != true || !captured.captureConsent) return
-        launchCapturedWork(captured, requireCurrentStart = true) {
-            txGuardVoid("nativeCrash.enable") {
-                if (dev.everframe.crash.AndroidNativeCrashRuntime.enable(context, captured, sharedOutboxFor(context), request, diagnostics)) {
-                    requestOutboxDrain()
-                }
-            }
-        }
+    fun isNativeCrashCaptureReady(): Boolean {
+        val epoch = currentStartEpochVolatile()
+        val started = _crashCapture?.takeIf { it.epoch == epoch } ?: return false
+        return captureGate &&
+            (!started.plan.processExit || dev.everframe.crash.AndroidNativeCrashRuntime.diagnosticsReady(epoch)) &&
+            (!started.plan.nativeSignal || dev.everframe.crash.AndroidNativeSignalRuntime.ready(epoch))
     }
 
     /**
@@ -995,6 +909,14 @@ object Everframe {
         // atomically with the write it guards.
         dev.everframe.vitals.VitalsServerConfigSignal.publish(null, stillNewest)
 
+        // Mechanisms come from the API level, the process and the optional module alone; there is
+        // no per-start opt-in. Computed outside stateLock: the module probe loads a class.
+        val crashPlan = if (!config.capture.crash) null else dev.everframe.crash.CrashCapturePlan.select(
+            android.os.Build.VERSION.SDK_INT,
+            dev.everframe.crash.AppProcess.isDefault(context.applicationContext),
+            dev.everframe.crash.AndroidNativeSignalRuntime.available(context.applicationContext),
+        ).takeIf { it.any }
+        var startedCrashCapture: dev.everframe.crash.CrashCaptureStart? = null
         var displacedReplay: ReplaySession? = null
         val published = stateLock.withLock {
             // Critical 2: the publication re-check. A start that lost the race
@@ -1060,6 +982,15 @@ object Everframe {
             _identityHolder.set(null)
             appContext = context.applicationContext
             dev.everframe.diagnostics.RecoveredStallRuntime.startPublished(epoch)
+            // Commands are issued with the publication: a superseded start issues none, and no later
+            // caller can arm the previous destination. A crash = false start clears the holder, so
+            // readiness drops before captureGate reopens.
+            startedCrashCapture = crashPlan?.let { plan ->
+                dev.everframe.crash.CrashCaptureStart(epoch, plan,
+                    exitCommand = if (plan.processExit) dev.everframe.crash.AndroidNativeCrashRuntime.request(epoch, enabled = true, diagnostics = true) else -1L,
+                    signalCommand = if (plan.nativeSignal) dev.everframe.crash.AndroidNativeSignalRuntime.requestEnable(epoch) else -1L)
+            }
+            _crashCapture = startedCrashCapture
             dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(epoch, config.capture.crash)
             captureGate = true
             true
@@ -1116,6 +1047,19 @@ object Everframe {
         val drainSession = capturePublishedSessionSnapshot(epoch) ?: return
         val drainEndpoint = IngestEndpoint.url
         __beforeDrainLaunchForTesting?.invoke()
+        val crashCapture = startedCrashCapture
+        if (crashCapture != null) launchCapturedWork(drainSession, requireCurrentStart = true) {
+            txGuardVoid("start.crashCapture") {
+                val app = context.applicationContext
+                val outbox = sharedOutboxFor(app)
+                val armed = crashCapture.plan.arm(
+                    armSignal = { dev.everframe.crash.AndroidNativeSignalRuntime.enable(app, drainSession, outbox, crashCapture.signalCommand) },
+                    armProcessExit = { dev.everframe.crash.AndroidNativeCrashRuntime.enable(app, drainSession, outbox, crashCapture.exitCommand, diagnostics = true) },
+                )
+                // Recovery may have admitted previous-process reports after the start's own drain began.
+                if (armed) requestOutboxDrain()
+            }
+        }
 
         // A slow health route must not delay replay, crash, or other SDK initialization.
         launchCapturedWork(drainSession) {
@@ -1467,6 +1411,7 @@ object Everframe {
                 _killGenerationMirror.set(_killGeneration)
                 dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, false)
                 dev.everframe.crash.AndroidNativeCrashRuntime.noteKill()
+                _crashCapture = null
                 dev.everframe.crash.AndroidNativeSignalRuntime.request(erase = true)
                 dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)

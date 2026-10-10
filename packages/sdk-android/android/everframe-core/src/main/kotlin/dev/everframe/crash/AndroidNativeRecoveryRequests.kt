@@ -12,12 +12,9 @@ internal class AndroidNativeRecoveryRequests {
     private var revision = 0L
     private val revocation = AndroidNativeRecoveryRevocation()
 
-    /** An unsupported mode (native-only on API30) acts as a disable only when it narrows active diagnostics. */
-    @Synchronized fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false, supported: Boolean = true): Long {
-        val narrowsDiagnostics = !diagnostics && epoch == this.epoch && this.enabled && this.diagnostics
-        val effective = enabled && (supported || !narrowsDiagnostics)
-        return transition(epoch, effective, !effective, diagnostics)
-    }
+    /** An explicit false erases unadmitted evidence; a true command keeps it for the new owner's recovery. */
+    @Synchronized fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false): Long =
+        transition(epoch, enabled, !enabled, diagnostics)
     @Synchronized fun boundary(epoch: Int): Long = transition(epoch, false, false)
     private fun transition(epoch: Int, enabled: Boolean, erase: Boolean, diagnostics: Boolean = false): Long {
         if (epoch < this.epoch) return -1

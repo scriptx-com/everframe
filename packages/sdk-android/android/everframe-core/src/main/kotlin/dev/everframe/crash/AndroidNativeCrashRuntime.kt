@@ -22,8 +22,8 @@ internal object AndroidNativeCrashRuntime {
     private val lock = Any()
     @Volatile private var requests = AndroidNativeRecoveryRequests()
     fun noteKill() { requests.invalidate() }
-    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false, supported: Boolean = true): Long =
-        requests.request(epoch, enabled, diagnostics, supported)
+    fun request(epoch: Int, enabled: Boolean, diagnostics: Boolean = false): Long =
+        requests.request(epoch, enabled, diagnostics)
     fun diagnosticsReady(epoch: Int): Boolean = requests.diagnosticsEnabled(epoch) && ready(epoch)
     fun ready(epoch: Int): Boolean = requests.enabled(epoch) && synchronized(lock) { controller }?.ready(epoch) == true
     private var controller: AndroidNativeRecoveryController? = null
@@ -56,7 +56,7 @@ internal object AndroidNativeCrashRuntime {
             signalCapture = { AndroidNativeSignalRuntime.capture(context, it) }).also { controller = it }
     }
 
-    /** Off-main caller. Defaults to no state-summary ownership until explicitly requested by the host. */
+    /** Off-main caller. While capture.crash is on, the SDK owns this process's state summary. */
     fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, request: Long, diagnostics: Boolean = false): Boolean {
         if (Build.VERSION.SDK_INT < (if (diagnostics) 30 else 31) || !captured.captureConsent || captured.config?.capture?.crash != true) return false
         val epoch = captured.user.startEpoch

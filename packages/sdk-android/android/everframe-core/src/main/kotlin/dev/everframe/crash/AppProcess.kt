@@ -9,7 +9,8 @@ import java.io.File
 
 /** Native and OS-exit crash capture belong to the default app process, the one named after the package. */
 internal object AppProcess {
-    fun isDefault(context: Context): Boolean = name() == context.packageName
+    /** Fails closed: a process whose name cannot be read never arms native capture or erases its journals. */
+    fun isDefault(context: Context): Boolean = runCatching { name() == context.packageName }.getOrDefault(false)
 
     private fun name(): String = if (Build.VERSION.SDK_INT >= 28) Application.getProcessName()
         else File("/proc/self/cmdline").inputStream().use { input ->
