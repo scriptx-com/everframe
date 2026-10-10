@@ -83,17 +83,17 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try entry.envelopeBytes.write(to: directory.appendingPathComponent("synthetic-apple-hang.json"))
         }
-        live.boundary()
+        live.boundary(); reject(await live.accept(candidate()))
     }
     func testRestartRetriesAcceptedFrozenReceiptButRejectsOldCallbackWindow() async throws {
         let first = runtime(); expect(await first.enable(context: try context()))
         expect(await first.accept(candidate()))
-        let old = try XCTUnwrap(outbox().hydrate().first); first.boundary()
+        let old = try XCTUnwrap(outbox().hydrate().first); first.boundary(); reject(await first.accept(candidate()))
         XCTAssertFalse(AppleDiagnosticDelivery.allows(old, now: now.addingTimeInterval(20)))
         let next = runtime(at: now.addingTimeInterval(10)); expect(await next.enable(context: try context()))
         XCTAssertEqual(try outbox().hydrate(), [old]); XCTAssertTrue(AppleDiagnosticDelivery.allows(old, now: now.addingTimeInterval(20)))
         reject(await next.accept(candidate()))
-        next.boundary()
+        next.boundary(); reject(await next.accept(candidate()))
     }
     func testDisableThenEnableCannotReviveAcceptedEntries() async throws {
         let live = runtime(); expect(await live.enable(context: try context()))
@@ -103,24 +103,24 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         expect(await live.enable(context: try context()))
         expect(await live.finishRevocation(revoked))
         XCTAssertTrue(try outbox().hydrate().isEmpty)
-        XCTAssertFalse(AppleDiagnosticDelivery.allows(old, now: now.addingTimeInterval(20))); live.boundary()
+        XCTAssertFalse(AppleDiagnosticDelivery.allows(old, now: now.addingTimeInterval(20))); live.boundary(); reject(await live.accept(candidate()))
     }
     func testWrongDestinationNeverAuthorizesHistoricalReceipt() async throws {
         let first = runtime(); expect(await first.enable(context: try context()))
         expect(await first.accept(candidate())); let old = try XCTUnwrap(outbox().hydrate().first)
-        first.boundary()
+        first.boundary(); reject(await first.accept(candidate()))
         let next = runtime(); expect(await next.enable(context: try context("sdk-B")))
-        XCTAssertFalse(AppleDiagnosticDelivery.allows(old, now: now.addingTimeInterval(20))); XCTAssertEqual(try outbox().hydrate(), [old]); next.boundary()
+        XCTAssertFalse(AppleDiagnosticDelivery.allows(old, now: now.addingTimeInterval(20))); XCTAssertEqual(try outbox().hydrate(), [old]); next.boundary(); reject(await next.accept(candidate()))
     }
     func testInterruptedAmbiguousJournalResetCannotForgetOutboxErasure() async throws {
         let first = runtime(); expect(await first.enable(context: try context()))
-        expect(await first.accept(candidate())); first.boundary()
+        expect(await first.accept(candidate())); first.boundary(); reject(await first.accept(candidate()))
         XCTAssertEqual(try outbox().hydrate().count, 1)
         // Process dies after ambiguous journal cleanup but before its new revoke
         // record is committed. An empty journal cannot prove queue erasure.
         try AppleDiagnosticStore.eraseAmbiguous(root: root.appendingPathComponent("journal"))
         let next = runtime(); expect(await next.enable(context: try context()))
-        XCTAssertTrue(try outbox().hydrate().isEmpty); next.boundary()
+        XCTAssertTrue(try outbox().hydrate().isEmpty); next.boundary(); reject(await next.accept(candidate()))
     }
     func testFailedOutboxErasureSurvivesRestartAndBlocksReenable() async throws {
         let blocked = AppleDiagnosticKeyFailure(), key = key
@@ -133,7 +133,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         reject(await first.enable(context: try context()))
         let next = runtime(box: failing); reject(await next.enable(context: try context()))
         blocked.set(false); expect(await next.enable(context: try context()))
-        XCTAssertTrue(try outbox().hydrate().isEmpty); first.boundary(); next.boundary()
+        XCTAssertTrue(try outbox().hydrate().isEmpty); first.boundary(); reject(await first.accept(candidate())); next.boundary(); reject(await next.accept(candidate()))
     }
     func testRevocationDuringQueuedProjectionCannotBeOvertakenByEnable() async throws {
         let live = runtime(); expect(await live.enable(context: try context()))
@@ -144,7 +144,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         let request = live.revoke()
         let newer = Task { await live.enable(context: try! context()) }
         release.signal(); expect(await newer.value); expect(await live.finishRevocation(request))
-        XCTAssertTrue(try outbox().hydrate().isEmpty); live.boundary()
+        XCTAssertTrue(try outbox().hydrate().isEmpty); live.boundary(); reject(await live.accept(candidate()))
     }
     func testDelayedReceiptRetryAfterRestartUsesFrozenBytesAndDurablySettlesHTTPAcceptance() async throws {
         let date = Date()
@@ -168,14 +168,14 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         let session = URLSession(configuration: config); defer { session.invalidateAndCancel() }
         let submitter = ReportSubmitter(config: EverframeConfig(appId: "sdk-A"), outbox: outbox(), session: session).restrictingOutboxToAppleDiagnostics()
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
-        XCTAssertEqual(try outbox().hydrate(), [original, manual]); live.boundary()
+        XCTAssertEqual(try outbox().hydrate(), [original, manual]); live.boundary(); reject(await live.accept(candidate()))
         let next = runtime(at: Date()); expect(await next.enable(context: try context()))
         XCTAssertEqual(try outbox().hydrate(), [original, manual])
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
         // A worker barrier places the journal settlement before the simulated restart.
-        expect(await next.enable(context: try context())); XCTAssertEqual(try outbox().hydrate(), [manual]); next.boundary()
+        expect(await next.enable(context: try context())); XCTAssertEqual(try outbox().hydrate(), [manual]); next.boundary(); reject(await next.accept(candidate()))
         let final = runtime(at: Date()); expect(await final.enable(context: try context()))
-        XCTAssertEqual(try outbox().hydrate(), [manual]); final.boundary()
+        XCTAssertEqual(try outbox().hydrate(), [manual]); final.boundary(); reject(await final.accept(candidate()))
         let requests = AppleRetryProtocol.requests
         XCTAssertEqual(requests.count, 2)
         let bodies = AppleRetryProtocol.bodies
@@ -206,7 +206,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         expect(await first.accept(AppleDiagnosticCandidate(kind: "hang_batch", begin: date, end: date, applicationVersion: "1.0",
             applicationBuild: "42", osVersion: "iOS 18.0", hangs: [.init(durationMs: 2000, stack: .init(status: "unavailable",
             truncated: false, frames: []))], exits: [], truncated: false)))
-        first.boundary()
+        first.boundary(); reject(await first.accept(candidate()))
         let receipt = try XCTUnwrap(outbox().hydrate().last); XCTAssertTrue(AppleDiagnosticDelivery.isApple(receipt))
         AppleAcceptProtocol.reset()
         let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [AppleAcceptProtocol.self]
@@ -238,7 +238,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         expect(await live.accept(candidate()))
         let staged = try Data(contentsOf: file)
         expect(try await eventually { drains.count >= 3 })
-        XCTAssertEqual(try Data(contentsOf: file), staged); live.boundary()
+        XCTAssertEqual(try Data(contentsOf: file), staged); live.boundary(); reject(await live.accept(candidate()))
     }
     func testAggregateProducerKeepsCountsWithoutIndividualIncidentClaims() async throws {
         let live = runtime(); expect(await live.enable(context: try context()))
@@ -258,17 +258,17 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try entry.envelopeBytes.write(to: directory.appendingPathComponent("synthetic-apple-exits.json"))
         }
-        live.boundary()
+        live.boundary(); reject(await live.accept(candidate()))
     }
     func testExpiredReceiptsRemoveOnlyTheirOutboxBytes() async throws {
         let first = runtime(); expect(await first.enable(context: try context()))
-        expect(await first.accept(candidate())); first.boundary()
+        expect(await first.accept(candidate())); first.boundary(); reject(await first.accept(candidate()))
         let manual = OutboxEntry(reportId: UUID(), createdAt: now, envelopeBytes: Data("{}".utf8),
             idempotencyKey: "manual", attachmentRefs: [], sdkKey: "sdk-A", endpoint: "https://example.invalid/api/ingest")
         _ = try outbox().enqueueRecovered(manual)
         let next = runtime(at: now.addingTimeInterval(7 * 86400 + 1))
         expect(await next.enable(context: try context()))
-        XCTAssertEqual(try outbox().hydrate(), [manual]); next.boundary()
+        XCTAssertEqual(try outbox().hydrate(), [manual]); next.boundary(); reject(await next.accept(candidate()))
     }
     func testFrozenRedactionRemovesSensitiveBinaryNames() async throws {
         let live = runtime(); expect(await live.enable(context: try context()))
@@ -281,7 +281,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         XCTAssertFalse(String(decoding: entry.envelopeBytes, as: UTF8.self).contains("original-secret"))
         let envelope = try EverframeReportEnvelope(data: entry.envelopeBytes)
         XCTAssertTrue(envelope.payload.appleDiagnostic!.hangs![0].stack.frames.isEmpty)
-        live.boundary()
+        live.boundary(); reject(await live.accept(candidate()))
     }
     func testFullOutboxRetainsStagedReceiptForRestartWithoutEviction() async throws {
         let full = outbox(max: 2)
@@ -290,13 +290,13 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         for manual in manuals { _ = try full.enqueueRecovered(manual) }
         let first = runtime(box: full); expect(await first.enable(context: try context()))
         expect(await first.accept(candidate()))
-        XCTAssertEqual(try full.hydrate(), manuals); first.boundary()
+        XCTAssertEqual(try full.hydrate(), manuals); first.boundary(); reject(await first.accept(candidate()))
         // Once a slot frees, the next opt-in inserts the staged receipt.
         try full.drain(where: { $0.reportId == manuals[0].reportId })
         let next = runtime(box: outbox(max: 2)); expect(await next.enable(context: try context()))
         let queued = try full.hydrate()
         XCTAssertEqual(queued.count, 2); XCTAssertEqual(queued.first, manuals[1])
-        XCTAssertTrue(AppleDiagnosticDelivery.isApple(try XCTUnwrap(queued.last))); next.boundary()
+        XCTAssertTrue(AppleDiagnosticDelivery.isApple(try XCTUnwrap(queued.last))); next.boundary(); reject(await next.accept(candidate()))
     }
 }
 
