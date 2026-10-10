@@ -1,0 +1,29 @@
+packages/protocol/__tests__/apple-diagnostic.spec.ts
+  s_97602a0a2d8f20::t_9d66b773e29958 88-103
+packages/protocol/__tests__/fixtures/apple-delayed-exits.json
+  s_97602a0a2d8f20::t_027d5a3fee5088 1
+packages/protocol/__tests__/fixtures/apple-delayed-hang.json
+  s_97602a0a2d8f20::t_cf937b3e07d697 1
+packages/sdk-ios/README.md
+  s_97602a0a2d8f20::t_4ce3ecec6ec29a 227-266
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticDelayedTests.swift
+  s_97602a0a2d8f20::t_5c829cc33bfdba 69-82
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticRuntimeTests.swift
+  s_97602a0a2d8f20::t_818bb60d8ead27 149,152-154,156-157,181-184,232,408-410,414-426
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d4e491f6a3fdd4f97a1695d79d3629860f3179f6",
+  "prompts": {},
+  "sessions": {
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
