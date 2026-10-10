@@ -1,0 +1,41 @@
+packages/protocol/src/redaction.ts
+  s_dbd309ddf8ec5b::t_bf1265dae9ec53 8-17,21,30-45,48,62-68,75
+.changeset/jwt-redaction-class-names.md
+  s_dbd309ddf8ec5b::t_5d078e7599f226 11
+packages/protocol/__tests__/redaction-patterns.spec.ts
+  s_dbd309ddf8ec5b::t_904717330acfa5 18-27,80-129,135-137,139,165-166
+packages/protocol/data/redaction-patterns.json
+  s_dbd309ddf8ec5b::t_4f808a44fa995d 7,9
+packages/sdk-android/android/everframe-core/src/main/assets/everframe/redaction-patterns.json
+  s_dbd309ddf8ec5b::t_812c6e83bf1984 7,9
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/envelope/JwtScan.kt
+  s_dbd309ddf8ec5b::t_21027117ddf9b3 12-16,22,32,65-85,89
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/RedactionEngineTest.kt
+  s_dbd309ddf8ec5b::t_1a91682ffb43bf 59,69-72,76-96,103-105,112,121-122
+packages/sdk-core/__tests__/redaction-jwt-shape.spec.ts
+  s_dbd309ddf8ec5b::t_2e84ad7370d125 13-17,32-35,48-49
+packages/sdk-core/src/redaction/engine.ts
+  s_dbd309ddf8ec5b::t_56869d10432330 134-135
+packages/sdk-ios/Sources/Everframe/Envelope/JwtScan.swift
+  s_dbd309ddf8ec5b::t_5e2cd8e719b35f 7-11,18,20,30,64-75,78,84,88
+packages/sdk-ios/Sources/Everframe/Resources/redaction-patterns.json
+  s_dbd309ddf8ec5b::t_78f65ae992893c 7,9
+packages/sdk-ios/Tests/EverframeTests/RedactionEngineTests.swift
+  s_dbd309ddf8ec5b::t_05827bfcae2eca 82-110,119-121,128,137-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2dd7f0751172517419dd6a5a215d053912d8a130",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
