@@ -90,12 +90,13 @@ internal object AndroidExitDiagnostic {
     fun description(raw: String?): String? =
         raw?.filter { it in ' '..'~' }?.trim()?.take(128)?.takeIf { it.isNotEmpty() }
 
+    /** [collectedMs] is never before the exit's own timestamp: the caller takes the later of the two. */
     fun evidence(reportId: String, processLaunchId: String, apiLevel: Int, exit: AndroidNativeExit,
-                 nowMs: Long, trace: JsonObject) = buildJsonObject {
+                 collectedMs: Long, trace: JsonObject) = buildJsonObject {
         put("version", 1); put("evidenceId", reportId); put("processLaunchId", processLaunchId)
         put("kind", "process_exit"); put("provenance", "android_application_exit_info"); put("scope", "os_process")
         put("outcome", "terminated"); put("cause", cause(exit.reason))
-        put("occurredAt", Instant.ofEpochMilli(exit.timestamp).toString()); put("collectedAt", Instant.ofEpochMilli(nowMs).toString())
+        put("occurredAt", Instant.ofEpochMilli(exit.timestamp).toString()); put("collectedAt", Instant.ofEpochMilli(collectedMs).toString())
         put("attribution", buildJsonObject {
             put("process", "exact_os_token"); put("release", "frozen"); put("session", "unavailable"); put("webExposure", "unavailable")
         })

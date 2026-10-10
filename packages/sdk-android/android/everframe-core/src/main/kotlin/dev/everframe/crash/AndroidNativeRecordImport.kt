@@ -182,7 +182,10 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             if(nativeExposure!=null) put("nativeExposure",nativeExposure.toJson())
             put("frames",buildJsonArray { if(raw!=null) add(buildJsonObject { put("raw",raw) }) });put("androidNative",native)
         }
-        val bytes=JsonObject(frozen+mapOf("source" to JsonPrimitive("crash"),"submittedAt" to JsonPrimitive(Instant.ofEpochMilli(nowMs).toString()),"payload" to buildJsonObject { put("crash",crash) })).toString().toByteArray()
+        // A clock that moved back since the fault never makes submission precede it. The crash-only
+        // envelope has no evidence timestamp the protocol compares, but keep the order consistent.
+        val submitted=maxOf(nowMs,timestamp)
+        val bytes=JsonObject(frozen+mapOf("source" to JsonPrimitive("crash"),"submittedAt" to JsonPrimitive(Instant.ofEpochMilli(submitted).toString()),"payload" to buildJsonObject { put("crash",crash) })).toString().toByteArray()
         // The retry window begins when a valid record is first recovered, not when
         // a potentially long-running process armed its crash context.
         return context.copy(createdAt=nowMs,envelopeBytes=bytes,idempotencyKey=digest(bytes))

@@ -114,6 +114,14 @@ class AndroidNativeRecordImportTest {
         val b=arm();val denied=object:OutboxAuthorization { override fun isAllowed()=false }
         assertEquals(0,importer().recover("new",3000,denied,{ cipher(b) }) { it, admission -> error("stale") })
     }
+    @Test fun `a fault stamped after this launch's clock is never submitted before it happened`() {
+        // The clock moved back between the fault and this launch (a TV before network time).
+        val a=arm();var recovered:OutboxEntry?=null
+        assertEquals(1,importer().recover("new",3000,allowed,{ cipher(a,captured=5000) }) { e,_ -> recovered=e;true })
+        val body=Json.parseToJsonElement(recovered!!.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals("1970-01-01T00:00:05Z",body["payload"]!!.jsonObject["crash"]!!.jsonObject["occurredAt"]!!.jsonPrimitive.content)
+        assertEquals("1970-01-01T00:00:05Z",body["submittedAt"]!!.jsonPrimitive.content)
+    }
     @Test fun `an authenticated record is reported however far the clock jumped forward`() {
         // Captured at the box's build-date clock; the next launch runs after network time moved it years ahead.
         val a=arm();assertEquals(1,importer().recover("new",56L*365*day,allowed,{ cipher(a) }) { _,_ -> true })

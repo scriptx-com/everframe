@@ -19,13 +19,13 @@ class AndroidExitDiagnosticTest {
     private val launch = "22222222-2222-4222-8222-222222222222"
     private fun store(name: String) = OutboxStore(File(folder.root, name), keys, JvmOutboxFileOps(), 8, 2 * 1024 * 1024)
     private fun engine() = AndroidNativeRecovery(store("contexts"), store("prepared"))
-    private fun arm(api: Int = 31): Pair<OutboxEntry, ByteArray> {
+    private fun arm(api: Int = 31, appId: String? = "app-a"): Pair<OutboxEntry, ByteArray> {
         val id = UUID.randomUUID().toString()
         val entry = OutboxEntry(id, 1000,
             """{"reportId":"$id","context":{"app":{"version":"old","build":"17"}},"reporter":{"title":"","description":""},"payload":{}}""".toByteArray(),
             "template", emptyList(), "old-key", "https://old.example")
         var token = byteArrayOf()
-        engine().arm(entry, 99, "app", allowed, diagnostics = true, processLaunchId = launch, apiLevel = api) { token = it }
+        engine().arm(entry, 99, "app", allowed, diagnostics = true, processLaunchId = launch, apiLevel = api, appId = appId) { token = it }
         return entry to token
     }
     private fun record(token: ByteArray, reason: Int, trace: () -> java.io.InputStream? = { null }) =
@@ -69,13 +69,13 @@ class AndroidExitDiagnosticTest {
             assertTrue(store("prepared").snapshotTokens().isEmpty())
         }
     }
-    private fun lowMemory(token: ByteArray, importance: Int, description: String? = "low memory") =
-        AndroidNativeExit(99, "app", 2000, 3, token, { error("low-memory kills have no trace") }, 0,
+    private fun lowMemory(token: ByteArray, importance: Int, description: String? = "low memory", timestamp: Long = 2000) =
+        AndroidNativeExit(99, "app", timestamp, 3, token, { error("low-memory kills have no trace") }, 0,
             importance = importance, pss = 512_000, rss = 640_000, description = description)
     @Test fun `a low-memory kill while the user could see or hear the app is one fatal crash with its memory evidence`() {
         val fingerprints = HashSet<String>()
-        // Foreground, foreground service (background playback), visible, perceptible.
-        for (importance in listOf(100, 125, 200, 230)) {
+        // Foreground, foreground service (background playback), visible (picture-in-picture playback).
+        for (importance in listOf(100, 125, 200)) {
             val (entry, token) = arm(api = 30)
             val reported = arrayListOf<OutboxEntry>()
             assertEquals(1, engine().recover(listOf(lowMemory(token, importance)), 3000, allowed, allowDiagnostics = true) { reported.add(it); true })
@@ -97,7 +97,54 @@ class AndroidExitDiagnosticTest {
             assertEquals("not_requested", evidence["trace"]!!.jsonObject["status"]!!.jsonPrimitive.content)
             assertEquals("old", body(report)["context"]!!.jsonObject["app"]!!.jsonObject["version"]!!.jsonPrimitive.content)
         }
-        assertEquals("one issue per app, not one per occurrence", 1, fingerprints.size)
+        assertEquals("one issue per app, not one per occurrence", setOf(AndroidNativeRecovery.lowMemoryFingerprint("app-a")), fingerprints)
+    }
+    @Test fun `each app of a project gets its own low-memory kill issue`() {
+        // Error groups are unique per project and fingerprint: a fixed fingerprint would merge every
+        // app of a project into one issue. Releases of one app still share it.
+        val fingerprints = listOf("app-a", "app-b", "app-a").map { app ->
+            val (_, token) = arm(api = 30, appId = app)
+            val reported = arrayListOf<OutboxEntry>()
+            engine().recover(listOf(lowMemory(token, 100)), 3000, allowed, allowDiagnostics = true) { reported.add(it); true }
+            body(reported.single())["payload"]!!.jsonObject["crash"]!!.jsonObject["fingerprint"]!!.jsonPrimitive.content
+        }
+        assertNotEquals(fingerprints[0], fingerprints[1])
+        assertEquals(fingerprints[0], fingerprints[2])
+    }
+    @Test fun `an exit stamped after this launch's clock is collected no earlier than it happened`() {
+        // A TV that boots at 1970 before network time: the exit record reads later than now. The
+        // protocol rejects occurredAt after collectedAt for good, so collection takes the later time.
+        for (exitOf in listOf<(ByteArray) -> AndroidNativeExit>({ lowMemory(it, 100, timestamp = 5_000) },
+            { AndroidNativeExit(99, "app", 5_000, 6, it, { null }) }, { AndroidNativeExit(99, "app", 5_000, 5, it, { null }) })) {
+            val (_, token) = arm(api = 30)
+            val reported = arrayListOf<OutboxEntry>()
+            assertEquals(1, engine().recover(listOf(exitOf(token)), 3_000, allowed, allowDiagnostics = true) { reported.add(it); true })
+            val report = body(reported.single())
+            val diagnostic = evidence(reported.single())
+            assertEquals("1970-01-01T00:00:05Z", diagnostic["occurredAt"]!!.jsonPrimitive.content)
+            assertEquals("1970-01-01T00:00:05Z", diagnostic["collectedAt"]!!.jsonPrimitive.content)
+            assertEquals("1970-01-01T00:00:05Z", report["submittedAt"]!!.jsonPrimitive.content)
+        }
+        // The usual order is unchanged: collected now.
+        val (_, token) = arm(api = 30)
+        val reported = arrayListOf<OutboxEntry>()
+        engine().recover(listOf(lowMemory(token, 100)), 3_000, allowed, allowDiagnostics = true) { reported.add(it); true }
+        assertEquals("1970-01-01T00:00:03Z", evidence(reported.single())["collectedAt"]!!.jsonPrimitive.content)
+        assertEquals("1970-01-01T00:00:03Z", body(reported.single())["submittedAt"]!!.jsonPrimitive.content)
+    }
+    @Test fun `a low-memory kill after the JVM handler reported the crash is not a second issue`() {
+        // A Java OOM: the handler admitted the crash, then lmkd ended the process before the runtime did.
+        val (_, token) = arm(api = 30)
+        val reported = arrayListOf<OutboxEntry>()
+        assertEquals(0, engine().recover(listOf(lowMemory(token + AndroidNativeRecovery.JVM_FATAL_SUFFIX, 100)), 3000, allowed,
+            allowDiagnostics = true) { reported.add(it); true })
+        assertTrue(reported.isEmpty())
+        assertTrue("the matched context is consumed", store("contexts").snapshotTokens().isEmpty())
+        // A native crash in the same state is still its own report.
+        val (_, native) = arm(api = 30)
+        assertEquals(1, engine().recover(listOf(AndroidNativeExit(99, "app", 2000, 5, native + AndroidNativeRecovery.JVM_FATAL_SUFFIX, { null })),
+            3000, allowed, allowDiagnostics = true) { reported.add(it); true })
+        assertEquals("native_crash", evidence(reported.single())["cause"]!!.jsonPrimitive.content)
     }
     @Test fun `a low-memory kill without recorded memory sizes claims none`() {
         // lmkd kills record no PSS/RSS on current emulators; 0 means unknown, not zero bytes.
@@ -111,8 +158,9 @@ class AndroidExitDiagnosticTest {
             body(reported.single())["payload"]!!.jsonObject["crash"]!!.jsonObject["message"]!!.jsonPrimitive.content)
     }
     @Test fun `background and cached low-memory kills stay silent`() {
-        // Service, cached, gone, and an unknown importance are ordinary Android process lifecycle.
-        for (importance in listOf(300, 400, 1000, 0)) {
+        // Perceptible (expedited jobs and backup agents report it for work nobody saw), service, cached,
+        // gone, and an unknown importance are ordinary Android process lifecycle.
+        for (importance in listOf(230, 300, 400, 1000, 0)) {
             val (_, token) = arm(api = 30)
             val reported = arrayListOf<OutboxEntry>()
             engine().recover(listOf(lowMemory(token, importance)), 3000, allowed, allowDiagnostics = true) { reported.add(it); true }

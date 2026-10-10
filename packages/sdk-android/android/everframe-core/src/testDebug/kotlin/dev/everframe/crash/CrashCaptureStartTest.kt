@@ -266,6 +266,27 @@ class CrashCaptureStartTest {
         } finally { holdArm?.countDown(); holdArm = null }
     }
 
+    @Test fun `a JVM crash tags the OS token so a low-memory kill of that process is not a second issue`() {
+        val crashDir = createTempDirectory(storage.toPath(), "crash").toFile()
+        CrashReporter.sidecarFactory = { CrashSidecar(File(crashDir, "crash-outbox.jsonl"), JceTestOutboxKeyProvider(), JvmOutboxFileOps()) }
+        try {
+            start(); awaitReady()
+            val token = platform.registrations.last()!!
+            // A Java OOM: the uncaught-exception handler admits the crash...
+            CrashReporter.captureThrowable(Thread.currentThread(), OutOfMemoryError("Java heap space"))
+            assertArrayEquals(token + AndroidNativeRecovery.JVM_FATAL_SUFFIX, platform.registrations.last())
+            // ...then lmkd ends the process while it is still in the foreground.
+            val crashed = platform
+            AndroidNativeCrashRuntime.__resetForTesting()
+            platform = Platform(crashed.pid + 1).apply {
+                exits = listOf(AndroidNativeExit(crashed.pid, crashed.processName, System.currentTimeMillis(), 3,
+                    crashed.registrations.last(), { null }, 0, importance = 100))
+            }
+            start(); awaitReady()
+            assertTrue("the JVM crash already reported this death", nativeReports().isEmpty())
+        } finally { CrashReporter.sidecarFactory = { CrashSidecar(it) } }
+    }
+
     @Test fun `start never reads the process name on the caller's thread`() {
         val readers = java.util.concurrent.ConcurrentLinkedQueue<Thread>()
         AppProcess.__readForTesting = { readers += Thread.currentThread() }

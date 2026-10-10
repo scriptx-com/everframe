@@ -172,17 +172,37 @@ class AndroidNativeRecoveryTest {
         assertTrue(store("contexts").snapshotTokens().isEmpty())
     }
     @Test fun `bounded context storage frees the oldest slot instead of refusing registration`() {
-        val engine = AndroidNativeRecovery(store("contexts", 1), store("prepared"))
+        val engine = AndroidNativeRecovery(store("contexts", 2), store("prepared"))
         val (first, _) = arm(engine)
+        val (second, _) = arm(engine)
         var registered = false
         var reclaimed: Pair<Int, Int>? = null
-        val second = template()
-        engine.arm(second, 99, "app", allowed, onReclaimed = { u, o -> reclaimed = u to o }) { registered = true }
+        val third = template()
+        engine.arm(third, 99, "app", allowed, onReclaimed = { u, o -> reclaimed = u to o }) { registered = true }
         assertTrue(registered)
         assertEquals(0 to 1, reclaimed)
-        val left = store("contexts", 1).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId } }
-        assertEquals(listOf(second.reportId), left)
-        assertNotEquals(first.reportId, second.reportId)
+        val left = store("contexts", 2).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId } }.toSet()
+        assertEquals(setOf(second.reportId, third.reportId), left)
+        assertFalse(first.reportId in left)
+    }
+    @Test fun `a full journal ranks oldest by arming order, not by a wall clock that jumped`() {
+        // Each context was armed while the clock ran backwards (a TV before network time).
+        val engine = AndroidNativeRecovery(store("contexts", 3), store("prepared"))
+        val armed = listOf(9_000L, 5_000L, 1_000L).map { createdAt -> arm(engine, template().copy(createdAt = createdAt)).first }
+        val fourth = template().copy(createdAt = 7_000)
+        var reclaimed: Pair<Int, Int>? = null
+        engine.arm(fourth, 99, "app", allowed, onReclaimed = { u, o -> reclaimed = u to o }) { }
+        assertEquals(0 to 1, reclaimed)
+        val left = store("contexts", 3).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId } }.toSet()
+        assertEquals("the first armed goes, though its clock read latest", setOf(armed[1].reportId, armed[2].reportId, fourth.reportId), left)
+    }
+    @Test fun `a full journal never drops the newest held context`() {
+        // Only the latest earlier process's context is held, and its exit may not be in the history yet.
+        val engine = AndroidNativeRecovery(store("contexts", 1), store("prepared"))
+        val (held, _) = arm(engine)
+        try { engine.arm(template(), 100, "app", allowed) { fail("registered without a slot") }; fail() }
+        catch (refused: OutboxWriteException) { assertEquals(OutboxFailure.CAPACITY, refused.failure) }
+        assertEquals(listOf(held.reportId), store("contexts", 1).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId } })
     }
     @Test fun `one app crash site keeps one fingerprint across OS ART and dexopt builds`() {
         fun segv(art: String, artPc: Long, dex: String) = tombstone(11,

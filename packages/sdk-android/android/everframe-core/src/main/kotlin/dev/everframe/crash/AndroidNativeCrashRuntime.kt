@@ -28,8 +28,15 @@ internal object AndroidNativeCrashRuntime {
         requests.request(epoch, enabled, diagnostics)
     fun diagnosticsReady(epoch: Int): Boolean = requests.diagnosticsEnabled(epoch) && ready(epoch)
     fun ready(epoch: Int): Boolean = requests.enabled(epoch) && synchronized(lock) { controller }?.ready(epoch) == true
-    private var controller: AndroidNativeRecoveryController? = null
+    // Volatile: the JVM crash handler reads it without the lock (noteJvmFatal).
+    @Volatile private var controller: AndroidNativeRecoveryController? = null
     private var eraseWhenContextAvailable = false
+
+    /**
+     * The JVM uncaught-exception handler admitted this process's fatal crash; a low-memory kill that
+     * ends the process now is the same death and must not become a second issue. Never blocks.
+     */
+    fun noteJvmFatal() { runCatching { controller?.markJvmFatal() } }
 
     /** Lifecycle clear is independent of durable context replacement. */
     fun invalidateExposure() { controller?.invalidateExposure() }
@@ -92,8 +99,9 @@ internal object AndroidNativeCrashRuntime {
         val admit: (OutboxEntry) -> Boolean = { entry ->
             try { outbox.store.enqueueSync(entry, gate); true } catch (_: Exception) { false }
         }
-        return if (diagnostics) owner.enableDiagnostics(epoch, gate, System.currentTimeMillis(), template, admit)
-            else owner.enable(epoch, gate, System.currentTimeMillis(), template, admit)
+        val appId = captured.config.appId
+        return if (diagnostics) owner.enableDiagnostics(epoch, gate, System.currentTimeMillis(), template, appId, admit)
+            else owner.enable(epoch, gate, System.currentTimeMillis(), template, appId, admit)
     }
 
     /** Outside SDK stateLock. Pending OS reads cannot block this transition. */
