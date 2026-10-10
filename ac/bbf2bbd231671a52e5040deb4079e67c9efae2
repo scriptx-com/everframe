@@ -1,0 +1,39 @@
+packages/sdk-android/tests/crash-default-host/app/build.gradle.kts
+  s_dbd309ddf8ec5b::t_92a96def2c0e5a 1-33
+packages/sdk-android/android/settings.gradle.kts
+  s_dbd309ddf8ec5b::t_953f4ecb27c113 44-49
+packages/sdk-android/tests/crash-default-host/README.md
+  s_dbd309ddf8ec5b::t_eac6806849ebb0 1-13
+packages/sdk-android/tests/crash-default-host/app/src/main/kotlin/dev/everframe/crashdefault/ProofActivity.kt
+  s_dbd309ddf8ec5b::t_f5660867511167 1-42
+packages/sdk-android/tests/crash-default-host/app/proguard-rules.pro
+  s_dbd309ddf8ec5b::t_28bca76f2c724e 1-5
+packages/sdk-android/tests/crash-default-host/app/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_9c56576b098a63 1-17
+packages/sdk-android/tests/crash-default-host/app/src/main/res/xml/network_security_config.xml
+  s_dbd309ddf8ec5b::t_0d07fbe56d9d95 1-5
+packages/sdk-android/tests/crash-default-host/app/src/main/cpp/CMakeLists.txt
+  s_dbd309ddf8ec5b::t_cd5f8401d519e0 1-6
+packages/sdk-android/tests/crash-default-host/app/src/main/cpp/fault.cc
+  s_dbd309ddf8ec5b::t_c941064c5d2c7a 1-8
+packages/sdk-android/tests/crash-default-host/app/src/main/kotlin/dev/everframe/crashdefault/ProofApplication.kt
+  s_dbd309ddf8ec5b::t_c6f3daf0a63d02 1-15
+packages/sdk-android/tests/crash-default-host/app/.gitignore
+  s_dbd309ddf8ec5b::t_bb53f0ed8c0461 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "acbbf2bbd231671a52e5040deb4079e67c9efae2",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
