@@ -1,0 +1,23 @@
+packages/sdk-ios/Tests/ReleaseHealthProof/App.swift
+  s_dbd309ddf8ec5b::t_54705b65eefa28 8,17,20-21,79-87,97-119
+packages/sdk-ios/Tests/ReleaseHealthProof/README.md
+  s_dbd309ddf8ec5b::t_e5b41d6f7269ea 12-18
+packages/sdk-ios/Tests/ReleaseHealthProof/project.yml
+  s_dbd309ddf8ec5b::t_abb3f12caf50b8 10,23-29,41-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bcb27d7ccfbf246310da1c536759564fd55166ae",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
