@@ -50,7 +50,7 @@ source map after each release build and Everframe maps the frames back to your
 source files:
 
 ```sh
-EVERFRAME_API_TOKEN=… npx everframe sourcemaps upload-vega \
+EVERFRAME_API_TOKEN=… npx @everframe/cli sourcemaps upload-vega \
   --app-id <app id> --dir build/lib/rn-bundles/Release
 ```
 
