@@ -21,7 +21,7 @@ async function fixture() {
         await writeFile(binaries[i]!, elfFixture({ id, sections: false }));
         await writeFile(files[i]!, elfFixture({ id }));
     }
-    return { root, files, options: { binaries, symbolsDir, appId: 'app', apiUrl: 'http://localhost:12345/api/v1', token: 'fixture-secret' } };
+    return { root, files, binaries, options: { binaries: binaries.map((path) => ({ path, required: true })), symbolsDir, appId: 'app', apiUrl: 'http://localhost:12345/api/v1', token: 'fixture-secret' } };
 }
 function server() {
     const builds = new Map<string, {
@@ -73,14 +73,14 @@ function server() {
 }
 afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); await Promise.all(roots.splice(0).map(p => rm(p, { recursive: true, force: true }))); });
 it('makes every artifact ready, retries exact bytes after503 and preserves all files', async () => {
-    const f = await fixture(), api = server(), before = await Promise.all([...f.options.binaries, ...f.files].map(p => readFile(p)));
+    const f = await fixture(), api = server(), before = await Promise.all([...f.binaries, ...f.files].map(p => readFile(p)));
     api.hooks.retryFirst = true;
     const result = await uploadAndroidElfBuild(f.options, { fetch: api.fetcher, wait: async () => { } });
     expect(result.images).toHaveLength(2);
     expect(result.artifacts.map(a => a.status)).toEqual(['ready', 'ready']);
     expect(api.bodies).toHaveLength(3);
     expect(api.bodies[0]).toEqual(api.bodies[1]);
-    expect(await Promise.all([...f.options.binaries, ...f.files].map(p => readFile(p)))).toEqual(before);
+    expect(await Promise.all([...f.binaries, ...f.files].map(p => readFile(p)))).toEqual(before);
 });
 it.each(['missing', 'ambiguous', 'wrong-abi', 'stripped'])('makes no request for %s coverage', async (kind) => {
     const f = await fixture(), api = server();
@@ -120,7 +120,7 @@ it.each(['binary', 'symbols', 'parent'])('rejects a late %s change despite a suc
             await symlink(outside.options.symbolsDir, f.options.symbolsDir);
         }
         else {
-            const path = kind === 'binary' ? f.options.binaries[0]! : f.files[0]!, b = await readFile(path);
+            const path = kind === 'binary' ? f.binaries[0]! : f.files[0]!, b = await readFile(path);
             b[577] = 123;
             await writeFile(path, b); // GNU identity stays unchanged.
         }
@@ -130,7 +130,7 @@ it.each(['binary', 'symbols', 'parent'])('rejects a late %s change despite a suc
 it('routes repeated binary CLI arguments through exact build coverage', async () => {
     const f = await fixture(), api = server(), log = vi.spyOn(console, 'log').mockImplementation(() => { });
     vi.stubGlobal('fetch', api.fetcher);
-    expect(await main(['elf', 'upload-build', '--app-id', 'app', '--symbols-dir', f.options.symbolsDir, ...f.options.binaries.flatMap(p => ['--binary', p])], { EVERFRAME_API_TOKEN: 'fixture-secret', EVERFRAME_API_URL: f.options.apiUrl })).toBe(0);
+    expect(await main(['elf', 'upload-build', '--app-id', 'app', '--symbols-dir', f.options.symbolsDir, ...f.binaries.flatMap(p => ['--binary', p])], { EVERFRAME_API_TOKEN: 'fixture-secret', EVERFRAME_API_URL: f.options.apiUrl })).toBe(0);
     expect(api.builds.size).toBe(2);
     expect(log.mock.calls.flat().join(' ')).toContain('2 images');
 });

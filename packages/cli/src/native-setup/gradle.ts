@@ -1,6 +1,32 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { buildPhaseScript } from './script.js';
+import { buildPhaseScript, checkedAppId } from './script.js';
+
+declare const __EVERFRAME_ANDROID_VERSION__: string;
+/** The dev.everframe Gradle plugin of the Android SDK version this CLI ships with. */
+export const EVERFRAME_GRADLE_PLUGIN = `dev.everframe:gradle-plugin:${__EVERFRAME_ANDROID_VERSION__}`;
+const PLUGIN_TAG = 'everframe-gradle-plugin';
+const CLASSPATH_ANCHOR = /^([ \t]*)classpath\(\s*["']com\.facebook\.react:react-native-gradle-plugin["']\s*\)[ \t]*$/m;
+
+/** Adds the plugin classpath to android/build.gradle's buildscript, after React Native's own plugin. */
+export function patchRootBuildGradle(contents: string): string {
+  const begin = `// @generated begin ${PLUGIN_TAG}`,
+    end = `// @generated end ${PLUGIN_TAG}`;
+  const block = (indent: string) =>
+    [`${indent}${begin}`, `${indent}classpath("${EVERFRAME_GRADLE_PLUGIN}")`, `${indent}${end}`].join('\n');
+  const start = contents.indexOf(begin);
+  if (start !== -1) {
+    const lineStart = contents.lastIndexOf('\n', start) + 1;
+    const stop = contents.indexOf(end, start);
+    if (stop === -1) throw new Error(`everframe: unterminated ${PLUGIN_TAG} block in android/build.gradle`);
+    return contents.slice(0, lineStart) + block(contents.slice(lineStart, start)) + contents.slice(stop + end.length);
+  }
+  const anchor = CLASSPATH_ANCHOR.exec(contents);
+  if (!anchor)
+    throw new Error('everframe: could not find classpath("com.facebook.react:react-native-gradle-plugin") in android/build.gradle');
+  const at = anchor.index + anchor[0].length;
+  return `${contents.slice(0, at)}\n${block(anchor[1]!)}${contents.slice(at)}`;
+}
 
 export const GRADLE_TAG = 'everframe-build-artifacts';
 const BEGIN = `// @generated begin ${GRADLE_TAG}`;
@@ -28,6 +54,13 @@ function gradleBlock(appId: string): string {
   const script = buildPhaseScript({ platform: 'android', appId, stagingDir: '$EVERFRAME_STAGING', projectRoot: '..' });
   return [
     BEGIN,
+    // The dev.everframe plugin uploads R8 mappings and native libraries after
+    // release builds. A missing classpath or an older plugin must not break the build.
+    'try { apply plugin: "dev.everframe" } catch (Exception everframeError) {',
+    '  logger.warn("warning: everframe: the dev.everframe Gradle plugin could not be applied (${everframeError.message}); R8 mappings and native libraries will not upload")',
+    '}',
+    'def everframeExtension = project.extensions.findByName("everframe")',
+    `if (everframeExtension?.hasProperty("appId")) { everframeExtension.appId.set("${checkedAppId(appId)}") }`,
     'afterEvaluate {',
     '  def everframeRootDir = rootDir',
     '  def everframeStaging = "$rootDir/../.everframe".toString()',
@@ -36,13 +69,16 @@ function gradleBlock(appId: string): string {
     '    logger.warn("everframe: no release JS-bundling task matched; build artifacts will not be uploaded")',
     '  }',
     '  everframeBundleTasks.configureEach { bundleTask ->',
+    '    def everframeVariantName = bundleTask.name - "createBundle" - "JsAndAssets"',
+    '    def everframeVariant = everframeVariantName.substring(0, 1).toLowerCase() + everframeVariantName.substring(1)',
     '    bundleTask.doLast {',
     `      def everframeProcess = new ProcessBuilder('bash', '-c', '''${escapeForGroovyTripleQuoted(script)}''')`,
     '        .directory(everframeRootDir)',
     '        .redirectErrorStream(true)',
     "      everframeProcess.environment().put('EVERFRAME_STAGING', everframeStaging)",
+    "      everframeProcess.environment().put('EVERFRAME_VARIANT', everframeVariant)",
     '      def everframeProc = everframeProcess.start()',
-    '      everframeProc.inputStream.eachLine { line -> logger.lifecycle(line) }',
+    "      everframeProc.inputStream.eachLine { line -> if (line.startsWith('warning:')) logger.warn(line) else logger.lifecycle(line) }",
     '      def everframeExitCode = everframeProc.waitFor()',
     '      if (everframeExitCode != 0) {',
     '        throw new GradleException("everframe: build artifact upload failed (exit code ${everframeExitCode})")',

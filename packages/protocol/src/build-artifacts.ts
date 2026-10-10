@@ -31,6 +31,13 @@ export interface SourceMapManifestV2 {
 }
 
 export const R8_ASSET_URL = 'r8://android/mapping.txt';
+/**
+ * R8 mappings grow with the app and its dependencies, not with the shipped
+ * bundle: a Compose sample's is 67.5 MiB, and large apps reach several hundred
+ * MiB. The server streams them and loads only the classes a crash names, so they
+ * share the dSYM per-file ceiling instead of the 32 MiB JavaScript map limit.
+ */
+export const R8_MAX_BYTES = 512 * 1024 * 1024;
 
 export interface R8MappingManifestV3 {
   version: 3;
@@ -99,6 +106,11 @@ export interface BuildUploadStatus {
   buildUuid: string;
   status: 'uploading' | 'ready';
   artifacts: Array<{ artifactUuid: string; url: string; available: boolean }>;
+  /**
+   * Request body encodings the server decodes on artifact uploads. Older
+   * servers omit it, so clients send identity bytes unless `gzip` is listed.
+   */
+  uploadEncodings?: Array<'gzip'>;
 }
 
 const BUILD_ID_MAX_CHARS = 200;
@@ -156,7 +168,7 @@ const R8ArtifactSchema = z
   .object({
     url: z.literal(R8_ASSET_URL),
     mapSha256: Sha256Schema,
-    mapBytes: z.number().int().positive().max(MAP_MAX_BYTES),
+    mapBytes: z.number().int().positive().max(R8_MAX_BYTES),
   })
   .strict();
 

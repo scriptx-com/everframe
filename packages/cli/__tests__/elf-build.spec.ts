@@ -9,6 +9,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseElfBuildImage } from '../src/elf-identity.js';
 import { collectAndroidElfBuild, inspectElfFile } from '../src/elf-build.js';
 import { elfFixture } from './elf-build-fixtures.js';
+const LEGACY = { binaries: 16, artifacts: 16, inspectedBytes: 512 * 1024 * 1024, directoryEntries: 1024, depth: 8 };
+const listedElf = (binaries: string[], symbolsDir: string) => ({ binaries: binaries.map((path) => ({ path, required: true })), symbolsDir });
 vi.mock('node:fs/promises', async (original) => { const actual = await original<typeof import('node:fs/promises')>(); return { ...actual, open: vi.fn(actual.open) }; });
 const roots: string[] = [];
 export async function fixture() {
@@ -64,7 +66,7 @@ describe('exact ELF collection', () => {
         const f = await fixture();
         await writeFile(join(f.symbolsDir, 'duplicate.so'), await readFile(f.symbol));
         await writeFile(join(f.symbolsDir, 'stripped.so'), elfFixture({ debug: false }));
-        const build = await collectAndroidElfBuild({ binaries: [f.binary, f.binary], symbolsDir: f.symbolsDir });
+        const build = await collectAndroidElfBuild(listedElf([f.binary, f.binary], f.symbolsDir), LEGACY);
         expect(build.images).toEqual([{ buildId: '1234567890abcdef', abi: 'arm64-v8a' }]);
         expect(build.binaries).toHaveLength(1);
         expect(build.artifacts).toHaveLength(1);
@@ -77,33 +79,33 @@ describe('exact ELF collection', () => {
         await writeFile(second, elfFixture({ machine: 3, wide: false, sections: false }));
         await mkdir(join(f.symbolsDir, 'incorrect-abi-name'));
         await writeFile(join(f.symbolsDir, 'incorrect-abi-name', 'other.so'), elfFixture({ machine: 3, wide: false }));
-        const build = await collectAndroidElfBuild({ binaries: [f.binary, second], symbolsDir: f.symbolsDir });
+        const build = await collectAndroidElfBuild(listedElf([f.binary, second], f.symbolsDir), LEGACY);
         expect(build.images.map(i => i.abi)).toEqual(['arm64-v8a', 'x86']);
         expect(build.artifacts).toHaveLength(2);
     });
     it.each([{ debug: false }, { id: 'ffffffff' }, { machine: 62 }])('rejects absent exact unstripped coverage %j', async (options) => {
         const f = await fixture();
         await writeFile(f.symbol, elfFixture(options));
-        await expect(collectAndroidElfBuild({ binaries: [f.binary], symbolsDir: f.symbolsDir })).rejects.toThrow('missing_matching_elf');
+        await expect(collectAndroidElfBuild(listedElf([f.binary], f.symbolsDir), LEGACY)).rejects.toThrow('missing_matching_elf');
     });
     it('rejects different unstripped bytes claiming the same identity', async () => {
         const f = await fixture(), bytes = elfFixture();
         bytes[577] = 123;
         await writeFile(join(f.symbolsDir, 'ambiguous.so'), bytes);
-        await expect(collectAndroidElfBuild({ binaries: [f.binary], symbolsDir: f.symbolsDir })).rejects.toThrow('ambiguous_elf_identity');
+        await expect(collectAndroidElfBuild(listedElf([f.binary], f.symbolsDir), LEGACY)).rejects.toThrow('ambiguous_elf_identity');
     });
     it('rejects zero and more than sixteen requested binaries', async () => {
         const f = await fixture();
         for (const binaries of [[], Array(17).fill(f.binary)])
-            await expect(collectAndroidElfBuild({ binaries, symbolsDir: f.symbolsDir })).rejects.toThrow('elf_build_limit');
+            await expect(collectAndroidElfBuild(listedElf(binaries, f.symbolsDir), LEGACY)).rejects.toThrow('elf_build_limit');
     });
     it('rejects excess directory entries and nesting', async () => {
         const f = await fixture();
         await Promise.all(Array.from({ length: 1024 }, (_, n) => writeFile(join(f.symbolsDir, `${n}.txt`), '')));
-        await expect(collectAndroidElfBuild({ binaries: [f.binary], symbolsDir: f.symbolsDir })).rejects.toThrow('elf_build_limit');
+        await expect(collectAndroidElfBuild(listedElf([f.binary], f.symbolsDir), LEGACY)).rejects.toThrow('elf_build_limit');
         const deep = await fixture();
         await mkdir(join(deep.symbolsDir, ...Array(9).fill('nested')), { recursive: true });
-        await expect(collectAndroidElfBuild({ binaries: [deep.binary], symbolsDir: deep.symbolsDir })).rejects.toThrow('elf_build_limit');
+        await expect(collectAndroidElfBuild(listedElf([deep.binary], deep.symbolsDir), LEGACY)).rejects.toThrow('elf_build_limit');
     });
     it('rejects oversized files and FIFOs without blocking', async () => {
         const f = await fixture();
@@ -116,10 +118,10 @@ describe('exact ELF collection', () => {
     it('rejects escaping links and directory cycles', async () => {
         const f = await fixture(), outside = await fixture();
         await symlink(outside.symbol, join(f.symbolsDir, 'escape.so'));
-        await expect(collectAndroidElfBuild({ binaries: [f.binary], symbolsDir: f.symbolsDir })).rejects.toThrow('symlink_escapes_root');
+        await expect(collectAndroidElfBuild(listedElf([f.binary], f.symbolsDir), LEGACY)).rejects.toThrow('symlink_escapes_root');
         await rm(join(f.symbolsDir, 'escape.so'));
         await symlink(f.symbolsDir, join(f.symbolsDir, 'cycle'));
-        await expect(collectAndroidElfBuild({ binaries: [f.binary], symbolsDir: f.symbolsDir })).rejects.toThrow('elf_directory_cycle');
+        await expect(collectAndroidElfBuild(listedElf([f.binary], f.symbolsDir), LEGACY)).rejects.toThrow('elf_directory_cycle');
     });
     it.each(['replace', 'grow', 'parent-escape'])('rejects a %s during descriptor inspection', async (action) => {
         const f = await fixture(), outside = await fixture(), actualOpen = (await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')).open;
@@ -157,6 +159,6 @@ describe('exact ELF collection', () => {
             await writeFile(path, elfFixture());
             await truncate(path, 64 * 1024 * 1024);
         }
-        await expect(collectAndroidElfBuild({ binaries: [f.binary], symbolsDir: f.symbolsDir })).rejects.toThrow('elf_build_limit');
+        await expect(collectAndroidElfBuild(listedElf([f.binary], f.symbolsDir), LEGACY)).rejects.toThrow('elf_build_limit');
     }, 15000);
 });

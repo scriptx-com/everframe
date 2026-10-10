@@ -74,7 +74,11 @@ importers:
 
   examples/android-compose: {}
 
-  examples/ios-native: {}
+  examples/ios-native:
+    devDependencies:
+      '@everframe/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
 
   examples/react-native:
     dependencies:

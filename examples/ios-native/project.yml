@@ -55,10 +55,24 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.sample
+        ENABLE_USER_SCRIPT_SANDBOXING: NO  # the symbols phase reads embedded frameworks and dSYM folders
+        # The symbols phase's dSYM input exists only for dwarf-with-dsym builds; Debug (dwarf) declares Info.plist.
+        EVERFRAME_DSYM_INPUT: $(EVERFRAME_DSYM_INPUT_$(DEBUG_INFORMATION_FORMAT:c99extidentifier))
+        EVERFRAME_DSYM_INPUT_dwarf_with_dsym: $(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)
+        EVERFRAME_DSYM_INPUT_dwarf: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        EVERFRAME_DSYM_INPUT_: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
         TARGETED_DEVICE_FAMILY: "1,2"  # 1 = iPhone, 2 = iPad — universal
         INFOPLIST_FILE: SampleApp/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
+    postBuildScripts:
+      - name: Upload Everframe Symbols
+        path: scripts/upload-everframe-symbols.sh
+        shell: /bin/bash
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(EVERFRAME_DSYM_INPUT)
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
     dependencies:
       - package: Everframe
         product: Everframe
@@ -83,9 +97,23 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.sample.tv
+        ENABLE_USER_SCRIPT_SANDBOXING: NO  # the symbols phase reads embedded frameworks and dSYM folders
+        # The symbols phase's dSYM input exists only for dwarf-with-dsym builds; Debug (dwarf) declares Info.plist.
+        EVERFRAME_DSYM_INPUT: $(EVERFRAME_DSYM_INPUT_$(DEBUG_INFORMATION_FORMAT:c99extidentifier))
+        EVERFRAME_DSYM_INPUT_dwarf_with_dsym: $(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)
+        EVERFRAME_DSYM_INPUT_dwarf: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        EVERFRAME_DSYM_INPUT_: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
         TARGETED_DEVICE_FAMILY: "3"  # 3 = Apple TV
         INFOPLIST_FILE: SampleAppTV/Info.plist
         GENERATE_INFOPLIST_FILE: NO
+    postBuildScripts:
+      - name: Upload Everframe Symbols
+        path: scripts/upload-everframe-symbols.sh
+        shell: /bin/bash
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(EVERFRAME_DSYM_INPUT)
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
     dependencies:
       - package: Everframe
         product: Everframe

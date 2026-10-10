@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { defineConfig } from "tsup";
+import { buildConstants } from "./build-constants";
 
 export default defineConfig({
   entry: ["src/index.ts", "src/manifest.ts", "src/upload.ts", "src/hermes.ts", "src/native-setup/index.ts"],
@@ -14,4 +15,5 @@ export default defineConfig({
   outDir: "dist",
   noExternal: ["@everframe/protocol", "zod"],
   banner: { js: "#!/usr/bin/env node" },
+  define: buildConstants(),
 });

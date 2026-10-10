@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { open, realpath, unlink, lstat } from "node:fs/promises";
 import type { ReadStream } from "node:fs";
 import { finished } from "node:stream/promises";
-import { snapshotDsymFile, verifyDsymFile } from "./upload-snapshot.js";
+import { snapshotArtifactFile, verifyDsymFile } from "./upload-snapshot.js";
 import { isIP } from "node:net";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { ELF_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
@@ -24,6 +24,46 @@ export interface UploadOptions {
 export interface UploadDependencies {
   fetch?: typeof fetch;
   wait?: (milliseconds: number) => Promise<void>;
+  /**
+   * Epoch milliseconds after which no request or wait starts and in-flight
+   * requests are aborted (`upload_time_budget_exhausted`). Build integrations
+   * set it so a stalled server cannot hang the build.
+   */
+  deadline?: number;
+  /** Per-request limit for API calls; default 60 s. */
+  requestTimeoutMs?: number;
+  /** Per-request limit for artifact bodies; default 6 min (the server allows 5 per attempt). */
+  uploadTimeoutMs?: number;
+}
+
+/** Thrown once the overall upload budget is spent. */
+export const BUDGET_EXHAUSTED = "upload_time_budget_exhausted";
+const REQUEST_TIMEOUT_MS = 60_000;
+const UPLOAD_TIMEOUT_MS = 6 * 60_000;
+/** Without a budget, at most this many upload_busy/rate-limit waits per request. */
+const MAX_BUSY_WAITS = 20;
+
+interface RequestContext {
+  fetcher: typeof fetch;
+  waiter: (milliseconds: number) => Promise<void>;
+  deadline: number | undefined;
+  requestTimeoutMs: number;
+  uploadTimeoutMs: number;
+}
+function context(dependencies: UploadDependencies): RequestContext {
+  return {
+    fetcher: dependencies.fetch ?? fetch,
+    waiter: dependencies.wait ?? wait,
+    deadline: dependencies.deadline,
+    requestTimeoutMs: dependencies.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+    uploadTimeoutMs: dependencies.uploadTimeoutMs ?? UPLOAD_TIMEOUT_MS,
+  };
+}
+/** Waits unless the wait would run past the budget. */
+async function pause(ctx: RequestContext, milliseconds: number): Promise<void> {
+  if (ctx.deadline !== undefined && Date.now() + milliseconds >= ctx.deadline)
+    throw new Error(BUDGET_EXHAUSTED);
+  await ctx.waiter(milliseconds);
 }
 
 export type CollectedBuildUploadOptions = Pick<
@@ -160,18 +200,22 @@ async function responseBody(response: Response): Promise<unknown> {
 }
 
 async function request(
-  fetcher: typeof fetch,
-  waiter: (milliseconds: number) => Promise<void>,
+  ctx: RequestContext,
   token: string,
   url: string,
   init: RequestInit,
   acceptConflict = false,
   bodyFactory?: () => ReadStream,
 ): Promise<{ response: Response; body: unknown }> {
+  let busyWaits = 0;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     let response: Response | undefined;
     let body: unknown;
     let stream: ReadStream | undefined;
+    const remaining = ctx.deadline === undefined ? Infinity : ctx.deadline - Date.now();
+    if (remaining <= 0) throw new Error(BUDGET_EXHAUSTED);
+    const limit = Math.min(init.method === "PUT" ? ctx.uploadTimeoutMs : ctx.requestTimeoutMs, remaining);
+    const signal = AbortSignal.timeout(Math.max(1, Math.ceil(limit)));
     try {
       stream = bodyFactory?.();
       // Listen before fetch reads the stream, which happens only after it
@@ -187,10 +231,11 @@ async function request(
           }
         : {};
       try {
-        response = await fetcher(url, {
+        response = await ctx.fetcher(url, {
           ...init,
           ...streamingBody,
           redirect: "error",
+          signal,
           headers: { authorization: `Bearer ${token}`, ...init.headers },
         });
         body =
@@ -203,15 +248,29 @@ async function request(
       }
     } catch (error) {
       if (error instanceof InvalidServerResponse) throw error;
-      if (attempt === MAX_ATTEMPTS) throw new Error("request_failed:network");
-      await waiter(retryDelay(response, attempt));
+      if (ctx.deadline !== undefined && Date.now() >= ctx.deadline)
+        throw new Error(BUDGET_EXHAUSTED);
+      if (attempt === MAX_ATTEMPTS)
+        throw new Error(signal.aborted ? "request_failed:timeout" : "request_failed:network");
+      await pause(ctx, retryDelay(response, attempt));
       continue;
     }
     if (response.ok || (acceptConflict && response.status === 409))
       return { response, body };
+    // upload_busy and rate limits say when to come back. Within a budget,
+    // wait as told for as long as it lasts; parallel CI jobs hit this.
+    if (
+      response.status === 429 &&
+      (ctx.deadline !== undefined || busyWaits < MAX_BUSY_WAITS)
+    ) {
+      busyWaits += 1;
+      attempt -= 1;
+      await pause(ctx, retryDelay(response, busyWaits));
+      continue;
+    }
     const retryable = response.status === 429 || response.status >= 500;
     if (retryable && attempt < MAX_ATTEMPTS) {
-      await waiter(retryDelay(response, attempt));
+      await pause(ctx, retryDelay(response, attempt));
       continue;
     }
     const code = safeErrorCode(body, response.status, token);
@@ -305,7 +364,8 @@ async function verifyCollectedFiles(
     const mapPath = local.mapPaths.get(artifact.url);
     if (!mapPath) throw new Error("invalid_local_build");
     const roots = local.fileRoots?.get(artifact.url);
-    if (local.manifest.version === 4) {
+    if (local.manifest.version === 4 || local.manifest.version === 3) {
+      // Streamed check: neither a dSYM nor an R8 mapping is buffered.
       await verifyDsymFile(
         await ensurePathInRoot(roots?.mapRoot ?? defaultRoot, mapPath),
         artifact,
@@ -362,10 +422,9 @@ export async function uploadCollectedBuild(
       );
     }
   }
-  const fetcher = dependencies.fetch ?? fetch;
-  const waiter = dependencies.wait ?? wait;
+  const ctx = context(dependencies);
   const buildsUrl = `${base}/apps/${encodeURIComponent(options.appId)}/source-map-builds`;
-  const reserved = await request(fetcher, waiter, options.token, buildsUrl, {
+  const reserved = await request(ctx, options.token, buildsUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(local.manifest),
@@ -385,11 +444,14 @@ export async function uploadCollectedBuild(
       const mapPath = local.mapPaths.get(artifact.url);
       if (!mapPath) throw new Error("invalid_local_build");
       const roots = local.fileRoots?.get(artifact.url);
+      // dSYMs and R8 mappings can be hundreds of MiB: stream a private copy
+      // instead of buffering. Text mappings shrink about tenfold with gzip.
       const snapshot =
-        local.manifest.version === 4
-          ? await snapshotDsymFile(
+        local.manifest.version === 4 || local.manifest.version === 3
+          ? await snapshotArtifactFile(
               await ensurePathInRoot(roots?.mapRoot ?? options.root, mapPath),
               artifact,
+              { gzip: local.manifest.version === 3 && status.uploadEncodings?.includes("gzip") === true },
             )
           : undefined;
       let uploaded: Awaited<ReturnType<typeof request>>;
@@ -403,18 +465,14 @@ export async function uploadCollectedBuild(
               local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
             );
         const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
-        uploaded = await request(
-          fetcher,
-          waiter,
-          options.token,
+        uploaded = await request(ctx, options.token,
           uploadUrl,
           {
             method: "PUT",
             headers: {
               "content-type": "application/octet-stream",
-              ...(snapshot
-                ? { "content-length": String(artifact.mapBytes) }
-                : {}),
+              ...(snapshot ? { "content-length": String(snapshot.bytes) } : {}),
+              ...(snapshot?.encoding ? { "content-encoding": snapshot.encoding } : {}),
             },
             ...(mapBytes ? { body: new Uint8Array(mapBytes) } : {}),
           },
@@ -425,10 +483,7 @@ export async function uploadCollectedBuild(
         await snapshot?.dispose();
       }
       if (uploaded.response.status === 409) {
-        const resumed = await request(
-          fetcher,
-          waiter,
-          options.token,
+        const resumed = await request(ctx, options.token,
           statusUrl,
           { method: "GET" },
         );
@@ -442,16 +497,13 @@ export async function uploadCollectedBuild(
         status = current;
       }
     }
-    const completed = await request(
-      fetcher,
-      waiter,
-      options.token,
+    const completed = await request(ctx, options.token,
       `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/complete`,
       { method: "POST" },
       true,
     );
     if (completed.response.status === 409) {
-      const resumed = await request(fetcher, waiter, options.token, statusUrl, {
+      const resumed = await request(ctx, options.token, statusUrl, {
         method: "GET",
       });
       status = parseStatus(resumed.body);

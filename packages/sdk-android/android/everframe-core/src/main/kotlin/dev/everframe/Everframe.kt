@@ -691,6 +691,11 @@ object Everframe {
     @JvmStatic
     @JvmOverloads
     fun start(context: Context, config: EverframeConfig, currentActivity: android.app.Activity? = null) {
+        // The dev.everframe Gradle plugin packages the build's R8 mapping ID; an explicit config value wins.
+        startResolved(context, dev.everframe.config.BuildArtifactIdentity.withBuildIdentity(config, context), currentActivity)
+    }
+
+    private fun startResolved(context: Context, config: EverframeConfig, currentActivity: android.app.Activity?) {
         // Validation runs OUTSIDE txGuard — bad config is a host contract violation,
         // we want the exception to surface to the caller's host app for early-fail
         // visibility (mirrors iOS `try ConfigValidator.validate(config)` at line 84).
