@@ -10,6 +10,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -23,8 +24,13 @@ public abstract class UploadR8MappingTask : DefaultTask() {
     @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) public abstract val identityDirectory: DirectoryProperty
     @get:Input @get:Optional public abstract val appId: Property<String>
     @get:Input public abstract val cliCommand: ListProperty<String>
+    /** Where the CLI runs: the owning project's directory, against which a relative command resolves. */
+    @get:Internal public abstract val workingDirectory: DirectoryProperty
 
-    init { outputs.upToDateWhen { false } }
+    init {
+        outputs.upToDateWhen { false }
+        workingDirectory.convention(project.layout.projectDirectory)
+    }
 
     @TaskAction internal fun upload() {
         if (!requireUploadCredentials(System.getenv("EVERFRAME_API_TOKEN"), logger, "R8 mapping")) return
@@ -33,6 +39,7 @@ public abstract class UploadR8MappingTask : DefaultTask() {
         val mappingId = readR8MappingId(identityDirectory.get().asFile.resolve(BUILD_IDENTITY_ASSET))
         runCli(
             cliCommand.get() + listOf("r8", "upload", "--app-id", applicationId, "--mapping-id", mappingId, "--mapping", mapping.absolutePath),
+            workingDirectory.get().asFile,
             logger,
             "R8 mapping",
         )

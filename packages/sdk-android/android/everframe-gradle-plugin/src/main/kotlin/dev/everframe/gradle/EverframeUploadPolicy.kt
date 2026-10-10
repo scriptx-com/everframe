@@ -70,10 +70,13 @@ internal fun logCliLine(logger: Logger, line: String) {
  * Runs the CLI with the inherited token and a time budget; a failure follows
  * the strict policy. Its output is captured and handed to [output] line by line,
  * so callers can summarize instead of echoing one warning per file. A child that
- * outlives [cliTimeoutSeconds] is stopped with everything it started.
+ * outlives [cliTimeoutSeconds] is stopped with everything it started. It runs in
+ * [workingDirectory], the owning project's directory, so a relative command or
+ * `EVERFRAME_CLI_JS` resolves against the project wherever Gradle was started.
  */
 internal fun runCli(
     command: List<String>,
+    workingDirectory: File,
     logger: Logger,
     what: String,
     environment: Map<String, String> = System.getenv(),
@@ -87,7 +90,7 @@ internal fun runCli(
     val stderr = File.createTempFile("everframe-cli", ".err")
     try {
         val process = try {
-            ProcessBuilder(command).redirectOutput(stdout).redirectError(stderr).also { builder ->
+            ProcessBuilder(command).directory(workingDirectory).redirectOutput(stdout).redirectError(stderr).also { builder ->
                 builder.environment().putAll(environment)
                 // A project's own npm settings win; these only bound the defaults.
                 for ((name, value) in NPM_FETCH_LIMITS) builder.environment().putIfAbsent(name, value)

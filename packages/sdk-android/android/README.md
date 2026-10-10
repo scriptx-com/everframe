@@ -526,7 +526,8 @@ The plugin runs the CLI from `EVERFRAME_CLI_JS` (a built `dist/index.js`), then
 which needs the published CLI and Node. npm gets a 20-second fetch timeout and
 one retry unless your environment sets `npm_config_fetch_timeout`,
 `npm_config_fetch_retries` or `npm_config_fetch_retry_maxtimeout`. Override the
-command with `everframe { cliCommand }`.
+command with `everframe { cliCommand }`. The CLI runs in the module's directory,
+so relative paths in `cliCommand` and `EVERFRAME_CLI_JS` resolve against it.
 
 The plugin also applies `everframe-keep.pro` (a copy of `:everframe-core`'s
 `consumer-rules.pro`) to the host module's R8 keep set, and adds

@@ -11,6 +11,7 @@ import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -47,8 +48,13 @@ public abstract class UploadNativeSymbolsTask : DefaultTask() {
     /** ABIs the APK or bundle packages; empty means every ABI AGP merged. */
     @get:Input public abstract val packagedAbis: SetProperty<String>
     @get:Internal public abstract val variantName: Property<String>
+    /** Where the CLI runs: the owning project's directory, against which a relative command resolves. */
+    @get:Internal public abstract val workingDirectory: DirectoryProperty
 
-    init { outputs.upToDateWhen { false } }
+    init {
+        outputs.upToDateWhen { false }
+        workingDirectory.convention(project.layout.projectDirectory)
+    }
 
     @TaskAction internal fun upload() {
         val symbols = libraryRoot(unstrippedLibraries)
@@ -67,6 +73,7 @@ public abstract class UploadNativeSymbolsTask : DefaultTask() {
                 "--binaries-dir", binaries.absolutePath, "--symbols-dir", symbols.absolutePath, "--summary",
             ) + projectNativeLibraries.files.filter(File::isDirectory).sorted().flatMap { listOf("--project-native-dir", it.absolutePath) } +
                 packagedAbis.get().sorted().flatMap { listOf("--abi", it) },
+            workingDirectory.get().asFile,
             logger,
             "native symbols",
         ) { line ->

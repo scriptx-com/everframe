@@ -26,6 +26,11 @@ internal class PluginFixture private constructor(val root: File) {
         val cliSleepSeconds: Int = 0,
         /** A CMake library `libnative.so` the project builds itself, with these C flags. */
         val cmakeFlags: String? = null,
+        /**
+         * The app is the `:app` subproject of a root build, and `cliCommand` is the recorder's path
+         * relative to the app project's directory, as a checked-in script would be named.
+         */
+        val relativeCliInSubproject: Boolean = false,
     )
 
     fun run(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
@@ -51,6 +56,8 @@ internal class PluginFixture private constructor(val root: File) {
     fun recordedNpmLimits(): String = File(root, "cli-npm.txt").readText().trim()
     /** The fake CLI's sleeping child, when it was asked to stall. */
     fun recordedSleeper(): Long = File(root, "cli-sleep.pid").readText().trim().toLong()
+    /** The fake CLI's working directory, physical path. */
+    fun recordedWorkingDirectory(): String = File(root, "cli-cwd.txt").readText().trim()
     fun apkAsset(variantDir: String, entry: String): String {
         val apk = File(root, "build/outputs/apk/$variantDir").walkTopDown().first { it.extension == "apk" }
         ZipFile(apk).use { zip -> return zip.getInputStream(zip.getEntry(entry)).bufferedReader().readText() }
@@ -75,8 +82,10 @@ internal class PluginFixture private constructor(val root: File) {
                 pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
                 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
                 rootProject.name = "fixture"
-                """.trimIndent(),
+                """.trimIndent() + if (options.relativeCliInSubproject) "\ninclude(\":app\")\n" else "\n",
             )
+            // The Android application project; Gradle always runs from [directory].
+            val app = if (options.relativeCliInSubproject) File(directory, "app").apply { mkdirs() } else directory
             val sdk = System.getenv("ANDROID_HOME") ?: "${System.getProperty("user.home")}/Library/Android/sdk"
             File(directory, "local.properties").writeText("sdk.dir=$sdk\n")
             val record = File(directory, "cli-record.txt").absolutePath
@@ -85,12 +94,14 @@ internal class PluginFixture private constructor(val root: File) {
             val budget = File(directory, "cli-budget.txt").absolutePath
             val npm = File(directory, "cli-npm.txt").absolutePath
             val sleeper = File(directory, "cli-sleep.pid").absolutePath
+            val cwd = File(directory, "cli-cwd.txt").absolutePath
             val d = "$"
-            val recorder = File(directory, "record cli.sh").apply {
+            val recorder = File(app, "record cli.sh").apply {
                 writeText(
                     """
                     #!/bin/sh
                     { printf '%s\n' "${d}EVERFRAME_API_TOKEN"; printf '%s\n' "${d}@"; printf '%s\n' '---'; } >> '$record'
+                    pwd -P > '$cwd'
                     printf '%s\n' "${d}{EVERFRAME_UPLOAD_TIMEOUT_SECONDS:-}" > '$budget'
                     printf '%s|%s|%s\n' "${d}{npm_config_fetch_timeout:-}" "${d}{npm_config_fetch_retries:-}" "${d}{npm_config_fetch_retry_maxtimeout:-}" > '$npm'
                     previous=""
@@ -116,7 +127,8 @@ internal class PluginFixture private constructor(val root: File) {
                 "splits { abi { isEnable = true; reset(); include(${options.abiSplits.joinToString { quote(it) }}); isUniversalApk = ${options.universalApk} } }"
             val cmake = if (options.cmakeFlags == null) "" else
                 "externalNativeBuild { cmake { path = file(\"src/main/cpp/CMakeLists.txt\") } }"
-            File(directory, "build.gradle.kts").writeText(
+            val cliCommand = if (options.relativeCliInSubproject) "./record cli.sh" else recorder.absolutePath
+            File(app, "build.gradle.kts").writeText(
                 """
                 plugins {
                     id("com.android.application") version "8.7.2"
@@ -135,17 +147,17 @@ internal class PluginFixture private constructor(val root: File) {
                 }
                 everframe {
                     uploadEnabled.set(${options.uploadEnabled})
-                    cliCommand.set(listOf(${quote(recorder.absolutePath)}))
+                    cliCommand.set(listOf(${quote(cliCommand)}))
                 }
                 """.trimIndent(),
             )
-            File(directory, "rules.pro").writeText("-keep class test.fixture.MainActivity { *; }\n")
-            File(directory, "src/main/java/test/fixture").mkdirs()
-            File(directory, "src/main/AndroidManifest.xml").writeText("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application /></manifest>")
-            File(directory, "src/main/java/test/fixture/MainActivity.java").writeText("package test.fixture; public final class MainActivity { public static String value() { return \"mapped\"; } }")
+            File(app, "rules.pro").writeText("-keep class test.fixture.MainActivity { *; }\n")
+            File(app, "src/main/java/test/fixture").mkdirs()
+            File(app, "src/main/AndroidManifest.xml").writeText("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application /></manifest>")
+            File(app, "src/main/java/test/fixture/MainActivity.java").writeText("package test.fixture; public final class MainActivity { public static String value() { return \"mapped\"; } }")
             if (options.nativeLibrary) for (abi in listOf("arm64-v8a", "x86_64"))
-                File(directory, "src/main/jniLibs/$abi").apply { mkdirs() }.resolve("libfixture.so").writeText("fixture")
-            if (options.cmakeFlags != null) File(directory, "src/main/cpp").apply { mkdirs() }.let { cpp ->
+                File(app, "src/main/jniLibs/$abi").apply { mkdirs() }.resolve("libfixture.so").writeText("fixture")
+            if (options.cmakeFlags != null) File(app, "src/main/cpp").apply { mkdirs() }.let { cpp ->
                 cpp.resolve("CMakeLists.txt").writeText(
                     "cmake_minimum_required(VERSION 3.22.1)\nproject(native C)\n" +
                         "set(CMAKE_C_FLAGS \"${d}{CMAKE_C_FLAGS} ${options.cmakeFlags}\")\nadd_library(native SHARED native.c)\n",

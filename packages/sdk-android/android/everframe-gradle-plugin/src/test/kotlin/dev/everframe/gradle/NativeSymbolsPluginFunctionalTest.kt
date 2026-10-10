@@ -150,6 +150,21 @@ class NativeSymbolsPluginFunctionalTest {
         assertContains(info.output, "everframe: missing /p/libown.so")
     }
 
+    @Test fun `a relative CLI command runs in the owning project's directory when Gradle runs from the root`() {
+        // `:app` of a root build, with cliCommand "./record cli.sh" beside app/build.gradle.kts. Gradle
+        // runs from the root and its daemon's working directory is neither, so only the project
+        // directory resolves the command.
+        val fixture = PluginFixture.create(
+            temporaryFolder.newFolder("subproject"),
+            PluginFixture.Options(minified = true, nativeLibrary = true, relativeCliInSubproject = true),
+        )
+        val result = fixture.run("assembleRelease", environment = credentials)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":app:uploadEverframeReleaseNativeSymbols")?.outcome)
+        assertFalse(result.output.contains("could not run the Everframe CLI"), result.output)
+        assertEquals(listOf("elf", "r8"), fixture.recordedInvocations().map { it[1] }.sorted())
+        assertEquals(java.io.File(fixture.root, "app").canonicalPath, fixture.recordedWorkingDirectory())
+    }
+
     @Test fun `a variant without native libraries never calls the CLI`() {
         val fixture = PluginFixture.create(temporaryFolder.newFolder("jvm"), PluginFixture.Options(minified = false))
         val result = fixture.run("assembleRelease", environment = credentials)
