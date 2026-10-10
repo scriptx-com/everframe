@@ -1,0 +1,27 @@
+packages/cli/src/hermes.ts
+  s_dbd309ddf8ec5b::t_4ad8eec5d7c100 10-15,50-56,66-70
+.changeset/vega-cli.md
+  s_dbd309ddf8ec5b::t_1212efdc35bc0c 1-8
+packages/cli/__tests__/vega.spec.ts
+  s_dbd309ddf8ec5b::t_07c73e6c8cf095 1-188
+packages/cli/src/vega.ts
+  s_dbd309ddf8ec5b::t_dee410758f8a69 1-95
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_605c17ad963f10 25,48-49,53,55,85,373-408,471
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "991d573a82b397ec3bd103e6219073be89858e6e",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}

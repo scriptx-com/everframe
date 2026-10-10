@@ -1,0 +1,41 @@
+packages/protocol/src/build-artifacts.ts
+  s_dbd309ddf8ec5b::t_5adf0b7b1b7241 20-25,29,167,298,302,312,314
+packages/protocol/src/crash.ts
+  s_dbd309ddf8ec5b::t_71df19179be7c4 31
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_dbd309ddf8ec5b::t_8afa6c8e3bbf56 691-692,1304,1319
+packages/protocol/__tests__/fixtures/vega-crash-envelope.json
+  s_dbd309ddf8ec5b::t_2b25305c9c72fb 1-44
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_dbd309ddf8ec5b::t_094a451bfd981b 46-47,63-64,566-567
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_dbd309ddf8ec5b::t_c4a35beb0654ad 1877,3917,3929
+packages/protocol/__tests__/build-artifacts-manifest.spec.ts
+  s_dbd309ddf8ec5b::t_4c1fc1e2641e39 199-241
+.changeset/vega-protocol.md
+  s_dbd309ddf8ec5b::t_d4780fec973e59 1-5
+packages/protocol/src/envelope.ts
+  s_dbd309ddf8ec5b::t_136152689a57e3 55
+packages/protocol/__tests__/platform-enum.spec.ts
+  s_dbd309ddf8ec5b::t_1f4b2635ada887 7,16-17
+packages/protocol/__tests__/vega-envelope.spec.ts
+  s_dbd309ddf8ec5b::t_21b476e16eeba2 1-48
+packages/protocol/src/sdk-platform.ts
+  s_dbd309ddf8ec5b::t_1a93cd38fe26af 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e72efa764609fe9a899c48ea1258482f7670275b",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
