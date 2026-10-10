@@ -60,7 +60,7 @@ it("uploads own libraries and reports prebuilt stripped ones instead of failing"
   expect(build.artifacts).toHaveLength(1);
   expect(build.images).toEqual([{ buildId: OWN, abi: "arm64-v8a" }]);
   expect(build.uncovered).toEqual([
-    { path: f.hermes, reason: expect.stringMatching(new RegExp(`^no unstripped library with build ID ${PREBUILT} \\(x86_64\\)`)) },
+    { path: f.hermes, kind: "prebuilt", reason: `prebuilt without debug information (build ID ${PREBUILT}, x86_64)` },
   ]);
 });
 it("names the ABI, build ID and path of each required library without symbols", async () => {
@@ -80,7 +80,7 @@ it("reports an optional non-ELF file and fails a required one", async () => {
     ],
     symbolsDir: f.symbols,
   });
-  expect(build.uncovered).toEqual([{ path: junk, reason: "no GNU build ID or not a shared library" }]);
+  expect(build.uncovered).toEqual([{ path: junk, kind: "not_an_image", reason: "no GNU build ID or not a shared library" }]);
   await expect(collectAndroidElfBuild({ binaries: [{ path: junk, required: true }], symbolsDir: f.symbols })).rejects.toThrow(
     "invalid_elf_binary"
   );
@@ -95,7 +95,7 @@ it("accepts more than sixteen libraries by default", async () => {
   }
   expect((await collectAndroidElfBuild({ binaries, symbolsDir: f.symbols })).uncovered).toHaveLength(20);
 });
-it("succeeds with only warnings when every library is a prebuilt stripped one", async () => {
+it("does not warn about prebuilt libraries without debug information, and names them once", async () => {
   const f = await agp();
   await rm(f.app);
   const r = recorder();
@@ -105,14 +105,45 @@ it("succeeds with only warnings when every library is a prebuilt stripped one", 
   });
   const env = { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID };
   expect(await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols], env, r.deps)).toBe(0);
-  expect(r.warnings).toEqual([
-    expect.stringMatching(new RegExp(`^warning: no symbols for .*libhermes\\.so: no unstripped library with build ID ${PREBUILT}`)),
+  expect(r.warnings).toEqual([]);
+  expect(r.lines).toContain("1 prebuilt library ships without debug information; their frames stay raw: libhermes.so");
+});
+it("only considers the ABIs a variant packages", async () => {
+  const f = await agp();
+  const r = recorder();
+  const env = { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID };
+  expect(await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, "--abi", "arm64-v8a"], env, r.deps)).toBe(0);
+  expect(r.upload.mock.calls[0]![0].binaries).toEqual([{ path: f.app, required: false }]);
+  const none = recorder();
+  expect(await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, "--abi", "armeabi-v7a"], env, none.deps)).toBe(0);
+  expect(none.upload).not.toHaveBeenCalled();
+  expect(none.lines).toEqual([`No native libraries under ${f.shipped} for armeabi-v7a; nothing to upload.`]);
+  await expect(elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, "--abi", "mips"], env, r.deps)).rejects.toThrow(/^invalid_abi: mips/);
+});
+it("prints one detail line per library without symbols in summary mode and no warnings", async () => {
+  const f = await agp();
+  const r = recorder();
+  r.upload.mockResolvedValue({
+    artifacts: [],
+    images: [],
+    uncovered: [
+      { path: f.hermes, kind: "prebuilt", reason: "prebuilt without debug information (build ID x, x86_64)" },
+      { path: f.app, kind: "missing", reason: "no unstripped library with build ID y (arm64-v8a) under z" },
+    ],
+  });
+  const env = { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID };
+  expect(await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols, "--summary"], env, r.deps)).toBe(0);
+  expect(r.warnings).toEqual([]);
+  expect(r.lines).toEqual([
+    "Symbols for 0 images are ready (0 ELF files).",
+    `detail: prebuilt ${f.hermes}: prebuilt without debug information (build ID x, x86_64)`,
+    `detail: missing ${f.app}: no unstripped library with build ID y (arm64-v8a) under z`,
   ]);
 });
 it("discovers libraries for the command, keeps them optional and prints warnings", async () => {
   const f = await agp();
   const r = recorder();
-  r.upload.mockResolvedValue({ artifacts: [], images: [], uncovered: [{ path: f.hermes, reason: "no unstripped library" }] });
+  r.upload.mockResolvedValue({ artifacts: [], images: [], uncovered: [{ path: f.hermes, kind: "missing", reason: "no unstripped library" }] });
   const code = await elfUploadBuildCommand(
     ["--binaries-dir", f.shipped, "--symbols-dir", f.symbols],
     { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID },
@@ -203,7 +234,7 @@ it("reports an oversized optional shipped library instead of failing", async () 
     ],
     symbolsDir: f.symbols,
   });
-  expect(build.uncovered).toEqual([{ path: big, reason: "larger than 64 MiB" }]);
+  expect(build.uncovered).toEqual([{ path: big, kind: "not_an_image", reason: "larger than 64 MiB" }]);
   await expect(collectAndroidElfBuild({ binaries: [{ path: big, required: true }], symbolsDir: f.symbols })).rejects.toThrow(
     `elf_too_large: ${big}`
   );

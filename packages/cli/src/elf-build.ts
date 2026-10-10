@@ -45,8 +45,13 @@ export interface CollectedAndroidElfBuild {
         required: boolean;
     }>;
     artifacts: LocalBuild[];
-    /** Optional libraries that are not images or have no unstripped match, with the reason. */
-    uncovered: Array<{ path: string; reason: string }>;
+    /**
+     * Optional libraries without uploaded symbols, with the reason. `prebuilt`:
+     * every copy in the build lacks debug information, as for libraries that
+     * AARs and SDKs ship stripped. `missing`: no unstripped copy was found.
+     * `not_an_image`: not a symbolicatable shared library.
+     */
+    uncovered: Array<{ path: string; reason: string; kind: 'prebuilt' | 'missing' | 'not_an_image' }>;
 }
 const key = (image: ElfBuildImage) => `${image.abi}/${image.buildId}`;
 const unchanged = (a: BigIntStats, b: BigIntStats) => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs;
@@ -115,13 +120,13 @@ export async function collectAndroidElfBuild(
             const reason = error instanceof Error ? NOT_AN_IMAGE.get(error.message) : undefined;
             if (input.required || !reason)
                 throw named(error, path);
-            uncovered.push({ path, reason });
+            uncovered.push({ path, reason, kind: 'not_an_image' });
         }
     }
     if (!binaries.length)
         return { images: [], binaries, artifacts: [], uncovered };
     const expected = new Map(binaries.map(b => [key(b.image), b.image])), selected = new Map<string, LocalBuild>(), published = new Map<string, string>();
-    const skipped: string[] = [];
+    const skipped: string[] = [], withoutDebugInfo = new Set<string>();
     let entries = 0;
     const visited = new Set<string>();
     async function walk(path: string, depth: number) {
@@ -160,8 +165,12 @@ export async function collectAndroidElfBuild(
                     continue;
                 }
                 const identity = key(item.image);
-                if (!expected.has(identity) || !item.hasDebugInfo)
+                if (!expected.has(identity))
                     continue;
+                if (!item.hasDebugInfo) {
+                    withoutDebugInfo.add(identity);
+                    continue;
+                }
                 const previous = published.get(identity);
                 if (previous && previous !== item.sha256)
                     throw new Error('ambiguous_elf_identity');
@@ -186,8 +195,10 @@ export async function collectAndroidElfBuild(
             continue;
         if (binary.required)
             missing.push(`  ${binary.image.abi} ${binary.image.buildId} in ${binary.path}`);
+        else if (withoutDebugInfo.has(key(binary.image)))
+            uncovered.push({ path: binary.path, kind: 'prebuilt', reason: `prebuilt without debug information (build ID ${binary.image.buildId}, ${binary.image.abi})` });
         else
-            uncovered.push({ path: binary.path, reason: `no unstripped library with build ID ${binary.image.buildId} (${binary.image.abi}) under ${root}` });
+            uncovered.push({ path: binary.path, kind: 'missing', reason: `no unstripped library with build ID ${binary.image.buildId} (${binary.image.abi}) under ${root}` });
     }
     if (missing.length)
         throw new Error([`missing_matching_elf: no unstripped library with debug info under ${root} matches these required images:`,

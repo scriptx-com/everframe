@@ -5,6 +5,7 @@ package dev.everframe.gradle
 import java.util.UUID
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.Rule
@@ -25,7 +26,47 @@ class NativeSymbolsPluginFunctionalTest {
         assertTrue(invocation[6].contains("stripped_native_libs"), invocation[6])
         assertEquals("--symbols-dir", invocation[7])
         assertTrue(invocation[8].contains("merged_native_libs"), invocation[8])
-        assertTrue(fixture.recordedSymbolFiles().single().endsWith("arm64-v8a/libfixture.so"))
+        assertEquals("--summary", invocation[9])
+        assertFalse(invocation.contains("--abi"), "no ABI filter means every merged ABI")
+        val symbols = fixture.recordedSymbolFiles()
+        assertEquals(2, symbols.size)
+        assertTrue(symbols[0].endsWith("arm64-v8a/libfixture.so") && symbols[1].endsWith("x86_64/libfixture.so"), symbols.toString())
+    }
+
+    @Test fun `only the ABIs the variant packages are considered`() {
+        val fixture = PluginFixture.create(
+            temporaryFolder.newFolder("abi"),
+            PluginFixture.Options(minified = false, nativeLibrary = true, abiFilters = listOf("arm64-v8a")),
+        )
+        fixture.run("assembleRelease", environment = credentials)
+        val invocation = fixture.recordedInvocations().single { it.getOrNull(1) == "elf" }
+        assertEquals(listOf("--abi", "arm64-v8a"), invocation.takeLast(2))
+        assertEquals(1, invocation.count { it == "--abi" })
+    }
+
+    @Test fun `prebuilt libraries stay at info and own libraries without symbols warn once with a count`() {
+        val fixture = PluginFixture.create(
+            temporaryFolder.newFolder("summary"),
+            PluginFixture.Options(
+                minified = false,
+                nativeLibrary = true,
+                cliOutput = listOf(
+                    "Symbols for 1 images are ready (1 ELF files).",
+                    "detail: prebuilt /p/libandroidx.graphics.path.so: prebuilt without debug information (build ID aa, arm64-v8a)",
+                    "detail: missing /p/libown.so: no unstripped library with build ID bb (arm64-v8a) under /m",
+                    "detail: not_an_image /p/libother.so: no GNU build ID or not a shared library",
+                ),
+            ),
+        )
+        val quiet = fixture.run("assembleRelease", environment = credentials)
+        assertContains(quiet.output, "Symbols for 1 images are ready (1 ELF files).")
+        assertEquals(1, Regex("warning: everframe:").findAll(quiet.output).count(), quiet.output)
+        assertContains(quiet.output, "warning: everframe: 2 native libraries have no symbols in release, so their frames stay raw. Run with --info to list them.")
+        assertFalse(quiet.output.contains("libandroidx"), quiet.output)
+        assertFalse(quiet.output.contains("libown.so"), quiet.output)
+        val info = fixture.run("assembleRelease", "--info", environment = credentials)
+        assertContains(info.output, "everframe: prebuilt /p/libandroidx.graphics.path.so: prebuilt without debug information")
+        assertContains(info.output, "everframe: missing /p/libown.so")
     }
 
     @Test fun `a variant without native libraries never calls the CLI`() {

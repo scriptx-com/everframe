@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.gradle
 
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 import org.gradle.api.GradleException
 import org.gradle.api.logging.Logger
@@ -38,17 +39,43 @@ internal fun requireAppId(value: String?, logger: Logger): String? {
     return value
 }
 
-/** Runs the CLI with the inherited token and a time budget; a failure follows the strict policy. */
-internal fun runCli(execOperations: ExecOperations, command: List<String>, logger: Logger, what: String) {
+/** `warning:` lines stay warnings, `detail:` lines go to --info, anything else is lifecycle output. */
+internal fun logCliLine(logger: Logger, line: String) {
+    when {
+        line.startsWith("warning:") -> logger.warn(line)
+        line.startsWith("detail: ") -> logger.info("everframe: ${line.removePrefix("detail: ")}")
+        else -> logger.lifecycle(line)
+    }
+}
+
+/**
+ * Runs the CLI with the inherited token and a time budget; a failure follows
+ * the strict policy. Its output is captured and handed to [output] line by line,
+ * so callers can summarize instead of echoing one warning per file.
+ */
+internal fun runCli(
+    execOperations: ExecOperations,
+    command: List<String>,
+    logger: Logger,
+    what: String,
+    output: (String) -> Unit = { logCliLine(logger, it) },
+) {
+    val stdout = ByteArrayOutputStream()
+    val stderr = ByteArrayOutputStream()
     val result = try {
         execOperations.exec { spec ->
             spec.commandLine(command)
             spec.isIgnoreExitValue = true
+            spec.standardOutput = stdout
+            spec.errorOutput = stderr
             spec.environment("EVERFRAME_UPLOAD_TIMEOUT_SECONDS", System.getenv("EVERFRAME_UPLOAD_TIMEOUT_SECONDS") ?: DEFAULT_UPLOAD_TIMEOUT_SECONDS)
         }
     } catch (error: Exception) {
         problem(logger, "could not run the Everframe CLI for the $what upload (${error.message?.substringBefore('\n')})")
         return
     }
+    (stdout.toString(Charsets.UTF_8).lines() + stderr.toString(Charsets.UTF_8).lines())
+        .filter { it.isNotBlank() }
+        .forEach(output)
     if (result.exitValue != 0) problem(logger, "$what upload failed (exit ${result.exitValue})")
 }

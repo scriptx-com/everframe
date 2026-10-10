@@ -30,7 +30,7 @@ internal fun wireVariants(project: Project, extension: EverframeExtension) {
                 task.cliCommand.set(extension.cliCommand)
             }
         }
-        uploads += registerNativeSymbolsUpload(project, variant.name, extension)
+        uploads += registerNativeSymbolsUpload(project, variant, extension)
         project.tasks.matching { it.name == "assemble$name" || it.name == "bundle$name" }.configureEach { it.finalizedBy(uploads) }
     }
 }

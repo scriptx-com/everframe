@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { adviceFor } from "./build-verify.js";
 import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, symbolsStrict, uploadBudget, uploadFailureWarnings } from "./defaults.js";
 import { discoverElfBinaries, type ElfBinaryInput } from "./elf-build.js";
 import { uploadAndroidElfBuild } from "./elf-upload.js";
+
+const ANDROID_ABIS = new Set(["armeabi-v7a", "arm64-v8a", "x86", "x86_64", "riscv64"]);
 
 export interface ElfCommandDependencies {
   upload?: typeof uploadAndroidElfBuild;
@@ -34,9 +37,14 @@ export async function elfUploadBuildCommand(
       binary: { type: "string", multiple: true },
       "binaries-dir": { type: "string" },
       "symbols-dir": { type: "string" },
+      abi: { type: "string", multiple: true },
+      summary: { type: "boolean", default: false },
       strict: { type: "boolean", default: false },
     },
   });
+  const abis = values.abi ?? [];
+  for (const abi of abis)
+    if (!ANDROID_ABIS.has(abi)) throw new Error(`invalid_abi: ${abi} (expected one of ${[...ANDROID_ABIS].join(", ")})`);
   const explicit = values.binary ?? [],
     directory = values["binaries-dir"];
   if ((explicit.length > 0) === (directory !== undefined))
@@ -51,9 +59,12 @@ export async function elfUploadBuildCommand(
     let binaries: ElfBinaryInput[];
     if (explicit.length) binaries = explicit.map((path) => ({ path, required: true }));
     else {
-      binaries = (await discoverElfBinaries(directory!)).map((path) => ({ path, required: strict }));
+      // AGP merges every ABI a dependency ships; only the ABIs the variant packages matter.
+      binaries = (await discoverElfBinaries(directory!))
+        .filter((path) => !abis.length || !ANDROID_ABIS.has(basename(dirname(path))) || abis.includes(basename(dirname(path))))
+        .map((path) => ({ path, required: strict }));
       if (!binaries.length) {
-        log(`No native libraries under ${directory}; nothing to upload.`);
+        log(`No native libraries under ${directory}${abis.length ? ` for ${abis.join(", ")}` : ""}; nothing to upload.`);
         return 0;
       }
     }
@@ -75,9 +86,19 @@ export async function elfUploadBuildCommand(
       uploadBudget(env, explicit.length === 0)
     );
     log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`);
-    for (const entry of result.uncovered.slice(0, 16))
+    if (values.summary) {
+      // A build integration summarizes these lines itself and logs them in detail.
+      for (const entry of result.uncovered) log(`detail: ${entry.kind} ${entry.path}: ${entry.reason}`);
+      return 0;
+    }
+    const prebuilt = result.uncovered.filter((entry) => entry.kind === "prebuilt"),
+      problems = result.uncovered.filter((entry) => entry.kind !== "prebuilt");
+    for (const entry of problems.slice(0, 16))
       warn(`warning: no symbols for ${entry.path}: ${entry.reason}; its frames stay raw.`);
-    if (result.uncovered.length > 16) warn(`warning: and ${result.uncovered.length - 16} more libraries without symbols`);
+    if (problems.length > 16) warn(`warning: and ${problems.length - 16} more libraries without symbols`);
+    // Libraries shipped stripped (AndroidX, SDK prebuilts) are expected; they are not warnings.
+    if (prebuilt.length)
+      log(`${prebuilt.length} prebuilt ${prebuilt.length === 1 ? "library ships" : "libraries ship"} without debug information; their frames stay raw: ${prebuilt.slice(0, 16).map((entry) => basename(entry.path)).join(", ")}${prebuilt.length > 16 ? ", …" : ""}`);
     return 0;
   }
 

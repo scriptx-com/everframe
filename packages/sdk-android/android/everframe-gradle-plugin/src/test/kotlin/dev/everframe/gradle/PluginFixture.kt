@@ -15,6 +15,10 @@ internal class PluginFixture private constructor(val root: File) {
         val minified: Boolean = true,
         val cliExit: Int = 0,
         val nativeLibrary: Boolean = false,
+        /** `ndk.abiFilters` of the default config; the fixture ships arm64-v8a and x86_64 libraries. */
+        val abiFilters: List<String> = emptyList(),
+        /** Lines the fake CLI prints before exiting. */
+        val cliOutput: List<String> = emptyList(),
     )
 
     fun run(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
@@ -80,8 +84,9 @@ internal class PluginFixture private constructor(val root: File) {
                       if [ "${d}previous" = "--symbols-dir" ]; then find "${d}arg" -name '*.so' | sort > '$symbols'; fi
                       previous="${d}arg"
                     done
-                    exit ${options.cliExit}
-                    """.trimIndent() + "\n",
+                    """.trimIndent() + "\n" +
+                    options.cliOutput.joinToString("") { "printf '%s\\n' ${shellQuote(it)}\n" } +
+                    "exit ${options.cliExit}\n",
                 )
                 setExecutable(true)
             }
@@ -89,6 +94,8 @@ internal class PluginFixture private constructor(val root: File) {
                 "flavorDimensions += \"tier\"; productFlavors { create(\"free\") { dimension = \"tier\" }; create(\"paid\") { dimension = \"tier\" } }"
             } else ""
             val packaging = if (options.nativeLibrary) "packaging { jniLibs { keepDebugSymbols += \"**/*.so\" } }" else ""
+            val abiFilters = if (options.abiFilters.isEmpty()) "" else
+                "defaultConfig { ndk { abiFilters += listOf(${options.abiFilters.joinToString { quote(it) }}) } }"
             File(directory, "build.gradle.kts").writeText(
                 """
                 plugins {
@@ -102,6 +109,7 @@ internal class PluginFixture private constructor(val root: File) {
                     buildTypes { release { isMinifyEnabled = ${options.minified}; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "rules.pro") } }
                     $flavors
                     $packaging
+                    $abiFilters
                 }
                 everframe {
                     uploadEnabled.set(${options.uploadEnabled})
@@ -113,10 +121,12 @@ internal class PluginFixture private constructor(val root: File) {
             File(directory, "src/main/java/test/fixture").mkdirs()
             File(directory, "src/main/AndroidManifest.xml").writeText("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application /></manifest>")
             File(directory, "src/main/java/test/fixture/MainActivity.java").writeText("package test.fixture; public final class MainActivity { public static String value() { return \"mapped\"; } }")
-            if (options.nativeLibrary) File(directory, "src/main/jniLibs/arm64-v8a").apply { mkdirs() }.resolve("libfixture.so").writeText("fixture")
+            if (options.nativeLibrary) for (abi in listOf("arm64-v8a", "x86_64"))
+                File(directory, "src/main/jniLibs/$abi").apply { mkdirs() }.resolve("libfixture.so").writeText("fixture")
             return PluginFixture(directory)
         }
 
         private fun quote(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        private fun shellQuote(value: String) = "'" + value.replace("'", "'\\''") + "'"
     }
 }
