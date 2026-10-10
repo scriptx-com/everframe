@@ -1,0 +1,23 @@
+packages/expo/README.md
+  s_dbd309ddf8ec5b::t_486801ab59f539 33
+packages/metro/README.md
+  s_dbd309ddf8ec5b::t_d0b104ac5f4ee5 27,30-31
+packages/sdk-vega/README.md
+  s_dbd309ddf8ec5b::t_0515c5c62e1837 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "530115653a898d5f606476875a0b49caca0af9a0",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
