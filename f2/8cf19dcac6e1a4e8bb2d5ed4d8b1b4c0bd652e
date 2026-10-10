@@ -1,0 +1,25 @@
+examples/react-native/app.json
+  s_dbd309ddf8ec5b::t_e2283147a77ef1 39-40
+examples/react-native/package.json
+  s_dbd309ddf8ec5b::t_1e622a0c4e4b0e 26-27
+examples/react-native/plugins/with-pod-deployment-targets.js
+  s_dbd309ddf8ec5b::t_0950056f4743a6 1-39
+pnpm-lock.yaml
+  s_dbd309ddf8ec5b::t_0c3ef7366689f4 87,95-96,98-99,1885-1886,3738-3739,3745-3746,3750-3751,3779-3780,3789-3790,3798-3799,7220,7230,7232,7239,7256,7372,7374,7404,7471,7473,7475,7480,7506,7612,7615-7617,7891,7893,8779,8826,9359,9362-9363,9370,9373,9377,9380,9385,9387,9390,9392,9397,9399,9412,9415,9420,9426,9429,9433,9435,9437,9439-9444,9446,9453
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f28cf19dcac6e1a4e8bb2d5ed4d8b1b4c0bd652e",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
