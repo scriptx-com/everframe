@@ -498,8 +498,10 @@ export async function main(
   } catch (error) {
     const message = adviceFor(error instanceof Error ? error.message : "upload_failed");
     const token = env.EVERFRAME_API_TOKEN;
-    // upload-build failures list bounded paths and image identities.
-    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, isDsymBuildCommand || isElfBuildCommand ? 8192 : 256));
+    // upload-build failures list bounded paths and image identities; an R8
+    // size failure names the mapping's path.
+    const bound = isDsymBuildCommand || isElfBuildCommand ? 8192 : argv[0] === "r8" ? 1024 : 256;
+    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, bound));
     return 1;
   }
 }

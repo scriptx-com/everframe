@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   R8_ASSET_URL,
+  R8_MAX_BYTES,
   artifactKind,
   hermesAssetUrl,
   isValidBuildId,
@@ -245,9 +246,17 @@ describe('R8 manifest identity', () => {
     { artifacts: [{ ...valid.artifacts[0], generatedSha256: 'b'.repeat(64) }] },
     { artifacts: [{ ...valid.artifacts[0], extra: true }] },
     { artifacts: [{ ...valid.artifacts[0], mapBytes: 0 }] },
-    { artifacts: [{ ...valid.artifacts[0], mapBytes: 32 * 1024 * 1024 + 1 }] },
+    { artifacts: [{ ...valid.artifacts[0], mapBytes: R8_MAX_BYTES + 1 }] },
   ])('rejects an invalid version-3 field set: %j', (change) => {
     expect(() => parseManifest({ ...valid, ...change })).toThrow();
+  });
+
+  it('accepts R8 mappings up to 512 MiB, far above the 32 MiB JavaScript map limit', () => {
+    expect(R8_MAX_BYTES).toBe(512 * 1024 * 1024);
+    for (const mapBytes of [32 * 1024 * 1024 + 1, 70_769_438, R8_MAX_BYTES]) {
+      const manifest = parseManifest({ ...valid, artifacts: [{ ...valid.artifacts[0], mapBytes }] });
+      expect(manifest.artifacts[0]!.mapBytes).toBe(mapBytes);
+    }
   });
 
   it('keeps generated hashes mandatory for legacy JavaScript manifests', () => {

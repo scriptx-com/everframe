@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { open, realpath, unlink, lstat } from "node:fs/promises";
 import type { ReadStream } from "node:fs";
 import { finished } from "node:stream/promises";
-import { snapshotDsymFile, verifyDsymFile } from "./upload-snapshot.js";
+import { snapshotArtifactFile, verifyDsymFile } from "./upload-snapshot.js";
 import { isIP } from "node:net";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { ELF_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
@@ -364,7 +364,8 @@ async function verifyCollectedFiles(
     const mapPath = local.mapPaths.get(artifact.url);
     if (!mapPath) throw new Error("invalid_local_build");
     const roots = local.fileRoots?.get(artifact.url);
-    if (local.manifest.version === 4) {
+    if (local.manifest.version === 4 || local.manifest.version === 3) {
+      // Streamed check: neither a dSYM nor an R8 mapping is buffered.
       await verifyDsymFile(
         await ensurePathInRoot(roots?.mapRoot ?? defaultRoot, mapPath),
         artifact,
@@ -443,11 +444,14 @@ export async function uploadCollectedBuild(
       const mapPath = local.mapPaths.get(artifact.url);
       if (!mapPath) throw new Error("invalid_local_build");
       const roots = local.fileRoots?.get(artifact.url);
+      // dSYMs and R8 mappings can be hundreds of MiB: stream a private copy
+      // instead of buffering. Text mappings shrink about tenfold with gzip.
       const snapshot =
-        local.manifest.version === 4
-          ? await snapshotDsymFile(
+        local.manifest.version === 4 || local.manifest.version === 3
+          ? await snapshotArtifactFile(
               await ensurePathInRoot(roots?.mapRoot ?? options.root, mapPath),
               artifact,
+              { gzip: local.manifest.version === 3 && status.uploadEncodings?.includes("gzip") === true },
             )
           : undefined;
       let uploaded: Awaited<ReturnType<typeof request>>;
@@ -467,9 +471,8 @@ export async function uploadCollectedBuild(
             method: "PUT",
             headers: {
               "content-type": "application/octet-stream",
-              ...(snapshot
-                ? { "content-length": String(artifact.mapBytes) }
-                : {}),
+              ...(snapshot ? { "content-length": String(snapshot.bytes) } : {}),
+              ...(snapshot?.encoding ? { "content-encoding": snapshot.encoding } : {}),
             },
             ...(mapBytes ? { body: new Uint8Array(mapBytes) } : {}),
           },

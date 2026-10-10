@@ -12,7 +12,9 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { R8_ASSET_URL } from "@everframe/protocol";
+import type { Readable } from "node:stream";
+import { gunzipSync } from "node:zlib";
+import { R8_ASSET_URL, R8_MAX_BYTES } from "@everframe/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { main } from "../src/index.js";
 import { collectR8Build } from "../src/r8.js";
@@ -115,17 +117,36 @@ describe("collectR8Build", () => {
     await writeFile(f.mappingPath, Buffer.alloc(0));
     await expect(
       collectR8Build({ mappingId: "ci-123", mappingPath: f.mappingPath }),
-    ).rejects.toThrow("source_map_too_large");
+    ).rejects.toThrow(/^r8_mapping_empty: .*mapping\.txt is empty/);
   });
 
-  it("rejects a sparse mapping above 32 MiB", async () => {
+  it("accepts mappings above the 32 MiB JavaScript map limit, up to exactly 512 MiB", async () => {
     const f = await fixture();
-    await truncate(f.mappingPath, 32 * 1024 * 1024 + 1);
-    await expect(
-      collectR8Build({ mappingId: "ci-123", mappingPath: f.mappingPath }),
-    ).rejects.toThrow("source_map_too_large");
+    for (const size of [32 * 1024 * 1024 + 1, R8_MAX_BYTES]) {
+      await truncate(f.mappingPath, size);
+      const local = await collectR8Build({ mappingId: "ci-123", mappingPath: f.mappingPath });
+      expect(local.manifest.artifacts[0]!.mapBytes).toBe(size);
+    }
+  }, 30_000);
+
+  it("names the R8 mapping, its size and the limit when a mapping is above 512 MiB", async () => {
+    const f = await fixture();
+    await truncate(f.mappingPath, R8_MAX_BYTES + 1);
+    const error = await collectR8Build({ mappingId: "ci-123", mappingPath: f.mappingPath }).catch((e: Error) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(
+      /^r8_mapping_too_large: the R8 mapping .*mapping\.txt is 512\.0 MiB \(536870913 bytes\); Everframe accepts R8 mappings up to 512 MiB\.$/,
+    );
+    expect((error as Error).message).not.toMatch(/source map|bundle/i);
   });
 });
+
+async function bodyBytes(body: unknown): Promise<Buffer> {
+  if (body instanceof Uint8Array) return Buffer.from(body);
+  const chunks: Buffer[] = [];
+  for await (const chunk of body as Readable) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
+}
 
 describe("uploadCollectedBuild with R8 inputs", () => {
   it("uploads the SHA-verified mapping through the existing transport and keeps it", async () => {
@@ -135,8 +156,10 @@ describe("uploadCollectedBuild with R8 inputs", () => {
       mappingPath: f.mappingPath,
     });
     const requests: Array<{ url: string; init: RequestInit }> = [];
+    const bodies: Buffer[] = [];
     const fetcher: typeof fetch = async (input, init = {}) => {
       requests.push({ url: String(input), init });
+      bodies.push(init.method === "PUT" ? await bodyBytes(init.body) : Buffer.alloc(0));
       if (requests.length === 1)
         return Response.json(status("uploading", false), { status: 201 });
       if (requests.length === 2) return new Response(null, { status: 204 });
@@ -163,7 +186,9 @@ describe("uploadCollectedBuild with R8 inputs", () => {
       "POST",
     ]);
     expect(JSON.parse(String(requests[0]!.init.body))).toEqual(local.manifest);
-    expect(Buffer.from(requests[1]!.init.body as Uint8Array)).toEqual(f.mapping);
+    expect(bodies[1]).toEqual(f.mapping);
+    expect((requests[1]!.init.headers as Record<string, string>)["content-encoding"]).toBeUndefined();
+    expect((requests[1]!.init.headers as Record<string, string>)["content-length"]).toBe(String(f.mapping.length));
     expect(requests.every(({ init }) => init.redirect === "error")).toBe(true);
     expect(
       requests.every(
@@ -173,6 +198,34 @@ describe("uploadCollectedBuild with R8 inputs", () => {
       ),
     ).toBe(true);
     expect(await readFile(f.mappingPath)).toEqual(f.mapping);
+  });
+
+  it("gzips the mapping when the server decodes gzip uploads", async () => {
+    const f = await fixture();
+    const mapping = Buffer.from(
+      "com.example.RealName -> a:\n" + "    void launch() -> a\n".repeat(20_000),
+    );
+    await writeFile(f.mappingPath, mapping);
+    const local = await collectR8Build({ mappingId: "ci-123", mappingPath: f.mappingPath });
+    let put: { headers: Record<string, string>; body: Buffer } | undefined;
+    const fetcher: typeof fetch = async (_input, init = {}) => {
+      if (init.method === "PUT") {
+        put = { headers: init.headers as Record<string, string>, body: await bodyBytes(init.body) };
+        return new Response(null, { status: 204 });
+      }
+      if (!put) return Response.json({ ...status("uploading", false), uploadEncodings: ["gzip"] }, { status: 201 });
+      return Response.json(status("ready", true));
+    };
+    await uploadCollectedBuild(
+      local,
+      { appId, root: f.root, apiUrl: "https://api.example.test/api/v1", token, deleteAfterUpload: false },
+      { fetch: fetcher },
+    );
+    expect(put!.headers["content-encoding"]).toBe("gzip");
+    expect(put!.headers["content-length"]).toBe(String(put!.body.length));
+    expect(put!.body.length).toBeLessThan(mapping.length / 10);
+    expect(gunzipSync(put!.body)).toEqual(mapping);
+    expect(await readFile(f.mappingPath)).toEqual(mapping);
   });
 
   it("rejects a mapping changed after reservation, including a ready resume", async () => {

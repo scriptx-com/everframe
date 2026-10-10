@@ -37,7 +37,7 @@ describe("raw ELF upload manifest", () => {
   ])("rejects incompatible or ambiguous declaration %j", (change) => {
     expect(() => parseManifest({ ...input, ...change })).toThrow();
   });
-  it("does not widen legacy map sizes", () => {
+  it("does not widen JavaScript map sizes; R8 mappings have their own 512 MiB limit", () => {
     expect(() =>
       parseManifest({
         version: 3,
@@ -48,7 +48,7 @@ describe("raw ELF upload manifest", () => {
           {
             url: "r8://android/mapping.txt",
             mapSha256: sha,
-            mapBytes: 32 * 1024 * 1024 + 1,
+            mapBytes: 512 * 1024 * 1024 + 1,
           },
         ],
       })
