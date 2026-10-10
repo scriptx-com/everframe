@@ -6,10 +6,10 @@ import { submitReportFromDraft, drainOutbox } from '../../src/transport/submit.j
 import { createInMemoryOutbox } from '@everframe/sdk-core';
 import type { OutboxAdapter, ReportDraft, ReporterCredentialStore } from '@everframe/sdk-core';
 import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import type { WebEverframeConfig } from '../../src/internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../../src/internal/types.js';
 
-const config: WebEverframeConfig = {
-  apiKey: 'txx_live_test',
+const config: ResolvedWebEverframeConfig = {
+  sdkKey: 'txx_live_test',
   appName: 'test-app',
   appVersion: '1.0.0',
 };
@@ -230,14 +230,14 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r1', protocolVersion: '1.0' })),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
     await outbox.enqueue({
       reportId: 'r2',
       enqueuedAt: 2,
       attempts: 0,
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r2', protocolVersion: '1.0' })),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
 
     let callIndex = 0;
@@ -300,14 +300,14 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r1', protocolVersion: '1.0' })),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
     await outbox.enqueue({
       reportId: 'r2',
       enqueuedAt: 2,
       attempts: 0,
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r2', protocolVersion: '1.0' })),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
 
     const fetchImpl = vi.fn(async () => new Response(
@@ -344,7 +344,7 @@ describe('drainOutbox — replies opt-out header', () => {
 
   async function drainOneItem(opts: {
     fetchImpl: ReturnType<typeof vi.fn>;
-    driveConfig: WebEverframeConfig;
+    driveConfig: ResolvedWebEverframeConfig;
     credentials?: ReporterCredentialStore | null;
   }) {
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -353,7 +353,7 @@ describe('drainOutbox — replies opt-out header', () => {
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r1', protocolVersion: '1.0' })),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: opts.driveConfig.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: opts.driveConfig.sdkKey },
     });
     await drainOutbox({
       outbox,
@@ -408,8 +408,8 @@ describe('drainOutbox — replies opt-out header', () => {
 // new thread and corrupting B's credential.
 //
 // The fix resolves reply context PER ITEM, keyed off the item's own
-// effective sdk key (`item.metadata?.sdkKey ?? opts.config.apiKey`)
-// compared against the currently-mounted app's `opts.config.apiKey`.
+// effective sdk key (`item.metadata?.sdkKey ?? opts.config.sdkKey`)
+// compared against the currently-mounted app's `opts.config.sdkKey`.
 describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -417,7 +417,7 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
 
   const APP_A_KEY = 'txx_live_app_a';
   const APP_B_KEY = 'txx_live_app_b';
-  const configB: WebEverframeConfig = { ...config, apiKey: APP_B_KEY };
+  const configB: ResolvedWebEverframeConfig = { ...config, sdkKey: APP_B_KEY };
 
   async function seedTwoAppOutbox(): Promise<OutboxAdapter> {
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -562,7 +562,7 @@ describe('drainOutbox — provisionedThreadIds (round-6 Finding 2)', () => {
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r1', protocolVersion: '1.0' })),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
     const fetchImpl = vi.fn(async () => new Response(
       JSON.stringify({
@@ -592,7 +592,7 @@ describe('drainOutbox — provisionedThreadIds (round-6 Finding 2)', () => {
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r1', protocolVersion: '1.0' })),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
     const fetchImpl = vi.fn(async () => new Response(
       JSON.stringify({ status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false }),

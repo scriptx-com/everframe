@@ -5,7 +5,7 @@
 //
 // This file proves STRUCTURALLY that:
 //   • #2 (no new surface): the bridge exposes NO replay-config entry point
-//     (no `configureReplay`/`setReplayConfig`); `configure(appId:endpoint:)`
+//     (no `configureReplay`/`setReplayConfig`); `configure(sdkKey:endpoint:)`
 //     ignores `endpoint` and never reads a JS replay config — replay arming is
 //     keyed entirely on the forwarded SDK key inside `Everframe.shared.start()`.
 //   • #1 (armed-at-start path): `openReporter` is GATED on `start()`
@@ -125,7 +125,7 @@ final class RnReplayBridgeTests: XCTestCase {
     /// there isn't any) in the bridge itself.
     func testAddBreadcrumbForwardsToNativeSingletonWithKindCoercion() throws {
         if !Everframe.shared.captureGate {
-            try Everframe.shared.start(config: EverframeConfig(appId: "txx_live_rnbridgetest"))
+            try Everframe.shared.start(config: EverframeConfig(sdkKey: "txx_live_rnbridgetest"))
         }
         let marker = "rn-bridge-\(UUID().uuidString)"
         EverframeBridge.addBreadcrumb(

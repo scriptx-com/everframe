@@ -66,7 +66,7 @@ function KillOnMount({ onContext }: { onContext: (ctx: InternalContext) => void 
 }
 
 function mount(children: ReactNode, strict: boolean) {
-  const tree = <EverframeProvider config={{ apiKey: 'pk_test' }}>{children}</EverframeProvider>;
+  const tree = <EverframeProvider config={{ sdkKey: 'pk_test' }}>{children}</EverframeProvider>;
   return render(strict ? <StrictMode>{tree}</StrictMode> : tree);
 }
 

@@ -104,7 +104,7 @@ struct NetworkBodyEnvelopeTests {
             NetworkBodyRingBuffer.shared.clear()
             NetworkRingBuffer.shared.clear()
             let config = EverframeConfig(
-                appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+                sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
                 capture: CaptureConfig(logs: false)
             )
             try? Everframe.shared.start(config: config)

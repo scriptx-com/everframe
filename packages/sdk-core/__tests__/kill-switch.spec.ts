@@ -15,7 +15,7 @@ describe('DEFE-03: kill switch', () => {
   it('after kill(), every method is a no-op', async () => {
     const adapter = createFakePlatformAdapter();
     const client = createClient(adapter);
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     client.kill();
     client.setUser({ id: 'u1' });
     client.markSensitive({});
@@ -39,7 +39,7 @@ describe('DEFE-03: kill switch', () => {
   // not (fixed alongside this).
   it('kill() clears the self-declared user, like the identity token and the buffers', () => {
     const client = createClient(createFakePlatformAdapter());
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     client.setUser({ id: 'u1', email: 'a@b.com', displayName: 'A' });
     expect(__internalClientState.get(client)!.user).toEqual({
       id: 'u1',
@@ -56,7 +56,7 @@ describe('DEFE-03: kill switch', () => {
     const adapter = createFakePlatformAdapter();
     const client = createClient(adapter);
     client.kill();
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     // No way to observe state externally; assert adapter calls remain 0.
     expect(adapter.__calls.registerTrigger).toBe(0);
   });

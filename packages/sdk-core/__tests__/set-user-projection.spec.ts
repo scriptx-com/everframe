@@ -25,7 +25,7 @@ function stubAdapter(): PlatformAdapter {
 
 function started(): EverframeClient {
   const client = createClient(stubAdapter());
-  client.init({ apiKey: 'pk_test' });
+  client.init({ sdkKey: 'pk_test' });
   return client;
 }
 

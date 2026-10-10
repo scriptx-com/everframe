@@ -304,7 +304,7 @@ const reactEntry = {
 //
 //   <script type="module">
 //     import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@0.6.6/dist/browser/index.js';
-//     init({ apiKey: 'txx_live_…', appVersion: '1.0.0' });
+//     init({ sdkKey: 'txx_live_…', appVersion: '1.0.0' });
 //   </script>
 //
 // This REPLACES the IIFE (`dist/everframe.min.js`, built from a since-deleted

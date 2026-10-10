@@ -101,7 +101,7 @@ final class ResourceEnvelopeTests: XCTestCase {
         // so a session must be open for `append` to take — mirrors
         // EnvelopeUserTests' `startSession()` convention.
         try Everframe.shared.start(config: EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         ))
         ResourceRingBuffer.shared.clear()
@@ -125,7 +125,7 @@ final class ResourceEnvelopeTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
         let entry = try XCTUnwrap(try outbox.hydrate().first)
         let dict = try encodeToDict(entry.envelopeBytes)

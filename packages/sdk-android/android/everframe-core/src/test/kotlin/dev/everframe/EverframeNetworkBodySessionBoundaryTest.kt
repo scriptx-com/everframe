@@ -126,8 +126,8 @@ class EverframeNetworkBodySessionBoundaryTest {
         // network) as session A's refresh owner, exactly as start()'s own
         // heavy-init tail would have installed one.
         val fetcherA = ConfigFetcher { response(200, """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0}""") }
-        val providerA = ReplayConfigProvider(configUrl = configUrl, apiKey = "a", fetcher = fetcherA)
-        val sessionA = ReplaySession(apiKey = "a", locallyDisabled = false, provider = providerA)
+        val providerA = ReplayConfigProvider(configUrl = configUrl, sdkKey = "a", fetcher = fetcherA)
+        val sessionA = ReplaySession(sdkKey = "a", locallyDisabled = false, provider = providerA)
         Everframe._replaySession = sessionA
         assertFalse("test setup: session A must not already be torn down", sessionA.isTornDownForTesting)
 

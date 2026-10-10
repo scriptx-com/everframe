@@ -67,7 +67,7 @@ final class TapTargetSpy: NSObject {
 @MainActor
 @Suite(.serialized)
 struct BreadcrumbTapNavAdaptersTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     private func resetBreadcrumbState() {
         BreadcrumbSharedStateTestLock.lock.lock()
@@ -77,7 +77,7 @@ struct BreadcrumbTapNavAdaptersTests {
     }
 
     private func noLogCaptureConfig() -> EverframeConfig {
-        EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+        EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
     }
 
     private func matchingCrumbs(kind: EverframeBreadcrumbKind, messageContains needle: String) -> [EverframeBreadcrumb] {

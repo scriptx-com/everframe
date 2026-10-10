@@ -36,7 +36,7 @@ afterEach(() => {
   setupVitalsMock.mockReset();
 });
 
-const config = { apiKey: 'txx_live_test' };
+const config = { sdkKey: 'txx_live_test' };
 
 describe('EverframeProvider — Session Vitals wiring (Codex round-1 finding S1)', () => {
   it('calls setupVitals exactly once on mount, mirroring init.ts\'s deps', () => {
@@ -52,15 +52,15 @@ describe('EverframeProvider — Session Vitals wiring (Codex round-1 finding S1)
     expect(setupVitalsMock).toHaveBeenCalledTimes(1);
     const deps = setupVitalsMock.mock.calls[0]![0] as {
       config: unknown;
-      apiKey: string;
+      sdkKey: string;
       apiUrl: string;
       sdkVersion: string;
       isKilled: () => boolean;
     };
-    // Same deps init.ts passes: config, apiKey, apiUrl, isKilled, sdkVersion —
+    // Same deps init.ts passes: config, sdkKey, apiUrl, isKilled, sdkVersion —
     // using THIS provider's own identity, not the vanilla SDK's.
     expect(deps.config).toEqual(config);
-    expect(deps.apiKey).toBe(config.apiKey);
+    expect(deps.sdkKey).toBe(config.sdkKey);
     expect(typeof deps.apiUrl).toBe('string');
     expect(deps.apiUrl.length).toBeGreaterThan(0);
     expect(typeof deps.sdkVersion).toBe('string');

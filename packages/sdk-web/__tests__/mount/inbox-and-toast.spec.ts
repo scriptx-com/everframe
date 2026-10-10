@@ -178,7 +178,7 @@ function shadow(): ShadowRoot {
 async function fabWithThread(): Promise<HTMLButtonElement> {
   localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
   stubFetch({ threads: oneOpenThread });
-  handle = init({ apiKey: 'txx_live_test' });
+  handle = init({ sdkKey: 'txx_live_test' });
   return await vi.waitFor(
     () => {
       const fab = shadow().querySelector('[data-testid=reporter-fab]');
@@ -225,7 +225,7 @@ describe('finding 2 — the FAB opens the inbox, mirroring provider.tsx', () => 
 describe('finding 3 — every submit outcome is visible', () => {
   async function openAndComplete(ingest: { status: number; body?: string }): Promise<void> {
     stubFetch({ ingest });
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     void handle.open();
     await vi.waitFor(() => expect(islands).toHaveLength(1));
     islands[0]!.opts.onComplete(payload());

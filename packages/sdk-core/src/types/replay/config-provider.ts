@@ -327,8 +327,8 @@ export interface ConfigProviderDeps {
   fetchImpl: typeof fetch;
   /** Fully-qualified `GET /api/config` URL. */
   configUrl: string;
-  /** Per-app SDK key — sent as `Authorization: Bearer <apiKey>` like the ingest path. */
-  apiKey: string;
+  /** Per-app SDK key — sent as `Authorization: Bearer <sdkKey>` like the ingest path. */
+  sdkKey: string;
   /** Cache TTL in ms. Defaults to 5 minutes. */
   ttlMs?: number;
   /** Injectable clock (ms). Defaults to `Date.now`. */
@@ -438,7 +438,7 @@ function withInstallId(configUrl: string, provider?: () => string | null): strin
  * ON→OFF mid-session — only a validated response can change state).
  */
 export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
-  const { fetchImpl, configUrl, apiKey } = deps;
+  const { fetchImpl, configUrl, sdkKey } = deps;
   const ttlMs = deps.ttlMs ?? DEFAULT_CONFIG_TTL_MS;
   const now = deps.now ?? Date.now;
 
@@ -498,7 +498,7 @@ export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
       latestStartedSeq = mySeq;
       try {
         const headers: Record<string, string> = {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${sdkKey}`,
           Accept: 'application/json',
         };
         if (deps.sdkFeatures && deps.sdkFeatures.length > 0) {

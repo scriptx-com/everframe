@@ -66,10 +66,10 @@ async function adapterFor(opts: { ua?: string; screenshotRender: boolean }) {
       )
   );
   vi.stubGlobal("fetch", fetchMock);
-  const adapter = createWebPlatformAdapter({ apiKey: "k" });
+  const adapter = createWebPlatformAdapter({ sdkKey: "k" });
   adapters.push(adapter);
   const client = createClient(adapter);
-  client.init({ apiKey: "k" });
+  client.init({ sdkKey: "k" });
   await adapter.__initReplay();
   return { adapter, client, fetchMock };
 }
@@ -271,7 +271,7 @@ describe("smart-TV snapshot gate", () => {
     const send = vi.fn();
     const ws = { send, sendBinary: vi.fn() } as unknown as RelayWSClient;
     const host = {
-      config: { apiKey: "k" },
+      config: { sdkKey: "k" },
       sdkVersion: "0.0.0-test",
       getUser: () => null,
       adapter,
@@ -297,7 +297,7 @@ describe("smart-TV snapshot gate", () => {
     await vi.waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     const send = vi.fn();
     const ws = { send, sendBinary: vi.fn() } as unknown as RelayWSClient;
-    const host = { config: { apiKey: "k" }, sdkVersion: "0.0.0-test", getUser: () => null, adapter } as unknown as CompanionHost;
+    const host = { config: { sdkKey: "k" }, sdkVersion: "0.0.0-test", getUser: () => null, adapter } as unknown as CompanionHost;
     await handleCompanionReportRequest("c-s23b", ws, host);
     expect(send.mock.calls[0]![0]).not.toHaveProperty("degraded_reason");
     await expect(adapter.__captureShot!({ consumePreCapture: true })).resolves.toBe(pre);

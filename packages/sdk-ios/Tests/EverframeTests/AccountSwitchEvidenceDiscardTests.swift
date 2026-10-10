@@ -63,7 +63,7 @@ final class AccountSwitchEvidenceDiscardTests: XCTestCase {
         // rationale `KillSwitchTests` already documents for the identical
         // reason.
         try Everframe.shared.start(config: EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         ))
         BreadcrumbRingBuffer.shared.applyConfig(nil)  // all kinds enabled, boot-time defaults
@@ -105,7 +105,7 @@ final class AccountSwitchEvidenceDiscardTests: XCTestCase {
     private func enabledConfig() async -> ReplayConfig {
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://everframe.dev/api/config")!,
-            apiKey: "evr_test_key",
+            sdkKey: "evr_test_key",
             fetcher: FixedResponseFetcher(
                 #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"identity":{"enabled":true}}"#)
         )
@@ -214,7 +214,7 @@ final class AccountSwitchEvidenceDiscardTests: XCTestCase {
             now: Date()
         )
 
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "app"), outbox: makeOutbox())
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: makeOutbox())
         let result = try await submitter.submit(
             envelopeBytes: envelopeBytes,
             idempotencyKey: "idem-account-switch",

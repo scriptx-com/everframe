@@ -155,7 +155,7 @@ public final class ReportSubmitter: Sendable {
         identitySubject: String? = nil, identityToken: String? = nil, alreadyPersisted: Bool
     ) async throws -> ReportResult {
 
-        let effectiveKey = sdkKey ?? config.appId
+        let effectiveKey = sdkKey ?? config.sdkKey
         let effectiveEndpoint = endpoint ?? IngestEndpoint.url.absoluteString
         let effectiveURL = URL(string: effectiveEndpoint) ?? IngestEndpoint.url
 
@@ -287,7 +287,7 @@ public final class ReportSubmitter: Sendable {
     ///   submitter built under project A, whose drain is initiated but
     ///   doesn't actually run until after `start(projectB)` landed, used to
     ///   sample `epochAtDrainStart` = B's epoch (correct-looking, but the
-    ///   WRONG reference point), while `e.sdkKey == config.appId` still
+    ///   WRONG reference point), while `e.sdkKey == config.sdkKey` still
     ///   compared against A (this submitter's own frozen config) and
     ///   passed — so project B's live token (same `sub`, plausible) could
     ///   attach to a request authorized with project A's Everframe SDK key, to
@@ -337,7 +337,7 @@ public final class ReportSubmitter: Sendable {
                 // Preserve the report, but never retry replay without a live
                 // enablement decision for the same project and endpoint.
                 let replayEnabledNow = (await currentReplayConfig()).replayEnabled
-                let replayAllowed = e.sdkKey == config.appId
+                let replayAllowed = e.sdkKey == config.sdkKey
                     && e.endpoint == IngestEndpoint.url.absoluteString
                     && currentEpoch() == epochAtInitiation
                     && replayEnabledNow
@@ -388,7 +388,7 @@ public final class ReportSubmitter: Sendable {
             // endpoint both still match the live ones — the same binding
             // `sdkKey`/`endpoint` already have, now extended to the header.
             let identityToken: String?
-            if e.sdkKey == config.appId
+            if e.sdkKey == config.sdkKey
                 && e.endpoint == IngestEndpoint.url.absoluteString
                 && currentEpoch() == epochAtInitiation {
                 // Round 11, P1(c) — read live, FRESH for THIS entry, not once
@@ -418,7 +418,7 @@ public final class ReportSubmitter: Sendable {
                 let sender = attachments.contains(where: { $0.name == "replay" })
                     ? authorizing { [self] in
                         (authorizeUpload?() ?? true)
-                            && e.sdkKey == Everframe.shared.currentConfig?.appId
+                            && e.sdkKey == Everframe.shared.currentConfig?.sdkKey
                             && e.endpoint == IngestEndpoint.url.absoluteString
                             && currentEpoch() == epochAtInitiation
                             && Everframe.shared.__hostReplayEnabledNow()

@@ -40,7 +40,7 @@ class RnReplayBridgeTest {
     private lateinit var reactContext: ReactApplicationContext
     private lateinit var module: EverframeModule
 
-    // Forwarded SDK key fixture — the value JS passes as opts["apiKey"]. Criterion
+    // Forwarded SDK key fixture — the value JS passes as opts["sdkKey"]. Criterion
     // #1 asserts replay is armed keyed on THIS value.
     private val sdkKey = "txx_live_rnreplaytest"
 
@@ -99,19 +99,19 @@ class RnReplayBridgeTest {
     }
 
     /**
-     * configure(opts) must consume ONLY apiKey / sdkVersion. A map carrying
+     * configure(opts) must consume ONLY sdkKey / sdkVersion. A map carrying
      * replay-config keys (replayEnabled / samplingRate / replayDurationSec) and
      * an apiBase override must NOT throw and must NOT change behavior — those
      * keys are simply ignored. This pins "no new JS config field is read on the
      * Android side." We assert the observable contract: configure with only the
-     * replay-ish keys present (NO apiKey) still rejects on the missing apiKey,
-     * proving configure keys off apiKey alone and never off a replay knob.
+     * replay-ish keys present (NO sdkKey) still rejects on the missing sdkKey,
+     * proving configure keys off sdkKey alone and never off a replay knob.
      */
     @Test
     fun configure_reads_only_apiKey_not_replay_config_keys() {
-        // No apiKey, but every replay-config-looking key present. If configure
+        // No sdkKey, but every replay-config-looking key present. If configure
         // consumed any of these as a start signal, captureGate would flip. It
-        // must NOT — the only required field is apiKey.
+        // must NOT — the only required field is sdkKey.
         Everframe.kill() // reset gate to a known-closed baseline
         // Task 11 (Plan 5): `JavaOnlyMap` — RN's own pure-JVM `WritableMap`
         // implementation — instead of `Arguments.createMap()`. The latter
@@ -128,12 +128,12 @@ class RnReplayBridgeTest {
             putString("apiBase", "https://attacker.example")
         }
         // configure throws JSApplicationIllegalArgumentException for the missing
-        // apiKey — but that throw is caught by the bridge's txGuardSurface and
+        // sdkKey — but that throw is caught by the bridge's txGuardSurface and
         // surfaces only for the IllegalArgument case. We assert the EFFECT:
         // captureGate stays false because start() was never reached.
         runCatching { module.configure(opts) }
         assertFalse(
-            "configure with replay-config keys but NO apiKey must NOT arm the SDK (criterion #2)",
+            "configure with replay-config keys but NO sdkKey must NOT arm the SDK (criterion #2)",
             Everframe.captureGate,
         )
     }
@@ -143,9 +143,9 @@ class RnReplayBridgeTest {
     // ------------------------------------------------------------------------
 
     /**
-     * configure(apiKey) → Everframe.start() flips captureGate true. The replay
+     * configure(sdkKey) → Everframe.start() flips captureGate true. The replay
      * ReplaySession is armed on Everframe.sdkScope (Dispatchers.IO) inside start()
-     * keyed on config.sdkKey == the forwarded apiKey (Everframe.kt:162-167). The
+     * keyed on config.sdkKey == the forwarded sdkKey (Everframe.kt:162-167). The
      * arming itself (_replaySession) is `internal` to :everframe-core and not
      * observable from this module; the observable bridge effect is the gate flip,
      * which is the precondition openReporter checks before driving the replay
@@ -160,11 +160,11 @@ class RnReplayBridgeTest {
         // configure_reads_only_apiKey_not_replay_config_keys() above for why
         // (Arguments.createMap()'s WritableNativeMap needs native SoLoader
         // init, unavailable under Robolectric).
-        val opts = JavaOnlyMap().apply { putString("apiKey", sdkKey) }
+        val opts = JavaOnlyMap().apply { putString("sdkKey", sdkKey) }
         module.configure(opts)
 
         assertTrue(
-            "configure(apiKey) must arm the SDK (captureGate=true) — the openReporter " +
+            "configure(sdkKey) must arm the SDK (captureGate=true) — the openReporter " +
                 "precondition that gates the native replay freeze/attach path (criterion #1)",
             Everframe.captureGate,
         )
@@ -182,7 +182,7 @@ class RnReplayBridgeTest {
     fun addBreadcrumb_forwards_to_native_singleton_with_kind_coercion() {
         Everframe.kill()
         // JavaOnlyMap — see configure_reads_only_apiKey_not_replay_config_keys().
-        val opts = JavaOnlyMap().apply { putString("apiKey", sdkKey) }
+        val opts = JavaOnlyMap().apply { putString("sdkKey", sdkKey) }
         module.configure(opts)
         sharedBreadcrumbBuffer.clear()
 
@@ -227,7 +227,7 @@ class RnReplayBridgeTest {
         // known-closed baseline, then the real `module.configure()` bridge
         // path (which calls `Everframe.start()`) to flip it open.
         Everframe.kill()
-        val opts = JavaOnlyMap().apply { putString("apiKey", sdkKey) }
+        val opts = JavaOnlyMap().apply { putString("sdkKey", sdkKey) }
         module.configure(opts)
         sharedBreadcrumbBuffer.applyConfig(null)
         sharedBreadcrumbBuffer.clear()
@@ -256,7 +256,7 @@ class RnReplayBridgeTest {
     fun replay_lifecycle_seams_are_reachable_and_fail_soft_on_empty_buffer() {
         val session = ReplaySession(
             baseUrl = "https://everframe.test",
-            apiKey = sdkKey,
+            sdkKey = sdkKey,
             locallyDisabled = false,
             // Inject a null Activity supplier so no walk/allocation occurs on the JVM.
             activitySupplier = { null },
@@ -489,7 +489,7 @@ class RnReplayBridgeTest {
     private fun configureCrashCore() {
         assertEquals("http://127.0.0.1:9", dev.everframe.BuildConfig.INGEST_URL)
         val opts = com.facebook.react.bridge.JavaOnlyMap()
-        opts.putString("apiKey", "txx_live_handled_test")
+        opts.putString("sdkKey", "txx_live_handled_test")
         crashSidecar().delete()
         module.configure(opts)
         // start's last replay-session assignment follows sidecar hydration.

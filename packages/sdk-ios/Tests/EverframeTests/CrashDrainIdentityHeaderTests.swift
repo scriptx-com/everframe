@@ -55,7 +55,7 @@ import Foundation
 @MainActor
 @Suite(.serialized)
 struct CrashDrainIdentityHeaderTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     private func jwt(sub: String, exp: Date) -> String {
         let header = #"{"alg":"HS256","typ":"JWT"}"#.data(using: .utf8)!
@@ -90,7 +90,7 @@ struct CrashDrainIdentityHeaderTests {
             ))
             let provider = ReplayConfigProvider(
                 configUrl: URL(string: "https://x/api/config")!,
-                apiKey: "a",
+                sdkKey: "a",
                 fetcher: fetcher
             )
             // Construct after start() advances its epoch, as the production factory does.
@@ -98,7 +98,7 @@ struct CrashDrainIdentityHeaderTests {
                 ReplaySession(provider: provider, locallyDisabled: false)
             }
 
-            let config = EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+            let config = EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
             try Everframe.shared.start(config: config)
 
             let fetched = await AsyncTestHelpers.waitFor({ fetcher.callCount >= 1 })

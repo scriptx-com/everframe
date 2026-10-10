@@ -72,7 +72,7 @@ struct SessionBoundaryResetTests {
         NetworkBodyCaptureGate.shared.resetForTesting()
         defer { NetworkBodyCaptureGate.shared.resetForTesting() }
 
-        let configA = EverframeConfig(appId: appA, capture: CaptureConfig(logs: false))
+        let configA = EverframeConfig(sdkKey: appA, capture: CaptureConfig(logs: false))
         try Everframe.shared.start(config: configA)
 
         // Simulate A's session having been authorized ON by the server and
@@ -89,7 +89,7 @@ struct SessionBoundaryResetTests {
         NetworkBodyRingBuffer.shared.append(bodyEntry(ref: 1))
         #expect(!NetworkBodyRingBuffer.shared.snapshot().isEmpty, "test setup: A's body must be buffered before start(B)")
 
-        let configB = EverframeConfig(appId: appB, capture: CaptureConfig(logs: false))
+        let configB = EverframeConfig(sdkKey: appB, capture: CaptureConfig(logs: false))
         try Everframe.shared.start(config: configB)
 
         // SYNCHRONOUS assertions — no await, no sleep — immediately after
@@ -131,7 +131,7 @@ struct SessionBoundaryResetTests {
         let fetcherA = GatedFetcher(gate: gateA, body: onBody)
         let providerA = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: fetcherA,
             ttlSec: 300,
             now: { 0 }
@@ -145,7 +145,7 @@ struct SessionBoundaryResetTests {
         let fetcherB = ImmediateFetcher(body: offBody)
         let providerB = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "b",
+            sdkKey: "b",
             fetcher: fetcherB,
             ttlSec: 300,
             now: { 0 }
@@ -170,7 +170,7 @@ struct SessionBoundaryResetTests {
         // would be vacuously true regardless of whether the F23 teardown
         // fix actually works.
         let captureConfig = CaptureConfig(logs: false, network: true)
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
         let aReachedFetch = await AsyncTestHelpers.waitFor({ fetcherA.callCount == 1 })
         #expect(aReachedFetch, "session A's initial fetch never started — test setup is wrong, not exercising the race")
 
@@ -178,7 +178,7 @@ struct SessionBoundaryResetTests {
         // teardown() is now requested as the FIRST thing dispatched to
         // MainActor (ahead of B's own heavy-init tail), not only after B's
         // `await drainOutbox()` completes.
-        try Everframe.shared.start(config: EverframeConfig(appId: appB, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appB, capture: captureConfig))
 
         // Not literally zero-wait — `_replaySession` is MainActor-isolated
         // and needs at least one scheduling turn to update (see
@@ -256,7 +256,7 @@ struct SessionBoundaryResetTests {
             ReplaySession(
                 provider: ReplayConfigProvider(
                     configUrl: URL(string: "https://x/api/config")!,
-                    apiKey: "dummy",
+                    sdkKey: "dummy",
                     fetcher: ImmediateFetcher(body: dummyOffBody),
                     ttlSec: 300,
                     now: { 0 }
@@ -266,7 +266,7 @@ struct SessionBoundaryResetTests {
         }
 
         let captureConfig = CaptureConfig(logs: false, network: true)
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
 
         // Capture the epoch A's OWN (standalone, never-installed) session
         // sees at its creation — mirrors exactly what start()'s heavy-init
@@ -281,7 +281,7 @@ struct SessionBoundaryResetTests {
         let fetcherA = GatedFetcher(gate: gateA, body: onBody)
         let providerA = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: fetcherA,
             ttlSec: 300,
             now: { 0 }
@@ -302,7 +302,7 @@ struct SessionBoundaryResetTests {
         // and its `teardown()` is never called anywhere in this test — the
         // ONLY mechanism that can stop its stale response from re-arming the
         // gate is the NEW global-start-epoch check under test.
-        try Everframe.shared.start(config: EverframeConfig(appId: appB, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appB, capture: captureConfig))
 
         // Release session A's parked ON response immediately — before
         // anything else has a chance to run — exactly the interval the

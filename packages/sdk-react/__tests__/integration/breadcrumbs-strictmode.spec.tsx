@@ -75,7 +75,7 @@ async function submitReportAndCaptureEnvelope(wrapInStrictMode: boolean) {
   globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
 
   const app = (
-    <EverframeProvider config={{ apiKey: 'txx_live_test', appName: 't', appVersion: '1' }}>
+    <EverframeProvider config={{ sdkKey: 'txx_live_test', appName: 't', appVersion: '1' }}>
       <div data-testid="surface">app</div>
       <OpenButton />
     </EverframeProvider>

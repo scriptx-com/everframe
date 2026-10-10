@@ -82,7 +82,7 @@ final class ReportSubmitterSessionLifecycleTests: XCTestCase {
         let sessionsSeen = NSMutableSet()
 
         for i in 0..<5 {
-            let submitter = ReportSubmitter(config: EverframeConfig(appId: "app"), outbox: makeOutbox())
+            let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: makeOutbox())
             sessionsSeen.add(ReportSubmitter.makeIsolatedSession())
 
             let result = try await submitter.submit(

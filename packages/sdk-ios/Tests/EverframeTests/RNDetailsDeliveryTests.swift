@@ -48,7 +48,7 @@ final class RNDetailsDeliveryTests: XCTestCase {
     }
 
     func testPublicFactsPreserveAbsenceAndIsolateInvalidOptionalDetails() throws {
-        let config = EverframeConfig(appId: "rn-details-app")
+        let config = EverframeConfig(sdkKey: "rn-details-app")
         let legacy = outbox("legacy.jsonl")
         XCTAssertTrue(CrashReporter.captureHandledFacts(
             json: #"{"exceptionType":"Legacy"}"#,
@@ -69,7 +69,7 @@ final class RNDetailsDeliveryTests: XCTestCase {
     }
 
     func testHandledAndAutomaticFactsPersistOwnedDetailsAndEntryIdentity() throws {
-        Everframe.__setConfigForTesting(EverframeConfig(appId: "entry-session-app"))
+        Everframe.__setConfigForTesting(EverframeConfig(sdkKey: "entry-session-app"))
         Everframe.captureGate = true
         Everframe.shared.setUser(EFUser(id: "session-user"))
         let handled = outbox("handled.jsonl")
@@ -115,9 +115,9 @@ final class RNDetailsDeliveryTests: XCTestCase {
         XCTAssertFalse(CrashReporter.captureHandledFacts(json: json, outbox: target))
         XCTAssertFalse(CrashReporter.captureHandledFacts(
             json: json, outbox: target,
-            config: EverframeConfig(appId: "app", capture: CaptureConfig(crash: false))
+            config: EverframeConfig(sdkKey: "app", capture: CaptureConfig(crash: false))
         ))
-        Everframe.__setConfigForTesting(EverframeConfig(appId: "app"))
+        Everframe.__setConfigForTesting(EverframeConfig(sdkKey: "app"))
         Everframe.captureGate = true
         CrashReporter.__afterUserSnapshotHookForTesting = { Everframe.shared.kill() }
         defer { CrashReporter.__afterUserSnapshotHookForTesting = nil }
@@ -126,11 +126,11 @@ final class RNDetailsDeliveryTests: XCTestCase {
     }
 
     func testPublicFactsRetryByteIdenticalDetailsAndOriginalHeadersAfter503() async throws {
-        let appId = "rn-details-retry-app"
+        let sdkKey = "rn-details-retry-app"
         let identitySubject = "rn-details-retry-user"
         let token = jwt(sub: identitySubject, exp: Date().addingTimeInterval(300))
-        let identityConfig = await enabledIdentityConfig(appId: appId)
-        Everframe.__setConfigForTesting(EverframeConfig(appId: appId))
+        let identityConfig = await enabledIdentityConfig(sdkKey: sdkKey)
+        Everframe.__setConfigForTesting(EverframeConfig(sdkKey: sdkKey))
         Everframe.shared.__replayConfigOverrideForTesting = identityConfig
         Everframe.shared.setIdentityToken(.token(token))
         let persisted = outbox("retry.jsonl")
@@ -145,7 +145,7 @@ final class RNDetailsDeliveryTests: XCTestCase {
         ))
         let reopened = outbox("retry.jsonl")
         let accepted = try XCTUnwrap(try reopened.hydrate().first)
-        XCTAssertEqual(accepted.sdkKey, appId)
+        XCTAssertEqual(accepted.sdkKey, sdkKey)
         XCTAssertEqual(accepted.identitySubject, identitySubject)
         XCTAssertTrue(String(decoding: accepted.envelopeBytes, as: UTF8.self).contains(marker))
 
@@ -162,7 +162,7 @@ final class RNDetailsDeliveryTests: XCTestCase {
             session.invalidateAndCancel()
         }
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: appId), outbox: reopened, session: session
+            config: EverframeConfig(sdkKey: sdkKey), outbox: reopened, session: session
         )
         let epoch = Everframe.shared.currentStartEpoch
         let identityHolder = Everframe.shared._identityHolder
@@ -200,7 +200,7 @@ final class RNDetailsDeliveryTests: XCTestCase {
             XCTAssertEqual(request.envelopeBytes, accepted.envelopeBytes)
             XCTAssertEqual(request.reportId, accepted.reportId)
             XCTAssertEqual(request.idempotencyKey, accepted.idempotencyKey)
-            XCTAssertEqual(request.authorization, "Bearer \(appId)")
+            XCTAssertEqual(request.authorization, "Bearer \(sdkKey)")
             XCTAssertEqual(request.identityToken, token)
         }
         XCTAssertEqual(secondRequest.envelopeBytes, firstRequest.envelopeBytes)
@@ -220,10 +220,10 @@ final class RNDetailsDeliveryTests: XCTestCase {
         return "\(base64URL(header)).\(base64URL(payload)).sig"
     }
 
-    private func enabledIdentityConfig(appId: String) async -> ReplayConfig {
+    private func enabledIdentityConfig(sdkKey: String) async -> ReplayConfig {
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://everframe.dev/api/config")!,
-            apiKey: appId,
+            sdkKey: sdkKey,
             fetcher: HandledDetailsConfigFetcher(
                 body: Data(
                     #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"identity":{"enabled":true}}"#.utf8

@@ -80,10 +80,10 @@ describe('adapter.ts thread-client reporterApi — identity token wiring', () =>
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k_identity_reporter_api' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k_identity_reporter_api' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k_identity_reporter_api' });
+    client.init({ sdkKey: 'k_identity_reporter_api' });
     // Same seam provider.tsx binds right after createClient.
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     client.setIdentityToken(jwt);
@@ -127,10 +127,10 @@ describe('adapter.ts thread-client reporterApi — identity token wiring', () =>
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k_identity_reporter_api_off' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k_identity_reporter_api_off' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k_identity_reporter_api_off' });
+    client.init({ sdkKey: 'k_identity_reporter_api_off' });
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     client.setIdentityToken(jwt);
 
@@ -169,10 +169,10 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k_identity_crash_sink' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k_identity_crash_sink' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k_identity_crash_sink' });
+    client.init({ sdkKey: 'k_identity_crash_sink' });
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     client.setIdentityToken(jwt);
 
@@ -234,10 +234,10 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k_identity_crash_cold' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k_identity_crash_cold' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k_identity_crash_cold' });
+    client.init({ sdkKey: 'k_identity_crash_cold' });
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     client.setIdentityToken(jwt);
 
@@ -274,10 +274,10 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k_identity_crash_sink_off' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k_identity_crash_sink_off' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k_identity_crash_sink_off' });
+    client.init({ sdkKey: 'k_identity_crash_sink_off' });
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     client.setIdentityToken(jwt);
 
@@ -334,10 +334,10 @@ describe('adapter.ts crash-sink — peek captures crash-time identity without in
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k_identity_crash_peek' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k_identity_crash_peek' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k_identity_crash_peek' });
+    client.init({ sdkKey: 'k_identity_crash_peek' });
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     client.setIdentityToken(provider);
 
@@ -394,10 +394,10 @@ describe('adapter.__identityTokenPending — the cold-start twin gate', () => {
 
   const boot = async (identityEnabled: boolean, key: string) => {
     vi.stubGlobal('fetch', configFetch(identityEnabled));
-    const adapter = createWebPlatformAdapter({ apiKey: key });
+    const adapter = createWebPlatformAdapter({ sdkKey: key });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: key });
+    client.init({ sdkKey: key });
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     await adapter.__initReplay(); // resolves the config fetch
     return { adapter, client };

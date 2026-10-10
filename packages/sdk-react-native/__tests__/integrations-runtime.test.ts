@@ -23,7 +23,7 @@ describe('runtime integrations', () => {
       expect(__getCurrentContext()).not.toBeNull();
       return teardown;
     });
-    const rt = createRuntime({ apiKey: 'k', integrations: [{ name: 'fake', setup }] });
+    const rt = createRuntime({ sdkKey: 'k', integrations: [{ name: 'fake', setup }] });
     rt.mount();
     expect(setup).toHaveBeenCalledTimes(1);
     rt.unmount();
@@ -35,7 +35,7 @@ describe('runtime integrations', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const good = vi.fn();
     const rt = createRuntime({
-      apiKey: 'k',
+      sdkKey: 'k',
       integrations: [
         { name: 'boom', setup: () => { throw new Error('nope'); } },
         { name: 'good', setup: good },
@@ -50,7 +50,7 @@ describe('runtime integrations', () => {
   it('a throwing teardown warns and does not break unmount', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const rt = createRuntime({
-      apiKey: 'k',
+      sdkKey: 'k',
       integrations: [{ name: 'boom', setup: () => () => { throw new Error('nope'); } }],
     });
     rt.mount();
@@ -59,7 +59,7 @@ describe('runtime integrations', () => {
   });
 
   it('setup-less mount/unmount stays a no-op (no integrations field)', () => {
-    const rt = createRuntime({ apiKey: 'k' });
+    const rt = createRuntime({ sdkKey: 'k' });
     rt.mount();
     rt.unmount();
   });

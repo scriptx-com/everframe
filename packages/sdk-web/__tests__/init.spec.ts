@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 function mount(): Everframe {
-  const h = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+  const h = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
   handles.push(h);
   return h;
 }
@@ -52,7 +52,7 @@ describe('init()', () => {
   it('is idempotent per page — a second call returns the same handle and warns', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const a = mount();
-    const b = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    const b = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     expect(b).toBe(a);
     expect(warn).toHaveBeenCalled();
     expect(document.querySelectorAll('#everframe-host')).toHaveLength(1);

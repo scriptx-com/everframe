@@ -25,7 +25,7 @@ import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
 import type { WebEverframeConfig } from '../../src/internal/types.js';
 
 const config: WebEverframeConfig = {
-  apiKey: 'txx_live_test',
+  sdkKey: 'txx_live_test',
   appName: 'test-app',
   appVersion: '1.0.0',
 };
@@ -183,7 +183,7 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(sentinel),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
 
     const alice = mkJwt('alice-sub');

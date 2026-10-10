@@ -29,7 +29,7 @@ import EverframeKit
               let raw = env["EVERFRAME_DEV_INGEST_URL"], let url = URL(string: raw),
               url.host == "127.0.0.1" || url.host == "localhost" else { return }
         do {
-            try Everframe.shared.start(config: EverframeConfig(appId: key, environment: .development,
+            try Everframe.shared.start(config: EverframeConfig(sdkKey: key, environment: .development,
                 release: "tvos-video-e2e", capture: CaptureConfig(logs: false, network: false, crash: false),
                 companionBadgeEnabled: false))
             let client = RelayWSClient(endpoint: url, companion: Everframe.shared.companion,

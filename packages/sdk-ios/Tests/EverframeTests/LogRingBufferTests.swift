@@ -31,12 +31,12 @@ struct LogRingBufferTests {
     }
 
     @Test func killGateBlocksAppend() throws {
-        try Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+        try Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
         Everframe.shared.kill()
         let buf = LogRingBuffer(capacity: 10)  // gate-honoring
         buf.append(makeEntry("blocked"))
         #expect(buf.snapshot().count == 0)
-        try Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+        try Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
     }
 
     @Test func sharedDefaultCapacityIs100() {

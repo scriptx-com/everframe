@@ -24,7 +24,7 @@ export const LEGACY_REPORTER_TOKEN_STORAGE_KEY = 'everframe.reporterDeviceToken'
 export const REPORTER_TOKEN_STORAGE_KEY = LEGACY_REPORTER_TOKEN_STORAGE_KEY;
 
 /**
- * Namespace the storage key by app identity. The publishable `apiKey` is
+ * Namespace the storage key by app identity. The publishable `sdkKey` is
  * already present on the page (it's how every other call is scoped), so it's
  * the natural, non-secret scope — no hashing needed.
  */
@@ -57,7 +57,7 @@ function migrateLegacyToken(scopedKey: string): void {
 
 /**
  * @param scope App identity the token is namespaced under — pass the
- *   publishable `apiKey` (PR review Finding 4: the storage key is
+ *   publishable `sdkKey` (PR review Finding 4: the storage key is
  *   origin-wide by default, so without a scope, two Everframe-integrated apps
  *   on one origin stomp each other's device token).
  */

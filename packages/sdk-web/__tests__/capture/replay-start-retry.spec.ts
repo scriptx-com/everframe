@@ -52,7 +52,7 @@ function stubConfig(state: { healthy: boolean }) {
 }
 
 function makeAdapter(): WebPlatformAdapter {
-  const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+  const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
   adapters.push(adapter);
   return adapter;
 }

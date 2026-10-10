@@ -82,7 +82,7 @@ struct NetworkBodyCaptureGateTests {
         // `capture.network` defaults to false; `capture.networkBodies`
         // defaults to true (no explicit client veto) — the exact scenario a
         // host gets by leaving `CaptureConfig` untouched.
-        let config = EverframeConfig(appId: "app", capture: .defaults)
+        let config = EverframeConfig(sdkKey: "app", capture: .defaults)
         gate.applyConfig(
             wire(captureBodies: true), samplingRate: 1.0,
             locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: config),
@@ -93,7 +93,7 @@ struct NetworkBodyCaptureGateTests {
     @Test func serverOnNetworkTrueButNetworkBodiesVetoStaysInactive() {
         let gate = NetworkBodyCaptureGate()
         let config = EverframeConfig(
-            appId: "app", capture: CaptureConfig(network: true, networkBodies: false))
+            sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: false))
         gate.applyConfig(
             wire(captureBodies: true), samplingRate: 1.0,
             locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: config),
@@ -104,7 +104,7 @@ struct NetworkBodyCaptureGateTests {
     @Test func serverOnNetworkTrueAndNetworkBodiesTrueBecomesActive() {
         let gate = NetworkBodyCaptureGate()
         let config = EverframeConfig(
-            appId: "app", capture: CaptureConfig(network: true, networkBodies: true))
+            sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: true))
         gate.applyConfig(
             wire(captureBodies: true), samplingRate: 1.0,
             locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: config),

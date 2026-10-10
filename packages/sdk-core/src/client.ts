@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { safeWrap } from './safe-wrap.js';
 import type { PlatformAdapter } from './types/platform.js';
-import type { EverframeConfig, UserMetadata, EverframeError } from './types/config.js';
+import type { EverframeConfig, ResolvedEverframeConfig, UserMetadata, EverframeError } from './types/config.js';
+import { resolveSdkKey } from './sdk-key.js';
 import { createBreadcrumbBuffer, type BreadcrumbBuffer } from './breadcrumbs/buffer.js';
 import { createNetworkBodyBuffer, type NetworkBodyBuffer } from './capture/network-body-buffer.js';
 import { BreadcrumbKind, BreadcrumbLevel, type Breadcrumb } from '@everframe/protocol';
@@ -133,7 +134,7 @@ export type ExtraState =
   | { kind: 'resolver'; resolve: ExtraResolver };
 
 interface ClientState {
-  config: EverframeConfig | null;
+  config: ResolvedEverframeConfig | null;
   user: UserMetadata | null;
   extra: ExtraState;
   killed: boolean;
@@ -263,18 +264,19 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
   state.identityToken = new IdentityTokenHolder();
 
   const handlers = {
-    init(config: EverframeConfig): void {
+    init(input: EverframeConfig): void {
       if (state.killed) return;
+      const config = resolveSdkKey(input);
       const prior = state.config;
       state.config = config;
       // Follow-up (spec 2026-08-12-followups-cleanup-round): everything below
-      // was captured or declared under `prior.apiKey` and must not cross into
+      // was captured or declared under `prior.sdkKey` and must not cross into
       // a different tenant. Same rule the outbox already follows (spec
       // 2026-08-12-outbox-key-binding): state belongs to the key that created
       // it. Keyed on CHANGE, not fired on every init(), so a same-key re-init
       // (config refresh, hot reload) does not silently discard a crumb trail.
       //
-      // `apiKey` alone is the tenant identity here: unlike the natives, web
+      // `sdkKey` alone is the tenant identity here: unlike the natives, web
       // has no endpoint in EverframeConfig — INGEST_URL is a build-time
       // constant (sdk-react constants.ts) and cannot differ between two
       // init() calls in one process.
@@ -282,7 +284,7 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
       // clear(), NOT kill(), on both buffers: both document clear() as the
       // wipe for "logout/identity change", and the buffer must keep accepting
       // entries for the new tenant. kill() is permanent.
-      if (prior && prior.apiKey !== config.apiKey) {
+      if (prior && prior.sdkKey !== config.sdkKey) {
         state.user = null;
         state.extra = { kind: 'value', value: '' };
         // Drops the source AND any cached token, and bumps the holder's

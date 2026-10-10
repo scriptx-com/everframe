@@ -1241,7 +1241,7 @@ object Everframe {
                     dev.everframe.vitals.VitalsTransport(
                         client = vitalsClient,
                         endpoint = "${IngestEndpoint.url}/api/ingest/vitals",
-                        apiKey = config.sdkKey,
+                        sdkKey = config.sdkKey,
                         // Critical 1: bound to the START EPOCH, not only to the
                         // reusable boolean gate. `captureGate` is re-opened by
                         // the next `start()`, so a retry scheduled by THIS
@@ -1331,7 +1331,7 @@ object Everframe {
                     context.applicationContext, config, epoch, captureGate, installIdProvider,
                 ) ?: ReplaySession(
                     baseUrl = IngestEndpoint.url,
-                    apiKey = config.sdkKey,
+                    sdkKey = config.sdkKey,
                     locallyDisabled = false,
                     context = context.applicationContext,
                     originatingStartEpoch = epoch,

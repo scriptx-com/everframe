@@ -84,7 +84,7 @@ const shot = (): { blob: Blob; width: number; height: number; sha256: string } =
 function installHost(killed: { value: boolean }, captureScreenshot?: () => Promise<unknown>) {
   const screenshotCalls = vi.fn();
   const host: CompanionHost = {
-    config: { apiKey: 'txx_test_key' } as CompanionHost['config'],
+    config: { sdkKey: 'txx_test_key' } as CompanionHost['config'],
     adapter: {
       outbox: undefined,
       captureScreenshot:
@@ -606,7 +606,7 @@ describe('an operation never completes under a host that has been replaced', () 
     installHost({ value: false }); // somebody else's mount…
     __setCompanionHost(null); // …and its teardown
     const handWired: CompanionHost = {
-      config: { apiKey: 'txx_test_key' } as CompanionHost['config'],
+      config: { sdkKey: 'txx_test_key' } as CompanionHost['config'],
       adapter: {
         captureScreenshot: async () => shot(),
         captureRecentLogs: () => [],

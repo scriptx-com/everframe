@@ -24,8 +24,10 @@ import {
   INGEST_URL,
   createScreenRecorder,
   sha256Hex,
+  resolveSdkKey,
   type WebPlatformAdapter,
   type WebEverframeConfig,
+  type ResolvedWebEverframeConfig,
   type ReporterResult,
 } from '@everframe/web';
 import { useIdentityProp, type IdentityProp } from './identity-prop.js';
@@ -50,7 +52,7 @@ import { createProviderReleaseHealth } from './release-health.js';
 export interface InternalContext {
   client: EverframeClient;
   adapter: WebPlatformAdapter;
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
   releaseHealth: ReturnType<typeof createProviderReleaseHealth>;
   stopClient: () => void;
   /** Freeze-then-open helper — freezes the replay buffer before mounting the modal. */
@@ -98,10 +100,14 @@ function sha256OfBytes(bytes: Uint8Array): Promise<string> {
 export const EverframeProvider = ({ config, identity, children }: EverframeProviderProps) => {
   // Repairable client contexts share the same real-mount configuration. A
   // child's effect may mutate the caller's object before StrictMode repairs it.
-  const [mountConfig] = useState<WebEverframeConfig>(() => ({
-    ...config,
-    ...(config.releaseHealth ? { releaseHealth: { ...config.releaseHealth } } : {}),
-  }));
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const [mountConfig] = useState<ResolvedWebEverframeConfig>(() => {
+    const resolved = resolveSdkKey(config);
+    return {
+      ...resolved,
+      ...(resolved.releaseHealth ? { releaseHealth: { ...resolved.releaseHealth } } : {}),
+    };
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({
@@ -283,7 +289,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   }, [ctxValue]);
 
   // Publish the companion host seam so the phone-companion `report.submit`
-  // path can reach config (apiKey) + adapter (capture + outbox) from its
+  // path can reach config (sdkKey) + adapter (capture + outbox) from its
   // non-React call site. Cleared on unmount. Without this the companion
   // submit degrades to `report.failed` instead of submitting to ingest.
   useEffect(() => {
@@ -311,11 +317,11 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // companion host seam above.
   useEffect(() => {
     __setCompanionDefaults({
-      ...(ctxValue.config.apiKey ? { sdkKey: ctxValue.config.apiKey } : {}),
+      ...(ctxValue.config.sdkKey ? { sdkKey: ctxValue.config.sdkKey } : {}),
       ...(ctxValue.config.appName ? { deviceLabel: ctxValue.config.appName } : {}),
     });
     return () => __setCompanionDefaults(null);
-  }, [ctxValue.config.apiKey, ctxValue.config.appName]);
+  }, [ctxValue.config.sdkKey, ctxValue.config.appName]);
 
   // Mirror the host's inline theme option into the branding box (spec
   // 2026-08-25) so Modal's useReporterThemeVars sees it without prop
@@ -388,7 +394,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   useEffect(() => {
     const vitals = setupVitals({
       config: ctxValue.config,
-      apiKey: ctxValue.config.apiKey,
+      sdkKey: ctxValue.config.sdkKey,
       apiUrl: INGEST_URL,
       isKilled: () => __internalClientState.get(ctxValue.client)?.killed === true,
       sdkVersion: PKG_VERSION,

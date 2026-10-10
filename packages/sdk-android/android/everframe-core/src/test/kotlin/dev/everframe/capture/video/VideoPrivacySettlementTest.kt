@@ -47,7 +47,7 @@ class VideoPrivacySettlementTest {
     }
     private fun begin() = VideoPrivacyRevocation.begin().also { tokens.add(it) }
     private fun session(disabled: Boolean = false, consent: Boolean = true) = ReplaySession(
-        apiKey = "key", context = context, locallyDisabled = disabled, captureConsent = consent,
+        sdkKey = "key", context = context, locallyDisabled = disabled, captureConsent = consent,
         provider = ReplayConfigProvider.make("https://settlement.test", "key", ConfigFetcher { request ->
             attempts.incrementAndGet(); fetch()
             Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("test")

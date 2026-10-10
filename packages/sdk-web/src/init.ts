@@ -19,6 +19,7 @@ import {
   __internalClientState,
   IDENTITY_PROVIDER_TIMEOUT_MS,
   resolveClientExtra,
+  resolveSdkKey,
   type EverframeClient,
   type ThreadClientState,
   type UserMetadata,
@@ -57,7 +58,7 @@ import type { Island } from './mount/react-island.js';
 import type { ReporterCompletePayload } from './reporter-ui/ReporterDialog.js';
 import type { ToastTone } from './reporter-ui/primitives/Toast.js';
 import { assertBrowser } from './ssr.js';
-import type { WebEverframeConfig } from './internal/types.js';
+import type { ResolvedWebEverframeConfig, WebEverframeConfig } from './internal/types.js';
 import { EverframeNotMountedError } from './reporter-types.js';
 import { setupReleaseHealth, type ReleaseHealthHandle } from './release-health/runtime.js';
 import type { ReporterResult } from './reporter-types.js';
@@ -128,7 +129,7 @@ export interface InternalHandle extends Everframe {
   __setShowModal(fn: () => void): void;
   readonly __adapter: WebPlatformAdapter;
   readonly __client: EverframeClient;
-  readonly __config: WebEverframeConfig;
+  readonly __config: ResolvedWebEverframeConfig;
   readonly __root: ShadowRoot | HTMLElement;
 }
 
@@ -167,8 +168,10 @@ async function sha256OfBytes(bytes: Uint8Array): Promise<string> {
  */
 let current: InternalHandle | null = null;
 
-export function init(config: WebEverframeConfig): Everframe {
+export function init(input: WebEverframeConfig): Everframe {
   assertBrowser();
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const config = resolveSdkKey(input);
   if (config.sdkName !== undefined &&
       (!['everframe-flutter', 'everframe-kmp'].includes(config.sdkName) ||
        typeof config.visualCapture?.captureScreenshot !== 'function' ||
@@ -271,7 +274,7 @@ export function init(config: WebEverframeConfig): Everframe {
   // instant everything else does.
   const vitals = setupVitals({
     config,
-    apiKey: config.apiKey,
+    sdkKey: config.sdkKey,
     apiUrl: INGEST_URL,
     isKilled,
     sdkVersion,
@@ -349,7 +352,7 @@ export function init(config: WebEverframeConfig): Everframe {
   __setBuiltinBadgeSurfaceAvailable(false);
 
   // The phone-companion submits from imperative, non-React call sites and
-  // reaches config (apiKey) + adapter (capture + outbox) through this seam.
+  // reaches config (sdkKey) + adapter (capture + outbox) through this seam.
   // Cleared in destroy(); without it a companion submit degrades to
   // `report.failed` instead of reaching ingest.
   __setCompanionHost({

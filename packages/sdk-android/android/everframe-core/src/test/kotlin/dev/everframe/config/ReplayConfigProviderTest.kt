@@ -71,7 +71,7 @@ class ReplayConfigProviderTest {
     private fun provider(
         clock: () -> Long = { 0L },
         fetcher: ConfigFetcher,
-    ) = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher, now = clock)
+    ) = ReplayConfigProvider(configUrl = url, sdkKey = "k", fetcher = fetcher, now = clock)
 
     @Test
     fun `starts at OFF default`() {
@@ -238,7 +238,7 @@ class ReplayConfigProviderTest {
         // First call seeds a valid-ON config.
         ReplayConfigProvider(
             configUrl = url,
-            apiKey = "k",
+            sdkKey = "k",
             fetcher = { response(200, """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0}""") },
             now = { 0L },
         ).let {
@@ -251,7 +251,7 @@ class ReplayConfigProviderTest {
         val clockSeq = longArrayOf(0L, 0L, 400_000L, 400_000L)
         val p2 = ReplayConfigProvider(
             configUrl = url,
-            apiKey = "k",
+            sdkKey = "k",
             fetcher = {
                 calls += 1
                 if (calls == 1) {
@@ -474,7 +474,7 @@ class ReplayConfigProviderTest {
         var calls = 0
         val p = ReplayConfigProvider(
             configUrl = url,
-            apiKey = "k",
+            sdkKey = "k",
             fetcher = {
                 calls += 1
                 response(200, """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0}""")
@@ -502,7 +502,7 @@ class ReplayConfigProviderTest {
         var calls = 0
         val p = ReplayConfigProvider(
             configUrl = url,
-            apiKey = "k",
+            sdkKey = "k",
             fetcher = {
                 calls += 1
                 response(200, """{"replayEnabled":true,"replayDurationSec":15,"samplingRate":0.5}""")
@@ -529,7 +529,7 @@ class ReplayConfigProviderTest {
         var calls = 0
         val p = ReplayConfigProvider(
             configUrl = url,
-            apiKey = "k",
+            sdkKey = "k",
             fetcher = {
                 calls += 1
                 if (calls == 1) throw IOException("boom")
@@ -548,7 +548,7 @@ class ReplayConfigProviderTest {
         var calls = 0
         val p = ReplayConfigProvider(
             configUrl = url,
-            apiKey = "k",
+            sdkKey = "k",
             fetcher = {
                 calls += 1
                 response(200, """{"replayEnabled":true,"replayDurationSec":15,"samplingRate":0.5}""")

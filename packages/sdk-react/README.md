@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html>
       <body>
-        <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx' }}>
+        <EverframeProvider config={{ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx' }}>
           {children}
         </EverframeProvider>
       </body>
@@ -94,7 +94,7 @@ Opt in independently of replay and vitals:
 
 ```tsx
 <EverframeProvider config={{
-  apiKey: 'your-sdk-key',
+  sdkKey: 'your-sdk-key',
   releaseHealth: { enabled: true, loadedBuildId: 'the-build-actually-loaded' },
 }}>
   {children}
@@ -145,7 +145,7 @@ import { headers } from 'next/headers';
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get('x-nonce') ?? '';
   return (
-    <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
+    <EverframeProvider config={{ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
       {children}
     </EverframeProvider>
   );

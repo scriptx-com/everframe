@@ -23,7 +23,7 @@ class ReleaseHealthConfigureTest {
     }
     @After fun cleanup() { Everframe.kill() }
     private fun enabled() = JavaOnlyMap().apply {
-        putString("apiKey", "rn-test-key")
+        putString("sdkKey", "rn-test-key")
         putBoolean("releaseHealthEnabled", true)
         putString("releaseHealthNativeBuildId", "native-a")
         putString("releaseHealthLoadedBuildId", "loaded-a")
@@ -45,7 +45,7 @@ class ReleaseHealthConfigureTest {
     }
     @Test fun absentDisabledAndInvalidConfigurationsClearPreviousMonitoring() {
         val invalid = listOf(
-            JavaOnlyMap().apply { putString("apiKey", "rn-test-key") },
+            JavaOnlyMap().apply { putString("sdkKey", "rn-test-key") },
             enabled().apply { putBoolean("releaseHealthEnabled", false) },
             enabled().apply { putNull("releaseHealthNativeBuildId") },
             enabled().apply { putNull("releaseHealthLoadedBuildId") },

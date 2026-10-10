@@ -18,7 +18,7 @@ const mkJwt = (expSec: number): string => {
 
 const freshClient = () => {
   const client = createClient(createFakePlatformAdapter());
-  client.init({ apiKey: 'k' });
+  client.init({ sdkKey: 'k' });
   return client;
 };
 

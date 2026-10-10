@@ -32,11 +32,11 @@ struct KillSwitchTests {
     /// also stops this suite leaking a process-global stderr intercept into
     /// every suite that runs after it.
     private static func config(
-        appId: String = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+        sdkKey: String = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
         environment: EverframeConfig.Environment = .production
     ) -> EverframeConfig {
         EverframeConfig(
-            appId: appId, environment: environment, capture: CaptureConfig(logs: false))
+            sdkKey: sdkKey, environment: environment, capture: CaptureConfig(logs: false))
     }
 
     @Test func killDisablesCaptureGate() throws {
@@ -188,9 +188,9 @@ struct KillSwitchTests {
     /// or a legitimate project switch would discard a crash that belongs to
     /// the project it was captured under.
     @Test func startDoesNotBumpKillGeneration() throws {
-        try Everframe.shared.start(config: Self.config(appId: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+        try Everframe.shared.start(config: Self.config(sdkKey: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
         let before = Everframe.shared.captureSessionSnapshot().killGeneration
-        try Everframe.shared.start(config: Self.config(appId: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
+        try Everframe.shared.start(config: Self.config(sdkKey: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
         #expect(
             !Everframe.killGenerationChanged(since: before),
             "start() must not look like a revocation — the crash still belongs to the project it was captured under"
@@ -198,7 +198,7 @@ struct KillSwitchTests {
     }
 
     @Test func killBumpsKillGeneration() throws {
-        try Everframe.shared.start(config: Self.config(appId: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+        try Everframe.shared.start(config: Self.config(sdkKey: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
         let before = Everframe.shared.captureSessionSnapshot().killGeneration
         Everframe.shared.kill()
         #expect(Everframe.killGenerationChanged(since: before))
@@ -208,10 +208,10 @@ struct KillSwitchTests {
     /// and `start()` re-opens it, so a gate check would see "open" here and
     /// ship a crash whose capture was revoked. Monotonicity is the whole point.
     @Test func killThenStartStillReadsAsRevoked() throws {
-        try Everframe.shared.start(config: Self.config(appId: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+        try Everframe.shared.start(config: Self.config(sdkKey: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
         let before = Everframe.shared.captureSessionSnapshot().killGeneration
         Everframe.shared.kill()
-        try Everframe.shared.start(config: Self.config(appId: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
+        try Everframe.shared.start(config: Self.config(sdkKey: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
         #expect(Everframe.shared.captureGate, "precondition: start() re-opened the gate")
         #expect(
             Everframe.killGenerationChanged(since: before),
@@ -223,11 +223,11 @@ struct KillSwitchTests {
     /// reads could straddle a start() and pair A's user with B's config, which
     /// is worse than either read alone.
     @Test func snapshotPairsUserWithTheConfigOfTheSameSession() throws {
-        try Everframe.shared.start(config: Self.config(appId: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+        try Everframe.shared.start(config: Self.config(sdkKey: "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
         Everframe.shared.setUser(EFUser(id: "u_1", email: nil, displayName: nil))
         let snap = Everframe.shared.captureSessionSnapshot()
         #expect(snap.user.user?.id == "u_1")
-        #expect(snap.config?.appId == "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        #expect(snap.config?.sdkKey == "txx_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         #expect(snap.user.startEpoch == Everframe.shared.currentStartEpoch)
     }
 
@@ -246,7 +246,7 @@ struct KillSwitchTests {
 
         // start() re-opens `captureGate`, so a boolean gate check would report
         // "fine" here — only a monotonic counter survives a restart.
-        try Everframe.shared.start(config: Self.config(appId: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
+        try Everframe.shared.start(config: Self.config(sdkKey: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
         #expect(captured.isRevoked, "a restart must not un-revoke a snapshot")
         Everframe.shared.kill()
     }

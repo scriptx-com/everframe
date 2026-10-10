@@ -33,11 +33,11 @@ import okhttp3.OkHttpClient
 /** One originating session. Config/identity/ancillary consumers remain independent of optional video. */
 class ReplaySession(
     baseUrl: String = IngestEndpoint.url,
-    apiKey: String,
+    sdkKey: String,
     private val locallyDisabled: Boolean = false,
     private val activitySupplier: () -> Activity? = { Everframe.__activitySupplier?.invoke() },
     installIdProvider: () -> String? = { null },
-    private val provider: ReplayConfigProvider = ReplayConfigProvider.make(baseUrl = baseUrl, apiKey = apiKey,
+    private val provider: ReplayConfigProvider = ReplayConfigProvider.make(baseUrl = baseUrl, sdkKey = sdkKey,
         fetcher = defaultFetcher, installIdProvider = installIdProvider),
     private val context: Context? = null,
     private val originatingStartEpoch: Int = Everframe.currentStartEpochVolatile(),

@@ -33,7 +33,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
     private func expect(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { XCTAssertTrue(value, file: file, line: line) }
     private func reject(_ value: Bool, file: StaticString = #filePath, line: UInt = #line) { XCTAssertFalse(value, file: file, line: line) }
     private func context(_ owner: String = "sdk-A") throws -> AppleDiagnosticContext {
-        let config = EverframeConfig(appId: owner, release: "release-A",
+        let config = EverframeConfig(sdkKey: owner, release: "release-A",
             redaction: .init(customPatterns: [try NSRegularExpression(pattern: "original-secret")]))
         let device = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "18.0", locale: "en_US", timezone: "UTC",
             appVersion: "1.0", appBuild: "42", bundleIdentifier: "dev.example.host")
@@ -56,10 +56,10 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
             nativeDeviceSnapshot: { device })
         defer { live.boundary() }
         reject(await sdk.setAppleDiagnosticsEnabled(true))
-        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
         expect(await sdk.setAppleDiagnosticsEnabled(true)); expect(await live.accept(candidate()))
         let old = try XCTUnwrap(outbox().hydrate().first)
-        try sdk.start(config: .init(appId: "evf_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", capture: .init(logs: false)))
+        try sdk.start(config: .init(sdkKey: "evf_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", capture: .init(logs: false)))
         XCTAssertFalse(AppleDiagnosticDelivery.allows(old, now: now.addingTimeInterval(20)))
         reject(await live.accept(candidate()))
         expect(await sdk.setAppleDiagnosticsEnabled(true))
@@ -163,7 +163,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         AppleRetryProtocol.reset()
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [AppleRetryProtocol.self]
         let session = URLSession(configuration: config); defer { session.invalidateAndCancel() }
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "sdk-A"), outbox: outbox(), session: session).restrictingOutboxToAppleDiagnostics()
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "sdk-A"), outbox: outbox(), session: session).restrictingOutboxToAppleDiagnostics()
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
         XCTAssertEqual(try outbox().hydrate(), [original, manual]); live.boundary()
         let next = runtime(at: Date()); expect(await next.enable(context: try context()))
@@ -186,14 +186,14 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         // Drives the SDK's own retry drain rather than a hand-built restricted submitter.
         // Whole seconds: queued entries persist ISO-8601 timestamps.
         let date = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970))
-        let appId = "evf_live_cccccccccccccccccccccccccccccccc", endpoint = IngestEndpoint.url.absoluteString
+        let sdkKey = "evf_live_cccccccccccccccccccccccccccccccc", endpoint = IngestEndpoint.url.absoluteString
         let device = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "18.0", locale: "en_US", timezone: "UTC",
             appVersion: "1.0", appBuild: "42", bundleIdentifier: "dev.example.host")
         let manual = OutboxEntry(reportId: UUID(), createdAt: date, envelopeBytes: Data("{}".utf8), idempotencyKey: "manual",
-            attachmentRefs: [], sdkKey: appId, endpoint: endpoint, identitySubject: "manual-user")
+            attachmentRefs: [], sdkKey: sdkKey, endpoint: endpoint, identitySubject: "manual-user")
         _ = try outbox().enqueueRecovered(manual)
         // Stage a receipt for the destination the SDK freezes, then restart.
-        let frozen = try NativeCrashStartupContext.make(config: EverframeConfig(appId: appId), user: nil, device: device, endpoint: endpoint)
+        let frozen = try NativeCrashStartupContext.make(config: EverframeConfig(sdkKey: sdkKey), user: nil, device: device, endpoint: endpoint)
         let first = runtime(at: date)
         expect(await first.enable(context: .init(frozen: frozen, applicationVersion: "1.0", applicationBuild: "42")))
         expect(await first.accept(AppleDiagnosticCandidate(kind: "hang_batch", begin: date, end: date, applicationVersion: "1.0",
@@ -207,7 +207,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         let live = runtime(at: date)
         let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: live, appleDiagnosticSession: { session },
             nativeDeviceSnapshot: { device })
-        try sdk.start(config: .init(appId: appId, capture: .init(logs: false)))
+        try sdk.start(config: .init(sdkKey: sdkKey, capture: .init(logs: false)))
         expect(await sdk.setAppleDiagnosticsEnabled(true))
         expect(try await eventually { try !self.outbox().hydrate().contains(where: AppleDiagnosticDelivery.isApple) })
         // The manual report is neither sent without its identity nor rewritten.
@@ -306,7 +306,7 @@ final class AppleDiagnosticTransportTests: XCTestCase {
         AppleDiagnosticDelivery.publish(owner: owner, entry: entry) { XCTFail("Revoked receipt must not settle") }
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [AppleNeverUploadProtocol.self]
         let session = URLSession(configuration: config); defer { session.invalidateAndCancel() }
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key"), outbox: box, session: session)
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "key"), outbox: box, session: session)
         let entered = expectation(description: "async config read"), gate = AppleReplayGate()
         let task = Task {
             await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: {
@@ -328,7 +328,7 @@ final class AppleDiagnosticTransportTests: XCTestCase {
         _ = try box.enqueueRecovered(entry)
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [AppleNeverUploadProtocol.self]
         let session = URLSession(configuration: config); defer { session.invalidateAndCancel() }
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key"), outbox: box, session: session)
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "key"), outbox: box, session: session)
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
         XCTAssertEqual(try box.hydrate(), [entry])
     }

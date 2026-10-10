@@ -17,7 +17,7 @@ let current: Handler;
 let predecessor: ReturnType<typeof vi.fn<Handler>>;
 const runtimes: Runtime[] = [];
 function mount(config: Partial<RuntimeConfig> = {}) {
-  const runtime = createRuntime({ apiKey: 'txx_test_key', ...config });
+  const runtime = createRuntime({ sdkKey: 'txx_test_key', ...config });
   runtimes.push(runtime);
   runtime.mount();
   return runtime;
@@ -27,7 +27,7 @@ function error(frame: string) {
 }
 function provider(config: Partial<RuntimeConfig> = {}) {
   return ({ children }: { children: React.ReactNode }) => (
-    <EverframeProvider config={{ apiKey: 'txx_test_key', ...config }}>{children}</EverframeProvider>
+    <EverframeProvider config={{ sdkKey: 'txx_test_key', ...config }}>{children}</EverframeProvider>
   );
 }
 beforeEach(() => {
@@ -244,7 +244,7 @@ describe('public captureException ownership', () => {
   });
 
   it.each(['same', 'different'])('preserves the new handler when initial lookup remounts the %s runtime', (kind) => {
-    const old = createRuntime({ apiKey: 'txx_test_key' });
+    const old = createRuntime({ sdkKey: 'txx_test_key' });
     runtimes.push(old);
     const eu = (globalThis as unknown as { ErrorUtils: { getGlobalHandler: () => Handler } }).ErrorUtils;
     let reenter = true;

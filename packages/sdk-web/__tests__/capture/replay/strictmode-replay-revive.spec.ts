@@ -79,7 +79,7 @@ function stubConfigOn(): void {
 
 const adapters: WebPlatformAdapter[] = [];
 function makeAdapter(): WebPlatformAdapter {
-  const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' });
+  const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' });
   adapters.push(adapter);
   return adapter;
 }

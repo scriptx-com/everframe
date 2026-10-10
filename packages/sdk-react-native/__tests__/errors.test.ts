@@ -115,7 +115,7 @@ describe('runtime crash-handler wiring is fail-soft', () => {
       },
     };
     const good = vi.fn();
-    const rt = createRuntime({ apiKey: 'k', integrations: [{ name: 'good', setup: good }] });
+    const rt = createRuntime({ sdkKey: 'k', integrations: [{ name: 'good', setup: good }] });
     expect(() => rt.mount()).not.toThrow();
     expect(good).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('crash handler install threw'));
@@ -130,7 +130,7 @@ describe('runtime crash-handler wiring is fail-soft', () => {
       setGlobalHandler: (handler: Handler) => { current = handler; },
     };
     (globalThis as Record<string, unknown>).ErrorUtils = eu;
-    const rt = createRuntime({ apiKey: 'k' });
+    const rt = createRuntime({ sdkKey: 'k' });
     rt.mount();
     // Restore path (teardown calls setGlobalHandler(previous)) now throws.
     eu.setGlobalHandler = () => {
@@ -161,7 +161,7 @@ describe('shared capture acceptance and bounded facts', () => {
       getGlobalHandler: () => current,
       setGlobalHandler: (handler: Handler) => { current = handler; },
     });
-    runtime = createRuntime({ apiKey: 'k' });
+    runtime = createRuntime({ sdkKey: 'k' });
     runtime.mount();
   });
   afterEach(() => {

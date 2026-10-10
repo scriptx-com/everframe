@@ -69,7 +69,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun networkBodiesDisabledTrueVetoesCapture() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         opts.putBoolean("networkBodiesDisabled", true)
         module.configure(opts)
         assertFalse(Everframe.currentConfig!!.capture.networkBodies)
@@ -82,7 +82,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun networkBodiesDefaultsToEnabledWhenTheFlagIsAbsent() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         module.configure(opts)
         assertTrue(Everframe.currentConfig!!.capture.networkBodies)
     }
@@ -94,7 +94,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun networkBodiesDisabledFalseLeavesCaptureEnabled() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         opts.putBoolean("networkBodiesDisabled", false)
         module.configure(opts)
         assertTrue(Everframe.currentConfig!!.capture.networkBodies)
@@ -112,7 +112,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun installIdentifierDisabledTrueVetoesIdentifier() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         opts.putBoolean("installIdentifierDisabled", true)
         module.configure(opts)
         assertFalse(Everframe.currentConfig!!.installIdentifierEnabled)
@@ -125,7 +125,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun installIdentifierDefaultsToEnabledWhenTheFlagIsAbsent() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         module.configure(opts)
         assertTrue(Everframe.currentConfig!!.installIdentifierEnabled)
     }
@@ -137,7 +137,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun installIdentifierDisabledFalseLeavesIdentifierEnabled() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         opts.putBoolean("installIdentifierDisabled", false)
         module.configure(opts)
         assertTrue(Everframe.currentConfig!!.installIdentifierEnabled)
@@ -147,7 +147,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun crashReportingDisabledTrueTurnsOffCrashCapture() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         opts.putBoolean("crashReportingDisabled", true)
         module.configure(opts)
         assertFalse(Everframe.currentConfig!!.capture.crash)
@@ -156,7 +156,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun crashCaptureDefaultsToOnWhenTheFlagIsAbsent() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         module.configure(opts)
         assertTrue(Everframe.currentConfig!!.capture.crash)
     }
@@ -164,7 +164,7 @@ class EverframeModuleConfigureTest {
     @Test
     fun crashReportingDisabledFalseLeavesCrashCaptureOn() {
         val opts = JavaOnlyMap()
-        opts.putString("apiKey", "k")
+        opts.putString("sdkKey", "k")
         opts.putBoolean("crashReportingDisabled", false)
         module.configure(opts)
         assertTrue(Everframe.currentConfig!!.capture.crash)
@@ -172,7 +172,7 @@ class EverframeModuleConfigureTest {
 
     @Test
     fun additiveConfigureSyncAcknowledgesCompletedStartupAndPreservesLegacyDescriptor() {
-        val opts = JavaOnlyMap.of("apiKey", "k")
+        val opts = JavaOnlyMap.of("sdkKey", "k")
         assertTrue(module.configureSync(opts))
         assertTrue(Everframe.captureGate)
 

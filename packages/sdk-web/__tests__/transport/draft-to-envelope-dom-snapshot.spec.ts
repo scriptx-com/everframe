@@ -8,7 +8,7 @@ import type { ReportDraft } from '@everframe/sdk-core';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
 
 const draft: ReportDraft = { title: 'X', description: 'Y', excludedArtifacts: [], annotations: [], redactions: [] };
-const config = { apiKey: 'k', appName: 'tv', appVersion: '1.0.0' };
+const config = { sdkKey: 'k', appName: 'tv', appVersion: '1.0.0' };
 const SNAP = { bytes: new Uint8Array([0x1f, 0x8b, 8, 0, 1, 2]), sha256: 'b'.repeat(64) };
 const RENDER = { platform: 'webos', viewport: { width: 1280, height: 720 }, dpr: 2, fontStatus: 'loaded' } as CaptureBundle['render'];
 const png = () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/webp' });

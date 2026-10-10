@@ -20,7 +20,7 @@ import { EverframeProvider, EverframeContext } from '../src/provider.js';
 import { useEverframe } from '../src/hook.js';
 import { addBreadcrumb } from '../src/contextSeam.js';
 
-const cfg = { apiKey: 'txx_live_test' };
+const cfg = { sdkKey: 'txx_live_test' };
 const wrapper = ({ children }: { children: ReactNode }) => (
   <EverframeProvider config={cfg}>{children}</EverframeProvider>
 );

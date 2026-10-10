@@ -16,7 +16,7 @@ import Foundation
 /// every stored property by construction and keeps covering new ones. `RedactionConfig`
 /// supplies the one hand-written `==` (see its own note).
 public struct EverframeConfig: Sendable, Equatable {
-    public let appId: String
+    public let sdkKey: String
     public let environment: Environment
     public let release: String?
     public var capture: CaptureConfig
@@ -84,6 +84,38 @@ public struct EverframeConfig: Sendable, Equatable {
     }
 
     public init(
+        sdkKey: String,
+        environment: Environment = .production,
+        release: String? = nil,
+        capture: CaptureConfig = .defaults,
+        redaction: RedactionConfig = .defaults,
+        companionDeviceId: String? = nil,
+        companionBadgeEnabled: Bool = true,
+        shakeToReportEnabled: Bool = true,
+        companionBadgePosition: String? = nil,
+        theme: ReporterThemeOptions? = nil,
+        installIdentifierEnabled: Bool = true,
+        vitals: VitalsConfig = VitalsConfig()
+    ) {
+        self.sdkKey = sdkKey
+        self.environment = environment
+        self.release = release
+        self.capture = capture
+        self.redaction = redaction
+        self.companionDeviceId = companionDeviceId
+        self.companionBadgeEnabled = companionBadgeEnabled
+        self.shakeToReportEnabled = shakeToReportEnabled
+        self.companionBadgePosition = companionBadgePosition
+        self.theme = theme
+        self.installIdentifierEnabled = installIdentifierEnabled
+        self.vitals = vitals
+    }
+
+    /// The SDK 1.1 spelling of `init(sdkKey:…)`. Its `appId` took the SDK key
+    /// (`evf_live_…`), never the App ID, so it forwards unchanged. Deprecated
+    /// rather than removed so 1.1 call sites keep compiling.
+    @available(*, deprecated, renamed: "init(sdkKey:environment:release:capture:redaction:companionDeviceId:companionBadgeEnabled:shakeToReportEnabled:companionBadgePosition:theme:installIdentifierEnabled:vitals:)")
+    public init(
         appId: String,
         environment: Environment = .production,
         release: String? = nil,
@@ -97,19 +129,18 @@ public struct EverframeConfig: Sendable, Equatable {
         installIdentifierEnabled: Bool = true,
         vitals: VitalsConfig = VitalsConfig()
     ) {
-        self.appId = appId
-        self.environment = environment
-        self.release = release
-        self.capture = capture
-        self.redaction = redaction
-        self.companionDeviceId = companionDeviceId
-        self.companionBadgeEnabled = companionBadgeEnabled
-        self.shakeToReportEnabled = shakeToReportEnabled
-        self.companionBadgePosition = companionBadgePosition
-        self.theme = theme
-        self.installIdentifierEnabled = installIdentifierEnabled
-        self.vitals = vitals
+        self.init(
+            sdkKey: appId, environment: environment, release: release, capture: capture,
+            redaction: redaction, companionDeviceId: companionDeviceId,
+            companionBadgeEnabled: companionBadgeEnabled, shakeToReportEnabled: shakeToReportEnabled,
+            companionBadgePosition: companionBadgePosition, theme: theme,
+            installIdentifierEnabled: installIdentifierEnabled, vitals: vitals
+        )
     }
+
+    /// The SDK 1.1 name of `sdkKey`. It always held the SDK key.
+    @available(*, deprecated, renamed: "sdkKey")
+    public var appId: String { sdkKey }
 }
 
 public struct CaptureConfig: Sendable, Equatable {
@@ -224,7 +255,7 @@ public enum ReportResult {
 // MARK: - Errors
 
 public enum EverframeConfigError: Error, Equatable {
-    case missingAppId
+    case missingSdkKey
     case invalidVitalsSampleRate
 }
 

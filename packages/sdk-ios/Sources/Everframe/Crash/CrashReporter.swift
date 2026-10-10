@@ -539,7 +539,7 @@ public enum CrashReporter {
             try outbox.enqueue(OutboxEntry(
                 reportId: reportId, createdAt: Date(), envelopeBytes: bytes,
                 idempotencyKey: idempotencyKey, attachmentRefs: [],
-                sdkKey: config.appId, endpoint: IngestEndpoint.url.absoluteString,
+                sdkKey: config.sdkKey, endpoint: IngestEndpoint.url.absoluteString,
                 identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil), diagnostics: deliveryOwner)
             diagnostic.outcome = .persisted
             if fatal {

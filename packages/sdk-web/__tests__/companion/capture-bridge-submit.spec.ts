@@ -55,7 +55,7 @@ function makeHost(
   getUser: () => UserMetadata | null = () => null,
 ): CompanionHost {
   return {
-    config: { apiKey: 'txx_test_key' } as CompanionHost['config'],
+    config: { sdkKey: 'txx_test_key' } as CompanionHost['config'],
     adapter: {
       outbox: undefined,
       __getBreadcrumbBuffer: () => fakeBreadcrumbs,
@@ -116,7 +116,7 @@ describe('companion/capture-bridge report.submit', () => {
     // Submitted via the standard ingest path with the right config + draft.
     expect(submitMock).toHaveBeenCalledTimes(1);
     const arg = submitMock.mock.calls[0]![0];
-    expect(arg.config.apiKey).toBe('txx_test_key');
+    expect(arg.config.sdkKey).toBe('txx_test_key');
     expect(arg.sdkVersion).toBe('0.0.0-test');
     expect(arg.draft.title).toBe('Broken button');
     expect(arg.draft.description).toBe('It does nothing');

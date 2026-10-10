@@ -30,7 +30,7 @@ final class HandledErrorCaptureTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    private func configure(_ config: EverframeConfig = EverframeConfig(appId: "ios-handled-test")) {
+    private func configure(_ config: EverframeConfig = EverframeConfig(sdkKey: "ios-handled-test")) {
         Everframe.__setConfigForTesting(config)
         Everframe.captureGate = true
     }
@@ -82,7 +82,7 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertTrue(CrashReporter.captureHandledError(root, outbox: outbox))
         XCTAssertEqual(try outbox.hydrate().count, 1)
         let replacing = MutableUnderlyingError()
-        replacing.onRead = { Everframe.__setConfigForTesting(EverframeConfig(appId: "new-session")) }
+        replacing.onRead = { Everframe.__setConfigForTesting(EverframeConfig(sdkKey: "new-session")) }
         XCTAssertFalse(CrashReporter.captureHandledError(replacing, outbox: outbox))
         XCTAssertEqual(try outbox.hydrate().count, 1)
     }
@@ -266,7 +266,7 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertFalse(CrashReporter.captureHandledError(ValueFailure.fill, outbox: outbox))
 
         try Everframe.shared.start(config: EverframeConfig(
-            appId: "txx_live_00000000000000000000000000000000",
+            sdkKey: "txx_live_00000000000000000000000000000000",
             capture: CaptureConfig(logs: false)
         ))
         XCTAssertTrue(CrashReporter.captureHandledError(reused, outbox: outbox))
@@ -305,7 +305,7 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertFalse(CrashReporter.captureHandledError(error, outbox: makeOutbox("prestart")))
 
         configure(EverframeConfig(
-            appId: "disabled",
+            sdkKey: "disabled",
             capture: CaptureConfig(crash: false)
         ))
         Everframe.shared.captureException(error)
@@ -343,7 +343,7 @@ final class HandledErrorCaptureTests: XCTestCase {
                 defer { value = false }
                 return value
             }) {
-                Everframe.__setConfigForTesting(EverframeConfig(appId: "replacement"))
+                Everframe.__setConfigForTesting(EverframeConfig(sdkKey: "replacement"))
             }
         }
         XCTAssertFalse(CrashReporter.captureHandledError(error, outbox: outbox))
@@ -375,7 +375,7 @@ final class HandledErrorCaptureTests: XCTestCase {
         configure()
         let restarted = CallbackLocalizedError {
             try? Everframe.shared.start(config: EverframeConfig(
-                appId: "txx_live_00000000000000000000000000000000",
+                sdkKey: "txx_live_00000000000000000000000000000000",
                 capture: CaptureConfig(logs: false)
             ))
         }
@@ -418,7 +418,7 @@ final class HandledErrorCaptureTests: XCTestCase {
                 restarted.set(true)
                 Everframe.shared.kill()
                 try? Everframe.shared.start(config: EverframeConfig(
-                    appId: "txx_live_00000000000000000000000000000000",
+                    sdkKey: "txx_live_00000000000000000000000000000000",
                     capture: CaptureConfig(logs: false)
                 ))
             }
@@ -470,7 +470,7 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertTrue(CrashReporter.captureFacts(
             json: #"{"exceptionType":"AutomaticDuringMetadata","fatal":true}"#,
             outbox: automaticOutbox,
-            config: EverframeConfig(appId: "ios-handled-test")
+            config: EverframeConfig(sdkKey: "ios-handled-test")
         ))
         release.signal()
         XCTAssertEqual(finished.wait(timeout: .now() + 5), .success)
@@ -488,12 +488,12 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertTrue(CrashReporter.captureHandledFacts(
             json: #"{"exceptionType":"RNHandled"}"#,
             sdkName: "everframe-react-native", outbox: outbox,
-            config: EverframeConfig(appId: "ios-handled-test")
+            config: EverframeConfig(sdkKey: "ios-handled-test")
         ))
         XCTAssertTrue(CrashReporter.captureFacts(
             json: #"{"exceptionType":"RNAutomatic","fatal":true}"#,
             sdkName: "everframe-react-native", outbox: outbox,
-            config: EverframeConfig(appId: "ios-handled-test")
+            config: EverframeConfig(sdkKey: "ios-handled-test")
         ))
         let entries = try outbox.hydrate()
         XCTAssertEqual(entries.count, 12)
@@ -540,7 +540,7 @@ final class HandledErrorCaptureTests: XCTestCase {
         XCTAssertTrue(CrashReporter.captureFacts(
             json: #"{"exceptionType":"AutomaticFatal","fatal":true}"#,
             outbox: automaticOutbox,
-            config: EverframeConfig(appId: "ios-handled-test")
+            config: EverframeConfig(sdkKey: "ios-handled-test")
         ))
         release.signal()
         XCTAssertEqual(finished.wait(timeout: .now() + 5), .success)

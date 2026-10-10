@@ -18,13 +18,13 @@ describe('captureException facade', () => {
     const options = { severity: 'warning', context: 'checkout', metadata: { retry: 2 } } as const;
     client.captureException(error, options);
     expect(captured).toEqual([]);
-    client.init({ apiKey: 'test', disabled: true });
+    client.init({ sdkKey: 'test', disabled: true });
     client.captureException(error, options);
     expect(captured).toEqual([]);
-    client.init({ apiKey: 'test', crashReporting: { disabled: true } });
+    client.init({ sdkKey: 'test', crashReporting: { disabled: true } });
     client.captureException(error, options);
     expect(captured).toEqual([]);
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     client.captureException(error, options);
     expect(captured).toHaveLength(1);
     expect(captured[0]).toEqual({ error, options });
@@ -37,7 +37,7 @@ describe('captureException facade', () => {
 
   it('allows adapters that do not implement exception reporting', () => {
     const client = createClient(createFakePlatformAdapter());
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     expect(() => client.captureException(new Error('caught'), { context: 'checkout' })).not.toThrow();
   });
 
@@ -48,7 +48,7 @@ describe('captureException facade', () => {
       ...createFakePlatformAdapter(),
       captureException() { throw new Error('adapter failed'); },
     });
-    client.init({ apiKey: 'test', onError });
+    client.init({ sdkKey: 'test', onError });
     expect(() => client.captureException(new Error('caught'))).not.toThrow();
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'adapter failed' }));
   });

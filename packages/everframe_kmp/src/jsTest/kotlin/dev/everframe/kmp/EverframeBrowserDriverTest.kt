@@ -26,7 +26,7 @@ class EverframeBrowserDriverTest {
         assertTrue(client.start(EverframeKmpConfig("app", "key")))
         assertEquals("everframe-kmp", config.sdkName as String)
         assertEquals("0.10.2", config.sdkVersion as String)
-        assertEquals("key", config.apiKey as String)
+        assertEquals("key", config.sdkKey as String)
         assertEquals(capture, config.visualCapture)
         client.kill()
     }

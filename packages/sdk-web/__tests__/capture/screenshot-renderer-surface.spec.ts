@@ -18,7 +18,7 @@ describe('adapter.__lastScreenshotRenderer', () => {
       }),
     }));
     const { createWebPlatformAdapter } = await import('../../src/adapter.js');
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' } as never) as unknown as {
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' } as never) as unknown as {
       captureScreenshot(): Promise<unknown>;
       __lastScreenshotRenderer?: string;
     };
@@ -44,7 +44,7 @@ describe('adapter.__lastScreenshotRenderer', () => {
       ),
     }));
     const { createWebPlatformAdapter } = await import('../../src/adapter.js');
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' } as never) as unknown as {
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' } as never) as unknown as {
       captureScreenshot(): Promise<unknown>;
       __lastDegradedReason?: string;
       __lastScreenshotRenderer?: string;
@@ -72,7 +72,7 @@ describe('adapter.__lastScreenshotRenderer', () => {
       }),
     }));
     const { createWebPlatformAdapter } = await import('../../src/adapter.js');
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' } as never) as unknown as {
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' } as never) as unknown as {
       captureScreenshot(): Promise<{ degradedReason?: string }>;
       __lastDegradedReason?: string;
     };
@@ -101,7 +101,7 @@ describe('adapter.__lastScreenshotRenderer', () => {
       }),
     }));
     const { createWebPlatformAdapter } = await import('../../src/adapter.js');
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' } as never) as unknown as {
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' } as never) as unknown as {
       captureScreenshot(): Promise<unknown>;
     };
     await adapter.captureScreenshot();

@@ -31,7 +31,7 @@ struct CompanionDisconnectReplayTests {
             Everframe.__replaySessionFactoryForTesting = { _ in
                 MainActor.assumeIsolated {
                     let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!,
-                        apiKey: "test", fetcher: DisconnectReplayFetcher())
+                        sdkKey: "test", fetcher: DisconnectReplayFetcher())
                     let session = ReplaySession(provider: provider, locallyDisabled: false)
                     box.session = session
                     return session
@@ -42,7 +42,7 @@ struct CompanionDisconnectReplayTests {
                 box.session?.teardown()
             }
             try Everframe.shared.start(config: EverframeConfig(
-                appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false)))
+                sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false)))
             #expect(await eventually { box.session?.__lifecycleStateForTesting() == .buffering })
             let api = CompanionAPI()
             let client = RelayWSClient(companion: api)

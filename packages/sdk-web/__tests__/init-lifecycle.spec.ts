@@ -33,7 +33,7 @@ import { EverframeNotMountedError } from '../src/reporter-types.js';
 import { REPORTER_TOKEN_STORAGE_KEY } from '../src/reporter/credential-store.js';
 
 const TEST_TOKEN = 'evr_test0000000000000000000000000000000000';
-const config = { apiKey: 'txx_live_test' };
+const config = { sdkKey: 'txx_live_test' };
 
 let handles: Everframe[] = [];
 function mount(): Everframe {
@@ -403,7 +403,7 @@ describe('handle.open() before a UI mount / after destroy', () => {
 // `__openReporter` — is gated too. Each case is paired with a live control on
 // an un-killed instance so a broken harness fails as loudly as a missing gate.
 describe('kill(): a killed instance opens nothing', () => {
-  const hotkeyConfig = { apiKey: 'txx_live_test' };
+  const hotkeyConfig = { sdkKey: 'txx_live_test' };
   function mountWithHotkey(): Everframe {
     const h = init(hotkeyConfig);
     handles.push(h);
@@ -450,7 +450,7 @@ describe('dashboard-owned report hotkey', () => {
   it('opens only from the remotely configured binding once config resolves', async () => {
     stubFetch(undefined, false, 'Alt+R');
     const handle = init({
-      apiKey: 'txx_live_test',
+      sdkKey: 'txx_live_test',
       // A legacy JavaScript caller may still pass the removed local option.
       // The dashboard binding must win at runtime as well as in the TS API.
       hotkey: { binding: 'Ctrl+Shift+B' },

@@ -3,7 +3,7 @@
 //
 // Follow-up (spec 2026-08-12-followups-cleanup-round): `init()` used to assign
 // `state.config` and nothing else, so a second `init()` under a DIFFERENT
-// apiKey left project A's self-declared user, extra, breadcrumb chain,
+// sdkKey left project A's self-declared user, extra, breadcrumb chain,
 // captured bodies and — worst — its signed identity token live for project B.
 // Unreachable through EverframeProvider (fresh client per mount), but
 // `createClient` is a public export, so a direct-SDK host can do exactly this.
@@ -31,10 +31,10 @@ function populate(client: EverframeClient): void {
   stateOf(client).networkBodies.add({ ref: 1, t: Date.now(), reqBody: 'body-under-project-a' });
 }
 
-describe('init() with a different apiKey resets tenant-scoped state', () => {
+describe('init() with a different sdkKey resets tenant-scoped state', () => {
   it('clears user, extra, identity token and both buffers', () => {
     const client = createClient(stubAdapter());
-    client.init({ apiKey: 'pk_project_a' });
+    client.init({ sdkKey: 'pk_project_a' });
     populate(client);
 
     const before = stateOf(client);
@@ -42,7 +42,7 @@ describe('init() with a different apiKey resets tenant-scoped state', () => {
     expect(before.breadcrumbs.size).toBeGreaterThan(0);
     expect(before.networkBodies.size).toBeGreaterThan(0);
 
-    client.init({ apiKey: 'pk_project_b' });
+    client.init({ sdkKey: 'pk_project_b' });
 
     const after = stateOf(client);
     expect(after.user).toBeNull();
@@ -50,14 +50,14 @@ describe('init() with a different apiKey resets tenant-scoped state', () => {
     expect(after.identityToken.hasSource()).toBe(false);
     expect(after.breadcrumbs.size).toBe(0);
     expect(after.networkBodies.size).toBe(0);
-    expect(after.config?.apiKey).toBe('pk_project_b');
+    expect(after.config?.sdkKey).toBe('pk_project_b');
   });
 
   it('keeps capturing for the new tenant — clear(), not kill()', () => {
     const client = createClient(stubAdapter());
-    client.init({ apiKey: 'pk_project_a' });
+    client.init({ sdkKey: 'pk_project_a' });
     populate(client);
-    client.init({ apiKey: 'pk_project_b' });
+    client.init({ sdkKey: 'pk_project_b' });
 
     client.addBreadcrumb({ kind: 'tap', message: 'crumb-under-project-b' });
 
@@ -69,10 +69,10 @@ describe('init() with a different apiKey resets tenant-scoped state', () => {
 
   it('a same-key re-init preserves the crumb trail', () => {
     const client = createClient(stubAdapter());
-    client.init({ apiKey: 'pk_project_a' });
+    client.init({ sdkKey: 'pk_project_a' });
     populate(client);
 
-    client.init({ apiKey: 'pk_project_a', appVersion: '2.0.0' });
+    client.init({ sdkKey: 'pk_project_a', appVersion: '2.0.0' });
 
     const s = stateOf(client);
     expect(s.user).toEqual({ id: 'u_1', email: 'alice@a.com', displayName: 'Alice' });
@@ -84,8 +84,8 @@ describe('init() with a different apiKey resets tenant-scoped state', () => {
 
   it('the very first init() resets nothing', () => {
     const client = createClient(stubAdapter());
-    client.init({ apiKey: 'pk_project_a' });
-    expect(stateOf(client).config?.apiKey).toBe('pk_project_a');
+    client.init({ sdkKey: 'pk_project_a' });
+    expect(stateOf(client).config?.sdkKey).toBe('pk_project_a');
     expect(stateOf(client).user).toBeNull();
   });
 });

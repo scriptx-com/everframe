@@ -8,7 +8,7 @@ import { captureException, EverframeProvider, useEverframe } from '@everframe/re
 
 const config = {
   // Syntactically valid, nonsecret fixture key (native iOS validates length).
-  apiKey: 'txx_live_00000000000000000000000000000000',
+  sdkKey: 'txx_live_00000000000000000000000000000000',
   appName: 'C1a installed acceptance',
   jsBundle: {
     buildId: `c1a-installed-debug-${Platform.OS}-20260914`,

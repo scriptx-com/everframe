@@ -25,7 +25,7 @@ class VitalsConfigWireTest {
     private fun response(code: Int, body: String): Response = Response.Builder()
         .request(Request.Builder().url(url).build()).protocol(Protocol.HTTP_1_1).code(code).message("OK")
         .body(body.toResponseBody("application/json".toMediaType())).build()
-    private fun provider(fetcher: ConfigFetcher) = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher, now = { 0L })
+    private fun provider(fetcher: ConfigFetcher) = ReplayConfigProvider(configUrl = url, sdkKey = "k", fetcher = fetcher, now = { 0L })
     private val base = """"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0"""
 
     @Test

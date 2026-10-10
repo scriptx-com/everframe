@@ -74,8 +74,8 @@ final class ReporterSubmitKeyBindingTests: XCTestCase {
     /// `capture: CaptureConfig(logs: false)` keeps `start()` from installing
     /// the process-global stderr intercept — the same isolation
     /// `KillSwitchTests` and `EnvelopeUserTests` apply, for the same reason.
-    private func config(_ appId: String) -> EverframeConfig {
-        EverframeConfig(appId: appId, capture: CaptureConfig(logs: false))
+    private func config(_ sdkKey: String) -> EverframeConfig {
+        EverframeConfig(sdkKey: sdkKey, capture: CaptureConfig(logs: false))
     }
 
     /// Records the config its submitter was built with, and returns a
@@ -97,11 +97,11 @@ final class ReporterSubmitKeyBindingTests: XCTestCase {
     /// the `Authorization` header, so the tests can check the key that went
     /// ON THE WIRE rather than only the config the submitter was built from.
     private final class FactorySpy: @unchecked Sendable {
-        private(set) var configAppIds: [String] = []
-        var ran: Bool { !configAppIds.isEmpty }
+        private(set) var configSdkKeys: [String] = []
+        var ran: Bool { !configSdkKeys.isEmpty }
 
         func make(_ cfg: EverframeConfig) -> ReportSubmitter {
-            configAppIds.append(cfg.appId)
+            configSdkKeys.append(cfg.sdkKey)
             let sessionConfig = URLSessionConfiguration.ephemeral
             sessionConfig.protocolClasses = [RecordingURLProtocol.self]
             return ReportSubmitter(
@@ -171,10 +171,10 @@ final class ReporterSubmitKeyBindingTests: XCTestCase {
         // Non-vacuity: B really is the live session, so a fix that simply read
         // the live config again would be caught here rather than passing.
         XCTAssertEqual(
-            Everframe.shared.currentConfig?.appId, appB,
+            Everframe.shared.currentConfig?.sdkKey, appB,
             "precondition: project B must be the live session — otherwise this test asserts nothing")
         XCTAssertEqual(
-            spy.configAppIds, [appA],
+            spy.configSdkKeys, [appA],
             "the report must upload under the key of the project it was captured in, not whoever start() named while it was being assembled")
         // The claim that actually matters to a customer: the key on the wire.
         XCTAssertEqual(
@@ -193,7 +193,7 @@ final class ReporterSubmitKeyBindingTests: XCTestCase {
 
         _ = try? await ReporterSubmission.submit(inputs(session: captured))
 
-        XCTAssertEqual(spy.configAppIds, [appA])
+        XCTAssertEqual(spy.configSdkKeys, [appA])
         XCTAssertEqual(RecordingURLProtocol.recorded.map(\.authorization), ["Bearer \(appA)"])
     }
 

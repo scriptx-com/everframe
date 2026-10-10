@@ -21,8 +21,8 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // into the RN bundle. Dedupe to sdk-core post-v0.1.0.
 import NativeEverframe from "./NativeEverframe.js";
 import type { ConfigOpts, Rect } from "./NativeEverframe.js";
-import { budgetExtra, EXTRA_MAX_CHARS } from "@everframe/sdk-core";
-import type { ExtraResolver } from "@everframe/sdk-core";
+import { budgetExtra, EXTRA_MAX_CHARS, resolveSdkKey } from "@everframe/sdk-core";
+import type { ExtraResolver, WithSdkKeyField } from "@everframe/sdk-core";
 import { getEmitter } from "./events.js";
 import { captureJsBundleMetadata, type JsBundleConfig } from "./js-bundle.js";
 import { createCaptureController, type CaptureController } from "./errors.js";
@@ -101,11 +101,11 @@ export interface RuntimeConfig
   > {
   /**
    * Per-app SDK key (publishable, not secret). Required on the host-facing
-   * config — narrows the bridge `ConfigOpts.apiKey?` to required so a missing
+   * config — narrows the bridge `ConfigOpts.sdkKey?` to required so a missing
    * key is a compile-time error, matching the React SDK. The bridge type stays
    * optional (extractBridgeConfig builds `{}`); only this host surface requires it.
    */
-  apiKey: string;
+  sdkKey: string;
   appName?: string;
   appVersion?: string;
   appBuild?: string;
@@ -385,7 +385,15 @@ function installExtraResolveHandler(): boolean {
   }
 }
 
-export function createRuntime(config: RuntimeConfig): Runtime {
+/**
+ * The provider config as a host passes it: the SDK key as `sdkKey`, or as the
+ * deprecated `apiKey` (its name before 1.2).
+ */
+export type EverframeProviderConfig = WithSdkKeyField<RuntimeConfig>;
+
+export function createRuntime(input: EverframeProviderConfig): Runtime {
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const config: RuntimeConfig = resolveSdkKey(input);
   const sensitiveRegistry = new Map<number, Rect>();
   type Mount = {
     teardowns: Array<{ name: string; teardown: () => void }>;
@@ -685,7 +693,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
 
 function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   const bridge: ConfigOpts = {};
-  if (config.apiKey !== undefined) bridge.apiKey = config.apiKey;
+  if (config.sdkKey !== undefined) bridge.sdkKey = config.sdkKey;
   // `sdkVersion` is NOT forwarded — the SDK version is owned by the SDK itself
   // (the native side stamps its own `Everframe.SDK_VERSION`), never the host.
   if (config.captureScreenshot !== undefined)

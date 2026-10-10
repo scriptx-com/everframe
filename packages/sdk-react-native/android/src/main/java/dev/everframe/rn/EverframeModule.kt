@@ -251,9 +251,9 @@ class EverframeModule(
     private fun configureInternal(opts: ReadableMap): Boolean {
         var completed = false
         txGuardSurface("configure") {
-            val sdkKey = opts.takeIfHasString("apiKey")
+            val sdkKey = opts.takeIfHasString("sdkKey")
                 ?: throw JSApplicationIllegalArgumentException(
-                    "configure: required field 'apiKey' missing",
+                    "configure: required field 'sdkKey' missing",
                 )
             val sdkVersion = opts.takeIfHasString("sdkVersion") ?: Everframe.SDK_VERSION
 
@@ -281,6 +281,10 @@ class EverframeModule(
             val attachPinUi = parseAttachPinUi(opts.takeIfHasString("attachPinUi"))
 
             val config = EverframeConfig(
+                // The JS config carries no App ID, and the native SDK requires a
+                // non-blank one. It only keys this app's low-memory-kill issue, so
+                // the SDK key stands in, as it always has; changing it would split
+                // existing React Native low-memory issues.
                 appId = sdkKey,
                 sdkKey = sdkKey,
                 environment = Environment.production,

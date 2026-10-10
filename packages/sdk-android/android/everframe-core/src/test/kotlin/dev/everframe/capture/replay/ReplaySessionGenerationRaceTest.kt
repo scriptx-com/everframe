@@ -149,8 +149,8 @@ class ReplaySessionGenerationRaceTest {
                 val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
                     "networkBodies":{"captureBodies":true}}"""
                 val fetcher = ConfigFetcher { response(200, onBody) }
-                val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
-                val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+                val provider = ReplayConfigProvider(configUrl = url, sdkKey = "k", fetcher = fetcher)
+                val session = ReplaySession(sdkKey = "k", locallyDisabled = false, provider = provider)
 
                 // Mirrors enableIfConfigured()'s initial fetch. ReplayConfigProvider
                 // .refresh() hops to the REAL Dispatchers.IO, so this genuinely runs
@@ -235,8 +235,8 @@ class ReplaySessionGenerationRaceTest {
                 val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
                     "networkBodies":{"captureBodies":true}}"""
                 val fetcher = ConfigFetcher { response(200, onBody) }
-                val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
-                val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+                val provider = ReplayConfigProvider(configUrl = url, sdkKey = "k", fetcher = fetcher)
+                val session = ReplaySession(sdkKey = "k", locallyDisabled = false, provider = provider)
 
                 // Mirrors enableIfConfigured()'s initial fetch — hops to the
                 // REAL Dispatchers.IO inside provider.refresh(), so this
@@ -307,8 +307,8 @@ class ReplaySessionGenerationRaceTest {
                 val onBody = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,
                     "resources":{"enabled":true}}"""
                 val fetcher = ConfigFetcher { response(200, onBody) }
-                val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
-                val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+                val provider = ReplayConfigProvider(configUrl = url, sdkKey = "k", fetcher = fetcher)
+                val session = ReplaySession(sdkKey = "k", locallyDisabled = false, provider = provider)
 
                 val refreshJob = launch { session.refreshConfigNow() }
 

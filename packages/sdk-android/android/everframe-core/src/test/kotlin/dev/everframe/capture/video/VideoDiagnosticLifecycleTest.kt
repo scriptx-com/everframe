@@ -46,7 +46,7 @@ class VideoDiagnosticLifecycleTest {
             Response.Builder().request(it).protocol(Protocol.HTTP_1_1).code(200).message("OK")
                 .body("""{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0,"nativeVideo":{"framesPerSecond":5}}""".toResponseBody()).build()
         })
-        val session = ReplaySession(apiKey = "never-export-this-sdk-key", provider = provider)
+        val session = ReplaySession(sdkKey = "never-export-this-sdk-key", provider = provider)
         val prior = Everframe._replaySession
         Everframe._replaySession = session
         val scheduler = object : VideoCaptureScheduler {

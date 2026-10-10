@@ -587,7 +587,7 @@ fun interface ConfigFetcher {
  */
 class ReplayConfigProvider(
     private val configUrl: String,
-    private val apiKey: String,
+    private val sdkKey: String,
     private val fetcher: ConfigFetcher,
     private val ttlMs: Long = 300_000L,
     private val now: () -> Long = { android.os.SystemClock.elapsedRealtime() },
@@ -724,7 +724,7 @@ class ReplayConfigProvider(
             val req = Request.Builder()
                 .url(requestUrl())
                 .get()
-                .header("Authorization", "Bearer $apiKey")
+                .header("Authorization", "Bearer $sdkKey")
                 .header("Accept", "application/json")
                 .header("X-Everframe-SDK-Features", SDK_FEATURES_HEADER_VALUE)
                 .build()
@@ -836,7 +836,7 @@ class ReplayConfigProvider(
          */
         fun make(
             baseUrl: String = IngestEndpoint.url,
-            apiKey: String,
+            sdkKey: String,
             fetcher: ConfigFetcher,
             installIdProvider: () -> String? = { null },
         ): ReplayConfigProvider {
@@ -844,7 +844,7 @@ class ReplayConfigProvider(
             val configUrl = if (trimmed.endsWith("/api/config")) trimmed else "$trimmed/api/config"
             return ReplayConfigProvider(
                 configUrl = configUrl,
-                apiKey = apiKey,
+                sdkKey = sdkKey,
                 fetcher = fetcher,
                 installIdProvider = installIdProvider,
             )

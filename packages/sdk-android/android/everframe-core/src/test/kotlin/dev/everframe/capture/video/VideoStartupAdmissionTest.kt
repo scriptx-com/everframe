@@ -99,7 +99,7 @@ class VideoStartupAdmissionTest {
             Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("ok")
                 .body("""{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"nativeVideo":{"framesPerSecond":5}$configExtras}""".toResponseBody()).build()
         })
-        return ReplaySession(apiKey = "key", provider = provider, context = context,
+        return ReplaySession(sdkKey = "key", provider = provider, context = context,
             originatingStartEpoch = epoch, captureConsent = consent).also { session ->
             sessions.add(session)
             session.videoStartupAdmission = startup

@@ -76,7 +76,7 @@ final class IdentityHeaderRedirectTests: XCTestCase {
         }
         serverB.respond = { _ in (200, ["Content-Type": "application/json"], Data("{}".utf8)) }
 
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "app"), outbox: makeOutbox())
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: makeOutbox())
 
         let result = try await submitter.submit(
             envelopeBytes: Data("{}".utf8),
@@ -123,7 +123,7 @@ final class IdentityHeaderRedirectTests: XCTestCase {
             return (200, ["Content-Type": "application/json"], Data("{}".utf8))
         }
 
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "app"), outbox: makeOutbox())
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: makeOutbox())
 
         let result = try await submitter.submit(
             envelopeBytes: Data("{}".utf8),

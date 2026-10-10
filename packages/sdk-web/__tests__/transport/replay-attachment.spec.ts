@@ -14,7 +14,7 @@ import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-t
 import type { ReportDraft, ReplayCapture } from '@everframe/sdk-core';
 import type { WebEverframeConfig } from '../../src/internal/types.js';
 
-const config: WebEverframeConfig = { apiKey: 'txx_live_test', appName: 'a', appVersion: '1.0.0' };
+const config: WebEverframeConfig = { sdkKey: 'txx_live_test', appName: 'a', appVersion: '1.0.0' };
 const draft: ReportDraft = {
   title: 'X',
   description: 'Y',

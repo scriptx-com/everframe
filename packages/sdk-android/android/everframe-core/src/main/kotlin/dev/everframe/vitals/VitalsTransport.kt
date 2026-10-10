@@ -37,7 +37,7 @@ interface VitalsSink : AutoCloseable {
 class VitalsTransport(
     private val client: OkHttpClient,
     private val endpoint: String,
-    private val apiKey: String,
+    private val sdkKey: String,
     private val isKilled: () -> Boolean,
     /**
      * Codex round-2, Important 14 — takes a `Runnable` rather than a lambda so
@@ -87,7 +87,7 @@ class VitalsTransport(
         val req = Request.Builder()
             .url(endpoint)
             .post(body.toRequestBody(json))
-            .header("Authorization", "Bearer $apiKey")
+            .header("Authorization", "Bearer $sdkKey")
             .header("Accept", "application/json")
             .tag(callTag)
             .build()

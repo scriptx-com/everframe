@@ -39,7 +39,7 @@ describe('config read: install identifier', () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) => configResponse());
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'txx_live_install_id_ok' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'txx_live_install_id_ok' });
     adapters.push(adapter);
     await adapter.__initReplay();
 
@@ -76,7 +76,7 @@ describe('config read: install identifier', () => {
 
     let adapter: WebPlatformAdapter | undefined;
     expect(() => {
-      adapter = createWebPlatformAdapter({ apiKey: 'txx_live_install_id_throws' });
+      adapter = createWebPlatformAdapter({ sdkKey: 'txx_live_install_id_throws' });
     }).not.toThrow();
     adapters.push(adapter!);
     await adapter!.__initReplay();
@@ -97,7 +97,7 @@ describe('config read: install identifier', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const adapter = createWebPlatformAdapter({
-      apiKey: 'txx_live_install_id_optout',
+      sdkKey: 'txx_live_install_id_optout',
       installIdentifier: { disabled: true },
     });
     adapters.push(adapter);

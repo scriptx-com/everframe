@@ -5,12 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { ReportEnvelope } from '@everframe/protocol';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
 import type { ReportDraft } from '@everframe/sdk-core';
-import type { WebEverframeConfig } from '../../src/internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../../src/internal/types.js';
 
 /** Minimal fixture config, reused (and overridden via spread) across the suite. */
-function baseConfig(): WebEverframeConfig {
+function baseConfig(): ResolvedWebEverframeConfig {
   return {
-    apiKey: 'txx_live_test',
+    sdkKey: 'txx_live_test',
     appName: 'test-app',
     appVersion: '1.0.0',
   };

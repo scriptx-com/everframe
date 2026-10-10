@@ -145,13 +145,13 @@ public final class ReplaySession: NSObject {
     ///   site (`Everframe.swift`'s `start()`) always passes the EXACT epoch
     ///   value it just verified via its `stillCurrent` guard anyway.
     public convenience init(
-        baseURL: URL, apiKey: String, locallyDisabled: Bool,
+        baseURL: URL, sdkKey: String, locallyDisabled: Bool,
         startEpoch: Int,
         installIdProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.init(
             provider: ReplayConfigProvider.make(
-                baseURL: baseURL, apiKey: apiKey, installIdProvider: installIdProvider
+                baseURL: baseURL, sdkKey: sdkKey, installIdProvider: installIdProvider
             ),
             locallyDisabled: locallyDisabled,
             startEpoch: startEpoch
@@ -164,11 +164,30 @@ public final class ReplaySession: NSObject {
     /// the `internal` `currentStartEpoch`), but an overload whose *body*
     /// reads it is fine — so external callers written against the original
     /// three-parameter form keep compiling, adopting the current global epoch.
-    public convenience init(baseURL: URL, apiKey: String, locallyDisabled: Bool) {
+    public convenience init(baseURL: URL, sdkKey: String, locallyDisabled: Bool) {
         self.init(
-            baseURL: baseURL, apiKey: apiKey, locallyDisabled: locallyDisabled,
+            baseURL: baseURL, sdkKey: sdkKey, locallyDisabled: locallyDisabled,
             startEpoch: Everframe.shared.currentStartEpoch
         )
+    }
+
+    /// The SDK 1.1 spelling of `init(baseURL:sdkKey:locallyDisabled:startEpoch:installIdProvider:)`.
+    @available(*, deprecated, renamed: "init(baseURL:sdkKey:locallyDisabled:startEpoch:installIdProvider:)")
+    public convenience init(
+        baseURL: URL, apiKey: String, locallyDisabled: Bool,
+        startEpoch: Int,
+        installIdProvider: @escaping @Sendable () -> String? = { nil }
+    ) {
+        self.init(
+            baseURL: baseURL, sdkKey: apiKey, locallyDisabled: locallyDisabled,
+            startEpoch: startEpoch, installIdProvider: installIdProvider
+        )
+    }
+
+    /// The SDK 1.1 spelling of `init(baseURL:sdkKey:locallyDisabled:)`.
+    @available(*, deprecated, renamed: "init(baseURL:sdkKey:locallyDisabled:)")
+    public convenience init(baseURL: URL, apiKey: String, locallyDisabled: Bool) {
+        self.init(baseURL: baseURL, sdkKey: apiKey, locallyDisabled: locallyDisabled)
     }
 
     /// Test seam: construct with a pre-built `ReplayConfigProvider` (e.g. wired

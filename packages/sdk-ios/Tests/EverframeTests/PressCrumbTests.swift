@@ -10,7 +10,7 @@ import EverframeProtocol
 
 @Suite(.serialized)
 struct PressCrumbTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     /// `BreadcrumbRingBuffer.shared.add` no-ops while `Everframe.shared.captureGate`
     /// is closed (pre-start()). Under `-only-testing` isolation no other suite's
@@ -19,7 +19,7 @@ struct PressCrumbTests {
     /// would see an always-empty buffer regardless of correctness. Mirrors
     /// `CompanionFreezeLifecycleTests`/`BreadcrumbTapNavAdaptersTests`.
     private func noLogCaptureConfig() -> EverframeConfig {
-        EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+        EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
     }
 
     private func withCleanState(_ body: @MainActor () -> Void) {

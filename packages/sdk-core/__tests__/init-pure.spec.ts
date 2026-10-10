@@ -23,27 +23,27 @@ describe('DEFE-01: init is pure (no I/O, no side effects)', () => {
 
   it('init() does not call fetch', () => {
     const client = createClient(createFakePlatformAdapter());
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('init() does not schedule timers', () => {
     const client = createClient(createFakePlatformAdapter());
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     expect(setTimeoutSpy).not.toHaveBeenCalled();
     expect(setIntervalSpy).not.toHaveBeenCalled();
   });
 
   it('init() returns synchronously', () => {
     const client = createClient(createFakePlatformAdapter());
-    const ret = client.init({ apiKey: 'test' });
+    const ret = client.init({ sdkKey: 'test' });
     expect(ret).toBeUndefined();
   });
 
   it('init() does not call any adapter capture method', () => {
     const adapter = createFakePlatformAdapter();
     const client = createClient(adapter);
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     expect(adapter.__calls.captureScreenshot).toBe(0);
     expect(adapter.__calls.registerTrigger).toBe(0);
     expect(adapter.__calls.captureRecentLogs).toBe(0);

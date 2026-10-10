@@ -52,12 +52,12 @@ struct NetworkRingBufferTests {
             // buffer refuses appends. Restore the gate at the end so
             // siblings (if any happened to wait on us via .serialized) keep
             // working.
-            try Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+            try Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
             Everframe.shared.kill()
             let buf = NetworkRingBuffer(capacity: 10)  // gate-honoring
             buf.append(makeEntry(1))
             #expect(buf.snapshot().count == 0)
-            try Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+            try Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
         }
     }
 
@@ -99,7 +99,7 @@ struct NetworkRingBufferTests {
     @Test func killGateRaceDoesNotInsertAfterConcurrentClear() async throws {
         try await withGlobalCaptureStateLock {
             let buf = NetworkRingBuffer.shared
-            try Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+            try Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
             buf.clear()
 
             let reachedPreLock = DispatchSemaphore(value: 0)
@@ -126,7 +126,7 @@ struct NetworkRingBufferTests {
             #expect(buf.snapshot().isEmpty)
 
             buf.preLockHook = nil
-            try Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+            try Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
             buf.clear()
         }
     }

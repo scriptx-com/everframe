@@ -62,7 +62,7 @@ import {
   RENDER_PATH,
   SCREENSHOT_RENDER_SDK_FEATURE,
 } from '@everframe/protocol';
-import type { WebEverframeConfig } from './internal/types.js';
+import type { ResolvedWebEverframeConfig } from './internal/types.js';
 import type { ReporterResult } from './reporter-types.js';
 import { sensitiveRegistry } from './sensitive/registry.js';
 import { createReplayRecorder, type ReplayRecorder } from './capture/replay/index.js';
@@ -496,7 +496,7 @@ export function createSessionSampler(
 }
 
 export function createWebPlatformAdapter(
-  _config: WebEverframeConfig,
+  _config: ResolvedWebEverframeConfig,
   /**
    * Who is hosting this adapter — see internal/sdk-identity.ts. Passed in
    * rather than read from this package's own constants, because the two
@@ -609,7 +609,7 @@ export function createWebPlatformAdapter(
   // later un-veto should resume the same thread identity).
   const reporterCredentials =
     _config.disabled !== true && _config.replies?.disabled !== true
-      ? createLocalStorageCredentialStore(_config.apiKey)
+      ? createLocalStorageCredentialStore(_config.sdkKey)
       : null;
 
   // Plan 03-02 — uninstallers for every capture patcher installed below (console,
@@ -966,7 +966,7 @@ export function createWebPlatformAdapter(
     const installIdProvider =
       _config.installIdentifier?.disabled === true
         ? undefined
-        : makeWebInstallIdSupplier(_config.apiKey);
+        : makeWebInstallIdSupplier(_config.sdkKey);
 
     configProvider = createConfigProvider({
       fetchImpl:
@@ -974,7 +974,7 @@ export function createWebPlatformAdapter(
           throw new Error('no fetch');
         }),
       configUrl: baseConfigUrl,
-      apiKey: _config.apiKey,
+      sdkKey: _config.sdkKey,
       ...(installIdProvider ? { installIdProvider } : {}),
       // Capability negotiation (spec 2026-08-01 §4.3 networkBodies; two-way
       // replies; reporter identity recognition, spec 2026-08-06; dashboard
@@ -1242,7 +1242,7 @@ export function createWebPlatformAdapter(
           throw new Error('no fetch');
         }),
       baseUrl: INGEST_URL,
-      apiKey: _config.apiKey,
+      sdkKey: _config.sdkKey,
       // Reporter identity recognition (spec 2026-08-06) — every /api/reporter/*
       // call (thread polling, replies, read receipts) presents the identity
       // token the same way ingest submits do. Already self-gated on
@@ -1583,7 +1583,7 @@ export function createWebPlatformAdapter(
               payload: new TextEncoder().encode(JSON.stringify(envelope)),
               metadata: {
                 url: `${INGEST_URL.replace(/\/$/, '')}/api/ingest`,
-                sdkKey: _config.apiKey,
+                sdkKey: _config.sdkKey,
               },
             };
             // PR review, round 3 (Serious, crash-sink half) — capture the
@@ -1821,7 +1821,7 @@ export function createWebPlatformAdapter(
         },
         render: {
           url: `${INGEST_URL.replace(/\/$/, '')}${RENDER_PATH}`,
-          sdkKey: _config.apiKey,
+          sdkKey: _config.sdkKey,
           fetchImpl: fetch.bind(globalScope()),
           signal,
         },

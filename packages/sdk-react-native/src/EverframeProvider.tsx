@@ -9,7 +9,7 @@
 // call `useEverframe().open()` (or the top-level `open()` re-export) from their
 // own buttons, hotkeys, overlays, and TV trigger handlers.
 import * as React from 'react';
-import { createRuntime, type Runtime, type RuntimeConfig } from './runtime.js';
+import { createRuntime, type Runtime, type EverframeProviderConfig } from './runtime.js';
 import {
   EverframeNotMountedError,
   type EverframeContextValue,
@@ -18,7 +18,7 @@ import {
 const Ctx = React.createContext<EverframeContextValue | null>(null);
 
 export interface EverframeProviderProps {
-  config: RuntimeConfig;
+  config: EverframeProviderConfig;
   children: React.ReactNode;
 }
 

@@ -8,7 +8,7 @@ import { init } from '@everframe/web';
 import { STATIC_NONCE } from './csp-nonce';
 
 const everframe = init({
-  apiKey: 'txx_live_test',
+  sdkKey: 'txx_live_test',
   appVersion: '0.0.1-vue',
   cspNonce: STATIC_NONCE,
 });

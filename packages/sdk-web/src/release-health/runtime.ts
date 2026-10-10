@@ -24,13 +24,13 @@ const MAX_REQUEST_MS = 10_000;
 
 /** Init-owned producer. It uses only explicit release-health identity and never assigns outcomes. */
 export function setupReleaseHealth(config: {
-  apiKey: string; disabled?: boolean; releaseHealth?: ReleaseHealthOptions;
+  sdkKey: string; disabled?: boolean; releaseHealth?: ReleaseHealthOptions;
 }, endpoint: string, sdkVersion: string) {
   const enabled = config.disabled !== true && config.releaseHealth?.enabled === true;
   const explicitlyDisabled = config.disabled === true || config.releaseHealth?.enabled === false;
   // Snapshot caller-owned mutable objects before the first await.
-  const apiKey = config.apiKey;
-  const routeIdentity = JSON.stringify([endpoint, apiKey]);
+  const sdkKey = config.sdkKey;
+  const routeIdentity = JSON.stringify([endpoint, sdkKey]);
   if (explicitlyDisabled) pendingRevocations.set(routeIdentity, Symbol());
   const loadedBuildId = config.releaseHealth?.loadedBuildId ?? null;
   const userId = config.releaseHealth?.userId;
@@ -124,7 +124,7 @@ export function setupReleaseHealth(config: {
       const timer = setTimeout(() => controller.abort(), MAX_REQUEST_MS);
       try {
         const response = await fetch(endpoint + '/api/ingest/release-health', { method: 'POST',
-          headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+          headers: { Authorization: 'Bearer ' + sdkKey, 'Content-Type': 'application/json' },
           body: JSON.stringify(row.record), signal: controller.signal, credentials: 'omit' });
         if (revoked || stopped) break;
         if (response.status === 200 || response.status === 201) await journal.acknowledge(route, generation, row.key, false);

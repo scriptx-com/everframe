@@ -111,7 +111,7 @@ async function submittedEnvelope(): Promise<{ sdk: { name: string; version: stri
 
 describe('in-app report submitted from the island', () => {
   it("stamps envelope.sdk.name as 'everframe-web', not the everframe-react default", async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
 
@@ -122,7 +122,7 @@ describe('in-app report submitted from the island', () => {
   });
 
   it('settles the pending open() with the submitted report id', async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     const pending = handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
 

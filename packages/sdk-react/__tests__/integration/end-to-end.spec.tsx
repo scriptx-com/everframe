@@ -117,7 +117,7 @@ describe('Provider end-to-end (jsdom)', () => {
       const { findByTestId } = render(
         <EverframeProvider
           config={{
-            apiKey: 'txx_live_test',
+            sdkKey: 'txx_live_test',
             appName: 'test',
             appVersion: '1.0.0',
           }}
@@ -188,7 +188,7 @@ describe('Provider end-to-end (jsdom)', () => {
     const rendered = render(
       <EverframeProvider
         config={{
-          apiKey: 'txx_live_test',
+          sdkKey: 'txx_live_test',
           appName: 'test',
           appVersion: '1.0.0',
         }}
@@ -249,8 +249,8 @@ describe('Provider end-to-end (jsdom)', () => {
    */
   it('replies.disabled: submit presents no device-token header and localStorage stays untouched', async () => {
     const originalFetch = globalThis.fetch;
-    const apiKey = 'txx_live_veto_test';
-    const scopedKey = scopedReporterTokenStorageKey(apiKey);
+    const sdkKey = 'txx_live_veto_test';
+    const scopedKey = scopedReporterTokenStorageKey(sdkKey);
     localStorage.removeItem(scopedKey);
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url =
@@ -274,7 +274,7 @@ describe('Provider end-to-end (jsdom)', () => {
       const { findByTestId } = render(
         <EverframeProvider
           config={{
-            apiKey,
+            sdkKey,
             appName: 'test',
             appVersion: '1.0.0',
             replies: { disabled: true },
@@ -339,8 +339,8 @@ describe('Provider end-to-end (jsdom)', () => {
    */
   it('replies.disabled: a server-provisioned thread/device block is ignored — plain success toast, no persisted token', async () => {
     const originalFetch = globalThis.fetch;
-    const apiKey = 'txx_live_veto_thread_test';
-    const scopedKey = scopedReporterTokenStorageKey(apiKey);
+    const sdkKey = 'txx_live_veto_thread_test';
+    const scopedKey = scopedReporterTokenStorageKey(sdkKey);
     localStorage.removeItem(scopedKey);
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url =
@@ -364,7 +364,7 @@ describe('Provider end-to-end (jsdom)', () => {
       const { findByTestId } = render(
         <EverframeProvider
           config={{
-            apiKey,
+            sdkKey,
             appName: 'test',
             appVersion: '1.0.0',
             replies: { disabled: true },
@@ -447,7 +447,7 @@ describe('Provider end-to-end (jsdom)', () => {
       try {
         const { findByTestId } = render(
           <EverframeProvider
-            config={{ apiKey: 'txx_live_identity_on', appName: 'test', appVersion: '1.0.0' }}
+            config={{ sdkKey: 'txx_live_identity_on', appName: 'test', appVersion: '1.0.0' }}
           >
             <div>app</div>
             <IdentitySetter token={jwt} />
@@ -513,7 +513,7 @@ describe('Provider end-to-end (jsdom)', () => {
       try {
         const { findByTestId } = render(
           <EverframeProvider
-            config={{ apiKey: 'txx_live_identity_no_token', appName: 'test', appVersion: '1.0.0' }}
+            config={{ sdkKey: 'txx_live_identity_no_token', appName: 'test', appVersion: '1.0.0' }}
           >
             <div>app</div>
             <OpenButton />
@@ -577,7 +577,7 @@ describe('Provider end-to-end (jsdom)', () => {
       try {
         const { findByTestId } = render(
           <EverframeProvider
-            config={{ apiKey: 'txx_live_identity_disabled', appName: 'test', appVersion: '1.0.0' }}
+            config={{ sdkKey: 'txx_live_identity_disabled', appName: 'test', appVersion: '1.0.0' }}
           >
             <div>app</div>
             <IdentitySetter token={jwt} />
@@ -696,7 +696,7 @@ describe('Provider end-to-end (jsdom)', () => {
         const { findByTestId } = render(
           <EverframeProvider
             config={{
-              apiKey: 'txx_live_identity_boundary', appName: 'test', appVersion: '1.0.0',
+              sdkKey: 'txx_live_identity_boundary', appName: 'test', appVersion: '1.0.0',
               visualCapture: { captureScreenshot: async () => screenshot },
             }}
           >

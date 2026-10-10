@@ -43,7 +43,7 @@ struct CompanionAttributionHeaderTests {
         let cfg = URLSessionConfiguration.ephemeral
         cfg.protocolClasses = [CompanionAttrStubURLProtocol.self]
         return ReportSubmitter(
-            config: EverframeConfig(appId: "sdk_key"),
+            config: EverframeConfig(sdkKey: "sdk_key"),
             session: URLSession(configuration: cfg))
     }
 

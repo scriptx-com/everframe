@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 const mk = () => {
-  const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+  const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
   adapters.push(adapter);
   return adapter;
 };
@@ -65,7 +65,7 @@ describe('adapter breadcrumb wiring', () => {
     first.__setBreadcrumbBuffer(() => bufA);
 
     // Provider remount WITHOUT __testCleanup — markers stay owned by `first`.
-    const second = createWebPlatformAdapter({ apiKey: 'k' });
+    const second = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(second);
     const bufB = createBreadcrumbBuffer();
     second.__setBreadcrumbBuffer(() => bufB);
