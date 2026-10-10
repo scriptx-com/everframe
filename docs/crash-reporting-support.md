@@ -42,11 +42,14 @@ OS delivery behavior does not establish that a report passes SDK ownership check
 
 ## Release health
 
-[Reported launch sessions](release-health.md) and [fatal-count webhooks](release-health-alerts.md)
-use explicitly observed starts and retained qualifying evidence. Supplied user IDs
+[Reported launch sessions](release-health.md), [fatal-count webhooks](release-health-alerts.md)
+and [foreground crash-free target webhooks](release-health-rate-alerts.md) use
+explicitly observed starts and retained qualifying evidence. Supplied user IDs
 are opt-in and their absence is not a distinct anonymous person. Missing outcomes
-are unknown. Observed fractions and count thresholds do not establish population
-crash-free rates, statistical regressions or healthy recovery.
+are unknown; target alerts count them as healthy, so they fire only when the
+target is missed even in that best case. Observed fractions, count thresholds and
+target alerts do not establish population crash-free rates, statistical
+regressions or healthy recovery.
 
 ## Promotion criteria
 
