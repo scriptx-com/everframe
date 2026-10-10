@@ -1,0 +1,35 @@
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_3db74b3eac04c2 42
+examples/react-native/plugins/with-everframe-ios-local.js
+  s_dbd309ddf8ec5b::t_6aaa4fbed50613 195-199
+packages/expo/README.md
+  s_dbd309ddf8ec5b::t_fbd18458d2922c 63-64
+packages/sdk-ios/Everframe.podspec
+  s_dbd309ddf8ec5b::t_fc8776bcfc38b2 25-36,38-39
+packages/sdk-ios/dev-podspec/Everframe.podspec
+  s_dbd309ddf8ec5b::t_828d6788077a74 67-72,74-75
+packages/sdk-ios/project.yml
+  s_dbd309ddf8ec5b::t_495cd7037cc208 56-59
+packages/sdk-ios/scripts/build-xcframework.sh
+  s_dbd309ddf8ec5b::t_a23449e4425622 308-317,325-344,472-473
+packages/sdk-ios/scripts/verify-binary-checksums.sh
+  s_dbd309ddf8ec5b::t_0ad2d4be202c9c 387-408
+packages/sdk-ios/scripts/verify-binary-checksums.test.sh
+  s_dbd309ddf8ec5b::t_e642f05221dc1f 286-322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be2860fceac6d01654a83e090f679221773bea81",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
