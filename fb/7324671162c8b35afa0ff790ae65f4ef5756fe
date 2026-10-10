@@ -1,0 +1,93 @@
+packages/sdk-android/android/settings.gradle.kts
+  s_dbd309ddf8ec5b::t_953f4ecb27c113 44-49
+packages/sdk-android/tests/crash-default-host/README.md
+  s_dbd309ddf8ec5b::t_eac6806849ebb0 1-13
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/.cmake/api/v1/reply/cache-v2-6135ce05cdb75a4a725c.json
+  s_dbd309ddf8ec5b::t_6777fbeb3ef54d 1-1311
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/.cmake/api/v1/reply/cmakeFiles-v1-c3c9d4c9b367ef1209be.json
+  s_dbd309ddf8ec5b::t_62fdde21986a37 1-803
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/.cmake/api/v1/reply/codemodel-v2-ee0c19accd19e78f3f01.json
+  s_dbd309ddf8ec5b::t_db4803d83b6766 1-60
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/.cmake/api/v1/reply/directory-.-RelWithDebInfo-f5ebdc15457944623624.json
+  s_dbd309ddf8ec5b::t_49d8c952735faa 1-14
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/.cmake/api/v1/reply/index-2026-10-10T11-25-59-0804.json
+  s_dbd309ddf8ec5b::t_171381dc7a6c6d 1-92
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/.cmake/api/v1/reply/target-crash_default_fault-RelWithDebInfo-0aa8d56b38bb70e6e507.json
+  s_dbd309ddf8ec5b::t_07f662403d6d81 1-117
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/.ninja_log
+  s_dbd309ddf8ec5b::t_543c9fd1350411 1-3
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeCache.txt
+  s_dbd309ddf8ec5b::t_00f75efab565bb 1-395
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/3.22.1-g37088a8/CMakeCCompiler.cmake
+  s_dbd309ddf8ec5b::t_93ecd065edfd1a 1-72
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/3.22.1-g37088a8/CMakeCXXCompiler.cmake
+  s_dbd309ddf8ec5b::t_48709d1a90af5e 1-83
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/3.22.1-g37088a8/CMakeSystem.cmake
+  s_dbd309ddf8ec5b::t_ccb83a88bdd1e7 1-15
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/3.22.1-g37088a8/CompilerIdC/CMakeCCompilerId.c
+  s_dbd309ddf8ec5b::t_a73399f6d3b4d6 1-803
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/3.22.1-g37088a8/CompilerIdCXX/CMakeCXXCompilerId.cpp
+  s_dbd309ddf8ec5b::t_8ec9e552cb4a47 1-791
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/TargetDirectories.txt
+  s_dbd309ddf8ec5b::t_8bd633ffa61c44 1-3
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/cmake.check_cache
+  s_dbd309ddf8ec5b::t_a573660a2421a3 1
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/CMakeFiles/rules.ninja
+  s_dbd309ddf8ec5b::t_1f9bcfb4012dff 1-64
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/android_gradle_build.json
+  s_dbd309ddf8ec5b::t_55cfc9a421995d 1-38
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/android_gradle_build_mini.json
+  s_dbd309ddf8ec5b::t_a0bb4d101e769b 1-27
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/build.ninja
+  s_dbd309ddf8ec5b::t_2b400510f7e8ee 1-155
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/build_file_index.txt
+  s_dbd309ddf8ec5b::t_d00a3d89272dd0 1
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/cmake_install.cmake
+  s_dbd309ddf8ec5b::t_6d628a1814feef 1-54
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/compile_commands.json
+  s_dbd309ddf8ec5b::t_5bb0d6dadb18a8 1-7
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/configure_fingerprint.bin
+  s_dbd309ddf8ec5b::t_8a65f38914bf85 1-29
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/metadata_generation_command.txt
+  s_dbd309ddf8ec5b::t_a238ca063c9491 1-19
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/prefab_config.json
+  s_dbd309ddf8ec5b::t_fd5cd9d9164e5d 1-4
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/arm64-v8a/symbol_folder_index.txt
+  s_dbd309ddf8ec5b::t_e028bd900bf7ac 1
+packages/sdk-android/tests/crash-default-host/app/.cxx/RelWithDebInfo/66p456x3/hash_key.txt
+  s_dbd309ddf8ec5b::t_8c0e1f54f5b4d8 1-26
+packages/sdk-android/tests/crash-default-host/app/.cxx/tools/release/arm64-v8a/compile_commands.json
+  s_dbd309ddf8ec5b::t_e810963f20f6ba 1-7
+packages/sdk-android/tests/crash-default-host/app/build.gradle.kts
+  s_dbd309ddf8ec5b::t_92a96def2c0e5a 1-33
+packages/sdk-android/tests/crash-default-host/app/proguard-rules.pro
+  s_dbd309ddf8ec5b::t_28bca76f2c724e 1-5
+packages/sdk-android/tests/crash-default-host/app/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_9c56576b098a63 1-17
+packages/sdk-android/tests/crash-default-host/app/src/main/cpp/CMakeLists.txt
+  s_dbd309ddf8ec5b::t_cd5f8401d519e0 1-6
+packages/sdk-android/tests/crash-default-host/app/src/main/cpp/fault.cc
+  s_dbd309ddf8ec5b::t_c941064c5d2c7a 1-8
+packages/sdk-android/tests/crash-default-host/app/src/main/kotlin/dev/everframe/crashdefault/ProofActivity.kt
+  s_dbd309ddf8ec5b::t_f5660867511167 1-42
+packages/sdk-android/tests/crash-default-host/app/src/main/kotlin/dev/everframe/crashdefault/ProofApplication.kt
+  s_dbd309ddf8ec5b::t_c6f3daf0a63d02 1-15
+packages/sdk-android/tests/crash-default-host/app/src/main/res/xml/network_security_config.xml
+  s_dbd309ddf8ec5b::t_0d07fbe56d9d95 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb7324671162c8b35afa0ff790ae65f4ef5756fe",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
