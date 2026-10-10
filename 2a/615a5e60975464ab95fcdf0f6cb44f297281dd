@@ -1,0 +1,29 @@
+packages/cli/__tests__/apple-build-fixture.ts
+  s_dbd309ddf8ec5b::t_0331bf72b51458 94-106
+packages/cli/__tests__/apple-build.spec.ts
+  s_dbd309ddf8ec5b::t_9c8de9e8a8e073 27-28,285,308,318,326,329,335,346,422,433,458,464,506,519,552,567,578,592,597-659
+packages/cli/__tests__/apple-upload.spec.ts
+  s_dbd309ddf8ec5b::t_d529a85260d524 32-33
+packages/cli/src/apple-build.ts
+  s_dbd309ddf8ec5b::t_fc64d3a93e67af 6,18-36,39,41-43,45-47,360-364,366,368-393,395,397,402,404-407,409,411,413-414,417,419,421-422,430,435,440,442,445-456,461-462,465,477,479,481-482,486-498,502,505,511,516,518
+packages/cli/src/apple-upload.ts
+  s_dbd309ddf8ec5b::t_64dec6e454c39c 8,41-42,48-53,73
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_c980cb4392adc4 239-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a615a5e60975464ab95fcdf0f6cb44f297281dd",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
