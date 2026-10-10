@@ -1,0 +1,640 @@
+packages/sdk-web/__tests__/wire/sdk-key-wire-shape.spec.ts
+  s_dbd309ddf8ec5b::t_f95019a5b16014 1-106
+packages/sdk-web/src/vitals/transport.ts
+  s_dbd309ddf8ec5b::t_257e3207130310 545-548
+  s_dbd309ddf8ec5b::t_acf682f37aa2ef 21-25,128,208,447,549,554-555
+.changeset/sdk-key-name-identity-docs.md
+  s_dbd309ddf8ec5b::t_bdcb035fb2628f 1-8
+.changeset/sdk-key-name.md
+  s_dbd309ddf8ec5b::t_ed5d4ff4e6f75c 1-20
+docs/release-health.md
+  s_dbd309ddf8ec5b::t_bdf795ecc08ec7 15
+examples/flutter-web-probe/web/kmp-canvas.html
+  s_dbd309ddf8ec5b::t_1703d42463fa64 22
+examples/ios-native/Config/Base.xcconfig
+  s_dbd309ddf8ec5b::t_026ec7352556b8 7
+examples/ios-native/README.md
+  s_dbd309ddf8ec5b::t_71ec0d672dfb7c 131
+examples/ios-native/SampleApp.xcodeproj/project.pbxproj
+  s_dbd309ddf8ec5b::t_ffce7b169a6868 298,338
+examples/ios-native/SampleApp/SampleApp.swift
+  s_dbd309ddf8ec5b::t_e7eea5566fb2b8 34,42
+examples/ios-native/SampleAppTV/SampleAppTV.swift
+  s_dbd309ddf8ec5b::t_aa3c26baef3017 26,32
+examples/ios-native/scripts/gen-local-xcconfig.sh
+  s_dbd309ddf8ec5b::t_26fb19adb2d3a2 8,30
+examples/react-native/src/App.tsx
+  s_dbd309ddf8ec5b::t_fd5584b42a7c69 70
+examples/react-web/app/(default)/layout.tsx
+  s_dbd309ddf8ec5b::t_f7f480ba2c7c4a 36
+examples/react-web/app/(strict)/layout.tsx
+  s_dbd309ddf8ec5b::t_34b7b366697e7a 20
+examples/smarttv-tester/src/main.tsx
+  s_dbd309ddf8ec5b::t_1b812303bdfe7f 7,19
+examples/tvos-replay/Sources/App.swift
+  s_dbd309ddf8ec5b::t_684008d36099cf 32
+examples/vue-web/src/App.vue
+  s_dbd309ddf8ec5b::t_3242ea6890f38c 15
+examples/vue-web/src/strict-csp.ts
+  s_dbd309ddf8ec5b::t_38dac4a8bcc40e 11
+packages/cli/README.md
+  s_dbd309ddf8ec5b::t_f190a2a34664e4 120
+packages/everframe_flutter/CHANGELOG.md
+  s_dbd309ddf8ec5b::t_d3fdd62aee3cdf 6
+packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift
+  s_dbd309ddf8ec5b::t_199513b983dc65 47,49
+packages/everframe_flutter/lib/src/web_sdk_web.dart
+  s_dbd309ddf8ec5b::t_08faee15f870a9 16,83
+packages/everframe_kmp/ios/EverframeSwiftDriver.swift
+  s_dbd309ddf8ec5b::t_6ac945d0bd636a 25,27
+packages/everframe_kmp/src/jsMain/kotlin/dev/everframe/kmp/EverframeBrowserDriver.kt
+  s_dbd309ddf8ec5b::t_c90ee809e6b243 34
+packages/everframe_kmp/src/jsTest/kotlin/dev/everframe/kmp/EverframeBrowserDriverTest.kt
+  s_dbd309ddf8ec5b::t_6ade101b3b6e83 29
+packages/identity/README.md
+  s_dbd309ddf8ec5b::t_983612da89c946 38
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_49e7d2b99fd0e1 1244,1334
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_dbd309ddf8ec5b::t_1e7b7861fdc31e 36,40
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReplayConfigProvider.kt
+  s_dbd309ddf8ec5b::t_bd9d9ae451783b 590,727,839,847
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportAuthorizationFactory.kt
+  s_dbd309ddf8ec5b::t_88487d54b31457 40
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/vitals/VitalsTransport.kt
+  s_dbd309ddf8ec5b::t_1eb517c3c92450 40,90
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeNetworkBodySessionBoundaryTest.kt
+  s_dbd309ddf8ec5b::t_33ca989b40f17e 129-130
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_dbd309ddf8ec5b::t_2879315f962fa9 126,128,753
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/PublicNetworkEvidenceBoundaryTest.kt
+  s_dbd309ddf8ec5b::t_3e2df5a4fca0bf 49
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionGenerationRaceTest.kt
+  s_dbd309ddf8ec5b::t_6fc03e65096520 152-153,238-239,310-311
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionImageGateTest.kt
+  s_dbd309ddf8ec5b::t_2320e2d3cfd97b 28
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionInstallIdTest.kt
+  s_dbd309ddf8ec5b::t_7999a4d2a6f387 84,88,100,121
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionRefreshLoopTest.kt
+  s_dbd309ddf8ec5b::t_ad27b3fe36b1be 112-113
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionResourceSamplerTest.kt
+  s_dbd309ddf8ec5b::t_16720317a4d53f 79-80
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionSupersessionTest.kt
+  s_dbd309ddf8ec5b::t_8fa6e444c3ea37 111-112
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/NativeVideoSessionTest.kt
+  s_dbd309ddf8ec5b::t_d07f151b583f6e 37,44,74,88,99,110,138,167
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoDiagnosticLifecycleTest.kt
+  s_dbd309ddf8ec5b::t_5f6db3fc42401a 49
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoPrivacySettlementTest.kt
+  s_dbd309ddf8ec5b::t_c988f1ede6e4b4 50
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoStartupAdmissionTest.kt
+  s_dbd309ddf8ec5b::t_bd52370506dfe3 102
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionSubmissionComposerTest.kt
+  s_dbd309ddf8ec5b::t_b5fc4db2641ac1 624-625,728,730,732
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ConfigInstallIdTest.kt
+  s_dbd309ddf8ec5b::t_480fa82922386e 66,78,87,95,108,125
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/IdentityConfigGateTest.kt
+  s_dbd309ddf8ec5b::t_474b2dfafd35d6 54,104
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/NativeVideoCapabilityTest.kt
+  s_dbd309ddf8ec5b::t_f900453c6d87e4 32
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReplayConfigProviderTest.kt
+  s_dbd309ddf8ec5b::t_fdef9805df9573 74,241,254,477,505,532,551
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/VitalsConfigWireTest.kt
+  s_dbd309ddf8ec5b::t_66ea2a99778ff8 28
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/vitals/VitalsTransportTest.kt
+  s_dbd309ddf8ec5b::t_b61db9d6191439 40,201
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/CrashDeliveryTest.kt
+  s_dbd309ddf8ec5b::t_6d7ea86a45bb66 300-301
+packages/sdk-core/__tests__/breadcrumb-client.spec.ts
+  s_dbd309ddf8ec5b::t_5adea9cd4fc5a9 9
+packages/sdk-core/__tests__/capture-exception.spec.ts
+  s_dbd309ddf8ec5b::t_c57b96387420e6 21,24,27,40,51
+packages/sdk-core/__tests__/client-threads-facade.spec.ts
+  s_dbd309ddf8ec5b::t_afe7144aa9ed27 28,49,81,119,155,177,183
+packages/sdk-core/__tests__/config-provider-install-id.spec.ts
+  s_dbd309ddf8ec5b::t_a1c4c8e74cd4c7 30,44,56,68,84
+packages/sdk-core/__tests__/init-pure.spec.ts
+  s_dbd309ddf8ec5b::t_58e413e3398264 26,32,39,46
+packages/sdk-core/__tests__/init-tenant-reset.spec.ts
+  s_dbd309ddf8ec5b::t_4f2b5ecb22131b 6,34,37,45,53,58,60,72,75,87-88
+packages/sdk-core/__tests__/kill-switch.spec.ts
+  s_dbd309ddf8ec5b::t_72ddc17e88b0d7 18,42,59
+packages/sdk-core/__tests__/replay/config-provider.spec.ts
+  s_dbd309ddf8ec5b::t_2e6413e8da2f0b 44,56,66,76,86,97,109,123,136,150,162,181,206,237,256,268,283,304,324,341,358,383,392,401,410,425,446,466,503,543,574,611,646,684,704,746,846,862,878,900,916
+packages/sdk-core/__tests__/replay/config-refresh-trace.spec.ts
+  s_dbd309ddf8ec5b::t_ed69d58e86deb3 30
+packages/sdk-core/__tests__/reporter-api.spec.ts
+  s_dbd309ddf8ec5b::t_51cfff043d8c6c 12
+packages/sdk-core/__tests__/reporter/identity-client.spec.ts
+  s_dbd309ddf8ec5b::t_12976e8f8ecbc3 21
+packages/sdk-core/__tests__/reporter/identity-transport.spec.ts
+  s_dbd309ddf8ec5b::t_a2ea91acc84af1 93
+packages/sdk-core/__tests__/set-extra-resolver.spec.ts
+  s_dbd309ddf8ec5b::t_2e9eb5d8afa16a 25,147
+packages/sdk-core/__tests__/set-user-projection.spec.ts
+  s_dbd309ddf8ec5b::t_423e4e35be37a6 28
+packages/sdk-core/__tests__/vitals/collector.spec.ts
+  s_dbd309ddf8ec5b::t_8b4b4889c6043f 211,216-217,220-222,231,233,237,241-243,251
+packages/sdk-core/src/client.ts
+  s_dbd309ddf8ec5b::t_0ca39a83125265 271,277,285
+packages/sdk-core/src/reporter/api.ts
+  s_dbd309ddf8ec5b::t_dcd03c62dd2c82 88,137
+packages/sdk-core/src/types/config.ts
+  s_dbd309ddf8ec5b::t_77f8fe5193da59 19-21,23
+packages/sdk-core/src/types/replay/config-provider.ts
+  s_dbd309ddf8ec5b::t_b4a6ff33279aac 330-331,441,501
+packages/sdk-core/src/vitals/collector.ts
+  s_dbd309ddf8ec5b::t_be3dbc4f2138f6 166,173,177,324,335-336,341,392,397,403
+packages/sdk-ios/README.md
+  s_dbd309ddf8ec5b::t_95daea64c102b5 43-45,63,68,302
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_dbd309ddf8ec5b::t_1c758a5f10820a 148,154,167,169
+packages/sdk-ios/Sources/Everframe/Companion/RelayWSClient.swift
+  s_dbd309ddf8ec5b::t_e634417a65d41e 474
+packages/sdk-ios/Sources/Everframe/Config/ConfigValidator.swift
+  s_dbd309ddf8ec5b::t_8c3a4f0b8076a9 16,18-19,22
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_dbd309ddf8ec5b::t_94c700131ccccc 19,87,100,227
+packages/sdk-ios/Sources/Everframe/Config/ReplayConfigProvider.swift
+  s_dbd309ddf8ec5b::t_c11437a8f7e0ae 451,489,496,507,513,596
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_dbd309ddf8ec5b::t_8adb5991ae9a31 542
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashStartupContext.swift
+  s_dbd309ddf8ec5b::t_8f96b623e11cbd 35
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_dbd309ddf8ec5b::t_f2e14c1dc2e83b 212,245,856,1359,1451
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_dbd309ddf8ec5b::t_fe86c412ef3f3b 158,290,340,391,421
+packages/sdk-ios/Sources/Everframe/Vitals/VitalsTransport.swift
+  s_dbd309ddf8ec5b::t_6a4ebb9bd4d76f 35,48,50,87
+packages/sdk-ios/Tests/EverframeTests/AccountSwitchEvidenceDiscardTests.swift
+  s_dbd309ddf8ec5b::t_c4e40f78f3b07c 66,108,217
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticRuntimeTests.swift
+  s_dbd309ddf8ec5b::t_c01199a6b734bd 36,59,62,166,189,193,196,210,309,331
+packages/sdk-ios/Tests/EverframeTests/BreadcrumbAdaptersTests.swift
+  s_dbd309ddf8ec5b::t_3030f71dd1ce8c 54,73
+packages/sdk-ios/Tests/EverframeTests/BreadcrumbRingBufferTests.swift
+  s_dbd309ddf8ec5b::t_34b19c85678a7d 25,39-40,212,216,276,285,296,307,324
+packages/sdk-ios/Tests/EverframeTests/BreadcrumbTapNavAdaptersTests.swift
+  s_dbd309ddf8ec5b::t_c0d444276d5636 70,80
+packages/sdk-ios/Tests/EverframeTests/CompanionAssembledCountsTests.swift
+  s_dbd309ddf8ec5b::t_e819adef40da26 18
+packages/sdk-ios/Tests/EverframeTests/CompanionAttributionHeaderTests.swift
+  s_dbd309ddf8ec5b::t_944cc91881c02d 46
+packages/sdk-ios/Tests/EverframeTests/CompanionDisconnectReplayTests.swift
+  s_dbd309ddf8ec5b::t_e1fe4622656a59 34,45
+packages/sdk-ios/Tests/EverframeTests/CompanionFreezeLifecycleTests.swift
+  s_dbd309ddf8ec5b::t_b3a61bd3bc8bdd 11,22
+packages/sdk-ios/Tests/EverframeTests/CompanionReplayOwnershipTests.swift
+  s_dbd309ddf8ec5b::t_589fa72d83b654 24
+packages/sdk-ios/Tests/EverframeTests/ConfigInstallIdTests.swift
+  s_dbd309ddf8ec5b::t_3464de96a9c44d 45,58,67,75,89,105,273,289,311
+packages/sdk-ios/Tests/EverframeTests/ConfigValidatorTests.swift
+  s_dbd309ddf8ec5b::t_5d7fcbe70c67a1 4,19,24,28-29,31-32,37,41,43-44,49,51,53-54
+packages/sdk-ios/Tests/EverframeTests/CrashDrainIdentityHeaderTests.swift
+  s_dbd309ddf8ec5b::t_b4663e77a96345 58,93,101
+packages/sdk-ios/Tests/EverframeTests/CrashReporterTests.swift
+  s_dbd309ddf8ec5b::t_7884305678b451 57,64,71,79,100,113,135,166,173,193,213,226,240,268,289,299,312,318,338,340,344,351,375,396,400,410,415,430,456,470,479,491,513,534,546,554
+packages/sdk-ios/Tests/EverframeTests/DrainIdentityHeaderTests.swift
+  s_dbd309ddf8ec5b::t_b906fb9c424baf 95,116,135,153,173,189,213,231,252,266,297,321,369,404
+packages/sdk-ios/Tests/EverframeTests/EnvelopeUserTests.swift
+  s_dbd309ddf8ec5b::t_312f50f5c27108 110,112,119-120,132,179,220,224,249,281,285,311,334,367,472,490,522,542,548,580,612,635,659,674,710,724,728,747,782,809,914,925,932,939,954,961,971,991,997,1023,1055,1057,1064,1076,1108,1122,1151,1173,1183,1214,1231
+packages/sdk-ios/Tests/EverframeTests/EverframeConfigEquatableTests.swift
+  s_dbd309ddf8ec5b::t_8ccae3c24ea4c5 19,23
+packages/sdk-ios/Tests/EverframeTests/HandledDetailsDeliveryTests.swift
+  s_dbd309ddf8ec5b::t_d2c6345b49427d 11,19,70,103,178,199
+packages/sdk-ios/Tests/EverframeTests/HandledErrorCaptureTests.swift
+  s_dbd309ddf8ec5b::t_b9a1b37bfde75b 33,85,269,308,346,378,421,473,491,496,543
+packages/sdk-ios/Tests/EverframeTests/IdentityConfigGateTests.swift
+  s_dbd309ddf8ec5b::t_156bed8a08d195 41
+packages/sdk-ios/Tests/EverframeTests/IdentityHeaderRedirectTests.swift
+  s_dbd309ddf8ec5b::t_d337bed366f096 79,126
+packages/sdk-ios/Tests/EverframeTests/IdentityProviderWarmTests.swift
+  s_dbd309ddf8ec5b::t_28f901b7e5c83d 106,532
+packages/sdk-ios/Tests/EverframeTests/IdentitySubjectGateTests.swift
+  s_dbd309ddf8ec5b::t_6316111340a4a3 61
+packages/sdk-ios/Tests/EverframeTests/IdentityTokenHolderTests.swift
+  s_dbd309ddf8ec5b::t_a083840d498b8c 191,760,764
+packages/sdk-ios/Tests/EverframeTests/InstallIdentifierDailyTests.swift
+  s_dbd309ddf8ec5b::t_64175f9e71fd29 88,94
+packages/sdk-ios/Tests/EverframeTests/KillSwitchTests.swift
+  s_dbd309ddf8ec5b::t_546fda9ac88aa1 35,39,191,193,201,211,214,226,230,249
+packages/sdk-ios/Tests/EverframeTests/KillTeardownTests.swift
+  s_dbd309ddf8ec5b::t_54bc0f15995fd1 26,46,53,60,93
+packages/sdk-ios/Tests/EverframeTests/LogRingBufferTests.swift
+  s_dbd309ddf8ec5b::t_420834a27ca541 34,39
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_dbd309ddf8ec5b::t_4eaea949128ca7 13,36,82,101,126,133,166
+packages/sdk-ios/Tests/EverframeTests/NativeVideoConfigTests.swift
+  s_dbd309ddf8ec5b::t_0c77c15dbc16b5 21
+packages/sdk-ios/Tests/EverframeTests/NativeVideoCoordinatorTests.swift
+  s_dbd309ddf8ec5b::t_3a34988b4203f0 50,86,99,119,145,159,172
+packages/sdk-ios/Tests/EverframeTests/NetworkBodyCaptureGateTests.swift
+  s_dbd309ddf8ec5b::t_32155fd84e486c 85,96,107
+packages/sdk-ios/Tests/EverframeTests/NetworkBodyCaptureTests.swift
+  s_dbd309ddf8ec5b::t_0735ca90daab6d 17,244
+packages/sdk-ios/Tests/EverframeTests/NetworkBodyEnvelopeTests.swift
+  s_dbd309ddf8ec5b::t_0f36261d246c5b 107
+packages/sdk-ios/Tests/EverframeTests/NetworkBodyRingBufferTests.swift
+  s_dbd309ddf8ec5b::t_1f2f3628e0250b 166,171,193,220
+packages/sdk-ios/Tests/EverframeTests/NetworkCaptureProtocolTests.swift
+  s_dbd309ddf8ec5b::t_05b8e2c8ded69d 35
+packages/sdk-ios/Tests/EverframeTests/NetworkRingBufferTests.swift
+  s_dbd309ddf8ec5b::t_f37e7c633a79a2 55,60,102,129
+packages/sdk-ios/Tests/EverframeTests/OutboxKeyBindingTests.swift
+  s_dbd309ddf8ec5b::t_c5b7234a3cc0e4 19,32,43,59,200,226
+packages/sdk-ios/Tests/EverframeTests/PressCrumbTests.swift
+  s_dbd309ddf8ec5b::t_236fb7aca70965 13,22
+packages/sdk-ios/Tests/EverframeTests/RNDetailsDeliveryTests.swift
+  s_dbd309ddf8ec5b::t_3b7b7956bddde0 51,72,118,120,129,132-133,148,165,203,223,226
+packages/sdk-ios/Tests/EverframeTests/RedactionEngineTests.swift
+  s_dbd309ddf8ec5b::t_53708bf745ce70 192-193,200,210
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_dbd309ddf8ec5b::t_5ec6b4cb0c503b 76,114,143,177,222,250,296,342,389
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthSDKTests.swift
+  s_dbd309ddf8ec5b::t_0511cb22b2998c 23,132,179
+packages/sdk-ios/Tests/EverframeTests/ReplayConfigProviderTests.swift
+  s_dbd309ddf8ec5b::t_1978c9db424d19 117,125,177
+packages/sdk-ios/Tests/EverframeTests/ReplaySessionRefreshLoopTests.swift
+  s_dbd309ddf8ec5b::t_da2d8f9fd40026 146,154
+packages/sdk-ios/Tests/EverframeTests/ReplaySessionSupersessionTests.swift
+  s_dbd309ddf8ec5b::t_7a396a510311ab 36,61,76,98,178,191
+packages/sdk-ios/Tests/EverframeTests/ReplaySessionTeardownRaceTests.swift
+  s_dbd309ddf8ec5b::t_fbf6d54a35e02b 117,125
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsPipelineTests.swift
+  s_dbd309ddf8ec5b::t_499d608dc5f9be 125,138,148,169,178
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsTests.swift
+  s_dbd309ddf8ec5b::t_9b1cd4d5ca1731 9
+packages/sdk-ios/Tests/EverframeTests/ReportSubmitterSessionLifecycleTests.swift
+  s_dbd309ddf8ec5b::t_ad80a21adc78ca 85
+packages/sdk-ios/Tests/EverframeTests/ReporterSubmitKeyBindingTests.swift
+  s_dbd309ddf8ec5b::t_a575c248e70a1e 77-78,100-101,104,174,177,196
+packages/sdk-ios/Tests/EverframeTests/ResourceEnvelopeTests.swift
+  s_dbd309ddf8ec5b::t_62e00d79d313c3 104,128
+packages/sdk-ios/Tests/EverframeTests/SessionBoundaryResetTests.swift
+  s_dbd309ddf8ec5b::t_6b18da777ba41b 75,92,134,148,173,181,259,269,284,305
+packages/sdk-ios/Tests/EverframeTests/ShakeToReportTests.swift
+  s_dbd309ddf8ec5b::t_c3f354fba0fb3f 8
+packages/sdk-ios/Tests/EverframeTests/StartEpochApplyRaceTests.swift
+  s_dbd309ddf8ec5b::t_2951031b7c4bc0 62,71,102,148,157,192,235,252,312,331,347,373,395
+packages/sdk-ios/Tests/EverframeTests/StartEpochGuardTests.swift
+  s_dbd309ddf8ec5b::t_a0cf5b9b1756ee 34,50,86
+packages/sdk-ios/Tests/EverframeTests/StartPerfTests.swift
+  s_dbd309ddf8ec5b::t_9ae6befe29635d 15,33
+packages/sdk-ios/Tests/EverframeTests/VitalsConfigNegotiationTests.swift
+  s_dbd309ddf8ec5b::t_1d152ef50a8537 75
+packages/sdk-ios/Tests/EverframeTests/VitalsSessionBoundaryTests.swift
+  s_dbd309ddf8ec5b::t_567e6187926193 12,113
+packages/sdk-ios/Tests/EverframeTests/VitalsTransportTests.swift
+  s_dbd309ddf8ec5b::t_e2992c5a5476c3 133,279
+packages/sdk-ios/Tests/EverframeTests/WindowTapBreadcrumbAdapterTests.swift
+  s_dbd309ddf8ec5b::t_331d3fdf394c52 24,35
+packages/sdk-ios/Tests/NativeCrashRecoveryProof/main.swift
+  s_dbd309ddf8ec5b::t_ba6da09cb326bb 45
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_dbd309ddf8ec5b::t_ed0f4bb338242b 32
+packages/sdk-ios/Tests/ReleaseHealthProof/App.swift
+  s_dbd309ddf8ec5b::t_6f6f86c863d075 45
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_282b35587a093e 62,66,108,149,212,306,415,498,527,712
+packages/sdk-react-native/__tests__/EverframeProvider.spec.tsx
+  s_dbd309ddf8ec5b::t_d97312f0447754 53,65,96,101,124,138,151,158,176,185,187,209,228,249
+packages/sdk-react-native/__tests__/attach-pin-ui-config.spec.ts
+  s_dbd309ddf8ec5b::t_d918c3e3feaf94 12,16,20,24
+packages/sdk-react-native/__tests__/capture-exception.test.tsx
+  s_dbd309ddf8ec5b::t_636818f8601a42 20,30,247
+packages/sdk-react-native/__tests__/companion-badge-config.types.ts
+  s_dbd309ddf8ec5b::t_54adbf3eb8dcfc 26,32,40
+packages/sdk-react-native/__tests__/companion-bridge-wiring.spec.ts
+  s_dbd309ddf8ec5b::t_a626f1b3efad80 369
+packages/sdk-react-native/__tests__/companion-device-id-config.spec.ts
+  s_dbd309ddf8ec5b::t_41c36375be8b89 14,20
+packages/sdk-react-native/__tests__/crash-reporting-config.spec.ts
+  s_dbd309ddf8ec5b::t_811e0cb05e0d22 12,15,18,21
+packages/sdk-react-native/__tests__/error-capture-runtime.test.ts
+  s_dbd309ddf8ec5b::t_d8a9bd3c4d89e3 9,13
+packages/sdk-react-native/__tests__/errors.test.ts
+  s_dbd309ddf8ec5b::t_d7c3c5c2f2ad43 118,133,164
+packages/sdk-react-native/__tests__/extra-resolver-degrade.spec.ts
+  s_dbd309ddf8ec5b::t_d89a4c925e0947 81
+packages/sdk-react-native/__tests__/extra-resolver.spec.ts
+  s_dbd309ddf8ec5b::t_abe2bd44441e33 113
+packages/sdk-react-native/__tests__/fixtures/error-details-public-consumer.ts
+  s_dbd309ddf8ec5b::t_33d0ffddf0e376 14
+packages/sdk-react-native/__tests__/fixtures/installed-capture/App.tsx
+  s_dbd309ddf8ec5b::t_ac95b816ab8bf6 11
+packages/sdk-react-native/__tests__/install-identifier-config.spec.ts
+  s_dbd309ddf8ec5b::t_8b4f22bc53b996 13,18,23,27
+packages/sdk-react-native/__tests__/integrations-runtime.test.ts
+  s_dbd309ddf8ec5b::t_b4945a4f7e163d 26,38,53,62
+packages/sdk-react-native/__tests__/js-bundle.test.ts
+  s_dbd309ddf8ec5b::t_c6d8c760e30fc9 44
+packages/sdk-react-native/__tests__/network-bodies-config.spec.ts
+  s_dbd309ddf8ec5b::t_6243425f501b7d 8,12,16,20
+packages/sdk-react-native/__tests__/promise-rejection-runtime.test.ts
+  s_dbd309ddf8ec5b::t_f2a1074f7cdc52 20
+packages/sdk-react-native/__tests__/react-adapter-packaging.test.ts
+  s_dbd309ddf8ec5b::t_68e68356cb03e5 29
+packages/sdk-react-native/__tests__/react-error-adapter.test.tsx
+  s_dbd309ddf8ec5b::t_a02e32e765a59d 16,33,77-78,93,95
+packages/sdk-react-native/__tests__/record-screen.test.ts
+  s_dbd309ddf8ec5b::t_3a3aa5749244f6 33
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_dbd309ddf8ec5b::t_1a7a4b93bca946 10,26,32,76,92,105,118
+packages/sdk-react-native/__tests__/report-delivery-status.test.ts
+  s_dbd309ddf8ec5b::t_135bc6f6ffd54f 17
+packages/sdk-react-native/__tests__/set-extra.spec.ts
+  s_dbd309ddf8ec5b::t_9b2bc25b7c146d 32
+packages/sdk-react-native/__tests__/set-user.spec.ts
+  s_dbd309ddf8ec5b::t_98c72656da99e3 29
+packages/sdk-react-native/__tests__/shake-to-report-config.spec.ts
+  s_dbd309ddf8ec5b::t_6d43689f815160 8,10,15-16
+packages/sdk-react-native/__tests__/theme-config.spec.ts
+  s_dbd309ddf8ec5b::t_c1464e278f52f7 18,41,57,64
+packages/sdk-react-native/__tests__/theme-config.types.ts
+  s_dbd309ddf8ec5b::t_5a39fee714738a 22,28,34,40,48
+packages/sdk-react-native/__tests__/vitals-config.spec.ts
+  s_dbd309ddf8ec5b::t_c6bc03302ead7a 19,26,34,49,58,66,75
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_dbd309ddf8ec5b::t_377be59720bde5 254,256,284-287
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleConfigureTest.kt
+  s_dbd309ddf8ec5b::t_54e4fee3f40aeb 72,85,97,115,128,140,150,159,167,175
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleVitalsTest.kt
+  s_dbd309ddf8ec5b::t_7547765f1307aa 95,116,194,199,203,216,223,244,253,265,270,274
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReleaseHealthConfigureTest.kt
+  s_dbd309ddf8ec5b::t_b01b2f5ce68b0f 26,48
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterBridgeTest.kt
+  s_dbd309ddf8ec5b::t_7037ceaf6b132b 122,145
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnErrorDetailsBridgeTest.kt
+  s_dbd309ddf8ec5b::t_312fe9234d1820 39
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnReplayBridgeTest.kt
+  s_dbd309ddf8ec5b::t_58ae3ee142a606 43,102,107-108,112,114,131,136,146,148,163,167,185,230,259,492
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnVideoPrivacyAdapterTest.kt
+  s_dbd309ddf8ec5b::t_321a1b64376bca 52
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_dbd309ddf8ec5b::t_3f005d6a3f8bb1 51,76,79,286,843-844,846
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_dbd309ddf8ec5b::t_96cbc6a34198e5 113,124,134,185
+packages/sdk-react-native/ios/Tests/RnReplayBridgeTests.swift
+  s_dbd309ddf8ec5b::t_da457d7c5a0658 8,128
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_dbd309ddf8ec5b::t_b89619bf31b1a8 68,108
+packages/sdk-react-native/src/runtime.ts
+  s_dbd309ddf8ec5b::t_a9c6fea84674ec 104,108,688
+packages/sdk-react/README.md
+  s_dbd309ddf8ec5b::t_99fd2e7fa9e5c2 40,97,148
+packages/sdk-react/__tests__/add-breadcrumb.spec.tsx
+  s_dbd309ddf8ec5b::t_b6a6659cabc746 23
+packages/sdk-react/__tests__/capture-exception.spec.tsx
+  s_dbd309ddf8ec5b::t_acd1c8d174d7f5 50
+packages/sdk-react/__tests__/integration/breadcrumbs-strictmode.spec.tsx
+  s_dbd309ddf8ec5b::t_6b5ee1c0fe4a11 78
+packages/sdk-react/__tests__/integration/end-to-end.spec.tsx
+  s_dbd309ddf8ec5b::t_f2799a38f17a05 120,191,252-253,277,342-343,367,450,516,580,699
+packages/sdk-react/__tests__/integration/reporter-dialog-submit-boundary.spec.tsx
+  s_dbd309ddf8ec5b::t_0912065ec85f33 208,308,390,468
+packages/sdk-react/__tests__/provider-child-kill.spec.tsx
+  s_dbd309ddf8ec5b::t_f8bd735a6e6ee8 69
+packages/sdk-react/__tests__/provider-companion-extra-resolver.spec.tsx
+  s_dbd309ddf8ec5b::t_87113bcba9ec13 22
+packages/sdk-react/__tests__/provider-companion-user.spec.tsx
+  s_dbd309ddf8ec5b::t_1227c23ffb5962 112
+packages/sdk-react/__tests__/provider-fab-kill-switch.spec.tsx
+  s_dbd309ddf8ec5b::t_51bc23f9bf6b0f 52
+packages/sdk-react/__tests__/provider-identity-prop.spec.tsx
+  s_dbd309ddf8ec5b::t_b941a41d6a15cb 48
+packages/sdk-react/__tests__/provider-kill-threads.spec.tsx
+  s_dbd309ddf8ec5b::t_794fc04ec469f7 32
+packages/sdk-react/__tests__/provider-outbox-drain-identity-gate.spec.tsx
+  s_dbd309ddf8ec5b::t_8c5e5415f8b6d0 47
+packages/sdk-react/__tests__/provider-outbox-drain-wake.spec.tsx
+  s_dbd309ddf8ec5b::t_b47b84152bb4b4 42
+packages/sdk-react/__tests__/provider-poll-arm-hidden.spec.tsx
+  s_dbd309ddf8ec5b::t_0c99ef6ad18615 35
+packages/sdk-react/__tests__/provider-poll-arm.spec.tsx
+  s_dbd309ddf8ec5b::t_31250afc4d419e 31
+packages/sdk-react/__tests__/provider-report-hotkey.spec.tsx
+  s_dbd309ddf8ec5b::t_effe4cf1dffa91 44
+packages/sdk-react/__tests__/provider-threads.spec.tsx
+  s_dbd309ddf8ec5b::t_bd85ff289bb6bf 14
+packages/sdk-react/__tests__/provider-vitals.spec.tsx
+  s_dbd309ddf8ec5b::t_97b21763d45776 39,55,60,63
+packages/sdk-react/__tests__/provider-wake-refresh-gate.spec.tsx
+  s_dbd309ddf8ec5b::t_e812d89854763b 111,186
+packages/sdk-react/__tests__/provider.spec.tsx
+  s_dbd309ddf8ec5b::t_cbabc286f31dbb 9
+packages/sdk-react/__tests__/use-track-player.spec.tsx
+  s_dbd309ddf8ec5b::t_b2d30475aa2905 18
+packages/sdk-react/src/provider.tsx
+  s_dbd309ddf8ec5b::t_85aaf420afaf02 286,314,318,391
+packages/sdk-react/src/release-health.ts
+  s_dbd309ddf8ec5b::t_e2ec388b205243 8
+packages/sdk-react/tests/release-health-browser.mjs
+  s_dbd309ddf8ec5b::t_6137244ce7ea98 117,121,123,127,130,135
+packages/sdk-react/tests/release-health-host.tsx
+  s_dbd309ddf8ec5b::t_667161fcd31a1f 20,29,32,42
+packages/sdk-web/README.md
+  s_dbd309ddf8ec5b::t_9929b97c219e53 37,63,119,132,146,165,249,302
+packages/sdk-web/__tests__/capture-exception.spec.ts
+  s_dbd309ddf8ec5b::t_7faf02bda83e70 82,160,178,195,209,223,241,247,256,262,278,288,318,323,348,357,394,413,428,438,446,464,473,476,484
+packages/sdk-web/__tests__/capture/branding-server-config-refresh.spec.ts
+  s_dbd309ddf8ec5b::t_683cd24279aaff 49,52,90,92
+packages/sdk-web/__tests__/capture/breadcrumbs-adapter.spec.ts
+  s_dbd309ddf8ec5b::t_833c073ec11887 15,68
+packages/sdk-web/__tests__/capture/breadcrumbs-e2e.spec.ts
+  s_dbd309ddf8ec5b::t_81288c640f1840 72
+packages/sdk-web/__tests__/capture/buffer-tenancy.spec.ts
+  s_dbd309ddf8ec5b::t_a518aa32e30bf4 56,68,91,102,127
+packages/sdk-web/__tests__/capture/companion-badge-server-config-refresh.spec.ts
+  s_dbd309ddf8ec5b::t_2410e348fbbd9c 66,69,101,103,122,124
+packages/sdk-web/__tests__/capture/config-install-id.spec.ts
+  s_dbd309ddf8ec5b::t_c8ed2432b5950b 42,79,100
+packages/sdk-web/__tests__/capture/config-periodic-refresh.spec.ts
+  s_dbd309ddf8ec5b::t_aca0d4b2260092 73,76,106,109,169,172,210,213,238,274,277
+packages/sdk-web/__tests__/capture/host-visual.spec.ts
+  s_dbd309ddf8ec5b::t_22f23d0e8e5592 36,49,54,60
+packages/sdk-web/__tests__/capture/install-id-daily.spec.ts
+  s_dbd309ddf8ec5b::t_2baf1db16f9d9b 117
+packages/sdk-web/__tests__/capture/network-body-adapter.spec.ts
+  s_dbd309ddf8ec5b::t_f31ad1cd96e7db 74
+packages/sdk-web/__tests__/capture/network-body-crumb-gate.spec.ts
+  s_dbd309ddf8ec5b::t_dafaddfa07b10a 59,62
+packages/sdk-web/__tests__/capture/network-body-kill.spec.ts
+  s_dbd309ddf8ec5b::t_e23c2aa7f8137b 69,72,214,217,398-399,402
+packages/sdk-web/__tests__/capture/replay-start-retry.spec.ts
+  s_dbd309ddf8ec5b::t_6e4f6e85de1742 55
+packages/sdk-web/__tests__/capture/replay/adapter-kill-wiring.spec.ts
+  s_dbd309ddf8ec5b::t_444be6a56accf7 54,62,71,81
+packages/sdk-web/__tests__/capture/replay/debug-seam.spec.ts
+  s_dbd309ddf8ec5b::t_441ae6f9633511 13
+packages/sdk-web/__tests__/capture/replay/strictmode-replay-restart.spec.ts
+  s_dbd309ddf8ec5b::t_7e2932b6eb9ba6 104
+packages/sdk-web/__tests__/capture/replay/strictmode-replay-revive.spec.ts
+  s_dbd309ddf8ec5b::t_5f2c01832b3e61 82
+packages/sdk-web/__tests__/capture/report-hotkey-server-config.spec.ts
+  s_dbd309ddf8ec5b::t_c6adddb728b461 30,33,50,53
+packages/sdk-web/__tests__/capture/screenshot-renderer-surface.spec.ts
+  s_dbd309ddf8ec5b::t_029a6a5e2d09cc 21,47,75,104
+packages/sdk-web/__tests__/capture/tv-snapshot-adapter.spec.ts
+  s_dbd309ddf8ec5b::t_ceee1825ce0235 69,72,274,300
+packages/sdk-web/__tests__/companion/attach-pin-surface.spec.ts
+  s_dbd309ddf8ec5b::t_1e0198d6f5643e 112,119,131,140,157,188,194,208,222,239
+packages/sdk-web/__tests__/companion/capture-bridge-snapshot.spec.ts
+  s_dbd309ddf8ec5b::t_09b0ac155e9ea6 38
+packages/sdk-web/__tests__/companion/capture-bridge-submit.spec.ts
+  s_dbd309ddf8ec5b::t_9e8150107c2878 58,119
+packages/sdk-web/__tests__/companion/capture-bridge.spec.ts
+  s_dbd309ddf8ec5b::t_90629d8569f954 84
+packages/sdk-web/__tests__/companion/companion-submit-snapshot.spec.ts
+  s_dbd309ddf8ec5b::t_05601e8f0725fb 45
+packages/sdk-web/__tests__/companion/kill-switch-companion.spec.ts
+  s_dbd309ddf8ec5b::t_477c53aea83867 87,609
+packages/sdk-web/__tests__/companion/standalone-session-after-teardown.spec.ts
+  s_dbd309ddf8ec5b::t_7f1d6f64352227 172,184,207,214
+packages/sdk-web/__tests__/crash-reporting.spec.ts
+  s_dbd309ddf8ec5b::t_aab39958b2447c 91,132,146,157,192,198,215,220,242,265,288,328,341,349,361,378,401,414,440-441,452,471,500-501
+packages/sdk-web/__tests__/init-island-failure.spec.ts
+  s_dbd309ddf8ec5b::t_ccd4b9da324150 52
+packages/sdk-web/__tests__/init-lifecycle.spec.ts
+  s_dbd309ddf8ec5b::t_633de7b28edd63 36,406,453
+packages/sdk-web/__tests__/init-outbox-drain.spec.ts
+  s_dbd309ddf8ec5b::t_544c3040a69c1c 34
+packages/sdk-web/__tests__/init-shadow-optout.spec.ts
+  s_dbd309ddf8ec5b::t_5f244c9f0a2d07 16,21,28,33
+packages/sdk-web/__tests__/init.spec.ts
+  s_dbd309ddf8ec5b::t_0f5f2ded4ac8e5 31,55
+packages/sdk-web/__tests__/kill-switch-gates.spec.ts
+  s_dbd309ddf8ec5b::t_d330adc6fcf2b9 75,88,103,131,145,167,185,232,242,262,273,283,293,307,315,331,354,380,406,435
+packages/sdk-web/__tests__/mount/fab-thread-gate.spec.ts
+  s_dbd309ddf8ec5b::t_fa4567849f1fd4 73,81,90,100
+packages/sdk-web/__tests__/mount/host-element-head.spec.ts
+  s_dbd309ddf8ec5b::t_88bc1d1bc76c8f 127
+packages/sdk-web/__tests__/mount/in-app-sdk-name.spec.ts
+  s_dbd309ddf8ec5b::t_c4031fcb2069a1 114,125
+packages/sdk-web/__tests__/mount/inbox-and-toast.spec.ts
+  s_dbd309ddf8ec5b::t_8bff2a83328d21 181,228
+packages/sdk-web/__tests__/mount/kill-switch-submit.spec.ts
+  s_dbd309ddf8ec5b::t_c61ddd04fd7614 144
+packages/sdk-web/__tests__/mount/kill-switch-toctou.spec.ts
+  s_dbd309ddf8ec5b::t_7e27f106a16e9c 149
+packages/sdk-web/__tests__/mount/lazy-island.spec.ts
+  s_dbd309ddf8ec5b::t_ac2b13c9f1af82 73,78,86,97,103,110,119
+packages/sdk-web/__tests__/release-health.spec.ts
+  s_dbd309ddf8ec5b::t_9ccb7b0fa60972 23,30,54,76,106,115,134,143
+packages/sdk-web/__tests__/reporter/credential-store.spec.ts
+  s_dbd309ddf8ec5b::t_b8e19746505342 177
+packages/sdk-web/__tests__/reporter/identity-reporter-api-wiring.spec.ts
+  s_dbd309ddf8ec5b::t_bc1bdeb4b1fbd7 83,86,130,133,172,175,237,240,277,280,337,340,397,400
+packages/sdk-web/__tests__/reporter/identity-sdk-features.spec.ts
+  s_dbd309ddf8ec5b::t_636ab98f8a606c 38
+packages/sdk-web/__tests__/reporter/replies-disabled-credential-veto.spec.ts
+  s_dbd309ddf8ec5b::t_d691219a630dae 40,45,50,56,77
+packages/sdk-web/__tests__/resources/adapter-config-disable.spec.ts
+  s_dbd309ddf8ec5b::t_582a3099b4fdb5 67
+packages/sdk-web/__tests__/resources/adapter-kill.spec.ts
+  s_dbd309ddf8ec5b::t_de347164bb4e0d 61
+packages/sdk-web/__tests__/resources/sdk-features.spec.ts
+  s_dbd309ddf8ec5b::t_ef3a6c21ba5507 40,73
+packages/sdk-web/__tests__/sdk-identity.spec.ts
+  s_dbd309ddf8ec5b::t_ddf043ce0e7113 49,56,75
+packages/sdk-web/__tests__/ssr.spec.ts
+  s_dbd309ddf8ec5b::t_0bed50671bacb2 9,17
+packages/sdk-web/__tests__/transport/draft-to-envelope-breadcrumbs.spec.ts
+  s_dbd309ddf8ec5b::t_38e413887dbef6 37,53,60
+packages/sdk-web/__tests__/transport/draft-to-envelope-dom-snapshot.spec.ts
+  s_dbd309ddf8ec5b::t_6ca691b1b0a16d 11
+packages/sdk-web/__tests__/transport/draft-to-envelope.spec.ts
+  s_dbd309ddf8ec5b::t_63eb578b862f60 13
+packages/sdk-web/__tests__/transport/replay-attachment.spec.ts
+  s_dbd309ddf8ec5b::t_0faaf67b442759 17
+packages/sdk-web/__tests__/transport/sever-and-flag.spec.ts
+  s_dbd309ddf8ec5b::t_76702ce62176eb 26
+packages/sdk-web/__tests__/transport/submit-device-token.spec.ts
+  s_dbd309ddf8ec5b::t_86935ee71b785a 12,233,240,303,310,356,411-412,420,565,595
+packages/sdk-web/__tests__/transport/submit-identity.spec.ts
+  s_dbd309ddf8ec5b::t_67a0bda873e1ef 28,186
+packages/sdk-web/__tests__/transport/submit-outbox-key-binding.spec.ts
+  s_dbd309ddf8ec5b::t_e1abb2a908f514 38,67
+packages/sdk-web/__tests__/transport/submit-user.spec.ts
+  s_dbd309ddf8ec5b::t_7513c3cdd15d34 14
+packages/sdk-web/__tests__/transport/submit.spec.ts
+  s_dbd309ddf8ec5b::t_beb8ffd5a6c3a3 13,123,149
+packages/sdk-web/__tests__/vitals/transport.spec.ts
+  s_dbd309ddf8ec5b::t_9f9bf766791e5d 63,80,105,129,155,174,195,218,236,252,272,304,330,377,424,453,505,538,594,633,658,703,727,743,761,785,809,823-825,849,871,890,910,929,965,1005,1039,1072,1093,1137,1156,1180,1210,1241
+packages/sdk-web/__tests__/vitals/wiring.spec.ts
+  s_dbd309ddf8ec5b::t_07654385a7cbf2 88,94,229,780,783,805,808,830,832
+packages/sdk-web/e2e/fixtures/capture-cases.html
+  s_dbd309ddf8ec5b::t_f2dcb4a2f4a102 126
+packages/sdk-web/e2e/fixtures/ellipsis.html
+  s_dbd309ddf8ec5b::t_5216a1c1100bb1 33
+packages/sdk-web/e2e/fixtures/pixel-mask.html
+  s_dbd309ddf8ec5b::t_cd2db658080a99 76
+packages/sdk-web/e2e/fixtures/plain.html
+  s_dbd309ddf8ec5b::t_3052e6f04d6155 40
+packages/sdk-web/e2e/fixtures/script-tag.html
+  s_dbd309ddf8ec5b::t_9075a2ca57b804 43
+packages/sdk-web/e2e/fixtures/scrolling-body.html
+  s_dbd309ddf8ec5b::t_c549cd38a6a3c0 33
+packages/sdk-web/e2e/fixtures/sensitive-fixed.html
+  s_dbd309ddf8ec5b::t_dbb444899ed770 48
+packages/sdk-web/e2e/fixtures/sparse.html
+  s_dbd309ddf8ec5b::t_aa0b600bc9e843 35
+packages/sdk-web/e2e/fixtures/stall.html
+  s_dbd309ddf8ec5b::t_d825af239321cd 45
+packages/sdk-web/e2e/fixtures/tv-blocks.html
+  s_dbd309ddf8ec5b::t_ae96022d2ae522 62
+packages/sdk-web/e2e/fixtures/tv-hidden.html
+  s_dbd309ddf8ec5b::t_11c53c5827ecd7 48
+packages/sdk-web/e2e/fixtures/tv-inline.html
+  s_dbd309ddf8ec5b::t_a6c13b115b3a5b 64
+packages/sdk-web/e2e/fixtures/tv-snapshot.html
+  s_dbd309ddf8ec5b::t_e8faa82699d458 68
+packages/sdk-web/e2e/fixtures/tv-theme.html
+  s_dbd309ddf8ec5b::t_ac76906a590c05 34
+packages/sdk-web/perf/harness-hls.html
+  s_dbd309ddf8ec5b::t_75abe61b5244f0 12
+packages/sdk-web/perf/harness.html
+  s_dbd309ddf8ec5b::t_484b9fe8078112 11
+packages/sdk-web/perf/tv-device-harness.mjs
+  s_dbd309ddf8ec5b::t_f2a94bf4e8d041 64
+packages/sdk-web/perf/tv-device/entry.ts
+  s_dbd309ddf8ec5b::t_b56103d21825d5 38
+packages/sdk-web/src/adapter.ts
+  s_dbd309ddf8ec5b::t_5f5e4ad011f0e4 612,969,977,1245,1586,1824
+packages/sdk-web/src/companion/capture-bridge.ts
+  s_dbd309ddf8ec5b::t_1cdfc56fbb1641 25
+packages/sdk-web/src/companion/host-seam.ts
+  s_dbd309ddf8ec5b::t_4347c944c8fbdb 5
+packages/sdk-web/src/companion/singleton.ts
+  s_dbd309ddf8ec5b::t_fd96c0c0354327 242
+packages/sdk-web/src/init.ts
+  s_dbd309ddf8ec5b::t_00c9ef784aee65 274,352
+packages/sdk-web/src/release-health/runtime.ts
+  s_dbd309ddf8ec5b::t_25df55c0f14eed 27,32-33,127
+packages/sdk-web/src/reporter/credential-store.ts
+  s_dbd309ddf8ec5b::t_20ebf1008da79f 27,60
+packages/sdk-web/src/transport/submit.ts
+  s_dbd309ddf8ec5b::t_c0a2cc18f87455 301,396,464,613,639,657
+packages/sdk-web/src/vitals/index.ts
+  s_dbd309ddf8ec5b::t_7367ae6d398623 49,678,696,700
+packages/sdk-web/tests/release-health-browser.mjs
+  s_dbd309ddf8ec5b::t_54f347d4dd6547 42,93-94,103,150,171,202,229,240
+packages/sdk-web/tsup.config.ts
+  s_dbd309ddf8ec5b::t_50cb93d00aac93 307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ec828c1c8e924150ab8c88533ec958353a7b99f",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
