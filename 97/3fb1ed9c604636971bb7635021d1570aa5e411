@@ -1,0 +1,35 @@
+packages/cli/__tests__/elf-command.spec.ts
+  s_dbd309ddf8ec5b::t_c5dcd649619939 63,83,98,108-140,146,237
+packages/cli/src/elf-build.ts
+  s_dbd309ddf8ec5b::t_02af7ca8254ea1 48-54,123,129,168,170-173,198-199,201
+packages/cli/src/elf-command.ts
+  s_dbd309ddf8ec5b::t_c1d36a6b085946 3,10-11,40-41,45-47,62-65,67,89-96,98-101
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_09e4fa4aa21136 57
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeUploadPolicy.kt
+  s_dbd309ddf8ec5b::t_b9e8759db14f8a 5,42-64,69-70,77-79
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/UploadNativeSymbolsTask.kt
+  s_dbd309ddf8ec5b::t_6414c20050b9a3 5-8,17,20,31-34,44-46,60,65-66,69-104,113-114,116,124-125
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/VariantIntegration.kt
+  s_dbd309ddf8ec5b::t_155786185a0f93 33
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/NativeSymbolsPluginFunctionalTest.kt
+  s_dbd309ddf8ec5b::t_d9a397c2caceec 8,29-69
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/PluginFixture.kt
+  s_dbd309ddf8ec5b::t_0fbd4a5cb8be8d 18-21,87-89,97-98,112,124-125,130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "973fb1ed9c604636971bb7635021d1570aa5e411",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
