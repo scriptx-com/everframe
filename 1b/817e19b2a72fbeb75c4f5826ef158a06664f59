@@ -1,0 +1,31 @@
+.changeset/vega-protocol.md
+  s_dbd309ddf8ec5b::t_6de8d48ef9a9c2 8
+packages/protocol/__tests__/sensitive-keys.spec.ts
+  s_dbd309ddf8ec5b::t_f929a6967204d2 1-22
+packages/protocol/src/crash-details.ts
+  s_dbd309ddf8ec5b::t_e7238409db576e 5
+packages/protocol/src/index.ts
+  s_dbd309ddf8ec5b::t_ed70d4f6518b3d 42
+packages/protocol/src/sensitive-keys.ts
+  s_dbd309ddf8ec5b::t_7cf3bbf75dedb3 1-34
+packages/sdk-vega/__tests__/envelope.spec.ts
+  s_dbd309ddf8ec5b::t_0e29fb739b4619 56-93
+packages/sdk-vega/src/envelope.ts
+  s_dbd309ddf8ec5b::t_609c9e360c84a0 9-12,15,32,89-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1b817e19b2a72fbeb75c4f5826ef158a06664f59",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
