@@ -26,6 +26,8 @@ internal class AndroidNativeRecoveryController(
     private val exposure: (Int) -> NativeExposurePointer? = { null },
     /** API30 overlap: whether optional signal capture owns an ended launch's native fault. */
     private val signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE },
+    /** Called when exit history shows another writer's process-state summary. */
+    private val onSummaryConflict: () -> Unit = ProcessStateSummaryConflict::warn,
 ) {
     private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry, val nowMs: Long, val admit: (OutboxEntry) -> Boolean) {
         val operations = Any()
@@ -81,6 +83,7 @@ internal class AndroidNativeRecoveryController(
             if (!gate.isAllowed()) return false
             if (owner.ready) return true
             val exits = platform.history()
+            if (ProcessStateSummaryConflict.foreign(exits, platform.processName)) runCatching { onSummaryConflict() }
             if (!gate.isAllowed()) return false
             owner.engine.recover(exits, owner.nowMs, gate, allowDiagnostics = owner.diagnostics, signalCapture = signalCapture) {
                 if (gate.isAllowed()) owner.admit(it) else false

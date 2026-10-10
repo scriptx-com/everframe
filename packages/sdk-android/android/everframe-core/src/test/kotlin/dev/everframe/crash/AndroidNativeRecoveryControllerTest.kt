@@ -361,4 +361,13 @@ class AndroidNativeRecoveryControllerTest {
         assertEquals(1, platform.registrations.size)
         assertNotNull(platform.registrations.single())
     }
+    @Test fun `a foreign process state summary is reported and its exit is never matched`() {
+        var conflicts = 0
+        val platform = Platform().apply { exits = listOf(AndroidNativeExit(98, "app", 2000, 5, "host-owned".toByteArray()) { null }) }
+        val controller = AndroidNativeRecoveryController(::engine, platform, onSummaryConflict = { conflicts++ })
+        var admitted = 0
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { admitted++; true })
+        assertEquals(1, conflicts)
+        assertEquals("an exit Everframe did not register is never reported", 0, admitted)
+    }
 }
