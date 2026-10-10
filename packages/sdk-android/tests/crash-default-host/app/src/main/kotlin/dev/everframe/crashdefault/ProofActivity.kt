@@ -30,6 +30,12 @@ class ProofActivity : Activity() {
                     "jvm" -> handler.postDelayed({ throw IllegalStateException("crash-default-proof jvm") }, 300)
                     "segv" -> { System.loadLibrary("crash_default_fault"); handler.postDelayed({ segv() }, 300) }
                     "anr" -> handler.postDelayed({ Log.i(TAG, "state=blocking"); blockMainThread() }, 300)
+                    "oom" -> handler.postDelayed({ Log.i(TAG, "state=exhausting-heap"); exhaustHeap() }, 300)
+                    "lmk" -> {
+                        System.loadLibrary("crash_default_fault")
+                        Log.i(TAG, "state=exhausting-memory")
+                        Thread { exhaustNative() }.start()
+                    }
                 }
             }
         })
@@ -38,5 +44,13 @@ class ProofActivity : Activity() {
     /** Holds the main looper so a real input event makes the OS declare an ANR. */
     private fun blockMainThread() { Thread.sleep(120_000) }
 
-    private companion object { const val TAG = "EverframeCrashDefault" }
+    /** Fills the Java heap on the main thread and keeps it full, so OutOfMemoryError ends the process. */
+    private fun exhaustHeap() { while (true) heap.add(ByteArray(4 * 1024 * 1024)) }
+
+    private external fun exhaustNative()
+
+    private companion object {
+        const val TAG = "EverframeCrashDefault"
+        val heap = ArrayList<ByteArray>()
+    }
 }
