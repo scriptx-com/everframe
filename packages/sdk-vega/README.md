@@ -100,6 +100,11 @@ Per launch, the same automatic error from the same place is reported once,
 and at most 10 distinct automatic and 10 distinct handled errors are
 reported. Fatal errors are always reported.
 
+Reports group by exception type and top stack frames, ignoring line numbers
+and the bundle id, so one error stays one group across builds. An error thrown
+straight in an anonymous function (a timer or promise callback) has a stack
+that names no function, so its message is part of the key as well.
+
 ## Compatibility
 
 Verified against Vega OS 1.1 (React Native 0.72, Hermes 0.12) in Vega's

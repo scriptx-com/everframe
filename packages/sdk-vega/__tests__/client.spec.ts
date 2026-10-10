@@ -314,3 +314,23 @@ describe('report contents', () => {
     expectValidEnvelope(harness.fetch.requests[0]!.envelope);
   });
 });
+
+describe('anonymous callbacks', () => {
+  // Hermes gives an error thrown in a timer or promise callback one frame,
+  // `at anonymous (<id>.bundle:L:C)`. Two different ones must stay two reports
+  // in two groups (found on the Vega Virtual Device).
+  it('reports and groups two different errors from arrow functions separately', async () => {
+    const { client, errorUtils, fetch } = start();
+    const thrown = (message: string, line: number) => {
+      const error = new Error(message);
+      error.stack = `Error: ${message}\n    at anonymous (${BUILD_DIR}/${BUNDLE_ID}.bundle:${line}:28)`;
+      return error;
+    };
+    errorUtils.handler!(thrown('first callback failed', 11213), false);
+    errorUtils.handler!(thrown('second callback failed', 11228), false);
+    await client.flush();
+    expect(fetch.requests).toHaveLength(2);
+    const [a, b] = fetch.requests.map((r) => r.envelope.payload.crash.fingerprint);
+    expect(a).not.toBe(b);
+  });
+});

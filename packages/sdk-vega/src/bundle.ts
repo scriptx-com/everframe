@@ -38,19 +38,45 @@ export function stripBuildPath(raw: string): string {
   return raw.replace(IN_PARENS, '($1)').replace(BARE, 'at $1');
 }
 
+// A top frame that names no function: Hermes' `at anonymous (…)` and
+// `at global (…)`, or a bare `at <file>:L:C`. Timer and promise callbacks
+// often produce exactly one such frame, so with digits ignored every error
+// thrown straight in an arrow function would share one identity.
+const NAMELESS_TOP = /^at (?:(?:anonymous|global|<anonymous>) \(|[^\s()]+:\d+:\d+$)/;
+const MAX_KEY_MESSAGE = 200;
+
+function namelessTop(frames: ReadonlyArray<string>): boolean {
+  const top = frames[0];
+  return top === undefined || NAMELESS_TOP.test(top);
+}
+
+function keyMessage(message: string): string {
+  return message.slice(0, MAX_KEY_MESSAGE);
+}
+
 /**
  * sdk-core's grouping rule over frames whose bundle id is replaced by a
  * constant, so one error in two builds groups together. Digits are already
- * ignored by the rule; the id's hex letters are not.
+ * ignored by the rule; the id's hex letters are not. When the top frame names
+ * no function, the message (digits ignored too) joins the key, so two
+ * different errors from two arrow functions do not merge.
  */
-export function vegaFingerprint(exceptionType: string, frames: ReadonlyArray<{ raw: string }>): string {
-  return computeCrashFingerprint(
-    exceptionType,
-    frames.map((frame) => ({ raw: frame.raw.replace(ANY_BUNDLE_ID, 'app.bundle') })),
-  );
+export function vegaFingerprint(
+  exceptionType: string,
+  frames: ReadonlyArray<{ raw: string }>,
+  message: string,
+): string {
+  const normalized = frames.map((frame) => ({ raw: frame.raw.replace(ANY_BUNDLE_ID, 'app.bundle') }));
+  const keyed = namelessTop(normalized.map((frame) => frame.raw))
+    ? [{ raw: `message: ${keyMessage(message)}` }, ...normalized]
+    : normalized;
+  return computeCrashFingerprint(exceptionType, keyed);
 }
 
-/** Admission key: exception type and the normalized top frame. */
-export function captureKey(exceptionType: string, frames: ReadonlyArray<string>): string {
-  return `${exceptionType}:${(frames[0] ?? '').replace(ANY_BUNDLE_ID, 'app.bundle').replace(/\d+/g, '#')}`;
+/** Per-launch admission key: exception type, normalized top frame, and the message under the same rule. */
+export function captureKey(exceptionType: string, frames: ReadonlyArray<string>, message: string): string {
+  const top = (frames[0] ?? '').replace(ANY_BUNDLE_ID, 'app.bundle').replace(/\d+/g, '#');
+  return namelessTop(frames)
+    ? `${exceptionType}:${top}:${keyMessage(message).replace(/\d+/g, '#')}`
+    : `${exceptionType}:${top}`;
 }
