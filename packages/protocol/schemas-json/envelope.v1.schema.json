@@ -1064,6 +1064,9 @@
         },
         "recoveredStall": {
           "$ref": "#/$defs/RecoveredStallEvidence"
+        },
+        "inferredTermination": {
+          "$ref": "#/$defs/InferredTerminationEvidence"
         }
       },
       "additionalProperties": {}
@@ -3712,6 +3715,193 @@
       ],
       "additionalProperties": false,
       "title": "RecoveredStallEvidence"
+    },
+    "InferredTerminationEvidence": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "evidenceId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "processLaunchId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "nativeExposure": {
+          "$ref": "#/$defs/NativeExposure"
+        },
+        "kind": {
+          "type": "string",
+          "const": "process_exit"
+        },
+        "provenance": {
+          "type": "string",
+          "enum": [
+            "apple_next_launch_inference"
+          ],
+          "title": "InferredTerminationProvenance"
+        },
+        "scope": {
+          "type": "string",
+          "const": "os_process"
+        },
+        "outcome": {
+          "type": "string",
+          "const": "terminated"
+        },
+        "rules": {
+          "type": "string",
+          "enum": [
+            "apple-foreground-v1"
+          ],
+          "title": "InferredTerminationRules"
+        },
+        "cause": {
+          "type": "string",
+          "enum": [
+            "low_memory",
+            "unresponsive",
+            "unexplained"
+          ],
+          "title": "InferredTerminationCause"
+        },
+        "lastSeenAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "collectedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+        },
+        "attribution": {
+          "type": "object",
+          "properties": {
+            "process": {
+              "type": "string",
+              "enum": [
+                "sdk_run_record"
+              ],
+              "title": "InferredTerminationProcess"
+            },
+            "release": {
+              "type": "string",
+              "const": "frozen"
+            },
+            "session": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "webExposure": {
+              "type": "string",
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "process",
+            "release",
+            "session",
+            "webExposure"
+          ],
+          "additionalProperties": false,
+          "title": "InferredTerminationAttribution"
+        },
+        "apple": {
+          "type": "object",
+          "properties": {
+            "appState": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "launching"
+              ],
+              "title": "InferredTerminationAppState"
+            },
+            "footprintKb": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "availableKb": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "memorySampledAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            },
+            "memoryWarnings": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "lastMemoryWarningAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            },
+            "memoryPressure": {
+              "type": "string",
+              "enum": [
+                "normal",
+                "warning",
+                "critical"
+              ],
+              "title": "InferredTerminationPressure"
+            },
+            "mainThreadStallMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 86400000
+            },
+            "thermalState": {
+              "type": "string",
+              "enum": [
+                "nominal",
+                "fair",
+                "serious",
+                "critical"
+              ],
+              "title": "InferredTerminationThermalState"
+            }
+          },
+          "required": [
+            "appState",
+            "memoryWarnings",
+            "memoryPressure",
+            "thermalState"
+          ],
+          "additionalProperties": false,
+          "title": "InferredTerminationApple"
+        }
+      },
+      "required": [
+        "version",
+        "evidenceId",
+        "processLaunchId",
+        "kind",
+        "provenance",
+        "scope",
+        "outcome",
+        "rules",
+        "cause",
+        "lastSeenAt",
+        "collectedAt",
+        "attribution",
+        "apple"
+      ],
+      "additionalProperties": false,
+      "title": "InferredTerminationEvidence"
     }
   }
 }

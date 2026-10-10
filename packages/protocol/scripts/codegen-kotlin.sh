@@ -163,12 +163,13 @@ let rewritten = source.replace(
   `data class Crash (\n${properties.join('\n')}\n)${compatibilityBody}`
 );
 // Preserve Payload's old positional constructor, copy descriptor/default masks,
-// and component order when adding optional diagnostic evidence.
+// and component order when adding optional diagnostic evidence. The full
+// pre-inferred-termination layout stays as a secondary constructor and copy.
 const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const payloadMatch = rewritten.match(payloadPattern);
 if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
 const payloadProperties = payloadMatch[1].split('\n');
-const additions = ['diagnostic', 'appleDiagnostic', 'recoveredStall'];
+const additions = ['diagnostic', 'appleDiagnostic', 'recoveredStall', 'inferredTermination'];
 for (const name of additions) {
   const index = payloadProperties.findIndex(line => line.trim().startsWith(`val ${name}:`));
   if (index < 0) throw new Error(`codegen-kotlin: Payload.${name} missing`);
@@ -179,20 +180,21 @@ const oldNames = oldParameters.map(line => line.trim().split(':')[0]);
 const overload = (extra) => {
   const parameters = [...oldParameters, ...extra.map(([name, type]) => `    ${name}: ${type}? = null`)];
   const names = [...oldNames, ...extra.map(([name]) => name)];
-  const tail = ['diagnostic', 'appleDiagnostic', 'recoveredStall'];
+  const tail = ['diagnostic', 'appleDiagnostic', 'recoveredStall', 'inferredTermination'];
   return `    constructor(\n${parameters.join(',\n')}\n    ) : this(${oldNames.join(', ')}, ${tail.map(name => names.includes(name) ? name : 'null').join(', ')})
 
     fun copy(\n${parameters.map((line, i) => line.replace(/ = null$/, ` = this.${names[i]}`)).join(',\n')}\n    ): Payload = Payload(${[...oldNames, ...tail].join(', ')})`;
 };
 const propertiesWithAdditions = [...payloadProperties.map(line => line.replace(/,$/, '')),
   '    val diagnostic: DiagnosticEvidence? = null', '    val appleDiagnostic: AppleDiagnosticEvidence? = null',
-  '    val recoveredStall: RecoveredStallEvidence? = null'];
+  '    val recoveredStall: RecoveredStallEvidence? = null', '    val inferredTermination: InferredTerminationEvidence? = null'];
 const diagnosticArg = ['diagnostic', 'DiagnosticEvidence'];
 rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertiesWithAdditions.join(',\n')}\n) {
 ${overload([])}
 ${overload([diagnosticArg])}
 ${overload([diagnosticArg, ['appleDiagnostic', 'AppleDiagnosticEvidence']])}
 ${overload([diagnosticArg, ['recoveredStall', 'RecoveredStallEvidence']])}
+${overload([diagnosticArg, ['appleDiagnostic', 'AppleDiagnosticEvidence'], ['recoveredStall', 'RecoveredStallEvidence']])}
     // The two predecessor layouts had different component13 return descriptors.
     // Keep the observer binary entry point while new source uses the appended field.
     @kotlin.jvm.JvmName("component13")
