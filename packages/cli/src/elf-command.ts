@@ -3,7 +3,7 @@
 import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { adviceFor } from "./build-verify.js";
-import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, symbolsStrict, uploadBudget, uploadFailureWarnings } from "./defaults.js";
+import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, redact, symbolsStrict, uploadBudget, uploadFailureWarnings } from "./defaults.js";
 import { discoverElfBinaries, type ElfBinaryInput } from "./elf-build.js";
 import { uploadAndroidElfBuild } from "./elf-upload.js";
 
@@ -82,10 +82,15 @@ export async function elfUploadBuildCommand(
         apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         binaries,
         symbolsDir: symbolsDir!,
+        lenient: !failHard,
       },
       uploadBudget(env, explicit.length === 0)
     );
     log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`);
+    // Rejected files are warnings even in summary mode: the Gradle plugin passes `warning:` lines through.
+    for (const entry of result.failed)
+      warn(`warning: everframe: upload failed for ${entry.path}: ${redact(entry.message, token)}`);
+    if (result.failed.length) warn(uploadFailureWarnings("", token)[1]!);
     if (values.summary) {
       // A build integration summarizes these lines itself and logs them in detail.
       for (const entry of result.uncovered) log(`detail: ${entry.kind} ${entry.path}: ${entry.reason}`);

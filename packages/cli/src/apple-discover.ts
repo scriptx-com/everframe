@@ -2,14 +2,15 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { open, readdir, stat } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
-import type { AppleBinaryInput } from "./apple-build.js";
+import { failureCode, type AppleBinaryInput } from "./apple-build.js";
 
 export interface AppleSymbolSource {
   binaries: AppleBinaryInput[];
   dsymDirs: string[];
 }
 export type AppleSourceResolution =
-  | { kind: "source"; source: AppleSymbolSource }
+  /** `warnings`: build products that could not be searched for linked frameworks. */
+  | { kind: "source"; source: AppleSymbolSource; warnings: string[] }
   | { kind: "skip"; reason: string };
 
 /** 64-bit Mach-O in either byte order and universal headers. 32-bit images are never supported. */
@@ -132,30 +133,55 @@ export async function linkedFrameworks(path: string): Promise<string[]> {
 }
 /** Bundles that never contain separately built frameworks. */
 const NOT_A_PRODUCTS_FOLDER = /\.(app|appex|framework|xcframework|dSYM|bundle|swiftmodule|xctest|docc|xcarchive|lproj|build)$/i;
+export interface ProductSearchOptions {
+  /** At most this many frameworks are added. */
+  limit?: number;
+  /** Directory entries the build products search reads before it stops, with a warning. */
+  entries?: number;
+  /**
+   * Receives the warnings. Unless strict, a folder or file that cannot be read
+   * (a symlink loop, EACCES) is skipped with a warning instead of failing.
+   */
+  warn?: (line: string) => void;
+  strict?: boolean;
+}
 /**
  * Framework bundles under BUILT_PRODUCTS_DIR, including one-folder-per-target
  * layouts (CocoaPods' per-pod configuration build dirs, XCFrameworkIntermediates).
  */
-async function productFrameworks(directory: string, limits = { depth: 3, entries: 16384 }): Promise<Map<string, string[]>> {
+async function productFrameworks(
+  directory: string,
+  tolerate: <T>(path: string, fallback: T, run: () => Promise<T>) => Promise<T>,
+  warn: (line: string) => void,
+  limits: { depth: number; entries: number }
+): Promise<Map<string, string[]>> {
   const index = new Map<string, string[]>();
-  let seen = 0;
+  let seen = 0,
+    truncated = false;
   async function walk(path: string, depth: number): Promise<void> {
     for (const name of await entries(path)) {
-      if (++seen > limits.entries) return;
+      if (truncated) return;
+      if (++seen > limits.entries) {
+        truncated = true;
+        warn(`stopped looking for linked frameworks in ${directory} after ${limits.entries} entries; frameworks beyond that keep raw frames`);
+        return;
+      }
       const child = join(path, name);
       if (name.endsWith(".framework")) {
         index.set(name, [...(index.get(name) ?? []), child]);
         continue;
       }
       if (depth >= limits.depth || NOT_A_PRODUCTS_FOLDER.test(name)) continue;
-      let info;
-      try {
-        info = await stat(child);
-      } catch (error) {
-        if (absent(error)) continue;
-        throw error;
-      }
-      if (info.isDirectory()) await walk(child, depth + 1);
+      await tolerate(child, undefined, async () => {
+        let info;
+        try {
+          info = await stat(child);
+        } catch (error) {
+          if (absent(error)) return;
+          throw error;
+        }
+        if (info.isDirectory()) await walk(child, depth + 1);
+      });
     }
   }
   await walk(directory, 0);
@@ -173,19 +199,31 @@ async function productFrameworks(directory: string, limits = { depth: 3, entries
 export async function linkedProductFrameworks(
   roots: AppleBinaryInput[],
   productsDir: string,
-  limit = 256
+  options: ProductSearchOptions = {}
 ): Promise<AppleBinaryInput[]> {
+  const limit = options.limit ?? 256,
+    warn = options.warn ?? (() => {});
+  const tolerate = async <T>(path: string, fallback: T, run: () => Promise<T>): Promise<T> => {
+    if (options.strict || !options.warn) return run();
+    try {
+      return await run();
+    } catch (error) {
+      warn(`skipped ${path} while looking for linked frameworks: ${failureCode(error)}`);
+      return fallback;
+    }
+  };
   const embeddedNames = new Set(
     roots.map((binary) => /\/([^/]+\.framework)\/[^/]+$/.exec(binary.path)?.[1]).filter((name): name is string => !!name)
   );
   let index: Map<string, string[]> | undefined;
   const queue = roots.map((binary) => binary.path), visited = new Set(queue), found: AppleBinaryInput[] = [];
   while (queue.length && found.length < limit) {
-    for (const name of await linkedFrameworks(queue.shift()!)) {
+    const next = queue.shift()!;
+    for (const name of await tolerate(next, [] as string[], () => linkedFrameworks(next))) {
       if (embeddedNames.has(name)) continue;
-      index ??= await productFrameworks(productsDir);
+      index ??= await productFrameworks(productsDir, tolerate, warn, { depth: 3, entries: options.entries ?? 16384 });
       for (const bundle of index.get(name) ?? [])
-        for (const executable of await bundleExecutables(bundle)) {
+        for (const executable of await tolerate(bundle, [] as string[], () => bundleExecutables(bundle))) {
           if (visited.has(executable) || found.length >= limit) continue;
           visited.add(executable);
           found.push({ path: executable, required: false });
@@ -231,7 +269,15 @@ export function sandboxed(error: unknown): unknown {
     : error;
 }
 
-export async function resolveXcodeSource(env: NodeJS.ProcessEnv): Promise<AppleSourceResolution> {
+/**
+ * Unless strict, frameworks that are linked but not embedded yet are found on a
+ * best-effort basis: a build products folder that cannot be searched costs only
+ * those frameworks, with a warning, never the app's own dSYMs.
+ */
+export async function resolveXcodeSource(
+  env: NodeJS.ProcessEnv,
+  options: { strict?: boolean } = {}
+): Promise<AppleSourceResolution> {
   const { TARGET_BUILD_DIR, WRAPPER_NAME, DWARF_DSYM_FOLDER_PATH, CONFIGURATION } = env;
   if (!TARGET_BUILD_DIR || !WRAPPER_NAME || !DWARF_DSYM_FOLDER_PATH || !CONFIGURATION)
     throw new Error(
@@ -255,12 +301,27 @@ export async function resolveXcodeSource(env: NodeJS.ProcessEnv): Promise<AppleS
       join(TARGET_BUILD_DIR, WRAPPER_NAME),
       env.EXECUTABLE_PATH ? { executable: join(TARGET_BUILD_DIR, env.EXECUTABLE_PATH) } : {}
     );
-    if (env.BUILT_PRODUCTS_DIR) binaries.push(...(await linkedProductFrameworks(binaries, env.BUILT_PRODUCTS_DIR)));
+    const warnings: string[] = [];
+    if (env.BUILT_PRODUCTS_DIR) {
+      try {
+        binaries.push(
+          ...(await linkedProductFrameworks(binaries, env.BUILT_PRODUCTS_DIR, {
+            strict: options.strict ?? false,
+            warn: (line) => warnings.push(line),
+          }))
+        );
+      } catch (error) {
+        if (options.strict) throw error;
+        warnings.push(
+          `could not follow run-path links to frameworks in ${env.BUILT_PRODUCTS_DIR}: ${failureCode(error)}; frameworks not embedded yet keep raw frames`
+        );
+      }
+    }
     const dsymDirs = [
       DWARF_DSYM_FOLDER_PATH,
       ...(env.BUILT_PRODUCTS_DIR && env.BUILT_PRODUCTS_DIR !== DWARF_DSYM_FOLDER_PATH ? [env.BUILT_PRODUCTS_DIR] : []),
     ];
-    return { kind: "source", source: { binaries, dsymDirs } };
+    return { kind: "source", source: { binaries, dsymDirs }, warnings };
   } catch (error) {
     throw sandboxed(error);
   }

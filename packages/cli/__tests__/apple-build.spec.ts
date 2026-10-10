@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import {
+  chmod,
   mkdtemp,
   writeFile,
   rm,
@@ -706,4 +707,41 @@ it("in lenient mode skips an unrelated dSYM bundle that escapes its root, with a
   });
   expect(result.artifacts).toHaveLength(1);
   expect(result.warnings).toEqual([expect.stringMatching(/^skipped .+Elsewhere\.dSYM.*: symlink_escapes_root/)]);
+});
+it("in lenient mode scans each dSYM folder on its own and warns about one it cannot read", async () => {
+  const f = await fixture(),
+    missing = join(f.root, "Missing"),
+    locked = join(f.root, "Locked"),
+    products = join(f.root, "Products");
+  await dsym(products, "App");
+  await mkdir(locked);
+  const unreadable = process.getuid?.() !== 0;
+  if (unreadable) await chmod(locked, 0o000);
+  try {
+    const options = { binaries: [{ path: f.binary, required: true }], dsymDirs: [missing, locked, products] };
+    const result = await collectAppleBuild({ ...options, lenient: true });
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.images.map((image) => image.uuid)).toEqual([UUID_A]);
+    expect(result.missingRequired).toBeUndefined();
+    expect(result.warnings).toEqual([
+      `skipped ${missing}: ENOENT`,
+      ...(unreadable ? [expect.stringMatching(/^skipped .+Locked: EACCES$/)] : []),
+    ]);
+    // Strict still fails on the first folder it cannot read.
+    await expect(collectAppleBuild(options)).rejects.toThrow(/ENOENT/);
+    if (unreadable) await expect(collectAppleBuild({ ...options, dsymDirs: [locked, products] })).rejects.toThrow(/EACCES/);
+  } finally {
+    await chmod(locked, 0o755);
+  }
+});
+it("in lenient mode reports a required binary when no dSYM folder can be read", async () => {
+  const f = await fixture();
+  const result = await collectAppleBuild({
+    binaries: [{ path: f.binary, required: true }],
+    dsymDirs: [join(f.root, "Missing")],
+    lenient: true,
+  });
+  expect(result.artifacts).toEqual([]);
+  expect(result.warnings).toEqual([`skipped ${join(f.root, "Missing")}: ENOENT`]);
+  expect(result.missingRequired).toMatch(/^missing_matching_dsym: no DWARF file under .+Missing matches/);
 });

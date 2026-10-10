@@ -50,10 +50,14 @@ embedded yet, such as CocoaPods frameworks under `use_frameworks!`, whose
 watchOS content are skipped. dSYM folders are searched recursively, up to four
 levels deep, without entering bundles. A missing dSYM for an optional binary
 prints `warning: no dSYM for …` (an Xcode build warning). With `--xcode`,
-`--archive` or `--app`, a missing dSYM for a required binary, an unreadable
-folder or bundle, or a file the service rejects also becomes a warning after
-everything else has uploaded; with `--strict` and `--binary` it fails with
-`missing_matching_dsym` (or the rejection) instead. `--xcode` skips Debug builds (set
+`--archive` or `--app`, a missing dSYM for a required binary, a missing or
+unreadable `--dsym-dir` folder (the other folders are still searched), an
+unreadable folder or bundle, or a file the service rejects also becomes a
+warning after everything else has uploaded; with `--strict` and `--binary` it
+fails with `missing_matching_dsym` (or the rejection) instead. When `--xcode`
+cannot search part of the build products for run-path frameworks (a symlink
+loop, a folder it may not read) or stops at the 16384-entry limit, it warns
+and still uploads the app's own dSYMs and every framework it did find. `--xcode` skips Debug builds (set
 `EVERFRAME_UPLOAD_DEBUG=1` to upload them) and builds without
 `DEBUG_INFORMATION_FORMAT = dwarf-with-dsym`.
 
@@ -249,6 +253,9 @@ integrations to summarize. A directory without libraries does nothing.
 
 **It never fails your build by default.** In `--binaries-dir` mode a missing
 `EVERFRAME_API_TOKEN` or a failed upload prints `warning:` lines and exits 0.
+A library the service rejects does not stop the others: every library is
+uploaded first, then each rejection prints `warning: everframe: upload failed
+for <path>: …`.
 Pass `--strict` or set `EVERFRAME_SYMBOLS_STRICT=1` to fail instead and to
 require symbols for every shipped library; a required library without them
 fails with `missing_matching_elf`, naming its ABI, build ID and path.
