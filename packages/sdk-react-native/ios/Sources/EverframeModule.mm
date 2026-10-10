@@ -127,6 +127,8 @@ RCT_EXPORT_MODULE(Everframe)
   // <bool>`, same shape as `networkBodiesDisabled()` above. Absent means the
   // host said nothing, which is "send it": the SDK default is ON.
   BOOL installIdentifierDisabled = opts.installIdentifierDisabled().value_or(false);
+  // `crashReportingDisabled` — same `std::optional<bool>` shape. Absent keeps capture on.
+  BOOL crashReportingDisabled = opts.crashReportingDisabled().value_or(false);
   // `attachPinUi` (spec 2026-08-19) is a plain optional STRING field —
   // `opts.attachPinUi()` returns a nullable NSString*, same shape as
   // `opts.apiKey()` above, NOT the `std::optional<bool>` shape
@@ -184,6 +186,7 @@ RCT_EXPORT_MODULE(Everframe)
                             endpoint:@""
                networkBodiesDisabled:networkBodiesDisabled
            installIdentifierDisabled:installIdentifierDisabled
+              crashReportingDisabled:crashReportingDisabled
                          attachPinUi:attachPinUi
                    companionDeviceId:companionDeviceId
                companionBadgeEnabled:companionBadgeEnabled

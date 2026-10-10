@@ -41,6 +41,13 @@ export const DiagnosticEvidence = z.object({
   android: z.object({
     apiLevel: z.number().int().min(30).max(1000), reason: z.number().int().min(0).max(2147483647),
     pid: z.number().int().min(1).max(2147483647),
+    /** ApplicationExitInfo importance at death; a low-memory kill is reported only while the user could see or hear the app. */
+    importance: z.number().int().min(0).max(2147483647).optional(),
+    /** Proportional and resident set size at death, in KiB, as the OS recorded them. */
+    pssKb: z.number().int().min(0).max(1_000_000_000).optional(),
+    rssKb: z.number().int().min(0).max(1_000_000_000).optional(),
+    /** The OS exit description, bounded printable ASCII. */
+    description: z.string().min(1).max(128).regex(/^[\x20-\x7e]+$/).optional(),
   }).strict(),
   trace: z.object({
     status: z.enum(['available', 'unavailable', 'malformed', 'unsupported', 'not_requested']).meta({ title: 'DiagnosticTraceStatus' }),

@@ -2558,13 +2558,28 @@ public extension EverframeDiagnosticEvidence {
 // MARK: - EverframeAndroid
 public struct EverframeAndroid: Codable {
     public let apiLevel: Int
+    public let description: String?
+    public let importance: Int?
     public let pid: Int
+    public let pssKB: Int?
     public let reason: Int
+    public let rssKB: Int?
 
-    public init(apiLevel: Int, pid: Int, reason: Int) {
+    public enum CodingKeys: String, CodingKey {
+        case apiLevel, description, importance, pid
+        case pssKB = "pssKb"
+        case reason
+        case rssKB = "rssKb"
+    }
+
+    public init(apiLevel: Int, description: String?, importance: Int?, pid: Int, pssKB: Int?, reason: Int, rssKB: Int?) {
         self.apiLevel = apiLevel
+        self.description = description
+        self.importance = importance
         self.pid = pid
+        self.pssKB = pssKB
         self.reason = reason
+        self.rssKB = rssKB
     }
 }
 
@@ -2588,13 +2603,21 @@ public extension EverframeAndroid {
 
     func with(
         apiLevel: Int? = nil,
+        description: String?? = nil,
+        importance: Int?? = nil,
         pid: Int? = nil,
-        reason: Int? = nil
+        pssKB: Int?? = nil,
+        reason: Int? = nil,
+        rssKB: Int?? = nil
     ) -> EverframeAndroid {
         return EverframeAndroid(
             apiLevel: apiLevel ?? self.apiLevel,
+            description: description ?? self.description,
+            importance: importance ?? self.importance,
             pid: pid ?? self.pid,
-            reason: reason ?? self.reason
+            pssKB: pssKB ?? self.pssKB,
+            reason: reason ?? self.reason,
+            rssKB: rssKB ?? self.rssKB
         )
     }
 

@@ -35,7 +35,7 @@ internal object AndroidNativeSignalPackaging {
         return true
     }
 
-    private fun modulePresent(context: Context): Boolean = try {
+    fun modulePresent(context: Context): Boolean = try {
         Class.forName("dev.everframe.nativecrash.NativeCrashBridge", false, context.classLoader); true
     } catch (_: ClassNotFoundException) { false } catch (_: LinkageError) { false }
 }

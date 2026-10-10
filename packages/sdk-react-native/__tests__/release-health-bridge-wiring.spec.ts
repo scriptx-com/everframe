@@ -21,10 +21,8 @@ describe('release-health native bridge contracts', () => {
     expect(swift).toMatch(/if let applyHealth[\s\S]*?Task \{ _ = await applyHealth\(\) \}/);
     expect(swift).not.toMatch(/Task\s*\{\s*(?:_ = )?await Everframe.shared.setReleaseHealth/);
   });
-  it('preserves the old Objective-C configure selector and forwards new scalar fields through codegen', () => {
-    const swift = source('ios/Sources/EverframeBridge.swift');
-    expect(swift).toMatch(/vitalsCaptureSourceQuery: NSNumber\?\s*\) throws/);
-    expect(swift).toContain('releaseHealthEnabled: false');
+  it('forwards the release-health scalar fields through codegen', () => {
+    // The pre-release-health Objective-C configure overload was removed (no customers yet).
     const objc = source('ios/Sources/EverframeModule.mm');
     for (const name of ['releaseHealthEnabled', 'releaseHealthNativeBuildId', 'releaseHealthLoadedBuildId', 'releaseHealthUserId']) {
       expect(objc).toContain(`opts.${name}()`);

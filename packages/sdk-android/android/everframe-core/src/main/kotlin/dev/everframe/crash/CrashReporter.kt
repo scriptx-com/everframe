@@ -577,8 +577,12 @@ object CrashReporter {
                     (!requireCurrentStart || captured.user.startEpoch == dev.everframe.Everframe.currentStartEpochVolatile())
             }
             val sidecar = sidecarFactory(context)
-            return diagnostic.accepted(if (waitForStorage) sidecar.appendHandledSyncAccepted(entry, authorization, diagnostic.owner)
-            else sidecar.appendSyncAccepted(entry, authorization, diagnostic.owner))
+            val accepted = if (waitForStorage) sidecar.appendHandledSyncAccepted(entry, authorization, diagnostic.owner)
+                else sidecar.appendSyncAccepted(entry, authorization, diagnostic.owner)
+            // This process ends after the handler. If the OS kills it for low memory first (a Java OOM
+            // under pressure), its exit record says LOW_MEMORY: tell OS exit recovery it is reported.
+            if (accepted && fatal && mechanism == "uncaught-exception-handler") AndroidNativeCrashRuntime.noteJvmFatal()
+            return diagnostic.accepted(accepted)
         } catch (_: Throwable) {
             return false
         } finally {
