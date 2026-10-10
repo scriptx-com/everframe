@@ -19,6 +19,9 @@ class ProofActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(TextView(this).apply { text = "Crash default acceptance"; isFocusable = true })
         val crash = intent.getStringExtra("crash") ?: "none"
+        // Whether this OS tells low-memory kills apart from other SIGKILLs in its exit records.
+        if (android.os.Build.VERSION.SDK_INT >= 30) Log.i(TAG, "lowMemoryKillReportSupported=" +
+            android.app.ActivityManager.isLowMemoryKillReportSupported())
         var waits = 0
         handler.post(object : Runnable {
             override fun run() {
