@@ -55,6 +55,15 @@ dependencies {
     agpTestKit("com.android.tools.build:gradle:8.7.2")
 }
 
+// The npx fallback pins the CLI version this repository ships (EverframeCliVersionTest).
+val everframeCliVersion = providers.fileContents(layout.projectDirectory.file("../../../cli/package.json")).asText.map { json ->
+    Regex("\"version\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1) ?: error("packages/cli/package.json has no version")
+}
+tasks.processResources {
+    inputs.property("cliVersion", everframeCliVersion)
+    filesMatching("dev/everframe/gradle/cli-version.properties") { expand("cliVersion" to everframeCliVersion.get()) }
+}
+
 tasks.pluginUnderTestMetadata {
     pluginClasspath.from(agpTestKit)
 }
@@ -64,7 +73,7 @@ gradlePlugin {
         register("everframe") {
             id = "dev.everframe"
             displayName = "Everframe Android Gradle plugin"
-            description = "Auto-applies Everframe consumer-rules.pro and Compose displayName preservation to host modules."
+            description = "Uploads R8 mappings and native symbols after release builds, and applies Everframe consumer-rules.pro and Compose displayName preservation."
             implementationClass = "dev.everframe.gradle.EverframePlugin"
         }
     }
@@ -87,7 +96,7 @@ afterEvaluate {
             groupId = "dev.everframe"
             pom {
                 name.set("Everframe Android — everframe-gradle-plugin")
-                description.set("Optional Gradle plugin: applies Everframe consumer-rules.pro and Compose displayName preservation.")
+                description.set("Gradle plugin: uploads R8 mappings and native symbols after release builds, and applies Everframe consumer-rules.pro and Compose displayName preservation.")
                 url.set("https://github.com/scriptx-com/everframe")
                 licenses {
                     license {

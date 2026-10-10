@@ -24,6 +24,8 @@ import {
   dsym,
   UUID_A,
   UUID_B,
+  listed,
+  LEGACY_LIMITS,
 } from "./apple-build-fixture.js";
 const hooks = vi.hoisted(() => ({
   onRead: undefined as undefined | ((path: string) => Promise<void>),
@@ -280,10 +282,7 @@ it("collects app and framework symbols before any upload and deduplicates exact 
   await dsym(f.root, "App");
   await dsym(f.root, "AppCopy");
   await dsym(f.root, "Framework", macho({ uuid: UUID_B, kind: 10 }));
-  const result = await collectAppleBuild({
-    binaries: [f.binary, framework],
-    dsymDir: f.root,
-  });
+  const result = await collectAppleBuild(listed([f.binary, framework], f.root), LEGACY_LIMITS);
   expect(result.artifacts).toHaveLength(2);
   expect(result.images).toHaveLength(2);
   expect(result.artifacts.every((a) => a.manifest.version === 4)).toBe(true);
@@ -306,7 +305,7 @@ it.each(["missing", "wrong-uuid", "wrong-cpu", "ambiguous", "non-dsym"])(
       await dsym(f.root, "Conflict", b);
     }
     await expect(
-      collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
+      collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS)
     ).rejects.toThrow(/missing|ambiguous|apple/);
   }
 );
@@ -316,7 +315,7 @@ it("does not follow a dSYM bundle outside its declared directory", async () => {
   await dsym(other.root, "App");
   await symlink(join(other.root, "App.dSYM"), join(f.root, "App.dSYM"));
   await expect(
-    collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
+    collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS)
   ).rejects.toThrow(
     /^symlink_escapes_root: .+\/App\.dSYM\/Contents\/Resources\/DWARF$/
   );
@@ -324,16 +323,16 @@ it("does not follow a dSYM bundle outside its declared directory", async () => {
 it("bounds declared binaries, candidate bundles and directory entries", async () => {
   const f = await fixture();
   await expect(
-    collectAppleBuild({ binaries: [], dsymDir: f.root })
+    collectAppleBuild(listed([], f.root), LEGACY_LIMITS)
   ).rejects.toThrow("apple_build_limit: list 1 to 16 binaries (got 0)");
   await expect(
-    collectAppleBuild({ binaries: Array(17).fill(f.binary), dsymDir: f.root })
+    collectAppleBuild(listed(Array(17).fill(f.binary), f.root), LEGACY_LIMITS)
   ).rejects.toThrow("apple_build_limit: list 1 to 16 binaries (got 17)");
   await Promise.all(
     Array.from({ length: 65 }, (_, i) => dsym(f.root, "Candidate" + i))
   );
   await expect(
-    collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
+    collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS)
   ).rejects.toThrow(
     /^apple_build_limit: more than 64 \.dSYM bundles under .+ hold a listed identity$/
   );
@@ -344,7 +343,7 @@ it("bounds declared binaries, candidate bundles and directory entries", async ()
     )
   );
   await expect(
-    collectAppleBuild({ binaries: [second.binary], dsymDir: second.root })
+    collectAppleBuild(listed([second.binary], second.root), LEGACY_LIMITS)
   ).rejects.toThrow(/^apple_build_limit: more than 1024 directory entries under /);
 });
 // A watchOS companion's dSYM: 32-bit MH_MAGIC header with CPU_TYPE_ARM64_32.
@@ -420,10 +419,7 @@ it.each([
     const f = await fixture();
     await dsym(f.root, "App");
     await add(f.root);
-    const result = await collectAppleBuild({
-      binaries: [f.binary],
-      dsymDir: f.root,
-    });
+    const result = await collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS);
     expect(result.artifacts).toHaveLength(1);
     expect(result.images.map((image) => image.uuid)).toEqual([UUID_A]);
   }
@@ -434,10 +430,7 @@ it("fails an identity found only in unsupported files and names a bounded list o
   const notes = dirname(await dsym(f.root, "Notes", Buffer.alloc(64, 0x20)));
   for (let i = 0; i < 9; i++)
     await writeFile(join(notes, "note" + i), Buffer.alloc(64, 0x20));
-  const error = await collectAppleBuild({
-    binaries: [f.binary],
-    dsymDir: f.root,
-  }).catch((e: Error) => e);
+  const error = await collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS).catch((e: Error) => e);
   expect(error).toBeInstanceOf(Error);
   const message = (error as Error).message;
   expect(message).toMatch(/^missing_matching_dsym/);
@@ -462,16 +455,13 @@ it("names each uncovered listed image with its architecture, UUID and binary", a
   );
   await dsym(f.root, "App");
   await dsym(f.root, "Framework", macho({ uuid: UUID_B, kind: 10 }));
-  const message = await collectAppleBuild({
-    binaries: [f.binary, framework],
-    dsymDir: f.root,
-  }).then(
+  const message = await collectAppleBuild(listed([f.binary, framework], f.root), LEGACY_LIMITS).then(
     () => "",
     (e: Error) => e.message
   );
   expect(message.split("\n")).toEqual([
     expect.stringMatching(
-      /^missing_matching_dsym: no DWARF file under .+ matches these listed images \(\.dSYM bundles inspected: 2\):$/
+      /^missing_matching_dsym: no DWARF file under .+ matches these required images \(\.dSYM bundles inspected: 2\):$/
     ),
     `  x86_64 ${simulator} in ${framework}`,
   ]);
@@ -513,7 +503,7 @@ it.each([
     await dsym(f.root, "App");
     const binary = await make(f.root);
     await expect(
-      collectAppleBuild({ binaries: [f.binary, binary], dsymDir: f.root })
+      collectAppleBuild(listed([f.binary, binary], f.root), LEGACY_LIMITS)
     ).rejects.toThrow(`${code}: ${binary}`);
   }
 );
@@ -526,7 +516,7 @@ it("names the identity and both files of an ambiguous match", async () => {
     Buffer.concat([macho({ kind: 10 }), Buffer.from("different bytes")])
   );
   await expect(
-    collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
+    collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS)
   ).rejects.toThrow(
     new RegExp(
       `^ambiguous_dsym_identity: arm64 ${UUID_A} is in different files ` +
@@ -559,7 +549,7 @@ it("checks expected binaries again after collecting dSYMs", async () => {
     await writeFile(f.binary, macho({ uuid: UUID_B }));
   };
   await expect(
-    collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
+    collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS)
   ).rejects.toThrow(`source_map_changed: ${f.binary}`);
 });
 it("does not block on a FIFO masquerading as a binary", async () => {
@@ -574,10 +564,7 @@ it("accepts a matching raw DWARF file of exactly 512 MiB", async () => {
   const f = await fixture(),
     path = await dsym(f.root, "App");
   await truncate(path, 512 * 1024 * 1024);
-  const result = await collectAppleBuild({
-    binaries: [f.binary],
-    dsymDir: f.root,
-  });
+  const result = await collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS);
   expect(result.artifacts).toHaveLength(1);
   expect(result.artifacts[0]!.manifest.artifacts[0]!.mapBytes).toBe(
     512 * 1024 * 1024
@@ -588,7 +575,7 @@ it("rejects oversized raw DWARF and more than eight selected files", async () =>
     path = await dsym(f.root, "App");
   await truncate(path, 512 * 1024 * 1024 + 1);
   await expect(
-    collectAppleBuild({ binaries: [f.binary], dsymDir: f.root })
+    collectAppleBuild(listed([f.binary], f.root), LEGACY_LIMITS)
   ).rejects.toThrow(
     /^dsym_too_large: .+\/App\.dSYM\/Contents\/Resources\/DWARF\/App$/
   );
@@ -602,8 +589,121 @@ it("rejects oversized raw DWARF and more than eight selected files", async () =>
     await dsym(second.root, "Binary" + i, macho({ uuid, kind: 10 }));
   }
   await expect(
-    collectAppleBuild({ binaries, dsymDir: second.root })
+    collectAppleBuild(listed(binaries, second.root), LEGACY_LIMITS)
   ).rejects.toThrow(
     /^apple_build_limit: more than 8 distinct DWARF files match the listed binaries$/
   );
+});
+it("finds dSYMs in nested pod folders under several roots and scans a nested root once", async () => {
+  const f = await fixture(),
+    products = join(f.root, "Products"),
+    framework = join(f.root, "Feature");
+  await writeFile(framework, macho({ uuid: UUID_B, kind: 6 }));
+  await dsym(join(products, "App"), "App");
+  await dsym(join(products, "FeaturePod"), "Feature", macho({ uuid: UUID_B, kind: 10 }));
+  const result = await collectAppleBuild({
+    binaries: [
+      { path: f.binary, required: true },
+      { path: framework, required: false },
+    ],
+    dsymDirs: [products, join(products, "App")],
+  });
+  expect(result.images.map((image) => image.uuid).sort()).toEqual([UUID_A, UUID_B].sort());
+  expect(result.artifacts).toHaveLength(2);
+  expect(result.uncovered).toEqual([]);
+});
+it("reports an optional binary without a dSYM instead of failing", async () => {
+  const f = await fixture(),
+    vendor = join(f.root, "Vendor");
+  await writeFile(vendor, macho({ uuid: UUID_B, kind: 6 }));
+  await dsym(f.root, "App");
+  const result = await collectAppleBuild({
+    binaries: [
+      { path: f.binary, required: true },
+      { path: vendor, required: false },
+    ],
+    dsymDirs: [f.root],
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.images.map((image) => image.uuid)).toEqual([UUID_A]);
+  expect(result.uncovered).toEqual([
+    { path: vendor, images: [expect.objectContaining({ uuid: UUID_B, architecture: "arm64" })] },
+  ]);
+});
+it("fails a required binary without a dSYM and calls it required", async () => {
+  const f = await fixture();
+  await expect(
+    collectAppleBuild({ binaries: [{ path: f.binary, required: true }], dsymDirs: [f.root] })
+  ).rejects.toThrow(/^missing_matching_dsym: no DWARF file under .+ matches these required images/);
+});
+it("never looks for dSYMs inside app or framework bundles", async () => {
+  const f = await fixture();
+  await dsym(join(f.root, "App.app"), "App");
+  await dsym(join(f.root, "Feature.framework"), "App");
+  await expect(
+    collectAppleBuild({ binaries: [{ path: f.binary, required: true }], dsymDirs: [f.root] })
+  ).rejects.toThrow(/missing_matching_dsym/);
+});
+it("accepts more than sixteen binaries by default", async () => {
+  const f = await fixture();
+  await dsym(f.root, "App");
+  const binaries = [{ path: f.binary, required: true }];
+  for (let i = 0; i < 20; i++) {
+    const path = join(f.root, `Vendor${i}`);
+    await writeFile(path, macho({ uuid: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`, kind: 6 }));
+    binaries.push({ path, required: false });
+  }
+  const result = await collectAppleBuild({ binaries, dsymDirs: [f.root] });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.uncovered).toHaveLength(20);
+});
+it("reports an optional binary it cannot read instead of failing the whole upload", async () => {
+  const f = await fixture(),
+    vendor = join(f.root, "Vendor");
+  // A fat vendor framework that still carries a 32-bit armv7 slice.
+  await writeFile(vendor, universal([macho({ cpu: 12, subtype: 9, kind: 6 }), macho({ uuid: UUID_B, kind: 6 })]));
+  await dsym(f.root, "App");
+  const result = await collectAppleBuild({
+    binaries: [
+      { path: f.binary, required: true },
+      { path: vendor, required: false },
+    ],
+    dsymDirs: [f.root],
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.uncovered).toEqual([{ path: vendor, images: [], reason: "unsupported_apple_architecture" }]);
+  await expect(
+    collectAppleBuild({ binaries: [{ path: vendor, required: true }], dsymDirs: [f.root] })
+  ).rejects.toThrow(`unsupported_apple_architecture: ${vendor}`);
+});
+it("in lenient mode uploads what matches and reports a required binary without a dSYM", async () => {
+  const f = await fixture(),
+    extension = join(f.root, "TopShelf");
+  await writeFile(extension, macho({ uuid: UUID_B, kind: 2 }));
+  await dsym(f.root, "App");
+  const result = await collectAppleBuild({
+    binaries: [
+      { path: f.binary, required: true },
+      { path: extension, required: true },
+    ],
+    dsymDirs: [f.root],
+    lenient: true,
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.missingRequired).toMatch(/^missing_matching_dsym: no DWARF file under .+ matches these required images/);
+  expect(result.missingRequired).toContain(`arm64 ${UUID_B} in ${extension}`);
+});
+it("in lenient mode skips an unrelated dSYM bundle that escapes its root, with a warning", async () => {
+  const f = await fixture(),
+    other = await fixture();
+  await dsym(f.root, "App");
+  await dsym(other.root, "Elsewhere", macho({ uuid: UUID_B, kind: 10 }));
+  await symlink(join(other.root, "Elsewhere.dSYM"), join(f.root, "Elsewhere.dSYM"));
+  const result = await collectAppleBuild({
+    binaries: [{ path: f.binary, required: true }],
+    dsymDirs: [f.root],
+    lenient: true,
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.warnings).toEqual([expect.stringMatching(/^skipped .+Elsewhere\.dSYM.*: symlink_escapes_root/)]);
 });

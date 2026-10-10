@@ -113,14 +113,37 @@ class AndroidNativeRecoveryTest {
         assertEquals(1, recovery().recover(emptyList(), 4000, allowed) { assertEquals(accepted, it); true })
         assertTrue(store("prepared").snapshotTokens().isEmpty())
     }
-    @Test fun `expired and unmatched history never become a current-session crash`() {
-        val (_, token) = arm(recovery())
-        assertEquals(0, recovery().recover(listOf(record(token)), 15L * 24 * 60 * 60 * 1000, allowed) { error("expired") })
+    private val day = 24L * 60 * 60 * 1000
+    @Test fun `an unmatched context expires 14 days away from its creation in either clock direction`() {
+        val (_, kept) = arm(recovery())
+        assertEquals(0, recovery().recover(emptyList(), 1000 + 13 * day, allowed) { error("unmatched") })
+        assertEquals(0, recovery().recover(emptyList(), 1000 - 13 * day, allowed) { error("unmatched") })
+        assertEquals("within 14 days either way it stays", 1, store("contexts").snapshotTokens().size)
+        assertEquals(0, recovery().recover(listOf(record(byteArrayOf(1))), 1000 + 15 * day, allowed) { error("unmatched") })
         assertTrue(store("contexts").snapshotTokens().isEmpty())
+        arm(recovery(), template().copy(createdAt = 20 * day)) // armed while the clock ran ahead
+        assertEquals(0, recovery().recover(emptyList(), 2 * day, allowed) { error("unmatched") })
+        assertTrue("a clock behind by more than 14 days must not keep it forever", store("contexts").snapshotTokens().isEmpty())
+        assertTrue(kept.isNotEmpty())
     }
-    @Test fun `different token pid process and earlier death never adopt current context`() {
+    @Test fun `a forward clock jump never drops a crash before it is reported`() {
+        // Armed at the box's build-date clock, crashed after network time set it 56 years later.
+        val (entry, token) = arm(recovery())
+        val now = 56L * 365 * day
+        var admitted: OutboxEntry? = null
+        assertEquals(1, recovery().recover(listOf(record(token, time = now - 1000)), now, allowed) { admitted = it; true })
+        assertEquals(entry.reportId, admitted!!.reportId)
+    }
+    @Test fun `a backward clock jump still matches the crash by its exact token`() {
+        // Armed while the clock ran 20 days ahead; the crash happened after it was corrected.
+        val (entry, token) = arm(recovery(), template().copy(createdAt = 20 * day))
+        var admitted: OutboxEntry? = null
+        assertEquals(1, recovery().recover(listOf(record(token, time = 2000)), 3000, allowed) { admitted = it; true })
+        assertEquals(entry.reportId, admitted!!.reportId)
+    }
+    @Test fun `different token pid or process never adopt current context`() {
         val (_, token) = arm(recovery())
-        for (exit in listOf(record(byteArrayOf(1)), record(token, pid = 100), record(token, process = "other"), record(token, time = 999))) {
+        for (exit in listOf(record(byteArrayOf(1)), record(token, pid = 100), record(token, process = "other"))) {
             assertEquals(0, recovery().recover(listOf(exit), 3000, allowed) { error("mismatched") })
         }
         assertEquals(1, store("contexts").snapshotTokens().size)
@@ -148,13 +171,38 @@ class AndroidNativeRecoveryTest {
         catch (_: IllegalStateException) { }
         assertTrue(store("contexts").snapshotTokens().isEmpty())
     }
-    @Test fun `bounded context storage refuses registration when full`() {
-        val engine = AndroidNativeRecovery(store("contexts", 1), store("prepared"))
-        arm(engine)
+    @Test fun `bounded context storage frees the oldest slot instead of refusing registration`() {
+        val engine = AndroidNativeRecovery(store("contexts", 2), store("prepared"))
+        val (first, _) = arm(engine)
+        val (second, _) = arm(engine)
         var registered = false
-        try { engine.arm(template(), 99, "app", allowed) { registered = true }; fail() }
-        catch (_: OutboxWriteException) { }
-        assertFalse(registered)
+        var reclaimed: Pair<Int, Int>? = null
+        val third = template()
+        engine.arm(third, 99, "app", allowed, onReclaimed = { u, o -> reclaimed = u to o }) { registered = true }
+        assertTrue(registered)
+        assertEquals(0 to 1, reclaimed)
+        val left = store("contexts", 2).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId } }.toSet()
+        assertEquals(setOf(second.reportId, third.reportId), left)
+        assertFalse(first.reportId in left)
+    }
+    @Test fun `a full journal ranks oldest by arming order, not by a wall clock that jumped`() {
+        // Each context was armed while the clock ran backwards (a TV before network time).
+        val engine = AndroidNativeRecovery(store("contexts", 3), store("prepared"))
+        val armed = listOf(9_000L, 5_000L, 1_000L).map { createdAt -> arm(engine, template().copy(createdAt = createdAt)).first }
+        val fourth = template().copy(createdAt = 7_000)
+        var reclaimed: Pair<Int, Int>? = null
+        engine.arm(fourth, 99, "app", allowed, onReclaimed = { u, o -> reclaimed = u to o }) { }
+        assertEquals(0 to 1, reclaimed)
+        val left = store("contexts", 3).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId } }.toSet()
+        assertEquals("the first armed goes, though its clock read latest", setOf(armed[1].reportId, armed[2].reportId, fourth.reportId), left)
+    }
+    @Test fun `a full journal never drops the newest held context`() {
+        // Only the latest earlier process's context is held, and its exit may not be in the history yet.
+        val engine = AndroidNativeRecovery(store("contexts", 1), store("prepared"))
+        val (held, _) = arm(engine)
+        try { engine.arm(template(), 100, "app", allowed) { fail("registered without a slot") }; fail() }
+        catch (refused: OutboxWriteException) { assertEquals(OutboxFailure.CAPACITY, refused.failure) }
+        assertEquals(listOf(held.reportId), store("contexts", 1).let { s -> s.snapshotTokens().map { s.readIfPresent(it)!!.entry.reportId } })
     }
     @Test fun `one app crash site keeps one fingerprint across OS ART and dexopt builds`() {
         fun segv(art: String, artPc: Long, dex: String) = tombstone(11,

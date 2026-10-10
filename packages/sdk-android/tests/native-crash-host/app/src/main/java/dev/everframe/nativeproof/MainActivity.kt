@@ -38,7 +38,6 @@ class MainActivity : Activity() {
         setContentView(TextView(this).apply { text = "Native crash qualification" })
         val mode = intent.getStringExtra("mode") ?: "recover"
         val marker = intent.getStringExtra("marker") ?: "default"
-        val diagnostics = intent.getBooleanExtra("diagnostics", false)
         require(Regex("[A-Za-z0-9_-]{1,80}").matches(marker))
         if (mode.startsWith("health-")) {
             healthCommand(mode, marker)
@@ -53,8 +52,7 @@ class MainActivity : Activity() {
             try {
                 withContext(Dispatchers.IO) {
                     if (config.releaseHealth != null) withTimeout(20000) { while (!Everframe.isReleaseHealthReady()) delay(50) }
-                    if (diagnostics) Everframe.setProcessExitDiagnosticsEnabled(true) else Everframe.setNativeCrashRecoveryEnabled(true)
-                    withTimeout(20000) { while (!Everframe.isNativeCrashRecoveryReady()) delay(50) }
+                    withTimeout(20000) { while (!Everframe.isNativeCrashCaptureReady()) delay(50) }
                     val root = File(filesDir, "proof").apply { mkdirs() }
                     val outbox = JSONLOutbox(applicationContext)
                     val before = outbox.hydrate()
@@ -109,12 +107,11 @@ class MainActivity : Activity() {
                         }
                     }
                     if (mode == "disabled") {
-                        Everframe.setNativeCrashRecoveryEnabled(false)
-                        check(!Everframe.isNativeCrashRecoveryReady())
+                        Everframe.kill()
+                        check(!Everframe.isNativeCrashCaptureReady())
                     }
-                    File(root, "$marker.json").writeText(JSONObject().put("mode", mode).put("ready", Everframe.isNativeCrashRecoveryReady())
+                    File(root, "$marker.json").writeText(JSONObject().put("mode", mode).put("ready", Everframe.isNativeCrashCaptureReady())
                         .put("healthReady", Everframe.isReleaseHealthReady()).put("nativeBuildId", BuildConfig.PROOF_NATIVE_BUILD_ID)
-                        .put("diagnosticsReady", Everframe.isProcessExitDiagnosticsReady())
                         .put("pid", android.os.Process.myPid()).put("reports", reports).put("attempts", attempts)
                         .put("queueAfter", outbox.count()).put("exits", exits).toString())
                 }

@@ -578,6 +578,7 @@ public struct EverframePayload: Codable {
     public let diagnostic: EverframeDiagnosticEvidence?
     public let extra: String?
     public let focus: EverframeFocus?
+    public let inferredTermination: EverframeInferredTerminationEvidence?
     public let logs, network: [EverframeJSONAny]?
     public let networkBodies: [EverframeNetworkBody]?
     public let recoveredStall: EverframeRecoveredStallEvidence?
@@ -585,7 +586,7 @@ public struct EverframePayload: Codable {
     public let resources: [EverframeResource]?
     public let vitals: [EverframeVital]?
 
-    public init(annotations: [EverframeJSONAny]?, appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil, breadcrumbs: [EverframeBreadcrumb]?, crash: EverframeCrash?, diagnostic: EverframeDiagnosticEvidence? = nil, extra: String?, focus: EverframeFocus?, logs: [EverframeJSONAny]?, network: [EverframeJSONAny]?, networkBodies: [EverframeNetworkBody]?, recoveredStall: EverframeRecoveredStallEvidence? = nil, redactions: [EverframeJSONAny]?, resources: [EverframeResource]?, vitals: [EverframeVital]?) {
+    public init(annotations: [EverframeJSONAny]?, appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil, breadcrumbs: [EverframeBreadcrumb]?, crash: EverframeCrash?, diagnostic: EverframeDiagnosticEvidence? = nil, extra: String?, focus: EverframeFocus?, inferredTermination: EverframeInferredTerminationEvidence?, logs: [EverframeJSONAny]?, network: [EverframeJSONAny]?, networkBodies: [EverframeNetworkBody]?, recoveredStall: EverframeRecoveredStallEvidence? = nil, redactions: [EverframeJSONAny]?, resources: [EverframeResource]?, vitals: [EverframeVital]?) {
         self.annotations = annotations
         self.appleDiagnostic = appleDiagnostic
         self.breadcrumbs = breadcrumbs
@@ -593,6 +594,7 @@ public struct EverframePayload: Codable {
         self.diagnostic = diagnostic
         self.extra = extra
         self.focus = focus
+        self.inferredTermination = inferredTermination
         self.logs = logs
         self.network = network
         self.networkBodies = networkBodies
@@ -629,6 +631,7 @@ public extension EverframePayload {
         diagnostic: EverframeDiagnosticEvidence?? = nil,
         extra: String?? = nil,
         focus: EverframeFocus?? = nil,
+        inferredTermination: EverframeInferredTerminationEvidence?? = nil,
         logs: [EverframeJSONAny]?? = nil,
         network: [EverframeJSONAny]?? = nil,
         networkBodies: [EverframeNetworkBody]?? = nil,
@@ -645,6 +648,7 @@ public extension EverframePayload {
             diagnostic: diagnostic ?? self.diagnostic,
             extra: extra ?? self.extra,
             focus: focus ?? self.focus,
+            inferredTermination: inferredTermination ?? self.inferredTermination,
             logs: logs ?? self.logs,
             network: network ?? self.network,
             networkBodies: networkBodies ?? self.networkBodies,
@@ -2558,13 +2562,28 @@ public extension EverframeDiagnosticEvidence {
 // MARK: - EverframeAndroid
 public struct EverframeAndroid: Codable {
     public let apiLevel: Int
+    public let description: String?
+    public let importance: Int?
     public let pid: Int
+    public let pssKB: Int?
     public let reason: Int
+    public let rssKB: Int?
 
-    public init(apiLevel: Int, pid: Int, reason: Int) {
+    public enum CodingKeys: String, CodingKey {
+        case apiLevel, description, importance, pid
+        case pssKB = "pssKb"
+        case reason
+        case rssKB = "rssKb"
+    }
+
+    public init(apiLevel: Int, description: String?, importance: Int?, pid: Int, pssKB: Int?, reason: Int, rssKB: Int?) {
         self.apiLevel = apiLevel
+        self.description = description
+        self.importance = importance
         self.pid = pid
+        self.pssKB = pssKB
         self.reason = reason
+        self.rssKB = rssKB
     }
 }
 
@@ -2588,13 +2607,21 @@ public extension EverframeAndroid {
 
     func with(
         apiLevel: Int? = nil,
+        description: String?? = nil,
+        importance: Int?? = nil,
         pid: Int? = nil,
-        reason: Int? = nil
+        pssKB: Int?? = nil,
+        reason: Int? = nil,
+        rssKB: Int?? = nil
     ) -> EverframeAndroid {
         return EverframeAndroid(
             apiLevel: apiLevel ?? self.apiLevel,
+            description: description ?? self.description,
+            importance: importance ?? self.importance,
             pid: pid ?? self.pid,
-            reason: reason ?? self.reason
+            pssKB: pssKB ?? self.pssKB,
+            reason: reason ?? self.reason,
+            rssKB: rssKB ?? self.rssKB
         )
     }
 
@@ -2923,6 +2950,286 @@ public enum EverframeFocusSource: String, Codable {
     case programmatic = "programmatic"
     case remote = "remote"
     case touch = "touch"
+}
+
+// MARK: - EverframeInferredTerminationEvidence
+public struct EverframeInferredTerminationEvidence: Codable {
+    public let apple: EverframeInferredTerminationApple
+    public let attribution: EverframeInferredTerminationAttribution
+    public let cause: EverframeInferredTerminationCause
+    public let collectedAt: Date
+    public let evidenceID: String
+    public let kind: EverframeDiagnosticKind
+    public let lastSeenAt: Date
+    public let nativeExposure: EverframeNativeExposure?
+    public let outcome: EverframeOutcome
+    public let processLaunchID: String
+    public let provenance: EverframeInferredTerminationProvenance
+    public let rules: EverframeInferredTerminationRules
+    public let scope: EverframeScope
+    public let version: Double
+
+    public enum CodingKeys: String, CodingKey {
+        case apple, attribution, cause, collectedAt
+        case evidenceID = "evidenceId"
+        case kind, lastSeenAt, nativeExposure, outcome
+        case processLaunchID = "processLaunchId"
+        case provenance, rules, scope, version
+    }
+
+    public init(apple: EverframeInferredTerminationApple, attribution: EverframeInferredTerminationAttribution, cause: EverframeInferredTerminationCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, lastSeenAt: Date, nativeExposure: EverframeNativeExposure? = nil, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeInferredTerminationProvenance, rules: EverframeInferredTerminationRules, scope: EverframeScope, version: Double) {
+        self.apple = apple
+        self.attribution = attribution
+        self.cause = cause
+        self.collectedAt = collectedAt
+        self.evidenceID = evidenceID
+        self.kind = kind
+        self.lastSeenAt = lastSeenAt
+        self.nativeExposure = nativeExposure
+        self.outcome = outcome
+        self.processLaunchID = processLaunchID
+        self.provenance = provenance
+        self.rules = rules
+        self.scope = scope
+        self.version = version
+    }
+}
+
+// MARK: EverframeInferredTerminationEvidence convenience initializers and mutators
+
+public extension EverframeInferredTerminationEvidence {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeInferredTerminationEvidence.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        apple: EverframeInferredTerminationApple? = nil,
+        attribution: EverframeInferredTerminationAttribution? = nil,
+        cause: EverframeInferredTerminationCause? = nil,
+        collectedAt: Date? = nil,
+        evidenceID: String? = nil,
+        kind: EverframeDiagnosticKind? = nil,
+        lastSeenAt: Date? = nil,
+        nativeExposure: EverframeNativeExposure?? = nil,
+        outcome: EverframeOutcome? = nil,
+        processLaunchID: String? = nil,
+        provenance: EverframeInferredTerminationProvenance? = nil,
+        rules: EverframeInferredTerminationRules? = nil,
+        scope: EverframeScope? = nil,
+        version: Double? = nil
+    ) -> EverframeInferredTerminationEvidence {
+        return EverframeInferredTerminationEvidence(
+            apple: apple ?? self.apple,
+            attribution: attribution ?? self.attribution,
+            cause: cause ?? self.cause,
+            collectedAt: collectedAt ?? self.collectedAt,
+            evidenceID: evidenceID ?? self.evidenceID,
+            kind: kind ?? self.kind,
+            lastSeenAt: lastSeenAt ?? self.lastSeenAt,
+            nativeExposure: nativeExposure ?? self.nativeExposure,
+            outcome: outcome ?? self.outcome,
+            processLaunchID: processLaunchID ?? self.processLaunchID,
+            provenance: provenance ?? self.provenance,
+            rules: rules ?? self.rules,
+            scope: scope ?? self.scope,
+            version: version ?? self.version
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - EverframeInferredTerminationApple
+public struct EverframeInferredTerminationApple: Codable {
+    public let appState: EverframeInferredTerminationAppState
+    public let availableKB, footprintKB: Int?
+    public let lastMemoryWarningAt: Date?
+    public let mainThreadStallMS: Int?
+    public let memoryPressure: EverframeInferredTerminationPressure
+    public let memorySampledAt: Date?
+    public let memoryWarnings: Int
+    public let thermalState: EverframeInferredTerminationThermalState
+
+    public enum CodingKeys: String, CodingKey {
+        case appState
+        case availableKB = "availableKb"
+        case footprintKB = "footprintKb"
+        case lastMemoryWarningAt
+        case mainThreadStallMS = "mainThreadStallMs"
+        case memoryPressure, memorySampledAt, memoryWarnings, thermalState
+    }
+
+    public init(appState: EverframeInferredTerminationAppState, availableKB: Int?, footprintKB: Int?, lastMemoryWarningAt: Date?, mainThreadStallMS: Int?, memoryPressure: EverframeInferredTerminationPressure, memorySampledAt: Date?, memoryWarnings: Int, thermalState: EverframeInferredTerminationThermalState) {
+        self.appState = appState
+        self.availableKB = availableKB
+        self.footprintKB = footprintKB
+        self.lastMemoryWarningAt = lastMemoryWarningAt
+        self.mainThreadStallMS = mainThreadStallMS
+        self.memoryPressure = memoryPressure
+        self.memorySampledAt = memorySampledAt
+        self.memoryWarnings = memoryWarnings
+        self.thermalState = thermalState
+    }
+}
+
+// MARK: EverframeInferredTerminationApple convenience initializers and mutators
+
+public extension EverframeInferredTerminationApple {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeInferredTerminationApple.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        appState: EverframeInferredTerminationAppState? = nil,
+        availableKB: Int?? = nil,
+        footprintKB: Int?? = nil,
+        lastMemoryWarningAt: Date?? = nil,
+        mainThreadStallMS: Int?? = nil,
+        memoryPressure: EverframeInferredTerminationPressure? = nil,
+        memorySampledAt: Date?? = nil,
+        memoryWarnings: Int? = nil,
+        thermalState: EverframeInferredTerminationThermalState? = nil
+    ) -> EverframeInferredTerminationApple {
+        return EverframeInferredTerminationApple(
+            appState: appState ?? self.appState,
+            availableKB: availableKB ?? self.availableKB,
+            footprintKB: footprintKB ?? self.footprintKB,
+            lastMemoryWarningAt: lastMemoryWarningAt ?? self.lastMemoryWarningAt,
+            mainThreadStallMS: mainThreadStallMS ?? self.mainThreadStallMS,
+            memoryPressure: memoryPressure ?? self.memoryPressure,
+            memorySampledAt: memorySampledAt ?? self.memorySampledAt,
+            memoryWarnings: memoryWarnings ?? self.memoryWarnings,
+            thermalState: thermalState ?? self.thermalState
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeInferredTerminationAppState: String, Codable {
+    case active = "active"
+    case inactive = "inactive"
+    case launching = "launching"
+}
+
+public enum EverframeInferredTerminationPressure: String, Codable {
+    case critical = "critical"
+    case normal = "normal"
+    case warning = "warning"
+}
+
+public enum EverframeInferredTerminationThermalState: String, Codable {
+    case critical = "critical"
+    case fair = "fair"
+    case nominal = "nominal"
+    case serious = "serious"
+}
+
+// MARK: - EverframeInferredTerminationAttribution
+public struct EverframeInferredTerminationAttribution: Codable {
+    public let process: EverframeInferredTerminationProcess
+    public let release: EverframeRelease
+    public let session, webExposure: EverframeSession
+
+    public init(process: EverframeInferredTerminationProcess, release: EverframeRelease, session: EverframeSession, webExposure: EverframeSession) {
+        self.process = process
+        self.release = release
+        self.session = session
+        self.webExposure = webExposure
+    }
+}
+
+// MARK: EverframeInferredTerminationAttribution convenience initializers and mutators
+
+public extension EverframeInferredTerminationAttribution {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeInferredTerminationAttribution.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        process: EverframeInferredTerminationProcess? = nil,
+        release: EverframeRelease? = nil,
+        session: EverframeSession? = nil,
+        webExposure: EverframeSession? = nil
+    ) -> EverframeInferredTerminationAttribution {
+        return EverframeInferredTerminationAttribution(
+            process: process ?? self.process,
+            release: release ?? self.release,
+            session: session ?? self.session,
+            webExposure: webExposure ?? self.webExposure
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeInferredTerminationProcess: String, Codable {
+    case sdkRunRecord = "sdk_run_record"
+}
+
+public enum EverframeInferredTerminationCause: String, Codable {
+    case lowMemory = "low_memory"
+    case unexplained = "unexplained"
+    case unresponsive = "unresponsive"
+}
+
+public enum EverframeInferredTerminationProvenance: String, Codable {
+    case appleNextLaunchInference = "apple_next_launch_inference"
+}
+
+public enum EverframeInferredTerminationRules: String, Codable {
+    case appleForegroundV1 = "apple-foreground-v1"
 }
 
 // MARK: - EverframeNetworkBody

@@ -164,7 +164,8 @@ data class Payload (
     val vitals: List<Vital>? = null,
     val diagnostic: DiagnosticEvidence? = null,
     val appleDiagnostic: AppleDiagnosticEvidence? = null,
-    val recoveredStall: RecoveredStallEvidence? = null
+    val recoveredStall: RecoveredStallEvidence? = null,
+    val inferredTermination: InferredTerminationEvidence? = null
 ) {
     constructor(
     annotations: JsonArray? = null,
@@ -178,7 +179,7 @@ data class Payload (
     redactions: JsonArray? = null,
     resources: List<Resource>? = null,
     vitals: List<Vital>? = null
-    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, null, null, null)
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, null, null, null, null)
 
     fun copy(
     annotations: JsonArray? = this.annotations,
@@ -192,7 +193,7 @@ data class Payload (
     redactions: JsonArray? = this.redactions,
     resources: List<Resource>? = this.resources,
     vitals: List<Vital>? = this.vitals
-    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall, inferredTermination)
     constructor(
     annotations: JsonArray? = null,
     breadcrumbs: List<Breadcrumb>? = null,
@@ -206,7 +207,7 @@ data class Payload (
     resources: List<Resource>? = null,
     vitals: List<Vital>? = null,
     diagnostic: DiagnosticEvidence? = null
-    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null, null)
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null, null, null)
 
     fun copy(
     annotations: JsonArray? = this.annotations,
@@ -221,7 +222,7 @@ data class Payload (
     resources: List<Resource>? = this.resources,
     vitals: List<Vital>? = this.vitals,
     diagnostic: DiagnosticEvidence? = this.diagnostic
-    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall, inferredTermination)
     constructor(
     annotations: JsonArray? = null,
     breadcrumbs: List<Breadcrumb>? = null,
@@ -236,7 +237,7 @@ data class Payload (
     vitals: List<Vital>? = null,
     diagnostic: DiagnosticEvidence? = null,
     appleDiagnostic: AppleDiagnosticEvidence? = null
-    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, null)
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, null, null)
 
     fun copy(
     annotations: JsonArray? = this.annotations,
@@ -252,7 +253,7 @@ data class Payload (
     vitals: List<Vital>? = this.vitals,
     diagnostic: DiagnosticEvidence? = this.diagnostic,
     appleDiagnostic: AppleDiagnosticEvidence? = this.appleDiagnostic
-    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall, inferredTermination)
     constructor(
     annotations: JsonArray? = null,
     breadcrumbs: List<Breadcrumb>? = null,
@@ -267,7 +268,7 @@ data class Payload (
     vitals: List<Vital>? = null,
     diagnostic: DiagnosticEvidence? = null,
     recoveredStall: RecoveredStallEvidence? = null
-    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null, recoveredStall)
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, null, recoveredStall, null)
 
     fun copy(
     annotations: JsonArray? = this.annotations,
@@ -283,7 +284,40 @@ data class Payload (
     vitals: List<Vital>? = this.vitals,
     diagnostic: DiagnosticEvidence? = this.diagnostic,
     recoveredStall: RecoveredStallEvidence? = this.recoveredStall
-    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall)
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall, inferredTermination)
+    constructor(
+    annotations: JsonArray? = null,
+    breadcrumbs: List<Breadcrumb>? = null,
+    crash: Crash? = null,
+    extra: String? = null,
+    focus: Focus? = null,
+    logs: JsonArray? = null,
+    network: JsonArray? = null,
+    networkBodies: List<NetworkBody>? = null,
+    redactions: JsonArray? = null,
+    resources: List<Resource>? = null,
+    vitals: List<Vital>? = null,
+    diagnostic: DiagnosticEvidence? = null,
+    appleDiagnostic: AppleDiagnosticEvidence? = null,
+    recoveredStall: RecoveredStallEvidence? = null
+    ) : this(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall, null)
+
+    fun copy(
+    annotations: JsonArray? = this.annotations,
+    breadcrumbs: List<Breadcrumb>? = this.breadcrumbs,
+    crash: Crash? = this.crash,
+    extra: String? = this.extra,
+    focus: Focus? = this.focus,
+    logs: JsonArray? = this.logs,
+    network: JsonArray? = this.network,
+    networkBodies: List<NetworkBody>? = this.networkBodies,
+    redactions: JsonArray? = this.redactions,
+    resources: List<Resource>? = this.resources,
+    vitals: List<Vital>? = this.vitals,
+    diagnostic: DiagnosticEvidence? = this.diagnostic,
+    appleDiagnostic: AppleDiagnosticEvidence? = this.appleDiagnostic,
+    recoveredStall: RecoveredStallEvidence? = this.recoveredStall
+    ): Payload = Payload(annotations, breadcrumbs, crash, extra, focus, logs, network, networkBodies, redactions, resources, vitals, diagnostic, appleDiagnostic, recoveredStall, inferredTermination)
     // The two predecessor layouts had different component13 return descriptors.
     // Keep the observer binary entry point while new source uses the appended field.
     @kotlin.jvm.JvmName("component13")
@@ -854,8 +888,17 @@ data class DiagnosticEvidence (
 @Serializable
 data class Android (
     val apiLevel: Long,
+    val description: String? = null,
+    val importance: Long? = null,
     val pid: Long,
-    val reason: Long
+
+    @SerialName("pssKb")
+    val pssKB: Long? = null,
+
+    val reason: Long,
+
+    @SerialName("rssKb")
+    val rssKB: Long? = null
 )
 
 @Serializable
@@ -954,6 +997,103 @@ enum class FocusSource(val value: String) {
     @SerialName("programmatic") Programmatic("programmatic"),
     @SerialName("remote") Remote("remote"),
     @SerialName("touch") Touch("touch");
+}
+
+@Serializable
+data class InferredTerminationEvidence (
+    val apple: InferredTerminationApple,
+    val attribution: InferredTerminationAttribution,
+    val cause: InferredTerminationCause,
+    val collectedAt: String,
+
+    @SerialName("evidenceId")
+    val evidenceID: String,
+
+    val kind: DiagnosticKind,
+    val lastSeenAt: String,
+    val nativeExposure: NativeExposure? = null,
+    val outcome: Outcome,
+
+    @SerialName("processLaunchId")
+    val processLaunchID: String,
+
+    val provenance: InferredTerminationProvenance,
+    val rules: InferredTerminationRules,
+    val scope: Scope,
+    val version: Double
+)
+
+@Serializable
+data class InferredTerminationApple (
+    val appState: InferredTerminationAppState,
+
+    @SerialName("availableKb")
+    val availableKB: Long? = null,
+
+    @SerialName("footprintKb")
+    val footprintKB: Long? = null,
+
+    val lastMemoryWarningAt: String? = null,
+
+    @SerialName("mainThreadStallMs")
+    val mainThreadStallMS: Long? = null,
+
+    val memoryPressure: InferredTerminationPressure,
+    val memorySampledAt: String? = null,
+    val memoryWarnings: Long,
+    val thermalState: InferredTerminationThermalState
+)
+
+@Serializable
+enum class InferredTerminationAppState(val value: String) {
+    @SerialName("active") Active("active"),
+    @SerialName("inactive") Inactive("inactive"),
+    @SerialName("launching") Launching("launching");
+}
+
+@Serializable
+enum class InferredTerminationPressure(val value: String) {
+    @SerialName("critical") Critical("critical"),
+    @SerialName("normal") Normal("normal"),
+    @SerialName("warning") Warning("warning");
+}
+
+@Serializable
+enum class InferredTerminationThermalState(val value: String) {
+    @SerialName("critical") Critical("critical"),
+    @SerialName("fair") Fair("fair"),
+    @SerialName("nominal") Nominal("nominal"),
+    @SerialName("serious") Serious("serious");
+}
+
+@Serializable
+data class InferredTerminationAttribution (
+    val process: InferredTerminationProcess,
+    val release: Release,
+    val session: Session,
+    val webExposure: Session
+)
+
+@Serializable
+enum class InferredTerminationProcess(val value: String) {
+    @SerialName("sdk_run_record") SDKRunRecord("sdk_run_record");
+}
+
+@Serializable
+enum class InferredTerminationCause(val value: String) {
+    @SerialName("low_memory") LowMemory("low_memory"),
+    @SerialName("unexplained") Unexplained("unexplained"),
+    @SerialName("unresponsive") Unresponsive("unresponsive");
+}
+
+@Serializable
+enum class InferredTerminationProvenance(val value: String) {
+    @SerialName("apple_next_launch_inference") AppleNextLaunchInference("apple_next_launch_inference");
+}
+
+@Serializable
+enum class InferredTerminationRules(val value: String) {
+    @SerialName("apple-foreground-v1") AppleForegroundV1("apple-foreground-v1");
 }
 
 @Serializable

@@ -197,6 +197,8 @@ class ReleaseHealthRuntimeTest {
         .map { it.reportId to Json.parseToJsonElement(it.envelopeBytes.toString(Charsets.UTF_8)).jsonObject }
     private fun records() = decoded(OutboxStore(File(context.noBackupFilesDir, "dev.everframe/release-health-v1"),
         JceTestOutboxKeyProvider(keystore), JvmOutboxFileOps(), 256, 1024 * 1024, maintenanceReserveBytes = 16 * 1024)).map { it.second }
+    private fun exitReady() = dev.everframe.crash.AndroidNativeCrashRuntime.ready(Everframe.currentStartEpochVolatile())
+    private fun signalReady() = dev.everframe.crash.AndroidNativeSignalRuntime.ready(Everframe.currentStartEpochVolatile())
     /** The OS context that the current state summary names. */
     private fun registeredContext(): JsonObject {
         val id = platform.registrations.last()!!.toString(Charsets.US_ASCII).removePrefix("everframe-native-v1:")
@@ -209,8 +211,7 @@ class ReleaseHealthRuntimeTest {
     @Test fun `foreground entry keeps the OS context registered until the session context replaces it`() {
         start()
         assertFalse(Everframe.isReleaseHealthReady())
-        Everframe.setNativeCrashRecoveryEnabled(true)
-        idleUntil("native recovery never registered its context") { Everframe.isNativeCrashRecoveryReady() }
+        idleUntil("native recovery never registered its context") { exitReady() }
         assertFalse(registeredContext().containsKey("nativeExposure"))
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START)
         assertNotNull("foreground entry cleared the OS exit token", platform.registrations.last())
@@ -220,15 +221,14 @@ class ReleaseHealthRuntimeTest {
         assertTrue(Everframe.isReleaseHealthReady())
         assertEquals(session!!.toJson(), registeredContext()["nativeExposure"])
         assertTrue("the OS exit token was cleared during foreground entry", platform.registrations.none { it == null })
-        assertTrue(Everframe.isNativeCrashRecoveryReady())
+        assertTrue(exitReady())
     }
 
     @Test fun `background clears the OS pointer before the session ends and keeps capturing without it`() {
         start()
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
         val session = pointer()!!
-        Everframe.setNativeCrashRecoveryEnabled(true)
-        idleUntil("native recovery never registered its context") { Everframe.isNativeCrashRecoveryReady() }
+        idleUntil("native recovery never registered its context") { exitReady() }
         assertEquals(session.toJson(), registeredContext()["nativeExposure"])
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         // Readiness and the OS token fall on the lifecycle callback, before any journal IO.
@@ -240,35 +240,33 @@ class ReleaseHealthRuntimeTest {
         assertEquals("background", end.text("endReason"))
         assertNotNull("background capture was never registered again", platform.registrations.last())
         assertFalse(registeredContext().containsKey("nativeExposure"))
-        assertTrue(Everframe.isNativeCrashRecoveryReady())
+        assertTrue(exitReady())
     }
 
     @Test @Config(sdk = [30])
     fun `the API 30 signal handler stays armed at foreground entry and its capsule gains the session pointer`() {
         start()
-        Everframe.setNativeSignalCaptureEnabled(true)
-        idleUntil("signal capture never armed") { Everframe.isNativeSignalCaptureReady() }
+        idleUntil("signal capture never armed") { signalReady() }
         assertFalse(capsule().containsKey("nativeExposure"))
         val pauses = producer.pauses.get()
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START)
         assertEquals("foreground entry paused the signal handler", pauses, producer.pauses.get())
-        assertTrue(Everframe.isNativeSignalCaptureReady())
+        assertTrue(signalReady())
         settle()
         val session = pointer()
         assertNotNull("the foreground session never became ready", session)
         assertEquals(session!!.toJson(), capsule()["nativeExposure"])
-        assertTrue(producer.armed); assertTrue(Everframe.isNativeSignalCaptureReady())
+        assertTrue(producer.armed); assertTrue(signalReady())
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         assertFalse(producer.armed); assertFalse(Everframe.isReleaseHealthReady())
         settle()
         assertFalse(capsule().containsKey("nativeExposure"))
-        assertTrue(producer.armed); assertTrue(Everframe.isNativeSignalCaptureReady())
+        assertTrue(producer.armed); assertTrue(signalReady())
     }
 
     @Test fun `kill during the lifecycle work leaves no session, journal record or OS context behind`() {
         start()
-        Everframe.setNativeCrashRecoveryEnabled(true)
-        idleUntil("native recovery never registered its context") { Everframe.isNativeCrashRecoveryReady() }
+        idleUntil("native recovery never registered its context") { exitReady() }
         settle()
         hold = CountDownLatch(1)
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START)

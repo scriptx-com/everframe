@@ -7,7 +7,7 @@ Native Android SDK for Everframe — in-app bug reporting with annotated screens
 session replay, log/network ring buffers, and a built-in Compose reporter UI.
 Covers phone, tablet, and Android TV.
 
-Maven Central serves version `0.10.2`, including the shorter Gradle plugin
+Maven Central serves version `1.1.0`, including the shorter Gradle plugin
 artifact name.
 
 ---
@@ -21,6 +21,7 @@ artifact name.
 | `dev.everframe:reporter-ui` | Compose Material 3 reporter UI for phone + tablet (bubble, modal, annotation) | yes for in-app reporting |
 | `dev.everframe:media3` | Media3 and ExoPlayer diagnostics | optional |
 | `dev.everframe:gradle-plugin` | Optional R8 keep rules and Compose display name preservation | optional; available with 0.10.2 |
+| `dev.everframe:native-crash` | Native fault frames on Android 8–11 (API 26–30); needs `useLegacyPackaging = true` | optional; not yet on Maven Central, see [`../native`](../native/README.md) |
 
 Android modules ship under one version. The older `0.10.0` plugin uses the
 older `dev.everframe:everframe-gradle-plugin` artifact; Gradle plugin users keep
@@ -47,10 +48,14 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("dev.everframe:core:0.10.0")
-    implementation("dev.everframe:reporter-ui:0.10.0")
+    implementation("dev.everframe:core:1.1.0")
+    implementation("dev.everframe:reporter-ui:1.1.0")
 }
 ```
+
+`core` declares `android.permission.INTERNET`, and the manifest merger adds it to
+your app. SDK 1.1.0 and earlier do not: with those, declare it in your app's
+`AndroidManifest.xml`, or the SDK sends nothing.
 
 ### 3. Initialize at startup
 
@@ -61,13 +66,9 @@ class MyApp : Application() {
         Everframe.start(
             this,
             EverframeConfig(
-                appId = "your-app-id",
-                endpoint = "https://ingest.your-tenant.example/api/ingest",
+                appId = "<App ID>", // the UUID on the app's Setup tab in the dashboard
                 sdkKey = BuildConfig.EVERFRAME_SDK_KEY,
                 environment = Environment.production,
-                // Exact public identity of this optimized build's R8 mapping.
-                // Generate a fresh value in CI for every distinct mapping.txt.
-                r8MappingId = BuildConfig.EVERFRAME_R8_MAPPING_ID,
                 // Hint to the host that a bubble UX is desired. Only mobile
                 // shake-to-report is built in; the bubble remains host-owned.
                 bubble = true,
@@ -81,9 +82,13 @@ class MyApp : Application() {
 scope). It throws `EverframeConfigError` on bad config — let that exception
 escape; the SDK never crashes the host app from inside `start()`.
 
-`r8MappingId` is optional and must match
-`[A-Za-z0-9][A-Za-z0-9._-]{0,127}` exactly. Treat it as immutable build
-identity and upload the matching mapping only from trusted CI.
+Crash capture — JVM exceptions, native crashes and ANRs — is on by default.
+See [crash capture](../README.md#crash-capture-on-by-default).
+
+With the `dev.everframe` Gradle plugin (below), `start()` reads the build's R8
+mapping ID from the APK, so crashes from minified builds retrace without any
+configuration. Set `r8MappingId` only to override it; it must match
+`[A-Za-z0-9][A-Za-z0-9._-]{0,127}` exactly.
 
 ---
 
@@ -164,7 +169,7 @@ service must support version 3 before you enable them. See
 Uncaught JVM exceptions, OS exit recovery and diagnostics, and the optional
 API26–30 signal collector carry the frozen pointer of a ready foreground session.
 Crashes in background, or before a session's start is durable, carry none.
-Opting in to native capture before release-health readiness is supported.
+Native capture arms at start, before release-health readiness.
 Entering foreground keeps native capture armed with its pointer-free context;
 once the session start is durable, that context is replaced with one carrying
 the pointer. Background clears the OS exit token and pauses the signal handler
@@ -179,9 +184,9 @@ foreground session is ready carries that session's frozen pointer if its loaded
 bundle exactly matches the session's known loaded build, and marks the session
 fatal. Handled errors, promise rejections, fatals captured in background or
 before readiness, and fatals with a missing or different bundle identity carry
-none. With OS exit diagnostics enabled, the OS crash exit record of the process
-that React Native then terminates can carry the pointer too; the session still
-counts once. See [release health observations](../../../docs/release-health.md).
+none. On API 30+, the OS exit record of the process that React Native then
+terminates is reported only when it is a native crash, and can carry the
+pointer too; the session still counts once. See [release health observations](../../../docs/release-health.md).
 
 ## Triggers are host-app concern
 
@@ -470,44 +475,54 @@ at `examples/android-compose/app/src/tv/kotlin/com/example/composesample/tv/Samp
 below for the full Android TV recipe and the reserved-key list (`KEYCODE_BACK
 / HOME / MENU / single-press KEYCODE_MEDIA_PLAY_PAUSE`).
 
-### Optional Gradle plugin
+### Gradle plugin: automatic symbol upload
 
 ```kotlin
-// settings.gradle.kts (or root build.gradle.kts)
+// app/build.gradle.kts
 plugins {
-    id("dev.everframe") version "0.10.0"
+    id("com.android.application")
+    id("dev.everframe") version "<everframe version>"
+}
+
+everframe {
+    appId.set("00000000-0000-4000-8000-000000000000") // defaults to EVERFRAME_APP_ID
+    // uploadEnabled.set(true)              // default
+    // buildTypes.set(setOf("release"))     // default
 }
 ```
 
-What it does:
-- Auto-applies `everframe-keep.pro` (a copy of `:everframe-core`'s
-  `consumer-rules.pro`) to the host module's R8 keep set.
-- Adds `-Xandroidx-compose-runtime-keep-all-composables` to KotlinCompile so
-  composable function names survive R8 minification (used by Everframe's
-  `componentPath` reflection).
-- Optionally embeds and uploads the exact final mapping for selected minified
-  application variants:
+After `assembleRelease` or `bundleRelease` (and every selected flavor, such as
+`assembleTvRelease`), the plugin uploads the build's symbols with the Everframe
+CLI:
 
-```kotlin
-everframeR8 {
-    enabled.set(true)
-    buildId.set(providers.environmentVariable("EVERFRAME_R8_BUILD_ID"))
-    appId.set(providers.environmentVariable("EVERFRAME_APP_ID"))
-}
+- **R8 mapping** (`uploadEverframe<Variant>R8Mapping`, minified variants). The
+  mapping ID is `r8-` plus the SHA-256 of the final `mapping.txt`. The plugin
+  packages it as `assets/everframe/build-identity.properties`, and
+  `Everframe.start` reports it, so there is no `r8MappingId` to wire up.
+  Rebuilding identical sources yields the same ID, so retries are idempotent.
+- **Native libraries** (`uploadEverframe<Variant>NativeSymbols`). Every shipped
+  `.so` is matched to its unstripped copy from `merge<Variant>NativeLibs` by GNU
+  build ID and ABI, for the ABIs the variant packages (`ndk.abiFilters`, ABI
+  splits). Prebuilt libraries from AARs without debug information
+  (`libc++_shared.so`, prebuilt Hermes, AndroidX) are expected and only listed
+  at `--info`. Your own libraries without symbols produce one warning with
+  their count, and `--info` lists them. A variant without native code does
+  nothing.
 
-// In app startup:
-// r8MappingId = BuildConfig.EVERFRAME_R8_MAPPING_ID.takeIf { it.isNotEmpty() }
-```
+Set `EVERFRAME_API_TOKEN` (a token with `artifacts:write`) in CI. **Symbols
+never fail the build by default**: without the token, without an app ID, or
+when an upload fails, the plugin prints a `warning:` line and the build
+continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Uploads
+stop after `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` (600 by default).
 
-CI sets `EVERFRAME_API_TOKEN` and runs
-`./gradlew :app:assembleRelease :app:uploadEverframeR8ReleaseMapping`. Retain the
-same build ID for retries of that build; generate a fresh ID before rebuilding.
-The upload task is explicit and always contacts the service. Configure its
-build type and credentials only in trusted CI.
+The plugin runs the CLI from `EVERFRAME_CLI_JS` (a built `dist/index.js`), then
+`node_modules/@everframe/cli`, then `npx --yes @everframe/cli@<version>`, which
+needs the published CLI and Node. Override it with `everframe { cliCommand }`.
 
-The plugin is OPTIONAL: `:everframe-core`'s `consumer-rules.pro` already
-auto-merges via the AAR. The plugin is a customer-opt-in convenience for
-stricter R8 setups that prefer explicit keep files.
+The plugin also applies `everframe-keep.pro` (a copy of `:everframe-core`'s
+`consumer-rules.pro`) to the host module's R8 keep set, and adds
+`-Xandroidx-compose-runtime-keep-all-composables` to Kotlin compilation so
+composable function names survive R8 (used by Everframe's `componentPath`).
 
 ---
 
@@ -619,8 +634,9 @@ the Compose sample app on every PR.
 
 ## Privacy
 
-By default the SDK captures no permissions. The published AAR has `0` `<uses-permission>`
-entries (CI gate enforced — `aapt dump permissions everframe-core-release.aar`).
+The SDK asks for no runtime permissions. `core`'s manifest declares one install-time
+permission, `android.permission.INTERNET`, which Gradle's manifest merger adds to
+your app; the other modules declare none.
 Sensitive UI is redacted at bake time (PRIV-03): pixels in
 `Modifier.txSensitive()` / `TXSensitiveView` / `inputType="textPassword"` regions
 are baked BLACK before the screenshot bytes ever reach the reporter UI or the

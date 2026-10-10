@@ -39,23 +39,34 @@ The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
 
 ## Initialize at startup
 
+The same code runs in an iOS and a tvOS target. The module is `EverframeKit`
+(the package product is `Everframe`), and `appId` takes the app's SDK key
+(`evf_live_…`), not the dashboard App ID used for symbol uploads.
+
 ```swift
-import Everframe
+import SwiftUI
+import EverframeKit
 import EverframeReporterUI
 
 @main
 struct MyApp: App {
     init() {
-        try? Everframe.shared.start(
-            config: EverframeConfig(
-                appId: "evf_live_00000000000000000000000000000000",
-                environment: .production
-            )
-        )
-        // Wires the reporter resolver + isPresenting setter.
-        // The SDK owns mobile shake-to-report; buttons and key listeners stay
-        // host-owned. See "Triggers are host-app concern" below.
+        // Wires the reporter resolver + isPresenting setter. A no-op on tvOS,
+        // which has no on-device reporter. The SDK owns mobile
+        // shake-to-report; buttons and key listeners stay host-owned. See
+        // "Triggers are host-app concern" below.
         EFReporterPresenter.installResolver()
+        do {
+            try Everframe.shared.start(
+                config: EverframeConfig(
+                    appId: "evf_live_00000000000000000000000000000000",
+                    environment: .production
+                )
+            )
+        } catch {
+            // A blank or malformed key throws EverframeConfigError.missingAppId.
+            print("Everframe did not start: \(error)")
+        }
     }
 
     var body: some Scene {
@@ -63,6 +74,9 @@ struct MyApp: App {
     }
 }
 ```
+
+With a UIKit app delegate, make the same two calls in
+`application(_:didFinishLaunchingWithOptions:)`.
 
 ---
 
@@ -113,6 +127,42 @@ The installed Release qualification host is in
 [`Tests/NativeCrashStartupProof`](Tests/NativeCrashStartupProof). It exercises
 normal startup, real faults and relaunch delivery on an owned iOS simulator.
 Physical-device lock-state and performance qualification remain separate checks.
+
+### Foreground out-of-memory terminations (inferred)
+
+iOS and tvOS end an app that exceeds its memory limit (jetsam) or stops responding
+(watchdog) with `SIGKILL`, which no crash handler can observe. With `capture.crash`
+on, the SDK records a small per-run state (app state, memory warnings and pressure,
+the last memory footprint and headroom, a main-thread responsiveness ping) and, on
+the next launch, reports a previous process that the OS ended in the foreground as
+one fatal crash labelled as inferred:
+
+- `Low memory kill`: a memory warning or critical memory pressure within 60 s of the
+  last sample, or at most 20 % memory headroom left.
+- `Unresponsive termination`: no memory evidence, and the main thread had not
+  responded for at least 5 s.
+- `Abnormal foreground termination`: neither.
+
+The event has mechanism `apple-termination-inference`, no stack, the last sampled
+footprint in its message, and one issue per cause, never merged with Android's
+OS-confirmed low-memory issue. It is inferred only when every rule holds: no crash
+report for that run, no `exit()` or `willTerminate`, no debugger ever attached,
+capture armed at the time, the same app version, build and executable, the same OS
+version, no reboot, the app active (or inactive with a stalled main thread) and the
+run seen within the last 14 days. Only the newest previous run is evaluated, and
+each is imported once.
+
+Like Android's OS exit records, the event is anonymous: no user, session, identity,
+attachments, breadcrumbs or logs. On iOS with release health it links to its frozen
+session pointer as an other exit and never lowers the crash-free rate. It follows
+`capture.crash`; there is no separate switch. App extensions, Mac Catalyst and iOS
+apps running on a Mac are excluded, and the simulator is excluded unless
+`EVERFRAME_SIMULATOR_TERMINATION_INFERENCE=1` is set for the qualification host
+(the simulator reports the host Mac's boot time). Kills in background, kills before
+capture is armed and `_exit()` are not reported. Sampling runs every 5 s while the
+app is not in background and costs a few memory stores; the state file holds no
+user data and the boot time it compares never leaves the device. Physical-device
+qualification of jetsam and watchdog thresholds is pending.
 
 ---
 

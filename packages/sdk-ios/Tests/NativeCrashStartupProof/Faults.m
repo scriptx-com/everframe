@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 #import <Foundation/Foundation.h>
 #include <dlfcn.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include "Faults.h"
@@ -20,6 +21,9 @@ void NativeProofMemoryFault(void) {
     if (page == MAP_FAILED) _exit(77);
     *(volatile char *)page = 1;
     _exit(78);
+}
+void NativeProofAbort(void) {
+    abort();
 }
 
 // URLSessionConfiguration.protocolClasses can replace the global URLProtocol

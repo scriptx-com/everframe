@@ -86,7 +86,10 @@ count as fatal: iOS native crash reports, Android OS crash exit records (native 
 Java), Android SDK crash reports from the JVM uncaught-exception handler or the
 native signal handler, and the React Native JavaScript fatal reports described
 below. A launch ended by an ANR or another OS exit counts as
-without a reported fatal crash. Missing outcomes remain unknown; neither an end nor
+without a reported fatal crash. So does an iOS foreground termination that the SDK
+infers on the next launch (low memory, unresponsive or unexplained, labelled
+inferred): it links to its exact frozen pointer as an other exit and never lowers
+the crash-free rate. tvOS has no release-health sessions. Missing outcomes remain unknown; neither an end nor
 its absence proves a healthy/crashed process. Duplicates are deduplicated, while
 late reports, retention and erasure can change the current counts. Anonymous
 subjects never become synthetic users. Web terminal attribution is unsupported,
@@ -104,10 +107,11 @@ exactly matches the session's known loaded build. Handled errors and promise
 rejections never carry a pointer. Fatals captured in background or before
 readiness, and fatals with a missing or mismatched bundle identity, carry none
 either; a foreground session that such a fatal ends keeps an unknown outcome. On
-Android with OS exit diagnostics enabled, the OS crash exit record of that
-process can still count. When a session has both a JavaScript fatal and native or
-Java crash evidence, such as that exit record, it is classified by the native or
-Java evidence, and the session and its launch still count once.
+Android, OS exit records are reported only for native crashes and ANRs, so the
+exit record of a process that React Native ends after a JavaScript fatal counts
+only when that exit is a native crash. When a session has both a JavaScript fatal
+and native or Java crash evidence, it is classified by the native or Java
+evidence, and the session and its launch still count once.
 
 Android and iOS foreground sessions also have resolved crash-free rates. They count
 only sessions with a completed end or qualifying fatal evidence and report the rest

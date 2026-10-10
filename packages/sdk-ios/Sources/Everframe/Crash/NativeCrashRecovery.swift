@@ -12,7 +12,8 @@ final class NativeCrashRecovery: @unchecked Sendable {
         var maxAge: TimeInterval = 14 * 24 * 60 * 60
         static let defaults = Limits()
     }
-    struct Run: Sendable { let id: UUID; let recorderURL: URL }
+    /// `terminationState` is this process's mapped inference record (nil when not requested or not created).
+    struct Run: Sendable { let id: UUID; let recorderURL: URL; var terminationState: TerminationStateFile? = nil }
     enum Failure: Error, Equatable { case activeRun, busy, unsafePath, capacity, io, unavailable, journal, missingRun, invalidLimits }
     enum Quarantine: Equatable { case record, context, multipleReports, journal, tree }
     enum Outcome: Equatable { case noReport, quarantined(Quarantine), queued(UUID), alreadyImported(UUID) }
@@ -72,7 +73,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
         }
     }
 
-    func prepareRun(now: Date = Date()) throws -> Run {
+    func prepareRun(now: Date = Date(), terminationState: Bool = false) throws -> Run {
         try locked {
             guard now.timeIntervalSince1970.isFinite else { throw Failure.invalidLimits }
             _ = try maintainLocked(now: now)
@@ -101,9 +102,11 @@ final class NativeCrashRecovery: @unchecked Sendable {
             try Files.makeDirectory(path)
             let recorder = path.appendingPathComponent("recorder", isDirectory: true)
             try Files.makeDirectory(recorder)
+            // Best effort: inference must never cost a crash run.
+            let state = terminationState ? (try? TerminationStateFile.create(at: path.appendingPathComponent(TerminationLayout.fileName))) : nil
             try Files.syncDirectory(path); try Files.syncDirectory(runsURL)
             activeRunIDs.insert(contextRun.id)
-            return Run(id: contextRun.id, recorderURL: recorder)
+            return Run(id: contextRun.id, recorderURL: recorder, terminationState: state)
         }
     }
 
@@ -136,14 +139,17 @@ final class NativeCrashRecovery: @unchecked Sendable {
 
     /// Hooks model process interruption and run outside the process lock. Production
     /// callers omit them. In-flight leases exclude retirement between these boundaries.
-    func recover(runID: UUID, outbox: JSONLOutbox, phaseHook: ((Phase) throws -> Void)? = nil) throws -> Outcome {
+    /// `inference` evaluates a report-less run's termination record; the caller passes it
+    /// only for the newest closed run (the previous SDK process). A journal always resumes.
+    func recover(runID: UUID, outbox: JSONLOutbox, inference: TerminationInference.Context? = nil,
+                 phaseHook: ((Phase) throws -> Void)? = nil) throws -> Outcome {
         try locked {
             guard !activeRunIDs.contains(runID) else { throw Failure.activeRun }
             guard !Self.inFlight.contains(lease(runID)) else { throw Failure.busy }
             Self.inFlight.insert(lease(runID))
         }
         defer { Self.lock.withLock { _ = Self.inFlight.remove(lease(runID)) } }
-        let prepared: (Journal.Stage?, Outcome?) = try locked { try stage(runID) }
+        let prepared: (Journal.Stage?, Outcome?) = try locked { try stage(runID, inference: inference) }
         guard let staged = prepared.0 else { return prepared.1! }
         try phaseHook?(.staged)
         try locked { _ = try outbox.enqueueRecovered(staged.entry) }
@@ -165,7 +171,7 @@ final class NativeCrashRecovery: @unchecked Sendable {
         try locked { try maintainLocked(now: now) }
     }
 
-    private func stage(_ runID: UUID) throws -> (Journal.Stage?, Outcome?) {
+    private func stage(_ runID: UUID, inference: TerminationInference.Context?) throws -> (Journal.Stage?, Outcome?) {
         _ = try resumeRetirements()
         let inventory = try scan()
         guard let run = inventory.runs[runID], !inventory.retiring.contains(runID) else { throw Failure.missingRun }
@@ -176,34 +182,21 @@ final class NativeCrashRecovery: @unchecked Sendable {
         let receiptURL = runURL(runID).appendingPathComponent("receipt.evr")
         let hasStage = try Files.info(stageURL) != nil, hasReceipt = try Files.info(receiptURL) != nil
         guard let reportURL = run.reports.first else {
-            return (nil, hasStage || hasReceipt ? .quarantined(.journal) : .noReport)
-        }
-        let raw = try Tree.readRaw(reportURL), rawHash = Journal.hash(raw)
-        if hasStage {
-            let bytes = try Files.read(stageURL, maximum: Journal.Kind.stage.maximum)
-            let staged: Journal.Stage
-            do { staged = try Journal.open(Journal.Stage.self, bytes: bytes, runID: runID, kind: .stage, key: key()) }
-            catch Failure.journal { return (nil, .quarantined(.journal)) }
-            guard staged.schemaVersion == 1, staged.rawHash == rawHash,
-                  staged.entry.attachmentRefs.isEmpty, staged.entry.envelopeBytes.count <= 512 * 1024,
-                  staged.entry.idempotencyKey == Journal.hash(staged.entry.envelopeBytes) else { return (nil, .quarantined(.journal)) }
-            // A previous immutable write may have published its fsynced file but
-            // failed the directory sync. Reestablish durability before promotion.
-            try Files.syncDirectory(runURL(runID))
-            // Authenticated stage + identical raw hash preserve the original report/context
-            // association without rerunning a newer decoder, policy or context snapshot.
-            if hasReceipt {
-                let bytesReceipt = try Files.read(receiptURL, maximum: Journal.Kind.receipt.maximum)
-                let receipt: Journal.Receipt
-                do { receipt = try Journal.open(Journal.Receipt.self, bytes: bytesReceipt, runID: runID, kind: .receipt, key: key()) }
-                catch Failure.journal { return (nil, .quarantined(.journal)) }
-                guard receipt.schemaVersion == 1, receipt.rawHash == rawHash,
-                      receipt.stageHash == Journal.hash(bytes), receipt.reportID == staged.entry.reportId else { return (nil, .quarantined(.journal)) }
-                return (nil, .alreadyImported(staged.entry.reportId))
+            // A crash report always wins. Without one, only this SDK's termination record can stage:
+            // read it for the run being evaluated or to resume its journal, never for other runs.
+            guard let stateURL = run.terminationState, inference != nil || hasStage || hasReceipt else {
+                return (nil, hasStage || hasReceipt ? .quarantined(.journal) : .noReport)
             }
+            let raw = try Tree.readRaw(stateURL), rawHash = Journal.hash(raw)
+            if let resumed = try resumeJournal(runID, rawHash: rawHash, hasStage: hasStage, hasReceipt: hasReceipt) { return resumed }
+            guard let inference, let staged = inferredStage(runID, raw: raw, rawHash: rawHash, inference: inference) else { return (nil, .noReport) }
+            let sealed = try Journal.seal(staged, runID: runID, kind: .stage, key: key())
+            try reserve(sealed.count, runID: runID, inventory: inventory)
+            try Files.writeImmutable(sealed, to: stageURL)
             return (staged, nil)
         }
-        guard !hasReceipt else { return (nil, .quarantined(.journal)) }
+        let raw = try Tree.readRaw(reportURL), rawHash = Journal.hash(raw)
+        if let resumed = try resumeJournal(runID, rawHash: rawHash, hasStage: hasStage, hasReceipt: hasReceipt) { return resumed }
         let record: NativeCrashRecord
         do { record = try NativeCrashRecordDecoder.decode(raw, redact: { _ in "" }) }
         catch { return (nil, .quarantined(.record)) }
@@ -219,6 +212,52 @@ final class NativeCrashRecovery: @unchecked Sendable {
         try reserve(sealed.count, runID: runID, inventory: inventory)
         try Files.writeImmutable(sealed, to: stageURL)
         return (value, nil)
+    }
+
+    /// Nil: no journal exists and the caller stages fresh evidence. An authenticated stage with
+    /// the identical raw hash keeps its original entry; it is never re-evaluated or rebuilt.
+    private func resumeJournal(_ runID: UUID, rawHash: String, hasStage: Bool, hasReceipt: Bool) throws -> (Journal.Stage?, Outcome?)? {
+        let stageURL = runURL(runID).appendingPathComponent("stage.evr")
+        let receiptURL = runURL(runID).appendingPathComponent("receipt.evr")
+        guard hasStage else {
+            if hasReceipt { return (nil, .quarantined(.journal)) }
+            return nil
+        }
+        let bytes = try Files.read(stageURL, maximum: Journal.Kind.stage.maximum)
+        let staged: Journal.Stage
+        do { staged = try Journal.open(Journal.Stage.self, bytes: bytes, runID: runID, kind: .stage, key: key()) }
+        catch Failure.journal { return (nil, .quarantined(.journal)) }
+        guard staged.schemaVersion == 1, staged.rawHash == rawHash,
+              staged.entry.attachmentRefs.isEmpty, staged.entry.envelopeBytes.count <= 512 * 1024,
+              staged.entry.idempotencyKey == Journal.hash(staged.entry.envelopeBytes) else { return (nil, .quarantined(.journal)) }
+        // A previous immutable write may have published its fsynced file but
+        // failed the directory sync. Reestablish durability before promotion.
+        try Files.syncDirectory(runURL(runID))
+        // Authenticated stage + identical raw hash preserve the original report/context
+        // association without rerunning a newer decoder, policy or context snapshot.
+        if hasReceipt {
+            let bytesReceipt = try Files.read(receiptURL, maximum: Journal.Kind.receipt.maximum)
+            let receipt: Journal.Receipt
+            do { receipt = try Journal.open(Journal.Receipt.self, bytes: bytesReceipt, runID: runID, kind: .receipt, key: key()) }
+            catch Failure.journal { return (nil, .quarantined(.journal)) }
+            guard receipt.schemaVersion == 1, receipt.rawHash == rawHash,
+                  receipt.stageHash == Journal.hash(bytes), receipt.reportID == staged.entry.reportId else { return (nil, .quarantined(.journal)) }
+            return (nil, .alreadyImported(staged.entry.reportId))
+        }
+        return (staged, nil)
+    }
+
+    /// The run's own frozen context, named by its termination record; never the live SDK configuration.
+    /// Any undecodable record, ineligible run or missing context is simply not inferred.
+    private func inferredStage(_ runID: UUID, raw: Data, rawHash: String, inference: TerminationInference.Context) -> Journal.Stage? {
+        guard let record = try? TerminationRunRecord(bytes: raw),
+              case .inferred(let cause) = TerminationInference.evaluate(record, current: inference.current, now: inference.now),
+              let contextID = record.contextID,
+              let bytes = try? contextStore.readContext(runID: runID, contextID: contextID),
+              let context = try? NativeCrashRecoveryContext.decode(bytes),
+              let entry = try? context.inferredTerminationEntry(record: record, cause: cause, reportID: UUID(), collectedAt: inference.now)
+        else { return nil }
+        return Journal.Stage(schemaVersion: 1, rawHash: rawHash, contextID: contextID, entry: entry)
     }
 
     private func reserve(_ bytes: Int, runID: UUID, inventory: Inventory) throws {

@@ -6,3 +6,4 @@ void NativeProofInstallTransport(Class protocolClass);
 bool NativeProofRecorderEnabled(void);
 void NativeProofObjCException(void);
 void NativeProofMemoryFault(void);
+void NativeProofAbort(void);

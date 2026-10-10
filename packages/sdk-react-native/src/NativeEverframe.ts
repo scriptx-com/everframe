@@ -132,6 +132,14 @@ export type ConfigOpts = {
    */
   installIdentifierDisabled?: boolean;
   /**
+   * Client veto for automatic crash capture. `true` turns off the native SDKs' crash capture
+   * (JVM, native crashes and ANRs on Android; native crashes on iOS) as well as the JS handlers:
+   * both natives store `capture.crash = !crashReportingDisabled`. Flat because RN codegen rejects
+   * nested objects; `extractBridgeConfig` flattens the host-facing `crashReporting: { disabled }`.
+   * Absent means capture stays on.
+   */
+  crashReportingDisabled?: boolean;
+  /**
    * Built-in attach-PIN surface mode (spec 2026-08-19): 'builtin' (default —
    * the native SDK presents the code itself), 'custom' (host renders it from
    * onAttachChallenge; the device still announces the capability), 'off'

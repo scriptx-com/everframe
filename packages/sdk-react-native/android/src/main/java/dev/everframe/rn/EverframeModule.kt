@@ -266,6 +266,9 @@ class EverframeModule(
             // Polarity flips exactly once, here: JS sends the veto
             // (`installIdentifierDisabled`), native stores the permission.
             val installIdentifierDisabled = opts.takeIfHasBoolean("installIdentifierDisabled") ?: false
+            // Polarity flips exactly once, here: JS sends the veto
+            // (`crashReportingDisabled`), native stores the permission.
+            val crashReportingDisabled = opts.takeIfHasBoolean("crashReportingDisabled") ?: false
             // Attach-PIN UI mode (spec 2026-08-19) — a flat optional STRING
             // field (codegen cannot express a string-literal union), parsed
             // here and stashed for `startCompanion()` to read (the flag is a
@@ -282,7 +285,7 @@ class EverframeModule(
                 sdkKey = sdkKey,
                 environment = Environment.production,
                 release = sdkVersion,
-                capture = CaptureConfig(networkBodies = !networkBodiesDisabled),
+                capture = CaptureConfig(networkBodies = !networkBodiesDisabled, crash = !crashReportingDisabled),
                 installIdentifierEnabled = !installIdentifierDisabled,
                 releaseHealth = parseReleaseHealth(opts),
                 // Explicit companion device-identity override (naming spec

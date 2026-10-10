@@ -1,23 +1,18 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 ScriptX
-# Run only after the build/archive succeeds. Every binary listed is required.
+# Run after `xcodebuild archive` (or fastlane build_app) succeeds.
 set -euo pipefail
-if (( $# < 2 )); then
-  echo 'Usage: upload-apple-symbols.sh DSYM_DIRECTORY BINARY [BINARY...]' >&2
+if (( $# != 1 )); then
+  echo 'Usage: upload-apple-symbols.sh PATH.xcarchive' >&2
   exit 64
 fi
 : "${EVERFRAME_APP_ID:?Set the app ID}"
-: "${EVERFRAME_API_TOKEN:?Set a scoped artifacts:write token in CI secrets}"
-dsym_directory=$1
-shift
 if [[ -n "${EVERFRAME_CLI_JS:-}" ]]; then
   uploader=(node "$EVERFRAME_CLI_JS")
 else
-  uploader=(everframe)
+  uploader=(npx --yes @everframe/cli)
 fi
-uploader+=(dsym upload-build "--app-id=$EVERFRAME_APP_ID" "--dsym-dir=$dsym_directory")
-for binary in "$@"; do
-  uploader+=("--binary=$binary")
-done
-"${uploader[@]}"
+# Without EVERFRAME_API_TOKEN, or when the upload fails, this warns and exits 0.
+# Set EVERFRAME_SYMBOLS_STRICT=1 to fail the pipeline instead.
+"${uploader[@]}" dsym upload-build --archive "$1"

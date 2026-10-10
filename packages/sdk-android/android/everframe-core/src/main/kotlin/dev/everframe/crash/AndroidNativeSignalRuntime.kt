@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.crash
 
-import android.app.Application
 import android.content.Context
 import android.os.Build
 import androidx.annotation.VisibleForTesting
@@ -61,14 +60,9 @@ internal object AndroidNativeSignalRuntime {
         return request().also { enabledEpoch = epoch }
     }
     fun ready(epoch: Int) = !erasePending.get() && controller?.ready(epoch) == true
-    private fun mainProcess(context: Context): Boolean {
-        val name = if (Build.VERSION.SDK_INT >= 28) Application.getProcessName()
-            else File("/proc/self/cmdline").inputStream().use { input ->
-                val bytes = ByteArray(256); val size = input.read(bytes)
-                if (size <= 0) "" else bytes.copyOfRange(0, size).takeWhile { it != 0.toByte() }.toByteArray().toString(Charsets.UTF_8)
-            }
-        return name == context.packageName
-    }
+    /** Whether this app can run the signal collector: the optional module is packaged, or a test producer is set. */
+    fun available(context: Context): Boolean =
+        __producerForTesting != null || AndroidNativeSignalPackaging.modulePresent(context)
     private fun fileOps(): OutboxFileOps = __fileOpsForTesting ?: AndroidOutboxFileOps()
     @androidx.annotation.RequiresApi(26)
     private fun engine(storage: AndroidNativeSignalFiles): AndroidNativeRecordImport {
@@ -87,7 +81,7 @@ internal object AndroidNativeSignalRuntime {
         }
     }
     fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, command: Long): Boolean = synchronized(work) {
-        if (Build.VERSION.SDK_INT !in 26..30 || !mainProcess(context)) return@synchronized false
+        if (Build.VERSION.SDK_INT !in 26..30 || !AppProcess.isDefault(context)) return@synchronized false
         val epoch = captured.user.startEpoch
         val gate = object : OutboxAuthorization {
             override fun isAllowed() = revision.get() == command && !erasePending.get() && Everframe.captureGate &&
@@ -120,7 +114,7 @@ internal object AndroidNativeSignalRuntime {
         if (!erasePending.get()) return@synchronized true
         if (context == null) return@synchronized false
         // A secondary process must never erase the default process's collector.
-        if (Build.VERSION.SDK_INT < 26 || !mainProcess(context)) {
+        if (Build.VERSION.SDK_INT < 26 || !AppProcess.isDefault(context)) {
             erasePending.set(false); return@synchronized true
         }
         if (controller == null && !File(context.noBackupFilesDir, "dev.everframe/native-signal-v1").exists()) {

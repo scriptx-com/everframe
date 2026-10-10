@@ -79,6 +79,10 @@ export { DiagnosticEvidence, DiagnosticCause, DiagnosticFrame, androidExitCause 
 
 export { AppleDiagnosticEvidence, AppleDiagnosticFrame, AppleHang, AppleExitCount } from './apple-diagnostic.js';
 export { RecoveredStallEvidence } from './recovered-stall.js';
+export {
+  InferredTerminationEvidence, InferredTerminationCause, INFERRED_TERMINATION_MECHANISM, INFERRED_TERMINATION_STALL_MS,
+  INFERRED_TERMINATION_EXCEPTION_TYPES, INFERRED_TERMINATION_FINGERPRINTS,
+} from './inferred-termination.js';
 export { ReleaseHealthAlertCohortSchema, ReleaseHealthThresholdEventSchema } from './release-health-alert.js';
 export type { ReleaseHealthThresholdEvent, ReleaseHealthAlertCohort } from './release-health-alert.js';
 

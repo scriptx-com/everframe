@@ -10,7 +10,8 @@ enum NativeCrashRecoveryFiles {
     typealias Base = NativeCrashContextFiles
     /// `oversized`: every entry is recognized and safe, but a file or the run is over
     /// its bound. Such a run is never read and is budgeted at the run maximum.
-    struct Inventory { var bytes = 0; var reports: [URL] = []; var entries = 0; var oversized = false }
+    /// `terminationState`: the run's next-launch inference record, when this SDK wrote one.
+    struct Inventory { var bytes = 0; var reports: [URL] = []; var entries = 0; var oversized = false; var terminationState: URL? = nil }
 
     static func uuid(_ name: String) -> UUID? {
         guard let id = UUID(uuidString: name), id.uuidString.lowercased() == name else { return nil }
@@ -39,6 +40,10 @@ enum NativeCrashRecoveryFiles {
                     if name == "recorder" { isDirectory = true }
                     else if name == "stage.evr" || temporary(name) { maxFile = 1024 * 1024; protected = true }
                     else if name == "receipt.evr" { maxFile = 4096; protected = true }
+                    else if name == TerminationLayout.fileName {
+                        // Larger than its fixed size marks the run oversized: never read, never imported.
+                        maxFile = TerminationLayout.size; protected = true; result.terminationState = path
+                    }
                     else { throw Failure.unsafePath }
                 case ["recorder"]:
                     guard ["Reports", "Data", "RunSidecars", "Sidecars"].contains(name) else { throw Failure.unsafePath }

@@ -101,4 +101,12 @@ describe('setupReactNative', () => {
     await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow(/Groovy/);
     expect(await readFile(pbx, 'utf8')).toBe(before);
   });
+
+  it('adds the Everframe Gradle plugin classpath to android/build.gradle', async () => {
+    const root = await bareProject();
+    await writeFile(join(root, 'android', 'build.gradle'), "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n");
+    const result = await setupReactNative({ projectRoot: root, appId: APP });
+    expect(result.changed).toContain('android/build.gradle');
+    expect(await readFile(join(root, 'android/build.gradle'), 'utf8')).toContain('dev.everframe:gradle-plugin:');
+  });
 });

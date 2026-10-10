@@ -306,6 +306,27 @@ describe("build commands", () => {
         { EVERFRAME_API_TOKEN: "token" },
       );
 
+    it("stops at EVERFRAME_UPLOAD_TIMEOUT_SECONDS when the server never answers", async () => {
+      const { staging } = await stage();
+      vi.stubGlobal("fetch", (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => init.signal!.addEventListener("abort", () => reject(init.signal!.reason))));
+      const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const started = Date.now();
+      try {
+        expect(
+          await main(
+            ["sourcemaps", "upload-hermes", "--manifest", staging, "--platform", "android", "--app-id", "00000000-0000-4000-8000-000000000000"],
+            { EVERFRAME_API_TOKEN: "token", EVERFRAME_UPLOAD_TIMEOUT_SECONDS: "1" },
+          ),
+        ).toBe(1);
+        expect(error.mock.calls[0]?.[0]).toContain("upload_time_budget_exhausted");
+        expect(Date.now() - started).toBeLessThan(4_000);
+      } finally {
+        error.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    });
+
     it("refuses a bundle rewritten after collect", async () => {
       const { staging, bundlePath } = await stage();
       await writeFile(

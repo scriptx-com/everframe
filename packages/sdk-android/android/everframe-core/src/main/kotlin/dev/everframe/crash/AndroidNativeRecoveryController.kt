@@ -26,25 +26,37 @@ internal class AndroidNativeRecoveryController(
     private val exposure: (Int) -> NativeExposurePointer? = { null },
     /** API30 overlap: whether optional signal capture owns an ended launch's native fault. */
     private val signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE },
+    /** Called when exit history shows another writer's process-state summary. */
+    private val onSummaryConflict: () -> Unit = ProcessStateSummaryConflict::warn,
+    /** Called when arming had to free context slots: (records that can no longer be reported, oldest records). */
+    private val onJournalFull: (Int, Int) -> Unit = ::warnJournalFull,
 ) {
-    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry, val nowMs: Long, val admit: (OutboxEntry) -> Boolean) {
+    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry, val nowMs: Long, val admit: (OutboxEntry) -> Boolean, val appId: String?) {
         val operations = Any()
-        var ready = false
-        var claimed = false
+        // Volatile: readiness is read without the lock, which an arm holds across journal and Binder IO.
+        @Volatile var ready = false
+        @Volatile var claimed = false
+        /** The exit history this owner's recovery read; a full journal frees slots against it. */
+        var exits: List<AndroidNativeExit> = emptyList()
     }
     private val lock = Any()
     private val publication = Any()
     private val exposureGeneration = AtomicLong()
     @Volatile private var active: Active? = null
+    /** The OS token as last written, or null once cleared; read without a lock by [markJvmFatal]. */
+    @Volatile private var published: ByteArray? = null
 
+    /** [appId] keys the low-memory kill's issue to this app; it is frozen into each context. */
     fun enable(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, template: () -> OutboxEntry,
-               admit: (OutboxEntry) -> Boolean): Boolean = enableMode(epoch, authorization, nowMs, false, template, admit)
+               appId: String? = null, admit: (OutboxEntry) -> Boolean): Boolean =
+        enableMode(epoch, authorization, nowMs, false, template, admit, appId)
 
     fun enableDiagnostics(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, template: () -> OutboxEntry,
-                          admit: (OutboxEntry) -> Boolean): Boolean = enableMode(epoch, authorization, nowMs, true, template, admit)
+                          appId: String? = null, admit: (OutboxEntry) -> Boolean): Boolean =
+        enableMode(epoch, authorization, nowMs, true, template, admit, appId)
 
     private fun enableMode(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, diagnostics: Boolean,
-                           template: () -> OutboxEntry, admit: (OutboxEntry) -> Boolean): Boolean {
+                           template: () -> OutboxEntry, admit: (OutboxEntry) -> Boolean, appId: String?): Boolean {
         if (platform.apiLevel < (if (diagnostics) 30 else 31) || !authorization.isAllowed()) return false
         val owner = synchronized(lock) {
             if (!authorization.isAllowed()) return false
@@ -55,18 +67,11 @@ internal class AndroidNativeRecoveryController(
                     return@synchronized it
                 }
                 active = null
-                if (it.epoch == epoch && it.diagnostics != diagnostics) {
-                    // A mode change in one start keeps both journals for the new owner's
-                    // recovery, which applies the new mode; only the old registration goes.
-                    if (it.claimed) runCatching { platform.setStateSummary(null) }
-                    runCatching { it.engine.disarm() }
-                } else {
-                    it.engine.invalidate()
-                    if (it.claimed) runCatching { platform.setStateSummary(null) }
-                    it.engine.revoke()
-                }
+                // A mode change or a newer start keeps both journals for the new owner's recovery;
+                // only the old registration and its own context go. Erasure belongs to kill().
+                replace(it)
             }
-            Active(epoch, factory(), authorization, diagnostics, template, nowMs, admit).also { active = it }
+            Active(epoch, factory(), authorization, diagnostics, template, nowMs, admit, appId).also { active = it }
         }
         return initialize(owner)
     }
@@ -81,6 +86,8 @@ internal class AndroidNativeRecoveryController(
             if (!gate.isAllowed()) return false
             if (owner.ready) return true
             val exits = platform.history()
+            owner.exits = exits
+            if (ProcessStateSummaryConflict.foreign(exits, platform.processName)) runCatching { onSummaryConflict() }
             if (!gate.isAllowed()) return false
             owner.engine.recover(exits, owner.nowMs, gate, allowDiagnostics = owner.diagnostics, signalCapture = signalCapture) {
                 if (gate.isAllowed()) owner.admit(it) else false
@@ -88,11 +95,11 @@ internal class AndroidNativeRecoveryController(
             synchronized(lock) {
                 if (!gate.isAllowed()) return false
                 owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics, processLaunchId, platform.apiLevel,
-                    nativeExposure = exposure(owner.epoch)) {
+                    nativeExposure = exposure(owner.epoch), exits = exits, onReclaimed = ::journalFull, appId = owner.appId) {
                     synchronized(publication) {
                         check(gate.isAllowed())
                         owner.claimed = true // An exception may follow a successful remote Binder write.
-                        platform.setStateSummary(it)
+                        publish(it)
                     }
                 }
                 owner.ready = true
@@ -104,7 +111,7 @@ internal class AndroidNativeRecoveryController(
                 if (active === owner && !owner.ready) {
                     // A lifecycle fence cancels readiness, not the host's explicit opt-in.
                     if (!owner.authorization.isAllowed()) active = null
-                    if (owner.claimed) runCatching { platform.setStateSummary(null) }
+                    if (owner.claimed) runCatching { publish(null) }
                 }
             }
         }
@@ -113,7 +120,7 @@ internal class AndroidNativeRecoveryController(
     /** Clears the OS token without waiting for journal IO; stale arm callbacks are fenced. */
     fun invalidateExposure() {
         exposureGeneration.incrementAndGet()
-        synchronized(publication) { if (active?.claimed == true) runCatching { platform.setStateSummary(null) } }
+        synchronized(publication) { if (active?.claimed == true) runCatching { publish(null) } }
     }
 
     /** Replaces only the live context, preserving previous-process recovery receipts and mode. */
@@ -131,27 +138,59 @@ internal class AndroidNativeRecoveryController(
                 return try {
                     owner.engine.disarm()
                     owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics,
-                        processLaunchId, platform.apiLevel, nativeExposure = exposure(epoch)) { token ->
+                        processLaunchId, platform.apiLevel, nativeExposure = exposure(epoch), exits = owner.exits,
+                        onReclaimed = ::journalFull, appId = owner.appId) { token ->
                         synchronized(publication) {
-                            check(gate.isAllowed()); owner.claimed = true; platform.setStateSummary(token)
+                            check(gate.isAllowed()); owner.claimed = true; publish(token)
                         }
                     }
                     owner.ready = gate.isAllowed()
                     owner.ready
                 } catch (_: Exception) {
                     owner.ready = false
-                    synchronized(publication) { runCatching { platform.setStateSummary(null) } }
+                    synchronized(publication) { runCatching { publish(null) } }
                     false
                 }
             }
         }
     }
 
-    fun ready(epoch: Int): Boolean = synchronized(lock) {
+    /** Lock-free: an arm holds the lock across journal and Binder IO, and callers poll this on the main thread. */
+    fun ready(epoch: Int): Boolean =
         active?.let { it.epoch == epoch && it.ready && it.authorization.isAllowed() } == true
+
+    private fun journalFull(unreportable: Int, oldest: Int) { runCatching { onJournalFull(unreportable, oldest) } }
+
+    /** Every OS token write goes through here, so [published] never names a token the OS no longer holds. */
+    private fun publish(value: ByteArray?) {
+        if (value == null) published = null
+        platform.setStateSummary(value)
+        if (value != null) published = value
     }
 
-    /** Replacement start retires only a prior live owner; explicit disable/kill also erase old journals. */
+    /**
+     * The JVM uncaught-exception handler admitted this process's fatal crash. A low-memory kill that
+     * ends the process while the handler runs (a Java OOM) is the same death: the token gains
+     * [AndroidNativeRecovery.JVM_FATAL_SUFFIX], so recovery does not report a second issue for it.
+     * Native crashes and ANRs with the suffix are still reported. Runs on the crashing thread, so it
+     * takes no lock: a token cleared at the same moment only leaves the exit unmatched.
+     */
+    fun markJvmFatal() {
+        val token = published ?: return
+        if (active?.authorization?.isAllowed() != true) return
+        runCatching { platform.setStateSummary(token + AndroidNativeRecovery.JVM_FATAL_SUFFIX) }
+    }
+
+    /** Caller holds [lock]. Clears the old owner's OS token and drops only its own context. */
+    private fun replace(owner: Active) {
+        if (owner.claimed) runCatching { publish(null) }
+        runCatching { owner.engine.disarm() }
+    }
+
+    /**
+     * Replacement start retires only a prior live owner and keeps earlier processes' unadmitted
+     * evidence for the next owner; kill() (erasePersisted) also erases the journals.
+     */
     fun retire(epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean) {
         if (platform.apiLevel < 30) return
         synchronized(lock) {
@@ -159,11 +198,17 @@ internal class AndroidNativeRecoveryController(
             val owner = active
             if (owner != null && (owner.epoch > epoch || (owner.epoch == epoch && !erasePersisted))) return
             active = null
-            if (owner != null) {
+            if (owner != null && !erasePersisted) replace(owner)
+            else if (owner != null) {
                 owner.engine.invalidate()
-                if (owner.claimed) runCatching { platform.setStateSummary(null) }
+                if (owner.claimed) runCatching { publish(null) }
                 owner.engine.revoke()
             } else if (erasePersisted) factory().revoke()
         }
     }
+}
+
+private fun warnJournalFull(unreportable: Int, oldest: Int) {
+    android.util.Log.w("Everframe", "OS exit capture: context journal full; dropped $unreportable record(s) " +
+        "that can no longer be reported and $oldest oldest record(s) to arm this process.")
 }

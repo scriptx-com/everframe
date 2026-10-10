@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { realpath, stat } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { R8_ASSET_URL, parseManifest } from "@everframe/protocol";
+import { basename, dirname, resolve } from "node:path";
+import { R8_ASSET_URL, R8_MAX_BYTES, parseManifest } from "@everframe/protocol";
 import { checkedRealPath, hashFile, type LocalBuild } from "./manifest.js";
 
 export interface CollectR8BuildOptions {
@@ -18,8 +18,12 @@ export async function collectR8Build(
   const mappingPath = await checkedRealPath(mapRoot, mapInput);
   const metadata = await stat(mappingPath);
   if (!metadata.isFile()) throw new Error("invalid_input_file");
-  if (metadata.size <= 0 || metadata.size > 32 * 1024 * 1024)
-    throw new Error("source_map_too_large");
+  if (metadata.size <= 0)
+    throw new Error(`r8_mapping_empty: the R8 mapping ${basename(mapInput)} is empty; upload the mapping.txt R8 wrote for this build.`);
+  if (metadata.size > R8_MAX_BYTES)
+    throw new Error(
+      `r8_mapping_too_large: the R8 mapping ${mapInput} is ${mebibytes(metadata.size)} MiB (${metadata.size} bytes); Everframe accepts R8 mappings up to ${R8_MAX_BYTES / 1024 / 1024} MiB.`,
+    );
 
   const manifest = parseManifest({
     version: 3,
@@ -41,4 +45,8 @@ export async function collectR8Build(
     fileRoots: new Map([[R8_ASSET_URL, { mapRoot }]]),
     uncovered: [],
   };
+}
+
+function mebibytes(bytes: number): string {
+  return (bytes / 1024 / 1024).toFixed(1);
 }
