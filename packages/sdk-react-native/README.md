@@ -159,6 +159,19 @@ const config = {
 </EverframeProvider>
 ```
 
+A changed `key` remounts the Provider and everything under it, so all component
+state below it resets. On Android, a changed configuration also restarts the
+native SDK: the open foreground session ends (with `sdk_stop` while monitoring
+stays enabled) and a new one starts in foreground; replay restarts and vitals
+player integrations detach; breadcrumb, log and network history is dropped; and
+the `setUser` user and any natively set identity token are cleared. On iOS, a
+change confined to `releaseHealth` or the loaded bundle does not restart the
+SDK; it only starts, rotates or turns off the foreground session. Other
+configuration changes restart the SDK on iOS as well, which likewise ends the
+session and clears the user and identity token. Call `setUser` from a
+`useEffect` in a component inside the new Provider, which runs after the
+Provider configures, and set a native identity token again after a restart.
+
 Unmounting the Provider only removes JavaScript integrations; it does not stop
 native monitoring. To revoke it, remount with `enabled: false` (or without
 `releaseHealth`). Cleanup from an older Provider cannot revoke a newer owner's
@@ -172,6 +185,15 @@ fatals can reference the session only when its pointer is ready and the captured
 known bundle matches exactly. Handled errors, promise rejections, background
 crashes and crashes before readiness still use ordinary reporting without an
 invented session link. A process that dies does not synthesize a completed end.
+
+A JavaScript reload inside the same process (a development reload, or an
+over-the-air update applied by reloading) does not end the native session on
+Android or iOS. Until the reloaded bundle's Provider configures, the previous
+bundle's session keeps its crash-attribution pointer, so a native crash in that
+window, including the native termination that React Native release builds
+perform for a fatal JavaScript error thrown before the Provider mounts, is
+attributed to the previous bundle's session. Mount the Provider early in the
+reloaded bundle; its configure with the new loaded build rotates the session.
 
 These observations support counts of sessions without a reported fatal crash;
 they do not confirm that a session was healthy or that delivery succeeded.
@@ -509,7 +531,9 @@ inside a native view and never reaches JS.
 
 **Reconfiguring.** A Provider remount with the *same* config does not restart
 the SDK: both native sides compare the incoming config against the *installed*
-one and skip the start entirely. A **changed** config does restart it — and a
+one and skip the start entirely. A **changed** config does restart it (on iOS,
+except a change confined to `releaseHealth` or the loaded bundle; see
+[Foreground-session monitoring](#foreground-session-monitoring)) — and a
 start supersedes the running SDK, detaching every player integration it had
 announced. **Limitation:** players tracked before that restart stay untracked
 until their screens remount; nothing re-registers them automatically. Two React
