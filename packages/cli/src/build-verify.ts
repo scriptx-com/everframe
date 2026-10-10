@@ -37,6 +37,8 @@ const ADVICE: Record<string, string> = {
     'invalid_staged_manifest: the staging directory is corrupt. Delete .everframe and rebuild.',
   missing_api_token:
     'missing_api_token: set EVERFRAME_API_TOKEN to a token with the artifacts:write scope.',
+  'request_failed:project_quota_exceeded':
+    'request_failed:project_quota_exceeded: the project has used its artifact storage quota. Delete or let older builds expire, or ask for a larger quota.',
   // The codes below are raised by `build collect`, not by verify itself.
   // Under the generated build phase's `set -e`, collect aborts the script
   // before verify ever runs, so these would otherwise surface only as a bare

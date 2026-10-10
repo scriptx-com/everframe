@@ -26,38 +26,67 @@ killed with SIGKILL can leave it behind. The service must support the 512 MiB Ap
 limit; older services may reject files above 64 MiB. Each upload attempt must be
 received and verified by the service within five minutes, so a 512 MiB dSYM needs
 about 15 Mbit/s of sustained upload bandwidth (about 11 Mbit/s for 400 MiB); slower
-links fail the attempt and its retries. Files remain on disk after upload. Configure this
-command in your build pipeline after dSYM generation; automatic native build-hook
-installation is not included.
+links fail the attempt and its retries. Files remain on disk after upload. To upload
+every dSYM of a build automatically, use `dsym upload-build` below.
 
-## Verify and upload a native Apple build
+## Upload Apple symbols automatically
 
-After a successful Xcode build or archive, explicitly list the app and frameworks
-whose crash frames you promise to support:
+Install the Xcode build phase once (see "Xcode build phase" below), or run one
+command after an archive:
 
 ```sh
-everframe dsym upload-build --app-id "$EVERFRAME_APP_ID" \
-  --binary "App.xcarchive/Products/Applications/App.app/App" \
-  --binary "App.xcarchive/Products/Applications/App.app/Frameworks/Feature.framework/Feature" \
-  --dsym-dir "App.xcarchive/dSYMs"
+everframe dsym upload-build --archive "App.xcarchive"          # CI, fastlane, Xcode Cloud
+everframe dsym upload-build --xcode                            # inside an Xcode Run Script phase
+everframe dsym upload-build --app App.app --dsym-dir dSYMs     # any other layout
+everframe dsym upload-build --binary App.app/App --dsym-dir dSYMs   # explicit list, all required
 ```
 
-The command checks every listed Mach-O UUID/CPU identity against the raw DWARF
-files in the directory's `.dSYM/Contents/Resources/DWARF` layout. Missing or
-ambiguous identities, unsupported listed binaries and oversized matching files
-fail before any upload. Other dSYMs in the directory, such as a watchOS companion
-or unlisted frameworks, are inspected but not selected. A DWARF file with an
-unsupported or malformed header, including invalid segment/section ranges, is
-never uploaded: it is skipped, and the failure for a listed identity without a
-match names the skipped files. Full DWARF validity is checked by the service and can
-still reject a later file after an earlier artifact is ready. The command does not
-infer coverage for unlisted modules or inspect compressed archives. Current native
-support covers little-endian64 arm64/arm64e/x86_64/x86_64h slices, including
-universal files. Limits: 16 listed binaries, 8 selected files, 64 bundles that
-hold a listed identity, 1024 directory entries and 512 MiB per selected DWARF file.
+The command finds the app executable and the app extensions (`PlugIns/`,
+`Extensions/`, including a tvOS Top Shelf extension). These are required. It
+also finds embedded frameworks and dylibs, which are optional. `libswift*` and
+watchOS content are skipped. dSYM folders are searched recursively, up to four
+levels deep, without entering bundles. A missing dSYM for a required binary
+stops the upload with `missing_matching_dsym`. A missing dSYM for an optional
+binary prints `warning: no dSYM for …` (an Xcode build warning), and the other
+symbols still upload. `--xcode` skips Debug builds (set
+`EVERFRAME_UPLOAD_DEBUG=1` to upload them) and builds without
+`DEBUG_INFORMATION_FORMAT = dwarf-with-dsym`.
 
-A failed local check prints its code first, then the paths and image identities
-involved:
+`--app-id` defaults to `EVERFRAME_APP_ID`.
+
+**Symbols never break your build by default.** With `--xcode`, `--archive` or
+`--app`, a missing `EVERFRAME_API_TOKEN` or a failed upload prints a `warning:`
+line (an Xcode build warning, or a line in your CI log) and the command exits 0,
+locally and in CI. Crashes from that build show raw addresses until its symbols
+are uploaded, and the dashboard names what is missing. To gate a release on its
+symbols, pass `--strict` or set `EVERFRAME_SYMBOLS_STRICT=1`: a missing token or
+a failed upload then fails the build, and every binary needs a dSYM. The
+explicit `--binary` list is always strict.
+
+fastlane:
+
+```ruby
+build_app(scheme: "App")
+sh("npx", "--yes", "@everframe/cli", "dsym", "upload-build", "--archive", lane_context[SharedValues::XCODEBUILD_ARCHIVE])
+```
+
+Xcode Cloud (`ci_scripts/ci_post_xcodebuild.sh`; install Node in `ci_post_clone.sh`):
+
+```sh
+if [ -n "${CI_ARCHIVE_PATH:-}" ]; then npx --yes @everframe/cli dsym upload-build --archive "$CI_ARCHIVE_PATH"; fi
+```
+
+[The CI shell example](examples/upload-apple-symbols.sh) uploads an archive.
+It uses `EVERFRAME_CLI_JS` (a built `dist/index.js`) when set, and
+`npx --yes @everframe/cli` otherwise.
+
+Limits: 256 binaries, 128 selected DWARF files, 256 matching `.dSYM` bundles,
+16384 directory entries and 512 MiB per DWARF file. Supported slices:
+little-endian 64-bit arm64/arm64e/x86_64/x86_64h for iOS, tvOS and their
+simulators. Each selected file is its own immutable upload. Re-run the
+command to resume after a failure.
+
+A failed check prints its code first:
 
 | Code | What to check |
 | --- | --- |
@@ -69,36 +98,6 @@ involved:
 | `apple_build_limit` | The message names the limit. Pass a directory that holds only this build's dSYMs, or split the binaries across runs. |
 | `source_map_changed` | The printed file changed during the run. Run the command after the build has finished writing its outputs. |
 | `symlink_escapes_root` | The printed path resolves outside `--dsym-dir` or, for a listed binary, outside its own directory. Pass real paths instead of symlinks. |
-
-Each selected file uses its own immutable artifact upload. Success means all are
-ready; a later failure leaves earlier ready artifacts available and returns a
-nonzero exit status. Re-run the same command to resume. Original binaries and
-dSYMs are retained; changing selected symbol bytes or listed image identities
-during upload prevents success. Executable bodies are not hashed.
-Gate app promotion on this command's exit status. A ready upload establishes
-artifact availability; device compatibility and readable frames still require
-crash acceptance testing.
-
-[The CI shell example](examples/upload-apple-symbols.sh) accepts the symbol
-directory followed by the exact binaries. Set `EVERFRAME_APP_ID` and inject
-`EVERFRAME_API_TOKEN` from a scoped CI secret. It propagates failures and does not
-install an Xcode build phase:
-
-```sh
-bash packages/cli/examples/upload-apple-symbols.sh \
-  "App.xcarchive/dSYMs" "App.xcarchive/Products/Applications/App.app/App"
-```
-
-For an unreleased checkout, build the CLI and use its local entry directly:
-
-```sh
-pnpm --dir packages/cli build
-node packages/cli/dist/index.js dsym upload-build --app-id "$EVERFRAME_APP_ID" \
-  --binary "/absolute/build/App.app/App" --dsym-dir "/absolute/build/dSYMs"
-```
-
-The shell example also accepts `EVERFRAME_CLI_JS` pointing to that built
-`dist/index.js`. This workflow does not require publishing a package first.
 
 ## Android ELF upload
 

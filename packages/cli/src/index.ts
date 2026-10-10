@@ -8,7 +8,7 @@ import { collectStagedBuild } from "./build-collect.js";
 import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
-import { uploadAppleBuild } from "./apple-upload.js";
+import { dsymUploadBuildCommand } from "./apple-command.js";
 import { uploadAndroidElfBuild } from "./elf-upload.js";
 import { collectElfBuild } from "./elf.js";
 import { collectDsymBuild } from "./dsym.js";
@@ -46,7 +46,7 @@ const HELP = `Usage:
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe setup react-native --app-id <uuid> [--project <dir>]
-  everframe dsym upload-build --app-id <uuid> --binary <executable> [--binary <framework>] --dsym-dir <directory>
+  everframe dsym upload-build (--xcode | --archive <x.xcarchive> | --app <App.app> --dsym-dir <dir>... | --binary <file>... --dsym-dir <dir>...) [--app-id <uuid>] [--strict]
   everframe dsym upload --app-id <uuid> --dwarf <raw-file>
   everframe elf upload-build --app-id <uuid> --binary <shipped.so> [--binary <library.so>] --symbols-dir <directory>
   everframe elf upload --app-id <uuid> --library <unstripped-elf>
@@ -57,6 +57,8 @@ const HELP = `Usage:
 Environment:
   EVERFRAME_API_TOKEN  API token with artifacts:write scope (required)
   EVERFRAME_API_URL    API base URL (default: https://api.everframe.dev/api/v1)
+  EVERFRAME_APP_ID     Default application UUID for upload commands
+  EVERFRAME_SYMBOLS_STRICT  Set to 1 to fail builds when symbols cannot be uploaded (default: warn)
 `;
 
 export async function main(
@@ -223,24 +225,8 @@ export async function main(
     }
 
     if (isDsymBuildCommand) {
-      const parsed = parseArgs({
-        args: argv.slice(2), allowPositionals: false, strict: true,
-        options: {
-          "app-id": { type: "string" },
-          binary: { type: "string", multiple: true },
-          "dsym-dir": { type: "string" },
-          help: { type: "boolean", short: "h" },
-        },
-      });
-      if (parsed.values.help) { console.log(HELP); return 0; }
-      const appId = parsed.values["app-id"], binaries = parsed.values.binary,
-        dsymDir = parsed.values["dsym-dir"], token = env.EVERFRAME_API_TOKEN;
-      if (!appId || !binaries?.length || !dsymDir || !token) throw new Error("missing_required_option");
-      const result = await uploadAppleBuild({ appId, token,
-        binaries: binaries.map((path) => ({ path, required: true })), dsymDirs: [dsymDir],
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1" });
-      console.log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} dSYM files).`);
-      return 0;
+      if (argv.slice(2).some((arg) => arg === "--help" || arg === "-h")) { console.log(HELP); return 0; }
+      return await dsymUploadBuildCommand(argv.slice(2), env);
     }
 
     if (isDsymCommand) {
@@ -489,7 +475,7 @@ export async function main(
     console.log(`Source-map build ${result.buildUuid} is ready.`);
     return 0;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "upload_failed";
+    const message = adviceFor(error instanceof Error ? error.message : "upload_failed");
     const token = env.EVERFRAME_API_TOKEN;
     // upload-build failures list bounded paths and image identities.
     console.error((token ? message.split(token).join("[redacted]") : message).slice(0, isDsymBuildCommand ? 8192 : 256));
