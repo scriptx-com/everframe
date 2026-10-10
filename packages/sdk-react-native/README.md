@@ -122,7 +122,8 @@ The loaded build comes from validated `jsBundle` metadata (or the existing
 Metro-injected build metadata); there is no separate release-health bundle
 option. Missing or invalid identity, unsupported engines, `enabled: false`,
 or removal of `releaseHealth` on the next configure disables monitoring and
-clears earlier health configuration. The optional user ID must be opaque, nonblank, at most 128 UTF-16
+clears earlier health configuration. The user ID is optional: null or omitted
+means anonymous. A supplied ID must be opaque, nonblank, at most 128 UTF-16
 units, and contain no U+0000–U+001F control characters or unpaired surrogates.
 Build IDs have the same text rules with a 200-unit limit. Values are preserved
 exactly, including spaces around a nonblank ID.

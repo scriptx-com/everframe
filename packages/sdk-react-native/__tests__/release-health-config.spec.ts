@@ -32,6 +32,12 @@ describe('explicit native foreground monitoring configuration', () => {
     expect(extract({ ...config(), releaseHealth: { enabled: true, nativeBuildId: 'native-a' } }).releaseHealthUserId).toBeUndefined();
     expect(JSON.stringify(extract({ ...config(), releaseHealth: { enabled: false, nativeBuildId: 'native-a', userId: 'private' } }))).not.toContain('private');
   });
+  it('treats a null user ID like an omitted one: anonymous monitoring', () => {
+    const opts = extract({ ...config(), releaseHealth: { enabled: true, nativeBuildId: 'native-a', userId: null } });
+    expect(opts).toMatchObject({ releaseHealthEnabled: true, releaseHealthNativeBuildId: 'native-a',
+      releaseHealthLoadedBuildId: 'loaded-a' });
+    expect('releaseHealthUserId' in opts).toBe(false);
+  });
   it.each([undefined, { buildId: '', bundleName: 'index.bundle' }, { buildId: 'a', bundleName: '../bad' },
     { buildId: 'a\u0001', bundleName: 'index.bundle' }])('disables monitoring for invalid loaded identity %j', jsBundle => {
     delete (globalThis as any).__EVERFRAME_BUILD__;

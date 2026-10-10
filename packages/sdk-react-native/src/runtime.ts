@@ -113,12 +113,13 @@ export interface RuntimeConfig
   /**
    * Explicit opt-in to native foreground-session monitoring. The loaded build
    * comes from validated Hermes jsBundle metadata. userId is an optional opaque
-   * identifier supplied for this purpose; setUser never supplies it implicitly.
+   * identifier supplied for this purpose; null or omitted means anonymous, and
+   * setUser never supplies it implicitly.
    */
   releaseHealth?: {
     enabled: boolean;
     nativeBuildId: string;
-    userId?: string;
+    userId?: string | null;
   };
   /**
    * Opt-in JS-side capture integrations (spec 2026-07-14 RN-iOS parity).
@@ -778,13 +779,14 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   if (health !== undefined) {
     bridge.releaseHealthEnabled = false;
     const bundle = health?.enabled === true ? captureJsBundleMetadata(config.jsBundle) : undefined;
+    // A null user ID is anonymous, as on the native, web and React SDKs.
     if (bundle && validReleaseHealthText(bundle.buildId, 200) &&
         validReleaseHealthText(health.nativeBuildId, 200) &&
-        (health.userId === undefined || validReleaseHealthText(health.userId, 128))) {
+        (health.userId == null || validReleaseHealthText(health.userId, 128))) {
       bridge.releaseHealthEnabled = true;
       bridge.releaseHealthNativeBuildId = health.nativeBuildId;
       bridge.releaseHealthLoadedBuildId = bundle.buildId;
-      if (health.userId !== undefined) bridge.releaseHealthUserId = health.userId;
+      if (typeof health.userId === "string") bridge.releaseHealthUserId = health.userId;
     }
   }
   return bridge;
