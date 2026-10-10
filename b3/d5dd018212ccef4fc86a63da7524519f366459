@@ -1,0 +1,27 @@
+.changeset/android-crash-default-on.md
+  s_dbd309ddf8ec5b::t_d6391b40399ca1 9
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_b17f30fdf57e3d 18-19
+docs/release-health.md
+  s_dbd309ddf8ec5b::t_fb7c6f31b214e0 107-111
+packages/everframe_flutter/README.md
+  s_dbd309ddf8ec5b::t_28b2feab15afd4 79-83
+packages/sdk-android/README.md
+  s_dbd309ddf8ec5b::t_7a4792ef0747bb 78,82,86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3d5dd018212ccef4fc86a63da7524519f366459",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
