@@ -42,6 +42,7 @@ internal class AndroidNativeRecovery(
         private const val MAX_AGE_MS = 14L * 24 * 60 * 60 * 1000
         private const val MAX_CONTEXT_BYTES = 65536
         private const val NATIVE_REASON = 5 // ApplicationExitInfo.REASON_CRASH_NATIVE, guarded by runtime API31.
+        private const val ANR_REASON = 6 // ApplicationExitInfo.REASON_ANR.
         private val json = Json { encodeDefaults = false; explicitNulls = false }
         private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         private fun token(id: String) = (TOKEN_PREFIX + id).toByteArray(Charsets.US_ASCII)
@@ -116,7 +117,12 @@ internal class AndroidNativeRecovery(
                 it.timestamp >= context.createdAt && it.timestamp <= nowMs && it.stateSummary?.contentEquals(expected) == true }
             if (matches.size != 1) continue
             val exit = matches.single()
-            if (exit.reason != NATIVE_REASON && (!diagnostics || !allowDiagnostics)) { contexts.removeIfPresent(key); continue }
+            // Only native crashes and ANRs are reported. Low-memory kills, user stops, JVM crashes (the
+            // uncaught-exception handler reports those) and other exits are consumed without a report,
+            // so an app the OS routinely kills cannot crowd real crashes out of ingest limits.
+            if (exit.reason != NATIVE_REASON && (exit.reason != ANR_REASON || !diagnostics || !allowDiagnostics)) {
+                contexts.removeIfPresent(key); continue
+            }
             if (exit.reason == NATIVE_REASON && launchId != null) {
                 // API26..30 signal capture reports a fault it recorded once, with its fault frame. The
                 // protocol carries a native exit only as a crash envelope, so this exit then adds none.
@@ -140,7 +146,7 @@ internal class AndroidNativeRecovery(
                             else AndroidExitDiagnostic.trace("available", "android_tombstone", native.framesIncomplete)
                     }
                 } catch (_: Exception) { trace = AndroidExitDiagnostic.trace("malformed") }
-            } else if (exit.reason == 6) trace = AndroidExitDiagnostic.readAnr(exit.openTrace, exit.pid)
+            } else if (exit.reason == ANR_REASON) trace = AndroidExitDiagnostic.readAnr(exit.openTrace, exit.pid)
             if (!authorization.isAllowed()) break
             val envelope = state["envelope"]?.jsonObject ?: continue
             val frozen = (state["nativeExposure"] as? JsonObject)?.let(NativeExposurePointer::parse)

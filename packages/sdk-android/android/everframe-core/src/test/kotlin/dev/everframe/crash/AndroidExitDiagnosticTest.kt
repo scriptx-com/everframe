@@ -53,15 +53,20 @@ class AndroidExitDiagnosticTest {
         assertEquals("unavailable", diagnostic["trace"]!!.jsonObject["status"]!!.jsonPrimitive.content)
         assertEquals(0, engine().recover(listOf(record(token, 6)), 4000, allowed, allowDiagnostics = true) { error("duplicate") })
     }
-    @Test fun `unrelated exit never reads an attached recovered ANR trace or becomes a crash`() {
-        for ((reason, cause) in listOf(3 to "system_low_memory", 4 to "java_crash", 10 to "user_requested", 2 to "unknown", 999 to "unknown")) {
+    @Test fun `exits other than native crashes and ANRs are consumed without a report or a trace read`() {
+        // Low-memory kills, user stops, JVM crashes (already reported by the uncaught-exception
+        // handler) and every other reason are not crash reports; a routinely killed TV app must
+        // not fill ingest limits with them.
+        for (reason in listOf(3, 4, 10, 11, 1, 2, 13, 999)) {
             val (_, token) = arm()
-            assertEquals(1, engine().recover(listOf(record(token, reason) { error("unrelated trace read") }), 3000, allowed, allowDiagnostics = true) {
-                assertEquals("diagnostic", body(it)["source"]!!.jsonPrimitive.content)
-                assertEquals(cause, evidence(it)["cause"]!!.jsonPrimitive.content)
-                assertEquals("not_requested", evidence(it)["trace"]!!.jsonObject["status"]!!.jsonPrimitive.content)
-                true
-            })
+            val reported = arrayListOf<OutboxEntry>()
+            // admit() exceptions are swallowed as refusals, so collect instead of throwing.
+            engine().recover(listOf(record(token, reason) { error("unrelated trace read") }), 3000, allowed, allowDiagnostics = true) {
+                reported.add(it); true
+            }
+            assertTrue("exit reason $reason was reported", reported.isEmpty())
+            assertTrue("the matched context must be consumed", store("contexts").snapshotTokens().isEmpty())
+            assertTrue(store("prepared").snapshotTokens().isEmpty())
         }
     }
     @Test fun `native exit carries one crash envelope plus matching evidence including API30 metadata only`() {
