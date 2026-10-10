@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_754966e2706d35 780-784
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/BuildArtifactIdentity.kt
+  s_dbd309ddf8ec5b::t_1e60589acd5f7b 3,5-6,8-12,14-29
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_dbd309ddf8ec5b::t_1f81e592456288 95-97
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/BuildArtifactIdentityTest.kt
+  s_dbd309ddf8ec5b::t_5e48474f2d615a 3,5-10,12-21,23-26,28-30,33-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25bf94d9b396c6bafd229bad15465d4e54cefeb9",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
