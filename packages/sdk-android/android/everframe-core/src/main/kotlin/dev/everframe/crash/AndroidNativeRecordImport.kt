@@ -16,7 +16,11 @@ import java.util.concurrent.atomic.AtomicLong
  * [delivered] receipts name ended launches whose report entered the outbox (see [captured]). */
 @androidx.annotation.RequiresApi(26)
 internal class AndroidNativeRecordImport(private val capsules:OutboxStore,private val prepared:OutboxStore,private val delivered:OutboxStore?=null) {
-    companion object { const val MAX_AGE_MS=14L*24*60*60*1000; private const val MAX_CONTEXT=65536; private const val MAX_RECEIPTS=8 }
+    companion object {
+        const val MAX_AGE_MS=14L*24*60*60*1000; private const val MAX_CONTEXT=65536; private const val MAX_RECEIPTS=8
+        /** More than 14 days apart in either direction, so a wall clock that jumps back cannot keep a record forever. */
+        fun expired(createdAt:Long,nowMs:Long)=kotlin.math.abs(nowMs-createdAt)>MAX_AGE_MS
+    }
     private val revision=AtomicLong()
     private fun gate(captured:Long,authorization:OutboxAuthorization)=object:OutboxAuthorization {
         override fun isAllowed()=revision.get()==captured && capsules.hasCurrentLease() && prepared.hasCurrentLease() && authorization.isAllowed()
@@ -77,12 +81,12 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
                 if(bytes==null) { capsules.removeIfPresent(token);continue }
                 AndroidNativeRecordReader.open(bytes,key,context.reportId.replace("-",""),context.createdAt,nowMs)
             } finally { key.fill(0) }
+            // Both are wall clocks. An unreadable record expires 14 days from its capsule in either clock
+            // direction; an authenticated one is reported however far the clock moved.
             if (native == null) {
-                if (nowMs > context.createdAt && nowMs - context.createdAt > MAX_AGE_MS) capsules.removeIfPresent(token)
+                if (expired(context.createdAt, nowMs)) capsules.removeIfPresent(token)
                 continue
             }
-            val capturedAt = native.getValue("snapshotTimeMs").jsonPrimitive.long
-            if (nowMs > capturedAt && nowMs - capturedAt > MAX_AGE_MS) { capsules.removeIfPresent(token); continue }
             check(gate)
             val frozen=capsule.getValue("envelope").jsonObject
             val original=context.copy(envelopeBytes=frozen.toString().toByteArray())
@@ -102,9 +106,12 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             val owners=capsules.snapshotTokens().mapNotNull { capsules.readIfPresent(it)?.entry?.reportId }.toSet()
             val entry=prepared.readIfPresent(token)?.entry ?: continue
             if(entry.reportId !in owners) { prepared.removeIfPresent(token);continue }
-            if(nowMs>entry.createdAt && nowMs-entry.createdAt>MAX_AGE_MS) { removeCapsules(entry.reportId);prepared.removeIfPresent(token);continue }
             check(gate)
-            if(!admit(entry,gate)) continue
+            // Offered before its age is judged: a clock jump alone never drops a report unseen.
+            if(!admit(entry,gate)) {
+                if(expired(entry.createdAt,nowMs)) { removeCapsules(entry.reportId);prepared.removeIfPresent(token) }
+                continue
+            }
             check(gate)
             receipt(entry,nowMs,gate)
             removeCapsules(entry.reportId)
@@ -131,7 +138,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         try {
             for(token in store.snapshotTokens()) {
                 val old=store.readIfPresent(token)?.entry ?: continue
-                if(nowMs>old.createdAt && nowMs-old.createdAt>MAX_AGE_MS) store.removeIfPresent(token)
+                if(expired(old.createdAt,nowMs)) store.removeIfPresent(token)
             }
         } catch(_:Exception) {}
     }
@@ -146,9 +153,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             val key=try { Base64.getDecoder().decode(capsule.getValue("key").jsonPrimitive.content) } catch(_:Exception) { continue }
             val epoch=context.reportId.replace("-","")
             // Only a record that recovery would import counts; anything else is the OS exit's to report.
-            val native=try { readRecord(epoch)?.let { AndroidNativeRecordReader.open(it,key,epoch,context.createdAt,nowMs) } } finally { key.fill(0) } ?: continue
-            val capturedAt=native.getValue("snapshotTimeMs").jsonPrimitive.long
-            if(nowMs>capturedAt && nowMs-capturedAt>MAX_AGE_MS) continue
+            try { readRecord(epoch)?.let { AndroidNativeRecordReader.open(it,key,epoch,context.createdAt,nowMs) } } finally { key.fill(0) } ?: continue
             return NativeSignalCapture.PENDING
         }
         return NativeSignalCapture.NONE

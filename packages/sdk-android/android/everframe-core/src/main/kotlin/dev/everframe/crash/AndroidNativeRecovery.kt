@@ -5,8 +5,10 @@ package dev.everframe.crash
 import dev.everframe.health.NativeExposurePointer
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
+import dev.everframe.outbox.OutboxFailure
 import dev.everframe.outbox.OutboxStore
 import dev.everframe.outbox.OutboxToken
+import dev.everframe.outbox.OutboxWriteException
 import dev.everframe.protocol.generated.AndroidNativeCrashMetadata
 import java.io.InputStream
 import java.security.MessageDigest
@@ -14,6 +16,7 @@ import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import kotlin.math.abs
 
 internal data class AndroidNativeExit(
     val pid: Int,
@@ -50,7 +53,9 @@ internal class AndroidNativeRecovery(
     private var armed: OutboxToken? = null // Caller serializes arm and disarm.
 
     fun arm(template: OutboxEntry, pid: Int, processName: String, authorization: OutboxAuthorization,
-            diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, nativeExposure: NativeExposurePointer? = null, register: (ByteArray) -> Unit) {
+            diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, nativeExposure: NativeExposurePointer? = null,
+            exits: List<AndroidNativeExit> = emptyList(), onReclaimed: (unreportable: Int, oldest: Int) -> Unit = { _, _ -> },
+            register: (ByteArray) -> Unit) {
         require(UUID.fromString(template.reportId).toString() == template.reportId)
         require(template.identitySubject == null && template.attachmentRefs.isEmpty())
         require(template.envelopeBytes.size <= MAX_CONTEXT_BYTES && pid > 0 && processName.length in 1..256)
@@ -71,7 +76,7 @@ internal class AndroidNativeRecovery(
             }
         }.toString().toByteArray(Charsets.UTF_8)
         require(context.size <= MAX_CONTEXT_BYTES)
-        val durable = contexts.enqueueSync(template.copy(envelopeBytes = context), authorization)
+        val durable = enqueueContext(template.copy(envelopeBytes = context), authorization, exits, pid, onReclaimed)
         try {
             check(authorization.isAllowed())
             register(token(template.reportId))
@@ -81,6 +86,52 @@ internal class AndroidNativeRecovery(
             throw failure
         }
         armed = durable
+    }
+
+    /**
+     * A full journal must not stop capture. It first drops contexts that can no longer be reported:
+     * unreadable ones, and those of ended processes with no single matching OS exit record (a reboot
+     * lost it, or the history evicted it). If the journal is still full, the oldest contexts go.
+     */
+    private fun enqueueContext(entry: OutboxEntry, authorization: OutboxAuthorization, exits: List<AndroidNativeExit>,
+                               currentPid: Int, onReclaimed: (Int, Int) -> Unit): OutboxToken {
+        fun full(failure: OutboxWriteException) = failure.failure == OutboxFailure.CAPACITY
+        try { return contexts.enqueueSync(entry, authorization) } catch (failure: OutboxWriteException) { if (!full(failure)) throw failure }
+        fun held() = contexts.snapshotTokens().mapNotNull { token -> contexts.readIfPresent(token)?.entry?.let { token to it } }
+        var unreportable = 0
+        for ((token, context) in held()) {
+            val state = parse(context)
+            val reportable = state != null && (state.pid == currentPid || matchingExits(state, context.reportId, exits).size == 1)
+            if (!reportable) { contexts.removeIfPresent(token); unreportable++ }
+        }
+        var oldest = 0
+        while (true) {
+            try { return contexts.enqueueSync(entry, authorization).also { onReclaimed(unreportable, oldest) } }
+            catch (failure: OutboxWriteException) {
+                if (!full(failure)) throw failure
+                val (token, _) = held().minByOrNull { it.second.createdAt } ?: throw failure
+                contexts.removeIfPresent(token); oldest++
+            }
+        }
+    }
+
+    private class State(val version: Int, val pid: Int, val process: String, val json: JsonObject)
+
+    private fun parse(context: OutboxEntry): State? = try {
+        require(context.envelopeBytes.size <= MAX_CONTEXT_BYTES)
+        val state = json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        val version = state["version"]?.jsonPrimitive?.intOrNull
+        if (version != 1 && version != 2) null
+        else State(version, state["pid"]!!.jsonPrimitive.int, state["process"]!!.jsonPrimitive.content, state)
+    } catch (_: Exception) { null }
+
+    /**
+     * The exact random token plus PID and process name identify the exit; no other process can set this
+     * process's summary. Wall-clock times are not compared: a clock that jumps would hide the match.
+     */
+    private fun matchingExits(state: State, reportId: String, exits: List<AndroidNativeExit>): List<AndroidNativeExit> {
+        val expected = token(reportId)
+        return exits.take(32).filter { it.pid == state.pid && it.processName == state.process && it.stateSummary?.contentEquals(expected) == true }
     }
 
     /** Drops only this owner's current-process context, after its OS token was replaced or cleared. */
@@ -97,25 +148,19 @@ internal class AndroidNativeRecovery(
             if (!authorization.isAllowed()) break
             val context = contexts.readIfPresent(key)?.entry ?: continue
             if (context.reportId in alreadyPrepared) continue
-            if (nowMs >= context.createdAt && nowMs - context.createdAt > MAX_AGE_MS) {
-                contexts.removeIfPresent(key); continue
-            }
-            val state = try {
-                require(context.envelopeBytes.size <= MAX_CONTEXT_BYTES)
-                json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
-            } catch (_: Exception) { continue }
-            val version = state["version"]?.jsonPrimitive?.intOrNull
-            if (version != 1 && version != 2) continue
-            val diagnostics = version == 2
+            // A context with no single matching exit expires 14 days from its creation in either clock
+            // direction, so a clock that jumps back cannot keep it forever. A matched one is reported
+            // however far the clock moved: its age on a jumping wall clock proves nothing.
+            val unmatched = { if (abs(nowMs - context.createdAt) > MAX_AGE_MS) contexts.removeIfPresent(key) }
+            val parsed = parse(context)
+            if (parsed == null) { unmatched(); continue }
+            val state = parsed.json
+            val diagnostics = parsed.version == 2
             val launchId = state["processLaunchId"]?.jsonPrimitive?.contentOrNull
             val apiLevel = state["apiLevel"]?.jsonPrimitive?.intOrNull ?: 31
-            if (diagnostics && (apiLevel < 30 || runCatching { UUID.fromString(launchId).toString() == launchId }.getOrDefault(false).not())) continue
-            val pid = state["pid"]?.jsonPrimitive?.intOrNull ?: continue
-            val process = state["process"]?.jsonPrimitive?.contentOrNull ?: continue
-            val expected = token(context.reportId)
-            val matches = exits.take(32).filter { it.pid == pid && it.processName == process &&
-                it.timestamp >= context.createdAt && it.timestamp <= nowMs && it.stateSummary?.contentEquals(expected) == true }
-            if (matches.size != 1) continue
+            if (diagnostics && (apiLevel < 30 || runCatching { UUID.fromString(launchId).toString() == launchId }.getOrDefault(false).not())) { unmatched(); continue }
+            val matches = matchingExits(parsed, context.reportId, exits)
+            if (matches.size != 1) { unmatched(); continue }
             val exit = matches.single()
             // Only native crashes and ANRs are reported. Low-memory kills, user stops, JVM crashes (the
             // uncaught-exception handler reports those) and other exits are consumed without a report,

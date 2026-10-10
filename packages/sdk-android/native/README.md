@@ -72,9 +72,11 @@ anonymous, and do not fabricate release-health sessions.
 Native capture writes a bounded AES-GCM encrypted record. Its key and frozen
 report context live in Android Keystore-backed capsule storage. Capsule and
 prepared stores are each bounded to eight entries and two MiB; native records
-are bounded to 4096 bytes. Authenticated reports expire after 14 days from capture;
-prepared retries have a 14-day recovery window. Backward clock changes do not
-count as elapsed time. API26/30 ARM64 are the installed qualification targets;
+are bounded to 4096 bytes. An authenticated record is reported however far the
+wall clock moved; a prepared report is offered for admission before its age is
+judged and, if refused, expires once the clock is more than 14 days away from its
+preparation in either direction. Unreadable records and delivery receipts follow
+the same two-sided 14-day rule. API26/30 ARM64 are the installed qualification targets;
 other packaged ABIs require their own device qualification.
 
 ## Reproducible build

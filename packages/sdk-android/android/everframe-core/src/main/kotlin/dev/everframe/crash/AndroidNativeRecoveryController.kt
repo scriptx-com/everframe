@@ -28,12 +28,16 @@ internal class AndroidNativeRecoveryController(
     private val signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE },
     /** Called when exit history shows another writer's process-state summary. */
     private val onSummaryConflict: () -> Unit = ProcessStateSummaryConflict::warn,
+    /** Called when arming had to free context slots: (records that can no longer be reported, oldest records). */
+    private val onJournalFull: (Int, Int) -> Unit = ::warnJournalFull,
 ) {
     private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry, val nowMs: Long, val admit: (OutboxEntry) -> Boolean) {
         val operations = Any()
         // Volatile: readiness is read without the lock, which an arm holds across journal and Binder IO.
         @Volatile var ready = false
         @Volatile var claimed = false
+        /** The exit history this owner's recovery read; a full journal frees slots against it. */
+        var exits: List<AndroidNativeExit> = emptyList()
     }
     private val lock = Any()
     private val publication = Any()
@@ -77,6 +81,7 @@ internal class AndroidNativeRecoveryController(
             if (!gate.isAllowed()) return false
             if (owner.ready) return true
             val exits = platform.history()
+            owner.exits = exits
             if (ProcessStateSummaryConflict.foreign(exits, platform.processName)) runCatching { onSummaryConflict() }
             if (!gate.isAllowed()) return false
             owner.engine.recover(exits, owner.nowMs, gate, allowDiagnostics = owner.diagnostics, signalCapture = signalCapture) {
@@ -85,7 +90,7 @@ internal class AndroidNativeRecoveryController(
             synchronized(lock) {
                 if (!gate.isAllowed()) return false
                 owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics, processLaunchId, platform.apiLevel,
-                    nativeExposure = exposure(owner.epoch)) {
+                    nativeExposure = exposure(owner.epoch), exits = exits, onReclaimed = ::journalFull) {
                     synchronized(publication) {
                         check(gate.isAllowed())
                         owner.claimed = true // An exception may follow a successful remote Binder write.
@@ -128,7 +133,8 @@ internal class AndroidNativeRecoveryController(
                 return try {
                     owner.engine.disarm()
                     owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics,
-                        processLaunchId, platform.apiLevel, nativeExposure = exposure(epoch)) { token ->
+                        processLaunchId, platform.apiLevel, nativeExposure = exposure(epoch), exits = owner.exits,
+                        onReclaimed = ::journalFull) { token ->
                         synchronized(publication) {
                             check(gate.isAllowed()); owner.claimed = true; platform.setStateSummary(token)
                         }
@@ -147,6 +153,8 @@ internal class AndroidNativeRecoveryController(
     /** Lock-free: an arm holds the lock across journal and Binder IO, and callers poll this on the main thread. */
     fun ready(epoch: Int): Boolean =
         active?.let { it.epoch == epoch && it.ready && it.authorization.isAllowed() } == true
+
+    private fun journalFull(unreportable: Int, oldest: Int) { runCatching { onJournalFull(unreportable, oldest) } }
 
     /** Caller holds [lock]. Clears the old owner's OS token and drops only its own context. */
     private fun replace(owner: Active) {
@@ -173,4 +181,9 @@ internal class AndroidNativeRecoveryController(
             } else if (erasePersisted) factory().revoke()
         }
     }
+}
+
+private fun warnJournalFull(unreportable: Int, oldest: Int) {
+    android.util.Log.w("Everframe", "OS exit capture: context journal full; dropped $unreportable record(s) " +
+        "that can no longer be reported and $oldest oldest record(s) to arm this process.")
 }

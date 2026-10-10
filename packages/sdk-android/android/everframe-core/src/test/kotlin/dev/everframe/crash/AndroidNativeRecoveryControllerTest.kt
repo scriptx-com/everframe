@@ -397,4 +397,36 @@ class AndroidNativeRecoveryControllerTest {
         assertEquals(listOf("crash"), admitted.map(::source))
     }
 
+    /** A context armed by an earlier process, created at [createdAt]; [token] receives its OS summary. */
+    private fun earlierContext(pid: Int, createdAt: Long, token: (ByteArray) -> Unit = {}) {
+        val id = UUID.randomUUID().toString()
+        val entry = OutboxEntry(id, createdAt, """{"reportId":"$id","reporter":{},"payload":{}}""".toByteArray(), "template", emptyList(), "key", "https://example.test")
+        engine().arm(entry, pid, "app", allowed, diagnostics = true, register = token)
+    }
+    private fun contexts() = OutboxStore(File(folder.root, "contexts"), keys, ops)
+    @Test fun `a full context journal drops contexts that can no longer be reported and arms`() {
+        // Eight earlier processes ended with no matching OS exit record (a reboot, an evicted record).
+        for (pid in 10 until 18) earlierContext(pid, 1000L + pid)
+        val reclaimed = ArrayList<Pair<Int, Int>>()
+        val platform = Platform()
+        val controller = AndroidNativeRecoveryController(::engine, platform, onJournalFull = { u, o -> reclaimed += u to o })
+        assertTrue("a full journal must not stop capture", controller.enableDiagnostics(1, allowed, 3000, ::template) { true })
+        assertNotNull(platform.registrations.single())
+        assertEquals(listOf(8 to 0), reclaimed)
+        assertEquals(1, contexts().snapshotTokens().size)
+    }
+    @Test fun `a full journal of still reportable contexts drops the oldest and arms`() {
+        val exits = ArrayList<AndroidNativeExit>()
+        for (pid in 10 until 18) earlierContext(pid, 1000L + pid) { token -> exits += AndroidNativeExit(pid, "app", 2000, 5, token) { null } }
+        val reclaimed = ArrayList<Pair<Int, Int>>()
+        val platform = Platform().apply { this.exits = exits }
+        // API30 overlap: each crash still waits for its signal record, so recovery keeps every context.
+        val controller = AndroidNativeRecoveryController(::engine, platform, signalCapture = { NativeSignalCapture.PENDING },
+            onJournalFull = { u, o -> reclaimed += u to o })
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { true })
+        assertEquals(listOf(0 to 1), reclaimed)
+        val left = contexts().let { store -> store.snapshotTokens().mapNotNull { store.readIfPresent(it)?.entry?.createdAt } }
+        assertEquals(8, left.size)
+        assertFalse("the oldest context goes first", 1010L in left)
+    }
 }
