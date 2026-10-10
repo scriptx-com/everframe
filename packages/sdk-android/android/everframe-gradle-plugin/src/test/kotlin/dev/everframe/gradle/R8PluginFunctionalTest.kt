@@ -200,7 +200,8 @@ class R8PluginFunctionalTest {
             rootProject.name = "fixture"
             ${if (includeOther) "include(\":other\")" else ""}
         """.trimIndent())
-        File(root, "local.properties").writeText("sdk.dir=${System.getenv("ANDROID_HOME") ?: "/Users/aurimas/Library/Android/sdk"}\n")
+        val sdk = System.getenv("ANDROID_HOME") ?: "${System.getProperty("user.home")}/Library/Android/sdk"
+        File(root, "local.properties").writeText("sdk.dir=$sdk\n")
     }
 
     private fun writeApp(root: File, relative: String, enabled: Boolean, flavors: Boolean, minified: Boolean = true, cliExit: Int = 0) {
