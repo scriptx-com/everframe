@@ -92,7 +92,9 @@ data class EverframeConfig(
     val vitals: VitalsConfig = VitalsConfig(),
     /**
      * Public identity of the R8 mapping used for this exact optimized build.
-     * The crash path validates the wire grammar and omits invalid values.
+     * Defaults to the ID the dev.everframe Gradle plugin packages with the build;
+     * set it only to override. The crash path validates the wire grammar and
+     * omits invalid values.
      */
     val r8MappingId: String? = null,
     /** Durable foreground monitoring sessions, anonymous unless [ReleaseHealthConfig.userId] is set. Explicit opt-in; independent of replay/vitals. */

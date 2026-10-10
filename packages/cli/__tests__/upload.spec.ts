@@ -94,12 +94,14 @@ function json(
 
 afterEach(async () => {
   await Promise.all(
-    servers
-      .splice(0)
-      .map(
-        (server) =>
-          new Promise<void>((resolve) => server.close(() => resolve())),
-      ),
+    servers.splice(0).map(
+      (server) =>
+        new Promise<void>((resolve) => {
+          // A server that never answers keeps its sockets open.
+          server.closeAllConnections();
+          server.close(() => resolve());
+        }),
+    ),
   );
 });
 
@@ -493,4 +495,58 @@ it("preserves supported in-root map symlink uploads without cleanup", async () =
     status: "ready",
   });
   expect((await lstat(options.mapPath)).isSymbolicLink()).toBe(true);
+});
+
+describe("upload time limits", () => {
+  it("times out a request whose server accepts the connection and never answers", async () => {
+    const options = await fixture();
+    options.apiUrl = await listen(() => undefined);
+    const started = Date.now();
+    await expect(
+      uploadBuild(options, { wait: async () => undefined, requestTimeoutMs: 50 }),
+    ).rejects.toThrow("request_failed:timeout");
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it("stops at the overall time budget even inside a request", async () => {
+    const options = await fixture();
+    options.apiUrl = await listen(() => undefined);
+    const started = Date.now();
+    await expect(
+      uploadBuild(options, { wait: async () => undefined, deadline: Date.now() + 200 }),
+    ).rejects.toThrow("upload_time_budget_exhausted");
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it("waits out upload_busy as told while the budget lasts, then carries on", async () => {
+    const options = await fixture();
+    let requests = 0;
+    const waits: number[] = [];
+    options.apiUrl = await listen((_req, res) => {
+      requests += 1;
+      if (requests <= 5)
+        json(res, 429, { error: "upload_busy", retryable: true }, { "retry-after": "30" });
+      else json(res, 200, status("ready", true));
+    });
+    await uploadBuild(options, {
+      wait: async (milliseconds) => void waits.push(milliseconds),
+      deadline: Date.now() + 10 * 60_000,
+    });
+    expect(waits).toEqual(Array(5).fill(30_000));
+  });
+
+  it("gives up on upload_busy when waiting would pass the budget", async () => {
+    const options = await fixture();
+    const waits: number[] = [];
+    options.apiUrl = await listen((_req, res) =>
+      json(res, 429, { error: "upload_busy", retryable: true }, { "retry-after": "30" }),
+    );
+    await expect(
+      uploadBuild(options, {
+        wait: async (milliseconds) => void waits.push(milliseconds),
+        deadline: Date.now() + 5_000,
+      }),
+    ).rejects.toThrow("upload_time_budget_exhausted");
+    expect(waits).toEqual([]);
+  });
 });

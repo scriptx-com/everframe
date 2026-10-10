@@ -12,8 +12,14 @@
 //      names (which Everframe walks reflectively to derive `componentPath`) survive
 //      R8 minification even when the host's own keep rules don't preserve them.
 //
-// The plugin is OPTIONAL. `:everframe-core`'s consumer-rules.pro already auto-merges
-// via the AAR; the plugin is a customer-opt-in convenience for stricter R8 setups.
+//   3. Upload symbols after release builds: `assemble<Variant>` and `bundle<Variant>`
+//      are finalized by `uploadEverframe<Variant>R8Mapping` (the mapping ID is
+//      the SHA-256 of mapping.txt, packaged as assets/everframe/build-identity.properties
+//      for the SDK) and `uploadEverframe<Variant>NativeSymbols`. A missing token or a
+//      failed upload warns and the build continues unless EVERFRAME_SYMBOLS_STRICT=1.
+//
+// The plugin is optional; `:everframe-core`'s consumer-rules.pro already auto-merges
+// via the AAR.
 //
 // Customer usage in their `build.gradle.kts`:
 //
@@ -32,16 +38,14 @@ import java.io.File
 public class EverframePlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
-        val r8 = target.extensions.create("everframeR8", EverframeR8Extension::class.java).apply {
-            enabled.convention(false)
-            buildTypes.convention(setOf("release"))
-            buildId.convention(target.providers.environmentVariable("EVERFRAME_R8_BUILD_ID"))
+        val extension = target.extensions.create("everframe", EverframeExtension::class.java).apply {
             appId.convention(target.providers.environmentVariable("EVERFRAME_APP_ID"))
-            cliExecutable.convention("everframe")
-            cliArgs.convention(emptyList())
+            uploadEnabled.convention(true)
+            buildTypes.convention(setOf("release"))
+            cliCommand.convention(defaultCliCommand(target))
         }
         target.pluginManager.withPlugin("com.android.application") {
-            wireR8Variants(target, r8)
+            wireVariants(target, extension)
         }
         target.afterEvaluate {
             // 1. Extract the bundled keep file to the project's build directory so

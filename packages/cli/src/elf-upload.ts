@@ -2,17 +2,21 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { dirname } from 'node:path';
 import type { BuildUploadStatus } from '@everframe/protocol';
-import { collectAndroidElfBuild, verifyAndroidElfBuild } from './elf-build.js';
+import { collectAndroidElfBuild, verifyAndroidElfBuild, type CollectedAndroidElfBuild, type ElfBinaryInput } from './elf-build.js';
 import { uploadCollectedBuild, type UploadDependencies } from './upload.js';
 /** Independent immutable uploads: a later failure leaves earlier ready artifacts reusable. */
 export async function uploadAndroidElfBuild(options: {
-    binaries: string[];
+    binaries: ElfBinaryInput[];
     symbolsDir: string;
     appId: string;
     apiUrl: string;
     token: string;
-}, dependencies: UploadDependencies = {}) {
-    const build = await collectAndroidElfBuild(options);
+}, dependencies: UploadDependencies = {}): Promise<{
+    artifacts: BuildUploadStatus[];
+    images: CollectedAndroidElfBuild['images'];
+    uncovered: CollectedAndroidElfBuild['uncovered'];
+}> {
+    const build = await collectAndroidElfBuild({ binaries: options.binaries, symbolsDir: options.symbolsDir });
     await verifyAndroidElfBuild(build);
     const artifacts: BuildUploadStatus[] = [];
     for (const local of build.artifacts) {
@@ -22,5 +26,5 @@ export async function uploadAndroidElfBuild(options: {
         }, dependencies));
     }
     await verifyAndroidElfBuild(build);
-    return { artifacts, images: build.images };
+    return { artifacts, images: build.images, uncovered: build.uncovered };
 }

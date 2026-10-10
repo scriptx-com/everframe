@@ -29,8 +29,8 @@ async function fixture() {
     binaries,
     files,
     options: {
-      binaries,
-      dsymDir: root,
+      binaries: binaries.map((path) => ({ path, required: true })),
+      dsymDirs: [root],
       appId: "app",
       apiUrl: "http://localhost:12345/api/v1",
       token: "fixture-secret",
@@ -274,4 +274,12 @@ it("prints the whole uncovered-image diagnostic with the token redacted", async 
   expect(output).not.toContain("fixture-secret");
   expect(output).not.toContain(UUID_A);
   expect(fetcher).not.toHaveBeenCalled();
+});
+it("in lenient mode keeps uploading after one file fails and reports it", async () => {
+  const f = await fixture(),
+    api = server();
+  api.hooks.reject = true;
+  const result = await uploadAppleBuild({ ...f.options, lenient: true }, { fetch: api.fetcher, wait: async () => {} });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.failed).toEqual([{ path: expect.stringContaining("Framework"), message: "request_failed:invalid_api_token" }]);
 });

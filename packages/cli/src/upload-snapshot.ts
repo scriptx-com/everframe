@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { createHash } from "node:crypto";
-import { constants, createReadStream, rmSync } from "node:fs";
-import { mkdtemp, open, rm, type FileHandle } from "node:fs/promises";
+import { constants, createReadStream, createWriteStream, rmSync } from "node:fs";
+import { mkdtemp, open, rm, stat, type FileHandle } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DSYM_MAX_BYTES } from "@everframe/protocol";
+import { pipeline } from "node:stream/promises";
+import { createGzip } from "node:zlib";
+import { DSYM_MAX_BYTES, R8_MAX_BYTES } from "@everframe/protocol";
 
 interface Identity {
   mapBytes: number;
@@ -56,7 +58,7 @@ async function readChecked(
   if (
     !Number.isSafeInteger(identity.mapBytes) ||
     identity.mapBytes <= 0 ||
-    identity.mapBytes > DSYM_MAX_BYTES
+    identity.mapBytes > Math.max(DSYM_MAX_BYTES, R8_MAX_BYTES)
   )
     throw changed();
   const file = await open(
@@ -113,6 +115,40 @@ export async function verifyDsymFile(
   await readChecked(path, identity);
 }
 
+/**
+ * A private copy of a checked large artifact, streamed for each attempt.
+ * With `gzip`, the copy is compressed once so retries replay identical bytes
+ * and the request carries an exact Content-Length.
+ */
+export async function snapshotArtifactFile(
+  path: string,
+  identity: Identity,
+  options: { gzip?: boolean } = {},
+) {
+  const snapshot = await snapshotDsymFile(path, identity);
+  if (!options.gzip) return { ...snapshot, bytes: identity.mapBytes, encoding: undefined };
+  try {
+    const compressed = snapshot.path + ".gz";
+    await pipeline(
+      createReadStream(snapshot.path, { highWaterMark: 64 * 1024 }),
+      createGzip({ level: 6 }),
+      createWriteStream(compressed, { flags: "wx", mode: 0o600 }),
+    );
+    await rm(snapshot.path, { force: true });
+    const bytes = (await stat(compressed)).size;
+    return {
+      stream: () => createReadStream(compressed, { highWaterMark: 64 * 1024 }),
+      dispose: snapshot.dispose,
+      path: compressed,
+      bytes,
+      encoding: "gzip" as const,
+    };
+  } catch (error) {
+    await snapshot.dispose();
+    throw error;
+  }
+}
+
 export async function snapshotDsymFile(path: string, identity: Identity) {
   const directory = await mkdtemp(join(tmpdir(), "everframe-dsym-upload-"));
   hold(directory);
@@ -134,6 +170,7 @@ export async function snapshotDsymFile(path: string, identity: Identity) {
     return {
       stream: () => createReadStream(snapshot, { highWaterMark: 64 * 1024 }),
       dispose,
+      path: snapshot,
     };
   } catch (error) {
     await dispose();

@@ -26,9 +26,28 @@
 
 pluginManagement {
     repositories {
+        // The dev.everframe Gradle plugin is published next to the SDK, so it
+        // comes from the same disposable repository.
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "everframeLocal"
+                    url = uri(System.getenv("MAVEN_LOCAL_REPOSITORY")
+                        ?: error("MAVEN_LOCAL_REPOSITORY must point at the disposable Everframe repository"))
+                }
+            }
+            filter { includeGroup("dev.everframe") }
+        }
         gradlePluginPortal()
         google()
         mavenCentral()
+    }
+    // Same version source as the SDK dependencies in app/build.gradle.kts.
+    val everframeVersion: String = providers.gradleProperty("everframeVersion").orNull
+        ?: file("../../packages/sdk-android/android/gradle.properties").readLines()
+            .firstNotNullOf { line -> line.trim().removePrefix("everframeVersion=").takeIf { it != line.trim() } }
+    resolutionStrategy {
+        eachPlugin { if (requested.id.id == "dev.everframe") useVersion(everframeVersion) }
     }
 }
 
