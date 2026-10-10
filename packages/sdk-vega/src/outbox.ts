@@ -7,6 +7,12 @@
 // whatever is left. One storage key holds the whole (small, capped) list so a
 // write is one setItem, and writes run one at a time behind the initial load,
 // so a capture during startup can never overwrite stored reports.
+//
+// Every report is bound to where it was captured for: the ingest URL and a
+// fingerprint of the SDK key. An outbox only ever holds reports for its own
+// binding; anything else found in storage (another key, another endpoint, or
+// a report from before bindings existed) is dropped, never sent, so one app's
+// report can never travel under another app's key.
 import type { AsyncStorageLike } from './config.js';
 
 export const OUTBOX_KEY = '@everframe/vega/outbox/v1';
@@ -15,7 +21,14 @@ export const MAX_SERIALIZED_CHARS = 512 * 1024;
 export const MAX_ATTEMPTS = 8;
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-export interface OutboxItem {
+/** Where a report may be delivered: its capture-time ingest URL and key fingerprint. */
+export interface OutboxBinding {
+  endpoint: string;
+  /** Non-reversible fingerprint of the SDK key (never the key itself). */
+  keyHash: string;
+}
+
+export interface OutboxItem extends OutboxBinding {
   reportId: string;
   /** The envelope exactly as it will be sent. Kept serialized: a resend is byte-identical. */
   body: string;
@@ -39,6 +52,14 @@ export interface OutboxDeps {
   storage: AsyncStorageLike | undefined;
   now: () => number;
   warn: (message: string) => void;
+  /** The running configuration; only reports bound to it are kept. */
+  binding: OutboxBinding;
+  /** Development-only log for reports dropped because their binding differs. */
+  debug: (message: string) => void;
+}
+
+export function sameBinding(item: OutboxBinding, binding: OutboxBinding): boolean {
+  return item.endpoint === binding.endpoint && item.keyHash === binding.keyHash;
 }
 
 function isItem(value: unknown): value is OutboxItem {
@@ -49,7 +70,9 @@ function isItem(value: unknown): value is OutboxItem {
     typeof item.body === 'string' &&
     typeof item.enqueuedAt === 'number' &&
     typeof item.attempts === 'number' &&
-    typeof item.fatal === 'boolean'
+    typeof item.fatal === 'boolean' &&
+    typeof item.endpoint === 'string' &&
+    typeof item.keyHash === 'string'
   );
 }
 
@@ -72,6 +95,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
   let items: OutboxItem[] = [];
   let warnedWrite = false;
 
+  let stale = false;
   const load = async (): Promise<void> => {
     if (!deps.storage) return;
     try {
@@ -80,11 +104,23 @@ export function createOutbox(deps: OutboxDeps): Outbox {
       const parsed: unknown = JSON.parse(raw);
       if (!Array.isArray(parsed)) return;
       const seen = new Set<string>();
+      let foreign = 0;
       items = parsed.filter((item): item is OutboxItem => {
-        if (!isItem(item) || seen.has(item.reportId)) return false;
+        if (!isItem(item) || seen.has(item.reportId)) {
+          stale = true;
+          return false;
+        }
+        if (!sameBinding(item, deps.binding)) {
+          foreign++;
+          return false;
+        }
         seen.add(item.reportId);
         return true;
       });
+      if (foreign > 0) {
+        stale = true;
+        deps.debug(`[everframe] dropped ${foreign} stored report(s) captured for another SDK key or endpoint; they are not sent`);
+      }
     } catch {
       // Unreadable storage behaves as empty; the next write replaces it.
       items = [];
@@ -118,9 +154,15 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     return run;
   };
 
+  // Dropped items must leave storage too, not only memory.
+  queue = queue.then(async () => {
+    if (stale) await persist();
+  });
+
   return {
     ready,
     add(item) {
+      if (!sameBinding(item, deps.binding)) return Promise.resolve();
       return mutate((current) => fit([...current.filter((existing) => existing.reportId !== item.reportId), item]));
     },
     remove(reportId) {

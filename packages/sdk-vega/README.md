@@ -64,7 +64,7 @@ Metro and are not mapped.
 | Call | |
 | --- | --- |
 | `init(config)` | Start the SDK. Call once; later calls are ignored. |
-| `captureException(error, options?)` | Report a caught error. `options`: `severity` (`info`, `warning`, `error`), `context` (a label), `metadata` (flat: strings, numbers, booleans, null). |
+| `captureException(error, options?)` | Report a caught error. `options`: `severity` (`info`, `warning`, `error`), `context` (a label), `metadata` (flat: strings, numbers, booleans, null). Keys that name a credential (`password`, `token`, `secret`, `apiKey`, `authorization`, `cookie`, in any case or spelling) keep their name and get `[REDACTED]` before the report is stored or sent. |
 | `setUser(user \| null)` | `{ id?, email?, displayName? }` on later reports. |
 | `addBreadcrumb({ message, kind?, level?, data? })` | The latest 100 breadcrumbs ride on every report. |
 | `flush()` | Resolves after stored reports were sent once. |
@@ -93,7 +93,10 @@ Reports are JSON `POST`s to `/api/ingest`; Vega OS networking drops
 multipart bodies. Each report is stored before it is sent, retried with
 backoff while the app runs and on the next launches (up to 8 attempts or 7
 days), and removed once the server accepts or permanently rejects it. A resend
-carries the same report id, so the server stores it once. At most 10 reports
+carries the same report id, so the server stores it once. A stored report is
+bound to the endpoint and SDK key it was captured under (the key as a
+one-way fingerprint, never the key itself): if a later launch is configured with
+another key or endpoint, the report is dropped, never sent elsewhere. At most 10 reports
 wait at a time; non-fatal ones are dropped first.
 
 Per launch, the same automatic error from the same place is reported once,

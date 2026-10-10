@@ -334,3 +334,73 @@ describe('anonymous callbacks', () => {
     expect(a).not.toBe(b);
   });
 });
+
+describe('stored reports stay with their SDK key and endpoint', () => {
+  async function fatalLeftInStorage(config: Record<string, unknown> = {}) {
+    const first = start({ statuses: [503] }, config);
+    first.errorUtils.handler!(vegaError('boom'), true);
+    await vi.waitFor(() => expect(first.errorUtils.previous).toHaveLength(1));
+    expect(stored(first.storage)).toHaveLength(1);
+    return first.storage;
+  }
+
+  function relaunch(storage: ReturnType<typeof createStorage>, config: Record<string, unknown>) {
+    const harness = createEnv({ statuses: [200], dev: true });
+    const client = createVegaClient(harness.env);
+    client.init({ sdkKey: SDK_KEY, storage, ...config });
+    return { ...harness, client };
+  }
+
+  it('never sends a report captured under another SDK key', async () => {
+    const storage = await fatalLeftInStorage();
+    const next = relaunch(storage, { sdkKey: 'evf_live_another_app' });
+    await next.client.flush();
+    expect(next.fetch.requests).toHaveLength(0);
+    expect(stored(storage)).toEqual([]);
+    expect(next.warnings.join('\n')).toContain('captured for another SDK key or endpoint');
+  });
+
+  it('never sends a report captured for another endpoint', async () => {
+    const storage = await fatalLeftInStorage({ endpoint: 'http://127.0.0.1:8790' });
+    const next = relaunch(storage, {});
+    await next.client.flush();
+    expect(next.fetch.requests).toHaveLength(0);
+    expect(stored(storage)).toEqual([]);
+  });
+
+  it('replays to the same endpoint under the same key', async () => {
+    const storage = await fatalLeftInStorage({ endpoint: 'http://127.0.0.1:8790' });
+    const next = relaunch(storage, { endpoint: 'http://127.0.0.1:8790' });
+    await next.client.flush();
+    expect(next.fetch.requests.map((r) => [r.url, r.headers.Authorization])).toEqual([
+      ['http://127.0.0.1:8790/api/ingest', `Bearer ${SDK_KEY}`],
+    ]);
+  });
+
+  it('stores a fingerprint of the key, not the key', async () => {
+    const storage = await fatalLeftInStorage();
+    const [entry] = stored(storage);
+    expect(entry!.keyHash).toMatch(/^[0-9a-f]{32}$/);
+    expect(entry!.endpoint).toBe('https://everframe.dev/api/ingest');
+    expect(storage.data.get('@everframe/vega/outbox/v1')).not.toContain(SDK_KEY);
+  });
+});
+
+describe('credential-named metadata', () => {
+  it('never reaches storage or the network', async () => {
+    const { client, fetch, storage } = start({ statuses: [503] });
+    client.captureException(vegaError('login failed'), {
+      metadata: { password: 'hunter2', API_KEY: 'k-123', Authorization: 'Bearer abc', user: 'u-1' },
+    });
+    await client.flush();
+    const written = storage.data.get('@everframe/vega/outbox/v1') ?? '';
+    for (const secret of ['hunter2', 'k-123', 'Bearer abc']) {
+      expect(written).not.toContain(secret);
+      expect(fetch.requests[0]!.body).not.toContain(secret);
+    }
+    expect(fetch.requests[0]!.envelope.payload.crash.details.metadata).toEqual({
+      password: '[REDACTED]', API_KEY: '[REDACTED]', Authorization: '[REDACTED]', user: 'u-1',
+    });
+    expectValidEnvelope(fetch.requests[0]!.envelope);
+  });
+});

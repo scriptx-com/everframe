@@ -4,7 +4,7 @@
 // The Vega OS client. Every platform global it touches arrives through
 // `VegaEnvironment`, so the whole capture → persist → deliver path runs in
 // Node tests with fakes; src/index.ts wires the real globals.
-import { createBreadcrumbBuffer, type DeviceMetadata } from '@everframe/sdk-core';
+import { createBreadcrumbBuffer, sha256Hex, type DeviceMetadata } from '@everframe/sdk-core';
 import { captureKey, jsBundleFor, probeBundleId, stripBuildPath } from './bundle.js';
 import {
   resolveConfig,
@@ -17,7 +17,7 @@ import {
 import { buildVegaEnvelope } from './envelope.js';
 import { extractFacts, isErrorValue, renderLabel, renderValue } from './error-facts.js';
 import { uuidV4 } from './ids.js';
-import { createOutbox, type Outbox, type OutboxItem } from './outbox.js';
+import { createOutbox, sameBinding, type Outbox, type OutboxBinding, type OutboxItem } from './outbox.js';
 import { sendReport, type FetchLike } from './transport.js';
 import { SDK_VERSION } from './version.js';
 
@@ -98,6 +98,15 @@ function valueKey(message: string): string {
   return `${VALUE_KEY}${(hash >>> 0).toString(16)}`;
 }
 
+/**
+ * Where reports captured under `config` may go. The key is stored only as a
+ * truncated, domain-separated SHA-256: enough to tell keys apart, never enough
+ * to send with.
+ */
+export function outboxBinding(config: { ingestUrl: string; sdkKey: string }): OutboxBinding {
+  return { endpoint: config.ingestUrl, keyHash: sha256Hex(`everframe-vega/outbox-key\n${config.sdkKey}`).slice(0, 32) };
+}
+
 function cleanUser(user: VegaUser | null | undefined): VegaUser | null {
   if (!user || typeof user !== 'object') return null;
   const out: VegaUser = {};
@@ -109,6 +118,7 @@ function cleanUser(user: VegaUser | null | undefined): VegaUser | null {
 
 export function createVegaClient(env: VegaEnvironment): VegaClient {
   let config: ResolvedConfig | null = null;
+  let binding: OutboxBinding | undefined;
   let phase: 'idle' | 'running' | 'disabled' = 'idle';
   let outbox: Outbox | undefined;
   let bundleId: string | undefined;
@@ -127,6 +137,9 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
   let failures = 0;
   /** Per report: no automatic attempt before this time (this launch only). */
   const notBefore = new Map<string, number>();
+  const debug = (message: string) => {
+    if (env.dev) env.warn(message);
+  };
 
   function admit(mechanism: Mechanism, fatal: boolean, key: string, value: unknown): boolean {
     if (fatal) return true;
@@ -186,7 +199,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       user,
     });
     remember(mechanism, key, value);
-    return { reportId, body: JSON.stringify(envelope), enqueuedAt: env.now(), attempts: 0, fatal };
+    return { reportId, body: JSON.stringify(envelope), enqueuedAt: env.now(), attempts: 0, fatal, ...binding! };
   }
 
   const retryDelay = (): number =>
@@ -203,7 +216,15 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
   /** One attempt for one item; the item stays stored until the server answers for good. */
   async function attempt(item: OutboxItem): Promise<'sent' | 'drop' | 'retry' | 'busy'> {
     if (inFlight.has(item.reportId)) return 'busy';
-    if (!config || !outbox || !env.fetch) return 'retry';
+    if (!config || !outbox || !binding || !env.fetch) return 'retry';
+    // Never send a report anywhere but where it was captured for, nor under
+    // another key. The outbox already drops such reports; this guards the
+    // send itself.
+    if (!sameBinding(item, binding)) {
+      debug('[everframe] dropped a stored report captured for another SDK key or endpoint; it is not sent');
+      await outbox.remove(item.reportId);
+      return 'drop';
+    }
     inFlight.add(item.reportId);
     try {
       const result = await sendReport(
@@ -404,7 +425,8 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       if (!resolved.storage && env.dev) {
         env.warn('[everframe] no storage passed to init(); a crash that cannot be sent before the app stops is lost');
       }
-      outbox = createOutbox({ storage: resolved.storage, now: env.now, warn: env.warn });
+      binding = outboxBinding(resolved);
+      outbox = createOutbox({ storage: resolved.storage, now: env.now, warn: env.warn, binding, debug });
       phase = 'running';
       try {
         installErrorHandler();
