@@ -107,8 +107,15 @@ that names no function, so its message is part of the key as well.
 
 ## Compatibility
 
-Verified against Vega OS 1.1 (React Native 0.72, Hermes 0.12) in Vega's
-bundler. React Native 0.83 on Vega OS 1.2 is not verified yet.
+Verified on the Vega Virtual Device with Vega OS 1.1 (React Native 0.72,
+Hermes 0.12): install, start, a handled error, an unhandled rejection, fatal
+errors from a timer and from React render (stored, delivered on relaunch,
+deduplicated), and source-map symbolication. React Native 0.83 on Vega OS 1.2
+is untested.
+
+`captureException` details are lighter than in the other SDKs: metadata is
+flat, and an error's `cause` chain is not reported (Hermes 0.12 has no
+`new Error(message, { cause })`).
 
 ## License
 
