@@ -72,12 +72,12 @@ with truncation flags. Causes do not change the outer error's grouping key.
 
 `Everframe.start` arms crash capture whenever `capture.crash` is `true`, which is the default. No other call is needed. The SDK picks the mechanism from the API level:
 
-| API | JVM exceptions | Native crashes | ANRs |
-| --- | --- | --- | --- |
-| 24–25 | yes | — | — |
-| 26–29 | yes | with the optional `dev.everframe:native-crash` module (not yet on Maven Central) | — |
-| 30 | yes | OS exit record without frames; with `native-crash`, the fault frame, reported once | yes |
-| 31+ | yes | OS exit record with tombstone frames | yes |
+| API | JVM exceptions (including `OutOfMemoryError`) | Native crashes | ANRs | Low-memory kills while the user could see or hear the app |
+| --- | --- | --- | --- | --- |
+| 24–25 | yes | — | — | — |
+| 26–29 | yes | with the optional `dev.everframe:native-crash` module (not yet on Maven Central) | — | — |
+| 30 | yes | OS exit record without frames; with `native-crash`, the fault frame, reported once | yes | yes |
+| 31+ | yes | OS exit record with tombstone frames | yes | yes |
 
 Native and OS exit capture run in the default app process only; other processes report JVM exceptions. Capture begins once the asynchronous arm after `start()` completes; a native crash or ANR before that is not reported. `Everframe.isNativeCrashCaptureReady()` becomes true once every mechanism selected for the current start has armed. It stays false where no native mechanism exists, while setup runs, and when a mechanism refused (another app-bundled native crash collector, or unextracted native libraries).
 
@@ -85,7 +85,7 @@ To turn capture off, start with `CaptureConfig(crash = false)`: capture stops at
 
 While `capture.crash` is on, the SDK owns `ActivityManager.setProcessStateSummary` in the default process; do not call it. An exit whose summary another writer replaced is not reported, and is never misattributed. When exit history shows such a summary, the SDK logs an `Everframe` warning naming `process-state-summary-conflict`. A writer that always runs before the SDK is overwritten silently and loses its own use of the slot.
 
-ANR terminations use the OS exit reason, not a missing heartbeat. Only native crash and ANR exits are reported. Low-memory kills, user-requested stops, JVM crash exits (the uncaught-exception handler already reports those) and other reasons are not sent. A recovered live stall produces no report. An ANR trace attached to an unrelated exit is never used to relabel that exit. API30 native exits have metadata only; native tombstones require API31. Reports are anonymous and preserve the previous process's destination and release; they do not acquire the new process's user, session or web exposure.
+ANR terminations use the OS exit reason, not a missing heartbeat. Only native crash, ANR and user-facing low-memory exits are reported. A low-memory kill (`REASON_LOW_MEMORY`) is reported when the app's importance at death was foreground, foreground service (background audio or video playback), visible or perceptible; it becomes one fatal crash, "Low memory kill", with that importance, the PSS/RSS the OS recorded (when it recorded any) and its exit description. It has no stack, so every such kill of an app shares one issue. Background and cached reclaims, user-requested stops, JVM crash exits (the uncaught-exception handler already reports those) and other reasons are not sent. Low-memory kills are told apart only where the OS records them as `REASON_LOW_MEMORY`: when `ActivityManager.isLowMemoryKillReportSupported()` is false, or when the kernel OOM killer ends the app before lmkd does (seen on the API 31 Android TV emulator, which records `SIGNALED`), the death is not reported; the SDK never guesses from SIGKILL. Below API 30 low-memory kills are not detected. A recovered live stall produces no report. An ANR trace attached to an unrelated exit is never used to relabel that exit. API30 native exits have metadata only; native tombstones require API31. Reports are anonymous and preserve the previous process's destination and release; they do not acquire the new process's user, session or web exposure.
 
 On API30 with `native-crash`, a fault its handler recorded is reported once, by the signal path with its fault frame; the OS exit adds no second, frameless crash. A record that no later start can deliver (unreadable) expires once the clock is more than 14 days away from its creation, and its exit is not reported as a crash. A native exit the handler did not record is still reported from the OS exit.
 
