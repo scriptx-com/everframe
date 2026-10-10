@@ -41,3 +41,9 @@ if (providers.gradleProperty("nativeReleaseAcceptance").orNull == "true") {
     include(":native-release-host")
     project(":native-release-host").projectDir = file("../tests/native-release-host/app")
 }
+
+// Installed default-crash acceptance; absent from normal SDK builds and publications.
+if (providers.gradleProperty("crashDefaultAcceptance").orNull == "true") {
+    include(":crash-default-host")
+    project(":crash-default-host").projectDir = file("../tests/crash-default-host/app")
+}
