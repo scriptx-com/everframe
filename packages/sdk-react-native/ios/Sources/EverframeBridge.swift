@@ -228,9 +228,9 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// Wires `EFReporterPresenter` as the resolver for `Everframe.shared.report
     /// .open()`. Called from configure(); the first call installs, subsequent
     /// calls no-op. tvOS has no on-device modal — reporting goes through the
-    /// phone-companion flow (QR → phone browser) — so the presenter type
-    /// itself is `#if !os(tvOS)`-gated in EverframeReporterUI. Mirror that
-    /// gate here so the bridge compiles for the tvOS slice.
+    /// phone-companion flow (QR → phone browser) — so EverframeReporterUI's
+    /// tvOS `installResolver()` is a no-op. The gate here skips that call and
+    /// logs where tvOS reporting goes instead.
     private static func installPresenterResolverIfNeeded() {
         #if !os(tvOS)
         resolverInstallLock.lock()

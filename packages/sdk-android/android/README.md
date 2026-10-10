@@ -7,7 +7,7 @@ Native Android SDK for Everframe — in-app bug reporting with annotated screens
 session replay, log/network ring buffers, and a built-in Compose reporter UI.
 Covers phone, tablet, and Android TV.
 
-Maven Central serves version `0.10.2`, including the shorter Gradle plugin
+Maven Central serves version `1.1.0`, including the shorter Gradle plugin
 artifact name.
 
 ---
@@ -47,10 +47,14 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("dev.everframe:core:0.10.0")
-    implementation("dev.everframe:reporter-ui:0.10.0")
+    implementation("dev.everframe:core:1.1.0")
+    implementation("dev.everframe:reporter-ui:1.1.0")
 }
 ```
+
+`core` declares `android.permission.INTERNET`, and the manifest merger adds it to
+your app. SDK 1.1.0 and earlier do not: with those, declare it in your app's
+`AndroidManifest.xml`, or the SDK sends nothing.
 
 ### 3. Initialize at startup
 
@@ -61,8 +65,7 @@ class MyApp : Application() {
         Everframe.start(
             this,
             EverframeConfig(
-                appId = "your-app-id",
-                endpoint = "https://ingest.your-tenant.example/api/ingest",
+                appId = "<App ID>", // the UUID on the app's Setup tab in the dashboard
                 sdkKey = BuildConfig.EVERFRAME_SDK_KEY,
                 environment = Environment.production,
                 // Exact public identity of this optimized build's R8 mapping.
@@ -619,8 +622,9 @@ the Compose sample app on every PR.
 
 ## Privacy
 
-By default the SDK captures no permissions. The published AAR has `0` `<uses-permission>`
-entries (CI gate enforced — `aapt dump permissions everframe-core-release.aar`).
+The SDK asks for no runtime permissions. `core`'s manifest declares one install-time
+permission, `android.permission.INTERNET`, which Gradle's manifest merger adds to
+your app; the other modules declare none.
 Sensitive UI is redacted at bake time (PRIV-03): pixels in
 `Modifier.txSensitive()` / `TXSensitiveView` / `inputType="textPassword"` regions
 are baked BLACK before the screenshot bytes ever reach the reporter UI or the

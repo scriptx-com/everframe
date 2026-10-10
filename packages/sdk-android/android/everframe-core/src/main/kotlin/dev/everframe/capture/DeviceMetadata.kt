@@ -11,11 +11,12 @@
 // data class would duplicate the Generated.kt schema; the Map keeps things
 // schema-agnostic until the protocol stabilizes the device-context shape.
 //
-// Zero-permission rule (RESEARCH Finding 6 — capture pipeline + Pitfall 2):
+// Permission rule (RESEARCH Finding 6 — capture pipeline + Pitfall 2): the
+// metadata snapshot needs no permission.
 //   • No ACCESS_NETWORK_STATE — that's host-app territory. We never declare it.
 //   • No READ_PHONE_STATE — we use Build.MODEL/MANUFACTURER (always available).
-//   • No GET_ACCOUNTS, no INTERNET (host already declared it).
-// The Manifest is empty (Plan 01 — `<manifest />` only).
+//   • No GET_ACCOUNTS.
+// core's manifest declares INTERNET only, for report delivery.
 
 package dev.everframe.capture
 

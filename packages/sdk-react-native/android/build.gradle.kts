@@ -21,11 +21,10 @@
 //   spec); a host on the new architecture can flip the parent class with a
 //   1-line patch once codegen output is available in the consuming build.
 //
-// ZERO-PERMISSION:
-//   No `<uses-permission>` in AndroidManifest.xml. The bridge adds zero
-//   permissions on top of whatever `:everframe-core` declares (the core also
-//   has none — Phase 5 zero-permission AAR contract). Verified by the 06-03
-//   acceptance grep.
+// PERMISSIONS:
+//   No `<uses-permission>` in AndroidManifest.xml. The bridge adds no
+//   permissions on top of what `:everframe-core` declares (INTERNET only,
+//   merged into the host app's manifest).
 //
 // SCOPE (NOT in this build):
 //   • Namespace is `dev.everframe.rn`.
