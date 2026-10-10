@@ -1,0 +1,33 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_c2b35633098a71 154-156,652-658,661-666,912-919,985-993,1050-1062,1414
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_dbd309ddf8ec5b::t_d346b1780f3bcc 25-26,59
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryRequests.kt
+  s_dbd309ddf8ec5b::t_81353859f95ddd 15-17
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AppProcess.kt
+  s_dbd309ddf8ec5b::t_54d23cff412fd2 12-13
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/CrashCapturePublicSurfaceTest.kt
+  s_dbd309ddf8ec5b::t_34dcb3f384b9fb 3,8-18
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/AndroidNativeCrashRuntimeTest.kt
+  s_dbd309ddf8ec5b::t_be6fe7514c2cf6 34,38,48,66,114,116,120,122-123,141-142,144,147-153,155,161,163,167,169-171,178,186
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/CrashCaptureStartTest.kt
+  s_dbd309ddf8ec5b::t_2e9860370758ca 3-5,7-23,31-34,36,38-146,148-197,200-204,207-212,215-222,226-232
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/health/ReleaseHealthRuntimeTest.kt
+  s_dbd309ddf8ec5b::t_80ba1e852fb2a9 200-201,214,224,231,243,249,254,259,264,269
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f6fac8f419ad839d6163e2f137529b2a3849543",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
