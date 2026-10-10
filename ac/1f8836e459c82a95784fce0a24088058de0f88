@@ -1,0 +1,27 @@
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_dbd309ddf8ec5b::t_b6aa68fdfd00b9 8,17,20,23,30,54-57,62,68-90
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.h
+  s_dbd309ddf8ec5b::t_df6d65f62a2c71 9
+packages/sdk-ios/Tests/NativeCrashStartupProof/Faults.m
+  s_dbd309ddf8ec5b::t_8679418a2e3683 5,25-27
+packages/sdk-ios/Tests/NativeCrashStartupProof/README.md
+  s_dbd309ddf8ec5b::t_b0ccf9a3ef0965 8-9,15-17,27-28,31,35-37
+packages/sdk-ios/Tests/NativeCrashStartupProof/project.yml
+  s_dbd309ddf8ec5b::t_7ee4428e8be451 10,23-29,38-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac1f8836e459c82a95784fce0a24088058de0f88",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
