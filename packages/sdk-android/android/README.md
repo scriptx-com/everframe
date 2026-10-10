@@ -168,8 +168,16 @@ before a completed end can be persisted, then re-arms a pointer-free context on
 the SDK's IO thread. A native crash between that background fence and the
 re-arm, or while a context is being replaced, is not captured. Recovery uses
 the exact prior frozen pointer, never the relaunch session or process ID alone.
-Fatal React Native JavaScript errors are reported without a session pointer, so
-on their own they do not mark their foreground session fatal.
+
+When a React Native app enables release health through the React Native
+Provider, an automatic unhandled Hermes JavaScript fatal captured while a
+foreground session is ready carries that session's frozen pointer if its loaded
+bundle exactly matches the session's known loaded build, and marks the session
+fatal. Handled errors, promise rejections, fatals captured in background or
+before readiness, and fatals with a missing or different bundle identity carry
+none. With OS exit diagnostics enabled, the OS crash exit record of the process
+that React Native then terminates can carry the pointer too; the session still
+counts once. See [release health observations](../../../docs/release-health.md).
 
 ## Triggers are host-app concern
 

@@ -29,8 +29,11 @@ The React Provider accepts the same `releaseHealth` configuration. Remount the
 Provider to change it. Android's `ReleaseHealthConfig` and iOS's
 `ReleaseHealthConfiguration` also accept an optional `userId`; both require the
 native artifact build ID and the status of the actually loaded bundle. Use
-Android's SDK configuration at `start`, or iOS's `setReleaseHealth` API. Keep build
-IDs exact: a downloaded update is not a loaded bundle.
+Android's SDK configuration at `start`, or iOS's `setReleaseHealth` API. React
+Native apps opt in with the Provider's `releaseHealth` configuration, which drives
+these native sessions; see the
+[React Native SDK](../packages/sdk-react-native/README.md#foreground-session-monitoring).
+Keep build IDs exact: a downloaded update is not a loaded bundle.
 
 ## Sessions and identity
 
@@ -70,7 +73,8 @@ switch or loaded-bundle change, reconfigure/reinitialize release health with the
 new values (omit userId on logout). On web, use `destroy()` and a new `init()`;
 on React, remount the Provider; on Android, call `Everframe.start` again with a
 copied `ReleaseHealthConfig` (a full SDK restart); on iOS, call `setReleaseHealth`
-with a new configuration. Calling `setUser` alone does not change this
+with a new configuration; on React Native, remount the Provider with a changed
+`key`. Calling `setUser` alone does not change this
 separate identity. Queued starts and ends retain the old snapshot and route.
 Native fatal attribution uses the exact frozen pointer of its segment or session,
 so a crash recovered after login is not assigned to the newly logged-in account.
@@ -79,8 +83,9 @@ Reported session/user fractions mean **without a reported fatal crash** in the
 current retained observations. They do not mean confirmed healthy sessions or
 population crash-free rates. Only crashes that carry the exact frozen pointer
 count as fatal: iOS native crash reports, Android OS crash exit records (native or
-Java) and Android SDK crash reports from the JVM uncaught-exception handler or the
-native signal handler. A launch ended by an ANR or another OS exit counts as
+Java), Android SDK crash reports from the JVM uncaught-exception handler or the
+native signal handler, and the React Native JavaScript fatal reports described
+below. A launch ended by an ANR or another OS exit counts as
 without a reported fatal crash. Missing outcomes remain unknown; neither an end nor
 its absence proves a healthy/crashed process. Duplicates are deduplicated, while
 late reports, retention and erasure can change the current counts. Anonymous
@@ -90,9 +95,19 @@ so web fatal fractions remain unavailable even when session counts exist.
 Version 3 producers attach no session pointer while the app is in background, so a
 crash in background is outside the foreground session rates and does not make its
 launch fatal; version 2 native producers attributed it to their launch segment.
-React Native JavaScript fatal reports carry no pointer either and leave the
-session's outcome unknown. On Android with OS exit diagnostics enabled, the OS
-crash exit record of that process can still count.
+
+React Native sessions come from the native Android and iOS producers and form
+separate Android and iOS cohorts. An automatic unhandled JavaScript fatal from the
+SDK's Hermes `ErrorUtils` handler carries the session pointer, and counts as a
+fatal session, only when it is captured while the session is ready and its bundle
+exactly matches the session's known loaded build. Handled errors and promise
+rejections never carry a pointer. Fatals captured in background or before
+readiness, and fatals with a missing or mismatched bundle identity, carry none
+either; a foreground session that such a fatal ends keeps an unknown outcome. On
+Android with OS exit diagnostics enabled, the OS crash exit record of that
+process can still count. When a session has both a JavaScript fatal and native or
+Java crash evidence, such as that exit record, it is classified by the native or
+Java evidence, and the session and its launch still count once.
 
 Android and iOS foreground sessions also have resolved crash-free rates. They count
 only sessions with a completed end or qualifying fatal evidence and report the rest
