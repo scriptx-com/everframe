@@ -30,7 +30,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowApplication
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.io.path.createTempDirectory
 
 /** A start with the default configuration arms crash capture with no further call. */
@@ -47,13 +50,26 @@ class CrashCaptureStartTest {
     private lateinit var outbox: JSONLOutbox
     private lateinit var server: MockWebServer
     private var platform = Platform(4242)
+    /** While set, the OS-exit arm's journal write waits here, holding the recovery controller's lock. */
+    @Volatile private var holdArm: CountDownLatch? = null
+    private val armHeld = CountDownLatch(1)
+    private val journalOps = object : OutboxFileOps by JvmOutboxFileOps() {
+        override fun syncFile(file: java.io.File) {
+            val gate = holdArm
+            if (gate != null && Thread.currentThread().stackTrace.any { it.className.endsWith("AndroidNativeRecovery") && it.methodName == "arm" }) {
+                armHeld.countDown(); gate.await(10, TimeUnit.SECONDS)
+            }
+            JvmOutboxFileOps().syncFile(file)
+        }
+    }
 
     private class Platform(override val pid: Int) : AndroidNativeExitPlatform {
         override val apiLevel = android.os.Build.VERSION.SDK_INT
         override val processName = "dev.everframe.crashdefault"
         val registrations = ArrayList<ByteArray?>()
         var exits = emptyList<AndroidNativeExit>()
-        override fun history() = exits
+        @Volatile var beforeHistory: () -> Unit = {}
+        override fun history(): List<AndroidNativeExit> { beforeHistory(); return exits }
         override fun setStateSummary(value: ByteArray?) { registrations.add(value) }
     }
 
@@ -86,13 +102,14 @@ class CrashCaptureStartTest {
         AndroidNativeSignalRuntime.__resetForTesting()
         AndroidNativeCrashRuntime.__controllerFactoryForTesting = { app ->
             val root = File(app.noBackupFilesDir, "dev.everframe/native-exit-v1")
-            fun store(name: String) = OutboxStore(File(root, name), keys.getValue(name), JvmOutboxFileOps(), 8, 2L * 1024 * 1024)
+            fun store(name: String) = OutboxStore(File(root, name), keys.getValue(name), journalOps, 8, 2L * 1024 * 1024)
             AndroidNativeRecoveryController({ AndroidNativeRecovery(store("contexts"), store("prepared")) }, platform)
         }
         freshOutbox()
     }
 
     @After fun tearDown() {
+        holdArm?.countDown()
         Everframe.kill()
         settle()
         AndroidNativeCrashRuntime.__controllerFactoryForTesting = null
@@ -214,6 +231,39 @@ class CrashCaptureStartTest {
         freshOutbox()
         start(); awaitReady()
         assertEquals("the secondary kill erased the default process's evidence", listOf(crashed), nativeReports().map { it.reportId })
+    }
+
+    @Test fun `a repeated start while the previous crash is being recovered still reports it once`() {
+        start(); awaitReady()
+        val crashed = crashAndRelaunch()
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        platform.beforeHistory = { entered.countDown(); release.await(5, TimeUnit.SECONDS) }
+        Everframe.start(context, config) // the relaunched process's first start: recovery waits in history()
+        try {
+            assertTrue("recovery never read exit history", entered.await(5, TimeUnit.SECONDS))
+            platform.beforeHistory = {}
+            start() // a second start, e.g. a release-health user switch, lands mid-recovery
+        } finally { release.countDown() }
+        awaitReady()
+        waitUntil("the previous process's crash was never reported") { nativeReports().isNotEmpty() }
+        Thread.sleep(200)
+        assertEquals(listOf(crashed), nativeReports().map { it.reportId })
+    }
+
+    @Test fun `a replacement start and the readiness query never wait for an in-flight arm`() {
+        holdArm = CountDownLatch(1)
+        Everframe.start(context, config)
+        try {
+            assertTrue("the arm never reached its journal write", armHeld.await(5, TimeUnit.SECONDS))
+            val readiness = CountDownLatch(1)
+            thread { Everframe.isNativeCrashCaptureReady(); readiness.countDown() }
+            assertTrue("isNativeCrashCaptureReady waited for the arm's journal IO", readiness.await(2, TimeUnit.SECONDS))
+            val restarted = CountDownLatch(1)
+            thread { Everframe.start(context, crashOff); restarted.countDown() }
+            assertTrue("a replacement start waited for the earlier arm's journal IO", restarted.await(2, TimeUnit.SECONDS))
+            assertFalse(Everframe.isNativeCrashCaptureReady())
+        } finally { holdArm?.countDown(); holdArm = null }
     }
 
     @Test @Config(sdk = [29])

@@ -370,4 +370,31 @@ class AndroidNativeRecoveryControllerTest {
         assertEquals(1, conflicts)
         assertEquals("an exit Everframe did not register is never reported", 0, admitted)
     }
+    @Test fun `a replacement start keeps earlier processes' unadmitted evidence for the next owner`() {
+        val open = object : OutboxAuthorization { override fun isAllowed() = true }
+        val platform = Platform().apply { exits = listOf(previous(98, 5)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        // The first owner prepared the previous process's crash, but the outbox refused it.
+        assertTrue(controller.enableDiagnostics(1, open, 3000, ::template) { false })
+        controller.retire(2, erasePersisted = false) { true }
+        assertNull("a replacement clears the old owner's OS token", platform.registrations.last())
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(controller.enableDiagnostics(2, open, 4000, ::template) { admitted += it; true })
+        assertEquals("the previous crash must still be reported once", listOf("crash"), admitted.map(::source))
+        assertEquals("only the new owner's own context remains", 1,
+            OutboxStore(File(folder.root, "contexts"), keys, ops).snapshotTokens().size)
+    }
+    @Test fun `a newer epoch's enable replaces an older owner without erasing earlier evidence`() {
+        val open = object : OutboxAuthorization { override fun isAllowed() = true }
+        var firstAllowed = true
+        val first = object : OutboxAuthorization { override fun isAllowed() = firstAllowed }
+        val platform = Platform().apply { exits = listOf(previous(98, 5)) }
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enableDiagnostics(1, first, 3000, ::template) { false })
+        firstAllowed = false // the next start fenced the first owner; no boundary retire ran yet
+        val admitted = ArrayList<OutboxEntry>()
+        assertTrue(controller.enableDiagnostics(2, open, 4000, ::template) { admitted += it; true })
+        assertEquals(listOf("crash"), admitted.map(::source))
+    }
+
 }

@@ -31,8 +31,9 @@ internal class AndroidNativeRecoveryController(
 ) {
     private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry, val nowMs: Long, val admit: (OutboxEntry) -> Boolean) {
         val operations = Any()
-        var ready = false
-        var claimed = false
+        // Volatile: readiness is read without the lock, which an arm holds across journal and Binder IO.
+        @Volatile var ready = false
+        @Volatile var claimed = false
     }
     private val lock = Any()
     private val publication = Any()
@@ -57,16 +58,9 @@ internal class AndroidNativeRecoveryController(
                     return@synchronized it
                 }
                 active = null
-                if (it.epoch == epoch && it.diagnostics != diagnostics) {
-                    // A mode change in one start keeps both journals for the new owner's
-                    // recovery, which applies the new mode; only the old registration goes.
-                    if (it.claimed) runCatching { platform.setStateSummary(null) }
-                    runCatching { it.engine.disarm() }
-                } else {
-                    it.engine.invalidate()
-                    if (it.claimed) runCatching { platform.setStateSummary(null) }
-                    it.engine.revoke()
-                }
+                // A mode change or a newer start keeps both journals for the new owner's recovery;
+                // only the old registration and its own context go. Erasure belongs to kill().
+                replace(it)
             }
             Active(epoch, factory(), authorization, diagnostics, template, nowMs, admit).also { active = it }
         }
@@ -150,11 +144,20 @@ internal class AndroidNativeRecoveryController(
         }
     }
 
-    fun ready(epoch: Int): Boolean = synchronized(lock) {
+    /** Lock-free: an arm holds the lock across journal and Binder IO, and callers poll this on the main thread. */
+    fun ready(epoch: Int): Boolean =
         active?.let { it.epoch == epoch && it.ready && it.authorization.isAllowed() } == true
+
+    /** Caller holds [lock]. Clears the old owner's OS token and drops only its own context. */
+    private fun replace(owner: Active) {
+        if (owner.claimed) runCatching { platform.setStateSummary(null) }
+        runCatching { owner.engine.disarm() }
     }
 
-    /** Replacement start retires only a prior live owner; explicit disable/kill also erase old journals. */
+    /**
+     * Replacement start retires only a prior live owner and keeps earlier processes' unadmitted
+     * evidence for the next owner; kill() (erasePersisted) also erases the journals.
+     */
     fun retire(epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean) {
         if (platform.apiLevel < 30) return
         synchronized(lock) {
@@ -162,7 +165,8 @@ internal class AndroidNativeRecoveryController(
             val owner = active
             if (owner != null && (owner.epoch > epoch || (owner.epoch == epoch && !erasePersisted))) return
             active = null
-            if (owner != null) {
+            if (owner != null && !erasePersisted) replace(owner)
+            else if (owner != null) {
                 owner.engine.invalidate()
                 if (owner.claimed) runCatching { platform.setStateSummary(null) }
                 owner.engine.revoke()

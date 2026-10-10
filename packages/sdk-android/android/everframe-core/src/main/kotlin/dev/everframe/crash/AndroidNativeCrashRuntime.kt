@@ -14,9 +14,11 @@ import dev.everframe.TXCapturedSession
 import dev.everframe.capture.DeviceMetadata
 import dev.everframe.config.IngestEndpoint
 import dev.everframe.envelope.EnvelopeBuilder
+import dev.everframe.envelope.txGuardVoid
 import dev.everframe.outbox.*
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.launch
 
 internal object AndroidNativeCrashRuntime {
     private val lock = Any()
@@ -114,9 +116,18 @@ internal object AndroidNativeCrashRuntime {
             if (erasePersisted && context == null) eraseWhenContextAvailable = true
             controller
         }
-        val owner = prior ?: if (erasePersisted && context != null &&
+        if (!erasePersisted) {
+            // Replacement start: clear the OS token now, without the controller lock an in-flight
+            // arm holds across IO, so a crash from here on is never attributed to the old start.
+            // Dropping the old owner's own context is journal IO and runs off the caller's thread.
+            prior ?: return
+            prior.invalidateExposure()
+            Everframe.sdkScope.launch { txGuardVoid("nativeCrash.retire") { prior.retire(epoch, false, owns) } }
+            return
+        }
+        val owner = prior ?: if (context != null &&
             File(context.noBackupFilesDir, "dev.everframe/native-exit-v1").exists()) controller(context) else null
-        owner?.retire(epoch, erasePersisted, owns)
+        owner?.retire(epoch, true, owns)
     }
 }
 
