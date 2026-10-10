@@ -80,7 +80,8 @@ final class AppleDiagnosticStore {
         if scope == .currentProcess { try closeConsent(at: now, unlessOwner: nil); return nil }
         let owner = try context.ownerDigest()
         var next = state
-        next.grants.removeAll { $0.ownerDigest != owner || $0.lastObservedAt > now || now.timeIntervalSince($0.authorizedThrough) > Self.lifetime }
+        if rollbackDetected(at: now) { next.grants = [] }
+        next.grants.removeAll { $0.ownerDigest != owner || now.timeIntervalSince($0.authorizedThrough) > Self.lifetime }
         if let index = next.grants.firstIndex(where: { !$0.closed && $0.authorizedThrough > now }) {
             next.grants[index].authorizedThrough = now.addingTimeInterval(Self.lifetime)
             next.grants[index].lastObservedAt = now
@@ -101,6 +102,9 @@ final class AppleDiagnosticStore {
     func closeConsent(at date: Date, unlessOwner owner: String?) throws {
         guard date.timeIntervalSince1970.isFinite else { throw Failure.invalid }
         var next = state, changed = false
+        if rollbackDetected(at: date) {
+            next.grants = []; try commit(next); return
+        }
         for i in next.grants.indices where !next.grants[i].closed && next.grants[i].ownerDigest != owner {
             next.grants[i].closed = true
             next.grants[i].authorizedThrough = max(next.grants[i].begin, min(next.grants[i].authorizedThrough, date))
@@ -112,7 +116,7 @@ final class AppleDiagnosticStore {
     }
     func grant(for candidate: AppleDiagnosticCandidate, context: AppleDiagnosticContext, now: Date) throws -> AppleDiagnosticGrant? {
         guard !state.revoked, !state.needsOutboxErase, now.timeIntervalSince1970.isFinite else { return nil }
-        if state.grants.contains(where: { $0.lastObservedAt > now }) {
+        if rollbackDetected(at: now) {
             var next = state; next.grants = []; try commit(next); return nil
         }
         let owner = try context.ownerDigest()
@@ -123,6 +127,13 @@ final class AppleDiagnosticStore {
         let grant = next.grants[index]
         if state.grants[index].lastObservedAt != now { try commit(next) }
         return grant
+    }
+
+    /// Every observed boundary uses the same clock rule, including a matching
+    /// first start and enable before callback admission. A rollback invalidates
+    /// all history, not just the grant that exposed the discontinuity.
+    private func rollbackDetected(at date: Date) -> Bool {
+        state.grants.contains { $0.lastObservedAt > date }
     }
 
     /// Only used after closing all in-memory authority. Unknown entries are

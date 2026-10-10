@@ -141,4 +141,24 @@ final class AppleDiagnosticConsentTests: XCTestCase {
         XCTAssertNil(try reopened.grant(for: candidate(t, t), context: context(), now: t))
     }
 
+    func testMatchingStartupRollbackInvalidatesHistoryEvenWhenEnableWaitsForClockToCatchUp() throws {
+        let c = try context(), s = try store()
+        _ = try s.authorize(context: c, scope: .installation, now: t)
+        _ = try s.authorize(context: c, scope: .installation, now: t.addingTimeInterval(100))
+        let reopened = try store()
+        try reopened.closeConsent(at: t.addingTimeInterval(50), unlessOwner: c.ownerDigest())
+        let new = try XCTUnwrap(reopened.authorize(context: c, scope: .installation, now: t.addingTimeInterval(150)))
+        XCTAssertEqual(new.begin, t.addingTimeInterval(150))
+        XCTAssertNil(try reopened.grant(for: candidate(t.addingTimeInterval(25), t.addingTimeInterval(75)), context: c, now: t.addingTimeInterval(150)))
+    }
+    func testEnableRollbackInvalidatesOlderClosedGrantsToo() throws {
+        let c = try context(), s = try store()
+        _ = try s.authorize(context: c, scope: .installation, now: t)
+        try s.closeConsent(at: t.addingTimeInterval(50), unlessOwner: nil)
+        _ = try s.authorize(context: c, scope: .installation, now: t.addingTimeInterval(60))
+        _ = try s.authorize(context: c, scope: .installation, now: t.addingTimeInterval(100))
+        _ = try s.authorize(context: c, scope: .installation, now: t.addingTimeInterval(80))
+        XCTAssertNil(try s.grant(for: candidate(t.addingTimeInterval(10), t.addingTimeInterval(40)), context: c, now: t.addingTimeInterval(80)))
+    }
+
 }

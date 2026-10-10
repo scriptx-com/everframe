@@ -166,6 +166,21 @@ final class AppleDiagnosticDelayedTests: XCTestCase {
         expect(await c.accept(candidate(0, 99)))
         await stop(c)
     }
+    func testFailedStartupRollbackCleanupCannotBeForgottenAfterClockCatchesUp() async throws {
+        try await seed()
+        var previous: AppleDiagnosticRuntime? = runtime(100)
+        expect(await previous!.enable(context: try context(), scope: .installation)); previous = nil
+        let key = key, clock = DelayedClock(t.addingTimeInterval(50)), blocked = DelayedKeyGate()
+        let live = AppleDiagnosticRuntime(root: root.appendingPathComponent("journal"), outbox: box(), keyProvider: {
+            if blocked.value { throw CocoaError(.fileReadNoPermission) }; return key
+        }, now: { clock.value })
+        live.boundary(startedOwner: try context().ownerDigest())
+        expect(await live.accept(candidate(25, 75)), false)
+        clock.set(t.addingTimeInterval(150)); blocked.set(false)
+        expect(await live.enable(context: try context(), scope: .installation))
+        expect(await live.accept(candidate(25, 75)), false)
+        await stop(live)
+    }
     func testFirstStartWithNoJournalDoesNotCreateKeyOrFiles() async throws {
         let live = AppleDiagnosticRuntime(root: root.appendingPathComponent("absent"), outbox: box(), keyProvider: {
             XCTFail("Startup without history must not access the key"); throw CocoaError(.fileReadNoPermission)
