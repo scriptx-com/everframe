@@ -53,7 +53,10 @@ settings:
     SWIFT_PACKAGE_NAME: Everframe
     SWIFT_OPTIMIZATION_LEVEL: "-O"
     SWIFT_COMPILATION_MODE: wholemodule
-    DEBUG_INFORMATION_FORMAT: dwarf
+    # A dSYM per framework, written before the binary is stripped below. It
+    # ships in each xcframework slice so an app's symbol upload (the Xcode
+    # phase, the React Native/Expo integration) symbolicates the SDK's frames.
+    DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     # Strip non-public Swift symbols from the binary's symbol table.
     # Public API names are preserved in the .swiftinterface (consumers
     # need them to compile against the framework). Internal class /

@@ -60,7 +60,8 @@ configuration between collection and upload. Collection promotes its completed
 identity to the platform pointer; a subsequent configuration can replace it.
 
 For a native build, `@everframe/expo` supplies native build-phase setup: release
-builds upload their Hermes maps and iOS dSYMs, and the plugin applies the
+builds upload their Hermes maps and iOS dSYMs (the app's, and those of pod
+frameworks that build or ship one, the Everframe SDK's included), and the plugin applies the
 `dev.everframe` Gradle plugin, which uploads Android R8 mappings and native
 libraries after `assembleRelease` and `bundleRelease`. A missing
 `EVERFRAME_API_TOKEN` or a failed upload warns and the build continues, unless

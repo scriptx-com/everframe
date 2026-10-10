@@ -22,11 +22,21 @@ Pod::Spec.new do |spec|
 
   spec.default_subspecs = ['Core']
 
+  # Each xcframework slice carries its dSYM, which "[CP] Copy XCFrameworks"
+  # copies into the build for the app's symbol upload. It copies every
+  # xcframework of a subspec into one folder, so a second xcframework in the
+  # same subspec would replace the first one's dSYMs: one xcframework each.
+  #
+  # EverframeProtocol carries wire-format types referenced by EverframeKit's
+  # .swiftinterface; consumers' Swift compiler can't resolve the import
+  # without this framework, even though no consumer imports it directly.
+  spec.subspec 'Protocol' do |protocol|
+    protocol.vendored_frameworks = "EverframeProtocol.xcframework"
+  end
+
   spec.subspec 'Core' do |core|
-    # EverframeProtocol carries wire-format types referenced by EverframeKit's
-    # .swiftinterface; consumers' Swift compiler can't resolve the import
-    # without this framework, even though no consumer imports it directly.
-    core.vendored_frameworks = ["EverframeProtocol.xcframework", "EverframeKit.xcframework"]
+    core.dependency 'Everframe/Protocol'
+    core.vendored_frameworks = "EverframeKit.xcframework"
   end
 
   spec.subspec 'ReporterUI' do |reporter|

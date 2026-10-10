@@ -283,6 +283,43 @@ else
     ok "${CASE_NAME}"
 fi
 
+# ---------------------------------------------------------------------------
+# 10. CocoaPods copies each xcframework slice, dSYM included, into an app's
+#     build. A zip without them installs, but the SDK's frames stay raw.
+# ---------------------------------------------------------------------------
+printf 'MIT\n' > "${LICENSELESS}/dist/LICENSE"
+for name in EverframeKit EverframeProtocol; do
+    for slice in ios-arm64 tvos-arm64; do
+        mkdir -p "${LICENSELESS}/dist/${name}.xcframework/${slice}/${name}.framework"
+        printf 'binary\n' > "${LICENSELESS}/dist/${name}.xcframework/${slice}/${name}.framework/${name}"
+    done
+done
+mkdir -p "${LICENSELESS}/dist/EverframeKit.xcframework/ios-arm64/dSYMs/EverframeKit.framework.dSYM/Contents/Resources/DWARF"
+printf 'dwarf\n' > "${LICENSELESS}/dist/EverframeKit.xcframework/ios-arm64/dSYMs/EverframeKit.framework.dSYM/Contents/Resources/DWARF/EverframeKit"
+(cd "${LICENSELESS}/dist" && rm -f Everframe-9.9.9.zip && zip -qr Everframe-9.9.9.zip EverframeKit.xcframework EverframeProtocol.xcframework LICENSE)
+run_case "--dist rejects a CocoaPods zip whose slices lack dSYMs" "${LICENSELESS}" --dist "${LICENSELESS}/dist"
+if [[ "${STATUS}" == 0 ]]; then
+    bad "${CASE_NAME}" "a CocoaPods source zip without dSYMs passed"
+elif ! printf '%s' "${OUTPUT}" | grep -q 'no dSYM for: EverframeKit/tvos-arm64 EverframeProtocol/ios-arm64 EverframeProtocol/tvos-arm64'; then
+    bad "${CASE_NAME}" "the error does not name the slices without dSYMs"
+else
+    ok "${CASE_NAME}"
+fi
+
+for name in EverframeKit EverframeProtocol; do
+    for slice in ios-arm64 tvos-arm64; do
+        mkdir -p "${LICENSELESS}/dist/${name}.xcframework/${slice}/dSYMs/${name}.framework.dSYM/Contents/Resources/DWARF"
+        printf 'dwarf\n' > "${LICENSELESS}/dist/${name}.xcframework/${slice}/dSYMs/${name}.framework.dSYM/Contents/Resources/DWARF/${name}"
+    done
+done
+(cd "${LICENSELESS}/dist" && rm -f Everframe-9.9.9.zip && zip -qr Everframe-9.9.9.zip EverframeKit.xcframework EverframeProtocol.xcframework LICENSE)
+run_case "--dist accepts a CocoaPods zip with LICENSE and a dSYM in every slice" "${LICENSELESS}" --dist "${LICENSELESS}/dist"
+if [[ "${STATUS}" != 0 ]]; then
+    bad "${CASE_NAME}" "exit ${STATUS}: ${OUTPUT}"
+else
+    ok "${CASE_NAME}"
+fi
+
 echo
 if [[ "${FAIL}" -gt 0 ]]; then
     echo "FAIL: ${FAIL} failed, ${PASS} passed"

@@ -387,6 +387,28 @@ FAIL: the CocoaPods source zip ${POD_ASSET} does not contain LICENSE at its root
 EOF
         exit 1
     fi
+    # Every xcframework slice carries its dSYM, which CocoaPods copies into an
+    # app's build; without it the SDK's frames in that app's crashes stay raw.
+    MISSING_DSYMS=""
+    while IFS=$'\t' read -r name _ _; do
+        [[ -n "${name}" ]] || continue
+        # Here-strings, not pipes: `grep -q` stops reading at its first match,
+        # and under pipefail the writer's SIGPIPE would read as a miss.
+        slices="$(sed -nE "s#^${name}\.xcframework/([^/]+)/${name}\.framework/.*#\1#p" <<< "${POD_ENTRIES}" | sort -u)"
+        [[ -n "${slices}" ]] || MISSING_DSYMS+=" ${name}"
+        for slice in ${slices}; do
+            grep -Fq "${name}.xcframework/${slice}/dSYMs/${name}.framework.dSYM/" <<< "${POD_ENTRIES}" \
+                || MISSING_DSYMS+=" ${name}/${slice}"
+        done
+    done <<< "${TARGETS}"
+    if [[ -n "${MISSING_DSYMS}" ]]; then
+        cat 1>&2 <<EOF
+FAIL: the CocoaPods source zip ${POD_ASSET} has no dSYM for:${MISSING_DSYMS}.
+      Apps that install the pod could not upload the SDK's dSYMs. Rebuild with
+      scripts/build-xcframework.sh, which puts one in every xcframework slice.
+EOF
+        exit 1
+    fi
     echo "  OK       CocoaPods zip  ${POD_ASSET}"
 else
     pod_code="$(curl -sSL --retry 2 --retry-delay 1 -o /dev/null -w '%{http_code}' "${BASE_URL}${POD_ASSET}" 2>/dev/null || echo 000)"

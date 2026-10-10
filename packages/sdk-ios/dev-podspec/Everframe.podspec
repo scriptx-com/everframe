@@ -64,11 +64,15 @@ Pod::Spec.new do |spec|
   # FRAMEWORK_SEARCH_PATHS entry in the consumer's xcconfig).
   spec.default_subspecs = ['Core']
 
+  # One xcframework per subspec, as in ../Everframe.podspec: CocoaPods copies
+  # a subspec's slices, dSYMs included, into one folder.
+  spec.subspec 'Protocol' do |protocol|
+    protocol.vendored_frameworks = "EverframeProtocol.xcframework"
+  end
+
   spec.subspec 'Core' do |core|
-    core.vendored_frameworks = [
-      "EverframeProtocol.xcframework",
-      "EverframeKit.xcframework",
-    ]
+    core.dependency 'Everframe/Protocol'
+    core.vendored_frameworks = "EverframeKit.xcframework"
   end
 
   spec.subspec 'ReporterUI' do |reporter|
