@@ -56,6 +56,7 @@ class RedactionEngineTest {
     fun `glued URL-encoded and JWE tokens are redacted`() {
         val jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwZXJzb24ifQ.SflKxwRJSMeKKF2QT4fw"
         val dirJwe = "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ"
+        val rsaJwe = "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGeipsEdY3mx_etLbbWSrFr05kLzc.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ"
         for ((input, expected) in listOf(
             "state%3D$jwt&x=1" to "state%3D[REDACTED:JWT]&x=1",
             "%22$jwt%22" to "%22[REDACTED:JWT]%22",
@@ -65,7 +66,32 @@ class RedactionEngineTest {
             "{\"line\":\"auth\\n$jwt\"}" to "{\"line\":\"auth\\n[REDACTED:JWT]\"}",
             "jwe $dirJwe" to "jwe [REDACTED:JWT]",
             "token=$dirJwe&next=1" to "token=[REDACTED:JWT]&next=1",
+            "token%3D$dirJwe" to "token%3D[REDACTED:JWT]",
+            "x_$dirJwe" to "x_[REDACTED:JWT]",
+            "session$rsaJwe" to "session[REDACTED:JWT]",
+            "token%3D$rsaJwe" to "token%3D[REDACTED:JWT]",
         )) assertEquals(input, expected, RedactionEngine.redact(input))
+    }
+
+    /** A JSON header with whitespace: `{ ` → eyA, `{\n` → ewo, `{\t` → ewk, `{\r` → ew0. */
+    @Test
+    fun `tokens whose JSON header has whitespace are redacted`() {
+        val encoder = java.util.Base64.getUrlEncoder().withoutPadding()
+        fun b64(text: String) = encoder.encodeToString(text.toByteArray())
+        val payload = b64("{\"sub\":\"1234567890\"}")
+        for (header in listOf("{ \"alg\": \"HS256\" }", "{\n  \"alg\": \"HS256\"\n}", "{\t\"alg\":\"HS256\"}", "{\r\n\"alg\":\"HS256\"}")) {
+            val token = "${b64(header)}.$payload.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+            assertEquals("token [REDACTED:JWT]", RedactionEngine.redact("token $token"))
+            assertEquals("id%3D[REDACTED:JWT]", RedactionEngine.redact("id%3D$token"))
+        }
+    }
+
+    /** Decided: short dotted names with these prefixes stay; a full JWT shape is masked (the accepted cost). */
+    @Test
+    fun `dotted names starting like a spaced JSON header keep their shape rule`() {
+        for (name in listOf("ewok.something.else", "eyAudit.Foo.Bar", "com.example.ewokFactory.create(EwokFactory.kt:7)"))
+            assertEquals(name, RedactionEngine.redact(name))
+        assertEquals("[REDACTED:JWT]", RedactionEngine.redact("ewokFactory.createInstance.something"))
     }
 
     /** JwtScan gives exactly the plain regex result, and stays linear where the plain scan is quadratic. */
@@ -74,15 +100,16 @@ class RedactionEngineTest {
         val rule = Regex(SharedData.redactionPatterns.single { it.id == "jwt" }.regex)
         var seed = 0x2545f491
         fun random(n: Int): Int { seed = seed xor (seed shl 13); seed = seed xor (seed ushr 17); seed = seed xor (seed shl 5); return Math.floorMod(seed, n) }
-        val alphabet = "aZ09_-eyJ"
-        val glue = listOf("", " ", "_", "-", "x", "%3D", "é", "\\n", ".", "=")
+        val alphabet = "aZ09_-eyJwAok"
+        val glue = listOf("", " ", "_", "-", "x", "%3D", "é", "\\n", ".", "=", "..")
+        val prefixes = listOf("eyJ", "eyA", "ewo", "ewk", "ew0")
         var redacted = 0
         repeat(5_000) {
             val value = buildString {
                 repeat(1 + random(3)) {
                     append(glue[random(glue.size)])
                     append((0..random(6)).joinToString(".") {
-                        buildString { if (random(2) == 0) append("eyJ"); repeat(random(13)) { append(alphabet[random(alphabet.length)]) } }
+                        buildString { if (random(2) == 0) append(prefixes[random(prefixes.size)]); repeat(random(13)) { append(alphabet[random(alphabet.length)]) } }
                     })
                 }
             }
@@ -91,7 +118,8 @@ class RedactionEngineTest {
             if (expected != value) redacted++
         }
         assertTrue("the corpus must exercise matches, got $redacted", redacted > 500)
-        for (value in listOf("eyJ-".repeat(262_144), "eyJabcde.eyJabcde.".repeat(58_254), "-eyJ".repeat(262_143) + ".abcdefgh")) {
+        for (value in listOf("eyJ-".repeat(262_144), "eyJabcde.eyJabcde.".repeat(58_254), "-eyJ".repeat(262_143) + ".abcdefgh",
+                "ewo-eyA-ewk-ew0-".repeat(65_536), "xewoabcde..abcdefgh.abcdefgh.".repeat(36_158))) {
             val started = System.nanoTime()
             RedactionEngine.redact(value)
             val ms = (System.nanoTime() - started) / 1_000_000

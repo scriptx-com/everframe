@@ -131,8 +131,8 @@ function redactLogEntry(
 
 export function redactStringContent(s: string, config: RedactionConfig): string {
   // 1. JWT and JWE (the shared JWT_PATTERN), in linear time: the plain regex scan is quadratic on
-  // `eyJ-eyJ-…`. A JWT header is base64url JSON, so it starts with `eyJ`; dotted class, package and
-  // module names never match.
+  // `eyJ-eyJ-…`. A JWT header is base64url JSON, so it starts with eyJ, eyA, ewo, ewk or ew0;
+  // ordinary dotted class, package and module names do not match.
   s = redactJwt(s, '[REDACTED:JWT]');
   // 2. SSN
   s = s.replace(SSN_US, '[REDACTED:SSN]');

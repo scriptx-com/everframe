@@ -79,6 +79,35 @@ struct RedactionEngineTests {
     @Test func redact_replacesDirJWE() {
         let jwe = "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ"
         #expect(RedactionEngine().redact("token=\(jwe)&next=1") == "token=[REDACTED:jwt]&next=1")
+        #expect(RedactionEngine().redact("token%3D\(jwe)") == "token%3D[REDACTED:jwt]")
+        #expect(RedactionEngine().redact("x_\(jwe)") == "x_[REDACTED:jwt]")
+    }
+
+    /// A JWE glued to the text before it has no JSON payload to mark it: the five-segment shape does.
+    @Test(arguments: ["token%3D", "session", "x_"])
+    func redact_replacesGluedJWE(prefix: String) {
+        let jwe = "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGeipsEdY3mx_etLbbWSrFr05kLzc.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ"
+        #expect(RedactionEngine().redact(prefix + jwe) == prefix + "[REDACTED:jwt]")
+    }
+
+    /// A JSON header with whitespace: `{ ` → eyA, `{\n` → ewo, `{\t` → ewk, `{\r` → ew0.
+    @Test(arguments: ["{ \"alg\": \"HS256\" }", "{\n  \"alg\": \"HS256\"\n}", "{\t\"alg\":\"HS256\"}", "{\r\n\"alg\":\"HS256\"}"])
+    func redact_replacesSpacedHeaderJWT(header: String) {
+        func b64(_ text: String) -> String {
+            Data(text.utf8).base64EncodedString().replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        }
+        let token = "\(b64(header)).\(b64(#"{"sub":"1234567890"}"#)).SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        #expect(RedactionEngine().redact("token \(token)") == "token [REDACTED:jwt]")
+        #expect(RedactionEngine().redact("id%3D\(token)") == "id%3D[REDACTED:jwt]")
+    }
+
+    /// Decided: short dotted names with these prefixes stay; a full JWT shape is masked (the accepted cost).
+    @Test func redact_dottedNamesStartingLikeASpacedHeader() {
+        for name in ["ewok.something.else", "eyAudit.Foo.Bar", "com.example.ewokFactory.create(EwokFactory.swift:7)"] {
+            #expect(RedactionEngine().redact(name) == name)
+        }
+        #expect(RedactionEngine().redact("ewokFactory.createInstance.something") == "[REDACTED:jwt]")
     }
 
     /// JwtScan gives exactly the plain regex result, and stays linear where the plain scan is quadratic.
@@ -87,15 +116,16 @@ struct RedactionEngineTests {
         let regex = try NSRegularExpression(pattern: rule.regex)
         var seed: UInt32 = 0x2545f491
         func random(_ n: Int) -> Int { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return Int(seed % UInt32(n)) }
-        let alphabet = Array("aZ09_-eyJ")
-        let glue = ["", " ", "_", "-", "x", "%3D", "é", #"\n"#, ".", "="]
+        let alphabet = Array("aZ09_-eyJwAok")
+        let glue = ["", " ", "_", "-", "x", "%3D", "é", #"\n"#, ".", "=", ".."]
+        let prefixes = ["eyJ", "eyA", "ewo", "ewk", "ew0"]
         var redacted = 0
         for _ in 0..<2_000 {
             var value = ""
             for _ in 0...random(3) {
                 value += glue[random(glue.count)]
                 value += (0...random(6)).map { _ in
-                    (random(2) == 0 ? "eyJ" : "") + String((0..<random(13)).map { _ in alphabet[random(alphabet.count)] })
+                    (random(2) == 0 ? prefixes[random(prefixes.count)] : "") + String((0..<random(13)).map { _ in alphabet[random(alphabet.count)] })
                 }.joined(separator: ".")
             }
             let expected = regex.stringByReplacingMatches(in: value, range: NSRange(value.startIndex..., in: value), withTemplate: "[J]")
@@ -104,7 +134,8 @@ struct RedactionEngineTests {
         }
         #expect(redacted > 200)
         for value in [String(repeating: "eyJ-", count: 262_144), String(repeating: "eyJabcde.eyJabcde.", count: 58_254),
-                      String(repeating: "-eyJ", count: 262_143) + ".abcdefgh"] {
+                      String(repeating: "-eyJ", count: 262_143) + ".abcdefgh", String(repeating: "ewo-eyA-ewk-ew0-", count: 65_536),
+                      String(repeating: "xewoabcde..abcdefgh.abcdefgh.", count: 36_158)] {
             let started = Date()
             _ = RedactionEngine().redact(value)
             #expect(Date().timeIntervalSince(started) < 5, "a megabyte took \(Date().timeIntervalSince(started)) s")

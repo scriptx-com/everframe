@@ -9,15 +9,17 @@ import java.util.regex.Pattern
  * Applies the shared JWT rule (`jwt` in redaction-patterns.json) in linear time, with exactly the
  * regex's own result; mirrors redactJwt in packages/protocol/src/redaction.ts.
  *
- * The plain scan retries the pattern at every `eyJ`, and each try runs to the end of its segment,
- * so `eyJ-eyJ-…` costs O(n²): seconds for a 64 KB body. Every match starts with `eyJ` and a header
- * that runs to the end of its [A-Za-z0-9_-] segment, where a '.' must follow. All starts inside one
+ * The plain scan retries the pattern at every header prefix (`eyJ`, `eyA`, `ewo`, `ewk`, `ew0`: a
+ * JSON `{` followed by `"`, a space, a newline, a tab or a carriage return), and each try runs to the
+ * end of its segment, so `eyJ-eyJ-…` costs O(n²): seconds for a 64 KB body. Every match starts with
+ * a header prefix and a header that runs to the end of its [A-Za-z0-9_-] segment, where a '.' must
+ * follow. All starts inside one
  * segment therefore end their header at the same place and succeed or fail on the same text after
  * it; a later start only has a shorter header. So the leftmost start, then the leftmost start at a
  * word boundary (inside a segment only '-' gives one), decide the whole segment.
  */
 internal object JwtScan {
-    /** `eyJ` plus five: the shortest header the rule accepts. */
+    /** A three-character prefix plus five: the shortest header the rule accepts. */
     private const val MIN_HEADER = 8
 
     fun replace(pattern: Pattern, input: String, replacement: String): String {
@@ -27,7 +29,7 @@ internal object JwtScan {
         var copied = 0
         var from = 0
         while (true) {
-            val first = input.indexOf("eyJ", from)
+            val first = nextHeaderPrefix(input, from)
             if (first < 0) break
             var end = first + 3
             while (end < input.length && isSegmentChar(input[end])) end++
@@ -60,11 +62,31 @@ internal object JwtScan {
         return if (matcher.lookingAt()) matcher.end() else -1
     }
 
-    /** The first `eyJ` after a '-' in [from, end) that still leaves a full header; -1 when none. */
+    /** Whether a JSON header's base64url can start at [index]: `eyJ`, `eyA`, `ewo`, `ewk` or `ew0`. */
+    private fun headerPrefixAt(input: String, index: Int): Boolean {
+        if (index + 3 > input.length || input[index] != 'e') return false
+        val third = input[index + 2]
+        return when (input[index + 1]) {
+            'y' -> third == 'J' || third == 'A'
+            'w' -> third == 'o' || third == 'k' || third == '0'
+            else -> false
+        }
+    }
+
+    private fun nextHeaderPrefix(input: String, from: Int): Int {
+        var index = from
+        while (index + 3 <= input.length) {
+            if (headerPrefixAt(input, index)) return index
+            index++
+        }
+        return -1
+    }
+
+    /** The first header prefix after a '-' in [from, end) that still leaves a full header; -1 when none. */
     private fun boundaryStart(input: String, from: Int, end: Int): Int {
         var index = from
         while (index + MIN_HEADER <= end) {
-            if (input[index - 1] == '-' && input.startsWith("eyJ", index)) return index
+            if (input[index - 1] == '-' && headerPrefixAt(input, index)) return index
             index++
         }
         return -1
