@@ -63,6 +63,12 @@ class AndroidNativeSignalRuntimeTest {
         AndroidNativeSignalRuntime.__fileOpsForTesting = null
         AndroidNativeSignalRuntime.__producerForTesting = null
     }
+
+    @Test fun `the collector is available only with the optional module or a test producer`() {
+        assertTrue(AndroidNativeSignalRuntime.available(context))
+        AndroidNativeSignalRuntime.__producerForTesting = null
+        assertFalse("core tests do not package dev.everframe.nativecrash.NativeCrashBridge", AndroidNativeSignalRuntime.available(context))
+    }
     /** Arms this process's capsule as the opt-in's IO step does once its gates pass. */
     private fun armed(): AndroidNativeSignalController {
         val owner = AndroidNativeSignalRuntime.__ownerForTesting(context)
