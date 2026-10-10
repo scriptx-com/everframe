@@ -69,6 +69,66 @@ class AndroidExitDiagnosticTest {
             assertTrue(store("prepared").snapshotTokens().isEmpty())
         }
     }
+    private fun lowMemory(token: ByteArray, importance: Int, description: String? = "low memory") =
+        AndroidNativeExit(99, "app", 2000, 3, token, { error("low-memory kills have no trace") }, 0,
+            importance = importance, pss = 512_000, rss = 640_000, description = description)
+    @Test fun `a low-memory kill while the user could see or hear the app is one fatal crash with its memory evidence`() {
+        val fingerprints = HashSet<String>()
+        // Foreground, foreground service (background playback), visible, perceptible.
+        for (importance in listOf(100, 125, 200, 230)) {
+            val (entry, token) = arm(api = 30)
+            val reported = arrayListOf<OutboxEntry>()
+            assertEquals(1, engine().recover(listOf(lowMemory(token, importance)), 3000, allowed, allowDiagnostics = true) { reported.add(it); true })
+            val report = reported.single()
+            assertEquals(entry.reportId, report.reportId)
+            assertEquals("crash", body(report)["source"]!!.jsonPrimitive.content)
+            val crash = body(report)["payload"]!!.jsonObject["crash"]!!.jsonObject
+            assertEquals("Low memory kill", crash["exceptionType"]!!.jsonPrimitive.content)
+            assertTrue(crash["message"]!!.jsonPrimitive.content.startsWith("Killed for low memory"))
+            assertEquals("android-exit-info", crash["mechanism"]!!.jsonPrimitive.content)
+            assertTrue(crash["fatal"]!!.jsonPrimitive.boolean); assertFalse(crash["handled"]!!.jsonPrimitive.boolean)
+            assertTrue(crash["frames"]!!.jsonArray.isEmpty())
+            assertEquals("1970-01-01T00:00:02Z", crash["occurredAt"]!!.jsonPrimitive.content)
+            fingerprints += crash["fingerprint"]!!.jsonPrimitive.content
+            val evidence = evidence(report)
+            assertEquals("system_low_memory", evidence["cause"]!!.jsonPrimitive.content)
+            assertEquals(buildJsonObject { put("apiLevel", 30); put("reason", 3); put("pid", 99); put("importance", importance)
+                put("pssKb", 512_000); put("rssKb", 640_000); put("description", "low memory") }, evidence["android"])
+            assertEquals("not_requested", evidence["trace"]!!.jsonObject["status"]!!.jsonPrimitive.content)
+            assertEquals("old", body(report)["context"]!!.jsonObject["app"]!!.jsonObject["version"]!!.jsonPrimitive.content)
+        }
+        assertEquals("one issue per app, not one per occurrence", 1, fingerprints.size)
+    }
+    @Test fun `a low-memory kill without recorded memory sizes claims none`() {
+        // lmkd kills record no PSS/RSS on current emulators; 0 means unknown, not zero bytes.
+        val (_, token) = arm(api = 30)
+        val reported = arrayListOf<OutboxEntry>()
+        val exit = lowMemory(token, 100, description = null).copy(pss = 0, rss = 0)
+        assertEquals(1, engine().recover(listOf(exit), 3000, allowed, allowDiagnostics = true) { reported.add(it); true })
+        assertEquals(buildJsonObject { put("apiLevel", 30); put("reason", 3); put("pid", 99); put("importance", 100) },
+            evidence(reported.single())["android"])
+        assertEquals("Killed for low memory while in the foreground",
+            body(reported.single())["payload"]!!.jsonObject["crash"]!!.jsonObject["message"]!!.jsonPrimitive.content)
+    }
+    @Test fun `background and cached low-memory kills stay silent`() {
+        // Service, cached, gone, and an unknown importance are ordinary Android process lifecycle.
+        for (importance in listOf(300, 400, 1000, 0)) {
+            val (_, token) = arm(api = 30)
+            val reported = arrayListOf<OutboxEntry>()
+            engine().recover(listOf(lowMemory(token, importance)), 3000, allowed, allowDiagnostics = true) { reported.add(it); true }
+            assertTrue("importance $importance was reported", reported.isEmpty())
+            assertTrue(store("contexts").snapshotTokens().isEmpty())
+        }
+    }
+    @Test fun `the OS exit description is kept only as bounded printable text`() {
+        val (_, token) = arm(api = 30)
+        val reported = arrayListOf<OutboxEntry>()
+        engine().recover(listOf(lowMemory(token, 100, "lmk\u0000 kill " + "x".repeat(200))), 3000, allowed, allowDiagnostics = true) { reported.add(it); true }
+        val description = evidence(reported.single())["android"]!!.jsonObject["description"]!!.jsonPrimitive.content
+        assertEquals(128, description.length)
+        assertTrue(description.startsWith("lmk kill x"))
+    }
+
     @Test fun `native exit carries one crash envelope plus matching evidence including API30 metadata only`() {
         val (_, token) = arm(api = 30)
         var count = 0

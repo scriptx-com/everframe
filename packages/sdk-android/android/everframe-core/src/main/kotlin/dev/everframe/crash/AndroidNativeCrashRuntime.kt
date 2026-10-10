@@ -143,5 +143,6 @@ private class AndroidExitPlatform(private val context: Context) : AndroidNativeE
     override fun setStateSummary(value: ByteArray?) { manager.setProcessStateSummary(value) }
     override fun history(): List<AndroidNativeExit> = manager.getHistoricalProcessExitReasons(context.packageName, 0, 32)
         .take(32).map { exit -> AndroidNativeExit(exit.pid, exit.processName, exit.timestamp, exit.reason,
-            exit.processStateSummary?.takeIf { it.size <= 128 }?.copyOf(), { exit.traceInputStream }, exit.status) }
+            exit.processStateSummary?.takeIf { it.size <= 128 }?.copyOf(), { exit.traceInputStream }, exit.status,
+            exit.importance, exit.pss, exit.rss, exit.description) }
 }

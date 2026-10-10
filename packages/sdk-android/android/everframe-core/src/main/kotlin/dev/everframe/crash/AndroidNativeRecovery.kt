@@ -27,6 +27,13 @@ internal data class AndroidNativeExit(
     val openTrace: () -> InputStream?,
     /** ApplicationExitInfo.getStatus(): the terminating signal of a native crash; 0 when unknown. */
     val status: Int,
+    /** ApplicationExitInfo.getImportance() at death; 0 when unknown. */
+    val importance: Int = 0,
+    /** ApplicationExitInfo.getPss()/getRss() at death, in KiB; 0 when unknown. */
+    val pss: Long = 0,
+    val rss: Long = 0,
+    /** ApplicationExitInfo.getDescription(); kept only as bounded printable text, for low-memory kills. */
+    val description: String? = null,
 ) {
     constructor(pid: Int, processName: String, timestamp: Long, reason: Int, stateSummary: ByteArray?,
                 openTrace: () -> InputStream?) : this(pid, processName, timestamp, reason, stateSummary, openTrace, 0)
@@ -46,6 +53,14 @@ internal class AndroidNativeRecovery(
         private const val MAX_CONTEXT_BYTES = 65536
         private const val NATIVE_REASON = 5 // ApplicationExitInfo.REASON_CRASH_NATIVE, guarded by runtime API31.
         private const val ANR_REASON = 6 // ApplicationExitInfo.REASON_ANR.
+        private const val LOW_MEMORY_REASON = 3 // ApplicationExitInfo.REASON_LOW_MEMORY.
+        /** RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE: up to here the user could see or hear the app. */
+        private const val IMPORTANCE_PERCEPTIBLE = 230
+        private const val LOW_MEMORY_KIND = "Low memory kill"
+        /** A low-memory kill has no stack: one issue per app, not one per occurrence. */
+        private val LOW_MEMORY_FINGERPRINT = digest("$LOW_MEMORY_KIND|system_low_memory".toByteArray()).take(16)
+        /** Foreground, foreground service (background playback), visible or perceptible at death. */
+        fun userFacing(exit: AndroidNativeExit) = exit.reason == LOW_MEMORY_REASON && exit.importance in 1..IMPORTANCE_PERCEPTIBLE
         private val json = Json { encodeDefaults = false; explicitNulls = false }
         private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         private fun token(id: String) = (TOKEN_PREFIX + id).toByteArray(Charsets.US_ASCII)
@@ -162,10 +177,12 @@ internal class AndroidNativeRecovery(
             val matches = matchingExits(parsed, context.reportId, exits)
             if (matches.size != 1) { unmatched(); continue }
             val exit = matches.single()
-            // Only native crashes and ANRs are reported. Low-memory kills, user stops, JVM crashes (the
-            // uncaught-exception handler reports those) and other exits are consumed without a report,
-            // so an app the OS routinely kills cannot crowd real crashes out of ingest limits.
-            if (exit.reason != NATIVE_REASON && (exit.reason != ANR_REASON || !diagnostics || !allowDiagnostics)) {
+            // Reported: native crashes, ANRs, and low-memory kills while the user could see or hear the
+            // app. Background and cached reclaims, user stops, JVM crashes (the uncaught-exception
+            // handler reports those) and other exits are consumed without a report, so an app the OS
+            // routinely kills cannot crowd real crashes out of ingest limits.
+            val evidenceExit = exit.reason == ANR_REASON || userFacing(exit)
+            if (exit.reason != NATIVE_REASON && (!evidenceExit || !diagnostics || !allowDiagnostics)) {
                 contexts.removeIfPresent(key); continue
             }
             if (exit.reason == NATIVE_REASON && launchId != null) {
@@ -255,7 +272,17 @@ internal class AndroidNativeRecovery(
         }
         val signal = native?.signalNumber ?: exit.status.takeIf { it in 1..64 }?.toLong()
         val kind = signal?.let { "Native signal $it" } ?: "Native process crash"
-        val crash = buildJsonObject {
+        val lowMemory = userFacing(exit)
+        val crash = if (lowMemory) buildJsonObject {
+            put("exceptionType", LOW_MEMORY_KIND)
+            val sizes = listOfNotNull(exit.pss.takeIf { it > 0 }?.let { "PSS $it KiB" }, exit.rss.takeIf { it > 0 }?.let { "RSS $it KiB" })
+            put("message", "Killed for low memory while ${importanceName(exit.importance)}" +
+                if (sizes.isEmpty()) "" else " (${sizes.joinToString(", ")})")
+            put("mechanism", "android-exit-info"); put("handled", false); put("fatal", true)
+            put("occurredAt", Instant.ofEpochMilli(exit.timestamp).toString())
+            put("fingerprint", LOW_MEMORY_FINGERPRINT)
+            put("frames", JsonArray(emptyList()))
+        } else buildJsonObject {
             put("exceptionType", kind)
             put("message", if (native == null) "Native process crash (tombstone unavailable)" else "Native process crash")
             put("mechanism", "android-exit-info"); put("handled", false); put("fatal", true)
@@ -264,14 +291,22 @@ internal class AndroidNativeRecovery(
             put("frames", JsonArray(frames))
             if (native != null) put("androidNative", json.encodeToJsonElement(native))
         }
-        val bytes = JsonObject(template + mapOf("source" to JsonPrimitive(if (exit.reason == NATIVE_REASON) "crash" else "diagnostic"),
+        val fatal = exit.reason == NATIVE_REASON || lowMemory
+        val bytes = JsonObject(template + mapOf("source" to JsonPrimitive(if (fatal) "crash" else "diagnostic"),
             "submittedAt" to JsonPrimitive(Instant.ofEpochMilli(nowMs).toString()),
             "payload" to buildJsonObject {
-                if (exit.reason == NATIVE_REASON) put("crash", crash)
+                if (fatal) put("crash", crash)
                 if (diagnostic != null) put("diagnostic", diagnostic)
             })).toString().toByteArray(Charsets.UTF_8)
         return context.copy(createdAt = exit.timestamp, envelopeBytes = bytes, idempotencyKey = digest(bytes),
             identitySubject = null, attachmentRefs = emptyList())
+    }
+
+    private fun importanceName(importance: Int) = when {
+        importance <= 100 -> "in the foreground"
+        importance <= 125 -> "running a foreground service"
+        importance <= 200 -> "visible"
+        else -> "perceptible"
     }
 
     /** Atomic invalidation can run alongside the SDK's epoch transition. Disk erasure runs outside stateLock. */
