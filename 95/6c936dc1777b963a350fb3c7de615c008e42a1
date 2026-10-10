@@ -1,0 +1,19 @@
+packages/sdk-ios/Sources/Everframe/Termination/TerminationTracker.swift
+  s_dbd309ddf8ec5b::t_208eb5b6c155df 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "956c936dc1777b963a350fb3c7de615c008e42a1",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
