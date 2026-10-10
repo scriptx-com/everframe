@@ -639,6 +639,34 @@ importers:
         specifier: 4.3.6
         version: 4.3.6(patch_hash=szurow4zhzyfyo22tumm2pdqcq)
 
+  packages/sdk-vega:
+    dependencies:
+      react-native:
+        specifier: '>=0.72'
+        version: 0.87.1(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.2.5)
+    devDependencies:
+      '@arethetypeswrong/cli':
+        specifier: ^0.18.0
+        version: 0.18.5
+      '@everframe/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@everframe/sdk-core':
+        specifier: workspace:*
+        version: link:../sdk-core
+      acorn:
+        specifier: ^8.11.0
+        version: 8.18.0
+      publint:
+        specifier: ^0.3.0
+        version: 0.3.24
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+      vitest:
+        specifier: ^4.0.0
+        version: 4.1.11(@types/node@22.20.4)(jsdom@29.1.1(@noble/hashes@1.8.0(patch_hash=avlaf7panokdhlz5flselmziby)))(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.1))
+
   packages/sdk-web:
     dependencies:
       '@zumer/snapdom':

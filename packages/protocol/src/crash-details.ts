@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { z } from 'zod';
 import { utf8ByteLength } from './vitals.js';
+import { isSensitiveKey } from './sensitive-keys.js';
 
 export const MAX_CRASH_DETAILS_BYTES = 8192;
 export const MAX_CRASH_CONTEXT_UNITS = 256;
@@ -12,15 +13,6 @@ export const MAX_CRASH_DETAIL_NODES = 128;
 export const MAX_CRASH_DETAIL_LEVELS = 4;
 
 const VALID_TEXT_RE = /^(?:[^\u0000\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u;
-const SENSITIVE_KEY_PARTS = [
-  'password',
-  'passwd',
-  'secret',
-  'token',
-  'authorization',
-  'cookie',
-  'apikey',
-] as const;
 
 export const ErrorSeverity = z.enum(['info', 'warning', 'error'])
   .meta({ title: 'ErrorSeverity' });
@@ -201,22 +193,6 @@ function redactText(
     value: normalized.value,
     truncated: scanned.changed || normalized.changed,
   };
-}
-
-function normalizedSensitiveKey(key: string): string {
-  let normalized = '';
-  for (let index = 0; index < key.length; index++) {
-    const code = key.charCodeAt(index);
-    if (code >= 0x30 && code <= 0x39) normalized += key[index]!;
-    else if (code >= 0x41 && code <= 0x5a) normalized += String.fromCharCode(code + 0x20);
-    else if (code >= 0x61 && code <= 0x7a) normalized += key[index]!;
-  }
-  return normalized;
-}
-
-function isSensitiveKey(key: string): boolean {
-  const normalized = normalizedSensitiveKey(key);
-  return SENSITIVE_KEY_PARTS.some(part => normalized.includes(part));
 }
 
 function containerKind(value: object): 'array' | 'object' | undefined {

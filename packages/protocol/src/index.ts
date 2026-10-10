@@ -39,6 +39,7 @@ export * from './crash.js';
 export * from './crash-causes.js';
 export { JWT_CANDIDATE_PATTERN, JWT_REPLACEMENT, MAX_JWT_FULL_DECODES, MAX_JWT_GLUE, redactJwt } from './redaction.js';
 export * from './crash-details.js';
+export { SENSITIVE_KEY_PARTS, isSensitiveKey } from './sensitive-keys.js';
 export * from './native-crash.js';
 export * from './build-artifacts.js';
 export {

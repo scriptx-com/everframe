@@ -30,7 +30,7 @@ Export and upload from the same isolated build workspace:
 
 ```sh
 npx expo export --platform android --source-maps --output-dir dist
-npx everframe upload-expo-export --dist dist --staging .everframe --app-id "$EVERFRAME_APP_ID"
+npx @everframe/cli upload-expo-export --dist dist --staging .everframe --app-id "$EVERFRAME_APP_ID"
 ```
 
 Set `EVERFRAME_API_TOKEN` to a token scoped to `artifacts:write`. Keep that token
