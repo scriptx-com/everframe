@@ -1,0 +1,45 @@
+examples/ios-native/SampleApp.xcodeproj/project.pbxproj
+  s_dbd309ddf8ec5b::t_a1167af5312baf 279,319
+examples/ios-native/scripts/upload-everframe-symbols.sh
+  s_dbd309ddf8ec5b::t_19de7a19103544 15-20,23
+packages/cli/__tests__/apple-build.spec.ts
+  s_dbd309ddf8ec5b::t_fbec3ad251bfd9 660-678
+packages/cli/__tests__/apple-command.spec.ts
+  s_dbd309ddf8ec5b::t_c3a311a5539579 132-139
+packages/cli/__tests__/apple-discover.spec.ts
+  s_dbd309ddf8ec5b::t_092b4b6f25627e 86-93
+packages/cli/__tests__/elf-command.spec.ts
+  s_dbd309ddf8ec5b::t_d1ad77aad3072b 3,174-210
+packages/cli/__tests__/native-setup.spec.ts
+  s_dbd309ddf8ec5b::t_f9a7957a114726 4-5,84-114,116
+packages/cli/__tests__/setup-xcode.spec.ts
+  s_dbd309ddf8ec5b::t_60675903fe913b 129,163-181
+packages/cli/src/apple-build.ts
+  s_dbd309ddf8ec5b::t_3f7fb2ebd58d90 42-46,381,390-400,404,502
+packages/cli/src/apple-command.ts
+  s_dbd309ddf8ec5b::t_902f98990327cd 102-104
+packages/cli/src/apple-discover.ts
+  s_dbd309ddf8ec5b::t_5c5dd085b52e40 126-127
+packages/cli/src/elf-build.ts
+  s_dbd309ddf8ec5b::t_adae9518f09e8b 34-38,117,124,150-162,194-195
+packages/cli/src/native-setup/script.ts
+  s_dbd309ddf8ec5b::t_46060aae980932 22,27-49,90-91,94-95,98,103-109
+packages/cli/src/native-setup/xcode-symbols.ts
+  s_dbd309ddf8ec5b::t_56412791b47743 3,57-59,62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9281d8e4c0155a56b23dc093a704c0aa1ecfc3f5",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
