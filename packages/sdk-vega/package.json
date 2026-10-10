@@ -1,0 +1,71 @@
+{
+  "name": "@everframe/vega",
+  "version": "0.1.0",
+  "description": "Amazon Vega OS SDK for Everframe (preview): JavaScript crash and error reporting for React Native for Vega apps, with no native module.",
+  "author": {
+    "name": "Scriptx, UAB",
+    "email": "support@everframe.dev",
+    "url": "https://everframe.dev"
+  },
+  "keywords": [
+    "vega",
+    "vega-os",
+    "fire-tv",
+    "kepler",
+    "react-native",
+    "crash-reporting",
+    "error-reporting",
+    "everframe"
+  ],
+  "homepage": "https://everframe.dev",
+  "bugs": {
+    "url": "https://github.com/scriptx-com/everframe/issues"
+  },
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scriptx-com/everframe.git",
+    "directory": "packages/sdk-vega"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "react-native": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm && publint",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.72"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.0",
+    "@everframe/protocol": "workspace:*",
+    "@everframe/sdk-core": "workspace:*",
+    "acorn": "^8.11.0",
+    "publint": "^0.3.0",
+    "tsup": "^8.0.0",
+    "vitest": "^4.0.0"
+  }
+}
