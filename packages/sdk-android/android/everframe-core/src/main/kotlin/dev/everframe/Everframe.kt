@@ -910,11 +910,15 @@ object Everframe {
         dev.everframe.vitals.VitalsServerConfigSignal.publish(null, stillNewest)
 
         // Mechanisms come from the API level, the process and the optional module alone; there is
-        // no per-start opt-in. Computed outside stateLock: the module probe loads a class.
+        // no per-start opt-in. Computed outside stateLock: the module probe loads a class, and only
+        // where the collector can run. The default-process check reads /proc before API 28, so each
+        // mechanism's enable makes it on the IO thread and a secondary process refuses there.
+        val crashApi = android.os.Build.VERSION.SDK_INT
         val crashPlan = if (!config.capture.crash) null else dev.everframe.crash.CrashCapturePlan.select(
-            android.os.Build.VERSION.SDK_INT,
-            dev.everframe.crash.AppProcess.isDefault(context.applicationContext),
-            dev.everframe.crash.AndroidNativeSignalRuntime.available(context.applicationContext),
+            crashApi,
+            defaultProcess = true,
+            signalModulePresent = crashApi in 26..30 &&
+                dev.everframe.crash.AndroidNativeSignalRuntime.available(context.applicationContext),
         ).takeIf { it.any }
         var startedCrashCapture: dev.everframe.crash.CrashCaptureStart? = null
         var displacedReplay: ReplaySession? = null

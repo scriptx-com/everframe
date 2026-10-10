@@ -99,13 +99,16 @@ internal object AndroidNativeCrashRuntime {
     /** Outside SDK stateLock. Pending OS reads cannot block this transition. */
     fun boundary(context: Context?, epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean, request: Long? = null) {
         if (Build.VERSION.SDK_INT < 30 || !isCurrent()) return
-        // Journals are shared by every process of the app; only the default process owns them.
-        if (context != null && !AppProcess.isDefault(context)) return
+        // Journals are shared by every process of the app; only the default process owns them. The
+        // check reads /proc before API 28, so a replacement start makes it only where it could touch
+        // the journals instead of on the caller's thread every time.
+        val defaultProcess by lazy(LazyThreadSafetyMode.NONE) { context == null || AppProcess.isDefault(context) }
+        if (erasePersisted && !defaultProcess) return
         val command = request ?: requests.boundary(epoch)
         val owns = { isCurrent() && requests.allows(command, epoch, false) }
         if (!owns()) return
         if (context != null && !requests.finishRevocation {
-            if (!owns()) false else {
+            if (!owns()) false else if (!defaultProcess) true else {
                 val existing = synchronized(lock) { controller }
                 val owner = existing ?: if (File(context.noBackupFilesDir, "dev.everframe/native-exit-v1").exists()) controller(context) else null
                 owner?.retire(epoch, true, owns)

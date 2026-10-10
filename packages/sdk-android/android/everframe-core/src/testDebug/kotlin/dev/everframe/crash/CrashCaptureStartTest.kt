@@ -266,6 +266,16 @@ class CrashCaptureStartTest {
         } finally { holdArm?.countDown(); holdArm = null }
     }
 
+    @Test fun `start never reads the process name on the caller's thread`() {
+        val readers = java.util.concurrent.ConcurrentLinkedQueue<Thread>()
+        AppProcess.__readForTesting = { readers += Thread.currentThread() }
+        try {
+            start(); awaitReady()
+            assertTrue("the default-process check never ran", readers.isNotEmpty())
+            assertFalse("start() read the process name on the caller's thread", Thread.currentThread() in readers)
+        } finally { AppProcess.__readForTesting = null }
+    }
+
     @Test @Config(sdk = [29])
     fun `API 29 without the native-crash module has no native mechanism`() {
         start() // no mechanism is selected, so no arming work is launched
