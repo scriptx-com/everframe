@@ -1,0 +1,33 @@
+packages/sdk-android/README.md
+  s_dbd309ddf8ec5b::t_dd5414f0d9fb07 90,92
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_dbd309ddf8ec5b::t_d19d29d7995ab8 19-23,84-85,87,110-114,141,156
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_dbd309ddf8ec5b::t_4207244b05b119 8,11,19,56-58,79,91-136,151-158,161-163
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_dbd309ddf8ec5b::t_d869da3490fb8e 31-32,39-40,84,93,136-137,157-158,185-189
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_dbd309ddf8ec5b::t_35de10e17693ff 35,117-131,171
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_dbd309ddf8ec5b::t_f32673af49aaa3 400-431
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryTest.kt
+  s_dbd309ddf8ec5b::t_6978904ddb0b98 116-122,124-142,144,146,174,176,178-185
+packages/sdk-android/native/README.md
+  s_dbd309ddf8ec5b::t_8fd901a232f7d8 75-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "97314c96e0701060fd6bde1406c91f60d99ad091",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
