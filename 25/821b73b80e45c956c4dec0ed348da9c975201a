@@ -1,0 +1,23 @@
+packages/cli/__tests__/apple-build-fixture.ts
+  s_dbd309ddf8ec5b::t_6d999d30137585 4,107-125
+packages/cli/__tests__/apple-discover.spec.ts
+  s_dbd309ddf8ec5b::t_d2b8dd89f62087 1-124
+packages/cli/src/apple-discover.ts
+  s_dbd309ddf8ec5b::t_51eb551bf15444 1-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25821b73b80e45c956c4dec0ed348da9c975201a",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
