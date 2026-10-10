@@ -7,6 +7,10 @@ import { Breadcrumb } from './breadcrumb.js';
 import { DiagnosticEvidence } from './diagnostic.js';
 import { AppleDiagnosticEvidence } from './apple-diagnostic.js';
 import { RecoveredStallEvidence } from './recovered-stall.js';
+import {
+  InferredTerminationEvidence, INFERRED_TERMINATION_EXCEPTION_TYPES, INFERRED_TERMINATION_FINGERPRINTS,
+  INFERRED_TERMINATION_MECHANISM,
+} from './inferred-termination.js';
 import { CrashPayload } from './crash.js';
 import { NetworkBodyEntrySchema } from './network-body.js';
 import { VitalsEntry, MAX_ENVELOPE_VITALS_ENTRIES } from './vitals.js';
@@ -161,6 +165,9 @@ export const ReportEnvelope = z
         diagnostic: DiagnosticEvidence.optional(),
         appleDiagnostic: AppleDiagnosticEvidence.optional(),
         recoveredStall: RecoveredStallEvidence.optional(),
+        // Next-launch inference of an iOS/tvOS foreground SIGKILL (jetsam, watchdog or
+        // unexplained). Rides on its own stackless fatal crash; see the rule below.
+        inferredTermination: InferredTerminationEvidence.optional(),
       })
       .passthrough(),
     context: z
@@ -217,6 +224,30 @@ export const ReportEnvelope = z
       if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'recoveredStall'], 'Recovered probes must be anonymous and attachment-free');
       if (Object.keys(envelope.payload).some(key => key !== 'recoveredStall')) issue(['payload'], 'Recovered probes cannot include other captured content');
       if (Object.values(envelope.captures).some(value => value === true) || envelope.context.route !== undefined) issue(['captures'], 'Recovered probes cannot claim private captures');
+      return;
+    }
+    // The Apple and recovered-stall branches above already reject a crash block or any other payload key.
+    const inferred = envelope.payload.inferredTermination;
+    const inferredCrash = envelope.payload.crash;
+    if (inferredCrash?.mechanism === INFERRED_TERMINATION_MECHANISM && !inferred) {
+      issue(['payload', 'inferredTermination'], 'Inferred termination crash requires its evidence');
+    }
+    if (inferred) {
+      if (evidence) issue(['payload', 'diagnostic'], 'Inferred termination cannot carry OS evidence');
+      if (envelope.source !== 'crash' || !inferredCrash) issue(['source'], 'Inferred termination requires a crash payload');
+      if (envelope.sdk.platform !== 'ios' && envelope.sdk.platform !== 'tvos') issue(['sdk', 'platform'], 'Inferred termination requires iOS or tvOS');
+      if (inferredCrash && (inferredCrash.mechanism !== INFERRED_TERMINATION_MECHANISM || inferredCrash.fatal !== true
+          || inferredCrash.handled || inferredCrash.frames.length > 0 || inferredCrash.native || inferredCrash.androidNative
+          || inferredCrash.exceptionType !== INFERRED_TERMINATION_EXCEPTION_TYPES[inferred.cause]
+          || inferredCrash.fingerprint !== INFERRED_TERMINATION_FINGERPRINTS[inferred.cause]
+          || Date.parse(inferredCrash.occurredAt) !== Date.parse(inferred.lastSeenAt))) {
+        issue(['payload', 'crash'], 'Inferred termination requires its own stackless fatal crash');
+      }
+      if (inferred.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+      if (Date.parse(envelope.submittedAt) !== Date.parse(inferred.collectedAt)) issue(['submittedAt'], 'Submission must use the frozen collection time');
+      if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) {
+        issue(['payload', 'inferredTermination'], 'Inferred termination must be anonymous and attachment-free');
+      }
       return;
     }
     if (!evidence) {

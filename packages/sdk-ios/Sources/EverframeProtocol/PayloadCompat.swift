@@ -14,7 +14,7 @@ public extension EverframePayload {
          redactions: [EverframeJSONAny]?,
          resources: [EverframeResource]?,
          vitals: [EverframeVital]?) {
-        self.init(annotations: annotations, appleDiagnostic: nil, breadcrumbs: breadcrumbs, crash: crash, diagnostic: nil, extra: extra, focus: focus, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: nil, redactions: redactions, resources: resources, vitals: vitals)
+        self.init(annotations: annotations, appleDiagnostic: nil, breadcrumbs: breadcrumbs, crash: crash, diagnostic: nil, extra: extra, focus: focus, inferredTermination: nil, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: nil, redactions: redactions, resources: resources, vitals: vitals)
     }
 
     func with(annotations: [EverframeJSONAny]?? = nil,
@@ -28,7 +28,7 @@ public extension EverframePayload {
               redactions: [EverframeJSONAny]?? = nil,
               resources: [EverframeResource]?? = nil,
               vitals: [EverframeVital]?? = nil) -> EverframePayload {
-        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
+        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, inferredTermination: self.inferredTermination, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
     }
 }
 
@@ -45,7 +45,7 @@ public extension EverframePayload {
          redactions: [EverframeJSONAny]?,
          resources: [EverframeResource]?,
          vitals: [EverframeVital]?) {
-        self.init(annotations: annotations, appleDiagnostic: nil, breadcrumbs: breadcrumbs, crash: crash, diagnostic: diagnostic, extra: extra, focus: focus, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: nil, redactions: redactions, resources: resources, vitals: vitals)
+        self.init(annotations: annotations, appleDiagnostic: nil, breadcrumbs: breadcrumbs, crash: crash, diagnostic: diagnostic, extra: extra, focus: focus, inferredTermination: nil, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: nil, redactions: redactions, resources: resources, vitals: vitals)
     }
 
     func with(annotations: [EverframeJSONAny]?? = nil,
@@ -60,7 +60,7 @@ public extension EverframePayload {
               redactions: [EverframeJSONAny]?? = nil,
               resources: [EverframeResource]?? = nil,
               vitals: [EverframeVital]?? = nil) -> EverframePayload {
-        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: diagnostic ?? self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
+        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: diagnostic ?? self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, inferredTermination: self.inferredTermination, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
     }
 }
 
@@ -78,7 +78,7 @@ public extension EverframePayload {
          redactions: [EverframeJSONAny]?,
          resources: [EverframeResource]?,
          vitals: [EverframeVital]?) {
-        self.init(annotations: annotations, appleDiagnostic: appleDiagnostic, breadcrumbs: breadcrumbs, crash: crash, diagnostic: diagnostic, extra: extra, focus: focus, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: nil, redactions: redactions, resources: resources, vitals: vitals)
+        self.init(annotations: annotations, appleDiagnostic: appleDiagnostic, breadcrumbs: breadcrumbs, crash: crash, diagnostic: diagnostic, extra: extra, focus: focus, inferredTermination: nil, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: nil, redactions: redactions, resources: resources, vitals: vitals)
     }
 
     func with(annotations: [EverframeJSONAny]?? = nil,
@@ -94,7 +94,7 @@ public extension EverframePayload {
               redactions: [EverframeJSONAny]?? = nil,
               resources: [EverframeResource]?? = nil,
               vitals: [EverframeVital]?? = nil) -> EverframePayload {
-        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: appleDiagnostic ?? self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: diagnostic ?? self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
+        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: appleDiagnostic ?? self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: diagnostic ?? self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, inferredTermination: self.inferredTermination, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
     }
 }
 
@@ -112,7 +112,7 @@ public extension EverframePayload {
          redactions: [EverframeJSONAny]?,
          resources: [EverframeResource]?,
          vitals: [EverframeVital]?) {
-        self.init(annotations: annotations, appleDiagnostic: nil, breadcrumbs: breadcrumbs, crash: crash, diagnostic: diagnostic, extra: extra, focus: focus, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: recoveredStall, redactions: redactions, resources: resources, vitals: vitals)
+        self.init(annotations: annotations, appleDiagnostic: nil, breadcrumbs: breadcrumbs, crash: crash, diagnostic: diagnostic, extra: extra, focus: focus, inferredTermination: nil, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: recoveredStall, redactions: redactions, resources: resources, vitals: vitals)
     }
 
     func with(annotations: [EverframeJSONAny]?? = nil,
@@ -128,6 +128,26 @@ public extension EverframePayload {
               redactions: [EverframeJSONAny]?? = nil,
               resources: [EverframeResource]?? = nil,
               vitals: [EverframeVital]?? = nil) -> EverframePayload {
-        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: diagnostic ?? self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: recoveredStall ?? self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
+        EverframePayload(annotations: annotations ?? self.annotations, appleDiagnostic: self.appleDiagnostic, breadcrumbs: breadcrumbs ?? self.breadcrumbs, crash: crash ?? self.crash, diagnostic: diagnostic ?? self.diagnostic, extra: extra ?? self.extra, focus: focus ?? self.focus, inferredTermination: self.inferredTermination, logs: logs ?? self.logs, network: network ?? self.network, networkBodies: networkBodies ?? self.networkBodies, recoveredStall: recoveredStall ?? self.recoveredStall, redactions: redactions ?? self.redactions, resources: resources ?? self.resources, vitals: vitals ?? self.vitals)
+    }
+}
+
+public extension EverframePayload {
+    /// Preserve the memberwise initializer used before inferred terminations were added.
+    init(annotations: [EverframeJSONAny]?,
+         appleDiagnostic: EverframeAppleDiagnosticEvidence?,
+         breadcrumbs: [EverframeBreadcrumb]?,
+         crash: EverframeCrash?,
+         diagnostic: EverframeDiagnosticEvidence?,
+         extra: String?,
+         focus: EverframeFocus?,
+         logs: [EverframeJSONAny]?,
+         network: [EverframeJSONAny]?,
+         networkBodies: [EverframeNetworkBody]?,
+         recoveredStall: EverframeRecoveredStallEvidence?,
+         redactions: [EverframeJSONAny]?,
+         resources: [EverframeResource]?,
+         vitals: [EverframeVital]?) {
+        self.init(annotations: annotations, appleDiagnostic: appleDiagnostic, breadcrumbs: breadcrumbs, crash: crash, diagnostic: diagnostic, extra: extra, focus: focus, inferredTermination: nil, logs: logs, network: network, networkBodies: networkBodies, recoveredStall: recoveredStall, redactions: redactions, resources: resources, vitals: vitals)
     }
 }
