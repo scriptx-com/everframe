@@ -6,6 +6,7 @@ import dev.everframe.health.NativeExposurePointer
 import dev.everframe.health.ProcessLaunchIdentity
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxEntry
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 internal interface AndroidNativeExitPlatform {
@@ -26,6 +27,8 @@ internal class AndroidNativeRecoveryController(
     private val exposure: (Int) -> NativeExposurePointer? = { null },
     /** API30 overlap: whether optional signal capture owns an ended launch's native fault. */
     private val signalCapture: (String) -> NativeSignalCapture = { NativeSignalCapture.NONE },
+    /** API30 overlap: the launches whose contexts recovery left; signal receipts for any other go. */
+    private val signalRetain: (Set<String>) -> Unit = {},
     /** Called when exit history shows another writer's process-state summary. */
     private val onSummaryConflict: () -> Unit = ProcessStateSummaryConflict::warn,
     /** Called when arming had to free context slots: (records that can no longer be reported, oldest records). */
@@ -42,6 +45,8 @@ internal class AndroidNativeRecoveryController(
     private val lock = Any()
     private val publication = Any()
     private val exposureGeneration = AtomicLong()
+    /** Owners of a start older than this were replaced: their arms are fenced and they are never ready. */
+    private val replacedBefore = AtomicInteger(Int.MIN_VALUE)
     @Volatile private var active: Active? = null
     /** The OS token as last written, or null once cleared; read without a lock by [markJvmFatal]. */
     @Volatile private var published: ByteArray? = null
@@ -61,7 +66,7 @@ internal class AndroidNativeRecoveryController(
         val owner = synchronized(lock) {
             if (!authorization.isAllowed()) return false
             active?.let {
-                if (it.authorization.isAllowed() && it.diagnostics == diagnostics) {
+                if (it.authorization.isAllowed() && current(it) && it.diagnostics == diagnostics) {
                     if (it.epoch != epoch) return false
                     if (it.ready) return true
                     return@synchronized it
@@ -80,7 +85,7 @@ internal class AndroidNativeRecoveryController(
     private fun initialize(owner: Active): Boolean = synchronized(owner.operations) {
         val generation = exposureGeneration.get()
         val gate = object : OutboxAuthorization {
-            override fun isAllowed() = exposureGeneration.get() == generation && active === owner && owner.authorization.isAllowed()
+            override fun isAllowed() = exposureGeneration.get() == generation && active === owner && current(owner) && owner.authorization.isAllowed()
         }
         try {
             if (!gate.isAllowed()) return false
@@ -89,7 +94,8 @@ internal class AndroidNativeRecoveryController(
             owner.exits = exits
             if (ProcessStateSummaryConflict.foreign(exits, platform.processName)) runCatching { onSummaryConflict() }
             if (!gate.isAllowed()) return false
-            owner.engine.recover(exits, owner.nowMs, gate, allowDiagnostics = owner.diagnostics, signalCapture = signalCapture) {
+            owner.engine.recover(exits, owner.nowMs, gate, allowDiagnostics = owner.diagnostics, signalCapture = signalCapture,
+                retainSignalReceipts = signalRetain) {
                 if (gate.isAllowed()) owner.admit(it) else false
             }
             synchronized(lock) {
@@ -110,7 +116,7 @@ internal class AndroidNativeRecoveryController(
             synchronized(lock) {
                 if (active === owner && !owner.ready) {
                     // A lifecycle fence cancels readiness, not the host's explicit opt-in.
-                    if (!owner.authorization.isAllowed()) active = null
+                    if (!owner.authorization.isAllowed() || !current(owner)) active = null
                     if (owner.claimed) runCatching { publish(null) }
                 }
             }
@@ -123,6 +129,23 @@ internal class AndroidNativeRecoveryController(
         synchronized(publication) { if (active?.claimed == true) runCatching { publish(null) } }
     }
 
+    /**
+     * Replacement start [epoch]: clears an older start's OS token at once, without the lock an
+     * in-flight arm holds across IO. Only owners of earlier starts are fenced, so a delayed call can
+     * never cancel a newer start's arm. [isCurrent] is read under the publication lock that every
+     * token write takes: a newer start that already published keeps its token.
+     */
+    fun retireExposure(epoch: Int, isCurrent: () -> Boolean) {
+        replacedBefore.accumulateAndGet(epoch, ::maxOf)
+        synchronized(publication) {
+            if (!isCurrent()) return
+            val owner = active ?: return
+            if (owner.epoch < epoch && owner.claimed) runCatching { publish(null) }
+        }
+    }
+
+    private fun current(owner: Active) = owner.epoch >= replacedBefore.get()
+
     /** Replaces only the live context, preserving previous-process recovery receipts and mode. */
     fun refreshExposure(epoch: Int): Boolean {
         val owner = synchronized(lock) { active?.takeIf { it.epoch == epoch && it.authorization.isAllowed() } } ?: return false
@@ -131,7 +154,7 @@ internal class AndroidNativeRecoveryController(
             val generation = exposureGeneration.get()
             synchronized(lock) {
                 val gate = object : OutboxAuthorization {
-                    override fun isAllowed() = active === owner && owner.epoch == epoch &&
+                    override fun isAllowed() = active === owner && owner.epoch == epoch && current(owner) &&
                         exposureGeneration.get() == generation && owner.authorization.isAllowed()
                 }
                 if (!gate.isAllowed()) return false
@@ -157,7 +180,7 @@ internal class AndroidNativeRecoveryController(
 
     /** Lock-free: an arm holds the lock across journal and Binder IO, and callers poll this on the main thread. */
     fun ready(epoch: Int): Boolean =
-        active?.let { it.epoch == epoch && it.ready && it.authorization.isAllowed() } == true
+        active?.let { it.epoch == epoch && it.ready && current(it) && it.authorization.isAllowed() } == true
 
     private fun journalFull(unreportable: Int, oldest: Int) { runCatching { onJournalFull(unreportable, oldest) } }
 

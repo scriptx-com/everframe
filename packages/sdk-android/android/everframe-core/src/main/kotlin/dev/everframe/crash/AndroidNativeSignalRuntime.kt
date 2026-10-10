@@ -136,6 +136,14 @@ internal object AndroidNativeSignalRuntime {
         val storage = files ?: AndroidNativeSignalFiles(context.noBackupFilesDir, fileOps())
         engine(storage).captured(launch, System.currentTimeMillis(), storage::read)
     }
+    /** API30 exit-info recovery left contexts for [launches] only; a receipt for any other launch has
+     * nothing left to settle. Never imports or admits. */
+    fun retainReceipts(context: Context, launches: Set<String>): Unit = synchronized(work) {
+        if (Build.VERSION.SDK_INT !in 26..30 || erasePending.get() ||
+            !File(context.noBackupFilesDir, "dev.everframe/native-signal-v1").exists()) return@synchronized
+        val storage = files ?: AndroidNativeSignalFiles(context.noBackupFilesDir, fileOps())
+        engine(storage).retainReceipts(launches)
+    }
     /** Replacement start pauses synchronously, then retires only this process's context on IO. */
     fun retireAfterStart(command: Long): Job? {
         if (controller == null) return null

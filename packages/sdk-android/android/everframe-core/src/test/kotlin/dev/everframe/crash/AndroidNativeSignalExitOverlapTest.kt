@@ -57,8 +57,11 @@ class AndroidNativeSignalExitOverlapTest {
         return AndroidNativeExit(pid, "app", 2500, 5, token, { error("API30 has no tombstone") }, 11)
     }
     private fun signalRecovery(now: Long = 3000) = signal().recover("next-launch", now, allowed, files::read) { e, _ -> outbox += e; true }
+    /** Wired as AndroidNativeCrashRuntime wires it: exit recovery asks the signal path, then retires its receipts. */
     private fun exitRecovery(vararg exit: AndroidNativeExit, now: Long = 3000) = exits().recover(exit.toList(), now, allowed,
-        allowDiagnostics = true, signalCapture = { signal().captured(it, now, files::read) }) { outbox += it; true }
+        allowDiagnostics = true, signalCapture = { signal().captured(it, now, files::read) },
+        retainSignalReceipts = { signal().retainReceipts(it) }) { outbox += it; true }
+    private fun receipts() = store("delivered").snapshotTokens().size
     private fun exitContexts() = store("contexts").snapshotTokens().size
 
     @Test fun `signal report admitted first leaves the OS exit without a second crash`() {
@@ -130,11 +133,45 @@ class AndroidNativeSignalExitOverlapTest {
         assertEquals(NativeSignalCapture.PENDING, query.captured(crashed, 3000, files::read))
         assertEquals(0, exits().recover(listOf(exit), 3000, allowed, allowDiagnostics = true, signalCapture = { query.captured(it, 3000, files::read) }) { outbox += it; true })
     }
-    @Test fun `delivery receipts expire with the exit-info contexts they settle`() {
+    /**
+     * Exit recovery did not run in the launch that delivered the signal report (its arm failed, or
+     * the process ended first); the next launch's clock is [jump] away from the receipt's.
+     */
+    private fun receiptOutlivesClock(jump: Long) {
+        val base = 3 * AndroidNativeRecordImport.MAX_AGE_MS
+        val exit = crashedLaunch()
+        assertEquals(1, signalRecovery(now = base))
+        assertEquals(0, signalRecovery(now = base + jump))
+        assertEquals("the same death must not be reported again under a new report ID",
+            0, exitRecovery(exit, now = base + jump))
+        assertEquals(listOf("android-native-handler"), crashes())
+        assertEquals(0, receipts())
+    }
+    @Test fun `a receipt settles its OS exit when exit recovery runs more than 14 days later`() =
+        receiptOutlivesClock(AndroidNativeRecordImport.MAX_AGE_MS + 1)
+    @Test fun `a receipt settles its OS exit after the clock jumped back more than 14 days`() =
+        receiptOutlivesClock(-(AndroidNativeRecordImport.MAX_AGE_MS + 1))
+    @Test fun `a receipt is retired with the exit-info context it settled`() {
+        val exit = crashedLaunch()
+        assertEquals(1, signalRecovery())
+        assertEquals(1, receipts())
+        assertEquals(0, exitRecovery(exit))
+        assertEquals(0, exitContexts())
+        assertEquals(0, receipts())
+    }
+    @Test fun `a receipt stays while its launch's context still awaits a decision`() {
         crashedLaunch(); assertEquals(1, signalRecovery())
+        // An unrelated exit history: the crashed launch's context is still held, unmatched.
+        assertEquals(0, exitRecovery())
+        assertEquals(1, exitContexts())
         assertEquals(NativeSignalCapture.DELIVERED, signal().captured(crashed, 3000, files::read))
-        assertEquals(0, signalRecovery(now = 3000 + AndroidNativeRecordImport.MAX_AGE_MS + 1))
-        assertTrue(store("delivered").snapshotTokens().isEmpty())
+    }
+    @Test fun `receipts for launches without an exit-info context go once exit recovery has run`() {
+        signalArmed("44444444-4444-4444-8444-444444444444", recorded = true) // API30 exit arm failed in that launch
+        assertEquals(1, signalRecovery())
+        assertEquals(1, receipts())
+        assertEquals(0, exitRecovery())
+        assertEquals(0, receipts())
     }
     @Test fun `delivery receipts stay bounded and keep the newest launches`() {
         val launches = (0 until 10).map { UUID(0, it.toLong()).toString() }

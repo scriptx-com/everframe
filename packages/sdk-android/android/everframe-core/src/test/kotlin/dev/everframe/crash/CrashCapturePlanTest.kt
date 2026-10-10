@@ -36,6 +36,28 @@ class CrashCapturePlanTest {
         assertTrue(armed)
     }
 
+    @Test fun `a signal arm that throws still arms OS exit capture`() {
+        val calls = mutableListOf<String>()
+        val armed = CrashCapturePlan(processExit = true, nativeSignal = true).arm(
+            // As AndroidNativeSignalFiles throws when its directory cannot be owned.
+            armSignal = { calls += "signal"; throw IllegalStateException("Native directory must be owned and regular") },
+            armProcessExit = { calls += "exit"; true },
+        )
+        assertEquals(listOf("signal", "exit"), calls)
+        assertTrue("native-crash and ANR capture through OS exit records stays on", armed)
+    }
+
+    @Test fun `an exit arm that throws keeps the signal result and never escapes`() {
+        assertTrue(CrashCapturePlan(processExit = true, nativeSignal = true).arm(
+            armSignal = { true },
+            armProcessExit = { throw java.io.IOException("journal") },
+        ))
+        assertFalse(CrashCapturePlan(processExit = true, nativeSignal = true).arm(
+            armSignal = { throw LinkageError("optional module") },
+            armProcessExit = { throw java.io.IOException("journal") },
+        ))
+    }
+
     @Test fun `unselected mechanisms are never invoked`() {
         val armed = CrashCapturePlan(processExit = true, nativeSignal = false).arm(
             armSignal = { error("signal must not arm") },
