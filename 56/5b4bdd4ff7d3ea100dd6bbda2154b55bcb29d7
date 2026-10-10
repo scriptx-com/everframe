@@ -1,0 +1,45 @@
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_dbd309ddf8ec5b::t_0a5586aaf5f630 231-233
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_dbd309ddf8ec5b::t_513f0f39a0f148 23-24
+  s_dbd309ddf8ec5b::t_2b03b4d588741c 55-59
+  s_dbd309ddf8ec5b::t_4ac29ffadd6bdd 241-254
+.changeset/android-internet-permission.md
+  s_dbd309ddf8ec5b::t_e15e6a252c94a9 1-8
+.changeset/tvos-install-resolver.md
+  s_dbd309ddf8ec5b::t_346a45f55acd03 1-8
+packages/sdk-android/android/README.md
+  s_dbd309ddf8ec5b::t_8bf07561fec3e4 10,50-51,55-58,68,625-627
+packages/sdk-android/android/everframe-core/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_d79ca713f0634c 4-12
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/DeviceMetadata.kt
+  s_dbd309ddf8ec5b::t_c9d090bb676861 14-15,18-19
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionBadge.kt
+  s_dbd309ddf8ec5b::t_1b5f02ed68436a 35-36
+packages/sdk-android/android/everframe-protocol/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_cc83fb2e3b55b9 4
+packages/sdk-android/android/everframe-reporter-ui/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_a146d37308b38a 4
+packages/sdk-ios/README.md
+  s_dbd309ddf8ec5b::t_a145209785be0a 42-45,47-48,54-57,59-69,78-80
+packages/sdk-ios/Sources/EverframeReporterUI/CompanionPinPresenter.swift
+  s_dbd309ddf8ec5b::t_6a59667d0d7560 8
+packages/sdk-react-native/android/build.gradle.kts
+  s_dbd309ddf8ec5b::t_12b3c85da66895 24-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "565b4bdd4ff7d3ea100dd6bbda2154b55bcb29d7",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
