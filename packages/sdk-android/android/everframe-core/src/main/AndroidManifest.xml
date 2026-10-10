@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
-<!-- ZERO <uses-permission> entries. Host app's INTERNET (already declared by 99% of apps) is what we use. -->
-<!-- Empty <application> tag — no allowBackup, theme, name, networkSecurityConfig, usesCleartextTraffic. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<!-- INTERNET is the SDK's only permission. Reports go out over HTTPS, and a new
+     Android Studio project declares no permissions, so without this line an app
+     that follows the install docs sends nothing. The manifest merger adds it to
+     every app that depends on core. No ACCESS_NETWORK_STATE: the SDK never asks
+     the OS about connectivity, it retries from the outbox instead. -->
+<!-- No <application> element: no allowBackup, theme, name, networkSecurityConfig or usesCleartextTraffic. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
