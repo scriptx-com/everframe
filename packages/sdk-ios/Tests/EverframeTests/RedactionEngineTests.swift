@@ -126,12 +126,17 @@ struct RedactionEngineTests {
 
     @Test func jwtScan_staysLinearOnHostileMegabytes() {
         let compact = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        let longAlgLast = Data("{\"kid\":\"\(String(repeating: "k", count: 3_000))\",\"alg\":\"HS256\"}".utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
         for value in [String(repeating: "eyJ-", count: 262_144), String(repeating: "a.", count: 524_288),
                       String(repeating: "abcdefgh.ab.c ", count: 74_899),
                       String(repeating: String(repeating: "e30", count: 370) + ".e30.x ", count: 940),
                       String(repeating: String(repeating: "Zm9vYmFy", count: 140) + ".YmF6.cXV4 ", count: 925),
                       String(repeating: String(repeating: "x", count: 64) + "e30e30e30e30.e30. ", count: 12_337),
-                      String(repeating: "\(compact).e30.sig ", count: 23_000)] {
+                      String(repeating: "\(compact).e30.sig ", count: 23_000),
+                      String(repeating: String(repeating: "eyJi", count: 250) + ".e30.x ", count: 1_000),
+                      String(repeating: "eyJi", count: 262_144) + ".e30.x",
+                      String(repeating: longAlgLast + ".e30.sig ", count: 250)] {
             #expect(value.utf16.count >= 1_000_000)
             let started = Date()
             _ = RedactionEngine().redact(value)

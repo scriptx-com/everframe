@@ -75,6 +75,9 @@ describe('shared JWT redaction', () => {
     ['long base64 runs with dots', `${'Zm9vYmFy'.repeat(140)}.YmF6.cXV4 `.repeat(925)],
     ['glue that never verifies', `${'x'.repeat(64)}e30e30e30e30.e30. `.repeat(12_337)],
     ['real tokens', `${headers.compact}.e30.sig `.repeat(23_000)],
+    ['many long fake headers that open a JSON object', `${'eyJi'.repeat(250)}.e30.x `.repeat(1_000)],
+    ['one fake header of a megabyte', `${'eyJi'.repeat(262_144)}.e30.x`],
+    ['long headers that name "alg" at the end', `${b64(`{"kid":"${'k'.repeat(3_000)}","alg":"HS256"}`)}.e30.sig `.repeat(250)],
   ])('masks a megabyte of %s within budget', (_label, value) => {
     expect(value.length).toBeGreaterThanOrEqual(1_000_000);
     const started = performance.now();

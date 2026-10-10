@@ -25,6 +25,11 @@ export const headers = {
   rsa: b64('{"alg":"RSA-OAEP","enc":"A256GCM"}'),
 };
 const jws = (header: string, payload = claims, signature = sig) => `${header}.${payload}.${signature}`;
+// "alg" after the first 768 decoded bytes: a long key ID, and a certificate chain (x5c) of several KB.
+const longKid = b64(JSON.stringify({ kid: 'k'.repeat(800), alg: 'HS256' }));
+const certificate = b64('certificate-der-'.repeat(70)).replace(/[-_]/g, 'A');
+const x5c = b64(JSON.stringify({ typ: 'JWT', x5c: [certificate, certificate, certificate], alg: 'RS256' }));
+const noAlg = b64(JSON.stringify({ kid: 'k'.repeat(900) }));
 const dirJwe = `${headers.dir}..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ`;
 const rsaJwe = `${headers.rsa}.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGeipsEdY3mx_etLbbWSrFr05kLzc.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ`;
 
@@ -51,6 +56,16 @@ const named: Array<[string, string, string]> = [
   ['glued after %3D, header with leading whitespace', `token%3D${jws(headers.leadingSpace)}`, `token%3D${R}`],
   ['glue of 64 characters', `${'g'.repeat(64)}${jws(headers.compact)}`, `${'g'.repeat(64)}${R}`],
   ['glue past 64 characters is not searched', `${'g'.repeat(65)}${jws(headers.compact)}`, `${'g'.repeat(65)}${jws(headers.compact)}`],
+  // Long headers decode whole: "alg" can sit kilobytes in.
+  ['"alg" after an 800-character kid', `token ${jws(longKid)}`, `token ${R}`],
+  ['"alg" after an 800-character kid, glued after %3D', `token%3D${jws(longKid)}`, `token%3D${R}`],
+  ['"alg" after a certificate chain (x5c) of several KB', `Bearer ${jws(x5c)}`, `Bearer ${R}`],
+  ['a long JSON header without "alg"', `${jws(noAlg)}`, ''],
+  // At most four starts of a run get a full decode; glue that passes the prefix check four times uses them up.
+  // (A glue of whole 4-character groups keeps the header aligned, so the first start already verifies.)
+  ['four prefix-passing starts before an unaligned header', `${'eyJi'.repeat(4)}x${jws(headers.compact)}`, ''],
+  ['three prefix-passing starts before an unaligned header', `${'eyJi'.repeat(3)}x${jws(headers.compact)}`, `${'eyJi'.repeat(3)}x${R}`],
+  ['aligned glue that opens JSON objects', `${'eyJi'.repeat(4)}${jws(headers.compact)}`, R],
   // JWE: five segments, the second empty for dir.
   ['dir JWE', `jwe ${dirJwe}`, `jwe ${R}`],
   ['dir JWE glued after x_', `x_${dirJwe}`, `x_${R}`],
@@ -92,7 +107,8 @@ export function buildJwtCorpus(): JwtCorpus {
   const cases: JwtCorpusCase[] = named.map(([name, input, expected]) => ({ name, input, expected: expected === '' ? input : expected }));
   const pick = random(0x2545f491);
   const glue = ['', 'x_', 'token', '%3D', '=', '\\n', ' ', 'Bearer ', 'id_token=', 'a.', '-', 'abc', 'é', '"'];
-  const headerChoices = [...Object.values(headers), b64('{"foo":1}'), b64('hello world!'), b64('[1,2,3]'), '', 'eyJ', 'ewokFactory'];
+  const headerChoices = [...Object.values(headers), b64('{"foo":1}'), b64('hello world!'), b64('[1,2,3]'), '', 'eyJ', 'ewokFactory',
+    'eyJieyJi', longKid, noAlg];
   const payloads = ['e30', claims, '', 'a', b64(' {"sub":"1"}'), 'OKOawDo13gRp2ojaHV7LF'];
   const thirds = ['', sig, 'x', '48V1_ALb6US04U3b'];
   const alphabet = 'aZ09_-eyJwAokIC.';

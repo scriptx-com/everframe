@@ -117,7 +117,10 @@ class RedactionEngineTest {
         val compact = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
         for (value in listOf("eyJ-".repeat(262_144), "a.".repeat(524_288), "abcdefgh.ab.c ".repeat(74_899),
                 ("e30".repeat(370) + ".e30.x ").repeat(940), ("Zm9vYmFy".repeat(140) + ".YmF6.cXV4 ").repeat(925),
-                ("x".repeat(64) + "e30e30e30e30.e30. ").repeat(12_337), "$compact.e30.sig ".repeat(23_000))) {
+                ("x".repeat(64) + "e30e30e30e30.e30. ").repeat(12_337), "$compact.e30.sig ".repeat(23_000),
+                ("eyJi".repeat(250) + ".e30.x ").repeat(1_000), "eyJi".repeat(262_144) + ".e30.x",
+                (java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    "{\"kid\":\"${"k".repeat(3_000)}\",\"alg\":\"HS256\"}".toByteArray()) + ".e30.sig ").repeat(250))) {
             assertTrue(value.length >= 1_000_000)
             val started = System.nanoTime()
             RedactionEngine.redact(value)

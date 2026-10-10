@@ -21,8 +21,11 @@ export const JWT_REPLACEMENT = '[REDACTED:JWT]';
 export const JWT_CANDIDATE_PATTERN = String.raw`[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*)?`;
 /** Text glued before a header (`x_`, `token`, the `3D` of `%3D`) that the scanner looks past. */
 export const MAX_JWT_GLUE = 64;
-/** Header characters decoded per start; a JOSE header names "alg" well before this. */
-export const MAX_JWT_HEADER_DECODE = 1024;
+/**
+ * Starts per candidate whose whole header is decoded. A start is decoded only when its first 8
+ * characters pass the prefix check (whitespace, `{`, whitespace, `"`), which glued text rarely does.
+ */
+export const MAX_JWT_FULL_DECODES = 4;
 const MIN_HEADER = 8;
 const DOT = 46;
 
@@ -48,47 +51,67 @@ function isJsonWhitespace(byte: number): boolean {
   return byte === 0x20 || byte === 0x09 || byte === 0x0a || byte === 0x0d;
 }
 
-function contains(bytes: Uint8Array, length: number, needle: readonly number[]): boolean {
-  outer: for (let index = 0; index + needle.length <= length; index++) {
-    for (let k = 0; k < needle.length; k++) if (bytes[index + k] !== needle[k]) continue outer;
-    return true;
-  }
-  return false;
+function byteAt(a: number, b: number, c: number, d: number, k: number): number {
+  return k === 0 ? (a << 2) | (b >> 4) : k === 1 ? ((b & 15) << 4) | (c >> 2) : ((c & 3) << 6) | d;
 }
 
-const ALG = [0x22, 0x61, 0x6c, 0x67, 0x22]; // "alg"
-const ENC = [0x22, 0x65, 0x6e, 0x63, 0x22]; // "enc"
-const decoded = new Uint8Array((MAX_JWT_HEADER_DECODE / 4) * 3);
+/**
+ * The prefix check: the first 8 characters at `start` (6 bytes) decode to optional JSON whitespace,
+ * `{`, optional whitespace and `"` (a JOSE header's first member name). Whitespace that runs past
+ * the 6 bytes passes; the full decode decides.
+ */
+export function joseHeaderPrefix(value: string, start: number): boolean {
+  let state = 0; // 0: before `{`, 1: after `{`
+  for (let index = start; index < start + 8; index += 4) {
+    const a = BASE64URL[value.charCodeAt(index)]!;
+    const b = BASE64URL[value.charCodeAt(index + 1)]!;
+    const c = BASE64URL[value.charCodeAt(index + 2)]!;
+    const d = BASE64URL[value.charCodeAt(index + 3)]!;
+    for (let k = 0; k < 3; k++) {
+      const byte = byteAt(a, b, c, d, k);
+      if (isJsonWhitespace(byte)) continue;
+      if (state === 0 && byte === 0x7b) { state = 1; continue; }
+      return state === 1 && byte === 0x22;
+    }
+  }
+  return true;
+}
+
+const ALG = 0x22616c6722; // "alg"
+const ENC = 0x22656e6322; // "enc"
+const WINDOW = 2 ** 40; // five bytes
 
 /**
- * Decodes up to MAX_JWT_HEADER_DECODE base64url characters of value[start, end) and checks for a
- * JOSE header: optional JSON whitespace, `{`, and `"alg"`. Returns 0 when it is not one, 1 for a
- * JWS-style header and 2 when it also names "enc" (a JWE). Stops at the first byte that cannot
- * start an object.
+ * Decodes the whole header value[start, end) once, keeping only the last five bytes, and checks
+ * for a JOSE header: optional JSON whitespace, `{`, and `"alg"` anywhere after it. Returns 0 when
+ * it is not one, 1 for a header with "alg" and 2 when it also names "enc" (a JWE). Linear in the
+ * header length, with no cap: certificate chains (x5c) make headers several kilobytes long.
  */
 export function joseHeaderKind(value: string, start: number, end: number): 0 | 1 | 2 {
-  const stop = Math.min(end, start + MAX_JWT_HEADER_DECODE);
-  let length = 0;
   let opened = false;
-  for (let index = start; index < stop; index += 4) {
-    const remaining = stop - index;
-    if (remaining < 2) break;
+  let alg = false;
+  let enc = false;
+  let window = 0;
+  for (let index = start; end - index >= 2; index += 4) {
+    const remaining = end - index;
     const a = BASE64URL[value.charCodeAt(index)]!;
     const b = BASE64URL[value.charCodeAt(index + 1)]!;
     const c = remaining > 2 ? BASE64URL[value.charCodeAt(index + 2)]! : -1;
     const d = remaining > 3 ? BASE64URL[value.charCodeAt(index + 3)]! : -1;
     const count = c < 0 ? 1 : d < 0 ? 2 : 3;
     for (let k = 0; k < count; k++) {
-      const byte = k === 0 ? (a << 2) | (b >> 4) : k === 1 ? ((b & 15) << 4) | (c >> 2) : ((c & 3) << 6) | d;
+      const byte = byteAt(a, b, c, d, k);
       if (!opened) {
         if (byte === 0x7b) opened = true;
         else if (!isJsonWhitespace(byte)) return 0;
       }
-      decoded[length++] = byte;
+      window = (window * 256 + byte) % WINDOW;
+      if (window === ALG) alg = true;
+      else if (window === ENC) enc = true;
     }
   }
-  if (!opened || !contains(decoded, length, ALG)) return 0;
-  return contains(decoded, length, ENC) ? 2 : 1;
+  if (!opened || !alg) return 0;
+  return enc ? 2 : 1;
 }
 
 /**
@@ -108,7 +131,10 @@ function tokenAt(value: string, runStart: number, headerEnd: number): { start: n
   }
   const payloadLength = payloadEnd - headerEnd - 1;
   const last = Math.min(runStart + MAX_JWT_GLUE, headerEnd - MIN_HEADER);
-  for (let start = runStart; start <= last; start++) {
+  let decodes = 0;
+  for (let start = runStart; start <= last && decodes < MAX_JWT_FULL_DECODES; start++) {
+    if (!joseHeaderPrefix(value, start)) continue;
+    decodes++;
     const kind = joseHeaderKind(value, start, headerEnd);
     if (kind === 0) continue;
     if (kind === 2 && fifthEnd >= 0) return { start, end: fifthEnd };
@@ -119,9 +145,10 @@ function tokenAt(value: string, runStart: number, headerEnd: number): { start: n
 
 /**
  * Replaces every JWT and JWE in `value` whose header decodes to a JOSE header. Linear: each segment
- * run is a header candidate once, a candidate reads at most four more segments, and it tries at
- * most MAX_JWT_GLUE + 1 starts, each decoding at most MAX_JWT_HEADER_DECODE characters. A token
- * glued to the text before it keeps that text; only the token is replaced.
+ * run is a header candidate once, a candidate reads at most four more segments, it checks the
+ * 8-character prefix at most MAX_JWT_GLUE + 1 times, and it decodes the whole header at most
+ * MAX_JWT_FULL_DECODES times. A token glued to the text before it keeps that text; only the token
+ * is replaced.
  */
 export function redactJwt(value: string, replacement: string = JWT_REPLACEMENT): string {
   let out = '';

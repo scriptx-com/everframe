@@ -11,13 +11,23 @@ const isSegment = (char: string | undefined) => char !== undefined && SEGMENT.te
 const segmentEnd = (value: string, from: number) => { let end = from; while (isSegment(value[end])) end++; return end; };
 const runStart = (value: string, at: number) => { let start = at; while (start > 0 && isSegment(value[start - 1])) start--; return start; };
 
+const decode = (text: string) => Buffer.from(text, 'base64url').toString('latin1');
+/** The first 8 characters decode to optional whitespace, `{`, optional whitespace and `"`, or run out first. */
+const prefixPasses = (value: string, start: number) => /^[ \t\n\r]*(?:\{[ \t\n\r]*(?:"|$)|$)/.test(decode(value.slice(start, start + 8)));
+
 /** The end of a token that starts exactly at `start`, or -1. */
 function tokenEnd(value: string, start: number): number {
-  if (!isSegment(value[start]) || start - runStart(value, start) > 64) return -1;
+  if (!isSegment(value[start])) return -1;
+  const run = runStart(value, start);
   const headerEnd = segmentEnd(value, start);
-  if (headerEnd - start < 8 || value[headerEnd] !== '.') return -1;
-  // RFC 7515/7516: a JOSE header is a JSON object with an "alg" member.
-  const header = Buffer.from(value.slice(start, Math.min(headerEnd, start + 1024)), 'base64url').toString('latin1');
+  if (start - run > 64 || headerEnd - start < 8 || value[headerEnd] !== '.') return -1;
+  // Only the first four starts of a run that pass the prefix check get a full decode.
+  if (!prefixPasses(value, start)) return -1;
+  let earlier = 0;
+  for (let at = run; at < start; at++) if (headerEnd - at >= 8 && prefixPasses(value, at)) earlier++;
+  if (earlier >= 4) return -1;
+  // RFC 7515/7516: a JOSE header is a JSON object with an "alg" member. The whole header decodes.
+  const header = decode(value.slice(start, headerEnd));
   if (!header.replace(/^[ \t\n\r]*/, '').startsWith('{') || !header.includes('"alg"')) return -1;
   const segments: Array<[number, number]> = [];
   for (let at = headerEnd; segments.length < 4 && value[at] === '.';) {
