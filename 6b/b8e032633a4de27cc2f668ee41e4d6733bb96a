@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_01132c5fa6168d 913-916,918-921
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_dbd309ddf8ec5b::t_99c7293920dfa8 102-106,111
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AppProcess.kt
+  s_dbd309ddf8ec5b::t_9e2e8c89477ec3 13-16
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/CrashCaptureStartTest.kt
+  s_dbd309ddf8ec5b::t_9d0f5839eb36c6 269-278
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6bb8e032633a4de27cc2f668ee41e4d6733bb96a",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
