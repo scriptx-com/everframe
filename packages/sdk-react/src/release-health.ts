@@ -5,7 +5,7 @@ import { INGEST_URL, setupReleaseHealth, type WebEverframeConfig } from '@everfr
 /** Pure during render: only a committed Provider effect starts durable work. */
 export function createProviderReleaseHealth(config: WebEverframeConfig, sdkVersion: string) {
   const captured = {
-    apiKey: config.apiKey,
+    sdkKey: config.sdkKey,
     disabled: config.disabled === true,
     ...(config.releaseHealth ? { releaseHealth: {
       enabled: config.releaseHealth.enabled,

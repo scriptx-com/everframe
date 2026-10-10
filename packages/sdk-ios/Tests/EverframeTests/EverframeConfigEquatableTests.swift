@@ -16,11 +16,11 @@ import XCTest
 @testable import EverframeKit
 
 final class EverframeConfigEquatableTests: XCTestCase {
-    private let appId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let sdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     private func makeConfig() -> EverframeConfig {
         var cfg = EverframeConfig(
-            appId: appId,
+            sdkKey: sdkKey,
             environment: .production,
             release: "1.2.3",
             companionDeviceId: "device-a",

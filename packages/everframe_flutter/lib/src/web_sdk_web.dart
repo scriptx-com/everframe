@@ -13,7 +13,7 @@ external JSFunction? get _initializer;
 external JSBoolean? get _captureReady;
 
 extension type _WebConfig._(JSObject _) implements JSObject {
-  external factory _WebConfig({JSString apiKey, JSString appVersion,
+  external factory _WebConfig({JSString sdkKey, JSString appVersion,
     JSString sdkName, JSString sdkVersion});
 }
 
@@ -80,7 +80,7 @@ class EverframeWebBridge {
     final init = _initializer;
     if (init == null) throw StateError('Load @everframe/web in the browser host');
     final config = _WebConfig(
-      apiKey: sdkKey.toJS,
+      sdkKey: sdkKey.toJS,
       appVersion: appVersion.toJS,
       sdkName: 'everframe-flutter'.toJS,
       sdkVersion: '1.0.0'.toJS,

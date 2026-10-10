@@ -35,7 +35,7 @@ Then point the SDK at it:
 
 ```tsx
 <EverframeProvider
-  config={{ apiKey }}
+  config={{ sdkKey }}
   identity={{ endpoint: '/api/everframe-identity', key: user?.id }}
 >
 ```

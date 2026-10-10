@@ -32,7 +32,7 @@ extension VitalsSink {
 final class VitalsTransport: VitalsSink, @unchecked Sendable {
     private let session: URLSession
     private let endpoint: URL
-    private let apiKey: String
+    private let sdkKey: String
     private let isKilled: @Sendable () -> Bool
     private let queue: DispatchQueue
     private let retryDelayMs: Int64
@@ -45,9 +45,9 @@ final class VitalsTransport: VitalsSink, @unchecked Sendable {
     private var scheduled: [UUID: DispatchWorkItem] = [:]
     private var inFlight: [ObjectIdentifier: URLSessionTask] = [:]
 
-    init(session: URLSession, endpoint: URL, apiKey: String, isKilled: @escaping @Sendable () -> Bool,
+    init(session: URLSession, endpoint: URL, sdkKey: String, isKilled: @escaping @Sendable () -> Bool,
          queue: DispatchQueue = VitalsQueue.shared, retryDelayMs: Int64 = 5_000, maxRetryAfterMs: Int64 = 60_000) {
-        self.session = session; self.endpoint = endpoint; self.apiKey = apiKey; self.isKilled = isKilled
+        self.session = session; self.endpoint = endpoint; self.sdkKey = sdkKey; self.isKilled = isKilled
         self.queue = queue; self.retryDelayMs = retryDelayMs; self.maxRetryAfterMs = maxRetryAfterMs
     }
 
@@ -84,7 +84,7 @@ final class VitalsTransport: VitalsSink, @unchecked Sendable {
         var req = URLRequest(url: endpoint)
         req.httpMethod = "POST"
         req.httpBody = body
-        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("Bearer \(sdkKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         let taskIdBox = Locked<ObjectIdentifier?>(nil)

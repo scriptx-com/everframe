@@ -471,7 +471,7 @@ public final class RelayWSClient: NSObject, URLSessionWebSocketDelegate, @unchec
     private var resolvedDevice: AnnounceDevice?
 
     /// - Parameters:
-    ///   - sdkKey: The host's Everframe key (`EverframeConfig.appId`). Supply it
+    ///   - sdkKey: The host's Everframe key (`EverframeConfig.sdkKey`). Supply it
     ///     to make this device discoverable from the dashboard; omit it and no
     ///     HTTP call is made at all. Companion discovery is opt-in — reporting
     ///     never depends on it.

@@ -39,7 +39,7 @@ try {
   async function load() { await page.goto(base); await page.waitForFunction(() => !!window.sdk); }
   async function start(build, key = 'pk_test_a', extra = {}) {
     return page.evaluate(async ({ build, key, extra }) => {
-      window.handle = window.sdk.init({ apiKey: key, vitals: { enabled: false },
+      window.handle = window.sdk.init({ sdkKey: key, vitals: { enabled: false },
         releaseHealth: { enabled: true, loadedBuildId: build }, ...extra });
       await window.handle.releaseHealth.ready;
       return window.handle.releaseHealth.diagnostics();
@@ -90,8 +90,8 @@ try {
   // An upgraded producer delivers records that were persisted under the original wire version.
   await page.evaluate(() => window.handle.destroy()); await load();
   const legacyId = await page.evaluate(async base => {
-    const apiKey = 'pk_legacy';
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([base, apiKey])));
+    const sdkKey = 'pk_legacy';
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([base, sdkKey])));
     const route = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
     const journal = await window.sdk.openReleaseHealthJournal(); const { generation } = await journal.activate(route);
     const now = new Date().toISOString(), recordId = crypto.randomUUID();
@@ -100,7 +100,7 @@ try {
         platform: 'web', sdkVersion: 'previous', nativeRelease: 'not_applicable', loadedBuildId: 'legacy-build',
         subject: 'anonymous_exposure', coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: 0 } } });
     journal.close();
-    window.handle = window.sdk.init({ apiKey, releaseHealth: { enabled: true, loadedBuildId: 'upgraded-build' } });
+    window.handle = window.sdk.init({ sdkKey, releaseHealth: { enabled: true, loadedBuildId: 'upgraded-build' } });
     await window.handle.releaseHealth.ready; await window.handle.releaseHealth.flush();
     return recordId;
   }, base);
@@ -147,7 +147,7 @@ try {
   await page.evaluate(() => window.handle.destroy()); await load();
   const beforeImmediateKill = received.length;
   await page.evaluate(async () => {
-    window.handle = window.sdk.init({ apiKey: 'pk_test_kill', releaseHealth: { enabled: true, loadedBuildId: 'never-sent' } });
+    window.handle = window.sdk.init({ sdkKey: 'pk_test_kill', releaseHealth: { enabled: true, loadedBuildId: 'never-sent' } });
     window.handle.kill(); await window.handle.releaseHealth.ready; await window.handle.releaseHealth.flush();
   });
   assert.equal(received.length, beforeImmediateKill);
@@ -168,7 +168,7 @@ try {
       }); } finally { db.close(); }
     }
     const before = await priorRows();
-    window.handle = window.sdk.init({ apiKey: 'pk_default_off' }); window.handle.kill();
+    window.handle = window.sdk.init({ sdkKey: 'pk_default_off' }); window.handle.kill();
     const deadline = Date.now() + 5000;
     let after;
     do { after = await priorRows(); if (after === 0) break; await new Promise(r => setTimeout(r, 20)); } while (Date.now() < deadline);
@@ -199,7 +199,7 @@ try {
           if (online) sent.push(JSON.parse(options.body).exposure.loadedBuildId);
           return new Response('{}', { status: online ? 201 : 503 });
         };
-        const config = { apiKey: 'failed-purge-' + mode, releaseHealth: { enabled: true, loadedBuildId: 'erased-build' } };
+        const config = { sdkKey: 'failed-purge-' + mode, releaseHealth: { enabled: true, loadedBuildId: 'erased-build' } };
         const first = window.sdk.setupReleaseHealth(config, 'https://exposures.test', 'test');
         await first.ready; await first.flush();
         IDBDatabase.prototype.transaction = function () { throw new DOMException('Storage unavailable', 'UnknownError'); };
@@ -226,7 +226,7 @@ try {
   const optOut = await freshPage();
   const optOutDatabases = await optOut.tab.evaluate(async () => {
     for (const extra of [{ disabled: true }, { releaseHealth: { enabled: false } }]) {
-      const handle = window.sdk.init({ apiKey: 'pk_test_opt_out', vitals: { enabled: false }, ...extra });
+      const handle = window.sdk.init({ sdkKey: 'pk_test_opt_out', vitals: { enabled: false }, ...extra });
       await handle.releaseHealth.ready; await handle.releaseHealth.flush(); handle.destroy();
     }
     return (await indexedDB.databases()).map(database => database.name).filter(name => name === 'everframe-release-health-v1');
@@ -237,7 +237,7 @@ try {
     const send = window.fetch; let online = false; let sent = 0;
     window.fetch = async () => { if (online) sent++; return new Response('{}', { status: online ? 201 : 503 }); };
     try {
-      const config = { apiKey: 'pk_test_full', releaseHealth: { enabled: true, loadedBuildId: 'full-queue' } };
+      const config = { sdkKey: 'pk_test_full', releaseHealth: { enabled: true, loadedBuildId: 'full-queue' } };
       const producer = () => window.sdk.setupReleaseHealth(config, 'https://capacity.test', 'test');
       // 128 offline page lifetimes each queue a start and an end: 256 rows.
       for (let i = 0; i < 128; i++) { const lifetime = producer(); await lifetime.ready; await lifetime.flush(); await lifetime.stop(); }

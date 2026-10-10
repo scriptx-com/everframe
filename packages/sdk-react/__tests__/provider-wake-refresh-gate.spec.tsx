@@ -108,7 +108,7 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
     try {
       const { findByTestId, queryByTestId } = render(
-        <EverframeProvider config={{ apiKey: 'txx_live_wake_gate_test', appName: 'test', appVersion: '1.0.0' }}>
+        <EverframeProvider config={{ sdkKey: 'txx_live_wake_gate_test', appName: 'test', appVersion: '1.0.0' }}>
           <div>app</div>
           <OpenButton />
         </EverframeProvider>,
@@ -183,7 +183,7 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
     try {
       const seen: ThreadClient[] = [];
       render(
-        <EverframeProvider config={{ apiKey: 'txx_live_wake_gate_recover_test', appName: 'test', appVersion: '1.0.0' }}>
+        <EverframeProvider config={{ sdkKey: 'txx_live_wake_gate_recover_test', appName: 'test', appVersion: '1.0.0' }}>
           <AdapterProbe
             onAdapter={(threads) => {
               if (threads) seen.push(threads);

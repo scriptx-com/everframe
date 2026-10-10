@@ -69,7 +69,7 @@ describe('breadcrumbs E2E slice (capture → envelope)', () => {
       breadcrumbs: frozen,
       breadcrumbTrim: { byteBudget: 16384, consoleEntryCap: 1024 },
     };
-    const { envelope } = draftToEnvelope(draft, bundle, { apiKey: 'k' }, '1.0.0');
+    const { envelope } = draftToEnvelope(draft, bundle, { sdkKey: 'k' }, '1.0.0');
     expect(envelope.captures['breadcrumbs']).toBe(true);
     expect(envelope.payload.breadcrumbs!.length).toBe(frozen.length);
     expect(ReportEnvelope.safeParse(envelope).success).toBe(true);

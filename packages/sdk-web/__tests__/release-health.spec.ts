@@ -20,14 +20,14 @@ describe('release health readiness', () => {
     const open = vi.fn(() => { throw new Error('must not open'); });
     vi.stubGlobal('indexedDB', { open });
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
-    const handle = setupReleaseHealth({ apiKey: 'pk_test' }, 'https://example.test', 'test');
+    const handle = setupReleaseHealth({ sdkKey: 'pk_test' }, 'https://example.test', 'test');
     expect(await handle.ready).toMatchObject({ state: 'disabled', exposure: null, queued: 0 });
     await handle.flush(); expect(open).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
   });
   it('reports unavailable persistence instead of silently using memory', async () => {
     vi.stubGlobal('crypto', { subtle: { digest: async () => new Uint8Array(32).buffer } });
     vi.stubGlobal('indexedDB', { open() { throw new Error('disk unavailable'); } });
-    const handle = setupReleaseHealth({ apiKey: 'pk_test', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
+    const handle = setupReleaseHealth({ sdkKey: 'pk_test', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
     expect(await handle.ready).toMatchObject({ state: 'unavailable', exposure: null, error: 'disk unavailable' });
     await handle.flush(); expect((await handle.diagnostics()).state).toBe('unavailable');
   });
@@ -51,7 +51,7 @@ describe('release health readiness', () => {
     } });
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     const states: unknown[] = [];
-    for (const config of [{ apiKey: 'pk_opt_out', disabled: true }, { apiKey: 'pk_opt_out', releaseHealth: { enabled: false } }]) {
+    for (const config of [{ sdkKey: 'pk_opt_out', disabled: true }, { sdkKey: 'pk_opt_out', releaseHealth: { enabled: false } }]) {
       const handle = setupReleaseHealth(config, 'https://example.test', 'test');
       const { state, exposure, queued } = await handle.ready; states.push({ state, exposure, queued });
       await handle.flush();
@@ -73,7 +73,7 @@ describe('release health readiness', () => {
       revoke: async () => undefined,
     };
     const fetch = vi.fn(async () => new Response('{}', { status: 201 })); vi.stubGlobal('fetch', fetch);
-    const handle = setupReleaseHealth({ apiKey: 'pk_full', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
+    const handle = setupReleaseHealth({ sdkKey: 'pk_full', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
     expect(await handle.ready).toMatchObject({ state: 'active', exposure: null, error: 'Release health journal: capacity' });
     await handle.flush();
     expect(fetch).toHaveBeenCalledTimes(1); expect(rows).toEqual([]);
@@ -103,7 +103,7 @@ describe('frozen launch session subjects', () => {
   }
   it('emits v2 anonymous sessions by default without inventing a user', async () => {
     const rows = queued();
-    const handle = setupReleaseHealth({ apiKey: 'pk_anonymous', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
+    const handle = setupReleaseHealth({ sdkKey: 'pk_anonymous', releaseHealth: { enabled: true } }, 'https://example.test', 'test');
     await handle.ready; await handle.stop();
     expect(rows).toHaveLength(2);
     expect(rows.map(row => ReleaseHealthRecordSchema.parse(row))).toEqual(rows);
@@ -112,7 +112,7 @@ describe('frozen launch session subjects', () => {
   });
   it('freezes identity before awaits and preserves launch across account and bundle rotation', async () => {
     const rows = queued();
-    const config = { apiKey: 'pk_subject', releaseHealth: { enabled: true, loadedBuildId: 'bundle-a', userId: 'opaque-a' } };
+    const config = { sdkKey: 'pk_subject', releaseHealth: { enabled: true, loadedBuildId: 'bundle-a', userId: 'opaque-a' } };
     const first = setupReleaseHealth(config, 'https://example.test', 'test');
     config.releaseHealth.userId = 'mutated'; config.releaseHealth.loadedBuildId = 'mutated';
     await first.ready; await first.stop();
@@ -131,7 +131,7 @@ describe('frozen launch session subjects', () => {
     const sent: unknown[] = [];
     vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => { sent.push(JSON.parse(String(init.body))); return new Response('{}', { status: 201 }); });
     // Untyped hosts can pass null; like Android and iOS, it means no supplied ID.
-    const handle = setupReleaseHealth({ apiKey: 'pk_null_subject', releaseHealth: { enabled: true, userId: null as unknown as string } }, 'https://example.test', 'test');
+    const handle = setupReleaseHealth({ sdkKey: 'pk_null_subject', releaseHealth: { enabled: true, userId: null as unknown as string } }, 'https://example.test', 'test');
     expect(await handle.ready).toMatchObject({ state: 'active', exposure: { subject: { kind: 'anonymous' } } });
     await handle.flush();
     expect(sent).toContainEqual({ recordId: 'earlier' });
@@ -140,7 +140,7 @@ describe('frozen launch session subjects', () => {
   });
   it.each(['', ' ', 'x'.repeat(129), 'a\u0000', '\ud800'])('refuses invalid subject %j before publishing readiness', async userId => {
     const rows = queued();
-    const config = { apiKey: 'pk_invalid', releaseHealth: { enabled: true, userId } };
+    const config = { sdkKey: 'pk_invalid', releaseHealth: { enabled: true, userId } };
     const handle = setupReleaseHealth(config, 'https://example.test', 'test');
     expect(await handle.ready).toMatchObject({ state: 'unavailable', exposure: null });
     expect(rows).toEqual([]); await handle.stop();

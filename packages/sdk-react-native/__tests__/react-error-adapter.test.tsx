@@ -13,7 +13,7 @@ const native = vi.mocked(NativeEverframe.captureHandledException);
 const automatic = vi.mocked(NativeEverframe.reportCrash);
 const runtimes: Runtime[] = [];
 let handler: (error: unknown, fatal?: boolean) => void;
-function mount(disabled = false) { const r = createRuntime({ apiKey: 'txx_test_key', crashReporting: { disabled } }); runtimes.push(r); r.mount(); return r; }
+function mount(disabled = false) { const r = createRuntime({ sdkKey: 'txx_test_key', crashReporting: { disabled } }); runtimes.push(r); r.mount(); return r; }
 class Boundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
   override state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -30,7 +30,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); runtimes.splice(0).forEach(r => r.unmount()); __setCurrentContext(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 it('a genuine mounted boundary renders fallback and shares accepted identity with other paths', () => {
   const e = new Error('render failure');
-  const tree = (error?: Error) => <EverframeProvider config={{ apiKey: 'txx_test_key' }}><Boundary><Child error={error} /></Boundary></EverframeProvider>;
+  const tree = (error?: Error) => <EverframeProvider config={{ sdkKey: 'txx_test_key' }}><Boundary><Child error={error} /></Boundary></EverframeProvider>;
   const view = render(tree()); view.rerender(tree(e));
   expect(screen.getByText('Boundary fallback')).toBeTruthy();
   captureException(e); handler(e, false);
@@ -74,8 +74,8 @@ it('initial fallback before any provider remains inert and is not replayed', () 
   expect(getErrorCaptureStatus().status).toBe('not-mounted'); mount();
   expect(native).not.toHaveBeenCalled(); expect(getErrorCaptureStatus().counters.handled.attempted).toBe(0);
 });
-const outside = (error?: Error) => <Boundary><EverframeProvider config={{ apiKey: 'txx_test_key' }}><Child error={error} /></EverframeProvider></Boundary>;
-const firstCommit = () => <EverframeProvider config={{ apiKey: 'txx_test_key' }}><Boundary><Child error={new Error('first commit')} /></Boundary></EverframeProvider>;
+const outside = (error?: Error) => <Boundary><EverframeProvider config={{ sdkKey: 'txx_test_key' }}><Child error={error} /></EverframeProvider></Boundary>;
+const firstCommit = () => <EverframeProvider config={{ sdkKey: 'txx_test_key' }}><Boundary><Child error={new Error('first commit')} /></Boundary></EverframeProvider>;
 it('a boundary wrapping the provider is inert because the provider unmounts before componentDidCatch', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const view = render(outside()); expect(getErrorCaptureStatus().status).toBe('active');
@@ -90,9 +90,9 @@ it('an error caught during the provider first commit is not captured', () => {
   expect(getErrorCaptureStatus()).toMatchObject({ status: 'active', counters: { handled: { attempted: 0 } } });
 });
 class ProviderFallback extends Boundary {
-  override render() { return this.state.failed ? <EverframeProvider config={{ apiKey: 'txx_test_key' }}><span>Provider fallback</span></EverframeProvider> : this.props.children; }
+  override render() { return this.state.failed ? <EverframeProvider config={{ sdkKey: 'txx_test_key' }}><span>Provider fallback</span></EverframeProvider> : this.props.children; }
 }
-const outsideWithProvider = (error?: Error) => <ProviderFallback><EverframeProvider config={{ apiKey: 'txx_test_key' }}><Child error={error} /></EverframeProvider></ProviderFallback>;
+const outsideWithProvider = (error?: Error) => <ProviderFallback><EverframeProvider config={{ sdkKey: 'txx_test_key' }}><Child error={error} /></EverframeProvider></ProviderFallback>;
 it.each(['update', 'first render'])('a wrapping boundary reports through the provider its fallback mounts (%s error)', when => {
   vi.stubGlobal('__DEV__', true); const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   if (when === 'update') render(outsideWithProvider()).rerender(outsideWithProvider(new Error(when)));

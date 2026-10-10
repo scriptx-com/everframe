@@ -448,7 +448,7 @@ public actor ReplayConfigProvider {
     /// Returning nil means "send the config URL unchanged"; it is never an
     /// error, and this closure must never throw or block.
     private let installIdProvider: @Sendable () -> String?
-    private let apiKey: String
+    private let sdkKey: String
     private let fetcher: URLSessionFetching
     private let ttlSec: TimeInterval
     private let now: @Sendable () -> TimeInterval
@@ -486,14 +486,14 @@ public actor ReplayConfigProvider {
 
     public init(
         configUrl: URL,
-        apiKey: String,
+        sdkKey: String,
         fetcher: URLSessionFetching = URLSession.shared,
         ttlSec: TimeInterval = defaultConfigTtlSec,
         now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
         installIdProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.configUrl = configUrl
-        self.apiKey = apiKey
+        self.sdkKey = sdkKey
         self.fetcher = fetcher
         self.ttlSec = ttlSec
         self.now = now
@@ -504,13 +504,13 @@ public actor ReplayConfigProvider {
     /// `/api/config` (mirrors MultipartUploader's base-URL path-append).
     public static func make(
         baseURL: URL = IngestEndpoint.url,
-        apiKey: String,
+        sdkKey: String,
         fetcher: URLSessionFetching = URLSession.shared,
         installIdProvider: @escaping @Sendable () -> String? = { nil }
     ) -> ReplayConfigProvider {
         ReplayConfigProvider(
             configUrl: configURL(from: baseURL),
-            apiKey: apiKey,
+            sdkKey: sdkKey,
             fetcher: fetcher,
             installIdProvider: installIdProvider
         )
@@ -593,7 +593,7 @@ public actor ReplayConfigProvider {
         do {
             var req = URLRequest(url: requestURL())
             req.httpMethod = "GET"
-            req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            req.setValue("Bearer \(sdkKey)", forHTTPHeaderField: "Authorization")
             req.setValue("application/json", forHTTPHeaderField: "Accept")
             // Declares client support for the networkBodies + identity config
             // blocks so the server can gate each feature on capability rather

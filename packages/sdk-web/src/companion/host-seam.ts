@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Module-level companion host seam. The phone-companion submit path needs the
-// active SDK config (apiKey for ingest) + the platform adapter (capture
+// active SDK config (sdkKey for ingest) + the platform adapter (capture
 // primitives + outbox) at `report.submit` time — but the companion runs from
 // imperative, non-React call sites (`companion.start()`), so it can't read
 // React context. `EverframeProvider` writes this seam on mount / clears it on

@@ -8,7 +8,7 @@ import XCTest
 /// Host transport fixture for encrypted persistence and exact retry identity.
 /// Installed-app HTTP and relaunch coverage belongs to the installed acceptance task.
 final class HandledDetailsDeliveryTests: XCTestCase {
-    private let appId = "ios-handled-details-delivery"
+    private let sdkKey = "ios-handled-details-delivery"
 
     override func setUpWithError() throws {
         try super.setUpWithError()
@@ -16,7 +16,7 @@ final class HandledDetailsDeliveryTests: XCTestCase {
         Everframe.shared.__replayConfigOverrideForTesting = nil
         Everframe.shared.setIdentityToken(nil)
         Everframe.shared._identityEnabledFlag.set(false)
-        Everframe.__setConfigForTesting(EverframeConfig(appId: appId))
+        Everframe.__setConfigForTesting(EverframeConfig(sdkKey: sdkKey))
         Everframe.captureGate = true
         CrashReporter.__scheduleDrainForTesting = { _ in }
         try? FileManager.default.removeItem(at: JSONLOutbox().resolvedFileURL)
@@ -67,7 +67,7 @@ final class HandledDetailsDeliveryTests: XCTestCase {
 
         let reopened = JSONLOutbox()
         let accepted = try XCTUnwrap(try reopened.hydrate().first)
-        XCTAssertEqual(accepted.sdkKey, appId)
+        XCTAssertEqual(accepted.sdkKey, sdkKey)
         XCTAssertEqual(accepted.endpoint, expectedEndpoint)
         XCTAssertEqual(accepted.identitySubject, expectedIdentitySubject)
         let envelope = try XCTUnwrap(
@@ -100,7 +100,7 @@ final class HandledDetailsDeliveryTests: XCTestCase {
             session.invalidateAndCancel()
         }
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: appId), outbox: reopened, session: session
+            config: EverframeConfig(sdkKey: sdkKey), outbox: reopened, session: session
         )
         let epoch = Everframe.shared.currentStartEpoch
         let identityHolder = Everframe.shared._identityHolder
@@ -175,7 +175,7 @@ final class HandledDetailsDeliveryTests: XCTestCase {
         XCTAssertEqual(observation.reportId, entry.reportId, file: file, line: line)
         XCTAssertEqual(observation.idempotencyKey, entry.idempotencyKey, file: file, line: line)
         XCTAssertEqual(observation.url, expectedRequestURL, file: file, line: line)
-        XCTAssertEqual(observation.authorization, "Bearer \(appId)", file: file, line: line)
+        XCTAssertEqual(observation.authorization, "Bearer \(sdkKey)", file: file, line: line)
         XCTAssertEqual(observation.identityToken, expectedIdentityToken, file: file, line: line)
     }
 
@@ -196,7 +196,7 @@ final class HandledDetailsDeliveryTests: XCTestCase {
     private func enabledIdentityConfig() async -> ReplayConfig {
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://everframe.dev/api/config")!,
-            apiKey: "task-2-fixture-key",
+            sdkKey: "task-2-fixture-key",
             fetcher: HandledDetailsConfigFetcher(
                 body: Data(
                     #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"identity":{"enabled":true}}"#.utf8

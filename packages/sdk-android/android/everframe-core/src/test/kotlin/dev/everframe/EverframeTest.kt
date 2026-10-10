@@ -123,9 +123,9 @@ class EverframeTest {
         // gives a fresh Application per test, so this can't be assumed done already).
         SharedData.init(context)
         Everframe.__replaySessionFactoryForTesting = { app, config, epoch, consent, installId ->
-            dev.everframe.capture.replay.ReplaySession(apiKey = config.sdkKey, context = app,
+            dev.everframe.capture.replay.ReplaySession(sdkKey = config.sdkKey, context = app,
                 originatingStartEpoch = epoch, captureConsent = consent,
-                provider = dev.everframe.config.ReplayConfigProvider.make(apiKey = config.sdkKey,
+                provider = dev.everframe.config.ReplayConfigProvider.make(sdkKey = config.sdkKey,
                     fetcher = dev.everframe.config.ConfigFetcher {
                         offline.await(30, java.util.concurrent.TimeUnit.SECONDS)
                         throw java.io.IOException("unit tests are offline")
@@ -750,7 +750,7 @@ class EverframeTest {
         Everframe.start(context, validConfig())
         val session = dev.everframe.capture.replay.ReplaySession(
             baseUrl = "https://example.invalid",
-            apiKey = "txx_live_test1234567890",
+            sdkKey = "txx_live_test1234567890",
             locallyDisabled = true,
         )
         Everframe._replaySession = session

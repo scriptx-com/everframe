@@ -92,7 +92,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         }
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://everframe.dev/api/config")!,
-            apiKey: "evr_test_key",
+            sdkKey: "evr_test_key",
             fetcher: SingleResponseFetcher(body: Data(json.utf8))
         )
         await provider.refresh()
@@ -113,7 +113,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -132,7 +132,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -150,7 +150,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: nil))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -170,7 +170,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
     // `sub` is the host's own user id, unchanged across a tenant switch) ->
     // drain fires -> project B's live bearer credential would ship to
     // project A's endpoint. Mutation-verified: reverting the `e.sdkKey ==
-    // config.appId` guard in `drainOutbox` makes this test fail.
+    // config.sdkKey` guard in `drainOutbox` makes this test fail.
 
     func test_drain_withholds_the_header_when_the_entry_belongs_to_a_different_project_even_though_the_subject_matches() async throws {
         let now = Date()
@@ -186,7 +186,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-B"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-B"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -210,7 +210,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -228,7 +228,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
     // a key alone can still reach the wrong host" (e.g. a dev-override
     // `EVERFRAME_DEV_INGEST_URL` changing between queue and drain). The
     // identity header used to be exempt from that rule: it checked
-    // `e.sdkKey == config.appId` alone, so a live token could still attach
+    // `e.sdkKey == config.sdkKey` alone, so a live token could still attach
     // even when the entry's OWN endpoint no longer matched the live one.
 
     /// THE test that must exist: an entry whose sdkKey still matches but
@@ -249,7 +249,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice", endpoint: "https://a-different-host.example.com"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -263,7 +263,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
     // `resolveIdentityHeader` is `async`, and ITS OWN suspension point
     // (`holder.get(now:)`'s provider re-ask) gives a `start(projectB)` +
     // `setIdentityToken(B)` landing DURING resolution — after the `e.sdkKey
-    // == config.appId` pre-check already passed — a window to land: a live
+    // == config.sdkKey` pre-check already passed — a window to land: a live
     // token resolved AFTER the project switch could still attach to an
     // entry whose `sdkKey`/`endpoint` are frozen at project A's values,
     // disclosing project B's bearer credential to project A's endpoint.
@@ -294,7 +294,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))  // sdkKey defaults to "key-A"
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(
             identityHolder: holder, currentReplayConfig: { await enabledConfig() },
             epochAtInitiation: 0, currentEpoch: { epoch })
@@ -318,7 +318,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(
             identityHolder: holder, currentReplayConfig: { await enabledConfig() },
             epochAtInitiation: 0, currentEpoch: { 0 })
@@ -366,7 +366,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(
             identityHolder: holder,
             currentReplayConfig: { enabled ? await enabledConfig() : ReplayConfig.off },
@@ -401,7 +401,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         try box.enqueue(entry(identitySubject: "alice"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-A"), outbox: box, session: stubbedSession())
+            config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(
             identityHolder: holder,
             currentReplayConfig: {

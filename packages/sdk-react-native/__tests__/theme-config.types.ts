@@ -19,25 +19,25 @@ import type { RuntimeConfig } from '../src/runtime.js';
 
 // The flat, wire-shaped keys must be REJECTED on the host-facing type.
 const flatAccentRejected: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   // @ts-expect-error — themeAccent is not a RuntimeConfig key; host code must use the nested `theme: { accent }` instead.
   themeAccent: '#336699',
 };
 
 const flatBackgroundRejected: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   // @ts-expect-error — themeBackground is not a RuntimeConfig key; host code must use the nested `theme: { background }` instead.
   themeBackground: '#101314',
 };
 
 const flatTextMutedRejected: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   // @ts-expect-error — themeTextMuted is not a RuntimeConfig key; host code must use the nested `theme: { textMuted }` instead.
   themeTextMuted: '#8fa0a6',
 };
 
 const flatAccentForegroundRejected: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   // @ts-expect-error — themeAccentForeground is not a RuntimeConfig key; host code must use the nested `theme: { accentForeground }` instead.
   themeAccentForeground: '#0b0d0e',
 };
@@ -45,7 +45,7 @@ const flatAccentForegroundRejected: RuntimeConfig = {
 // The nested shape must still compile cleanly — proves the Omit didn't
 // remove the real, intended surface along with the flat one.
 const nestedShapeAccepted: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   theme: {
     background: '#101314',
     surface: '#181c1e',

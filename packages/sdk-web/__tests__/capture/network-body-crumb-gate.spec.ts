@@ -56,10 +56,10 @@ function wireClient(
       return appFetchImpl(input);
     }),
   );
-  const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+  const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
   adapters.push(adapter);
   const client = createClient(adapter);
-  client.init({ apiKey: 'k' });
+  client.init({ sdkKey: 'k' });
   adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
   return { adapter, client, buf: () => __internalClientState.get(client)!.networkBodies };
 }

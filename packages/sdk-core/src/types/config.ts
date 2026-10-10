@@ -16,10 +16,11 @@ export interface RedactionConfig {
 
 export interface EverframeConfig {
   /**
-   * Per-app SDK key (publishable, not secret). Mirrors the React Native SDK's
-   * `apiKey` field so both SDKs share one config shape.
+   * Per-app SDK key (`evf_live_…`; publishable, not secret). Every Everframe
+   * SDK names this field `sdkKey`. It is not the App ID (a UUID) that symbol
+   * and source-map uploads take.
    */
-  apiKey: string;
+  sdkKey: string;
   /** Optional. */
   appName?: string;
   appVersion?: string;

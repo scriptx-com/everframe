@@ -283,7 +283,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   }, [ctxValue]);
 
   // Publish the companion host seam so the phone-companion `report.submit`
-  // path can reach config (apiKey) + adapter (capture + outbox) from its
+  // path can reach config (sdkKey) + adapter (capture + outbox) from its
   // non-React call site. Cleared on unmount. Without this the companion
   // submit degrades to `report.failed` instead of submitting to ingest.
   useEffect(() => {
@@ -311,11 +311,11 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // companion host seam above.
   useEffect(() => {
     __setCompanionDefaults({
-      ...(ctxValue.config.apiKey ? { sdkKey: ctxValue.config.apiKey } : {}),
+      ...(ctxValue.config.sdkKey ? { sdkKey: ctxValue.config.sdkKey } : {}),
       ...(ctxValue.config.appName ? { deviceLabel: ctxValue.config.appName } : {}),
     });
     return () => __setCompanionDefaults(null);
-  }, [ctxValue.config.apiKey, ctxValue.config.appName]);
+  }, [ctxValue.config.sdkKey, ctxValue.config.appName]);
 
   // Mirror the host's inline theme option into the branding box (spec
   // 2026-08-25) so Modal's useReporterThemeVars sees it without prop
@@ -388,7 +388,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   useEffect(() => {
     const vitals = setupVitals({
       config: ctxValue.config,
-      apiKey: ctxValue.config.apiKey,
+      sdkKey: ctxValue.config.sdkKey,
       apiUrl: INGEST_URL,
       isKilled: () => __internalClientState.get(ctxValue.client)?.killed === true,
       sdkVersion: PKG_VERSION,

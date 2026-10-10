@@ -110,7 +110,7 @@ RCT_EXPORT_MODULE(Everframe)
 
 // Signature MUST match the codegen-emitted protocol in EverframeSpec.h:
 //   - (void)configure:(JS::NativeEverframe::ConfigOpts &)opts;
-// Field accessors (.apiKey(), .sdkVersion(), .captureScreenshot(),
+// Field accessors (.sdkKey(), .sdkVersion(), .captureScreenshot(),
 // .networkBodiesDisabled()) are inline methods on the JS::NativeEverframe::
 // ConfigOpts struct, generated from the TS spec in src/NativeEverframe.ts.
 // The ingest URL is no longer JS-supplied — the native SDK bakes it at
@@ -121,7 +121,7 @@ RCT_EXPORT_MODULE(Everframe)
 // silently dropped on iOS today. Task 9 (spec 2026-08-12) only wires
 // `networkBodiesDisabled` through; see task-9-report.md.
 - (void)configure:(JS::NativeEverframe::ConfigOpts &)opts {
-  NSString *appId = opts.apiKey() ?: @"";
+  NSString *sdkKey = opts.sdkKey() ?: @"";
   BOOL networkBodiesDisabled = opts.networkBodiesDisabled().value_or(false);
   // `installIdentifierDisabled` (MAI meter spec 2026-08-27) — `std::optional
   // <bool>`, same shape as `networkBodiesDisabled()` above. Absent means the
@@ -131,7 +131,7 @@ RCT_EXPORT_MODULE(Everframe)
   BOOL crashReportingDisabled = opts.crashReportingDisabled().value_or(false);
   // `attachPinUi` (spec 2026-08-19) is a plain optional STRING field —
   // `opts.attachPinUi()` returns a nullable NSString*, same shape as
-  // `opts.apiKey()` above, NOT the `std::optional<bool>` shape
+  // `opts.sdkKey()` above, NOT the `std::optional<bool>` shape
   // `networkBodiesDisabled()` uses. `EverframeBridge.configure` coerces a
   // nil/unrecognised value to `.builtin`.
   NSString *attachPinUi = opts.attachPinUi();
@@ -182,7 +182,7 @@ RCT_EXPORT_MODULE(Everframe)
   NSNumber *vitalsSampleRate = opts.vitalsSampleRate().has_value() ? @(opts.vitalsSampleRate().value()) : nil;
   NSNumber *vitalsCaptureSourceQuery = opts.vitalsCaptureSourceQuery().has_value() ? @(opts.vitalsCaptureSourceQuery().value()) : nil;
   NSError *err = nil;
-  [EverframeBridge configureWithAppId:appId
+  [EverframeBridge configureWithSdkKey:sdkKey
                             endpoint:@""
                networkBodiesDisabled:networkBodiesDisabled
            installIdentifierDisabled:installIdentifierDisabled

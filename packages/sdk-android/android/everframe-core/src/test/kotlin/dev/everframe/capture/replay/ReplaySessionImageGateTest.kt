@@ -25,7 +25,7 @@ class ReplaySessionImageGateTest {
     private fun session(native: Boolean): ReplaySession {
         val video = if (native) ",\"nativeVideo\":{\"framesPerSecond\":5}" else ""
         val body = """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0$video}"""
-        return ReplaySession(apiKey = "k", provider = ReplayConfigProvider.make("https://a.test", "k", ConfigFetcher { request ->
+        return ReplaySession(sdkKey = "k", provider = ReplayConfigProvider.make("https://a.test", "k", ConfigFetcher { request ->
             Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("OK")
                 .body(body.toResponseBody("application/json".toMediaType())).build()
         }))

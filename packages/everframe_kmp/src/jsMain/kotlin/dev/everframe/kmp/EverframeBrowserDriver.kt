@@ -31,7 +31,7 @@ class EverframeBrowserDriver(
         if (environment != "production") return false
         if (handle != null) return true
         val config = js("({})")
-        config.apiKey = sdkKey
+        config.sdkKey = sdkKey
         config.appVersion = appVersion
         config.sdkName = "everframe-kmp"
         config.sdkVersion = sdkVersion

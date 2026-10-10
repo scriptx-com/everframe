@@ -11,7 +11,7 @@ import type { WebEverframeConfig } from '../../src/internal/types.js';
 
 function baseConfig(): WebEverframeConfig {
   return {
-    apiKey: 'txx_live_test',
+    sdkKey: 'txx_live_test',
     appName: 'test-app',
     appVersion: '1.0.0',
   };

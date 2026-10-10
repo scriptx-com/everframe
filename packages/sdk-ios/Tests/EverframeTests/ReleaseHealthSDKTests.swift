@@ -20,7 +20,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
         let key = key; return ReleaseHealthRuntime(root: root, keyProvider: { key }, transport: { _, _ in .retry })
     }
     private func config(_ character: String = "a") -> EverframeConfig {
-        .init(appId: "evf_live_" + String(repeating: character, count: 32),
+        .init(sdkKey: "evf_live_" + String(repeating: character, count: 32),
             capture: .init(screenshot: false, focus: false, logs: false, network: false, crash: false), vitals: .init(enabled: false))
     }
     private func health(_ build: String = "native-a") throws -> ReleaseHealthConfiguration {
@@ -129,7 +129,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
         let second = try await sdk.setReleaseHealth(health("native-b")); XCTAssertTrue(second)
         let b = try XCTUnwrap(runtime.readyPointer)
         XCTAssertNotEqual(a.exposureID, b.exposureID); XCTAssertEqual(a.processLaunchID, b.processLaunchID)
-        XCTAssertEqual(try rows().map(\.sdkKey), [config().appId, config().appId, config("b").appId])
+        XCTAssertEqual(try rows().map(\.sdkKey), [config().sdkKey, config().sdkKey, config("b").sdkKey])
         sdk.kill(); await runtime.barrier(); let erased = await sdk.setReleaseHealth(nil); XCTAssertTrue(erased)
     }
     func testBackgroundOptInWaitsAndForegroundReopensWithLatestIdentity() async throws {
@@ -176,7 +176,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
         release.signal(); try await replacement.value; Everframe.__bodyStateResetHookForTesting = nil
         XCTAssertNil(runtime.readyPointer)
         let accepted = try await sdk.setReleaseHealth(health("native-b")); XCTAssertTrue(accepted)
-        XCTAssertEqual(try rows().count, 1); XCTAssertEqual(try rows().first?.sdkKey, config("b").appId)
+        XCTAssertEqual(try rows().count, 1); XCTAssertEqual(try rows().first?.sdkKey, config("b").sdkKey)
         sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
 }

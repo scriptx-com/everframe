@@ -12,7 +12,7 @@ keep their original schema version and remain deliverable after upgrade.
 
 ```ts
 const sdk = init({
-  apiKey: 'your-sdk-key',
+  sdkKey: 'your-sdk-key',
   vitals: { enabled: false },
   releaseHealth: {
     enabled: true,

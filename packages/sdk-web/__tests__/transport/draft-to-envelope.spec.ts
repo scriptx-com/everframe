@@ -10,7 +10,7 @@ import type { WebEverframeConfig } from '../../src/internal/types.js';
 /** Minimal fixture config, reused (and overridden via spread) across the suite. */
 function baseConfig(): WebEverframeConfig {
   return {
-    apiKey: 'txx_live_test',
+    sdkKey: 'txx_live_test',
     appName: 'test-app',
     appVersion: '1.0.0',
   };

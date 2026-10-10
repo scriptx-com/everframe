@@ -3,6 +3,7 @@
 
 ## Unreleased
 
+- The bridge passes the SDK key to the iOS SDK as `EverframeConfig(sdkKey:)` and to `@everframe/web` as `sdkKey`, matching those SDKs' renamed config. The Dart API (`appId`, `sdkKey`) is unchanged.
 - `start(crash:)` turns native crash capture on or off (default on). On Android the native SDK now captures JVM exceptions, native crashes and ANRs by default.
 
 ## 1.0.0

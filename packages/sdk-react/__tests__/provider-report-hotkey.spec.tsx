@@ -41,7 +41,7 @@ describe('dashboard-owned report hotkey', () => {
     Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Linux x86_64' });
     stubFetch('Alt+R');
     render(
-      <EverframeProvider config={{ apiKey: 'txx_live_test' }}>
+      <EverframeProvider config={{ sdkKey: 'txx_live_test' }}>
         <div>host</div>
       </EverframeProvider>,
     );

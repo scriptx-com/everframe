@@ -58,7 +58,7 @@ describe('adapter.onKill() neuters the resources stamp even when the sampler dis
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' }) as unknown as {
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' }) as unknown as {
       __initReplay(): Promise<void>;
       __testRefreshConfigNow(): Promise<void>;
       __testCleanup(): void;

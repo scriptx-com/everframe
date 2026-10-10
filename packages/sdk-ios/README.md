@@ -40,8 +40,9 @@ The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
 ## Initialize at startup
 
 The same code runs in an iOS and a tvOS target. The module is `EverframeKit`
-(the package product is `Everframe`), and `appId` takes the app's SDK key
-(`evf_live_…`), not the dashboard App ID used for symbol uploads.
+(the package product is `Everframe`), and `sdkKey` takes the app's SDK key
+(`evf_live_…`). The App ID (a UUID) is only for symbol uploads; the SDK does
+not take it.
 
 ```swift
 import SwiftUI
@@ -59,12 +60,12 @@ struct MyApp: App {
         do {
             try Everframe.shared.start(
                 config: EverframeConfig(
-                    appId: "evf_live_00000000000000000000000000000000",
+                    sdkKey: "evf_live_00000000000000000000000000000000",
                     environment: .production
                 )
             )
         } catch {
-            // A blank or malformed key throws EverframeConfigError.missingAppId.
+            // A blank or malformed key throws EverframeConfigError.missingSdkKey.
             print("Everframe did not start: \(error)")
         }
     }
@@ -298,7 +299,7 @@ compilation. Physical-device MetricKit callback delivery remains unqualified.
 
 Shake-to-report is enabled locally by default on iPhone and iPad and controlled
 authoritatively by the dashboard. Disable it locally with
-`EverframeConfig(appId: "…", shakeToReportEnabled: false)`. Local `true` never
+`EverframeConfig(sdkKey: "…", shakeToReportEnabled: false)`. Local `true` never
 overrides a dashboard disable. The SDK observes UIKit's `.motionShake` event
 without Core Motion, permissions, privacy-manifest additions, or replacement
 of `UIWindow.motionEnded`. tvOS and Mac Catalyst are excluded.

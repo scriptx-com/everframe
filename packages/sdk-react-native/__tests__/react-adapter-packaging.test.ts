@@ -26,7 +26,7 @@ afterEach(cleanup);
 it('published native root and adapter share the mounted provider', async () => {
   const native = await import(/* @vite-ignore */ join(built, 'dist/index.js'));
   const adapter = await import(/* @vite-ignore */ join(built, 'dist/integrations/react.js'));
-  render(React.createElement(native.EverframeProvider, { config: { apiKey: 'txx_test_key' } }, null));
+  render(React.createElement(native.EverframeProvider, { config: { sdkKey: 'txx_test_key' } }, null));
   adapter.captureReactError(new Error('published adapter'), { componentStack: 'Boundary' });
   expect(native.getErrorCaptureStatus()).toMatchObject({ status: 'active', counters: { handled: { attempted: 1, accepted: 1 } } });
 });

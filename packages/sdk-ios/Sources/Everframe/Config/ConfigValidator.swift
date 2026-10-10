@@ -13,14 +13,13 @@ import Foundation
 enum ConfigValidator {
     static func validate(_ config: EverframeConfig) throws {
         // Per Phase 04.2 D-03: hard-fail at start() if the Everframe SDK key is missing,
-        // wrong-prefix, or wrong-length. Reuses .missingAppId verbatim — the
-        // appId/sdkKey rename is explicitly deferred (D-07). Length 41 = prefix
+        // wrong-prefix, or wrong-length; all three throw .missingSdkKey.
         // The dashboard issues evf_live_ keys; older txx_live_ keys remain valid.
-        // Both prefixes are 9 chars followed by a 32-char body.
-        let trimmed = config.appId.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Both prefixes are 9 chars followed by a 32-char body (length 41).
+        let trimmed = config.sdkKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.count != 41 ||
             !(trimmed.hasPrefix("evf_live_") || trimmed.hasPrefix("txx_live_")) {
-            throw EverframeConfigError.missingAppId
+            throw EverframeConfigError.missingSdkKey
         }
         // Session Vitals (iOS spec 2026-09-05 §1) — a local sample-rate
         // override outside [0,1] (including NaN) is a caller bug, not a

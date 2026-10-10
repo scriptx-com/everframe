@@ -109,14 +109,14 @@ const startOpts = { endpoint: 'https://relay.example.com', sdkKey: 'txx_live_x' 
 
 describe('attach-PIN capability is only announced when something can render it', () => {
   it('a vanilla init() host does NOT announce supportsAttachPin under the default', async () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start(startOpts);
     expect(__getAttachPinUiMode()).toBe('off');
     expect(await announceBody()).not.toHaveProperty('supportsAttachPin');
   });
 
   it('warns once, naming the routes that actually work', async () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start(startOpts);
     companion.stop();
     companion.start(startOpts);
@@ -128,7 +128,7 @@ describe('attach-PIN capability is only announced when something can render it',
   });
 
   it("still announces when a vanilla host explicitly takes responsibility with 'custom'", async () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start({ ...startOpts, attachPinUi: 'custom' });
     expect(__getAttachPinUiMode()).toBe('custom');
     expect(await announceBody()).toHaveProperty('supportsAttachPin', true);
@@ -137,7 +137,7 @@ describe('attach-PIN capability is only announced when something can render it',
   });
 
   it("stays silent for an explicit 'off' — nothing was promised, nothing to warn about", async () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start({ ...startOpts, attachPinUi: 'off' });
     expect(__getAttachPinUiMode()).toBe('off');
     expect(await announceBody()).not.toHaveProperty('supportsAttachPin');
@@ -154,7 +154,7 @@ describe('attach-PIN capability is only announced when something can render it',
   });
 
   it("destroy() gives the declaration back, so a later Provider mount is not poisoned", async () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     handle.destroy();
     handle = null;
     companion.start(startOpts);
@@ -185,13 +185,13 @@ describe('the companion badge is only enabled where something can render it', ()
   });
 
   it('resolves to OFF on a vanilla init() host', () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start(startOpts);
     expect(__getCompanionBadgeConfig().enabled).toBe(false);
   });
 
   it('stays OFF even when the host explicitly enables it — and says so, once', () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start({ ...startOpts, companionBadge: { enabled: true } });
     companion.stop();
     companion.start({ ...startOpts, companionBadge: { enabled: true } });
@@ -205,7 +205,7 @@ describe('the companion badge is only enabled where something can render it', ()
   });
 
   it('says nothing when the host never asked for a badge', () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start(startOpts);
     // The PIN downgrade warns on its default because 'builtin' ANNOUNCES a
     // capability to the relay and burns a real member's attach attempt. The
@@ -219,7 +219,7 @@ describe('the companion badge is only enabled where something can render it', ()
   });
 
   it('a dashboard override cannot conjure a renderer either', () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start({ ...startOpts, companionBadge: { enabled: false } });
 
     // The server block normally WINS over the inline option (that is the
@@ -236,7 +236,7 @@ describe('the companion badge is only enabled where something can render it', ()
   });
 
   it('destroy() gives the declaration back, so a later Provider mount is not poisoned', () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     handle.destroy();
     handle = null;
     companion.start(startOpts);

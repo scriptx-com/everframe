@@ -32,7 +32,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const config = { apiKey: 'txx_live_test' };
+const config = { sdkKey: 'txx_live_test' };
 
 /** Stubs global fetch: config resolves immediately with replies enabled; threads returns one open thread. */
 function stubFetch(): { calls: string[] } {

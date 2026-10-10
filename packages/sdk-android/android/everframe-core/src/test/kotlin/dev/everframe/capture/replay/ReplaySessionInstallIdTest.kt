@@ -81,11 +81,11 @@ class ReplaySessionInstallIdTest {
         }
         val session = ReplaySession(
             baseUrl = "https://ingest.example.test",
-            apiKey = "k",
+            sdkKey = "k",
             installIdProvider = { vectorId },
             provider = dev.everframe.config.ReplayConfigProvider.make(
                 baseUrl = "https://ingest.example.test",
-                apiKey = "k",
+                sdkKey = "k",
                 fetcher = fetcher,
                 installIdProvider = { vectorId },
             ),
@@ -97,7 +97,7 @@ class ReplaySessionInstallIdTest {
 
     /**
      * Deliberately omits `provider` — that is the entire point. `ReplaySession`'s
-     * default `provider` expression (`ReplayConfigProvider.make(baseUrl, apiKey,
+     * default `provider` expression (`ReplayConfigProvider.make(baseUrl, sdkKey,
      * defaultFetcher, installIdProvider = installIdProvider)`) is the ONLY
      * production line this task added the forwarding to; the test above never
      * lets it run because it supplies its own provider. A real MockWebServer
@@ -118,7 +118,7 @@ class ReplaySessionInstallIdTest {
             )
             val session = ReplaySession(
                 baseUrl = server.url("/").toString(),
-                apiKey = "k",
+                sdkKey = "k",
                 locallyDisabled = false,
                 installIdProvider = { vectorId },
             )

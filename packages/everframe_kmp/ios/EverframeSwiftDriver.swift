@@ -22,9 +22,9 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
         capture.network = true
         capture.networkBodies = false
         do {
-            // The Swift SDK currently names its key `appId`.
+            // The Swift SDK takes only the SDK key; the App ID is unused here.
             try Everframe.shared.start(config: EverframeConfig(
-                appId: sdkKey, environment: environment, capture: capture))
+                sdkKey: sdkKey, environment: environment, capture: capture))
             return Everframe.shared.captureGate
         } catch {
             return false

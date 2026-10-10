@@ -6,7 +6,7 @@ import { createFakePlatformAdapter } from '../src/__test-helpers__/fake-platform
 
 const freshClient = () => {
   const client = createClient(createFakePlatformAdapter());
-  client.init({ apiKey: 'k' });
+  client.init({ sdkKey: 'k' });
   return client;
 };
 

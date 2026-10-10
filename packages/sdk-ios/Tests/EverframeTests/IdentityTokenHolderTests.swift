@@ -188,7 +188,7 @@ final class IdentityTokenHolderTests: XCTestCase {
         let outbox = JSONLOutbox(testFileURL: tempDir.appendingPathComponent("outbox.jsonl"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "app"), outbox: outbox, session: session)
+            config: EverframeConfig(sdkKey: "app"), outbox: outbox, session: session)
 
         let resolved = await resolveIdentityHeader(
             capturedSubject: "alice",
@@ -757,11 +757,11 @@ final class IdentityTokenHolderTests: XCTestCase {
     func testStartClearsTheIdentityToken() async throws {
         let now = Date()
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectA)

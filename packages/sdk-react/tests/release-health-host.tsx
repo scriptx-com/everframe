@@ -17,7 +17,7 @@ function Controls({ killOnMount, mutateOnMount, mutateConsentOnMount }: {
   client = useEverframe();
   useEffect(() => {
     if (mutateOnMount) {
-      config.apiKey = 'mutated-key';
+      config.sdkKey = 'mutated-key';
       config.releaseHealth!.loadedBuildId = 'mutated-build';
       config.releaseHealth!.userId = 'mutated-subject';
     }
@@ -26,10 +26,10 @@ function Controls({ killOnMount, mutateOnMount, mutateConsentOnMount }: {
   }, []);
   return <button id="alive">Host mounted</button>;
 }
-export function mount(options: { apiKey?: string; build?: string; userId?: string; strict?: boolean; killOnMount?: boolean;
+export function mount(options: { sdkKey?: string; build?: string; userId?: string; strict?: boolean; killOnMount?: boolean;
   mutateOnMount?: boolean; mutateConsentOnMount?: boolean; health?: boolean; disabled?: boolean } = {}) {
   if (root) throw new Error('Unmount the previous host first');
-  config = { apiKey: options.apiKey ?? 'pk_test_a', disabled: options.disabled === true, vitals: { enabled: false },
+  config = { sdkKey: options.sdkKey ?? 'pk_test_a', disabled: options.disabled === true, vitals: { enabled: false },
     ...(options.health === undefined ? {} : { releaseHealth: { enabled: options.health,
       ...(options.build === undefined ? {} : { loadedBuildId: options.build }),
       ...(options.userId === undefined ? {} : { userId: options.userId }) } }) };
@@ -39,7 +39,7 @@ export function mount(options: { apiKey?: string; build?: string; userId?: strin
   flushSync(() => root!.render(strict ? <StrictMode>{tree}</StrictMode> : tree));
 }
 export function rerender() {
-  const tree = <EverframeProvider config={{ ...config, apiKey: 'ignored-new-key',
+  const tree = <EverframeProvider config={{ ...config, sdkKey: 'ignored-new-key',
     releaseHealth: { enabled: true, loadedBuildId: 'ignored-new-build' } }}><Controls/></EverframeProvider>;
   flushSync(() => root!.render(strict ? <StrictMode>{tree}</StrictMode> : tree));
 }

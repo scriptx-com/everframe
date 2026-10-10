@@ -101,11 +101,11 @@ export interface RuntimeConfig
   > {
   /**
    * Per-app SDK key (publishable, not secret). Required on the host-facing
-   * config — narrows the bridge `ConfigOpts.apiKey?` to required so a missing
+   * config — narrows the bridge `ConfigOpts.sdkKey?` to required so a missing
    * key is a compile-time error, matching the React SDK. The bridge type stays
    * optional (extractBridgeConfig builds `{}`); only this host surface requires it.
    */
-  apiKey: string;
+  sdkKey: string;
   appName?: string;
   appVersion?: string;
   appBuild?: string;
@@ -685,7 +685,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
 
 function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   const bridge: ConfigOpts = {};
-  if (config.apiKey !== undefined) bridge.apiKey = config.apiKey;
+  if (config.sdkKey !== undefined) bridge.sdkKey = config.sdkKey;
   // `sdkVersion` is NOT forwarded — the SDK version is owned by the SDK itself
   // (the native side stamps its own `Everframe.SDK_VERSION`), never the host.
   if (config.captureScreenshot !== undefined)

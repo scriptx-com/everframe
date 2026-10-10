@@ -37,7 +37,7 @@
   </script>
   <script type="module">
     import { init } from '/dist/index.js';
-    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+    window.__everframe = init({ sdkKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
     document.getElementById('report').addEventListener('click', () => {
       // Swallowed: open() resolves on submit and rejects if the reporter is
       // not mounted. A spec that opens the dialog and then ends leaves this

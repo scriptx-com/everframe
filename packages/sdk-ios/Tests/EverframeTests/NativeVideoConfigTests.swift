@@ -18,7 +18,7 @@ struct NativeVideoConfigTests {
     func decode(_ suffix: String) async throws {
         let body = "{\"replayEnabled\":true,\"replayDurationSec\":30,\"samplingRate\":1\(suffix)}"
         let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/api/config")!,
-            apiKey: "test", fetcher: Fetcher(body))
+            sdkKey: "test", fetcher: Fetcher(body))
         let fresh = await provider.refresh(force: true)
         let config = await provider.current
         let effective = effectiveNativeVideo(config: config, fetchConfirmed: fresh)

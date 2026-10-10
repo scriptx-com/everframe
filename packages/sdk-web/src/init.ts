@@ -271,7 +271,7 @@ export function init(config: WebEverframeConfig): Everframe {
   // instant everything else does.
   const vitals = setupVitals({
     config,
-    apiKey: config.apiKey,
+    sdkKey: config.sdkKey,
     apiUrl: INGEST_URL,
     isKilled,
     sdkVersion,
@@ -349,7 +349,7 @@ export function init(config: WebEverframeConfig): Everframe {
   __setBuiltinBadgeSurfaceAvailable(false);
 
   // The phone-companion submits from imperative, non-React call sites and
-  // reaches config (apiKey) + adapter (capture + outbox) through this seam.
+  // reaches config (sdkKey) + adapter (capture + outbox) through this seam.
   // Cleared in destroy(); without it a companion submit degrades to
   // `report.failed` instead of reaching ingest.
   __setCompanionHost({

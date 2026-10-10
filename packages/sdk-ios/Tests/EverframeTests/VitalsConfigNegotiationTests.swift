@@ -72,7 +72,7 @@ final class VitalsConfigNegotiationTests: XCTestCase {
     }
 
     func testValidatorRejectsASampleRateOutsideZeroOne() {
-        var cfg = EverframeConfig(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
+        var cfg = EverframeConfig(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
         cfg.vitals.sampleRate = 1.5
         XCTAssertThrowsError(try ConfigValidator.validate(cfg)) { XCTAssertEqual($0 as? EverframeConfigError, .invalidVitalsSampleRate) }
         cfg.vitals.sampleRate = .nan

@@ -88,7 +88,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   };
 
   it('uncaught error → error crumb preserved + envelope enqueued + immediate drain', async () => {
-    const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0', appBuild: 'web-abc123' });
+    const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0', appBuild: 'web-abc123' });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
 
@@ -129,7 +129,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   });
 
   it('same error twice → one report (fingerprint throttle), crumbs still land both times', async () => {
-    const adapter = mk({ apiKey: 'pk_test' });
+    const adapter = mk({ sdkKey: 'pk_test' });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
 
@@ -143,7 +143,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   });
 
   it('crashReporting.disabled vetoes reports but not crumbs', async () => {
-    const adapter = mk({ apiKey: 'pk_test', crashReporting: { disabled: true } });
+    const adapter = mk({ sdkKey: 'pk_test', crashReporting: { disabled: true } });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
 
@@ -154,7 +154,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   });
 
   it('unhandledrejection → error crumb preserved + envelope enqueued + immediate drain', async () => {
-    const adapter = mk({ apiKey: 'pk_test' });
+    const adapter = mk({ sdkKey: 'pk_test' });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
 
@@ -189,13 +189,13 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     // remount / Fast Refresh) must re-point the forwarding crash slot at B —
     // here bound to null (veto) — so A's stale sink (A's outbox/throttle/
     // config) must NOT keep turning crashes into reports.
-    const a = createWebPlatformAdapter({ apiKey: 'pk_test' });
+    const a = createWebPlatformAdapter({ sdkKey: 'pk_test' });
     adapters.push(a);
     const bufA = createBreadcrumbBuffer();
     a.__setBreadcrumbBuffer(() => bufA);
 
     // Remount without __testCleanup — patcher stays owned by `a`.
-    const b = createWebPlatformAdapter({ apiKey: 'pk_test', crashReporting: { disabled: true } });
+    const b = createWebPlatformAdapter({ sdkKey: 'pk_test', crashReporting: { disabled: true } });
     adapters.push(b);
     const bufB = createBreadcrumbBuffer();
     b.__setBreadcrumbBuffer(() => bufB);
@@ -212,12 +212,12 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   });
 
   it('remount with crash reporting enabled takes over from a vetoed first mount', async () => {
-    const a = createWebPlatformAdapter({ apiKey: 'pk_test', crashReporting: { disabled: true } });
+    const a = createWebPlatformAdapter({ sdkKey: 'pk_test', crashReporting: { disabled: true } });
     adapters.push(a);
 
     // Remount without teardown — the already-installed patcher must now route
     // crashes to B's live sink (B's own outbox + throttle).
-    const b = createWebPlatformAdapter({ apiKey: 'pk_test' });
+    const b = createWebPlatformAdapter({ sdkKey: 'pk_test' });
     adapters.push(b);
     const bufB = createBreadcrumbBuffer();
     b.__setBreadcrumbBuffer(() => bufB);
@@ -239,7 +239,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     // Plant a 3-segment JWT-shaped string and assert on [REDACTED:JWT].
     const jwt =
       'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
-    const adapter = mk({ apiKey: 'pk_test' });
+    const adapter = mk({ sdkKey: 'pk_test' });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
 
@@ -262,7 +262,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   // applied to the mount/online drain trigger and the post-submit drain in
   // provider.tsx.
   it('a crash-sink drain that provisions a thread wakes the poller', async () => {
-    const adapter = mk({ apiKey: 'pk_test' });
+    const adapter = mk({ sdkKey: 'pk_test' });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
     const threads = adapter.threads;
@@ -285,7 +285,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   });
 
   it('a crash-sink drain that provisions no thread does not wake the poller', async () => {
-    const adapter = mk({ apiKey: 'pk_test' });
+    const adapter = mk({ sdkKey: 'pk_test' });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
     const threads = adapter.threads;
@@ -325,7 +325,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     };
 
     it('attributes the crash to the host-declared user', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
       adapter.__setUserGetter(() => ({ id: 'u_1', email: 'a@b.com', displayName: 'A' }));
 
@@ -338,7 +338,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     });
 
     it('ships anonymous when no user getter is bound', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
 
       throwAt(adapter, 'unbound');
@@ -346,7 +346,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     });
 
     it('ships anonymous when the user is null (signed out)', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
       adapter.__setUserGetter(() => null);
 
@@ -358,7 +358,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     // companion seam's `getUser` is one. A value captured when the Provider
     // mounted would pin whoever was signed in then onto every later crash.
     it('reads the user AT CRASH TIME, not at bind time', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
       let current: { id: string } | null = { id: 'alice' };
       adapter.__setUserGetter(() => current);
@@ -375,7 +375,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     // gets a say. `tx.setUser(currentUser)` (the app's own user object) is the
     // natural call, and `{ ...live }` preserved every property on it.
     it('ships only id/email/displayName when the host user carries extra properties', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
       adapter.__setUserGetter(
         () =>
@@ -398,7 +398,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     });
 
     it('drops known keys whose value is not a string', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
       adapter.__setUserGetter(
         () => ({ id: 42, email: null, displayName: 'A' }) as unknown as { id: string },
@@ -411,7 +411,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     // A crash sink must never block or throw — a host getter that blows up
     // costs the crash its attribution, never the crash report itself.
     it('still reports the crash when the user getter throws', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
       adapter.__setUserGetter(() => {
         throw new Error('host getter exploded');
@@ -437,8 +437,8 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     it('stamps sessionId + recent vitals onto the crash envelope when a session is active', async () => {
       vi.spyOn(Math, 'random').mockReturnValue(0);
       const vitals = setupVitals({
-        config: { apiKey: 'pk_test' },
-        apiKey: 'pk_test',
+        config: { sdkKey: 'pk_test' },
+        sdkKey: 'pk_test',
         apiUrl: 'https://ingest.test',
         isKilled: () => false,
         sdkVersion: '1.0.0',
@@ -449,7 +449,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
       const active = __getActiveVitals();
       expect(active).toBeDefined();
 
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
 
       const err = new Error('vitals-crash');
@@ -468,7 +468,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     });
 
     it('omits sessionId + payload.vitals when no vitals session is active', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.__setBreadcrumbBuffer(() => createBreadcrumbBuffer());
 
       const err = new Error('no-vitals-crash');
@@ -497,8 +497,8 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     it('caps payload.vitals at MAX_ENVELOPE_VITALS_ENTRIES even when the ring holds more', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0);
       const vitals = setupVitals({
-        config: { apiKey: 'pk_test' },
-        apiKey: 'pk_test',
+        config: { sdkKey: 'pk_test' },
+        sdkKey: 'pk_test',
         apiUrl: 'https://ingest.test',
         isKilled: () => false,
         sdkVersion: '1.0.0',

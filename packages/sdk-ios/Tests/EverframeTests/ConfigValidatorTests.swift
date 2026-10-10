@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Phase 04.2 D-03: appId predicate — .missingAppId throws on empty-after-trim
+// Phase 04.2 D-03: sdkKey predicate — .missingSdkKey throws on empty-after-trim
 // / missing prefix / wrong length. Endpoint scheme validation removed: the
 // ingest URL is no longer a public config field (it's baked at compile time
 // via IngestEndpoint.swift).
@@ -16,42 +16,42 @@ final class ConfigValidatorTests: XCTestCase {
     func test_validate_succeeds_for_dashboard_issued_evf_live_key() throws {
         let key = "evf_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
         XCTAssertEqual(key.count, 41)
-        XCTAssertNoThrow(try ConfigValidator.validate(EverframeConfig(appId: key)))
+        XCTAssertNoThrow(try ConfigValidator.validate(EverframeConfig(sdkKey: key)))
     }
 
     func test_validate_succeeds_for_well_formed_txx_live_key() throws {
         XCTAssertEqual(goodKey.count, 41)
-        let cfg = EverframeConfig(appId: goodKey)
+        let cfg = EverframeConfig(sdkKey: goodKey)
         XCTAssertNoThrow(try ConfigValidator.validate(cfg))
     }
 
-    func test_validate_throws_missingAppId_for_empty_after_trim() {
-        let cfg = EverframeConfig(appId: "   ")
+    func test_validate_throws_missingSdkKey_for_empty_after_trim() {
+        let cfg = EverframeConfig(sdkKey: "   ")
         XCTAssertThrowsError(try ConfigValidator.validate(cfg)) { err in
-            guard case EverframeConfigError.missingAppId = err else {
-                XCTFail("Expected .missingAppId, got \(err)"); return
+            guard case EverframeConfigError.missingSdkKey = err else {
+                XCTFail("Expected .missingSdkKey, got \(err)"); return
             }
         }
     }
 
-    func test_validate_throws_missingAppId_for_missing_prefix() {
+    func test_validate_throws_missingSdkKey_for_missing_prefix() {
         // 41 chars exactly, wrong prefix.
         let bad = "abc_live_" + String(repeating: "x", count: 32)
         XCTAssertEqual(bad.count, 41)
-        let cfg = EverframeConfig(appId: bad)
+        let cfg = EverframeConfig(sdkKey: bad)
         XCTAssertThrowsError(try ConfigValidator.validate(cfg)) { err in
-            guard case EverframeConfigError.missingAppId = err else {
-                XCTFail("Expected .missingAppId, got \(err)"); return
+            guard case EverframeConfigError.missingSdkKey = err else {
+                XCTFail("Expected .missingSdkKey, got \(err)"); return
             }
         }
     }
 
-    func test_validate_throws_missingAppId_for_wrong_length() {
+    func test_validate_throws_missingSdkKey_for_wrong_length() {
         // Correct prefix, 14 chars total — short.
-        let cfg = EverframeConfig(appId: "txx_live_short")
+        let cfg = EverframeConfig(sdkKey: "txx_live_short")
         XCTAssertThrowsError(try ConfigValidator.validate(cfg)) { err in
-            guard case EverframeConfigError.missingAppId = err else {
-                XCTFail("Expected .missingAppId, got \(err)"); return
+            guard case EverframeConfigError.missingSdkKey = err else {
+                XCTFail("Expected .missingSdkKey, got \(err)"); return
             }
         }
     }

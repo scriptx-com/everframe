@@ -10,7 +10,7 @@ final class NativeCrashStartupTests: XCTestCase {
     func testTemplateIsDeterministicAndKeepsDeclaredIdentityVerbatim() throws {
         // Other report paths send the declared user and app/device identity as
         // given. Masked ids/emails would merge people or overwrite stored emails.
-        let config = EverframeConfig(appId: "sdk-A", release: "release-secret", redaction: .init(customPatterns: [
+        let config = EverframeConfig(sdkKey: "sdk-A", release: "release-secret", redaction: .init(customPatterns: [
             try NSRegularExpression(pattern: "secret"), try NSRegularExpression(pattern: "[a-z]+@example\\.com")]))
         let user = EFUser(id: "4111111111111111", email: "alice@example.com", displayName: "secret")
         let host = DeviceMetadata(model: "iPhone", osName: "iOS", osVersion: "26.5", locale: "en_US", timezone: "UTC",
@@ -33,7 +33,7 @@ final class NativeCrashStartupTests: XCTestCase {
         XCTAssertNil(envelope.payload.resources); XCTAssertNil(envelope.payload.crash)
     }
     func testAnonymousContextDoesNotInventUserAndUsesOriginalAppVersion() throws {
-        let context = try NativeCrashStartupContext.make(config: .init(appId: "sdk-A"), user: nil, device: device, endpoint: "https://example.invalid")
+        let context = try NativeCrashStartupContext.make(config: .init(sdkKey: "sdk-A"), user: nil, device: device, endpoint: "https://example.invalid")
         let envelope = try EverframeReportEnvelope(data: context.envelopeTemplate)
         XCTAssertNil(envelope.reporter.user); XCTAssertEqual(envelope.context.app.version, "1.2.3")
         XCTAssertNil(context.identitySubject)
@@ -79,7 +79,7 @@ final class NativeCrashStartupTests: XCTestCase {
             XCTAssertTrue(probe.snapshot().enabled)
             tail.fulfill()
         }
-        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
         await fulfillment(of: [first], timeout: 5)
         sdk.setUser(.init(id: "user-B"))
         await fulfillment(of: [second], timeout: 5)
@@ -98,7 +98,7 @@ final class NativeCrashStartupTests: XCTestCase {
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
         let sdk = Everframe(nativeCrashRuntime: runtime)
         defer { sdk.kill() }
-        try sdk.start(config: .init(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
+        try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
         sdk.setUser(.init(id: "user-A"))
         let armedA = await sdk.refreshNativeCrashContext()
         XCTAssertTrue(armedA)
@@ -123,14 +123,14 @@ final class NativeCrashStartupTests: XCTestCase {
         let armedB = await sdk.refreshNativeCrashContext()
         XCTAssertTrue(armedB)
         XCTAssertEqual(try EverframeReportEnvelope(data: current().envelopeTemplate).reporter.user?.id, "user-B")
-        try sdk.start(config: .init(appId: "evf_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", capture: .init(logs: false)))
+        try sdk.start(config: .init(sdkKey: "evf_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", capture: .init(logs: false)))
         let newProject = await sdk.refreshNativeCrashContext()
         XCTAssertTrue(newProject); XCTAssertEqual(try current().sdkKey, "evf_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
         XCTAssertNil(try EverframeReportEnvelope(data: current().envelopeTemplate).reporter.user)
         sdk.kill(); XCTAssertFalse(probe.snapshot().enabled)
         let killed = await sdk.refreshNativeCrashContext()
         XCTAssertFalse(killed)
-        try sdk.start(config: .init(appId: "evf_live_cccccccccccccccccccccccccccccccc", capture: .init(logs: false, crash: false)))
+        try sdk.start(config: .init(sdkKey: "evf_live_cccccccccccccccccccccccccccccccc", capture: .init(logs: false, crash: false)))
         let disabled = await sdk.refreshNativeCrashContext()
         XCTAssertFalse(disabled); XCTAssertFalse(probe.snapshot().enabled)
         XCTAssertEqual(probe.snapshot().installs, 1)
@@ -163,7 +163,7 @@ final class NativeCrashStartupTests: XCTestCase {
             sdk.kill(); CrashReporter.__closeNativeCaptureForTesting = nil; CrashReporter.__scheduleDrainForTesting = nil
             try? FileManager.default.removeItem(at: root)
         }
-        let config = EverframeConfig(appId: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
+        let config = EverframeConfig(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
         try sdk.start(config: config)
         let armed = await sdk.refreshNativeCrashContext()
         XCTAssertTrue(armed)

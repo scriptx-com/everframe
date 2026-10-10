@@ -29,7 +29,7 @@ class NativeVideoCapabilityTest {
             OkHttpClient().newCall(it).execute()
         })
         Everframe.captureGate = true
-        val session = ReplaySession(apiKey = "key", provider = provider)
+        val session = ReplaySession(sdkKey = "key", provider = provider)
         try {
             session.refreshConfigNow()
             val request = server.takeRequest(3, java.util.concurrent.TimeUnit.SECONDS)!!

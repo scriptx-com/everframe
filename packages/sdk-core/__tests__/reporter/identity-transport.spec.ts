@@ -90,7 +90,7 @@ describe('createReporterApi identity token', () => {
     return createReporterApi({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       baseUrl: 'https://x.test',
-      apiKey: 'txx_live_k',
+      sdkKey: 'txx_live_k',
       ...(holder ? { identityToken: holder } : {}),
     });
   }

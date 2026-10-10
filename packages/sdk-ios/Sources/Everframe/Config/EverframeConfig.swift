@@ -16,7 +16,7 @@ import Foundation
 /// every stored property by construction and keeps covering new ones. `RedactionConfig`
 /// supplies the one hand-written `==` (see its own note).
 public struct EverframeConfig: Sendable, Equatable {
-    public let appId: String
+    public let sdkKey: String
     public let environment: Environment
     public let release: String?
     public var capture: CaptureConfig
@@ -84,7 +84,7 @@ public struct EverframeConfig: Sendable, Equatable {
     }
 
     public init(
-        appId: String,
+        sdkKey: String,
         environment: Environment = .production,
         release: String? = nil,
         capture: CaptureConfig = .defaults,
@@ -97,7 +97,7 @@ public struct EverframeConfig: Sendable, Equatable {
         installIdentifierEnabled: Bool = true,
         vitals: VitalsConfig = VitalsConfig()
     ) {
-        self.appId = appId
+        self.sdkKey = sdkKey
         self.environment = environment
         self.release = release
         self.capture = capture
@@ -224,7 +224,7 @@ public enum ReportResult {
 // MARK: - Errors
 
 public enum EverframeConfigError: Error, Equatable {
-    case missingAppId
+    case missingSdkKey
     case invalidVitalsSampleRate
 }
 

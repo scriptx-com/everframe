@@ -189,15 +189,15 @@ struct RedactionEngineTests {
 
     // MARK: - ConfigValidator
 
-    @Test func configValidator_throwsOnMissingAppId() {
-        let cfg = EverframeConfig(appId: "")
+    @Test func configValidator_throwsOnMissingSdkKey() {
+        let cfg = EverframeConfig(sdkKey: "")
         #expect(throws: EverframeConfigError.self) {
             try ConfigValidator.validate(cfg)
         }
     }
 
     @Test func configValidator_throwsOnHTTPEndpoint() {
-        let cfg = EverframeConfig(appId: "ok")
+        let cfg = EverframeConfig(sdkKey: "ok")
         #expect(throws: EverframeConfigError.self) {
             try ConfigValidator.validate(cfg)
         }
@@ -207,7 +207,7 @@ struct RedactionEngineTests {
         // 41-char txx_live_… key, matching the strict predicate in
         // ConfigValidator (Phase 04.2 D-03).
         let cfg = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
         )
         #expect(throws: Never.self) {
             try ConfigValidator.validate(cfg)

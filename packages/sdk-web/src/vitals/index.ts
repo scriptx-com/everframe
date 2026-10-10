@@ -46,7 +46,7 @@ import type { WebEverframeConfig } from '../internal/types.js';
 
 export interface SetupVitalsDeps {
   config: WebEverframeConfig;
-  apiKey: string;
+  sdkKey: string;
   /** Ingest base URL — `${apiUrl}/api/ingest/vitals` is the transport endpoint. */
   apiUrl: string;
   /** Re-checked at every send boundary by the transport — the same permanent
@@ -675,7 +675,7 @@ export function setupVitals(deps: SetupVitalsDeps): VitalsHandle {
       // identity dependency of its own to read a second time.
       const send = createVitalsTransport({
         endpoint,
-        apiKey: deps.apiKey,
+        sdkKey: deps.sdkKey,
         isKilled: deps.isKilled,
       });
 
@@ -693,11 +693,11 @@ export function setupVitals(deps: SetupVitalsDeps): VitalsHandle {
         // after this whole function returns), so referencing it here is
         // safe despite the textual ordering.
         onRotate: () => player.reseed(),
-        // Codex round-3 item 8 — the real apiKey byte length, so the
+        // Codex round-3 item 8 — the real sdkKey byte length, so the
         // collector's buffer cap reserves EXACTLY enough headroom for the
         // beacon wrapper this SDK's own transport.ts embeds it in
         // (`{"apiKey":"<key>","payload":<chunk>}`), instead of guessing.
-        apiKeyByteLength: utf8ByteLength(deps.apiKey),
+        sdkKeyByteLength: utf8ByteLength(deps.sdkKey),
         // Task 11 — read per summary (not once here), so a session that starts
         // anonymous and then signs in becomes attributed from its next summary
         // on. The provider is CACHE-ONLY on the token half (controller ruling

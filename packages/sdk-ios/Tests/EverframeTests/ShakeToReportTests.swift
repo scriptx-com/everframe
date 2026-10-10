@@ -5,7 +5,7 @@ import XCTest
 
 final class ShakeToReportTests: XCTestCase {
     func testLocalOptionDefaultsEnabled() {
-        XCTAssertTrue(EverframeConfig(appId: "app").shakeToReportEnabled)
+        XCTAssertTrue(EverframeConfig(sdkKey: "app").shakeToReportEnabled)
     }
 
     func testLocalAndDashboardSwitchesMustBothBeEnabled() {

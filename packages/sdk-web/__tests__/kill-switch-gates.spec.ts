@@ -72,7 +72,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
 
   describe('finding 1 — __openReporter() after kill()', () => {
     it('LIVE control: stages a pending promise and shows the modal', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       const shown = vi.fn();
       adapter.__registerShowModal(shown);
 
@@ -85,7 +85,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('refuses to open, and resolves cancelled/killed instead of hanging', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       const shown = vi.fn();
       adapter.__registerShowModal(shown);
 
@@ -100,7 +100,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('stays refused on every later call, not just the first', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       const shown = vi.fn();
       adapter.__registerShowModal(shown);
       adapter.onKill?.();
@@ -128,7 +128,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
   // by one. See the flag's declaration in adapter.ts.
   describe('the StrictMode remount path revives it — and only that path', () => {
     it('a mount rebind after kill() restores open()', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       const shown = vi.fn();
       adapter.__registerShowModal(shown);
 
@@ -142,7 +142,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('a mount rebind after kill() restores crash reporting', async () => {
-      const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
 
       adapter.onKill?.();
       adapter.__rebindCrumbHooks();
@@ -164,7 +164,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     // `__openReporter()` and `crashSink` use: "a live mount owns this
     // adapter", which only `__rebindCrumbHooks()` can assert.
     it('a mount rebind after kill() restores the reconnect outbox drain', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       const drain = vi.fn();
       adapter.__registerOutboxDrainTrigger(drain);
 
@@ -182,7 +182,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
   // never killed, bound the page-global slots last during render, so the mount
   // takes them back with `{ revive: false }`, which must revive nothing.
   describe('a non-reviving rebind after an explicit kill', () => {
-    const config = { apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' };
+    const config = { sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' };
 
     it('control: without it, the twin bound last still captures and reports', async () => {
       const committed = mk(config);
@@ -229,7 +229,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
   // `kill()`, which is the whole distinction `reportingKilled` encodes).
   describe("finding 3 — the 'online' drain listener", () => {
     it('LIVE control: a reconnect drains the outbox', () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       const drain = vi.fn();
       adapter.__registerOutboxDrainTrigger(drain);
 
@@ -239,7 +239,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('a genuinely killed adapter still refuses to drain', () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       const drain = vi.fn();
       adapter.__registerOutboxDrainTrigger(drain);
 
@@ -259,7 +259,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
   // captured" hold for async loops that were started before the switch.
   describe('round-3 — the capture primitives', () => {
     it('LIVE control: a live adapter captures', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       console.log('live-primitive-line');
 
       await expect(adapter.captureScreenshot()).resolves.toBeDefined();
@@ -270,7 +270,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('refuses to screenshot the page once killed', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.onKill?.();
 
       // REJECTS rather than resolving a blank image: every caller has a
@@ -280,7 +280,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('hands back no logs, no network and no focused node once killed', () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       console.log('captured-before-kill');
       adapter.onKill?.();
 
@@ -290,7 +290,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('a StrictMode remount restores them', async () => {
-      const adapter = mk({ apiKey: 'pk_test' });
+      const adapter = mk({ sdkKey: 'pk_test' });
       adapter.onKill?.();
       adapter.__rebindCrumbHooks();
 
@@ -304,7 +304,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
 
   describe('finding 2 — an uncaught error after kill()', () => {
     it('LIVE control: enqueues an envelope and POSTs it', async () => {
-      mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
 
       window.onerror?.('boom', 'a.ts', 1, 1, boom());
 
@@ -312,7 +312,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('builds nothing, enqueues nothing and sends nothing', async () => {
-      const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
 
       adapter.onKill?.();
       // The forwarder itself deliberately survives teardown (it is page-global
@@ -328,7 +328,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('does not consume dedupe or throttle state when a stack getter kills capture', async () => {
-      const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
       const error = boom();
       let killFromGetter = true;
       Object.defineProperty(error, 'stack', {
@@ -351,7 +351,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     });
 
     it('removes a crash and skips delivery when ownership changes during async persistence', async () => {
-      const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
       const outbox = adapter.outbox!;
       const realEnqueue = outbox.enqueue.bind(outbox);
       let release!: () => void;
@@ -377,7 +377,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     it.each(['killed', 'killed-then-reclaimed'] as const)(
       'cancels a crash whose outbox read resumes after ownership is %s',
       async (ownershipChange) => {
-        const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+        const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
         const outbox = adapter.outbox!;
         const realList = outbox.list.bind(outbox);
         let release!: () => void;
@@ -403,7 +403,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
     );
 
     it('cancels a crash when ownership changes while reporter credentials load', async () => {
-      const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
       const credentials = adapter.reporterCredentials!;
       let release!: () => void;
       const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -432,7 +432,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
           return new Response('{}', { status: 503 });
         });
       });
-      const adapter = mk({ apiKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
 
       adapter.captureException?.(boom());
       await firstAttempt;

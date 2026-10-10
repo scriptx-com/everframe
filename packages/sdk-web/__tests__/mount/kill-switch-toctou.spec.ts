@@ -146,7 +146,7 @@ function stubFetch(ingest?: () => Promise<Response>): { ingestCalls: () => strin
 }
 
 async function openReporter(): Promise<{ opened: Promise<unknown> }> {
-  handle = init({ apiKey: 'txx_live_toctou' }) as InternalHandle;
+  handle = init({ sdkKey: 'txx_live_toctou' }) as InternalHandle;
   const opened = handle.open();
   await vi.waitFor(() => expect(islands).toHaveLength(1));
   return { opened };

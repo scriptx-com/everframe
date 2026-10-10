@@ -22,7 +22,7 @@ import { EXTRA_MAX_CHARS } from '../src/extra-budget.js';
 
 function mountedClient() {
   const client = createClient(createFakePlatformAdapter());
-  client.init({ apiKey: 'test' });
+  client.init({ sdkKey: 'test' });
   return client;
 }
 
@@ -144,7 +144,7 @@ describe('setExtra resolver form', () => {
     client.setExtra(resolve);
     expect(resolveClientExtra(client)).toBe('');
 
-    client.init({ apiKey: 'test' });
+    client.init({ sdkKey: 'test' });
     client.kill();
     client.setExtra(resolve);
     expect(resolveClientExtra(client)).toBe('');

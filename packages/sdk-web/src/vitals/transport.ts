@@ -18,10 +18,11 @@
 //     which enqueues into a durable outbox on a retryable failure.
 //   - Unload path (`opts.beacon === true`): `navigator.sendBeacon`, because a
 //     fetch started during pagehide/unload has no guarantee of completing.
-//     sendBeacon can't set headers, so the apiKey rides in the body instead
-//     of the Authorization header used on the fetch path; the blob is sent as
-//     `text/plain` (not `application/json`) to keep it a CORS-simple request
-//     with no preflight, which a fetch mid-unload can't afford to wait on. A
+//     sendBeacon can't set headers, so the SDK key rides in the body (wire
+//     field `apiKey`) instead of the Authorization header used on the fetch
+//     path; the blob is sent as `text/plain` (not `application/json`) to keep
+//     it a CORS-simple request with no preflight, which a fetch mid-unload
+//     can't afford to wait on. A
 //     `false` return (queue full/refused) falls back to the fetch path so the
 //     payload isn't silently dropped — best-effort, since a fetch begun
 //     during unload can itself be cut short by the navigation.
@@ -124,7 +125,7 @@ const MAX_OUTSTANDING = 20;
 export interface VitalsTransportDeps {
   /** `${apiUrl}/api/ingest/vitals` */
   endpoint: string;
-  apiKey: string;
+  sdkKey: string;
   /** Re-checked at every send boundary — see module doc. */
   isKilled(): boolean;
   /** Default: global `fetch`. */
@@ -204,7 +205,7 @@ export function createVitalsTransport(
    * dead weight on the 30-second chunk cadence — the same argument the
    * collector uses for never stamping `user` onto a chunk. On the BEACON path
    * it would additionally be harmful: the collector sizes its chunk byte
-   * budget against `BEACON_WRAPPER_FIXED_BYTES` + the apiKey length
+   * budget against `BEACON_WRAPPER_FIXED_BYTES` + the sdkKey length
    * (packages/sdk-core/src/vitals/collector.ts), which accounts for
    * `{"apiKey":"…","payload":…}` and nothing else, so an extra
    * `,"identityToken":"<jwt>"` on a max-size chunk would push the body past
@@ -443,7 +444,7 @@ export function createVitalsTransport(
           // built). The retry presents that SAME captured value — see
           // `scheduleRetry`'s doc-comment for why threading it beats
           // dropping it.
-          authorization: 'Bearer ' + deps.apiKey,
+          authorization: 'Bearer ' + deps.sdkKey,
           'content-type': 'application/json',
           ...(identityToken !== undefined ? { [IDENTITY_TOKEN_HEADER]: identityToken } : {}),
         },
@@ -541,15 +542,17 @@ export function createVitalsTransport(
     const outgoing = bodyFor(body, opts.identityToken, identityToken);
 
     if (opts.beacon) {
-      // `sendBeacon` cannot set headers — which is exactly why `apiKey`
-      // already rides in the body here. The identity token gets the same
-      // treatment; the route reads it off the validated
+      // `sendBeacon` cannot set headers — which is exactly why the SDK key
+      // already rides in the body here. The wire field stays `apiKey` for
+      // every published client even though config calls the key `sdkKey`.
+      // The identity token gets the same treatment; the route reads it off
+      // the validated
       // `VitalsIngestRequest.identityToken` and prefers the header when both
       // are present.
       const beaconJson = safeSerialize(
         identityToken !== undefined
-          ? { apiKey: deps.apiKey, identityToken, payload: outgoing }
-          : { apiKey: deps.apiKey, payload: outgoing },
+          ? { apiKey: deps.sdkKey, identityToken, payload: outgoing }
+          : { apiKey: deps.sdkKey, payload: outgoing },
       );
       // Unserializable — the fetch fallback below would stringify the same
       // `outgoing`, via the same underlying data, and fail identically, so

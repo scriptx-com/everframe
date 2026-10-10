@@ -67,7 +67,7 @@ const STATUS_BAR_HEIGHT = Platform.isTV
 // `reactNavigationIntegration` doesn't apply; navigation breadcrumbs already
 // come from each screen's `useEverframeScreen(...)` marker instead.
 const EVERFRAME_CONFIG = {
-  apiKey: process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? '',
+  sdkKey: process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? '',
   appName: 'examplereactnative',
   appVersion: '1.0.0',
   ...(process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID ? {

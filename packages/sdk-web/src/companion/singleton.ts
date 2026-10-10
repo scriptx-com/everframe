@@ -239,7 +239,7 @@ export function __setBuiltinBadgeSurfaceAvailable(available: boolean): void {
 
 /**
  * Start-option defaults registered by a host that already declared them once.
- * `@everframe/react`'s provider registers `apiKey` / `appName` here on mount,
+ * `@everframe/react`'s provider registers `sdkKey` / `appName` here on mount,
  * so `companion.start()` matches the RN SDK's zero-argument call instead of
  * making the host repeat a key the provider is already holding.
  *

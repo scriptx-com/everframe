@@ -15,7 +15,7 @@ import { __extractBridgeConfigForTesting as extract } from '../src/runtime.js';
 describe('inline theme config flattening', () => {
   it('flattens a full nested theme onto the 8 flat wire fields', () => {
     const bridge = extract({
-      apiKey: 'k',
+      sdkKey: 'k',
       theme: {
         background: '#101314',
         surface: '#181c1e',
@@ -38,7 +38,7 @@ describe('inline theme config flattening', () => {
   });
 
   it('flattens a partial theme — only the supplied roles cross the wire', () => {
-    const bridge = extract({ apiKey: 'k', theme: { accent: '#336699' } });
+    const bridge = extract({ sdkKey: 'k', theme: { accent: '#336699' } });
     expect(bridge.themeAccent).toBe('#336699');
     for (const absent of [
       'themeBackground',
@@ -54,13 +54,13 @@ describe('inline theme config flattening', () => {
   });
 
   it('omits every theme field when the host sets no theme — native sees "host did nothing"', () => {
-    const bridge = extract({ apiKey: 'k' });
+    const bridge = extract({ sdkKey: 'k' });
     for (const key of Object.keys(bridge)) {
       expect(key.startsWith('theme'), `unexpected theme wire field ${key}`).toBe(false);
     }
   });
 
   it('passes values through unvalidated — native resolvers own hex validation', () => {
-    expect(extract({ apiKey: 'k', theme: { accent: 'not-a-hex' } }).themeAccent).toBe('not-a-hex');
+    expect(extract({ sdkKey: 'k', theme: { accent: 'not-a-hex' } }).themeAccent).toBe('not-a-hex');
   });
 });

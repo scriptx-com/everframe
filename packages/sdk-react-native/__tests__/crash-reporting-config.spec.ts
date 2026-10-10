@@ -9,15 +9,15 @@ import { __extractBridgeConfigForTesting as extract } from '../src/runtime.js';
 
 describe('crashReporting config flattening', () => {
   it('flattens disabled:true to the flat bridge flag', () => {
-    expect(extract({ apiKey: 'k', crashReporting: { disabled: true } }).crashReportingDisabled).toBe(true);
+    expect(extract({ sdkKey: 'k', crashReporting: { disabled: true } }).crashReportingDisabled).toBe(true);
   });
   it('flattens disabled:false to false', () => {
-    expect(extract({ apiKey: 'k', crashReporting: { disabled: false } }).crashReportingDisabled).toBe(false);
+    expect(extract({ sdkKey: 'k', crashReporting: { disabled: false } }).crashReportingDisabled).toBe(false);
   });
   it('omits the flag when crashReporting is absent', () => {
-    expect('crashReportingDisabled' in extract({ apiKey: 'k' })).toBe(false);
+    expect('crashReportingDisabled' in extract({ sdkKey: 'k' })).toBe(false);
   });
   it('omits the flag when only promise rejections are configured', () => {
-    expect('crashReportingDisabled' in extract({ apiKey: 'k', crashReporting: { promiseRejections: { enabled: true } } })).toBe(false);
+    expect('crashReportingDisabled' in extract({ sdkKey: 'k', crashReporting: { promiseRejections: { enabled: true } } })).toBe(false);
   });
 });

@@ -28,7 +28,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const config = { apiKey: 'txx_live_test' };
+const config = { sdkKey: 'txx_live_test' };
 
 interface Deferred<T> {
   promise: Promise<T>;

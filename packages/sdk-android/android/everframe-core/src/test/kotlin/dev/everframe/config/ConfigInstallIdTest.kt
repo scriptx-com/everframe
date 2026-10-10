@@ -63,7 +63,7 @@ class ConfigInstallIdTest {
     fun `the request url carries the install id query parameter`() = runBlocking {
         val fetcher = RecordingFetcher()
         val provider = ReplayConfigProvider.make(
-            baseUrl = base, apiKey = "k", fetcher = fetcher, installIdProvider = { vectorId },
+            baseUrl = base, sdkKey = "k", fetcher = fetcher, installIdProvider = { vectorId },
         )
         provider.refresh()
         assertEquals(1, fetcher.urls.size)
@@ -75,7 +75,7 @@ class ConfigInstallIdTest {
     fun `a null supplier result leaves the url untouched`() = runBlocking {
         val fetcher = RecordingFetcher()
         ReplayConfigProvider.make(
-            baseUrl = base, apiKey = "k", fetcher = fetcher, installIdProvider = { null },
+            baseUrl = base, sdkKey = "k", fetcher = fetcher, installIdProvider = { null },
         ).refresh()
         assertEquals("$base/api/config", fetcher.urls[0])
     }
@@ -84,7 +84,7 @@ class ConfigInstallIdTest {
     fun `an empty supplier result leaves the url untouched`() = runBlocking {
         val fetcher = RecordingFetcher()
         ReplayConfigProvider.make(
-            baseUrl = base, apiKey = "k", fetcher = fetcher, installIdProvider = { "" },
+            baseUrl = base, sdkKey = "k", fetcher = fetcher, installIdProvider = { "" },
         ).refresh()
         assertEquals("$base/api/config", fetcher.urls[0])
     }
@@ -92,7 +92,7 @@ class ConfigInstallIdTest {
     @Test
     fun `the default supplier sends nothing so existing call sites are unchanged`() = runBlocking {
         val fetcher = RecordingFetcher()
-        ReplayConfigProvider.make(baseUrl = base, apiKey = "k", fetcher = fetcher).refresh()
+        ReplayConfigProvider.make(baseUrl = base, sdkKey = "k", fetcher = fetcher).refresh()
         assertFalse(fetcher.urls[0].contains("installId"))
     }
 
@@ -105,7 +105,7 @@ class ConfigInstallIdTest {
         var n = 0
         val provider = ReplayConfigProvider(
             configUrl = "$base/api/config",
-            apiKey = "k",
+            sdkKey = "k",
             fetcher = fetcher,
             ttlMs = 0L,
             installIdProvider = { InstallIdentifier.derive(ByteArray(1) { (++n).toByte() }) },
@@ -122,7 +122,7 @@ class ConfigInstallIdTest {
         // and report success.
         val fetcher = RecordingFetcher()
         val ok = ReplayConfigProvider.make(
-            baseUrl = base, apiKey = "k", fetcher = fetcher,
+            baseUrl = base, sdkKey = "k", fetcher = fetcher,
             installIdProvider = { throw IllegalStateException("boom") },
         ).refresh()
         assertTrue(ok)

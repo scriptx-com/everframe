@@ -49,7 +49,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const baseConfig = { apiKey: 'txx_live_test' };
+const baseConfig = { sdkKey: 'txx_live_test' };
 
 function ClientProbe({ onAdapter }: { onAdapter: (threads: ThreadClient | undefined) => void }) {
   const ctx = useContext(EverframeContext);

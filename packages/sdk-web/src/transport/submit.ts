@@ -298,7 +298,7 @@ export async function submitReportFromDraft(opts: {
   );
   const reportId = envelope.reportId;
   const url = `${INGEST_URL.replace(/\/$/, '')}/api/ingest`;
-  const apiKey = opts.config.apiKey;
+  const sdkKey = opts.config.sdkKey;
 
   // Convert blob attachments to bytes for buildMultipart.
   const multipartAttachments: Array<{ name: string; bytes: Uint8Array; contentType: string }> = [];
@@ -393,7 +393,7 @@ export async function submitReportFromDraft(opts: {
 
   let result: SubmitResult;
   try {
-    result = await submitReport(url, apiKey, body, {
+    result = await submitReport(url, sdkKey, body, {
       ...(opts.fetch ? { fetchImpl: opts.fetch } : {}),
       ...(opts.retryScheduleMs !== undefined ? { retryScheduleMs: opts.retryScheduleMs } : {}),
       ...(envelopeContentEncoding ? { envelopeContentEncoding } : {}),
@@ -461,7 +461,7 @@ export async function submitReportFromDraft(opts: {
         enqueuedAt: Date.now(),
         attempts: result.attempts,
         payload: new TextEncoder().encode(payloadJson),
-        metadata: { url, sdkKey: apiKey },
+        metadata: { url, sdkKey },
       };
       await opts.outbox.enqueue(item);
       // Finding 2 — record the subject captured BEFORE the live attempt (see
@@ -610,7 +610,7 @@ async function drainOutboxInternal(
       if (!itemSdkKey) {
         // Pre-key-binding entry: nothing records which project queued it, so
         // it cannot be routed. This used to fall back to
-        // `opts.config.apiKey` — sending a queued report to whichever app
+        // `opts.config.sdkKey` — sending a queued report to whichever app
         // happens to be mounted at drain time, which for a localStorage
         // outbox shared across an origin is a cross-tenant leak of the whole
         // report. Drop it instead; the outbox is best-effort by design and
@@ -636,7 +636,7 @@ async function drainOutboxInternal(
       //
       // The fix resolves reply context PER ITEM, keyed off the item's own
       // effective sdk key compared against the currently-mounted app's
-      // `opts.config.apiKey`:
+      // `opts.config.sdkKey`:
       //   - belongs to THIS app: unchanged behavior — present this app's
       //     device token, honor this app's local veto, adopt + persist any
       //     rotated token into this app's store.
@@ -654,7 +654,7 @@ async function drainOutboxInternal(
       //     foreign item is discarded outright: never persisted into this
       //     app's store, and never counted toward `provisionedThreadIds`
       //     (Finding 2) since this app has no thread to wake a poller for.
-      const isThisApp = itemSdkKey === opts.config.apiKey;
+      const isThisApp = itemSdkKey === opts.config.sdkKey;
       const itemDeviceToken = isThisApp ? deviceToken : undefined;
       const itemOptOut = isThisApp ? repliesOptOut : true;
       // Same app-scoping as deviceToken/repliesOptOut above — a foreign

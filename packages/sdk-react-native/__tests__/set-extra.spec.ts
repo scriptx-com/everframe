@@ -29,7 +29,7 @@ const nativeMock = NativeEverframe as unknown as MockedNative;
  * set-user.spec.ts/record-screen.test.ts use, scoped to this file.
  */
 function mountProvider(): ReturnType<typeof createRuntime> {
-  const rt = createRuntime({ apiKey: 'txx_test_key' });
+  const rt = createRuntime({ sdkKey: 'txx_test_key' });
   rt.mount();
   return rt;
 }

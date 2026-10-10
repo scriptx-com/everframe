@@ -143,7 +143,7 @@ struct ReplaySessionRefreshLoopTests {
     // so this fixed client config keeps that the only variable.
     private func setClientConfigForTesting() {
         Everframe.__setConfigForTesting(
-            EverframeConfig(appId: "app", capture: CaptureConfig(network: true, networkBodies: true)))
+            EverframeConfig(sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: true)))
     }
 
     private func body(_ json: String) -> Data { Data(json.utf8) }
@@ -151,7 +151,7 @@ struct ReplaySessionRefreshLoopTests {
     private func makeSession(fetcher: URLSessionFetching, clock: MutableClock) -> ReplaySession {
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "k",
+            sdkKey: "k",
             fetcher: fetcher,
             ttlSec: 300,
             now: { clock.read }

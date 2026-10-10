@@ -65,7 +65,7 @@
 //   an absent field, which decodes as `undefined` and never reaches native
 //   at all — to `.builtin`/`BUILTIN`. This rides `configure()`, not a new
 //   bridge method: the flag is a startup-time preference, not a per-call
-//   argument, so it belongs beside `apiKey`/`networkBodiesDisabled` on
+//   argument, so it belongs beside `sdkKey`/`networkBodiesDisabled` on
 //   `ConfigOpts` — see `companion.ts`'s `everframe.companion.attachChallenge`
 //   event, the JS-facing half of this same D-decision.
 //   Session Vitals (spec 2026-09-06) is the next D-decision after that —
@@ -105,7 +105,7 @@ export type Rect = {
  * Rich variants (e.g., callbacks, function refs) MUST stay on the JS side.
  */
 export type ConfigOpts = {
-  apiKey?: string;
+  sdkKey?: string;
   sdkVersion?: string;
   /**
    * If true, the native side captures a UIWindow/SurfaceFlinger screenshot

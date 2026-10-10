@@ -32,7 +32,7 @@ enum NativeCrashStartupContext {
             reportId: placeholder, sdkVersion: Everframe.SDK_VERSION, extra: fields, source: .crash)
         let envelope = try EverframeReportEnvelope(data: built.bytes).with(submittedAt: Date(timeIntervalSince1970: 0))
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601; encoder.outputFormatting = [.sortedKeys]
-        return try NativeCrashRecoveryContext(sdkKey: config.appId, endpoint: endpoint, identitySubject: nil,
+        return try NativeCrashRecoveryContext(sdkKey: config.sdkKey, endpoint: endpoint, identitySubject: nil,
             envelopeTemplate: encoder.encode(envelope), redaction: policy, releaseHealthExposure: releaseHealthExposure)
     }
 }

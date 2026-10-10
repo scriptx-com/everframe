@@ -76,8 +76,8 @@ class ReplaySessionResourceSamplerTest {
     }
 
     private fun session(clock: () -> Long, fetcher: ConfigFetcher): ReplaySession {
-        val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher, now = clock)
-        return ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+        val provider = ReplayConfigProvider(configUrl = url, sdkKey = "k", fetcher = fetcher, now = clock)
+        return ReplaySession(sdkKey = "k", locallyDisabled = false, provider = provider)
     }
 
     @Test

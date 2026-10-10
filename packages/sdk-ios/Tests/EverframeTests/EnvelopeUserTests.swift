@@ -107,17 +107,17 @@ final class EnvelopeUserTests: XCTestCase {
     /// false)` keeps `start()` from installing the stderr intercept, matching
     /// `KillSwitchTests`' isolation for the same reason.
     private static func sessionConfig(
-        appId: String = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+        sdkKey: String = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
     ) -> EverframeConfig {
-        EverframeConfig(appId: appId, capture: CaptureConfig(logs: false))
+        EverframeConfig(sdkKey: sdkKey, capture: CaptureConfig(logs: false))
     }
 
     /// Install a session, so `setUser` has an open capture gate to write
     /// through. Every `setUser` case in this file goes through here: since
     /// external review finding 2, "call `setUser` after `start`" is not a
     /// recommendation on iOS either — a call made earlier is dropped.
-    private func startSession(appId: String = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU") throws {
-        try Everframe.shared.start(config: Self.sessionConfig(appId: appId))
+    private func startSession(sdkKey: String = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU") throws {
+        try Everframe.shared.start(config: Self.sessionConfig(sdkKey: sdkKey))
     }
 
     /// Drives `CrashReporter.captureFacts` (mirrors
@@ -129,7 +129,7 @@ final class EnvelopeUserTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
         let entry = try XCTUnwrap(try outbox.hydrate().first)
         let env = try JSONSerialization.jsonObject(with: entry.envelopeBytes) as! [String: Any]
@@ -176,7 +176,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// `KillSwitchTests`' isolation for the same reason.
     func testKillClearsUserSoTheNextSessionIsAnonymous() throws {
         let config = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: config)
@@ -217,11 +217,11 @@ final class EnvelopeUserTests: XCTestCase {
     /// a report.
     func testStartClearsTheUserSoASecondProjectIsNotAttributedToTheFirst() throws {
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectA)
@@ -246,7 +246,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// — and the one that makes the rule a rule rather than a special case.
     func testAnIdenticalRestartAlsoClearsTheUser() throws {
         let config = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: config)
@@ -278,11 +278,11 @@ final class EnvelopeUserTests: XCTestCase {
     /// the file header), so their use of it is pinned by the source gate below.
     func testACapturedUserIsDiscardedWhenAnotherProjectStartsBeforeItIsResolved() throws {
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectA)
@@ -308,7 +308,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// reaches the envelope.
     func testACapturedUserSurvivesWhenNoRestartIntervenes() throws {
         let config = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: config)
@@ -331,7 +331,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// straddles an emergency kill must not carry the killed session's user.
     func testACapturedUserIsDiscardedAfterKill() throws {
         let config = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: config)
@@ -364,7 +364,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// section, so this observation now yields no user at all.
     func testASnapshotTakenInsideStartsResetWindowCannotResolve() throws {
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
         try startSession()
@@ -469,7 +469,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// for.
     func testACrashIsAnonymousWhenAnotherProjectStartsDuringProcessing() throws {
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
         try startSession()
@@ -487,7 +487,7 @@ final class EnvelopeUserTests: XCTestCase {
 
         // Non-vacuity: project B really is the installed session, with its own
         // signed-in user, by the time the envelope is assembled.
-        XCTAssertEqual(Everframe.shared.currentConfig?.appId, projectB.appId)
+        XCTAssertEqual(Everframe.shared.currentConfig?.sdkKey, projectB.sdkKey)
         XCTAssertEqual(Everframe.shared.currentUser?.id, "u_2")
         XCTAssertNil(
             reporter["user"],
@@ -519,7 +519,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// epoch check, not an incidental subject mismatch.
     func testACrashOutboxEntryCarriesNoIdentitySubjectWhenAnotherProjectStartsDuringProcessing() throws {
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
         try startSession()
@@ -539,13 +539,13 @@ final class EnvelopeUserTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
         let entry = try XCTUnwrap(try outbox.hydrate().first)
 
         // Non-vacuity: project B really is installed, with its own live
         // "alice" token, by the time the entry is enqueued.
-        XCTAssertEqual(Everframe.shared.currentConfig?.appId, projectB.appId)
+        XCTAssertEqual(Everframe.shared.currentConfig?.sdkKey, projectB.sdkKey)
 
         XCTAssertNil(
             entry.identitySubject,
@@ -577,7 +577,7 @@ final class EnvelopeUserTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
 
         XCTAssertTrue(hookRan, "the crash-processing window hook never fired — the test proves nothing")
@@ -609,7 +609,7 @@ final class EnvelopeUserTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
         let entry = try XCTUnwrap(try outbox.hydrate().first)
 
@@ -632,7 +632,7 @@ final class EnvelopeUserTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
         let entry = try XCTUnwrap(try outbox.hydrate().first)
 
@@ -656,7 +656,7 @@ final class EnvelopeUserTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
         let capturedEntry = try XCTUnwrap(try outbox.hydrate().first)
         XCTAssertNil(capturedEntry.identitySubject, "fixture sanity: must be captured anonymous")
@@ -671,7 +671,7 @@ final class EnvelopeUserTests: XCTestCase {
         let session = URLSession(configuration: cfg)
         let holder = IdentityTokenHolder()
         holder.set(.token(token))
-        let drainSubmitter = ReportSubmitter(config: EverframeConfig(appId: "app"), outbox: outbox, session: session)
+        let drainSubmitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: outbox, session: session)
         await drainSubmitter.drainOutbox(
             identityHolder: holder,
             currentReplayConfig: {
@@ -707,7 +707,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// currentEpoch()`), which by the time the function actually ran would
     /// already reflect project B — a baseline that LOOKS like a valid
     /// "nothing changed" reading but is actually the wrong reference point
-    /// entirely. `e.sdkKey == config.appId` (comparing the entry against
+    /// entirely. `e.sdkKey == config.sdkKey` (comparing the entry against
     /// the SUBMITTER's own frozen config, still "A") kept passing
     /// regardless, so project B's LIVE bearer token — resolved because its
     /// subject happens to match — could attach to a request still
@@ -721,11 +721,11 @@ final class EnvelopeUserTests: XCTestCase {
     /// this fail — B's live token attaches.
     func testADelayedDrainWithholdsTheHeaderWhenAnotherProjectStartsBeforeItRuns() async throws {
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
 
@@ -744,7 +744,7 @@ final class EnvelopeUserTests: XCTestCase {
         XCTAssertTrue(ok)
         let capturedEntry = try XCTUnwrap(try outbox.hydrate().first)
         XCTAssertEqual(capturedEntry.identitySubject, "alice", "fixture sanity: a real subject must reach the entry")
-        XCTAssertEqual(capturedEntry.sdkKey, projectA.appId, "fixture sanity: the entry belongs to project A")
+        XCTAssertEqual(capturedEntry.sdkKey, projectA.sdkKey, "fixture sanity: the entry belongs to project A")
 
         // Mirrors CrashReporter.swift's real non-fatal drain kickoff
         // exactly: a submitter constructed under project A's config, with
@@ -779,7 +779,7 @@ final class EnvelopeUserTests: XCTestCase {
 
         // Non-vacuity: project B really is installed, with its own live
         // "alice" token, by the time the drain actually runs.
-        XCTAssertEqual(Everframe.shared.currentConfig?.appId, projectB.appId)
+        XCTAssertEqual(Everframe.shared.currentConfig?.sdkKey, projectB.sdkKey)
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1, "the entry must still drain — degrading to anonymous, never being lost")
         XCTAssertNil(
@@ -806,7 +806,7 @@ final class EnvelopeUserTests: XCTestCase {
         Everframe.shared.setIdentityToken(.token(jwt(sub: "alice", exp: Date().addingTimeInterval(300))))
         Everframe.shared._identityEnabledFlag.set(true)
 
-        try startSession(appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O")
+        try startSession(sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O")
 
         XCTAssertFalse(
             Everframe.shared._identityEnabledFlag.get(),
@@ -911,7 +911,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// `start()`.
     func testCaptureSessionSnapshotReflectsThePostKillEpochEvenThoughConfigPersists() throws {
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectA)
@@ -922,21 +922,21 @@ final class EnvelopeUserTests: XCTestCase {
 
         XCTAssertNotEqual(snapshotAfterKill.user.startEpoch, epochBeforeKill, "kill() must bump the epoch")
         XCTAssertEqual(snapshotAfterKill.user.startEpoch, Everframe.shared.currentStartEpoch)
-        XCTAssertEqual(snapshotAfterKill.config?.appId, projectA.appId, "kill() does not clear _config")
+        XCTAssertEqual(snapshotAfterKill.config?.sdkKey, projectA.sdkKey, "kill() does not clear _config")
     }
 
     /// The ordinary case: the snapshot's config and epoch both reflect
     /// whichever project is currently installed, together.
     func testCaptureSessionSnapshotPairsTheLiveConfigWithItsOwnEpoch() throws {
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectA)
 
         let snapshot = Everframe.shared.captureSessionSnapshot()
 
-        XCTAssertEqual(snapshot.config?.appId, projectA.appId)
+        XCTAssertEqual(snapshot.config?.sdkKey, projectA.sdkKey)
         XCTAssertEqual(snapshot.user.startEpoch, Everframe.shared.currentStartEpoch)
     }
 
@@ -951,14 +951,14 @@ final class EnvelopeUserTests: XCTestCase {
     /// point.
     func testCaptureSessionSnapshotMovesConfigAndEpochTogetherAcrossARestart() throws {
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectA)
         let epochAtA = Everframe.shared.captureSessionSnapshot().user.startEpoch
 
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectB)
@@ -968,7 +968,7 @@ final class EnvelopeUserTests: XCTestCase {
         // project A's config with THIS epoch would be a genuinely
         // detectable mismatch if it could ever occur.
         XCTAssertNotEqual(snapshotAtB.user.startEpoch, epochAtA)
-        XCTAssertEqual(snapshotAtB.config?.appId, projectB.appId)
+        XCTAssertEqual(snapshotAtB.config?.sdkKey, projectB.sdkKey)
         XCTAssertEqual(snapshotAtB.user.startEpoch, Everframe.shared.currentStartEpoch)
     }
 
@@ -988,13 +988,13 @@ final class EnvelopeUserTests: XCTestCase {
     /// interleaving is deterministic rather than raced.
     func testASnapshotOfTheMixedStateReportsItselfSuperseded() throws {
         let projectA = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             capture: CaptureConfig(logs: false)
         )
         try Everframe.shared.start(config: projectA)
 
         let projectB = EverframeConfig(
-            appId: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
+            sdkKey: "txx_live_9wPQrSt2UvWxYz3AbCdEfGh4IjKlMn5O",
             capture: CaptureConfig(logs: false)
         )
 
@@ -1020,7 +1020,7 @@ final class EnvelopeUserTests: XCTestCase {
             "the snapshot must carry the NEW epoch — otherwise the epoch check alone explains the result and this case proves nothing"
         )
         XCTAssertEqual(
-            captured.config?.appId, "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            captured.config?.sdkKey, "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             "the snapshot must carry the OLD config — that pairing is the whole defect"
         )
 
@@ -1052,16 +1052,16 @@ final class EnvelopeUserTests: XCTestCase {
     /// the config a few statements later, so a `start(projectB)` landing in
     /// that window built project A's crash and stamped it with B's key.
     func testACrashIsStampedWithTheKeyOfTheProjectItWasCapturedUnder() throws {
-        try startSession(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
+        try startSession(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
         CrashReporter.__afterUserSnapshotHookForTesting = {
-            try? Everframe.shared.start(config: Self.sessionConfig(appId: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
+            try? Everframe.shared.start(config: Self.sessionConfig(sdkKey: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
         }
 
         let entry = try XCTUnwrap(try captureAndReturnEntry())
 
         // Non-vacuity: the switch really did land inside the window.
         XCTAssertEqual(
-            Everframe.shared.currentConfig?.appId, "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Everframe.shared.currentConfig?.sdkKey, "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "the hook must actually have switched the live config — otherwise this asserts nothing"
         )
         XCTAssertEqual(
@@ -1073,7 +1073,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// Control: entering the window changes nothing when nothing switches. A
     /// "fix" that dropped every report would pass the case above and fail here.
     func testACrashKeepsItsKeyWhenNothingSwitchesDuringProcessing() throws {
-        try startSession(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
+        try startSession(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
         var hookRan = false
         CrashReporter.__afterUserSnapshotHookForTesting = { hookRan = true }
 
@@ -1105,7 +1105,7 @@ final class EnvelopeUserTests: XCTestCase {
         try startSession()
         CrashReporter.__afterUserSnapshotHookForTesting = {
             Everframe.shared.kill()
-            try? Everframe.shared.start(config: Self.sessionConfig(appId: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
+            try? Everframe.shared.start(config: Self.sessionConfig(sdkKey: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
         }
 
         let entry = try captureAndReturnEntry()
@@ -1119,7 +1119,7 @@ final class EnvelopeUserTests: XCTestCase {
         // case that distinguishes a monotonic killGeneration counter from a
         // boolean gate.
         XCTAssertEqual(
-            Everframe.shared.currentConfig?.appId, "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Everframe.shared.currentConfig?.sdkKey, "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "the hook's start() must actually have installed project B — otherwise this asserts nothing beyond a plain kill()"
         )
         XCTAssertTrue(Everframe.shared.captureGate, "precondition: start() re-opened the gate")
@@ -1148,7 +1148,7 @@ final class EnvelopeUserTests: XCTestCase {
         let json = """
         {"exceptionType":"TypeError","message":"boom","framesRaw":[],"mechanism":"errorutils","fatal":true,"occurredAt":"2026-08-12T00:00:00Z"}
         """
-        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(appId: "app"))
+        let ok = CrashReporter.captureFacts(json: json, outbox: outbox, config: EverframeConfig(sdkKey: "app"))
         XCTAssertTrue(ok)
         let entry = try XCTUnwrap(try outbox.hydrate().first)
         let decoded = try XCTUnwrap(
@@ -1170,7 +1170,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// screenshot-reporter path but is `#if canImport(UIKit)`-gated and absent
     /// on this host — see the file header.
     func testAReportInTheNextProjectShipsNoneOfThePreviousProjectsBreadcrumbs() throws {
-        try startSession(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
+        try startSession(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
         Everframe.shared.addBreadcrumb(message: Self.crumbMarkerA)
 
         // Non-vacuity: the crumb must really be in the ring before the switch,
@@ -1180,7 +1180,7 @@ final class EnvelopeUserTests: XCTestCase {
             "precondition: A's crumb must be buffered before start(B) — otherwise this test asserts nothing"
         )
 
-        try startSession(appId: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        try startSession(sdkKey: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 
         let (envelope, raw) = try captureAndDecodeEnvelope()
         let payload = try XCTUnwrap(envelope["payload"] as? [String: Any])
@@ -1211,7 +1211,7 @@ final class EnvelopeUserTests: XCTestCase {
     /// re-deriving the row→`NetworkRow` mapping here would test this file's
     /// copy of production logic instead of production's.
     func testTheNextProjectStartsWithNoneOfThePreviousProjectsNetworkRows() throws {
-        try startSession(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
+        try startSession(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
         NetworkRingBuffer.shared.append(
             NetworkLogEntry(
                 timestamp: Date(),
@@ -1228,7 +1228,7 @@ final class EnvelopeUserTests: XCTestCase {
             "precondition: A's network row must be buffered before start(B) — otherwise this test asserts nothing"
         )
 
-        try startSession(appId: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        try startSession(sdkKey: "txx_live_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 
         XCTAssertTrue(
             NetworkRingBuffer.shared.snapshot().isEmpty,

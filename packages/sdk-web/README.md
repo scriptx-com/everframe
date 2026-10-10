@@ -34,7 +34,7 @@ npm install @everframe/web
 import { init } from '@everframe/web';
 
 const everframe = init({
-  apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
   appVersion: '1.0.0',
 });
 
@@ -60,7 +60,7 @@ nothing left to resolve. Don't point one at `dist/index.js`.
   import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@0.7.0/dist/browser/index.js';
 
   const everframe = init({
-    apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+    sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
     appVersion: '1.0.0',
   });
   document.getElementById('report-bug').addEventListener('click', () => {
@@ -116,7 +116,7 @@ import { onMounted } from 'vue';
 import { init } from '@everframe/web';
 
 onMounted(() => {
-  init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+  init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
 });
 </script>
 ```
@@ -129,7 +129,7 @@ onMounted(() => {
   import { init } from '@everframe/web';
 
   onMount(() => {
-    init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+    init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
   });
 </script>
 ```
@@ -143,7 +143,7 @@ import { init } from '@everframe/web';
 @Component({ selector: 'app-root', template: '...' })
 export class AppComponent implements OnInit {
   ngOnInit(): void {
-    init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+    init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
   }
 }
 ```
@@ -162,7 +162,7 @@ a build-time warning, not a way to make it run there:
 ---
 <script>
   import { init } from '@everframe/web';
-  init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+  init({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
 </script>
 ```
 
@@ -246,7 +246,7 @@ inherit a privacy call that silently does nothing, this handle omits it.
 
 ```ts
 const everframe = init({
-  apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
   appVersion: '2.4.0',
   appBuild: 'web-abc123',
 });
@@ -299,7 +299,7 @@ const capture = createCanvasVisualCapture({
   sensitiveRects: () => [{ x: 20, y: 30, width: 140, height: 50 }],
 });
 init({
-  apiKey: 'your-kmp-integration-key',
+  sdkKey: 'your-kmp-integration-key',
   sdkName: 'everframe-kmp',
   sdkVersion: 'your-kmp-version',
   visualCapture: capture,

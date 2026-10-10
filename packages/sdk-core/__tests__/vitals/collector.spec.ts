@@ -208,18 +208,18 @@ describe('createVitalsCollector', () => {
 
   // 4d. Codex round-3 item 8 — round-2's fixed 32-byte reserve above covered
   // the FETCH wrapper (12 bytes) but not the BEACON wrapper, which
-  // additionally embeds the apiKey: `{"apiKey":"<key>","payload":<chunk>}`
+  // additionally embeds the SDK key: `{"apiKey":"<key>","payload":<chunk>}`
   // (sdk-web's transport.ts's pagehide/beacon path — sendBeacon can't set
   // headers, so the key rides in the body). With the documented 41-char SDK
   // key format, the beacon wrapper alone costs 65 bytes — over double the
   // old reserve — so a chunk admitted under the old cap produced a
-  // beacon body over the 64 KiB limit. Passing the real apiKey length via
-  // `apiKeyByteLength` sizes the reserve to cover the ACTUAL wrapper this
+  // beacon body over the 64 KiB limit. Passing the real sdkKey length via
+  // `sdkKeyByteLength` sizes the reserve to cover the ACTUAL wrapper this
   // key produces, at the same byte-cap boundary the 4c test above exercises
   // for the fetch path.
-  it('keeps the FINAL beacon-wrapped request body (apiKey embedded) under the keepalive limit at the byte-cap boundary', () => {
-    const apiKey = 'txx_live_' + '0'.repeat(32); // documented 41-char SDK key format
-    const { c, sent, tick } = make({ apiKeyByteLength: apiKey.length }); // default maxBufferBytes (65,536)
+  it('keeps the FINAL beacon-wrapped request body (sdkKey embedded) under the keepalive limit at the byte-cap boundary', () => {
+    const sdkKey = 'txx_live_' + '0'.repeat(32); // documented 41-char SDK key format
+    const { c, sent, tick } = make({ sdkKeyByteLength: sdkKey.length }); // default maxBufferBytes (65,536)
     const bigData = { message: 'x'.repeat(1982) }; // same boundary shape as the 4c fetch test
     for (let i = 0; i < 32; i++) {
       c.recordPlayerEvent({ t: 1_000_000 + i, type: 'error', data: bigData });
@@ -228,19 +228,19 @@ describe('createVitalsCollector', () => {
     const chunk = sent.find((s) => s.body.kind === 'chunk');
     expect(chunk).toBeDefined();
 
-    // The real beacon path additionally embeds the apiKey alongside the
+    // The real beacon path additionally embeds the SDK key, as `apiKey`, beside the
     // chunk (packages/sdk-web/src/vitals/transport.ts's beacon branch).
-    const finalBeaconBody = JSON.stringify({ apiKey, payload: chunk!.body });
+    const finalBeaconBody = JSON.stringify({ apiKey: sdkKey, payload: chunk!.body });
     expect(utf8ByteLength(finalBeaconBody)).toBeLessThan(65_536);
   });
 
-  // 4e. Same boundary, but with NO `apiKeyByteLength` supplied at all — every
+  // 4e. Same boundary, but with NO `sdkKeyByteLength` supplied at all — every
   // platform/test constructed without it must still fall back to a reserve
   // that provably covers the documented 41-char key format, not silently
   // regress to the old (too-small) fixed 32-byte reserve.
-  it('with no apiKeyByteLength supplied, the fallback reserve still covers the documented 41-char key at the byte-cap boundary', () => {
-    const apiKey = 'txx_live_' + '0'.repeat(32);
-    const { c, sent, tick } = make(); // no apiKeyByteLength — DEFAULT_API_KEY_RESERVE_BYTES fallback
+  it('with no sdkKeyByteLength supplied, the fallback reserve still covers the documented 41-char key at the byte-cap boundary', () => {
+    const sdkKey = 'txx_live_' + '0'.repeat(32);
+    const { c, sent, tick } = make(); // no sdkKeyByteLength — DEFAULT_SDK_KEY_RESERVE_BYTES fallback
     const bigData = { message: 'x'.repeat(1982) };
     for (let i = 0; i < 32; i++) {
       c.recordPlayerEvent({ t: 1_000_000 + i, type: 'error', data: bigData });
@@ -248,7 +248,7 @@ describe('createVitalsCollector', () => {
     tick(30_000);
     const chunk = sent.find((s) => s.body.kind === 'chunk');
     expect(chunk).toBeDefined();
-    const finalBeaconBody = JSON.stringify({ apiKey, payload: chunk!.body });
+    const finalBeaconBody = JSON.stringify({ apiKey: sdkKey, payload: chunk!.body });
     expect(utf8ByteLength(finalBeaconBody)).toBeLessThan(65_536);
   });
 

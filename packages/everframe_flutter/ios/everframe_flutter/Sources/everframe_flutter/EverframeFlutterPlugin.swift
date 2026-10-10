@@ -44,9 +44,9 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             // Crash capture also gates explicit handled Dart errors. On unless Dart turns it off.
             capture.crash = args["crash"] as? Bool ?? true
             do {
-                // The iOS native SDK currently calls its SDK key `appId`.
+                // The iOS SDK takes only the SDK key; the App ID is unused here.
                 try Everframe.shared.start(config: EverframeConfig(
-                    appId: sdkKey, environment: environment, capture: capture))
+                    sdkKey: sdkKey, environment: environment, capture: capture))
                 Task { @MainActor in
                     EFReporterPresenter.installResolver()
                     result(nil)

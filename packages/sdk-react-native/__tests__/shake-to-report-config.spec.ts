@@ -5,14 +5,14 @@ import { __extractBridgeConfigForTesting as extract } from '../src/runtime.js';
 
 describe('shake-to-report config flattening', () => {
   it('flattens explicit true and false values', () => {
-    expect(extract({ apiKey: 'k', shakeToReport: { enabled: true } }).shakeToReportEnabled)
+    expect(extract({ sdkKey: 'k', shakeToReport: { enabled: true } }).shakeToReportEnabled)
       .toBe(true);
-    expect(extract({ apiKey: 'k', shakeToReport: { enabled: false } }).shakeToReportEnabled)
+    expect(extract({ sdkKey: 'k', shakeToReport: { enabled: false } }).shakeToReportEnabled)
       .toBe(false);
   });
 
   it('omits the bridge field when the host keeps the native default', () => {
-    expect('shakeToReportEnabled' in extract({ apiKey: 'k' })).toBe(false);
-    expect('shakeToReportEnabled' in extract({ apiKey: 'k', shakeToReport: {} })).toBe(false);
+    expect('shakeToReportEnabled' in extract({ sdkKey: 'k' })).toBe(false);
+    expect('shakeToReportEnabled' in extract({ sdkKey: 'k', shakeToReport: {} })).toBe(false);
   });
 });

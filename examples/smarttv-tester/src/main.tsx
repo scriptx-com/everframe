@@ -4,7 +4,7 @@
 // EverframeProvider mounts the companion HOST SEAM — without it the phone's
 // live view and shot requests are refused with capture_unavailable and a
 // phone-driven submit degrades to report.failed("submit_unavailable"). The
-// apiKey is the same Web SDK key the companion announces with.
+// sdkKey is the same Web SDK key the companion announces with.
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EverframeProvider } from '@everframe/react';
@@ -16,7 +16,7 @@ if (!root) throw new Error('smarttv-tester: missing #root');
 
 createRoot(root).render(
   <StrictMode>
-    <EverframeProvider config={{ apiKey: SDK_KEY }}>
+    <EverframeProvider config={{ sdkKey: SDK_KEY }}>
       <App />
     </EverframeProvider>
   </StrictMode>,

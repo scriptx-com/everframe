@@ -16,14 +16,14 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
   afterEach(() => __setCurrentContext(null));
 
   it('flattens all three fields when set', () => {
-    createRuntime({ apiKey: 'k', vitals: { enabled: false, sampleRate: 0.25, captureSourceQuery: true } }).mount();
+    createRuntime({ sdkKey: 'k', vitals: { enabled: false, sampleRate: 0.25, captureSourceQuery: true } }).mount();
     expect(native.configureSync).toHaveBeenCalledWith(
       expect.objectContaining({ vitalsEnabled: false, vitalsSampleRate: 0.25, vitalsCaptureSourceQuery: true }),
     );
   });
 
   it('sends nothing when vitals is absent — natives keep their defaults', () => {
-    createRuntime({ apiKey: 'k' }).mount();
+    createRuntime({ sdkKey: 'k' }).mount();
     const opts = native.configureSync.mock.calls[0][0];
     expect('vitalsEnabled' in opts).toBe(false);
     expect('vitalsSampleRate' in opts).toBe(false);
@@ -31,7 +31,7 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
   });
 
   it('sends only the fields that are present', () => {
-    createRuntime({ apiKey: 'k', vitals: { sampleRate: 0.5 } }).mount();
+    createRuntime({ sdkKey: 'k', vitals: { sampleRate: 0.5 } }).mount();
     const opts = native.configureSync.mock.calls[0][0];
     expect(opts.vitalsSampleRate).toBe(0.5);
     expect('vitalsEnabled' in opts).toBe(false);
@@ -46,7 +46,7 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
 
     it('drops an out-of-range sampleRate and warns', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      createRuntime({ apiKey: 'k', vitals: { sampleRate: 50 } }).mount();
+      createRuntime({ sdkKey: 'k', vitals: { sampleRate: 50 } }).mount();
       const opts = native.configureSync.mock.calls[0][0];
       expect('vitalsSampleRate' in opts).toBe(false);
       expect(warn).toHaveBeenCalledWith('[everframe] vitals.sampleRate must be within 0..1; ignoring 50');
@@ -55,7 +55,7 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
 
     it('drops a non-finite sampleRate', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      createRuntime({ apiKey: 'k', vitals: { sampleRate: NaN } }).mount();
+      createRuntime({ sdkKey: 'k', vitals: { sampleRate: NaN } }).mount();
       expect('vitalsSampleRate' in native.configureSync.mock.calls[0][0]).toBe(false);
       expect(warn).toHaveBeenCalled();
       warn.mockRestore();
@@ -63,7 +63,7 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
 
     it.each([0, 1, 0.25])('forwards an in-range sampleRate (%s)', (rate) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      createRuntime({ apiKey: 'k', vitals: { sampleRate: rate } }).mount();
+      createRuntime({ sdkKey: 'k', vitals: { sampleRate: rate } }).mount();
       expect(native.configureSync.mock.calls[0][0].vitalsSampleRate).toBe(rate);
       expect(warn).not.toHaveBeenCalled();
       warn.mockRestore();
@@ -72,7 +72,7 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
 
   it('the flat wire fields are NOT part of the host-facing RuntimeConfig (NN4)', () => {
     // @ts-expect-error — flat form must be a compile-time error
-    const bad: RuntimeConfig = { apiKey: 'k', vitalsEnabled: false };
+    const bad: RuntimeConfig = { sdkKey: 'k', vitalsEnabled: false };
     void bad;
   });
 });

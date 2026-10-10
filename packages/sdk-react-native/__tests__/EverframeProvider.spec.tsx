@@ -50,7 +50,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       return true;
     });
     const rt = createRuntime({
-      apiKey: "k",
+      sdkKey: "k",
 
       appName: "host",
       appVersion: "1.2.3",
@@ -62,7 +62,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       string,
       unknown
     >;
-    expect(opts.apiKey).toBe("k");
+    expect(opts.sdkKey).toBe("k");
     expect(opts).not.toHaveProperty("apiBase");
     expect(opts).not.toHaveProperty("appName");
     expect(opts).not.toHaveProperty("appVersion");
@@ -93,12 +93,12 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       value: undefined,
     });
     try {
-      const rt = createRuntime({ apiKey: "legacy-key" });
+      const rt = createRuntime({ sdkKey: "legacy-key" });
       const thrown = new Error("legacy admission");
       rt.mount();
 
       expect(nativeMock.configure).toHaveBeenCalledExactlyOnceWith({
-        apiKey: "legacy-key",
+        sdkKey: "legacy-key",
       });
       topLevelCaptureException(thrown);
       expect(nativeMock.captureHandledException).toHaveBeenCalledTimes(1);
@@ -121,7 +121,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
         if (outcome === "throw") throw new Error("sync configuration failed");
         return false;
       });
-      const rt = createRuntime({ apiKey: "current-key" });
+      const rt = createRuntime({ sdkKey: "current-key" });
       rt.mount();
       expect(nativeMock.configureSync).toHaveBeenCalledTimes(1);
       expect(nativeMock.configure).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       status: "submitted",
       reportId: "r-1",
     });
-    const rt = createRuntime({ apiKey: "k" });
+    const rt = createRuntime({ sdkKey: "k" });
     rt.mount();
     const result = await rt.open();
     expect(nativeMock.openReporter).toHaveBeenCalledTimes(1);
@@ -148,14 +148,14 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       status: "cancelled",
       reason: "user_back",
     });
-    const rt = createRuntime({ apiKey: "k" });
+    const rt = createRuntime({ sdkKey: "k" });
     rt.mount();
     await expect(rt.open()).resolves.toMatchObject({ status: "cancelled" });
     rt.unmount();
   });
 
   it("sensitive.register forwards to NativeEverframe.registerSensitiveRect", () => {
-    const rt = createRuntime({ apiKey: "k" });
+    const rt = createRuntime({ sdkKey: "k" });
     rt.mount();
     rt.sensitive.register(42, { x: 0, y: 0, width: 100, height: 50 });
     expect(nativeMock.registerSensitiveRect).toHaveBeenCalledWith(42, {
@@ -173,7 +173,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
     // Nothing walks now, and the spec method itself is gone — the runtime
     // must not have grown a replacement.
     nativeMock.openReporter.mockResolvedValue({ status: "cancelled" });
-    const rt = createRuntime({ apiKey: "k" });
+    const rt = createRuntime({ sdkKey: "k" });
     rt.mount();
     await rt.open();
     expect(nativeMock).not.toHaveProperty("attachReactTree");
@@ -182,9 +182,9 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
   });
 
   it("double-mount throws EverframeNotMountedError (single-instance enforcement)", () => {
-    const rt1 = createRuntime({ apiKey: "k" });
+    const rt1 = createRuntime({ sdkKey: "k" });
     rt1.mount();
-    const rt2 = createRuntime({ apiKey: "k" });
+    const rt2 = createRuntime({ sdkKey: "k" });
     expect(() => rt2.mount()).toThrow(/already mounted/);
     rt1.unmount();
   });
@@ -206,7 +206,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
     });
 
     it("rt.addBreadcrumb forwards to NativeEverframe.addBreadcrumb with positional args in order", () => {
-      const rt = createRuntime({ apiKey: "k" });
+      const rt = createRuntime({ sdkKey: "k" });
       rt.mount();
       rt.addBreadcrumb({
         message: "tapped checkout",
@@ -225,7 +225,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
     });
 
     it("rt.addBreadcrumb forwards undefined kind/level/data positionally when omitted", () => {
-      const rt = createRuntime({ apiKey: "k" });
+      const rt = createRuntime({ sdkKey: "k" });
       rt.mount();
       rt.addBreadcrumb({ message: "bare crumb" });
       expect(nativeMock.addBreadcrumb).toHaveBeenCalledWith(
@@ -246,7 +246,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
     });
 
     it("top-level addBreadcrumb() forwards to the mounted runtime", () => {
-      const rt = createRuntime({ apiKey: "k" });
+      const rt = createRuntime({ sdkKey: "k" });
       rt.mount();
       topLevelAddBreadcrumb({ message: "via top-level", kind: "custom" });
       expect(nativeMock.addBreadcrumb).toHaveBeenCalledWith(

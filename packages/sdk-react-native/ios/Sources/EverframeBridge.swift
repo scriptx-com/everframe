@@ -48,7 +48,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     private static let configureLock = NSRecursiveLock()
 
     @objc public static func configure(
-        appId: NSString,
+        sdkKey: NSString,
         endpoint: NSString,
         networkBodiesDisabled: Bool,
         installIdentifierDisabled: Bool,
@@ -73,10 +73,10 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // codegen .mm — value is ignored. The SDK bakes the ingest URL at
         // compile time (sdk-ios IngestEndpoint).
         _ = endpoint
-        os_log("[everframe] configure appId=%{public}@", log: log, type: .info, appId as String)
+        os_log("[everframe] configure sdkKey=%{public}@", log: log, type: .info, sdkKey as String)
         // Polarity flips exactly once, here: JS sends the veto
         // (`networkBodiesDisabled`), native stores the permission.
-        var cfg = EverframeConfig(appId: appId as String)
+        var cfg = EverframeConfig(sdkKey: sdkKey as String)
         cfg.capture.networkBodies = !networkBodiesDisabled
         // Polarity flips exactly once, here: JS sends the veto
         // (`installIdentifierDisabled`), native stores the permission —
@@ -283,7 +283,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// ObjC-visible read of whichever generation is live RIGHT NOW — i.e.
     /// whatever the most recent `installExtraResolveHook()` call minted.
     /// `EverframeModule.mm`'s `-configure:` calls this immediately after
-    /// `configureWithAppId:...:error:` (which, on success or on the
+    /// `configureWithSdkKey:...:error:` (which, on success or on the
     /// already-running-unchanged skip path, calls `installExtraResolveHook()`
     /// internally) and stashes the result on its own instance ivar for
     /// `-invalidate` to hand back later. 0 means no `configure()` call has
@@ -840,10 +840,10 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// presence", never "no socket": RelayWSClient skips the announce hop
     /// entirely on a nil key and reporting is unaffected.
     private static func configuredSdkKey() -> String? {
-        guard let appId = Everframe.shared.currentConfig?.appId,
-              !appId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard let sdkKey = Everframe.shared.currentConfig?.sdkKey,
+              !sdkKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return nil }
-        return appId
+        return sdkKey
     }
 
     /// Non-personal device label for the dashboard's device list — "Apple TV",

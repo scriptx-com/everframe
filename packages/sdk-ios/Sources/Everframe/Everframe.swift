@@ -209,7 +209,7 @@ public final class Everframe: @unchecked Sendable {
             releaseHealthCommand &+= 1
             let change: (UInt64, Bool)
             if let configuration, let config = _config {
-                change = runtime.requestEnable(configuration: configuration, sdkKey: config.appId,
+                change = runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
                     endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString)
             } else { change = runtime.revoke() }
             // Only a withdrawn pointer can be carried by an armed or pending native context. An
@@ -242,7 +242,7 @@ public final class Everframe: @unchecked Sendable {
                 guard releaseHealthCommand == reserved.command, _startEpoch == reserved.epoch,
                       _configGeneration == reserved.configGeneration, Self.captureGate,
                       nativeCrashPublishedEpoch == _startEpoch, let config = _config else { return nil }
-                return runtime.requestEnable(configuration: configuration, sdkKey: config.appId,
+                return runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
                     endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString).ticket
             }
             guard let ticket else { return false }
@@ -853,7 +853,7 @@ public final class Everframe: @unchecked Sendable {
     #if canImport(UIKit)
     /// Test-only seam — when set, start()'s heavy-init tail constructs its
     /// `ReplaySession` via this factory instead of the production
-    /// `ReplaySession(baseURL:apiKey:locallyDisabled:)` initializer. Real
+    /// `ReplaySession(baseURL:sdkKey:locallyDisabled:)` initializer. Real
     /// network is unreachable/uncontrolled from here, so this lets specs
     /// inject a session built from a fake `ReplayConfigProvider` (mirroring
     /// `ReplaySessionTeardownRaceTests`' `GatedFetcher`/`MutableClock`
@@ -1356,7 +1356,7 @@ public final class Everframe: @unchecked Sendable {
                 localConfig: config.vitals,
                 dims: vitalsDims,
                 transport: {
-                    VitalsTransport(session: vitalsSession, endpoint: vitalsEndpoint, apiKey: config.appId,
+                    VitalsTransport(session: vitalsSession, endpoint: vitalsEndpoint, sdkKey: config.sdkKey,
                                     isKilled: { !Everframe.captureGate || Everframe.startEpochLockFree() != epoch })
                 },
                 scheduler: DispatchVitalsScheduler(),
@@ -1448,7 +1448,7 @@ public final class Everframe: @unchecked Sendable {
                 } else {
                     session = ReplaySession(
                         baseURL: IngestEndpoint.url,
-                        apiKey: config.appId,
+                        sdkKey: config.sdkKey,
                         locallyDisabled: false,
                         // Round-6 review Finding F27: pass the EXACT epoch
                         // this install was just gated on above (`stillCurrent`),

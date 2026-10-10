@@ -117,7 +117,7 @@ npx @everframe/cli setup xcode --project App.xcodeproj --app-id "$EVERFRAME_APP_
 
 `--app-id` is the App ID: the UUID of the Everframe app the target reports to,
 shown on the app's Setup tab in the dashboard. It is not the `evf_live_…` SDK
-key that the app passes to `EverframeConfig(appId:)`. The installer writes it
+key that the app passes to `EverframeConfig(sdkKey:)`. The installer writes it
 into the phase; without `--app-id`, the upload reads `EVERFRAME_APP_ID` from
 the build environment, which includes every build setting of the target.
 

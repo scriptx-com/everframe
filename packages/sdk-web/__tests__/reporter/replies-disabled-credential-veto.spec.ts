@@ -37,23 +37,23 @@ describe('replies.disabled vetoes the credential seam (Finding 2)', () => {
   };
 
   it('does not expose reporterCredentials when replies.disabled is set (SDK-wide enabled)', () => {
-    const adapter = mk({ apiKey: 'pk_test', replies: { disabled: true } });
+    const adapter = mk({ sdkKey: 'pk_test', replies: { disabled: true } });
     expect(adapter.reporterCredentials).toBeUndefined();
   });
 
   it('does not expose the thread client either (pre-existing, still true post-fix)', () => {
-    const adapter = mk({ apiKey: 'pk_test', replies: { disabled: true } });
+    const adapter = mk({ sdkKey: 'pk_test', replies: { disabled: true } });
     expect(adapter.threads).toBeUndefined();
   });
 
   it('still exposes reporterCredentials when replies is left unset (default ON)', () => {
-    const adapter = mk({ apiKey: 'pk_test' });
+    const adapter = mk({ sdkKey: 'pk_test' });
     expect(adapter.reporterCredentials).toBeDefined();
   });
 
   it('a vetoed adapter does not touch or clear an already-stored token', async () => {
     localStorage.setItem(scopedReporterTokenStorageKey('pk_test'), 'evr_' + 'z'.repeat(43));
-    const adapter = mk({ apiKey: 'pk_test', replies: { disabled: true } });
+    const adapter = mk({ sdkKey: 'pk_test', replies: { disabled: true } });
     expect(adapter.reporterCredentials).toBeUndefined();
     // The veto must never delete a pre-existing token — it may be temporary.
     expect(localStorage.getItem(scopedReporterTokenStorageKey('pk_test'))).toBe(
@@ -74,7 +74,7 @@ describe('replies.disabled vetoes the credential seam (Finding 2)', () => {
     afterEach(() => vi.unstubAllGlobals());
 
     it('ships a crash report with no device-token header and mints nothing to localStorage', async () => {
-      const adapter = mk({ apiKey: 'pk_test', replies: { disabled: true } });
+      const adapter = mk({ sdkKey: 'pk_test', replies: { disabled: true } });
       const buf = createBreadcrumbBuffer();
       adapter.__setBreadcrumbBuffer(() => buf);
 

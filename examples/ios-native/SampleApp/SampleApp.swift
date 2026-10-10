@@ -31,7 +31,7 @@ struct SampleApp: App {
 
         do {
             let config = EverframeConfig(
-                appId: sdkKey,
+                sdkKey: sdkKey,
                 environment: .development,
                 release: "1.0.0"
             )
@@ -39,7 +39,7 @@ struct SampleApp: App {
             // Demonstrate setUser(_:) — locked public API surface.
             Everframe.shared.setUser(EFUser(id: "demo-user-1", email: "demo@example.com", displayName: "Demo User"))
             Everframe.shared.setMetadata(["build": "sample-app"])
-        } catch EverframeConfigError.missingAppId {
+        } catch EverframeConfigError.missingSdkKey {
             print("Everframe: INGEST_SDK_KEY missing or malformed (must be `evf_live_…` 41 chars; legacy `txx_live_…` also works). Check repo-root .env and re-run `pnpm gen-ios-config`.")
         } catch {
             // Everframe SDK is non-fatal (DEFE-02). The app continues to launch.

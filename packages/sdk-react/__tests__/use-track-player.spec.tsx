@@ -15,7 +15,7 @@ import { EverframeProvider } from '../src/provider.js';
 import { useEverframe } from '../src/hook.js';
 import { useTrackPlayer } from '../src/useTrackPlayer.js';
 
-const cfg = { apiKey: 'txx_live_test' };
+const cfg = { sdkKey: 'txx_live_test' };
 const wrapper = ({ children }: { children: ReactNode }) => <EverframeProvider config={cfg}>{children}</EverframeProvider>;
 afterEach(() => { cleanup(); trackPlayerMock.mockReset(); trackVitalsMock.mockReset(); });
 

@@ -59,11 +59,11 @@ import { EverframeProvider, useEverframe } from '@everframe/react-native';
 
 export default function App() {
   return (
-    // `apiKey` is the only required field. The ingest endpoint is a
+    // `sdkKey` is the only required field. The ingest endpoint is a
     // compile-time constant in the SDK and is not configurable in v1.
     <EverframeProvider
       config={{
-        apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+        sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
         // Recommended in RN/Expo development: shake also opens the dev menu.
         shakeToReport: { enabled: !__DEV__ },
       }}
@@ -105,7 +105,7 @@ Native foreground-session monitoring is separately opt-in on Android and iOS:
 
 ```tsx
 <EverframeProvider config={{
-  apiKey: '…',
+  sdkKey: '…',
   jsBundle: { buildId: 'ota-build-42', bundleName: 'index.bundle' },
   releaseHealth: {
     enabled: true,
@@ -146,7 +146,7 @@ an enable/disable, user, native-build or loaded-bundle change:
 
 ```tsx
 const config = {
-  apiKey,
+  sdkKey,
   jsBundle: { buildId: loadedBuildId, bundleName: 'index.bundle' },
   releaseHealth: { enabled: healthEnabled, nativeBuildId, userId: opaqueUserId },
 };
@@ -209,7 +209,7 @@ Automatic Hermes rejection observation is opt-in:
 import { EverframeProvider, getPromiseRejectionStatus } from '@everframe/react-native';
 
 <EverframeProvider config={{
-  apiKey: '…',
+  sdkKey: '…',
   crashReporting: { promiseRejections: { enabled: true } },
 }}>
   <App />
@@ -303,7 +303,7 @@ class Boundary extends React.Component<React.PropsWithChildren, { failed: boolea
 
 export default function App() {
   return (
-    <EverframeProvider config={{ apiKey: '…' }}>
+    <EverframeProvider config={{ sdkKey: '…' }}>
       <Boundary>
         <RootNavigator />
       </Boundary>
@@ -412,7 +412,7 @@ guarantee or trigger a retry.
 ## Network body capture (client veto)
 
 ```tsx
-<EverframeProvider config={{ apiKey: '…', networkBodies: { disabled: true } }}>
+<EverframeProvider config={{ sdkKey: '…', networkBodies: { disabled: true } }}>
 ```
 
 `networkBodies.disabled: true` is a **client veto** — it can only turn body
@@ -495,7 +495,7 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 const navigationRef = createNavigationContainerRef();
 const txNav = reactNavigationIntegration({ navigationRef });
 
-<EverframeProvider config={{ apiKey, integrations: [consoleIntegration(), txNav] }}>
+<EverframeProvider config={{ sdkKey, integrations: [consoleIntegration(), txNav] }}>
   <NavigationContainer ref={navigationRef} onReady={txNav.onReady}>
     ...
 ```
@@ -524,7 +524,7 @@ inside a native view and never reaches JS.
 ### Config
 
 ```tsx
-<EverframeProvider config={{ apiKey, vitals: { enabled: true, sampleRate: 0.5, captureSourceQuery: false } }}>
+<EverframeProvider config={{ sdkKey, vitals: { enabled: true, sampleRate: 0.5, captureSourceQuery: false } }}>
 ```
 
 - `enabled` — absent follows the dashboard toggle; `false` opts out locally;
@@ -709,7 +709,7 @@ on Android), so React Native's focus engine never sees it — the native VC
 manages focus on its own UIWindow / Activity.
 
 ```tsx
-<EverframeProvider config={{ apiKey }}>
+<EverframeProvider config={{ sdkKey }}>
   <NavigationContainer>{/* focus engine root */}</NavigationContainer>
 </EverframeProvider>
 ```

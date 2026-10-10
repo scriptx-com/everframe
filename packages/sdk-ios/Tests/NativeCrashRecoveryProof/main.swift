@@ -42,7 +42,7 @@ import EverframeProtocol
             try printJSON(["outcome": String(describing: result), "queueCount": String(try outbox.hydrate().count)])
         case "export": try printJSON(outbox.hydrate())
         case "deliver":
-            let submitter = ReportSubmitter(config: EverframeConfig(appId: "new-project-B"), outbox: outbox)
+            let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "new-project-B"), outbox: outbox)
             await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
                 epochAtInitiation: 1, currentEpoch: { 1 })
             try printJSON(["queueCount": try outbox.hydrate().count])

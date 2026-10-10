@@ -114,7 +114,7 @@ private final class MutableClock: @unchecked Sendable {
 final class ReplayConfigProviderTests: XCTestCase {
 
     private let configUrl = URL(string: "https://everframe.dev/api/config")!
-    private let apiKey = "evr_test_key"
+    private let sdkKey = "evr_test_key"
 
     private func makeProvider(
         _ fetcher: URLSessionFetching,
@@ -122,7 +122,7 @@ final class ReplayConfigProviderTests: XCTestCase {
     ) -> ReplayConfigProvider {
         ReplayConfigProvider(
             configUrl: configUrl,
-            apiKey: apiKey,
+            sdkKey: sdkKey,
             fetcher: fetcher,
             now: clock
         )
@@ -174,7 +174,7 @@ final class ReplayConfigProviderTests: XCTestCase {
         let req = fetcher.lastRequest
         XCTAssertEqual(req?.url, configUrl)
         XCTAssertEqual(req?.httpMethod, "GET")
-        XCTAssertEqual(req?.value(forHTTPHeaderField: "Authorization"), "Bearer \(apiKey)")
+        XCTAssertEqual(req?.value(forHTTPHeaderField: "Authorization"), "Bearer \(sdkKey)")
         XCTAssertEqual(req?.value(forHTTPHeaderField: "Accept"), "application/json")
     }
 

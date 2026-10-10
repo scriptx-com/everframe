@@ -31,7 +31,7 @@ import { init, type Everframe } from '../src/init.js';
 import { createLocalStorageOutbox } from '../src/outbox/localStorage.js';
 
 const APP_KEY = 'txx_live_web_drain_test';
-const config = { apiKey: APP_KEY };
+const config = { sdkKey: APP_KEY };
 
 let handles: Everframe[] = [];
 function mount(): Everframe {

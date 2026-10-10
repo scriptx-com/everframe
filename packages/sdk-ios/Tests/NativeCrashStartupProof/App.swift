@@ -29,7 +29,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         }) == true else { ready(["error": "SDK upload session is not loopback isolated"]); return true }
         let original = Self.faults.contains(mode)
         do {
-            try Everframe.shared.start(config: .init(appId: key, release: original ? "release-A" : "release-B",
+            try Everframe.shared.start(config: .init(sdkKey: key, release: original ? "release-A" : "release-B",
                 capture: .init(logs: false, crash: mode != "off"), companionBadgeEnabled: false,
                 shakeToReportEnabled: false, installIdentifierEnabled: false, vitals: .init(enabled: false)))
             Everframe.shared.setUser(.init(id: original ? "user-A" : "user-B"))

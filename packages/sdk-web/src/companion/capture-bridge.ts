@@ -22,7 +22,7 @@
 //     text   : `report.completed` { event_id } | `report.failed` { reason }
 //
 // The full TV-submits-to-ingest handshake mirrors the native
-// CompanionCaptureBridge (iOS/Android Plan 06.2-13). The host config (apiKey)
+// CompanionCaptureBridge (iOS/Android Plan 06.2-13). The host config (sdkKey)
 // + adapter (capture + outbox) come from the companion host seam, populated by
 // `EverframeProvider`. When the seam is empty we reply `report.failed`
 // ("submit_unavailable") rather than hang — parity with native.

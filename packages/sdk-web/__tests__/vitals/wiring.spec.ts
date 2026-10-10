@@ -85,13 +85,13 @@ let adapterDeps:
   | undefined;
 
 function baseConfig(overrides?: Partial<WebEverframeConfig>): WebEverframeConfig {
-  return { apiKey: 'k', appVersion: '1.2.3', ...overrides };
+  return { sdkKey: 'k', appVersion: '1.2.3', ...overrides };
 }
 
 function baseDeps(overrides?: Partial<WebEverframeConfig>) {
   return {
     config: baseConfig(overrides),
-    apiKey: 'test-key',
+    sdkKey: 'test-key',
     apiUrl: 'https://ingest.test',
     isKilled: () => false,
     sdkVersion: '9.9.9',
@@ -226,7 +226,7 @@ describe('setupVitals — start wiring', () => {
     expect(createVitalsTransportMock).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'https://ingest.test/api/ingest/vitals',
-        apiKey: 'test-key',
+        sdkKey: 'test-key',
       }),
     );
 
@@ -777,10 +777,10 @@ describe('adapter.ts — applyLiveConfig writes the vitals server-config box', (
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     await adapter.__initReplay();
     adapter.__applyBreadcrumbsConfig();
 
@@ -802,10 +802,10 @@ describe('adapter.ts — applyLiveConfig writes the vitals server-config box', (
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     await adapter.__initReplay();
     adapter.__applyBreadcrumbsConfig();
 
@@ -827,9 +827,9 @@ describe('adapter.ts — applyLiveConfig writes the vitals server-config box', (
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     await adapter.__initReplay();
     adapter.__applyBreadcrumbsConfig();
     expect(__getVitalsServerConfig()).toBeDefined();

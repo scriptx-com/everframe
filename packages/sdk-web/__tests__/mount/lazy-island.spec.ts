@@ -70,12 +70,12 @@ afterEach(() => {
 
 describe('lazy React island', () => {
   it('does NOT load the island during init()', () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     expect(islandLoaded).not.toHaveBeenCalled();
   });
 
   it('loads the island on the first open, and only once', async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     void handle.open();
     await vi.waitFor(() => expect(islandLoaded).toHaveBeenCalled());
@@ -83,7 +83,7 @@ describe('lazy React island', () => {
   });
 
   it('single-flights the mount — two rapid opens create ONE root', async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     void handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
@@ -94,20 +94,20 @@ describe('lazy React island', () => {
   });
 
   it('opens the mounted island rather than only mounting it', async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     await vi.waitFor(() => expect(mountCalls[0]?.setOpen).toHaveBeenCalledWith(true));
   });
 
   it('mounts into the SAME shadow root init() created', async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
     expect(mountCalls[0]?.shadow).toBe(document.getElementById('everframe-host')?.shadowRoot);
   });
 
   it('destroy() unmounts the island', async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     void handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
     handle.destroy();
@@ -116,7 +116,7 @@ describe('lazy React island', () => {
   });
 
   it('cancelling from the island settles the pending open() as cancelled', async () => {
-    handle = init({ apiKey: 'pk_test', appVersion: '1.0.0' });
+    handle = init({ sdkKey: 'pk_test', appVersion: '1.0.0' });
     const pending = handle.open();
     await vi.waitFor(() => expect(mountCalls).toHaveLength(1));
     mountCalls[0]?.handlers.onCancel();

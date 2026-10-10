@@ -34,14 +34,14 @@ class NativeVideoSessionTest {
                 .body("""{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0,"nativeVideo":{"framesPerSecond":5}}""".toResponseBody("application/json".toMediaType())).build()
         })
         Everframe.captureGate = true
-        val a = ReplaySession(apiKey = "key", provider = provider)
+        val a = ReplaySession(sdkKey = "key", provider = provider)
         a.refreshConfigNow()
         sharedBreadcrumbBuffer.clear(); sharedBreadcrumbBuffer.add(BreadcrumbKind.Custom, "A")
         sharedNetworkBodyBuffer.clear()
         sharedNetworkBodyBuffer.append(networkBody("A"))
         val old = a.freezeOwnedCapture()
         a.teardown()
-        val b = ReplaySession(apiKey = "key", provider = provider)
+        val b = ReplaySession(sdkKey = "key", provider = provider)
         b.refreshConfigNow()
         sharedBreadcrumbBuffer.clear(); sharedBreadcrumbBuffer.add(BreadcrumbKind.Custom, "B")
         sharedNetworkBodyBuffer.clear()
@@ -71,7 +71,7 @@ class NativeVideoSessionTest {
 
     @Test fun backgroundAndIdentityChangesPreserveFrozenAuthorizationUntilConsumption() = runBlocking {
         Everframe.captureGate = true
-        val session = ReplaySession(apiKey = "k", provider = configProvider({ on }))
+        val session = ReplaySession(sdkKey = "k", provider = configProvider({ on }))
         session.refreshConfigNow()
         val capture = session.freezeOwnedCapture()
         session.pause(); session.resume(); Everframe.setIdentityToken(null)
@@ -85,7 +85,7 @@ class NativeVideoSessionTest {
         for ((consent, disabled, body) in listOf(Triple(false, false, on), Triple(true, true, on),
             Triple(true, false, """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0}"""))) {
             Everframe.captureGate = consent
-            val session = ReplaySession(apiKey = "k", locallyDisabled = disabled, provider = configProvider({ body }))
+            val session = ReplaySession(sdkKey = "k", locallyDisabled = disabled, provider = configProvider({ body }))
             session.refreshConfigNow(); val capture = session.freezeOwnedCapture()
             assertFalse(capture.replayAllowed()); capture.cancel(); session.teardown()
         }
@@ -96,7 +96,7 @@ class NativeVideoSessionTest {
         Everframe.captureGate = true
         var body = on; val attempts = java.util.concurrent.atomic.AtomicInteger()
         val provider = configProvider({ body }, attempts)
-        val session = ReplaySession(apiKey = "k", provider = provider)
+        val session = ReplaySession(sdkKey = "k", provider = provider)
         session.refreshConfigNow(); val capture = session.freezeOwnedCapture(); assertTrue(capture.replayAllowed())
         body = "malformed"; session.refreshConfigNow(); assertFalse(capture.replayAllowed())
         provider.refresh() // Provider may report a TTL skip as true; coordinator still forces actual refresh.
@@ -107,7 +107,7 @@ class NativeVideoSessionTest {
 
     @Test fun slotsRejectNewOptionalCapturesAndReleaseWithoutEviction() = runBlocking {
         Everframe.captureGate = true
-        val sessions = (1..3).map { ReplaySession(apiKey = "k", provider = configProvider({ on })) }
+        val sessions = (1..3).map { ReplaySession(sdkKey = "k", provider = configProvider({ on })) }
         sessions.forEach { it.refreshConfigNow() }
         val a = sessions[0].freezeOwnedCapture(); val b = sessions[1].freezeOwnedCapture()
         val exhausted = sessions[2].freezeOwnedCapture()
@@ -135,7 +135,7 @@ class NativeVideoSessionTest {
 
     @Test fun consumedOwnersLateCancellationDeniesReplayWithoutTouchingNextCapture() = runBlocking {
         Everframe.captureGate = true
-        val session = ReplaySession(apiKey = "k", provider = configProvider({ on }))
+        val session = ReplaySession(sdkKey = "k", provider = configProvider({ on }))
         session.refreshConfigNow()
         val a = session.freezeOwnedCapture()
         val authority = dev.everframe.transport.ReportAuthorizationFactory.forCapture(Everframe.captureSessionSnapshot(), a)
@@ -164,7 +164,7 @@ class NativeVideoSessionTest {
             override fun isWorkerThread() = false
             override fun nowNanos() = 0L
         }
-        val session = ReplaySession(apiKey = "k", context = androidx.test.core.app.ApplicationProvider.getApplicationContext(), provider = configProvider({ body }))
+        val session = ReplaySession(sdkKey = "k", context = androidx.test.core.app.ApplicationProvider.getApplicationContext(), provider = configProvider({ body }))
         session.videoStartupAdmission = VideoStartupAdmission(scheduler) { _, _ -> true }
         session.recorderFactory = { _, owner, _ ->
             NativeVideoRecorder(owner, scheduler, { block -> block(); true }, { VideoSize(4, 4) }, { null }, { _, _, _ ->
