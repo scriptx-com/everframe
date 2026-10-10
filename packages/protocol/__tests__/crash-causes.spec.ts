@@ -276,7 +276,7 @@ describe('generic crash cause contract', () => {
   });
 
   it('drops a secret cut by the scan window instead of keeping its unmatched prefix', () => {
-    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+    const jwt = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g; // the shared rule
     const token = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(9_000)}.${'S'.repeat(43)}`;
     const normalized = normalizeCrashCauseChain({
       causes: [{ exceptionType: 'Error', message: `${'x'.repeat(4_000)} ${token}`, frames: [], framesTruncated: false }],
@@ -298,7 +298,7 @@ describe('generic crash cause contract', () => {
   });
 
   it('drops an email address cut by the scan window before an email rule can miss it', () => {
-    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+    const jwt = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g; // the shared rule
     const email = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     const redact = (value: string) => value.replace(jwt, '[REDACTED:JWT]').replace(email, '[REDACTED:EMAIL]');
     // Redacted tokens shrink the text, so the address would fit the message cap.

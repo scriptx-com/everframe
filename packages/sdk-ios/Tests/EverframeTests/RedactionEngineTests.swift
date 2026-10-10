@@ -49,6 +49,18 @@ struct RedactionEngineTests {
         #expect(!out.contains(jwt))
     }
 
+    /// Stack frames are what a crash report is for: the JWT rule must never eat dotted names.
+    @Test(arguments: [
+        "MyAppModule.CheckoutViewModel.submitOrder(_:) + 120",
+        "EverframeTests.HandledErrorCaptureTests.testNativeUnderlyingErrorTextIsRedactedBeforePersistence",
+        "dev.everframe.crashdefault.MainActivity.onCreate",
+        "kotlinx.coroutines.internal.DispatchedContinuation",
+        "SurveyKit.SurveyJobScheduler.scheduleNextRun.invokeSuspend",
+    ])
+    func redact_keepsDottedModuleAndTypeNames(name: String) {
+        #expect(RedactionEngine().redact(name) == name)
+    }
+
     @Test func redact_replacesLuhnValidCC() {
         let engine = RedactionEngine()
         // Visa test number 4242 4242 4242 4242 — Luhn-valid

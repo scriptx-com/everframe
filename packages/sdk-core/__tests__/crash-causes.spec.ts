@@ -407,7 +407,7 @@ describe('extractCrashCauseChain', () => {
   });
 
   it('drops a secret cut by the stack scan limit instead of keeping its unmatched prefix', () => {
-    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+    const jwt = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g; // the shared rule
     const inner = new Error('inner');
     const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
     dataStack(inner, `Error: inner\n${filler}\ntoken eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(3_000)}.${'S'.repeat(43)}`);

@@ -34,6 +34,18 @@ class RedactionEngineTest {
         assertFalse(out.contains("eyJhbGciOiJIUzI1NiIs.eyJzdWIiOiIxMjM0NTY3ODkwIn0"))
     }
 
+    /** Stack frames are what a crash report is for: the JWT rule must never eat dotted names. */
+    @Test
+    fun `dotted class package and module names are not JWTs`() {
+        for (frame in listOf(
+            "dev.everframe.crashdefault.MainActivity\$onCreate\$2.run\$lambda\$0(SourceFile:5)",
+            "kotlinx.coroutines.internal.DispatchedContinuation.resumeWith(DispatchedContinuation.kt:42)",
+            "androidx.recyclerview.widget.RecyclerView.onLayout(RecyclerView.java:4577)",
+            "MyAppModule.CheckoutViewModel.submitOrder(_:) + 120",
+            "com.example.survey.SurveyJobScheduler.schedule.invokeSuspend(SurveyJobScheduler.kt:30)",
+        )) assertEquals(frame, RedactionEngine.redact(frame))
+    }
+
     @Test
     fun `Bearer token is redacted`() {
         val out = RedactionEngine.redact("Authorization: Bearer abc123def456")

@@ -35,7 +35,9 @@ export interface RedactionConfig {
 const SENSITIVE_HEADERS =
   /^(authorization|x-api-key|set-cookie|cookie|proxy-authorization|x-everframe-device-token|x-everframe-identity-token|x-traceitx-device-token|x-traceitx-identity-token)$/i;
 // Inline JWT match (substring within larger strings).
-const JWT_INLINE = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+// A JWT header is base64url JSON, so it starts with `eyJ`; `\b` keeps it from starting inside a
+// word (SurveyJobScheduler). Dotted class, package and module names never match.
+const JWT_INLINE = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
 const SSN_US = /\b\d{3}-\d{2}-\d{4}\b/g;
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 const SAFE_TEXT_PROPS = new Set(['componentType', 'displayName']);
@@ -132,7 +134,7 @@ function redactLogEntry(
 }
 
 export function redactStringContent(s: string, config: RedactionConfig): string {
-  // 1. JWT shape — inline matches first (3 dot-separated >=8-char segments)
+  // 1. JWT shape — inline matches first (eyJ header + 2 more >=8-char segments)
   s = s.replace(JWT_INLINE, '[REDACTED:JWT]');
   // 2. SSN
   s = s.replace(SSN_US, '[REDACTED:SSN]');
