@@ -4,7 +4,7 @@ import Foundation
 import CryptoKit
 import EverframeProtocol
 
-struct AppleDiagnosticContext: Sendable {
+struct AppleDiagnosticContext: Codable, Sendable {
     let frozen: NativeCrashRecoveryContext
     let applicationVersion: String
     let applicationBuild: String

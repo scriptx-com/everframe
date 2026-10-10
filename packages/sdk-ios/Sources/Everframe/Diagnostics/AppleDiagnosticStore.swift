@@ -14,13 +14,25 @@ final class AppleDiagnosticStore {
         var settled: Bool
     }
     private struct State: Codable {
-        var version = 1
+        var version = 2
         var authorityID = UUID()
         var revoked = true
         // An absent state file cannot prove the shared queue was erased.
         // This also recovers a process death during ambiguous-journal reset.
         var needsOutboxErase = true
         var receipts: [Receipt] = []
+        var grants: [AppleDiagnosticGrant] = []
+        enum CodingKeys: String, CodingKey { case version, authorityID, revoked, needsOutboxErase, receipts, grants }
+        init() {}
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            version = try c.decode(Int.self, forKey: .version)
+            authorityID = try c.decode(UUID.self, forKey: .authorityID)
+            revoked = try c.decode(Bool.self, forKey: .revoked)
+            needsOutboxErase = try c.decode(Bool.self, forKey: .needsOutboxErase)
+            receipts = try c.decode([Receipt].self, forKey: .receipts)
+            grants = version == 1 ? [] : try c.decode([AppleDiagnosticGrant].self, forKey: .grants)
+        }
     }
     private let root: URL
     private let key: Data
@@ -52,11 +64,65 @@ final class AppleDiagnosticStore {
                 let decoder = JSONDecoder()
                 state = try decoder.decode(State.self, from: plain)
             } catch { throw Failure.invalid }
-            guard state.version == 1, state.receipts.count <= 32,
+            guard [1, 2].contains(state.version), state.receipts.count <= 32, state.grants.count <= 8,
+                  (!state.revoked || state.grants.isEmpty), state.grants.filter({ !$0.closed }).count <= 1,
+                  Set(state.grants.map(\.id)).count == state.grants.count,
                   (!state.revoked || state.receipts.isEmpty),
                   Set(state.receipts.map { $0.entry.reportId }).count == state.receipts.count,
                   Set(state.receipts.map(\.hash)).count == state.receipts.count else { throw Failure.invalid }
+            for grant in state.grants { try grant.validate() }
         } else { state = State() }
+    }
+
+    /// The durable commit precedes any runtime callback/transport authority.
+    func authorize(context: AppleDiagnosticContext, scope: AppleDiagnosticConsentScope, now: Date) throws -> AppleDiagnosticGrant? {
+        guard !state.revoked, !state.needsOutboxErase, now.timeIntervalSince1970.isFinite else { throw Failure.revoked }
+        if scope == .currentProcess { try closeConsent(at: now, unlessOwner: nil); return nil }
+        let owner = try context.ownerDigest()
+        var next = state
+        next.grants.removeAll { $0.ownerDigest != owner || $0.lastObservedAt > now || now.timeIntervalSince($0.authorizedThrough) > Self.lifetime }
+        if let index = next.grants.firstIndex(where: { !$0.closed && $0.authorizedThrough > now }) {
+            next.grants[index].authorizedThrough = now.addingTimeInterval(Self.lifetime)
+            next.grants[index].lastObservedAt = now
+            let grant = next.grants[index]; try commit(next); return grant
+        }
+        // An expired interval cannot be reaffirmed across its unobserved gap.
+        for i in next.grants.indices { next.grants[i].closed = true }
+        if next.grants.count >= 8 {
+            let oldest = next.grants.indices.min { next.grants[$0].authorizedThrough < next.grants[$1].authorizedThrough }!
+            next.grants.remove(at: oldest)
+        }
+        let grant = AppleDiagnosticGrant(id: UUID(), begin: now, authorizedThrough: now.addingTimeInterval(Self.lifetime),
+            lastObservedAt: now, ownerDigest: owner, context: context, closed: false)
+        next.grants.append(grant); try commit(next); return grant
+    }
+    /// A started different owner closes the interval even if it never enables.
+    /// Matching first starts are read-only. The runtime retains failed obligations.
+    func closeConsent(at date: Date, unlessOwner owner: String?) throws {
+        guard date.timeIntervalSince1970.isFinite else { throw Failure.invalid }
+        var next = state, changed = false
+        for i in next.grants.indices where !next.grants[i].closed && next.grants[i].ownerDigest != owner {
+            next.grants[i].closed = true
+            next.grants[i].authorizedThrough = max(next.grants[i].begin, min(next.grants[i].authorizedThrough, date))
+            changed = true
+        }
+        // A boundary predating recorded authority is a rollback, never coverage.
+        next.grants.removeAll { $0.begin > date }
+        if changed || next.grants.count != state.grants.count { try commit(next) }
+    }
+    func grant(for candidate: AppleDiagnosticCandidate, context: AppleDiagnosticContext, now: Date) throws -> AppleDiagnosticGrant? {
+        guard !state.revoked, !state.needsOutboxErase, now.timeIntervalSince1970.isFinite else { return nil }
+        if state.grants.contains(where: { $0.lastObservedAt > now }) {
+            var next = state; next.grants = []; try commit(next); return nil
+        }
+        let owner = try context.ownerDigest()
+        guard now.timeIntervalSince(candidate.end) <= Self.lifetime,
+              let index = state.grants.firstIndex(where: { $0.ownerDigest == owner
+                && candidate.end <= $0.authorizedThrough && $0.context.accepts(candidate, since: $0.begin, now: now) }) else { return nil }
+        var next = state; next.grants[index].lastObservedAt = now
+        let grant = next.grants[index]
+        if state.grants[index].lastObservedAt != now { try commit(next) }
+        return grant
     }
 
     /// Only used after closing all in-memory authority. Unknown entries are
@@ -99,10 +165,13 @@ final class AppleDiagnosticStore {
     @discardableResult func maintain(now: Date) throws -> Bool {
         var next = state
         next.receipts.removeAll { now.timeIntervalSince($0.entry.createdAt) >= Self.lifetime || $0.entry.createdAt > now }
-        guard next.receipts.count != state.receipts.count else { return false }
-        try commit(next); return true
+        let removedReceipts = next.receipts.count != state.receipts.count
+        next.grants.removeAll { now.timeIntervalSince($0.authorizedThrough) > Self.lifetime }
+        if removedReceipts || next.grants.count != state.grants.count { try commit(next) }
+        return removedReceipts
     }
-    private func commit(_ next: State) throws {
+    private func commit(_ value: State) throws {
+        var next = value; next.version = 2
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let plain = try encoder.encode(next)
         guard plain.count <= Self.maximum - 64 else { throw Failure.capacity }
