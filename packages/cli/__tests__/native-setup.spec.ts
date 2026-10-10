@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import xcode from 'xcode';
@@ -8,6 +9,7 @@ import {
   patchAppBuildGradle,
   patchXcodeProject,
   SOURCEMAP_FILE_VALUE,
+  SYMBOLS_PHASE_INPUTS,
   XCODE_PHASE_NAME,
 } from '../src/native-setup/index.js';
 
@@ -48,6 +50,46 @@ describe('buildPhaseScript', () => {
     expect(ios).toContain('"${SOURCEMAP_FILE:-}"');
   });
 
+  it('skips iOS Debug builds before it looks at the token', () => {
+    expect(ios.indexOf('"${CONFIGURATION:-}" = "Debug"')).toBeLessThan(ios.indexOf('EVERFRAME_API_TOKEN'));
+    expect(ios).toContain('[ -n "${SKIP_BUNDLING:-}" ]');
+  });
+
+  const run = (script: string, env: Record<string, string>) =>
+    spawnSync('bash', ['-c', script], { env: { PATH: process.env.PATH!, CONFIGURATION: 'Release', ...env }, encoding: 'utf8' });
+
+  it.each(['ios', 'android'] as const)('%s warns without a token, locally and in CI, and fails only when strict', (platform) => {
+    const script = platform === 'ios' ? ios : android;
+    for (const env of [{}, { CI: '1' }, { CI: 'true' }]) {
+      const result = run(script, env);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('warning: everframe: no EVERFRAME_API_TOKEN, skipping artifact upload');
+    }
+    const strict = run(script, { EVERFRAME_SYMBOLS_STRICT: '1' });
+    expect(strict.status).toBe(1);
+    expect(strict.stderr).toContain('missing_api_token');
+  });
+
+  it.each(['ios', 'android'] as const)('%s turns a failed upload step into a warning unless strict', (platform) => {
+    const script = platform === 'ios' ? ios : android;
+    const env = { EVERFRAME_API_TOKEN: 't', NODE_BINARY: '/nonexistent/node', SRCROOT: '/nonexistent' };
+    const lenient = run(script, env);
+    expect(lenient.status).toBe(0);
+    expect(lenient.stdout).toContain('warning: everframe: artifact upload failed');
+    expect(run(script, { ...env, EVERFRAME_SYMBOLS_STRICT: '1' }).status).not.toBe(0);
+  });
+
+  it('uploads dSYMs after the Hermes map on iOS only', () => {
+    expect(ios.split('\n').at(-1)).toBe(`"$EVERFRAME_NODE" "$EVERFRAME_CLI" dsym upload-build --xcode --app-id "${APP}"`);
+    expect(ios.indexOf('upload-hermes')).toBeLessThan(ios.indexOf('dsym upload-build'));
+    expect(android).not.toContain('dsym upload-build');
+  });
+
+  it('reads Android artifacts from the variant the bundle task built', () => {
+    expect(android).toContain('"app/build/generated/assets/react/${EVERFRAME_VARIANT:-release}/index.android.bundle"');
+    expect(android).toContain('"app/build/generated/sourcemaps/react/${EVERFRAME_VARIANT:-release}/index.android.bundle.map"');
+  });
+
   it('rejects a non-uuid app id', () => {
     expect(() => buildPhaseScript({ platform: 'ios', appId: 'x; rm -rf /', stagingDir: 's', projectRoot: '.' })).toThrow(
       /must be an Everframe application UUID/,
@@ -74,6 +116,16 @@ describe('patchAppBuildGradle', () => {
     expect(out).toContain(other);
     expect(out).not.toContain(APP);
     expect(out.match(/@generated begin/g)).toHaveLength(1);
+  });
+
+  it('passes the bundle task variant to the script', () => {
+    const out = patchAppBuildGradle(GRADLE, APP);
+    expect(out).toContain('def everframeVariantName = bundleTask.name - "createBundle" - "JsAndAssets"');
+    expect(out).toContain("everframeProcess.environment().put('EVERFRAME_VARIANT', everframeVariant)");
+  });
+
+  it('reports warning lines as Gradle warnings', () => {
+    expect(patchAppBuildGradle(GRADLE, APP)).toContain("if (line.startsWith('warning:')) logger.warn(line) else logger.lifecycle(line)");
   });
 
   it('fails clearly without the application plugin line', () => {
@@ -106,6 +158,16 @@ describe('patchXcodeProject', () => {
     const script = (section[keys[0]!] as { shellScript: string }).shellScript;
     expect(script).toContain(other);
     expect(script).not.toContain(APP);
+  });
+
+  it('orders the RN phase after dSYM generation and runs it every build', () => {
+    const project = loadProject();
+    patchXcodeProject(project, APP);
+    const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
+    const key = Object.keys(section).find((k) => section[`${k}_comment`] === XCODE_PHASE_NAME)!;
+    const phase = section[key] as { inputPaths: string[]; alwaysOutOfDate: number };
+    expect(phase.inputPaths).toEqual(SYMBOLS_PHASE_INPUTS);
+    expect(String(phase.alwaysOutOfDate)).toBe('1');
   });
 
   it('keeps a SOURCEMAP_FILE the app already defines', () => {
