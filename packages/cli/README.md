@@ -99,6 +99,56 @@ A failed check prints its code first:
 | `source_map_changed` | The printed file changed during the run. Run the command after the build has finished writing its outputs. |
 | `symlink_escapes_root` | The printed path resolves outside `--dsym-dir` or, for a listed binary, outside its own directory. Pass real paths instead of symlinks. |
 
+## Xcode build phase
+
+Install the phase once per project:
+
+```sh
+npx @everframe/cli setup xcode --project App.xcodeproj --app-id "$EVERFRAME_APP_ID"
+```
+
+It adds an "Upload Everframe Symbols" Run Script phase as the last phase of
+every application target (narrow it with `--target <name>`, repeatable). The
+phase runs `everframe dsym upload-build --xcode` on every build, after Xcode
+has written the dSYMs and `Info.plist`, so archives, `xcodebuild`, fastlane and
+Xcode Cloud upload without extra steps. Running the command again is safe.
+
+- Debug builds skip (set `EVERFRAME_UPLOAD_DEBUG=1` to upload them).
+- Without `EVERFRAME_API_TOKEN`, or when the upload fails, the phase prints a
+  `warning:` line and the build succeeds. Set `EVERFRAME_SYMBOLS_STRICT=1` to
+  fail the build instead.
+- The installer sets `ENABLE_USER_SCRIPT_SANDBOXING = NO` on those targets,
+  because the phase reads embedded frameworks, dSYM folders and
+  `node_modules`, which a sandboxed script cannot list. A phase that still runs
+  sandboxed reports `xcode_script_sandboxed` with this fix.
+- The phase finds the CLI in this order: `EVERFRAME_CLI_JS` (a built
+  `dist/index.js`), then `@everframe/cli` in the project's `node_modules`, then
+  `npx --yes @everframe/cli@<version that installed the phase>`. It needs Node
+  (`NODE_BINARY` from `.xcode.env` is honoured). Without Node it warns and the
+  build continues.
+
+XcodeGen regenerates the project, so add the phase to `project.yml` instead.
+`everframe setup xcode --print-script > scripts/upload-everframe-symbols.sh`
+writes the script:
+
+```yaml
+targets:
+  App:
+    settings:
+      base:
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    postBuildScripts:
+      - name: Upload Everframe Symbols
+        path: scripts/upload-everframe-symbols.sh
+        shell: /bin/bash
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+```
+
+The native sample app (`examples/ios-native/project.yml` in the repository) is wired this way.
+
 ## Android ELF upload
 
 Keep the unstripped shared library produced by each Android build and ABI:

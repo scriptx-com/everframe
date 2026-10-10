@@ -15,6 +15,9 @@ import { collectDsymBuild } from "./dsym.js";
 import { collectR8Build } from "./r8.js";
 import { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
 import { setupReactNative } from "./setup-react-native.js";
+import { setupXcode } from "./setup-xcode.js";
+import { symbolsPhaseScript } from "./native-setup/index.js";
+import { CLI_VERSION } from "./version.js";
 import { uploadStagedHermes } from "./staged-upload.js";
 import { uploadBuild, uploadCollectedBuild } from "./upload.js";
 
@@ -46,6 +49,7 @@ const HELP = `Usage:
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe setup react-native --app-id <uuid> [--project <dir>]
+  everframe setup xcode --project <App.xcodeproj> [--target <name>]... [--app-id <uuid>] [--print-script]
   everframe dsym upload-build (--xcode | --archive <x.xcarchive> | --app <App.app> --dsym-dir <dir>... | --binary <file>... --dsym-dir <dir>...) [--app-id <uuid>] [--strict]
   everframe dsym upload --app-id <uuid> --dwarf <raw-file>
   everframe elf upload-build --app-id <uuid> --binary <shipped.so> [--binary <library.so>] --symbols-dir <directory>
@@ -81,8 +85,10 @@ export async function main(
     argv[0] === "build" && (argv[1] === "collect" || argv[1] === "verify");
   const isExpoExportCommand = argv[0] === "upload-expo-export";
   const isSetupCommand = argv[0] === "setup" && argv[1] === "react-native";
+  const isSetupXcodeCommand = argv[0] === "setup" && argv[1] === "xcode";
   if (
     !isSetupCommand &&
+    !isSetupXcodeCommand &&
     !isSourceMapCommand &&
     !isR8Command &&
     !isDsymCommand &&
@@ -96,6 +102,31 @@ export async function main(
     return 1;
   }
   try {
+    if (isSetupXcodeCommand) {
+      const { values } = parseArgs({
+        args: argv.slice(2), allowPositionals: false, strict: true,
+        options: {
+          project: { type: "string" }, target: { type: "string", multiple: true },
+          "app-id": { type: "string" }, "print-script": { type: "boolean", default: false },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (values.help) { console.log(HELP); return 0; }
+      const appId = values["app-id"];
+      if (values["print-script"]) {
+        console.log(`#!/usr/bin/env bash\n${symbolsPhaseScript({ ...(appId && { appId }), cliVersion: CLI_VERSION })}`);
+        return 0;
+      }
+      if (!values.project) throw new Error("missing_required_option: --project");
+      const result = await setupXcode({ project: values.project, ...(appId && { appId }), ...(values.target && { targets: values.target }), cliVersion: CLI_VERSION });
+      console.log(result.changed ? `Updated ${values.project}/project.pbxproj` : "Already set up; no changes.");
+      console.log(`"Upload Everframe Symbols" runs last in: ${result.targets.join(", ")}`);
+      console.log("ENABLE_USER_SCRIPT_SANDBOXING = NO on those targets: the phase reads embedded frameworks and dSYM folders.");
+      if (result.xcodegen)
+        console.warn("warning: project.yml found. XcodeGen regenerates this project; add a postBuildScripts entry with the script from `everframe setup xcode --print-script` instead.");
+      return 0;
+    }
+
     if (isSetupCommand) {
       const parsed = parseArgs({
         args: argv.slice(2),
