@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_dbd309ddf8ec5b::t_47acbe810a2e62 29-30,86
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/ProcessStateSummaryConflict.kt
+  s_dbd309ddf8ec5b::t_f64bfdcff138bc 1-24
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_dbd309ddf8ec5b::t_df82dbcc60a7f8 364-372
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/ProcessStateSummaryConflictTest.kt
+  s_dbd309ddf8ec5b::t_b9a50c1c7305e3 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6737d10613af888ff82daa3a53bdfd987c357968",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
