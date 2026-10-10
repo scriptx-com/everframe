@@ -6,11 +6,13 @@
 // zod into every Vega app for one optional field. This file produces the same
 // envelope shape (packages/sdk-core/src/crash/build.ts — keep the two in
 // step) on top of sdk-core's zod-free buildEnvelope, and projects
-// captureException details with a small bounded sanitizer. The server
-// re-normalizes details at ingest, so this side only has to be safe and
-// small, not exhaustive. Cause chains are not collected: Hermes 0.12 has no
+// captureException details with a small bounded sanitizer that masks the same
+// credential-named keys as the protocol's normalizer. The server re-normalizes
+// details at ingest, but masking happens here, before AsyncStorage and the
+// network see a value. Cause chains are not collected: Hermes 0.12 has no
 // `new Error(message, { cause })`.
 import { buildEnvelope, redactStringContent, type DeviceMetadata } from '@everframe/sdk-core';
+import { isSensitiveKey } from '@everframe/protocol';
 import type { Breadcrumb, CrashDetails, CrashFrame, CrashPayload, JsBundleMetadata, ReportEnvelope } from '@everframe/protocol';
 import { vegaFingerprint } from './bundle.js';
 import type { VegaCaptureOptions, VegaUser } from './config.js';
@@ -27,6 +29,7 @@ const MAX_KEY = 128;
 const MAX_STRING = 1024;
 const MAX_KEYS = 32;
 const MAX_DETAILS_CHARS = 8192;
+const REDACTED = '[REDACTED]';
 // Lone surrogates and NUL fail the protocol's text rule; drop the value instead.
 const INVALID_TEXT = /[\u0000]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
@@ -82,6 +85,14 @@ export function projectDetails(
       }
       if (key.length === 0 || key.length > MAX_KEY || INVALID_TEXT.test(key) || key === '__proto__') {
         truncated = true;
+        continue;
+      }
+      // A credential-named key keeps its name and loses its value, whatever
+      // the value is: the same list and rule as the protocol's
+      // normalizeCrashDetails, applied before the report is stored or sent.
+      if (isSensitiveKey(key)) {
+        out[key] = REDACTED;
+        count++;
         continue;
       }
       const entry = ownValue(metadata.value, key).value;

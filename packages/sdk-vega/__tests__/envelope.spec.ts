@@ -53,4 +53,42 @@ describe('handled-error details', () => {
     const options = { severity: 'warning', context: 'Player', metadata: { assetId: 'A-1', retries: 2 } } as const;
     expect(projectDetails(options, identity)).toEqual(normalizeCrashDetails(options, identity, 'error'));
   });
+
+  it.each([
+    ['password', 'hunter2'],
+    ['PASSWORD', 'hunter2'],
+    ['userPassword', 'hunter2'],
+    ['api_key', 'k-31337'],
+    ['X-API-KEY', 'k-31337'],
+    ['apiKey', 'k-31337'],
+    ['Authorization', 'Bearer abc'],
+    ['accessToken', 'tok-31337'],
+    ['set-cookie', 'sid=31337'],
+    ['client_secret', 'cs-31337'],
+  ])('masks the value of %s', (key, value) => {
+    const projected = projectDetails({ metadata: { [key]: value, assetId: 'A-1' } }, identity);
+    expect(projected.metadata).toEqual({ [key]: '[REDACTED]', assetId: 'A-1' });
+    expect(JSON.stringify(projected)).not.toContain(value);
+    expect(projected).toEqual(normalizeCrashDetails({ metadata: { [key]: value, assetId: 'A-1' } }, identity, 'error'));
+  });
+
+  it('masks a credential-named key whatever its value is, and never projects nested secrets', () => {
+    const projected = projectDetails({
+      metadata: {
+        token: { nested: 'abc' },
+        auth: { password: 'hunter2', Authorization: 'Bearer x' },
+        list: [{ apiKey: 'k' }],
+      } as never,
+    }, identity);
+    expect(projected.metadata).toEqual({ token: '[REDACTED]' });
+    expect(projected.truncated).toBe(true);
+    expect(JSON.stringify(projected)).not.toMatch(/hunter2|Bearer x|"k"|abc/);
+  });
+
+  it('does not read the value behind a credential-named key', () => {
+    let read = false;
+    const metadata = Object.defineProperty({}, 'password', { enumerable: true, get: () => { read = true; return 'x'; } });
+    expect(projectDetails({ metadata } as never, identity).metadata).toEqual({ password: '[REDACTED]' });
+    expect(read).toBe(false);
+  });
 });
