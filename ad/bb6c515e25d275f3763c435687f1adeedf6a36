@@ -1,0 +1,51 @@
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/PluginFixture.kt
+  s_dbd309ddf8ec5b::t_32644e1ede8426 1-122
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/R8PluginFunctionalTest.kt
+  s_dbd309ddf8ec5b::t_3c3702b5dfe6e2 5,11-14,18-31,34-37,40-46,49-55,58-62,65-70,73-76,79-83,86-92,95-104
+packages/sdk-android/android/README.md
+  s_dbd309ddf8ec5b::t_6107a80584bad6 81-84,471,474,476-477,480-483,487-515
+packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts
+  s_dbd309ddf8ec5b::t_1d1773899da560 58-66,76,99
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeCli.kt
+  s_dbd309ddf8ec5b::t_dc1ffef0afd05e 1-27
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeExtension.kt
+  s_dbd309ddf8ec5b::t_2c26d03d24ea1c 1-19
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframePlugin.kt
+  s_dbd309ddf8ec5b::t_9fd268fd0cba8d 15-22,41,43-45,48
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeUploadPolicy.kt
+  s_dbd309ddf8ec5b::t_3d435eb3a8cbc6 1-54
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/GenerateBuildIdentityTask.kt
+  s_dbd309ddf8ec5b::t_0d6cd742fc1add 1-26
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/R8MappingIdentity.kt
+  s_dbd309ddf8ec5b::t_e6af7e84e5aff4 5,7,9-10,12-21,23,25-28
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/UploadNativeSymbolsTask.kt
+  s_dbd309ddf8ec5b::t_4e323cdfb0364f 1-76
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/UploadR8MappingTask.kt
+  s_dbd309ddf8ec5b::t_425ab0c9ef5d65 5,7,12,14,21,24-27,30,32-34,36-42
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/VariantIntegration.kt
+  s_dbd309ddf8ec5b::t_33c1e9f7a20c03 1-36
+packages/sdk-android/android/everframe-gradle-plugin/src/main/resources/dev/everframe/gradle/cli-version.properties
+  s_dbd309ddf8ec5b::t_fda303995647dc 1-3
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/EverframeCliVersionTest.kt
+  s_dbd309ddf8ec5b::t_8f9560634b946e 1-15
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/NativeSymbolsPluginFunctionalTest.kt
+  s_dbd309ddf8ec5b::t_92a33b16a48616 1-44
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/R8MappingIdentityTest.kt
+  s_dbd309ddf8ec5b::t_2cb6afebf8e285 5,9-11,14,16-20,23-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "adbb6c515e25d275f3763c435687f1adeedf6a36",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
