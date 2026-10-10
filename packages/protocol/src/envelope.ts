@@ -228,9 +228,11 @@ export const ReportEnvelope = z
     if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'diagnostic'], 'Recovered process evidence must be anonymous and attachment-free');
     if (Date.parse(envelope.submittedAt) !== Date.parse(evidence.collectedAt)) issue(['submittedAt'], 'Submission must use the frozen evidence collection time');
     if (envelope.source === 'crash') {
+      // A native crash and a low-memory kill while the user could see or hear the app are fatal events.
       const crash = envelope.payload.crash;
-      if (evidence.cause !== 'native_crash' || !crash || !crash.fatal || crash.handled || crash.mechanism !== 'android-exit-info') {
-        issue(['payload', 'crash'], 'Crash overlap requires fatal OS native-crash evidence');
+      const fatalCause = evidence.cause === 'native_crash' || evidence.cause === 'system_low_memory';
+      if (!fatalCause || !crash || !crash.fatal || crash.handled || crash.mechanism !== 'android-exit-info') {
+        issue(['payload', 'crash'], 'Crash overlap requires fatal OS native-crash or low-memory evidence');
       }
     } else if (envelope.source !== 'diagnostic' || envelope.payload.crash || evidence.cause === 'native_crash') {
       issue(['source'], 'Non-native exit evidence requires diagnostic source without a crash payload');
