@@ -5,9 +5,7 @@ import { installXHRPatcher, type BodyCaptureHooks } from '../../src/capture/netw
 import * as networkBodyModule from '../../src/capture/network-body.js';
 import type { NetworkBodyEntry } from '@everframe/protocol';
 
-// See network-body-fetch.spec.ts's `bigBody` for why this isn't one giant
-// unbroken run of word characters (avoids quadratic backtracking in the
-// pre-existing, unrelated JWT_INLINE regex on a multi-megabyte homogeneous run).
+// The same multi-megabyte body of short words as network-body-fetch.spec.ts's `bigBody`.
 function bigBody(byteLen: number): string {
   return 'x '.repeat(Math.ceil(byteLen / 2));
 }

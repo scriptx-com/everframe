@@ -7,6 +7,7 @@ import {
   MAX_CRASH_CAUSE_STACK_SCAN_UNITS,
 } from '@everframe/protocol';
 import { extractCrashCauseChain } from '../src/crash/index.js';
+import { redactJwt } from '@everframe/protocol';
 
 const identity = (value: string): string => value;
 
@@ -407,11 +408,10 @@ describe('extractCrashCauseChain', () => {
   });
 
   it('drops a secret cut by the stack scan limit instead of keeping its unmatched prefix', () => {
-    const jwt = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
     const inner = new Error('inner');
     const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
     dataStack(inner, `Error: inner\n${filler}\ntoken eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(3_000)}.${'S'.repeat(43)}`);
-    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => value.replace(jwt, '[REDACTED:JWT]'), () => true);
+    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => redactJwt(value), () => true);
 
     expect(chain?.causes[0]?.frames).toHaveLength(32);
     expect(chain?.causes[0]?.frames[31]?.raw).toBe('token');

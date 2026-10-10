@@ -33,19 +33,21 @@ object RedactionEngine {
         for (pattern in SharedData.redactionPatterns) {
             val regex = regexCache.getOrPut(pattern.id) {
                 // RFC: pattern.regex strings come from packages/protocol/data/redaction-patterns.json
-                // (vetted, no catastrophic-backtracking risk). T-05-02-D mitigation.
+                // (vetted). T-05-02-D mitigation. The JWT rule runs through JwtScan instead.
                 runCatching { Regex(pattern.regex) }.getOrNull() ?: return@getOrPut Regex("$^") // never matches
             }
             val replacement = pattern.replacement ?: REDACTED
-            out = if (pattern.id == "luhn-cc") {
+            out = when (pattern.id) {
                 // Luhn-validate the matched substring before replacing — most digit runs
                 // are NOT credit cards (phone numbers, order IDs, timestamps).
-                regex.replace(out) { match ->
+                "luhn-cc" -> regex.replace(out) { match ->
                     val digitsOnly = match.value.filter(Char::isDigit)
                     if (isLuhnValid(digitsOnly)) replacement else match.value
                 }
-            } else {
-                regex.replace(out, replacement)
+                // The JSON names a scanner for this rule: it decodes each candidate's header and
+                // redacts only JOSE headers. Its regex is a candidate shape for other engines.
+                "jwt" -> JwtScan.replace(out, replacement)
+                else -> regex.replace(out, replacement)
             }
         }
         return out
