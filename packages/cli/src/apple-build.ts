@@ -44,6 +44,10 @@ export interface CollectedAppleBuild {
    * names an optional binary that could not be read at all (no `images`).
    */
   uncovered: Array<{ path: string; images: AppleBuildImage[]; reason?: string }>;
+  /** Lenient mode: the missing_matching_dsym diagnostic for required binaries, instead of throwing. */
+  missingRequired?: string | undefined;
+  /** Lenient mode: unrelated bundles or folders skipped because they could not be read safely. */
+  warnings: string[];
 }
 /** Bundles and module folders never hold separately generated dSYMs. */
 const OPAQUE_DIRECTORY =
@@ -361,7 +365,16 @@ export async function readAppleBinaryImages(
   return (await inspect(path, options)).images;
 }
 export async function collectAppleBuild(
-  options: { binaries: AppleBinaryInput[]; dsymDirs: string[] },
+  options: {
+    binaries: AppleBinaryInput[];
+    dsymDirs: string[];
+    /**
+     * Build integrations upload whatever matches: a required binary without a
+     * dSYM becomes `missingRequired`, and a bundle or folder that fails its
+     * path checks is skipped with a warning. Limits still stop the run.
+     */
+    lenient?: boolean;
+  },
   limits: AppleBuildLimits = APPLE_BUILD_LIMITS
 ): Promise<CollectedAppleBuild> {
   if (!options.binaries.length || options.binaries.length > limits.binaries)
@@ -457,14 +470,28 @@ export async function collectAppleBuild(
         `apple_build_limit: more than ${limits.matchedBundles} .dSYM bundles under ${where} hold a listed identity`
       );
   }
+  const warnings: string[] = [];
+  /** In lenient mode an unreadable bundle or folder is skipped; limits still stop the run. */
+  async function guarded(path: string, run: () => Promise<void>): Promise<void> {
+    if (!options.lenient) return run();
+    const before = candidates.length;
+    try {
+      await run();
+    } catch (error) {
+      if (!(error instanceof Error) || error.message.startsWith("apple_build_limit")) throw error;
+      candidates.length = before;
+      const code = /^([a-z0-9_]+)(?::|$)/.exec(error.message)?.[1] ?? "unreadable";
+      warnings.push(`skipped ${path}: ${code}`);
+    }
+  }
   async function walk(root: string, path: string, depth: number): Promise<void> {
     for (const entry of await list(root, path)) {
       const child = join(path, entry.name);
       if (entry.name.endsWith(".dSYM")) {
         // A symlinked bundle is followed only while it stays inside the root.
-        if (entry.directory || entry.link) await inspectBundle(root, child);
+        if (entry.directory || entry.link) await guarded(child, () => inspectBundle(root, child));
       } else if (entry.directory && depth < limits.depth && !OPAQUE_DIRECTORY.test(entry.name)) {
-        await walk(root, child, depth + 1);
+        await guarded(child, () => walk(root, child, depth + 1));
       }
     }
   }
@@ -511,16 +538,16 @@ export async function collectAppleBuild(
       if (!missing.has(key(image)))
         missing.set(key(image), `  ${image.architecture} ${image.uuid} in ${binary.path}`);
   }
-  if (missing.size)
-    throw new Error(
-      [
+  const missingRequired = missing.size
+    ? [
         `missing_matching_dsym: no DWARF file under ${where} matches these required images (.dSYM bundles inspected: ${scanned}):`,
         ...bounded([...missing.values()]),
         ...(skipped.length
           ? ["Skipped files that are not supported 64-bit dSYMs:", ...bounded(skipped)]
           : []),
       ].join("\n")
-    );
+    : undefined;
+  if (missingRequired && !options.lenient) throw new Error(missingRequired);
   for (const binary of binaries)
     await withPath(binary.path, async () => {
       if (JSON.stringify(await readAppleBinaryImages(binary.path)) !== JSON.stringify(binary.images))
@@ -531,5 +558,7 @@ export async function collectAppleBuild(
     images: [...expected.values()].filter((image) => published.has(key(image))),
     binaries,
     uncovered,
+    missingRequired,
+    warnings,
   };
 }

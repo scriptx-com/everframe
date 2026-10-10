@@ -208,3 +208,12 @@ it("reports an oversized optional shipped library instead of failing", async () 
     `elf_too_large: ${big}`
   );
 });
+it("gives discovery mode the build-integration upload budget, and the explicit list none", async () => {
+  const f = await agp();
+  const r = recorder();
+  const env = { EVERFRAME_API_TOKEN: "t", EVERFRAME_APP_ID: APP_ID };
+  await elfUploadBuildCommand(["--binaries-dir", f.shipped, "--symbols-dir", f.symbols], env, r.deps);
+  expect(r.upload.mock.calls[0]![1]!.deadline! - Date.now()).toBeGreaterThan(590_000);
+  await elfUploadBuildCommand(["--binary", f.app, "--symbols-dir", f.symbols], env, r.deps);
+  expect(r.upload.mock.calls[1]![1]?.deadline).toBeUndefined();
+});

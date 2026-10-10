@@ -22,3 +22,19 @@ export function uploadFailureWarnings(message: string, token: string | undefined
     "warning: everframe: crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.",
   ];
 }
+/** Default time budget, in seconds, for uploads run by build integrations. */
+export const INTEGRATION_BUDGET_SECONDS = 600;
+/**
+ * The upload deadline: EVERFRAME_UPLOAD_TIMEOUT_SECONDS when set, else the
+ * integration default; manual commands without the variable have none.
+ */
+export function uploadDeadline(env: NodeJS.ProcessEnv, integration: boolean, now = Date.now()): number | undefined {
+  const raw = env.EVERFRAME_UPLOAD_TIMEOUT_SECONDS;
+  const seconds = raw && /^[1-9][0-9]{0,6}$/.test(raw) ? Number(raw) : integration ? INTEGRATION_BUDGET_SECONDS : undefined;
+  return seconds === undefined ? undefined : now + seconds * 1000;
+}
+/** Upload dependencies carrying the deadline, if any. */
+export function uploadBudget(env: NodeJS.ProcessEnv, integration: boolean): { deadline?: number } {
+  const deadline = uploadDeadline(env, integration);
+  return deadline === undefined ? {} : { deadline };
+}

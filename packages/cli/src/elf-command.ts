@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { parseArgs } from "node:util";
 import { adviceFor } from "./build-verify.js";
-import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, symbolsStrict, uploadFailureWarnings } from "./defaults.js";
+import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, symbolsStrict, uploadBudget, uploadFailureWarnings } from "./defaults.js";
 import { discoverElfBinaries, type ElfBinaryInput } from "./elf-build.js";
 import { uploadAndroidElfBuild } from "./elf-upload.js";
 
@@ -64,13 +64,16 @@ export async function elfUploadBuildCommand(
     }
     const appId = values["app-id"] ?? env.EVERFRAME_APP_ID;
     if (!appId) throw new Error("missing_app_id: pass --app-id or set EVERFRAME_APP_ID");
-    const result = await (deps.upload ?? uploadAndroidElfBuild)({
-      appId,
-      token,
-      apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
-      binaries,
-      symbolsDir: symbolsDir!,
-    });
+    const result = await (deps.upload ?? uploadAndroidElfBuild)(
+      {
+        appId,
+        token,
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
+        binaries,
+        symbolsDir: symbolsDir!,
+      },
+      uploadBudget(env, explicit.length === 0)
+    );
     log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`);
     for (const entry of result.uncovered.slice(0, 16))
       warn(`warning: no symbols for ${entry.path}: ${entry.reason}; its frames stay raw.`);

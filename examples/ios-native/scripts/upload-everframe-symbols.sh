@@ -25,7 +25,7 @@ export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
 EVERFRAME_NODE="${NODE_BINARY:-node}"
 if [ -z "${EVERFRAME_CLI_JS:-}" ]; then EVERFRAME_CLI_JS="$(cd "$SRCROOT" && "$EVERFRAME_NODE" -p "require.resolve('@everframe/cli')" 2>/dev/null || true)"; fi
 EVERFRAME_STATUS=0
-if [ -n "$EVERFRAME_CLI_JS" ]; then "$EVERFRAME_NODE" "$EVERFRAME_CLI_JS" dsym upload-build --xcode || EVERFRAME_STATUS=$?; else npx --yes "@everframe/cli@0.1.0" dsym upload-build --xcode || EVERFRAME_STATUS=$?; fi
+if [ -n "$EVERFRAME_CLI_JS" ]; then "$EVERFRAME_NODE" "$EVERFRAME_CLI_JS" dsym upload-build --xcode || EVERFRAME_STATUS=$?; else npm_config_fetch_timeout=20000 npm_config_fetch_retries=1 npm_config_fetch_retry_maxtimeout=5000 npx --yes --prefer-offline "@everframe/cli@0.1.0" dsym upload-build --xcode || EVERFRAME_STATUS=$?; fi
 if [ "$EVERFRAME_STATUS" != 0 ] && [ "$EVERFRAME_STRICT" = 0 ]; then
   echo "warning: everframe: the symbol upload stopped with exit status $EVERFRAME_STATUS. Crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."
   exit 0

@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import xcode from "xcode";
-import { SYMBOLS_PHASE_INPUTS, SYMBOLS_PHASE_NAME, symbolsPhaseScript } from "../src/native-setup/index.js";
+import { SYMBOLS_BUILD_SETTINGS, SYMBOLS_PHASE_INPUTS, SYMBOLS_PHASE_NAME, symbolsPhaseScript } from "../src/native-setup/index.js";
+import { CLI_VERSION } from "../src/version.js";
 import { setupXcode } from "../src/setup-xcode.js";
 import { main } from "../src/index.js";
 
@@ -70,8 +71,32 @@ it("adds one last, always-run symbols phase with ordering inputs to every applic
     expect(phase(project, name).shellScript).toContain("dsym upload-build --xcode --app-id");
     expect(phase(project, name).shellScript).toContain(APP);
     expect(phase(project, name).shellScript).toContain("@everframe/cli@1.2.3");
-    for (const s of settings(project, name)) expect(s.ENABLE_USER_SCRIPT_SANDBOXING).toBe("NO");
+    for (const s of settings(project, name)) {
+      expect(s.ENABLE_USER_SCRIPT_SANDBOXING).toBe("NO");
+      for (const [key, value] of Object.entries(SYMBOLS_BUILD_SETTINGS)) expect(s[key]).toBe(value);
+    }
   }
+});
+
+/** Enough of Xcode's macro expansion for the input settings: $(NAME) and $(NAME:c99extidentifier). */
+function expand(value: string, settings: Record<string, string>): string {
+  let out = value.replace(/^"(.*)"$/, "$1");
+  for (let i = 0; i < 10 && out.includes("$("); i++)
+    out = out.replace(/\$\(([A-Za-z0-9_]+)(:c99extidentifier)?\)/g, (_m, name: string, op?: string) => {
+      const raw = (settings[name] ?? "").replace(/^"(.*)"$/, "$1");
+      return op ? raw.replace(/[^A-Za-z0-9_]/g, "_") : raw;
+    });
+  return out;
+}
+it.each([
+  ["dwarf", "/build/Debug-iphonesimulator/App.app/Info.plist"],
+  ["dwarf-with-dsym", "/build/Release-iphoneos/App.app.dSYM/Contents/Resources/DWARF/App"],
+])("declares an input that exists for DEBUG_INFORMATION_FORMAT=%s", (format, expected) => {
+  const xcode = format === "dwarf"
+    ? { TARGET_BUILD_DIR: "/build/Debug-iphonesimulator", INFOPLIST_PATH: "App.app/Info.plist" }
+    : { DWARF_DSYM_FOLDER_PATH: "/build/Release-iphoneos", DWARF_DSYM_FILE_NAME: "App.app.dSYM", EXECUTABLE_NAME: "App" };
+  const environment = { ...SYMBOLS_BUILD_SETTINGS, ...xcode, DEBUG_INFORMATION_FORMAT: format };
+  expect(expand(SYMBOLS_PHASE_INPUTS[0]!, environment)).toBe(expected);
 });
 it("is idempotent", async () => {
   const { dir, pbx } = await projectCopy();
@@ -185,6 +210,17 @@ describe("the phase script", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("warning: everframe: the symbol upload stopped with exit status 127");
   });
+});
+it("bounds the npx fallback so a stalled registry cannot stall the build", () => {
+  const script = symbolsPhaseScript({ cliVersion: "1.2.3" });
+  expect(script).toMatch(/npm_config_fetch_timeout=\d+ npm_config_fetch_retries=1 npm_config_fetch_retry_maxtimeout=\d+ npx --yes --prefer-offline "@everframe\/cli@1\.2\.3"/);
+});
+it("keeps the native example's phase script in sync with --print-script", async () => {
+  const committed = await readFile(join(__dirname, "../../../examples/ios-native/scripts/upload-everframe-symbols.sh"), "utf8");
+  const body = committed.split("\n").filter((line) => !line.startsWith("#")).join("\n").trim();
+  // The pinned version follows package.json; a release bump must not fail this check.
+  const unpinned = (text: string) => text.replace(/@everframe\/cli@[0-9A-Za-z.-]+/g, "@everframe/cli@<version>");
+  expect(unpinned(body)).toBe(unpinned(symbolsPhaseScript({ cliVersion: CLI_VERSION })));
 });
 it("omits --app-id so EVERFRAME_APP_ID applies when no app id is given", () => {
   const script = symbolsPhaseScript({ cliVersion: "1.2.3" });

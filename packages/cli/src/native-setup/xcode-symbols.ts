@@ -3,11 +3,23 @@
 import { checkedAppId, sandboxCheck } from "./script.js";
 
 export const SYMBOLS_PHASE_NAME = "Upload Everframe Symbols";
-/** Declared inputs order the phase after dSYM generation and Info.plist processing. */
-export const SYMBOLS_PHASE_INPUTS = [
-  '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"',
-  '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"',
-];
+/**
+ * Declared inputs order the phase after dSYM generation and Info.plist
+ * processing. The dSYM path is only an input where the build makes one:
+ * EVERFRAME_DSYM_INPUT picks a per-format setting at build time, so a
+ * `dwarf` (Debug) build declares the Info.plist instead of a dSYM that never
+ * exists, which Xcode would fail as a missing build input.
+ */
+export const SYMBOLS_PHASE_INPUTS = ['"$(EVERFRAME_DSYM_INPUT)"', '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"'];
+/** Written to every configuration of a target that runs an Everframe phase. */
+export const SYMBOLS_BUILD_SETTINGS: Readonly<Record<string, string>> = {
+  EVERFRAME_DSYM_INPUT: '"$(EVERFRAME_DSYM_INPUT_$(DEBUG_INFORMATION_FORMAT:c99extidentifier))"',
+  EVERFRAME_DSYM_INPUT_dwarf_with_dsym:
+    '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"',
+  EVERFRAME_DSYM_INPUT_dwarf: '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"',
+  EVERFRAME_DSYM_INPUT_: '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"',
+  ENABLE_USER_SCRIPT_SANDBOXING: "NO",
+};
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 export interface XcodeSymbolsProject {
@@ -64,7 +76,8 @@ export function symbolsPhaseScript(options: { appId?: string; cliVersion: string
     'EVERFRAME_NODE="${NODE_BINARY:-node}"',
     `if [ -z "\${EVERFRAME_CLI_JS:-}" ]; then EVERFRAME_CLI_JS="$(cd "$SRCROOT" && "$EVERFRAME_NODE" -p "require.resolve('@everframe/cli')" 2>/dev/null || true)"; fi`,
     "EVERFRAME_STATUS=0",
-    `if [ -n "$EVERFRAME_CLI_JS" ]; then "$EVERFRAME_NODE" "$EVERFRAME_CLI_JS" ${upload} || EVERFRAME_STATUS=$?; else npx --yes "@everframe/cli@${options.cliVersion}" ${upload} || EVERFRAME_STATUS=$?; fi`,
+    // A stalled registry or missing DNS must not stall the build on the npx fallback.
+    `if [ -n "$EVERFRAME_CLI_JS" ]; then "$EVERFRAME_NODE" "$EVERFRAME_CLI_JS" ${upload} || EVERFRAME_STATUS=$?; else npm_config_fetch_timeout=20000 npm_config_fetch_retries=1 npm_config_fetch_retry_maxtimeout=5000 npx --yes --prefer-offline "@everframe/cli@${options.cliVersion}" ${upload} || EVERFRAME_STATUS=$?; fi`,
     'if [ "$EVERFRAME_STATUS" != 0 ] && [ "$EVERFRAME_STRICT" = 0 ]; then',
     '  echo "warning: everframe: the symbol upload stopped with exit status $EVERFRAME_STATUS. Crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."',
     "  exit 0",
@@ -119,7 +132,7 @@ export function patchXcodeProjectForSymbols(
     for (const ref of (target.buildConfigurationList && lists[target.buildConfigurationList]?.buildConfigurations) || []) {
       const config = configs[ref.value];
       if (!config || typeof config === "string") continue;
-      (config.buildSettings ??= {}).ENABLE_USER_SCRIPT_SANDBOXING = "NO";
+      Object.assign((config.buildSettings ??= {}), SYMBOLS_BUILD_SETTINGS);
     }
   }
   return selected.map(([, target]) => unquote(target.name) ?? "");

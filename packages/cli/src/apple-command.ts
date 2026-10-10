@@ -11,7 +11,7 @@ import {
 } from "./apple-discover.js";
 import { uploadAppleBuild } from "./apple-upload.js";
 import { adviceFor } from "./build-verify.js";
-import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, symbolsStrict, uploadFailureWarnings } from "./defaults.js";
+import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, redact, symbolsStrict, uploadBudget, uploadFailureWarnings } from "./defaults.js";
 
 export interface DsymCommandDependencies {
   upload?: typeof uploadAppleBuild;
@@ -86,13 +86,17 @@ export async function dsymUploadBuildCommand(
       : source.binaries;
     let result;
     try {
-      result = await (deps.upload ?? uploadAppleBuild)({
-        appId,
-        token,
-        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
-        binaries,
-        dsymDirs: source.dsymDirs,
-      });
+      result = await (deps.upload ?? uploadAppleBuild)(
+        {
+          appId,
+          token,
+          apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
+          binaries,
+          dsymDirs: source.dsymDirs,
+          lenient: !failHard,
+        },
+        uploadBudget(env, explicit.length === 0)
+      );
     } catch (error) {
       throw values.xcode ? sandboxed(error) : error;
     }
@@ -104,6 +108,13 @@ export async function dsymUploadBuildCommand(
           : `warning: no dSYM for ${entry.path} (${entry.images.map((i) => `${i.architecture} ${i.uuid}`).join(", ")}); its frames stay raw. Prebuilt frameworks need their vendor's dSYMs; pass --strict to fail instead.`
       );
     if (result.uncovered.length > 16) warn(`warning: and ${result.uncovered.length - 16} more binaries without dSYMs`);
+    const problems = [
+      ...(result.missingRequired?.split("\n") ?? []),
+      ...result.warnings,
+      ...result.failed.map((entry) => `upload failed for ${entry.path}: ${redact(entry.message, token)}`),
+    ];
+    for (const line of problems) warn(`warning: everframe: ${line}`);
+    if (problems.length) warn(uploadFailureWarnings("", token)[1]!);
     return 0;
   }
 

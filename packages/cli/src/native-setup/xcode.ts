@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { buildPhaseScript } from './script.js';
-import { SYMBOLS_PHASE_INPUTS } from './xcode-symbols.js';
+import { SYMBOLS_BUILD_SETTINGS, SYMBOLS_PHASE_INPUTS } from './xcode-symbols.js';
 
 export const XCODE_PHASE_NAME = 'Upload Everframe Build Artifacts';
 export const SOURCEMAP_FILE_VALUE = '"$(DERIVED_FILE_DIR)/main.jsbundle.map"';
@@ -53,5 +53,7 @@ export function patchXcodeProject(project: XcodeProjectLike, appId: string): voi
     if (!config || typeof config === 'string') continue;
     config.buildSettings ??= {};
     config.buildSettings.SOURCEMAP_FILE ??= SOURCEMAP_FILE_VALUE;
+    // The phase reads node_modules and dSYM folders, and its inputs must exist in Debug too.
+    Object.assign(config.buildSettings, SYMBOLS_BUILD_SETTINGS);
   }
 }

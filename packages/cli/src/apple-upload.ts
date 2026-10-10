@@ -10,7 +10,7 @@ import {
 } from "./apple-build.js";
 import { collectDsymBuild } from "./dsym.js";
 import { checkedRealPath } from "./manifest.js";
-import { uploadCollectedBuild, type UploadDependencies } from "./upload.js";
+import { BUDGET_EXHAUSTED, uploadCollectedBuild, type UploadDependencies } from "./upload.js";
 import type { BuildUploadStatus } from "@everframe/protocol";
 
 async function verify(build: CollectedAppleBuild) {
@@ -43,32 +43,57 @@ export async function uploadAppleBuild(
     appId: string;
     apiUrl: string;
     token: string;
+    /** Build integrations: upload every matched file, then report misses and failures. */
+    lenient?: boolean;
   },
   dependencies: UploadDependencies = {}
 ): Promise<{
   artifacts: BuildUploadStatus[];
   images: CollectedAppleBuild["images"];
   uncovered: CollectedAppleBuild["uncovered"];
+  missingRequired: CollectedAppleBuild["missingRequired"];
+  warnings: string[];
+  /** Lenient mode: files the service did not accept, with the reason. */
+  failed: Array<{ path: string; message: string }>;
 }> {
-  const build = await collectAppleBuild({ binaries: options.binaries, dsymDirs: options.dsymDirs });
+  const build = await collectAppleBuild({
+    binaries: options.binaries,
+    dsymDirs: options.dsymDirs,
+    lenient: options.lenient ?? false,
+  });
   await verify(build);
-  const artifacts: BuildUploadStatus[] = [];
+  const artifacts: BuildUploadStatus[] = [],
+    failed: Array<{ path: string; message: string }> = [];
   for (const local of build.artifacts) {
     const path = local.mapPaths.values().next().value!;
-    artifacts.push(
-      await uploadCollectedBuild(
-        local,
-        {
-          appId: options.appId,
-          apiUrl: options.apiUrl,
-          token: options.token,
-          root: dirname(path),
-          deleteAfterUpload: false,
-        },
-        dependencies
-      )
-    );
+    try {
+      artifacts.push(
+        await uploadCollectedBuild(
+          local,
+          {
+            appId: options.appId,
+            apiUrl: options.apiUrl,
+            token: options.token,
+            root: dirname(path),
+            deleteAfterUpload: false,
+          },
+          dependencies
+        )
+      );
+    } catch (error) {
+      // One rejected file must not cost the others; the time budget stops all.
+      const message = error instanceof Error ? error.message : "upload_failed";
+      if (!options.lenient || message === BUDGET_EXHAUSTED) throw error;
+      failed.push({ path, message });
+    }
   }
   await verify(build);
-  return { artifacts, images: build.images, uncovered: build.uncovered };
+  return {
+    artifacts,
+    images: build.images,
+    uncovered: build.uncovered,
+    missingRequired: build.missingRequired,
+    warnings: build.warnings,
+    failed,
+  };
 }

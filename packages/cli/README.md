@@ -45,10 +45,12 @@ The command finds the app executable and the app extensions (`PlugIns/`,
 `Extensions/`, including a tvOS Top Shelf extension). These are required. It
 also finds embedded frameworks and dylibs, which are optional. `libswift*` and
 watchOS content are skipped. dSYM folders are searched recursively, up to four
-levels deep, without entering bundles. A missing dSYM for a required binary
-stops the upload with `missing_matching_dsym`. A missing dSYM for an optional
-binary prints `warning: no dSYM for …` (an Xcode build warning), and the other
-symbols still upload. `--xcode` skips Debug builds (set
+levels deep, without entering bundles. A missing dSYM for an optional binary
+prints `warning: no dSYM for …` (an Xcode build warning). With `--xcode`,
+`--archive` or `--app`, a missing dSYM for a required binary, an unreadable
+folder or bundle, or a file the service rejects also becomes a warning after
+everything else has uploaded; with `--strict` and `--binary` it fails with
+`missing_matching_dsym` (or the rejection) instead. `--xcode` skips Debug builds (set
 `EVERFRAME_UPLOAD_DEBUG=1` to upload them) and builds without
 `DEBUG_INFORMATION_FORMAT = dwarf-with-dsym`.
 
@@ -75,6 +77,9 @@ Xcode Cloud (`ci_scripts/ci_post_xcodebuild.sh`; install Node in `ci_post_clone.
 ```sh
 if [ -n "${CI_ARCHIVE_PATH:-}" ]; then npx --yes @everframe/cli dsym upload-build --archive "$CI_ARCHIVE_PATH"; fi
 ```
+
+The `npx` commands need `@everframe/cli` published on npm. From a source
+checkout, build the CLI and run `node packages/cli/dist/index.js` instead.
 
 [The CI shell example](examples/upload-apple-symbols.sh) uploads an archive.
 It uses `EVERFRAME_CLI_JS` (a built `dist/index.js`) when set, and
@@ -121,11 +126,19 @@ Xcode Cloud upload without extra steps. Running the command again is safe.
   because the phase reads embedded frameworks, dSYM folders and
   `node_modules`, which a sandboxed script cannot list. A phase that still runs
   sandboxed reports `xcode_script_sandboxed` with this fix.
+- The phase declares the dSYM as an input only for `dwarf-with-dsym` builds,
+  which orders it after dSYM generation. Debug (`dwarf`) builds declare
+  `Info.plist` instead, so a missing dSYM can never fail the build. The
+  installer writes the `EVERFRAME_DSYM_INPUT*` build settings that do this.
 - The phase finds the CLI in this order: `EVERFRAME_CLI_JS` (a built
   `dist/index.js`), then `@everframe/cli` in the project's `node_modules`, then
-  `npx --yes @everframe/cli@<version that installed the phase>`. It needs Node
-  (`NODE_BINARY` from `.xcode.env` is honoured). Without Node it warns and the
-  build continues.
+  `npx --yes --prefer-offline @everframe/cli@<version that installed the phase>`
+  with short registry timeouts. The `npx` fallback needs the CLI to be published
+  on npm. The phase needs Node (`NODE_BINARY` from `.xcode.env` is honoured);
+  without it, it warns and the build continues.
+- Uploads stop after `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` (600 by default for
+  build integrations): the phase warns and the build continues. Files uploaded
+  before then are kept.
 
 XcodeGen regenerates the project, so add the phase to `project.yml` instead.
 `everframe setup xcode --print-script > scripts/upload-everframe-symbols.sh`
@@ -137,13 +150,17 @@ targets:
     settings:
       base:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
+        EVERFRAME_DSYM_INPUT: $(EVERFRAME_DSYM_INPUT_$(DEBUG_INFORMATION_FORMAT:c99extidentifier))
+        EVERFRAME_DSYM_INPUT_dwarf_with_dsym: $(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)
+        EVERFRAME_DSYM_INPUT_dwarf: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        EVERFRAME_DSYM_INPUT_: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
     postBuildScripts:
       - name: Upload Everframe Symbols
         path: scripts/upload-everframe-symbols.sh
         shell: /bin/bash
         basedOnDependencyAnalysis: false
         inputFiles:
-          - $(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)
+          - $(EVERFRAME_DSYM_INPUT)
           - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
 ```
 

@@ -676,3 +676,34 @@ it("reports an optional binary it cannot read instead of failing the whole uploa
     collectAppleBuild({ binaries: [{ path: vendor, required: true }], dsymDirs: [f.root] })
   ).rejects.toThrow(`unsupported_apple_architecture: ${vendor}`);
 });
+it("in lenient mode uploads what matches and reports a required binary without a dSYM", async () => {
+  const f = await fixture(),
+    extension = join(f.root, "TopShelf");
+  await writeFile(extension, macho({ uuid: UUID_B, kind: 2 }));
+  await dsym(f.root, "App");
+  const result = await collectAppleBuild({
+    binaries: [
+      { path: f.binary, required: true },
+      { path: extension, required: true },
+    ],
+    dsymDirs: [f.root],
+    lenient: true,
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.missingRequired).toMatch(/^missing_matching_dsym: no DWARF file under .+ matches these required images/);
+  expect(result.missingRequired).toContain(`arm64 ${UUID_B} in ${extension}`);
+});
+it("in lenient mode skips an unrelated dSYM bundle that escapes its root, with a warning", async () => {
+  const f = await fixture(),
+    other = await fixture();
+  await dsym(f.root, "App");
+  await dsym(other.root, "Elsewhere", macho({ uuid: UUID_B, kind: 10 }));
+  await symlink(join(other.root, "Elsewhere.dSYM"), join(f.root, "Elsewhere.dSYM"));
+  const result = await collectAppleBuild({
+    binaries: [{ path: f.binary, required: true }],
+    dsymDirs: [f.root],
+    lenient: true,
+  });
+  expect(result.artifacts).toHaveLength(1);
+  expect(result.warnings).toEqual([expect.stringMatching(/^skipped .+Elsewhere\.dSYM.*: symlink_escapes_root/)]);
+});

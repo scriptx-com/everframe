@@ -9,6 +9,7 @@ import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
 import { dsymUploadBuildCommand } from "./apple-command.js";
+import { uploadBudget } from "./defaults.js";
 import { elfUploadBuildCommand } from "./elf-command.js";
 import { uploadAndroidElfBuild } from "./elf-upload.js";
 import { collectElfBuild } from "./elf.js";
@@ -64,6 +65,7 @@ Environment:
   EVERFRAME_API_URL    API base URL (default: https://api.everframe.dev/api/v1)
   EVERFRAME_APP_ID     Default application UUID for upload commands
   EVERFRAME_SYMBOLS_STRICT  Set to 1 to fail builds when symbols cannot be uploaded (default: warn)
+  EVERFRAME_UPLOAD_TIMEOUT_SECONDS  Overall upload time limit (default 600 for build integrations)
 `;
 
 export async function main(
@@ -416,6 +418,8 @@ export async function main(
             apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
             token,
           },
+          // The RN/Expo build phase sets EVERFRAME_UPLOAD_TIMEOUT_SECONDS.
+          uploadBudget(env, false),
         );
         console.log(`Source-map build ${result.buildUuid} is ready.`);
         return 0;

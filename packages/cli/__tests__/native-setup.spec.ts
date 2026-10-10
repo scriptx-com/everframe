@@ -11,6 +11,7 @@ import {
   patchAppBuildGradle,
   patchXcodeProject,
   SOURCEMAP_FILE_VALUE,
+  SYMBOLS_BUILD_SETTINGS,
   SYMBOLS_PHASE_INPUTS,
   XCODE_PHASE_NAME,
 } from '../src/native-setup/index.js';
@@ -112,6 +113,11 @@ describe('buildPhaseScript', () => {
     expect(run(ios, { EVERFRAME_API_TOKEN: 't', SRCROOT: dir, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(4);
   });
 
+  it('gives the uploads a time budget the build can override', () => {
+    for (const script of [ios, android])
+      expect(script).toContain('export EVERFRAME_UPLOAD_TIMEOUT_SECONDS="${EVERFRAME_UPLOAD_TIMEOUT_SECONDS:-600}"');
+  });
+
   it('uploads dSYMs after the Hermes map on iOS only', () => {
     expect(ios).toContain(`"$EVERFRAME_NODE" "$EVERFRAME_CLI" dsym upload-build --xcode --app-id "${APP}"`);
     expect(ios.indexOf('upload-hermes')).toBeLessThan(ios.indexOf('dsym upload-build'));
@@ -201,6 +207,15 @@ describe('patchXcodeProject', () => {
     const phase = section[key] as { inputPaths: string[]; alwaysOutOfDate: number };
     expect(phase.inputPaths).toEqual(SYMBOLS_PHASE_INPUTS);
     expect(String(phase.alwaysOutOfDate)).toBe('1');
+  });
+
+  it('turns off script sandboxing and declares inputs that exist in Debug and Release', () => {
+    const project = loadProject();
+    patchXcodeProject(project, APP);
+    for (const s of appBuildSettings(project)) {
+      expect(s.ENABLE_USER_SCRIPT_SANDBOXING).toBe('NO');
+      for (const [key, value] of Object.entries(SYMBOLS_BUILD_SETTINGS)) expect(s[key]).toBe(value);
+    }
   });
 
   it('keeps a SOURCEMAP_FILE the app already defines', () => {

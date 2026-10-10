@@ -40,11 +40,12 @@ async function xcode(overrides: Record<string, string | undefined> = {}) {
 }
 function recorder(
   uncovered: Awaited<ReturnType<typeof uploadAppleBuild>>["uncovered"] = [],
-  failure?: Error
+  failure?: Error,
+  extra: Partial<Awaited<ReturnType<typeof uploadAppleBuild>>> = {}
 ) {
   const upload = vi.fn<typeof uploadAppleBuild>(async () => {
     if (failure) throw failure;
-    return { artifacts: [], images: [], uncovered };
+    return { artifacts: [], images: [], uncovered, missingRequired: undefined, warnings: [], failed: [], ...extra };
   });
   const lines: string[] = [],
     warnings: string[] = [];
@@ -98,7 +99,8 @@ it("uploads the discovered app, framework and extension from an Xcode build", as
       { path: f.bundle.extension, required: true },
     ],
     dsymDirs: [join(f.root, "dsyms"), f.root],
-  });
+    lenient: true,
+  }, { deadline: expect.any(Number) });
 });
 it.each([
   [["--xcode", "--strict"], {}],
@@ -240,4 +242,47 @@ it("the archive shell example runs the CLI without demanding a token", async () 
   const result = spawnSync("bash", [resolve("examples/upload-apple-symbols.sh"), "App with spaces.xcarchive"], { env, encoding: "utf8" });
   expect(result.status).toBe(0);
   expect(JSON.parse(await readFile(capture, "utf8"))).toEqual(["dsym", "upload-build", "--archive", "App with spaces.xcarchive"]);
+});
+it("uploads leniently by default and strictly in strict mode", async () => {
+  const f = await xcode();
+  const r = recorder();
+  await dsymUploadBuildCommand(["--xcode"], f.env, r.deps);
+  expect(r.upload.mock.calls[0]![0].lenient).toBe(true);
+  await dsymUploadBuildCommand(["--xcode", "--strict"], f.env, r.deps);
+  expect(r.upload.mock.calls[1]![0].lenient).toBe(false);
+});
+it("warns about required misses, skipped bundles and failed files after uploading the rest", async () => {
+  const f = await xcode();
+  const r = recorder([], undefined, {
+    missingRequired: "missing_matching_dsym: no DWARF file under /d matches these required images (.dSYM bundles inspected: 1):\n  arm64 X in /b/TopShelf",
+    warnings: ["skipped /d/Other.dSYM: symlink_escapes_root"],
+    failed: [{ path: "/d/F.dSYM/Contents/Resources/DWARF/F", message: "request_failed:secret" }],
+  });
+  expect(await dsymUploadBuildCommand(["--xcode"], f.env, r.deps)).toBe(0);
+  expect(r.warnings).toEqual([
+    "warning: everframe: missing_matching_dsym: no DWARF file under /d matches these required images (.dSYM bundles inspected: 1):",
+    "warning: everframe:   arm64 X in /b/TopShelf",
+    "warning: everframe: skipped /d/Other.dSYM: symlink_escapes_root",
+    "warning: everframe: upload failed for /d/F.dSYM/Contents/Resources/DWARF/F: request_failed:[redacted]",
+    "warning: everframe: crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.",
+  ]);
+});
+it("gives build integrations a ten-minute upload budget that EVERFRAME_UPLOAD_TIMEOUT_SECONDS changes", async () => {
+  const f = await xcode();
+  const r = recorder();
+  const before = Date.now();
+  await dsymUploadBuildCommand(["--xcode"], f.env, r.deps);
+  const deadline = r.upload.mock.calls[0]![1]!.deadline!;
+  expect(deadline - before).toBeGreaterThanOrEqual(600_000);
+  expect(deadline - Date.now()).toBeLessThanOrEqual(600_000);
+  await dsymUploadBuildCommand(["--xcode"], { ...f.env, EVERFRAME_UPLOAD_TIMEOUT_SECONDS: "30" }, r.deps);
+  expect(r.upload.mock.calls[1]![1]!.deadline! - Date.now()).toBeLessThanOrEqual(30_000);
+  await dsymUploadBuildCommand(["--binary", f.bundle.executable, "--dsym-dir", f.root], f.env, r.deps);
+  expect(r.upload.mock.calls[2]![1]?.deadline).toBeUndefined();
+});
+it("warns and keeps the build going when the upload budget runs out", async () => {
+  const f = await xcode();
+  const r = recorder([], new Error("upload_time_budget_exhausted"));
+  expect(await dsymUploadBuildCommand(["--xcode"], f.env, r.deps)).toBe(0);
+  expect(r.warnings[0]).toMatch(/^warning: everframe: symbol upload failed: upload_time_budget_exhausted: .*EVERFRAME_UPLOAD_TIMEOUT_SECONDS/);
 });

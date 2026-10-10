@@ -79,6 +79,8 @@ export function buildPhaseScript(options: BuildPhaseOptions): string {
         ]
       : []),
     'EVERFRAME_STRICT=0; case "${EVERFRAME_SYMBOLS_STRICT:-}" in 1|true) EVERFRAME_STRICT=1;; esac',
+    // Each upload command stops at this budget instead of hanging the build.
+    'export EVERFRAME_UPLOAD_TIMEOUT_SECONDS="${EVERFRAME_UPLOAD_TIMEOUT_SECONDS:-600}"',
     'if [ -z "${EVERFRAME_API_TOKEN:-}" ]; then',
     '  if [ "$EVERFRAME_STRICT" = 1 ]; then',
     '    echo "everframe: missing_api_token: set EVERFRAME_API_TOKEN to a token with the artifacts:write scope." >&2',
