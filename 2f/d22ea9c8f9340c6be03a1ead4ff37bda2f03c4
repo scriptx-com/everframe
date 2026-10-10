@@ -1,0 +1,22 @@
+packages/sdk-react-native/README.md
+  s_360d9eb003c487::t_d31347349138bf 162-164,167-174
+  s_360d9eb003c487::t_e373b915269c55 534-536
+  s_360d9eb003c487::t_13d0c730132291 165-166
+  s_360d9eb003c487::t_09a4fb89d9e2cc 189-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2fd22ea9c8f9340c6be03a1ead4ff37bda2f03c4",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
