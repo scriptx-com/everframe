@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { Platform } from 'react-native';
 import NativeEverframe from '../src/NativeEverframe.js';
 import { __extractBridgeConfigForTesting as extract, createRuntime, type RuntimeConfig } from '../src/runtime.js';
@@ -9,8 +9,11 @@ import { __setCurrentContext } from '../src/contextSeam.js';
 const native = NativeEverframe as unknown as { configure: ReturnType<typeof vi.fn>; configureSync?: ReturnType<typeof vi.fn> };
 const config = (): RuntimeConfig => ({ apiKey: 'key', jsBundle: { buildId: 'loaded-a', bundleName: 'index.android.bundle' },
   releaseHealth: { enabled: true, nativeBuildId: 'native-a', userId: 'opaque-a' } });
-beforeEach(() => { vi.stubGlobal('HermesInternal', {}); vi.spyOn(Platform, 'OS', 'get').mockReturnValue('android'); });
+let warn: MockInstance<typeof console.warn>;
+beforeEach(() => { vi.stubGlobal('HermesInternal', {}); vi.spyOn(Platform, 'OS', 'get').mockReturnValue('android');
+  warn = vi.spyOn(console, 'warn').mockImplementation(() => {}); });
 afterEach(() => { __setCurrentContext(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+const healthWarnings = () => warn.mock.calls.map(call => String(call[0])).filter(text => text.includes('releaseHealth'));
 
 describe('explicit native foreground monitoring configuration', () => {
   it('derives the loaded identity from the validated executing Hermes bundle', () => {
@@ -49,6 +52,36 @@ describe('explicit native foreground monitoring configuration', () => {
   });
   it.each(['', ' ', 'x'.repeat(129), '\ufeff', 'a\u001f'])('disables invalid opaque identity %j', userId => {
     expect(extract({ ...config(), releaseHealth: { enabled: true, nativeBuildId: 'native', userId } }).releaseHealthEnabled).toBe(false);
+  });
+  it.each([
+    [{ jsBundle: { buildId: '', bundleName: 'index.bundle' } }, ['jsBundle']],
+    [{ releaseHealth: { enabled: true, nativeBuildId: ' ' } }, ['releaseHealth.nativeBuildId']],
+    [{ releaseHealth: { enabled: true, nativeBuildId: 'native-a', userId: 'secret\u0001' } }, ['releaseHealth.userId']],
+    [{ jsBundle: undefined, releaseHealth: { enabled: true, nativeBuildId: '', userId: 'secret\u0001' } },
+      ['jsBundle', 'releaseHealth.nativeBuildId', 'releaseHealth.userId']],
+  ] as Array<[Partial<RuntimeConfig>, string[]]>)('warns once naming each rejected opt-in field (case %#)', (override, fields) => {
+    delete (globalThis as any).__EVERFRAME_BUILD__;
+    expect(extract({ ...config(), ...override }).releaseHealthEnabled).toBe(false);
+    const warnings = healthWarnings();
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/^\[everframe\] releaseHealth rejected: /);
+    for (const field of fields) expect(warnings[0]).toContain(field);
+    expect(warnings[0]).toContain('erases undelivered health records');
+    expect(warnings[0]).not.toContain('secret');
+  });
+  it('does not warn for valid, anonymous, explicitly disabled or absent health configuration', () => {
+    extract(config());
+    extract({ ...config(), releaseHealth: { enabled: true, nativeBuildId: 'native-a', userId: null } });
+    extract({ ...config(), jsBundle: undefined, releaseHealth: { enabled: false, nativeBuildId: '' } });
+    extract({ apiKey: 'key' });
+    expect(healthWarnings()).toEqual([]);
+  });
+  it('warns on every configure of a rejected opt-in', () => {
+    const runtime = createRuntime({ ...config(), releaseHealth: { enabled: true, nativeBuildId: '' } });
+    try {
+      runtime.mount(); runtime.unmount(); runtime.mount();
+      expect(healthWarnings()).toHaveLength(2);
+    } finally { runtime.unmount(); }
   });
   it('rejects unsupported engines/platforms and ignores forged flat fields', () => {
     vi.stubGlobal('HermesInternal', undefined);
