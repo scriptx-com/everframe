@@ -1,0 +1,203 @@
+.changeset/android-internet-permission.md
+  s_dbd309ddf8ec5b::t_6d3611fb42e3d5 1-8
+.changeset/automatic-symbol-upload.md
+  s_dbd309ddf8ec5b::t_39b8f6051b909e 1-21
+.changeset/tvos-install-resolver.md
+  s_dbd309ddf8ec5b::t_4d659c68185044 1-8
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_5b86675ae8ea8e 42-43
+examples/android-compose/app/build.gradle.kts
+  s_dbd309ddf8ec5b::t_69ec22155c7b27 23-26
+examples/android-compose/settings.gradle.kts
+  s_dbd309ddf8ec5b::t_78af22539ab886 29-40,45-51
+examples/ios-native/SampleApp.xcodeproj/project.pbxproj
+  s_dbd309ddf8ec5b::t_ec608db82d37cb 159,182,260-280,300-320,378-382,469-473,493-497,517-521
+examples/ios-native/package.json
+  s_dbd309ddf8ec5b::t_196a59555ad485 8-10
+examples/ios-native/project.yml
+  s_dbd309ddf8ec5b::t_107e7540d43573 58-63,68-75,100-105,109-116
+examples/ios-native/scripts/upload-everframe-symbols.sh
+  s_dbd309ddf8ec5b::t_5b220cef3d2586 1-33
+examples/react-native/app.json
+  s_dbd309ddf8ec5b::t_e27a25c7ac63d3 39-40
+examples/react-native/package.json
+  s_dbd309ddf8ec5b::t_90d66931287c08 26-27
+examples/react-native/plugins/with-pod-deployment-targets.js
+  s_dbd309ddf8ec5b::t_d73cd1168be662 1-39
+packages/cli/README.md
+  s_dbd309ddf8ec5b::t_97771de1b6b107 29-30,32,34-35,38-41,44-97,110,112,115-173,176-180,183-184,187-200,226,228-231,236-259,266-268,272-274,276-277
+packages/cli/__tests__/apple-build-fixture.ts
+  s_dbd309ddf8ec5b::t_261eb0cb69049c 4,94-125
+packages/cli/__tests__/apple-build.spec.ts
+  s_dbd309ddf8ec5b::t_228f0425e25c83 27-28,285,308,318,326,329,335,346,422,433,458,464,506,519,552,567,578,592,597-709
+packages/cli/__tests__/apple-command.spec.ts
+  s_dbd309ddf8ec5b::t_357e9c23133a76 1-288
+packages/cli/__tests__/apple-discover.spec.ts
+  s_dbd309ddf8ec5b::t_ceca8c33a64351 1-218
+packages/cli/__tests__/apple-upload.spec.ts
+  s_dbd309ddf8ec5b::t_e073bd3afeb036 32-33,278-285
+packages/cli/__tests__/command.spec.ts
+  s_dbd309ddf8ec5b::t_ddac5a38c3157a 309-329
+packages/cli/__tests__/elf-build.spec.ts
+  s_dbd309ddf8ec5b::t_81716be538d915 12-13,69,82,89,95,100,105,108,121,124,162
+packages/cli/__tests__/elf-command.spec.ts
+  s_dbd309ddf8ec5b::t_254fbe6fcd94e3 1-250
+packages/cli/__tests__/elf-upload-build.spec.ts
+  s_dbd309ddf8ec5b::t_83d4d29f04edc4 24,76,83,123,133
+packages/cli/__tests__/native-setup.spec.ts
+  s_dbd309ddf8ec5b::t_8a9fb4d9930eee 3-5,11,13,16-17,58-133,162-171,204-222,237-264
+packages/cli/__tests__/r8.spec.ts
+  s_dbd309ddf8ec5b::t_574deb729fceec 15-17,120,123,125-140,144-150,159,162,189-191,203-230,421-439
+packages/cli/__tests__/setup-react-native.spec.ts
+  s_dbd309ddf8ec5b::t_247fbc998ff5aa 104-111
+packages/cli/__tests__/setup-xcode.spec.ts
+  s_dbd309ddf8ec5b::t_f3dc2b7a922da3 1-229
+packages/cli/__tests__/upload.spec.ts
+  s_dbd309ddf8ec5b::t_45d134bf0810ec 97-104,499-552
+packages/cli/build-constants.ts
+  s_dbd309ddf8ec5b::t_6374ee5456ffb5 1-13
+packages/cli/examples/upload-apple-symbols.sh
+  s_dbd309ddf8ec5b::t_973ea9eee5a722 4,6-7,14,16-18
+packages/cli/src/apple-build.ts
+  s_dbd309ddf8ec5b::t_0e3ca4a20d7c2a 6,18-36,39,41-50,52-54,367-380,382,384-421,423,425,430,432-435,437,439,441-442,445,447,449-450,458,463,468,470,473-498,503-504,507,519,521,523-524,528-543,546,549-550,553,558,560-562
+packages/cli/src/apple-command.ts
+  s_dbd309ddf8ec5b::t_2d6ba9288e836c 1-129
+packages/cli/src/apple-discover.ts
+  s_dbd309ddf8ec5b::t_6de77194ac69ee 1-280
+packages/cli/src/apple-upload.ts
+  s_dbd309ddf8ec5b::t_0a0feb5d8b4458 8,13,41-42,46-47,50-63,65-66,69-88,91-98
+packages/cli/src/build-verify.ts
+  s_dbd309ddf8ec5b::t_75c6600d2d5b52 40-43
+packages/cli/src/defaults.ts
+  s_dbd309ddf8ec5b::t_c92cd4ca67c881 1-40
+packages/cli/src/elf-build.ts
+  s_dbd309ddf8ec5b::t_cbb7bc583d6fe1 5,20-38,40,45,48-54,61,80-81,102-109,111,116-124,126-127,129,133-134,144-145,155-171,173,179-180,192-229,233
+packages/cli/src/elf-command.ts
+  s_dbd309ddf8ec5b::t_d464dad98e36a6 1-113
+packages/cli/src/elf-upload.ts
+  s_dbd309ddf8ec5b::t_ca46614e89627a 5,9,14-19,29
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_c00ab92d20443d 11-13,20-22,54-55,57,66-68,91,94,108-132,262-263,299-300,364,421-422,499,501-504
+packages/cli/src/native-setup/gradle.ts
+  s_dbd309ddf8ec5b::t_8346d3b1d6ee15 3-29,57-63,72-73,79,81
+packages/cli/src/native-setup/index.ts
+  s_dbd309ddf8ec5b::t_425f96ce977dc3 5,8-9
+packages/cli/src/native-setup/script.ts
+  s_dbd309ddf8ec5b::t_bf7768222d276c 18-19,22,27-49,59-65,73-83,85-89,92-93,96-97,100,105-111
+packages/cli/src/native-setup/xcode-symbols.ts
+  s_dbd309ddf8ec5b::t_082381e454c01b 1-139
+packages/cli/src/native-setup/xcode.ts
+  s_dbd309ddf8ec5b::t_73f52b01ee550a 4,18,31-34,38-39,41,44-46,56-57
+packages/cli/src/r8.ts
+  s_dbd309ddf8ec5b::t_abc137d36d8636 4-5,21-26,49-52
+packages/cli/src/setup-react-native.ts
+  s_dbd309ddf8ec5b::t_8679082e289648 6,39-47
+packages/cli/src/setup-xcode.ts
+  s_dbd309ddf8ec5b::t_2cbfc9130e194a 1-24
+packages/cli/src/upload-snapshot.ts
+  s_dbd309ddf8ec5b::t_43d60322116a34 4-5,8-10,61,118-151,173
+packages/cli/src/upload.ts
+  s_dbd309ddf8ec5b::t_ac47a7315d7912 8,27-66,203,210,215-218,234,238,251-255,260-270,273,367-368,425,427,447-448,450-451,454,468,474-475,486,500,506
+packages/cli/src/version.ts
+  s_dbd309ddf8ec5b::t_6e9c058c1fe3ab 1-5
+packages/cli/tsconfig.test.json
+  s_dbd309ddf8ec5b::t_6fe1050d16c894 4
+packages/cli/tsup.config.ts
+  s_dbd309ddf8ec5b::t_78e97f92f47dc2 4,18
+packages/cli/vitest.config.ts
+  s_dbd309ddf8ec5b::t_36deb55d561a29 4,7
+packages/expo/README.md
+  s_dbd309ddf8ec5b::t_4311ba82f245cc 62-68
+packages/expo/__tests__/with-everframe.spec.ts
+  s_dbd309ddf8ec5b::t_68b36fed886fd1 5,33-37
+packages/expo/src/withEverframe.ts
+  s_dbd309ddf8ec5b::t_3310082b9c73cb 7,13,25-30,37-40
+packages/protocol/__tests__/build-artifacts-manifest.spec.ts
+  s_dbd309ddf8ec5b::t_bcd4f6b887c7ce 6,249,254-261
+packages/protocol/__tests__/dsym-manifest.spec.ts
+  s_dbd309ddf8ec5b::t_51bf23df3f0e55 40,51
+packages/protocol/__tests__/elf-manifest.spec.ts
+  s_dbd309ddf8ec5b::t_c719ee25bffe50 40,51
+packages/protocol/src/build-artifacts.ts
+  s_dbd309ddf8ec5b::t_b5351fcb11da75 34-40,109-113,171
+packages/sdk-android/android/README.md
+  s_dbd309ddf8ec5b::t_cf8653f0b65ce9 10,51-52,56-59,69,88-91,478,481,483-484,487-490,494-525,637-639
+packages/sdk-android/android/everframe-core/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_ba40a63b386b3a 4-12
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_968a586bfed3a6 694-698
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/DeviceMetadata.kt
+  s_dbd309ddf8ec5b::t_74e60a941934af 14-15,18-19
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionBadge.kt
+  s_dbd309ddf8ec5b::t_afcf23896ca523 35-36
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/BuildArtifactIdentity.kt
+  s_dbd309ddf8ec5b::t_e5ed54a3cec77e 1-30
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_dbd309ddf8ec5b::t_768a3e40918bad 95-97
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/BuildArtifactIdentityTest.kt
+  s_dbd309ddf8ec5b::t_601e563642f2ec 1-36
+packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts
+  s_dbd309ddf8ec5b::t_1032f2831ee6ec 58-66,76,99
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeCli.kt
+  s_dbd309ddf8ec5b::t_ab6a1c58367e36 1-27
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeExtension.kt
+  s_dbd309ddf8ec5b::t_880f461a31d41e 9-11,13-18
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframePlugin.kt
+  s_dbd309ddf8ec5b::t_bfbd9fa8da860d 15-22,41,43-45,48
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeUploadPolicy.kt
+  s_dbd309ddf8ec5b::t_da20daaf6d062e 1-81
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/GenerateBuildIdentityTask.kt
+  s_dbd309ddf8ec5b::t_d8d5b7936e9503 1-26
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/R8MappingIdentity.kt
+  s_dbd309ddf8ec5b::t_bd950cff1471b6 5,7,9-10,12-21,23,25-28
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/UploadNativeSymbolsTask.kt
+  s_dbd309ddf8ec5b::t_8a38b2c60f0504 1-127
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/UploadR8MappingTask.kt
+  s_dbd309ddf8ec5b::t_30fb35f053e9dd 5,7,12,14,21,24-27,30,32-34,36-42
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/VariantIntegration.kt
+  s_dbd309ddf8ec5b::t_2c63e246ab0d1e 8-9,11-12,15-21,23-24,27-28,30,33-34
+packages/sdk-android/android/everframe-gradle-plugin/src/main/resources/dev/everframe/gradle/cli-version.properties
+  s_dbd309ddf8ec5b::t_06b6d5adb138db 1-3
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/EverframeCliVersionTest.kt
+  s_dbd309ddf8ec5b::t_413c5c0bfcbb71 1-15
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/NativeSymbolsPluginFunctionalTest.kt
+  s_dbd309ddf8ec5b::t_54c586f3464cb8 1-85
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/PluginFixture.kt
+  s_dbd309ddf8ec5b::t_481df2792a03cc 1-132
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/R8MappingIdentityTest.kt
+  s_dbd309ddf8ec5b::t_d1e3a82367a90d 5,9-11,14,16-20,23-27
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/R8PluginFunctionalTest.kt
+  s_dbd309ddf8ec5b::t_e1c69af4601cf7 5,11-14,18-31,34-37,40-46,49-55,58-62,65-70,73-76,79-83,86-92,95-104
+packages/sdk-android/android/everframe-protocol/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_9d02e3b8a7f4d3 4
+packages/sdk-android/android/everframe-reporter-ui/src/main/AndroidManifest.xml
+  s_dbd309ddf8ec5b::t_d9ea84ff90fae4 4
+packages/sdk-ios/README.md
+  s_dbd309ddf8ec5b::t_28eadfa4a189ca 42-45,47-48,54-57,59-69,78-80
+packages/sdk-ios/Sources/EverframeReporterUI/CompanionPinPresenter.swift
+  s_dbd309ddf8ec5b::t_8211d08285c8ae 8
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_dbd309ddf8ec5b::t_c5d655f953e2a1 23-24,55-59,241-254
+packages/sdk-react-native/android/build.gradle.kts
+  s_dbd309ddf8ec5b::t_f964ae97b10a02 24-27
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_dbd309ddf8ec5b::t_9f05c6117293cf 209-211
+pnpm-lock.yaml
+  s_dbd309ddf8ec5b::t_cfd49f8ebbbb8b 77-81,90,98-99,101-102,1888-1889,3741-3742,3748-3749,3753-3754,3782-3783,3792-3793,3801-3802,7223,7233,7235,7242,7259,7375,7377,7407,7474,7476,7478,7483,7509,7615,7618-7620,7894,7896,8782,8829,9362,9365-9366,9373,9376,9380,9383,9388,9390,9393,9395,9400,9402,9415,9418,9423,9429,9432,9436,9438,9440,9442-9447,9449,9456
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0418769df16e92a3ee31b1fc9770898630cca435",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
