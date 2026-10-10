@@ -1,0 +1,29 @@
+packages/sdk-vega/README.md
+  s_dbd309ddf8ec5b::t_ec5877abf8c1d7 103-107
+packages/sdk-vega/__tests__/bundle.spec.ts
+  s_dbd309ddf8ec5b::t_cd99f6dc05fa32 55-56,61-85
+packages/sdk-vega/__tests__/client.spec.ts
+  s_dbd309ddf8ec5b::t_75981f86ab56f9 317-336
+packages/sdk-vega/src/bundle.ts
+  s_dbd309ddf8ec5b::t_a3feef9c8e45dd 41-56,60-62,64-73,76-81
+packages/sdk-vega/src/client.ts
+  s_dbd309ddf8ec5b::t_1a1d98b5231191 169
+packages/sdk-vega/src/envelope.ts
+  s_dbd309ddf8ec5b::t_2fee118118420b 149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a62f10172731ffcb6014708fb82a938a398e00eb",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
