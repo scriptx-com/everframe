@@ -1,0 +1,29 @@
+.changeset/ios-inferred-terminations.md
+  s_dbd309ddf8ec5b::t_6783357e957f1f 1-8
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_619fc2d82bbe5d 25
+docs/release-health.md
+  s_dbd309ddf8ec5b::t_64d7704d191ba9 89-92
+packages/sdk-ios/README.md
+  s_dbd309ddf8ec5b::t_5f0436230b2bfe 117-152
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_dbd309ddf8ec5b::t_76a11d14de0558 46,56-90
+packages/sdk-ios/Tests/NativeCrashStartupProof/README.md
+  s_dbd309ddf8ec5b::t_691417fed5bcc7 9-10,14-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c36e06ce323a2a4077288922e9bcd641228580ae",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
