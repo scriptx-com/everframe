@@ -75,15 +75,15 @@ with truncation flags. Causes do not change the outer error's grouping key.
 | API | JVM exceptions | Native crashes | ANRs |
 | --- | --- | --- | --- |
 | 24–25 | yes | — | — |
-| 26–29 | yes | with the optional `dev.everframe:native-crash` module | — |
+| 26–29 | yes | with the optional `dev.everframe:native-crash` module (not yet on Maven Central) | — |
 | 30 | yes | OS exit record without frames; with `native-crash`, the fault frame, reported once | yes |
 | 31+ | yes | OS exit record with tombstone frames | yes |
 
-Native and OS exit capture run in the default app process only; other processes report JVM exceptions. `Everframe.isNativeCrashCaptureReady()` becomes true once every mechanism selected for the current start has armed. It stays false where no native mechanism exists, while setup runs, and when a mechanism refused (another app-bundled native crash collector, or unextracted native libraries).
+Native and OS exit capture run in the default app process only; other processes report JVM exceptions. Capture begins once the asynchronous arm after `start()` completes; a native crash or ANR before that is not reported. `Everframe.isNativeCrashCaptureReady()` becomes true once every mechanism selected for the current start has armed. It stays false where no native mechanism exists, while setup runs, and when a mechanism refused (another app-bundled native crash collector, or unextracted native libraries).
 
 To turn capture off, start with `CaptureConfig(crash = false)`: capture stops at once, and unadmitted evidence from earlier processes is kept but not sent. `capture.crash = false` also disables `captureException`. `Everframe.kill()` stops the SDK and erases unadmitted crash evidence.
 
-While `capture.crash` is on, the SDK owns `ActivityManager.setProcessStateSummary` in the default process; do not call it. An exit whose summary another writer replaced is not reported, and is never misattributed. When exit history shows such a summary, the SDK logs an `Everframe` warning naming `process-state-summary-conflict`.
+While `capture.crash` is on, the SDK owns `ActivityManager.setProcessStateSummary` in the default process; do not call it. An exit whose summary another writer replaced is not reported, and is never misattributed. When exit history shows such a summary, the SDK logs an `Everframe` warning naming `process-state-summary-conflict`. A writer that always runs before the SDK is overwritten silently and loses its own use of the slot.
 
 ANR terminations use the OS exit reason, not a missing heartbeat. Only native crash and ANR exits are reported. Low-memory kills, user-requested stops, JVM crash exits (the uncaught-exception handler already reports those) and other reasons are not sent. A recovered live stall produces no report. An ANR trace attached to an unrelated exit is never used to relabel that exit. API30 native exits have metadata only; native tombstones require API31. Reports are anonymous and preserve the previous process's destination and release; they do not acquire the new process's user, session or web exposure.
 

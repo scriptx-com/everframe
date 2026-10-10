@@ -76,6 +76,11 @@ requests, and native platform views outside the Flutter capture boundary are
 not included. The same integration key works on Android and iOS; reports still
 identify their host platform.
 
+The bridge starts the native SDK with crash capture on. On Android that covers JVM
+exceptions, native crashes and ANRs (Android 11+), and the native SDK then owns
+`ActivityManager.setProcessStateSummary` in the app's main process; do not call it
+from your app. See the [Android SDK guide](../sdk-android/README.md#crash-capture-on-by-default).
+
 The Android and iOS simulator samples submitted masked screenshots and replay
 to a local dashboard. Physical-device behavior, production delivery, and
 offline retry after process restart remain unverified. Flutter web's masked
