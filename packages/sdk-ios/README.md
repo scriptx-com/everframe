@@ -224,11 +224,46 @@ periods are never individual incident times, and aggregate counts are never cras
 or fatality counts. Process, session and web exposure attribution are unavailable.
 The collector is unavailable on tvOS and macOS.
 
-Callback admission is deliberately sparse: the complete OS reporting interval
-must fit within the current process's uninterrupted opt-in window, and the OS
-application version/build must match the frozen native version/build. Delayed
-payloads spanning restarts, updates, reconfiguration or consent changes are dropped.
-This is not a comprehensive hang monitor or a crash-free denominator.
+The existing Boolean method authorizes only the current process's uninterrupted
+opt-in window. To admit eligible reporting periods across restarts, explicitly
+choose installation scope:
+
+```swift
+let enabled = await Everframe.shared.setAppleDiagnosticsEnabled(true, scope: .installation)
+```
+
+Installation consent lasts up to seven days after each successful reaffirmation.
+Each launch still needs an explicit enable to subscribe, accept callbacks or send
+receipts. Skipping enable does **not** withdraw that consent: a launch that skips
+it can remain inside the authorized reporting period. Call
+`setAppleDiagnosticsEnabled(false)` or `kill()` to withdraw and erase local Apple
+history. Returning to the Boolean method closes installation consent and starts a
+current-process window; it does not reaffirm historical capture.
+
+The complete reporting interval must fit inside one grant, be at most 24 hours
+wide, end no later than collection and arrive within seven days of its end. The
+native app version/build, configured release, SDK, destination and redaction policy
+must match. A different owner at initial SDK startup closes old consent even if
+that launch never enables diagnostics. A repeated `start` in one process also
+closes it. Native updates, consent gaps and detected clock rollback begin a new
+grant; reporting periods are never stitched across gaps or truncated to fit.
+
+**Warm-up:** a 24-hour reporting period needs at least 24 hours of uninterrupted
+authorization. First opt-in and every new grant start that warm-up again. A same-day
+opt-in, crash and restart can therefore remain uncovered. MetricKit delivery timing
+and real reporting-period widths depend on the OS and still need device qualification.
+
+Installation-scoped receipts retain the anonymous context and redaction policy from
+when their grant began. `context.device` describes that earlier device snapshot,
+including locale, time zone, screen orientation and OS version; changes to those
+facts alone do not invalidate consent. `appleDiagnostic.apple.osVersion` describes
+the reporting period supplied by MetricKit. No grant identifier is transmitted;
+`ownershipId` identifies the admitting enable window, not an installation.
+
+The SDK keeps at most eight grants. It retains the eight newest reporting periods
+from each callback and permits one pending callback per kind (diagnostic or metric).
+Another callback of the same kind arriving while one is pending is dropped without
+retry. This is not a comprehensive hang monitor or a crash-free denominator.
 
 Once accepted, anonymous records use an encrypted receipt journal and outbox.
 Explicit opt-in after restart permits retry only for the same SDK key and endpoint,

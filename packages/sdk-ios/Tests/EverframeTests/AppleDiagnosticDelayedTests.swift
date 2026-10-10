@@ -66,6 +66,20 @@ final class AppleDiagnosticDelayedTests: XCTestCase {
         XCTAssertNil(two.reporter.user); XCTAssertNil(last.identitySubject); XCTAssertNil(two.sessionID)
         await stop(b)
     }
+    func testExportDelayedProducerFixtures() async throws {
+        try await seed(); let b = runtime(86400)
+        expect(await b.enable(context: try context(changed: true), scope: .installation))
+        for kind in ["hang_batch", "app_exit_summary"] { expect(await b.accept(candidate(0, 86400, kind: kind))) }
+        let entries = try box().hydrate(); XCTAssertEqual(entries.count, 2)
+        if let path = ProcessInfo.processInfo.environment["EVERFRAME_APPLE_PROOF_DIR"] {
+            let directory = URL(fileURLWithPath: path)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            for (index, name) in ["hang", "exits"].enumerated() {
+                try entries[index].envelopeBytes.write(to: directory.appendingPathComponent("synthetic-apple-delayed-\(name).json"))
+            }
+        }
+        await stop(b)
+    }
     func testLegacyModeClosesGrantAndNeverAdmitsHistoricalCallback() async throws {
         try await seed(); let b = runtime(100)
         expect(await b.enable(context: try context())); expect(await b.accept(candidate(0, 50)), false)

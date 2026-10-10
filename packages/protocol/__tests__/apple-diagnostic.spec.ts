@@ -85,3 +85,19 @@ describe('Apple MetricKit diagnostic evidence', () => {
     expect(ReportEnvelope.safeParse(v).success).toBe(false);
   });
 });
+
+// Produced by AppleDiagnosticDelayedTests through the real Swift runtime after
+// an installation-scoped restart, using typed synthetic (not OS) candidates.
+describe('delayed Swift Apple producer compatibility', () => {
+  it.each(['hang', 'exits'])('accepts delayed %s without identity or session claims', kind => {
+    const input = JSON.parse(readFileSync(new URL(`./fixtures/apple-delayed-${kind}.json`, import.meta.url), 'utf8'));
+    const parsed = ReportEnvelope.parse(input);
+    expect(parsed.payload.appleDiagnostic?.outcome).toBe('unknown');
+    expect(parsed.payload.appleDiagnostic?.attribution.session).toBe('unavailable');
+    expect(parsed.reporter.user).toBeUndefined();
+    expect(parsed.sessionId).toBeUndefined();
+    expect(parsed.payload.crash).toBeUndefined();
+    expect(parsed.context.device.timezone).toBe('UTC');
+    expect(parsed.payload.appleDiagnostic?.apple.osVersion).toBe('iOS 19.0');
+  });
+});

@@ -146,12 +146,15 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         release.signal(); expect(await newer.value); expect(await live.finishRevocation(request))
         XCTAssertTrue(try outbox().hydrate().isEmpty); live.boundary()
     }
-    func testRetryAfterRestartUsesFrozenReceiptAndDurablySettlesHTTPAcceptance() async throws {
+    func testDelayedReceiptRetryAfterRestartUsesFrozenBytesAndDurablySettlesHTTPAcceptance() async throws {
         let date = Date()
         // Use an exact runtime clock for the reporting-window boundary.
+        let begin = date.addingTimeInterval(-86400)
+        var previous: AppleDiagnosticRuntime? = runtime(at: begin)
+        expect(await previous!.enable(context: try context(), scope: .installation)); previous = nil
         let live = runtime(at: date)
-        expect(await live.enable(context: try context()))
-        let accepted = AppleDiagnosticCandidate(kind: "hang_batch", begin: date, end: date,
+        expect(await live.enable(context: try context(), scope: .installation))
+        let accepted = AppleDiagnosticCandidate(kind: "hang_batch", begin: begin, end: date,
             applicationVersion: "1.0", applicationBuild: "42", osVersion: "iOS 18.0",
             hangs: [.init(durationMs: 2000, stack: .init(status: "unavailable", truncated: false, frames: []))], exits: [], truncated: false)
         expect(await live.accept(accepted))
@@ -175,6 +178,10 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
         XCTAssertEqual(try outbox().hydrate(), [manual]); final.boundary()
         let requests = AppleRetryProtocol.requests
         XCTAssertEqual(requests.count, 2)
+        let bodies = AppleRetryProtocol.bodies
+        XCTAssertEqual(bodies.count, 2)
+        // Multipart boundaries can differ; the immutable envelope bytes cannot.
+        for body in bodies { XCTAssertNotNil(body.range(of: original.envelopeBytes)) }
         for request in requests {
             XCTAssertEqual(request.value(forHTTPHeaderField: "X-Everframe-Idempotency-Key"), original.idempotencyKey)
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sdk-A")
@@ -222,7 +229,7 @@ final class AppleDiagnosticRuntimeTests: XCTestCase {
             attachmentRefs: [], sdkKey: "manual-owner", endpoint: "https://example.invalid/api/ingest")
         _ = try box.enqueueRecovered(manual)
         let live = runtime(box: box, retryInterval: 0.01)
-        let enabled = await live.enable(context: try context(), drain: { drains.increment() }); expect(enabled)
+        let enabled = await live.enable(context: try context(), scope: .installation, drain: { drains.increment() }); expect(enabled)
         // Every rewrite re-seals the queue under a fresh nonce: equal bytes mean no rewrite.
         let idle = try Data(contentsOf: file)
         try await Task.sleep(nanoseconds: 300_000_000)
@@ -398,11 +405,25 @@ private final class AppleRetryProtocol: URLProtocol {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var recorded: [URLRequest] = []
     static var requests: [URLRequest] { lock.withLock { recorded } }
-    static func reset() { lock.withLock { recorded = [] } }
+    nonisolated(unsafe) private static var recordedBodies: [Data] = []
+    static var bodies: [Data] { lock.withLock { recordedBodies } }
+    static func reset() { lock.withLock { recorded = []; recordedBodies = [] } }
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
-        let status = Self.lock.withLock { Self.recorded.append(request); return Self.recorded.count == 1 ? 503 : 200 }
+        var body = request.httpBody ?? Data()
+        if let stream = request.httpBodyStream {
+            stream.open(); defer { stream.close() }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                if count <= 0 { break }; body.append(contentsOf: buffer.prefix(count))
+            }
+        }
+        let status = Self.lock.withLock {
+            Self.recorded.append(request); Self.recordedBodies.append(body)
+            return Self.recorded.count == 1 ? 503 : 200
+        }
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocolDidFinishLoading(self)
     }
