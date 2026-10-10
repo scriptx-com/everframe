@@ -166,7 +166,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     const framesRaw = facts.framesRaw.map(stripBuildPath);
     const key = facts.exceptionType === 'UnhandledValue' && framesRaw.length === 0
       ? valueKey(facts.message)
-      : captureKey(facts.exceptionType, framesRaw);
+      : captureKey(facts.exceptionType, framesRaw, facts.message);
     if (!admit(mechanism, fatal, key, value)) return undefined;
     const reportId = uuidV4(env.random);
     const envelope = buildVegaEnvelope({

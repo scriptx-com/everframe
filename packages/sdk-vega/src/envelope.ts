@@ -146,7 +146,7 @@ export function buildVegaEnvelope(input: VegaEnvelopeInput): ReportEnvelope {
     handled,
     fatal: input.fatal,
     occurredAt: input.occurredAt,
-    fingerprint: vegaFingerprint(input.exceptionType, frames),
+    fingerprint: vegaFingerprint(input.exceptionType, frames, message),
     ...(handled ? { details: projectDetails(input.handledOptions, redact) } : {}),
   };
   const envelope = buildEnvelope({
