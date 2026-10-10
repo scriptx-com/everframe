@@ -197,6 +197,25 @@ class CrashCaptureStartTest {
         assertTrue("killed evidence was admitted", nativeReports().isEmpty())
     }
 
+    @Test fun `a kill in a secondary process keeps the default process's OS exit evidence`() {
+        start(); awaitReady()
+        val crashed = crashAndRelaunch()
+        ShadowApplication.setProcessName("${context.packageName}:player")
+        try {
+            start() // a secondary process selects no mechanism and launches no arming work
+            assertFalse("a secondary process must not arm OS exit capture", Everframe.isNativeCrashCaptureReady())
+            assertTrue("a secondary process registered an OS token", platform.registrations.isEmpty())
+            Everframe.kill()
+        } finally {
+            // The secondary process's in-memory commands die with it.
+            AndroidNativeCrashRuntime.__resetForTesting()
+            ShadowApplication.setProcessName(context.packageName)
+        }
+        freshOutbox()
+        start(); awaitReady()
+        assertEquals("the secondary kill erased the default process's evidence", listOf(crashed), nativeReports().map { it.reportId })
+    }
+
     @Test @Config(sdk = [29])
     fun `API 29 without the native-crash module has no native mechanism`() {
         start() // no mechanism is selected, so no arming work is launched

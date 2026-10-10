@@ -58,7 +58,8 @@ internal object AndroidNativeCrashRuntime {
 
     /** Off-main caller. While capture.crash is on, the SDK owns this process's state summary. */
     fun enable(context: Context, captured: TXCapturedSession, outbox: JSONLOutbox, request: Long, diagnostics: Boolean = false): Boolean {
-        if (Build.VERSION.SDK_INT < (if (diagnostics) 30 else 31) || !captured.captureConsent || captured.config?.capture?.crash != true) return false
+        if (Build.VERSION.SDK_INT < (if (diagnostics) 30 else 31) || !captured.captureConsent ||
+            captured.config?.capture?.crash != true || !AppProcess.isDefault(context)) return false
         val epoch = captured.user.startEpoch
         val gate = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch && requests.allows(request, epoch, true)
@@ -96,6 +97,8 @@ internal object AndroidNativeCrashRuntime {
     /** Outside SDK stateLock. Pending OS reads cannot block this transition. */
     fun boundary(context: Context?, epoch: Int, erasePersisted: Boolean, isCurrent: () -> Boolean, request: Long? = null) {
         if (Build.VERSION.SDK_INT < 30 || !isCurrent()) return
+        // Journals are shared by every process of the app; only the default process owns them.
+        if (context != null && !AppProcess.isDefault(context)) return
         val command = request ?: requests.boundary(epoch)
         val owns = { isCurrent() && requests.allows(command, epoch, false) }
         if (!owns()) return
