@@ -1,0 +1,35 @@
+.changeset/ios-inferred-terminations.md
+  s_dbd309ddf8ec5b::t_6783357e957f1f 1-8
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_619fc2d82bbe5d 25
+docs/release-health.md
+  s_dbd309ddf8ec5b::t_64d7704d191ba9 89-92
+packages/sdk-ios/README.md
+  s_dbd309ddf8ec5b::t_5f0436230b2bfe 117-152
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_dbd309ddf8ec5b::t_76a11d14de0558 46,56-90
+packages/sdk-ios/Tests/NativeCrashStartupProof/README.md
+  s_dbd309ddf8ec5b::t_691417fed5bcc7 9-10,14-24
+packages/sdk-ios/Sources/Everframe/Termination/TerminationTracker.swift
+  s_dbd309ddf8ec5b::t_208eb5b6c155df 65
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecovery.swift
+  s_dbd309ddf8ec5b::t_d145e1f67fe014 185-189
+packages/sdk-ios/Tests/EverframeTests/TerminationRuntimeTests.swift
+  s_dbd309ddf8ec5b::t_9a95460b3a9648 77,82-83,86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e9e1b8da1d3d3f9b16daff29c561b153e388a16b",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
