@@ -1,0 +1,29 @@
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_00e5c5b275e927 281-284
+packages/sdk-react-native/__tests__/crash-reporting-config.spec.ts
+  s_dbd309ddf8ec5b::t_258d3c86dcbf65 1-23
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_dbd309ddf8ec5b::t_0435c750334d53 269-271,288
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleConfigureTest.kt
+  s_dbd309ddf8ec5b::t_b11ecb370bed2f 146-172
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_dbd309ddf8ec5b::t_c0243ffcf84237 134-141
+packages/sdk-react-native/src/runtime.ts
+  s_dbd309ddf8ec5b::t_c0b9fe6259f29d 76,136,706-710
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3521993e984faf9b3a149b58b4ab2d422c7f7a21",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
