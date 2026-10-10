@@ -15,6 +15,25 @@ final class NativeCrashRuntime: @unchecked Sendable {
         /// Nil provides no safe retirement authority (e.g. an enabled recorder).
         var retainedContextIdentifiers: () -> Set<UUID>? = { nil }
     }
+    /// Foreground-termination inference for this process's run. Disabled by default; the app
+    /// runtime passes `.production`, which is enabled only where TerminationPlatform allows it.
+    struct TerminationOptions: Sendable {
+        var enabled: Bool
+        var identity: @Sendable () -> TerminationIdentity
+        var now: @Sendable () -> Date
+        var launchID: UUID
+        var startTracking: @Sendable (TerminationStateFile) -> Void
+        static let disabled = TerminationOptions(enabled: false, identity: { .current() }, now: { Date() },
+            launchID: ReleaseHealthProcessIdentity.id, startTracking: { _ in })
+        static var production: TerminationOptions {
+            #if canImport(UIKit)
+            return TerminationOptions(enabled: TerminationPlatform.isEligible(), identity: { .current() }, now: { Date() },
+                launchID: ReleaseHealthProcessIdentity.id, startTracking: { TerminationTracker.startForApplication($0) })
+            #else
+            return .disabled
+            #endif
+        }
+    }
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var installed = false
@@ -30,6 +49,10 @@ final class NativeCrashRuntime: @unchecked Sendable {
     private let recorder: Recorder
     private let keyProvider: @Sendable () throws -> Data
     private let scheduleAdmission: @Sendable (@escaping @Sendable () -> Void) -> Void
+    private let termination: TerminationOptions
+    /// Set once under `lock`; armed and disarmed only under `lock`, in step with the recorder:
+    /// an inference is possible only where a real crash at that instant would have been captured.
+    private var terminationState: TerminationStateFile?
     private enum Prepared: Sendable { case published; case context(URL, UUID, unlinked: UUID?, exposureID: String?) }
     // Worker-owned recovery and immutable context state.
     private var recovery: NativeCrashRecovery?
@@ -44,8 +67,10 @@ final class NativeCrashRuntime: @unchecked Sendable {
 
     init(rootURL: URL, outbox: JSONLOutbox, recorder: Recorder,
          keyProvider: @escaping @Sendable () throws -> Data = { try OutboxEncryptionKey.getOrCreate() },
-         scheduleAdmission: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) }) {
+         scheduleAdmission: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) },
+         termination: TerminationOptions = .disabled) {
         self.rootURL = rootURL; self.outbox = outbox; self.recorder = recorder; self.keyProvider = keyProvider; self.scheduleAdmission = scheduleAdmission
+        self.termination = termination
     }
 
     /// Synchronous ownership barrier. An event already admitted by the native
@@ -54,6 +79,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
         lock.withLock {
             generation &+= 1
             publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
+            terminationState?.disarm()
             if installed { recorder.disable() }
             return generation
         }
@@ -67,11 +93,13 @@ final class NativeCrashRuntime: @unchecked Sendable {
             let unlinked = publishedTicket == generation ? publishedUnlinked : nil
             generation &+= 1
             publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
+            terminationState?.disarm()
             guard installed else { return generation }
             recorder.disable()
             if let unlinked, Thread.isMainThread {
                 guard recorder.publish(unlinked) else { recorder.disable(); return generation }
                 publishedTicket = generation; publishedUnlinked = unlinked
+                terminationState?.arm(contextID: unlinked)
             }
             return generation
         }
@@ -116,7 +144,8 @@ final class NativeCrashRuntime: @unchecked Sendable {
             guard generation == ticket, installed else { return false }
             if publishedTicket == ticket { return true }
             // The current-generation check and enable share opt-out's leaf lock.
-            guard recorder.publish(identifier) else { recorder.disable(); return false }
+            guard recorder.publish(identifier) else { recorder.disable(); terminationState?.disarm(); return false }
+            terminationState?.arm(contextID: identifier)
             publishedTicket = ticket; publishedUnlinked = unlinked; publishedExposureID = exposureID
             return true
         }
@@ -130,7 +159,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
         // must not close a healthy gate while rebuilding the same snapshot.
         if lock.withLock({ generation == ticket && publishedTicket == ticket }) { return .published }
         // Also safe for a caller refreshing the same ticket after a failure.
-        lock.withLock { if generation == ticket, installed { recorder.disable() } }
+        lock.withLock { if generation == ticket, installed { recorder.disable(); terminationState?.disarm() } }
         do {
             guard let context = try context(), isCurrent(ticket) else { return nil }
             if recovery == nil {
@@ -138,11 +167,16 @@ final class NativeCrashRuntime: @unchecked Sendable {
             }
             guard let recovery else { return nil }
             if !didRecover {
-                for id in try recovery.closedRunIDs() {
+                // Oldest first; the last is the previous SDK process, the only run evaluated for a
+                // foreground termination. Any run's journal still resumes, whatever its age.
+                let closed = try recovery.closedRunIDs()
+                let inference = termination.enabled
+                    ? TerminationInference.Context(current: termination.identity(), now: termination.now()) : nil
+                for id in closed {
                     guard isCurrent(ticket) else { return nil }
                     // A per-record failure retains evidence for the next launch.
                     // Structural inventory failures above stop the whole attempt.
-                    _ = try? recovery.recover(runID: id, outbox: outbox)
+                    _ = try? recovery.recover(runID: id, outbox: outbox, inference: id == closed.last ? inference : nil)
                 }
                 // A run's age counts from its process start, not from the crash.
                 // Import first so a long-lived process's fresh record is not retired.
@@ -150,7 +184,16 @@ final class NativeCrashRuntime: @unchecked Sendable {
                 didRecover = true
             }
             guard isCurrent(ticket) else { return nil }
-            if run == nil { run = try recovery.prepareRun() }
+            if run == nil {
+                let prepared = try recovery.prepareRun(terminationState: termination.enabled)
+                run = prepared
+                if let state = prepared.terminationState {
+                    // Header before anything can arm or sample; then the tracker owns the other fields.
+                    state.writeHeader(launchID: termination.launchID, identity: termination.identity(), startedAt: termination.now())
+                    lock.withLock { terminationState = state }
+                    termination.startTracking(state)
+                }
+            }
             guard let run else { return nil }
             if preparedTicket != ticket { preparedTicket = ticket; preparedIdentifiers = [] }
             guard let identifier = try contextIdentifier(context, ticket: ticket, recovery: recovery, run: run) else { return nil }

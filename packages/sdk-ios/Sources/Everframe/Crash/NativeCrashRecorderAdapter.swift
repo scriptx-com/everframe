@@ -26,7 +26,7 @@ enum NativeCrashRecorderAdapter {
                     var current = [CChar](repeating: 0, count: 37), admitted = [CChar](repeating: 0, count: 37)
                     guard EFCRCopyRetainedContextIdentifiers(&current, &admitted) else { return nil }
                     return Set([String(cString: current), String(cString: admitted)].compactMap(UUID.init(uuidString:)))
-                }))
+                }), termination: .production)
     }
 
     /// The recorder accepts only realpath(3)'s spelling of its run directory.
