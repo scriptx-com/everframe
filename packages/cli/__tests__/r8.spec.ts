@@ -365,6 +365,25 @@ describe("uploadCollectedBuild with R8 inputs", () => {
 });
 
 describe("r8 upload command", () => {
+  it("stops at EVERFRAME_UPLOAD_TIMEOUT_SECONDS when the server never answers", async () => {
+    const f = await fixture();
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init = {}) => new Promise((_resolve, reject) => init.signal!.addEventListener("abort", () => reject(init.signal!.reason))),
+    );
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const started = Date.now();
+    try {
+      await expect(
+        main(["r8", "upload", "--app-id", appId, "--mapping-id", "ci-123", "--mapping", f.mappingPath],
+          { EVERFRAME_API_TOKEN: token, EVERFRAME_UPLOAD_TIMEOUT_SECONDS: "1" }),
+      ).resolves.toBe(1);
+      expect(String(error.mock.calls[0]?.[0])).toContain("upload_time_budget_exhausted");
+      expect(Date.now() - started).toBeLessThan(4_000);
+    } finally {
+      error.mockRestore();
+      vi.restoreAllMocks();
+    }
+  });
   it("uses the exact command options and existing environment credentials", async () => {
     const f = await fixture();
     let reserved: unknown;

@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
 import xcode from 'xcode';
 import {
   buildPhaseScript,
+  EVERFRAME_GRADLE_PLUGIN,
   patchAppBuildGradle,
+  patchRootBuildGradle,
   patchXcodeProject,
   SOURCEMAP_FILE_VALUE,
   SYMBOLS_BUILD_SETTINGS,
@@ -232,3 +234,31 @@ function appBuildSettings(project: ReturnType<typeof loadProject>): Array<Record
   const configs = project.pbxXCBuildConfigurationSection() as Record<string, { buildSettings?: Record<string, string> }>;
   return (lists[target.buildConfigurationList]?.buildConfigurations ?? []).map((ref) => configs[ref.value]!.buildSettings!);
 }
+
+describe('patchRootBuildGradle', () => {
+  const ROOT = "buildscript {\n  dependencies {\n    classpath('com.android.tools.build:gradle')\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n";
+  it('adds the pinned Everframe Gradle plugin after the React Native plugin classpath, once', () => {
+    const out = patchRootBuildGradle(ROOT);
+    expect(out).toContain(`    classpath("${EVERFRAME_GRADLE_PLUGIN}")`);
+    expect(out.indexOf('react-native-gradle-plugin')).toBeLessThan(out.indexOf('dev.everframe:gradle-plugin'));
+    expect(patchRootBuildGradle(out)).toBe(out);
+  });
+  it('pins the Android SDK version this repository publishes', () => {
+    const properties = readFileSync(join(__dirname, '../../sdk-android/android/gradle.properties'), 'utf8');
+    expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()}`);
+  });
+  it('fails clearly without the React Native classpath line', () => {
+    expect(() => patchRootBuildGradle('buildscript {}\n')).toThrow(/react-native-gradle-plugin/);
+  });
+});
+
+describe('patchAppBuildGradle plugin', () => {
+  it('applies the Everframe Gradle plugin with the app id, without breaking builds that lack it', () => {
+    const out = patchAppBuildGradle(GRADLE, APP);
+    expect(out).toContain('apply plugin: "dev.everframe"');
+    expect(out).toContain(`everframeExtension.appId.set("${APP}")`);
+    // A missing classpath or an older plugin without the everframe block must only warn.
+    expect(out).toMatch(/try \{ apply plugin: "dev\.everframe" \} catch \(Exception everframeError\)/);
+    expect(out).toContain('everframeExtension?.hasProperty("appId")');
+  });
+});

@@ -361,7 +361,7 @@ export async function main(
         apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
         token,
         deleteAfterUpload: false,
-      });
+      }, uploadBudget(env, false));
       console.log(`R8 mapping ${result.buildUuid} is ready.`);
       return 0;
     }

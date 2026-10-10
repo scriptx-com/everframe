@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { SOURCEMAP_FILE_VALUE } from '@everframe/cli/native-setup';
 import { describe, expect, it } from 'vitest';
-import { applyAndroid, applyIos } from '../src/withEverframe.js';
+import { applyAndroid, applyAndroidProject, applyIos } from '../src/withEverframe.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
 
@@ -29,5 +29,10 @@ describe('@everframe/expo', () => {
     applyIos(project, APP);
     expect(calls).toEqual(['Upload Everframe Build Artifacts']);
     expect(settings.SOURCEMAP_FILE).toBe(SOURCEMAP_FILE_VALUE);
+  });
+
+  it('adds the Everframe Gradle plugin classpath to the project build.gradle', () => {
+    const out = applyAndroidProject({ language: 'groovy', contents: "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n" });
+    expect(out.contents).toContain('dev.everframe:gradle-plugin:');
   });
 });
