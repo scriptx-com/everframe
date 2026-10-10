@@ -95,9 +95,9 @@ class NetworkBodyFinalizerTest {
         val out = NetworkBodyFinalizer.decodeAndRedact(raw, cap = cap, complete = true, declaredLength = -1L)
         assertTrue("raw JWT must never survive", !out.body!!.contains("dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
 
-        // The check above alone is not sufficient: the JWT pattern
-        // (`[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`) has no
-        // trailing anchor, so its third segment — which starts at byte
+        // The check above alone is not sufficient: the shared JWT rule
+        // (`jwt` in redaction-patterns.json: an `eyJ` header, then dot-separated
+        // segments) has no trailing anchor, so its third segment — which starts at byte
         // ${prefixLen + 49} and only finishes at byte ${prefixLen + jwtLen}
         // — never has ANY of its bytes inside a 100-byte window regardless
         // of cut order, making the check above pass trivially either way.

@@ -39,11 +39,64 @@ class RedactionEngineTest {
     fun `dotted class package and module names are not JWTs`() {
         for (frame in listOf(
             "dev.everframe.crashdefault.MainActivity\$onCreate\$2.run\$lambda\$0(SourceFile:5)",
+            "com.example.survey.SurveyJobScheduler\$schedule\$1.invokeSuspend\$lambda\$0(SurveyJobScheduler.kt:30)",
             "kotlinx.coroutines.internal.DispatchedContinuation.resumeWith(DispatchedContinuation.kt:42)",
             "androidx.recyclerview.widget.RecyclerView.onLayout(RecyclerView.java:4577)",
             "MyAppModule.CheckoutViewModel.submitOrder(_:) + 120",
             "com.example.survey.SurveyJobScheduler.schedule.invokeSuspend(SurveyJobScheduler.kt:30)",
+            "com.example.app.extension",
+            "SurveyKit.SurveyJobScheduler.scheduleNextRun(_:)",
+            "-[SurveyJobScheduler scheduleWithCompletion:]",
+            "\$s9SurveyKit18SurveyJobSchedulerC8scheduleyyFTf4n_g",
         )) assertEquals(frame, RedactionEngine.redact(frame))
+    }
+
+    /** URL-encoded, glued (no word boundary: the eyJ payload marks the token) and JWE tokens. */
+    @Test
+    fun `glued URL-encoded and JWE tokens are redacted`() {
+        val jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwZXJzb24ifQ.SflKxwRJSMeKKF2QT4fw"
+        val dirJwe = "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ"
+        for ((input, expected) in listOf(
+            "state%3D$jwt&x=1" to "state%3D[REDACTED:JWT]&x=1",
+            "%22$jwt%22" to "%22[REDACTED:JWT]%22",
+            "Bearer%20$jwt" to "Bearer%20[REDACTED:JWT]",
+            "x_$jwt" to "x_[REDACTED:JWT]",
+            "_$jwt" to "_[REDACTED:JWT]",
+            "{\"line\":\"auth\\n$jwt\"}" to "{\"line\":\"auth\\n[REDACTED:JWT]\"}",
+            "jwe $dirJwe" to "jwe [REDACTED:JWT]",
+            "token=$dirJwe&next=1" to "token=[REDACTED:JWT]&next=1",
+        )) assertEquals(input, expected, RedactionEngine.redact(input))
+    }
+
+    /** JwtScan gives exactly the plain regex result, and stays linear where the plain scan is quadratic. */
+    @Test
+    fun `the JWT scan matches the plain regex and stays linear`() {
+        val rule = Regex(SharedData.redactionPatterns.single { it.id == "jwt" }.regex)
+        var seed = 0x2545f491
+        fun random(n: Int): Int { seed = seed xor (seed shl 13); seed = seed xor (seed ushr 17); seed = seed xor (seed shl 5); return Math.floorMod(seed, n) }
+        val alphabet = "aZ09_-eyJ"
+        val glue = listOf("", " ", "_", "-", "x", "%3D", "é", "\\n", ".", "=")
+        var redacted = 0
+        repeat(5_000) {
+            val value = buildString {
+                repeat(1 + random(3)) {
+                    append(glue[random(glue.size)])
+                    append((0..random(6)).joinToString(".") {
+                        buildString { if (random(2) == 0) append("eyJ"); repeat(random(13)) { append(alphabet[random(alphabet.length)]) } }
+                    })
+                }
+            }
+            val expected = rule.replace(value, "[REDACTED:JWT]")
+            assertEquals(value, expected, JwtScan.replace(rule.toPattern(), value, "[REDACTED:JWT]"))
+            if (expected != value) redacted++
+        }
+        assertTrue("the corpus must exercise matches, got $redacted", redacted > 500)
+        for (value in listOf("eyJ-".repeat(262_144), "eyJabcde.eyJabcde.".repeat(58_254), "-eyJ".repeat(262_143) + ".abcdefgh")) {
+            val started = System.nanoTime()
+            RedactionEngine.redact(value)
+            val ms = (System.nanoTime() - started) / 1_000_000
+            assertTrue("a megabyte took $ms ms", ms < 2_000)
+        }
     }
 
     @Test

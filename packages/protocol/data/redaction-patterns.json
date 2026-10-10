@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "description": "Cross-language redaction regex patterns. Loaded by codegen for iOS/Android SDKs; mirrors the canonical set in packages/sdk-core/src/redaction/engine.ts. Update both in lockstep.",
+  "description": "Cross-language redaction regex patterns. Loaded by codegen for iOS/Android SDKs; mirrors the canonical set in packages/sdk-core/src/redaction/engine.ts (the JWT rule is packages/protocol/src/redaction.ts). Update them in lockstep.",
   "patterns": [
     {
       "id": "jwt",
-      "regex": "\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}",
+      "regex": "\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]{8,}(?:\\.[A-Za-z0-9_-]{8,}){0,2}|eyJ[A-Za-z0-9_-]{5,}\\.eyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{8,}",
       "replacement": "[REDACTED:JWT]",
-      "description": "JWT (RFC 7519): a base64url JSON header (eyJ) starting a word, then two more segments of at least 8 characters; never a dotted class, package or module name. Matches sdk-core engine.ts JWT_INLINE"
+      "description": "JWT (RFC 7519) or JWE: a base64url JSON header (eyJ) starting a word, an optional payload or encrypted key, then one to three segments of at least 8 characters; or, glued to the text before it (%3DeyJ, x_eyJ), a header and an eyJ payload. Never a dotted class, package or module name. Same string as JWT_PATTERN in packages/protocol/src/redaction.ts"
     },
     {
       "id": "bearer",

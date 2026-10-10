@@ -31,6 +31,9 @@ public struct RedactionEngine: Sendable {
                     let digitsOnly = matched.filter(\.isNumber)
                     return luhnValid(digitsOnly) ? replacement : matched
                 }
+            } else if pattern.id == "jwt" {
+                // The same rule in linear time: the plain scan is quadratic on `eyJ-eyJ-…`.
+                out = JwtScan.replace(regex, in: out, with: replacement)
             } else {
                 let nsRange = NSRange(out.startIndex..., in: out)
                 out = regex.stringByReplacingMatches(in: out, options: [], range: nsRange, withTemplate: replacement)

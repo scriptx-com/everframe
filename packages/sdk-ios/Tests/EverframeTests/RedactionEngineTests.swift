@@ -56,9 +56,59 @@ struct RedactionEngineTests {
         "dev.everframe.crashdefault.MainActivity.onCreate",
         "kotlinx.coroutines.internal.DispatchedContinuation",
         "SurveyKit.SurveyJobScheduler.scheduleNextRun.invokeSuspend",
+        "SurveyKit.SurveyJobScheduler.scheduleNextRun(_:)",
+        "com.example.survey.SurveyJobScheduler$schedule$1.invokeSuspend$lambda$0(SurveyJobScheduler.kt:30)",
+        "com.example.app.extension",
+        "-[SurveyJobScheduler scheduleWithCompletion:]",
+        "$s9SurveyKit18SurveyJobSchedulerC8scheduleyyFTf4n_g",
+        "SurveyKit`specialized SurveyJobScheduler.schedule(with:) + 1184",
     ])
     func redact_keepsDottedModuleAndTypeNames(name: String) {
         #expect(RedactionEngine().redact(name) == name)
+    }
+
+    /// URL-encoded, glued (no word boundary: the eyJ payload marks the token) and JWE tokens.
+    @Test(arguments: [
+        ("state%3D", "&x=1"), ("%22", "%22"), ("Bearer%20", ""), ("x_", ""), ("_", ""), (#"{"line":"auth\n"#, #""}"#),
+    ])
+    func redact_replacesGluedJWT(prefix: String, suffix: String) {
+        let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwZXJzb24ifQ.SflKxwRJSMeKKF2QT4fw"
+        #expect(RedactionEngine().redact(prefix + jwt + suffix) == prefix + "[REDACTED:jwt]" + suffix)
+    }
+
+    @Test func redact_replacesDirJWE() {
+        let jwe = "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4.XFBoMYUZodetZdvTiFvSkQ"
+        #expect(RedactionEngine().redact("token=\(jwe)&next=1") == "token=[REDACTED:jwt]&next=1")
+    }
+
+    /// JwtScan gives exactly the plain regex result, and stays linear where the plain scan is quadratic.
+    @Test func jwtScan_matchesThePlainRegexAndStaysLinear() throws {
+        let rule = try #require(SharedData.redactionPatterns.first { $0.id == "jwt" })
+        let regex = try NSRegularExpression(pattern: rule.regex)
+        var seed: UInt32 = 0x2545f491
+        func random(_ n: Int) -> Int { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return Int(seed % UInt32(n)) }
+        let alphabet = Array("aZ09_-eyJ")
+        let glue = ["", " ", "_", "-", "x", "%3D", "é", #"\n"#, ".", "="]
+        var redacted = 0
+        for _ in 0..<2_000 {
+            var value = ""
+            for _ in 0...random(3) {
+                value += glue[random(glue.count)]
+                value += (0...random(6)).map { _ in
+                    (random(2) == 0 ? "eyJ" : "") + String((0..<random(13)).map { _ in alphabet[random(alphabet.count)] })
+                }.joined(separator: ".")
+            }
+            let expected = regex.stringByReplacingMatches(in: value, range: NSRange(value.startIndex..., in: value), withTemplate: "[J]")
+            #expect(JwtScan.replace(regex, in: value, with: "[J]") == expected, "\(value)")
+            if expected != value { redacted += 1 }
+        }
+        #expect(redacted > 200)
+        for value in [String(repeating: "eyJ-", count: 262_144), String(repeating: "eyJabcde.eyJabcde.", count: 58_254),
+                      String(repeating: "-eyJ", count: 262_143) + ".abcdefgh"] {
+            let started = Date()
+            _ = RedactionEngine().redact(value)
+            #expect(Date().timeIntervalSince(started) < 5, "a megabyte took \(Date().timeIntervalSince(started)) s")
+        }
     }
 
     @Test func redact_replacesLuhnValidCC() {
