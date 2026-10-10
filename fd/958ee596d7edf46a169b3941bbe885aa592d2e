@@ -1,0 +1,33 @@
+docs/release-health-alerts.md
+  s_360d9eb003c487::t_f28a26a67badae 31-32,34-38
+  s_360d9eb003c487::t_f067f5a4fd49f0 33
+packages/sdk-android/android/README.md
+  s_360d9eb003c487::t_d015d4e6201afa 171-180
+docs/release-health.md
+  s_360d9eb003c487::t_a35247f02111d8 108-110
+  s_360d9eb003c487::t_1cb57e1dad3e7a 98-102
+  s_360d9eb003c487::t_4ca68ce06cc5b4 76-77
+  s_360d9eb003c487::t_6fb1aa59ce0951 103-107
+  s_360d9eb003c487::t_a47d147796a485 32-36
+  s_360d9eb003c487::t_163189ef41a6f1 86-88
+packages/sdk-ios/README.md
+  s_360d9eb003c487::t_285446390a1da2 164-168
+  s_360d9eb003c487::t_35389c90e7558b 169-171
+  s_360d9eb003c487::t_91421c3b4e9b9b 172-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fd958ee596d7edf46a169b3941bbe885aa592d2e",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
