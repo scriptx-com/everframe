@@ -3,7 +3,7 @@
 
 # Installed Release native crash acceptance app
 
-This host uses public `Everframe.start`, native signal opt-in, readiness, kill and
+This host uses public `Everframe.start`, `isNativeCrashCaptureReady()`, kill and
 report-delivery status methods. Both SDK dependencies are actual Release
 variants; the application is minified, nondebuggable, and signed with the local
 Android debug signing key solely for installation. The fault library is compiled
@@ -39,10 +39,12 @@ use `appIdB`, `sdkKeyB`, `releaseB`. Modes:
 
 - `main` / `worker`: wait for readiness, then execute the authored native fault.
 - `recover`: recover and drain previous-process evidence using the current config.
-- `disable`, `kill`, `paused`: establish the respective boundary, then fault.
-- `reenable`, `replace`, `cycles`: exercise rearming and twelve replacement starts.
+- `kill`, `paused`: establish the respective boundary, then fault.
+- `reenable` (a `capture.crash = false` start followed by a default start), `replace`,
+  `cycles`: exercise rearming and twelve replacement starts.
 - `foreign`: refuse an existing app-bundled signal handler.
-- `no-optin`, `absent`: default-off and missing-module controls.
+- `crash-off`, `absent`: a `capture.crash = false` start and the missing-module
+  control (on API 30 `absent` arms OS exit capture only, `armed`).
 - `null-call`: wait for readiness, then call a null function pointer. The fault
   PC is zero, so the next `recover` delivers a report without frames: empty
   `androidNative.frames` and `frames`, `signalNumber` 11, `signalCode` 1, and the
@@ -50,15 +52,14 @@ use `appIdB`, `sdkKeyB`, `releaseB`. Modes:
 - `plus-module`: wait for readiness, then fault inside `libeverframe_release+plus.so`.
   The report has one frame whose module is that SONAME, with its ELF build ID.
 - `mappings`: split one reservation into about 6,000 mappings below the dynamic
-  linker before the opt-in (`files/mappings.txt` holds the split count and the
+  linker before the first arm (`files/mappings.txt` holds the split count and the
   maps line count). Readiness must become true; the report matches `main`.
-- `webview-before`: initialize a WebView before the opt-in, so its in-process
+- `webview-before`: initialize a WebView before the first arm, so its in-process
   crash handler is installed first (`files/signal-owners.txt` names the provider
   library). Readiness must become true; the report matches `main`.
 - `webview-after`: after readiness, initialize a WebView, whose handler then
-  precedes the armed one (`files/signal-owners-webview.txt`), then start again
-  and opt in, so the replacement arm runs under it (a repeated opt-in alone keeps
-  the armed owner). Readiness must return (`re-armed`) within 20 seconds,
+  precedes the armed one (`files/signal-owners-webview.txt`), then start again,
+  so the replacement arm runs under it. Readiness must return (`re-armed`) within 20 seconds,
   otherwise the state is `timeout`; the report matches `main`.
 
 The WebView modes need a WebView provider whose crash handler chains to the
@@ -66,7 +67,7 @@ previous handler (current providers use Crashpad); record the provider package a
 version with the run.
 
 `SecondaryActivity` runs in `:secondary`; `secondary-disable` verifies that
-secondary-process opt-in/disable/kill cannot take over the primary collector.
+a secondary-process start and kill cannot take over the primary collector.
 The local `files/acceptance-status.json` contains only public delivery diagnostics.
 No envelope is reconstructed or injected by the host. Retain the exact APK,
 unstripped `libeverframe_release_fault.so` and `libeverframe_release+plus.so`, source, build manifest and HTTP

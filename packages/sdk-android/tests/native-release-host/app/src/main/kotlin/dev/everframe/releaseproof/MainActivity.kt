@@ -40,24 +40,23 @@ open class MainActivity : Activity() {
             capture = CaptureConfig(screenshot=false, focus=false, logs=false, network=false, crash=crash, networkBodies=false),
             bubble=false, companionBadgeEnabled=false, shakeToReportEnabled=false,
             installIdentifierEnabled=false, vitals=VitalsConfig(enabled=false))
-        Everframe.start(applicationContext, config(), this)
-        // Initializing WebView installs its in-process crash handler before the opt-in.
+        // Initializing WebView installs its in-process crash handler before start() arms the collector.
         if (mode == "webview-before") webView = WebView(this)
         File(filesDir, "signal-owners.txt").writeText(signalOwners())
-        if (mode != "no-optin") Everframe.setNativeSignalCaptureEnabled(true)
-        if (mode == "secondary-disable") { Everframe.setNativeSignalCaptureEnabled(false); Everframe.kill() }
+        Everframe.start(applicationContext, config(crash = mode != "crash-off"), this)
+        if (mode == "secondary-disable") Everframe.kill()
         var attempts = 0
         fun status(state: String) {
-            val text = "{\"state\":\"$state\",\"ready\":${Everframe.isNativeSignalCaptureReady()},\"delivery\":${Everframe.getReportDeliveryStatus().toJson()}}"
+            val text = "{\"state\":\"$state\",\"ready\":${Everframe.isNativeCrashCaptureReady()},\"delivery\":${Everframe.getReportDeliveryStatus().toJson()}}"
             File(filesDir, "acceptance-status.json").writeText(text)
             label.text = state; android.util.Log.i("EverframeReleaseProof", text)
         }
         val poll = object : Runnable {
             override fun run() {
-                val ready = Everframe.isNativeSignalCaptureReady()
-                if (mode in listOf("foreign", "absent", "no-optin", "secondary-disable")) {
+                val ready = Everframe.isNativeCrashCaptureReady()
+                if (mode in listOf("foreign", "absent", "crash-off", "secondary-disable")) {
                     if (++attempts < 20) { handler.postDelayed(this, 100); return }
-                    status(if (ready) "unexpected-ready" else "refused"); return
+                    status(if (ready) "armed" else "refused"); return
                 }
                 if (!ready) {
                     status("waiting")
@@ -70,32 +69,33 @@ open class MainActivity : Activity() {
                     "null-call" -> { status("faulting"); handler.postDelayed({ nullCall() }, 300) }
                     "plus-module" -> { System.loadLibrary("everframe_release+plus"); status("faulting"); handler.postDelayed({ plusModuleFault() }, 300) }
                     "webview-after" -> {
-                        // WebView's handler now precedes the armed one. A repeated opt-in keeps the
-                        // armed owner, so a replacement start and opt-in must re-arm under it.
+                        // WebView's handler now precedes the armed one; a replacement start re-arms under it.
                         webView = WebView(this@MainActivity)
                         File(filesDir, "signal-owners-webview.txt").writeText(signalOwners())
                         Everframe.start(applicationContext, config(), this@MainActivity)
-                        Everframe.setNativeSignalCaptureEnabled(true)
                         var waits = 0
-                        handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeSignalCaptureReady()) { status("re-armed"); fault(false) } else if (++waits < 200) handler.postDelayed(this, 100) else status("timeout") } }, 100)
+                        handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeCrashCaptureReady()) { status("re-armed"); fault(false) } else if (++waits < 200) handler.postDelayed(this, 100) else status("timeout") } }, 100)
                     }
-                    "disable" -> { Everframe.setNativeSignalCaptureEnabled(false); status("disabled"); handler.postDelayed({ fault(false) }, 300) }
                     "kill" -> { Everframe.kill(); status("killed"); handler.postDelayed({ fault(false) }, 300) }
                     "paused" -> { Everframe.start(applicationContext, config(crash=false), this@MainActivity); status("paused"); handler.postDelayed({ fault(false) }, 300) }
-                    "reenable" -> { Everframe.setNativeSignalCaptureEnabled(false); Everframe.setNativeSignalCaptureEnabled(true); handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeSignalCaptureReady()) { status("re-enabled"); fault(false) } else handler.postDelayed(this, 100) } }, 100) }
+                    "reenable" -> {
+                        Everframe.start(applicationContext, config(crash = false), this@MainActivity)
+                        Everframe.start(applicationContext, config(), this@MainActivity)
+                        handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeCrashCaptureReady()) { status("re-enabled"); fault(false) } else handler.postDelayed(this, 100) } }, 100)
+                    }
                     "cycles" -> {
                         var cycle = 0
                         val next = object: Runnable {
                             override fun run() {
-                                if (!Everframe.isNativeSignalCaptureReady()) { handler.postDelayed(this, 100); return }
+                                if (!Everframe.isNativeCrashCaptureReady()) { handler.postDelayed(this, 100); return }
                                 if (cycle == 12) { status("cycled"); fault(false); return }
                                 Everframe.start(applicationContext, config(if (cycle++ % 2 == 0) "B" else ""), this@MainActivity)
-                                Everframe.setNativeSignalCaptureEnabled(true); handler.postDelayed(this, 100)
+                                handler.postDelayed(this, 100)
                             }
                         }
                         handler.post(next)
                     }
-                    "replace" -> { Everframe.start(applicationContext, config("B"), this@MainActivity); Everframe.setNativeSignalCaptureEnabled(true); handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeSignalCaptureReady()) { status("replaced"); fault(false) } else handler.postDelayed(this, 100) } }, 100) }
+                    "replace" -> { Everframe.start(applicationContext, config("B"), this@MainActivity); handler.postDelayed(object: Runnable { override fun run() { if (Everframe.isNativeCrashCaptureReady()) { status("replaced"); fault(false) } else handler.postDelayed(this, 100) } }, 100) }
                     else -> handler.postDelayed(object: Runnable { override fun run() { status("recovering"); handler.postDelayed(this, 1000) } }, 1000)
                 }
             }
