@@ -1,0 +1,31 @@
+packages/sdk-ios/README.md
+  s_dbd309ddf8ec5b::t_5e4957ae252f71 30,36-37
+  s_dbd309ddf8ec5b::t_b246148f33d65c 38
+packages/sdk-web/README.md
+  s_dbd309ddf8ec5b::t_5e4957ae252f71 60,63,72-73
+  s_dbd309ddf8ec5b::t_dc21c429299b45 37,74,122,135,149,168,252,406,452
+examples/ios-native/README.md
+  s_dbd309ddf8ec5b::t_3b13c036f130bb 132
+examples/smarttv-tester/README.md
+  s_dbd309ddf8ec5b::t_7a5c6458df49c2 98
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_062b72c1e4f1e0 66
+packages/sdk-react/README.md
+  s_dbd309ddf8ec5b::t_a4cbef46dea879 40,148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ecf0838d29c1d9eb8dcb283d5963ab8c0cb2abe",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
