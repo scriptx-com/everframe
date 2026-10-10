@@ -30,6 +30,7 @@ function server() {
         ready: boolean;
     }>(), bodies: Buffer[] = [];
     const hooks: {
+        rejectFirst?: boolean;
         rejectSecond?: boolean;
         retryFirst?: boolean;
         afterPut?: () => Promise<void>;
@@ -59,6 +60,8 @@ function server() {
             }
             if (hooks.rejectSecond && builds.size === 2)
                 return Response.json({ error: 'invalid_api_token' }, { status: 401 });
+            if (hooks.rejectFirst && builds.size === 1)
+                return Response.json({ error: 'invalid_elf_binary' }, { status: 422 });
             builds.get(id)!.available = true;
             await hooks.afterPut?.();
             return new Response(null, { status: 204 });
@@ -106,6 +109,19 @@ it('fails a later rejected artifact and resumes the already-ready first artifact
     api.hooks.rejectSecond = false;
     expect((await uploadAndroidElfBuild(f.options, { fetch: api.fetcher })).artifacts.every(a => a.status === 'ready')).toBe(true);
     expect(api.bodies).toHaveLength(3);
+});
+it('in lenient mode uploads every artifact past a rejected one and names the failure', async () => {
+    const f = await fixture(), api = server();
+    api.hooks.rejectFirst = true;
+    const result = await uploadAndroidElfBuild({ ...f.options, lenient: true }, { fetch: api.fetcher });
+    expect(result.artifacts.map(a => a.status)).toEqual(['ready']);
+    expect([...api.builds.values()].map(b => b.ready)).toEqual([false, true]);
+    expect(result.failed).toEqual([{ path: expect.stringMatching(/\.so$/), message: 'request_failed:invalid_elf_binary' }]);
+    // Strict (the default) still stops at the first rejected file.
+    const strict = server();
+    strict.hooks.rejectFirst = true;
+    await expect(uploadAndroidElfBuild(f.options, { fetch: strict.fetcher })).rejects.toThrow('request_failed:invalid_elf_binary');
+    expect(strict.builds.size).toBe(1);
 });
 it.each(['binary', 'symbols', 'parent'])('rejects a late %s change despite a successful server upload', async (kind) => {
     const f = await fixture(), api = server();

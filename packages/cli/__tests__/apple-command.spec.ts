@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -9,7 +9,7 @@ import { dsymUploadBuildCommand } from "../src/apple-command.js";
 import type { uploadAppleBuild } from "../src/apple-upload.js";
 import { adviceFor } from "../src/build-verify.js";
 import { main } from "../src/index.js";
-import { appBundle, UUID_B } from "./apple-build-fixture.js";
+import { appBundle, linking, UUID_A, UUID_B } from "./apple-build-fixture.js";
 
 const APP_ID = "00000000-0000-4000-8000-000000000001";
 const NO_TOKEN =
@@ -285,4 +285,20 @@ it("warns and keeps the build going when the upload budget runs out", async () =
   const r = recorder([], new Error("upload_time_budget_exhausted"));
   expect(await dsymUploadBuildCommand(["--xcode"], f.env, r.deps)).toBe(0);
   expect(r.warnings[0]).toMatch(/^warning: everframe: symbol upload failed: upload_time_budget_exhausted: .*EVERFRAME_UPLOAD_TIMEOUT_SECONDS/);
+});
+it("uploads the app's own symbols past a symlink loop in the build products, with a warning", async () => {
+  const f = await xcode();
+  // The app links a pod that is not embedded yet, so --xcode searches the build products.
+  await writeFile(f.bundle.executable, linking(UUID_A, ["@rpath/Pod.framework/Pod"]));
+  await symlink("loop", join(f.root, "loop"));
+  const r = recorder();
+  expect(await dsymUploadBuildCommand(["--xcode"], f.env, r.deps)).toBe(0);
+  expect(r.upload.mock.calls[0]![0].binaries[0]).toEqual({ path: f.bundle.executable, required: true });
+  expect(r.warnings).toEqual([
+    `warning: everframe: skipped ${join(f.root, "loop")} while looking for linked frameworks: ELOOP`,
+    "warning: everframe: crashes from this build will show raw addresses until its symbols are uploaded. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.",
+  ]);
+  const strict = recorder();
+  await expect(dsymUploadBuildCommand(["--xcode", "--strict"], f.env, strict.deps)).rejects.toThrow(/ELOOP/);
+  expect(strict.upload).not.toHaveBeenCalled();
 });

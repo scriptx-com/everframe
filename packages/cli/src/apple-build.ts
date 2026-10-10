@@ -71,6 +71,12 @@ const bounded = (lines: string[]) =>
   lines.length > 8
     ? [...lines.slice(0, 8), `  and ${lines.length - 8} more`]
     : lines;
+/** The failure code for a warning: the errno code, else the leading snake_case code. */
+export function failureCode(error: unknown): string {
+  const errno = (error as NodeJS.ErrnoException | undefined)?.code;
+  if (typeof errno === "string" && /^E[A-Z]+$/.test(errno)) return errno;
+  return (error instanceof Error && /^([a-z0-9_]+)(?::|$)/.exec(error.message)?.[1]) || "unreadable";
+}
 /** Names the file behind a bare failure code; other errors pass through. */
 function named(error: unknown, path: string) {
   return error instanceof Error && /^[a-z0-9_]+$/.test(error.message)
@@ -382,14 +388,23 @@ export async function collectAppleBuild(
       `apple_build_limit: list 1 to ${limits.binaries} binaries (got ${options.binaries.length})`
     );
   if (!options.dsymDirs.length) throw new Error("missing_required_option: --dsym-dir");
-  const resolvedRoots = [
-    ...new Set(await Promise.all(options.dsymDirs.map((dir) => realpath(resolve(dir))))),
-  ];
+  const warnings: string[] = [];
+  // In lenient mode each folder stands alone: one that is missing or unreadable
+  // is skipped with a warning and the others are still searched.
+  const resolvedRoots: string[] = [];
+  for (const dir of options.dsymDirs) {
+    try {
+      resolvedRoots.push(await realpath(resolve(dir)));
+    } catch (error) {
+      if (!options.lenient) throw error;
+      warnings.push(`skipped ${resolve(dir)}: ${failureCode(error)}`);
+    }
+  }
   // A root inside another root would be scanned, and counted, twice.
-  const roots = resolvedRoots.filter(
+  const roots = [...new Set(resolvedRoots)].filter(
     (root) => !resolvedRoots.some((other) => other !== root && root.startsWith(other + sep))
   );
-  const where = roots.join(", ");
+  const where = (roots.length ? roots : options.dsymDirs.map((dir) => resolve(dir))).join(", ");
   const binaries: CollectedAppleBuild["binaries"] = [];
   const unreadable: CollectedAppleBuild["uncovered"] = [];
   const byPath = new Map<string, CollectedAppleBuild["binaries"][number]>();
@@ -470,7 +485,6 @@ export async function collectAppleBuild(
         `apple_build_limit: more than ${limits.matchedBundles} .dSYM bundles under ${where} hold a listed identity`
       );
   }
-  const warnings: string[] = [];
   /** In lenient mode an unreadable bundle or folder is skipped; limits still stop the run. */
   async function guarded(path: string, run: () => Promise<void>): Promise<void> {
     if (!options.lenient) return run();
@@ -480,8 +494,7 @@ export async function collectAppleBuild(
     } catch (error) {
       if (!(error instanceof Error) || error.message.startsWith("apple_build_limit")) throw error;
       candidates.length = before;
-      const code = /^([a-z0-9_]+)(?::|$)/.exec(error.message)?.[1] ?? "unreadable";
-      warnings.push(`skipped ${path}: ${code}`);
+      warnings.push(`skipped ${path}: ${failureCode(error)}`);
     }
   }
   async function walk(root: string, path: string, depth: number): Promise<void> {
@@ -495,7 +508,7 @@ export async function collectAppleBuild(
       }
     }
   }
-  for (const root of roots) await walk(root, root, 0);
+  for (const root of roots) await guarded(root, () => walk(root, root, 0));
   const selected = new Map<string, LocalBuild>(),
     published = new Map<string, { sha: string; path: string }>();
   for (const candidate of candidates)
