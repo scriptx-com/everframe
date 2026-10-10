@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 export const UUID_A = "01234567-89ab-cdef-0123-456789abcdef";
 export const UUID_B = "fedcba98-7654-3210-fedc-ba9876543210";
 // Header-only fixtures, not executable programs or verified DWARF.
@@ -104,3 +104,22 @@ export const listed = (binaries: string[], dsymDir: string) => ({
   binaries: binaries.map((path): AppleBinaryInput => ({ path, required: true })),
   dsymDirs: [dsymDir],
 });
+export const UUID_C = "0f1e2d3c-4b5a-4978-8796-a5b4c3d2e1f0";
+/** An app laid out like Xcode build products: app, framework, extension, Swift runtime, watch app. */
+export async function appBundle(parent: string, name = "App") {
+  const app = join(parent, `${name}.app`);
+  const put = async (path: string, bytes: Buffer | string) => {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, bytes);
+    return path;
+  };
+  return {
+    app,
+    executable: await put(join(app, name), macho()),
+    plist: await put(join(app, "Info.plist"), "<plist/>"),
+    framework: await put(join(app, "Frameworks", "Feature.framework", "Feature"), macho({ uuid: UUID_B, kind: 6 })),
+    swiftRuntime: await put(join(app, "Frameworks", "libswiftCore.dylib"), macho({ uuid: "11111111-2222-4333-8444-555555555555", kind: 6 })),
+    extension: await put(join(app, "PlugIns", "TopShelf.appex", "TopShelf"), macho({ uuid: UUID_C, kind: 2 })),
+    watch: await put(join(app, "Watch", "Watch.app", "Watch"), macho({ uuid: "66666666-7777-4888-8999-aaaaaaaaaaaa" })),
+  };
+}
