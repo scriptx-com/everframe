@@ -1,0 +1,33 @@
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticConsent.swift
+  s_360d9eb003c487::t_99d4d0a223c7f6 1-62
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticContext.swift
+  s_360d9eb003c487::t_704c4d47f89cf4 7
+packages/sdk-ios/Sources/Everframe/Diagnostics/AppleDiagnosticStore.swift
+  s_360d9eb003c487::t_1d3406387b3d66 17,24-35,67-69,73,77-127,168-171,173-174
+packages/sdk-ios/Tests/EverframeTests/AppleDiagnosticConsentTests.swift
+  s_97602a0a2d8f20::t_d70d6e64d09df2 1-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d64b6c42420fb6855afda321aacd7479c8b36768",
+  "prompts": {},
+  "sessions": {
+    "s_360d9eb003c487": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "327e1a64-2e33-4b4b-ab72-a7356d386409",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_97602a0a2d8f20": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10b9a-79d7-7d52-812e-ee2931b832bb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
