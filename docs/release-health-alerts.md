@@ -55,8 +55,9 @@ Everything except `id`, `type`, `schemaVersion` and `createdAt` is in `data`.
 - `platforms` lists `android`, `ios` or both, sorted, for the platforms that had
   sessions of this version in the window. React Native apps count under their
   platform.
-- `window` covers sessions that started at or after `from` and before `to` and
-  that Everframe still keeps. `days` is always 7, and `to` equals `observedAt`.
+- `window` covers sessions that started at or after `from` and at or before `to`
+  and that Everframe still keeps. `days` is always 7, and `to` equals
+  `observedAt`.
 - `observedAt` is when the counts were read.
 - `target` is the rule: `basisPoints` from 5000 to 9990 in steps of 10 (9900
   means 99%), and `minSessions` from 20 to 1,000,000.
@@ -83,7 +84,9 @@ Each version has its own episodes. An evaluation that finds a version below the
 target starts an episode, and sends one new event, when all of these hold:
 
 - no episode of that version is open;
-- that version hasn't sent an event in the previous 24 hours;
+- no event for that version was created in the previous 24 hours, even one that
+  was cancelled;
+- the endpoint is enabled and its app is still in the project;
 - Everframe still has a crash report from one of its crashed sessions in the
   last 7 days. The event is stored with that report, preferring one from the
   endpoint's own app.
@@ -99,6 +102,7 @@ Editing the rule (its target, minimum or endpoint, or turning alerts off)
 closes every open episode and cancels events not yet delivered. Each version's
 24-hour cooldown survives the edit, so an edit never makes a version send a
 second event within 24 hours. Deleting the rule removes its undelivered events.
+Deleting the webhook endpoint the rule sends to deletes the rule too.
 
 ## Retries and cancellations
 
@@ -112,7 +116,9 @@ An undelivered event is cancelled, and never sent, when:
 - the version is no longer below the target when it is rechecked;
 - the rule was edited, turned off or deleted after the event was created;
 - the endpoint was disabled, or its app moved to another project;
-- the crash report it is stored with expired or was erased;
+- the crash report it is stored with expired, was erased, or its app moved to
+  another project;
+- it was still not delivered 30 days after it was created;
 - the organization was suspended;
 - the counts stayed unreadable for an hour.
 
