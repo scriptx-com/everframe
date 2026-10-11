@@ -1,0 +1,77 @@
+.changeset/automatic-releases-debug-flag.md
+  s_ce922b03c469a7::t_782a81df82b3a7 3
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/AppRelease.kt
+  s_ce922b03c469a7::t_2521d2ee83df19 7-8,22,24,27
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/DeviceMetadata.kt
+  s_ce922b03c469a7::t_2d29233496321b 24,42-50,55,70,82-83,85
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_ce922b03c469a7::t_c67284188ba835 228,327
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_ce922b03c469a7::t_5525d3f13a22ae 109-113,132,135,154,157
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_ce922b03c469a7::t_40c5e6ac5e0563 87,92
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_ce922b03c469a7::t_3336e8cb91ffb8 97,102
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_ce922b03c469a7::t_9d94134c24c3b6 475,489
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/RecoveredStallRuntime.kt
+  s_ce922b03c469a7::t_e80ac6b922cd30 51,56
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/envelope/EnvelopeBuilder.kt
+  s_ce922b03c469a7::t_be08653ee850db 224,442
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/NativeExposurePointer.kt
+  s_ce922b03c469a7::t_a95eceb8dd9a73 45,47-48,56,58
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthProducer.kt
+  s_ce922b03c469a7::t_e5a232c75034d8 98
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_ce922b03c469a7::t_d2a515f6c5ede0 90
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/AppReleaseTest.kt
+  s_ce922b03c469a7::t_d69589438a0919 11-12,15-19,22,27,29-30,33
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/DeviceMetadataTest.kt
+  s_ce922b03c469a7::t_b0a93164144e3c 28
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReleaseHealthDefaultTest.kt
+  s_ce922b03c469a7::t_2b576402cf9894 33-39
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeExposureLinkTest.kt
+  s_ce922b03c469a7::t_1484a3584f6ca4 30,48,133
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_ce922b03c469a7::t_098f3b5f8d4e03 56
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_ce922b03c469a7::t_b05a7e392c5338 65,80,113
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_ce922b03c469a7::t_a52a472e76e529 51,65,81
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_ce922b03c469a7::t_f23f36106ea521 131,142,149,213,237
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/EnvelopeBuilderTest.kt
+  s_ce922b03c469a7::t_2dc6373cdeaca5 57,85
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/NativeExposurePointerTest.kt
+  s_ce922b03c469a7::t_c1d4a345c77f3b 15,38,42,45-58,65,70-73
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthControllerTest.kt
+  s_ce922b03c469a7::t_94f0d476752fae 30
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthProducerTest.kt
+  s_ce922b03c469a7::t_772cf141e5f547 32,51,114,120,136,139,146,148,155,157-158,175,189-190
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthTransportTest.kt
+  s_ce922b03c469a7::t_cac153f3fead48 25
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/capture/DeviceMetadataAppReleaseTest.kt
+  s_ce922b03c469a7::t_9dcd05b611cc9c 5,7,10-11,34,39-62
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/health/ReleaseHealthRuntimeTest.kt
+  s_ce922b03c469a7::t_6775be539e2bca 260,263,265-266,270-279
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/DiagnosticExposureProtocolTest.kt
+  s_ce922b03c469a7::t_b9d8cac8547af7 9,16,30,35
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_ce922b03c469a7::t_61d773bc536204 474,548
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9161bccbe23ad948333dde189a824f4f1bf0e18a",
+  "prompts": {},
+  "sessions": {
+    "s_ce922b03c469a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dcb771b6-aba6-44d8-8cd0-248bd018d734",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
