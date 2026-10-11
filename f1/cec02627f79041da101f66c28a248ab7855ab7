@@ -1,0 +1,47 @@
+.changeset/android-low-frame-rate-replay.md
+  s_269319d6df67e5::t_972292df0d8db7 1-8
+packages/sdk-android/android/everframe-core/src/androidTest/kotlin/dev/everframe/capture/video/LowFrameRateEncoderInstrumentedTest.kt
+  s_269319d6df67e5::t_51448b3e8f64be 1-59
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_269319d6df67e5::t_683785ccbcc4d9 69-70,242-246,253-254,266
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/H264VideoEncoder.kt
+  s_269319d6df67e5::t_94fceefc52040f 6,22-25,84,92,94-96,191,266
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/NativeVideoRecorder.kt
+  s_269319d6df67e5::t_d4ef7b9c565c9d 9,41-42,83,124-127,304-307,313-314,334-335
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoDeviceConditions.kt
+  s_269319d6df67e5::t_ff2b32c519c91a 1-67
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/NativeVideoSettings.kt
+  s_269319d6df67e5::t_1de6eef9e5a8cc 49-51,59
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReplayConfigProvider.kt
+  s_269319d6df67e5::t_c0b99f798e9cd9 742,826-828,832
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/H264VideoEncoderTest.kt
+  s_269319d6df67e5::t_e410b1d2c363ae 246-264
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/NativeVideoRecorderTest.kt
+  s_269319d6df67e5::t_dbab7b3cfd8e2b 203,206,210-252
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoCopyCompletionDispatchTest.kt
+  s_269319d6df67e5::t_31a789de131908 151
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoDeviceConditionsTest.kt
+  s_269319d6df67e5::t_525f8d64335736 1-106
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/NativeVideoCapabilityTest.kt
+  s_269319d6df67e5::t_80f57da55896a5 39-40
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/NativeVideoSettingsTest.kt
+  s_269319d6df67e5::t_855cdb03df0113 32,43-53
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReplayConfigProviderTest.kt
+  s_269319d6df67e5::t_8c7ce988b236c7 117,148,173,471,1269-1279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f1cec02627f79041da101f66c28a248ab7855ab7",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
