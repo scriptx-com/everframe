@@ -1,152 +1,234 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-# Release health observations
+# Release health
 
-Web, React, Android and iOS can collect release observations independently of
-replay and playback vitals. Collection is opt-in. Web and React emit version 2
-records with the `launch-v1` session policy. Android and iOS emit version 3 records
-with the `foreground-v1` policy; the receiving service must support version 3
-before you enable these SDK versions. Records queued locally by an earlier SDK
-keep their original schema version and remain deliverable after upgrade.
+Release health answers one question: is the version you just shipped crashing
+more than the one before it? For every version of your Android, iOS and React
+Native apps, Everframe counts foreground sessions and shows how many ended
+without a crash. Each project has a **Release health** page, with one row per
+version and a page for each version.
 
-```ts
-const sdk = init({
-  sdkKey: 'your-sdk-key',
-  vitals: { enabled: false },
-  releaseHealth: {
-    enabled: true,
-    loadedBuildId: 'actually-executed-build-id',
-    // Optional: a project-local opaque account ID, only with the host's consent.
-    userId: 'opaque-account-id',
-  },
-});
-await sdk.releaseHealth.ready;
-const diagnostics = await sdk.releaseHealth.diagnostics();
+## Set up
+
+Release health is off until you turn it on. It takes one line, and the SDK
+reads the app version and build itself.
+
+**Android**, in `EverframeConfig`:
+
+```kotlin
+releaseHealth = ReleaseHealthConfig(),
 ```
 
-The React Provider accepts the same `releaseHealth` configuration. Remount the
-Provider to change it. Android's `ReleaseHealthConfig` and iOS's
-`ReleaseHealthConfiguration` also accept an optional `userId`; both require the
-native artifact build ID and the status of the actually loaded bundle. Use
-Android's SDK configuration at `start`, or iOS's `setReleaseHealth` API. React
-Native apps opt in with the Provider's `releaseHealth` configuration, which drives
-these native sessions; see the
-[React Native SDK](../packages/sdk-react-native/README.md#foreground-session-monitoring).
-Keep build IDs exact: a downloaded update is not a loaded bundle.
+**iOS**, after `Everframe.shared.start`:
 
-## Sessions and identity
+```swift
+await Everframe.shared.setReleaseHealth(ReleaseHealthConfiguration())
+```
 
-Web and React use the `launch-v1` policy: one web document lifetime observed by
-the SDK. Reinitializing the SDK, restoring a page from BFCache or changing the
-loaded bundle creates a new immutable segment within the same launch; a new
-document gets a new launch ID. Earlier Android and iOS SDKs also used `launch-v1`,
-observing one native process lifetime.
+**React Native**, in the `EverframeProvider` config:
 
-Android and iOS use the `foreground-v1` policy. A session starts durably only while
-the app is in foreground, with a new exposure ID. Entering background closes it
-with `outcome: completed` and `endReason: background`; reconfiguring release health
-with a new user ID or loaded bundle closes it with `endReason: sdk_stop` and, while
-in foreground, opens a new one. A completed end marks the end of foreground
-monitoring, not a healthy process termination; process death leaves the outcome
-unknown. Sessions of one process share its launch ID. A launch that never reaches
-the foreground opens no session.
+```tsx
+releaseHealth: { enabled: true },
+```
 
-A launch can appear in several build cohorts; session and user counts must not be
-added across cohorts. Reporting windows select segments and sessions by their start
-time. Launch counts deduplicate both policies by launch ID within each cohort, so
-several foreground sessions of one process count as one launch.
+Then ship a build. Sessions appear after the app has been in the foreground and
+the SDK has sent them.
 
-Subjects are anonymous by default. Only the explicit release-health `userId`
-produces an identified subject. `setUser`, verified identity, email, display name,
-reporter, installation and device identifiers are never copied implicitly.
-Supplied IDs must be nonblank, at most 128 UTF-16 units and contain no U+0000–U+001F control
-characters or invalid surrogate sequences. They are self-declared opaque IDs,
-not verified accounts; avoid emails and other direct personal information.
-An invalid ID records nothing: web and React release health is unavailable for
-that initialization or mount (web diagnostics say so), Android release health
-does not become ready, and iOS's `ReleaseHealthConfiguration` initializer throws
-`invalidUserIdentity`.
+Turn release health on in release builds only. A debug build that reports the
+same version counts toward that version, so crashes during development would
+lower its rate:
 
-The ID and build are frozen before durable admission. On login, logout, account
-switch or loaded-bundle change, reconfigure/reinitialize release health with the
-new values (omit userId on logout). On web, use `destroy()` and a new `init()`;
-on React, remount the Provider; on Android, call `Everframe.start` again with a
-copied `ReleaseHealthConfig` (a full SDK restart); on iOS, call `setReleaseHealth`
-with a new configuration; on React Native, remount the Provider with a changed
-`key`. Calling `setUser` alone does not change this
-separate identity. Queued starts and ends retain the old snapshot and route.
-Native fatal attribution uses the exact frozen pointer of its segment or session,
-so a crash recovered after login is not assigned to the newly logged-in account.
+```kotlin
+releaseHealth = if (BuildConfig.DEBUG) null else ReleaseHealthConfig(),
+```
 
-Reported session/user fractions mean **without a reported fatal crash** in the
-current retained observations. They do not mean confirmed healthy sessions or
-population crash-free rates. Only crashes that carry the exact frozen pointer
-count as fatal: iOS native crash reports, Android OS crash exit records (native or
-Java), Android SDK crash reports from the JVM uncaught-exception handler or the
-native signal handler, and the React Native JavaScript fatal reports described
-below. A launch ended by an ANR or another OS exit counts as
-without a reported fatal crash. So does an iOS foreground termination that the SDK
-infers on the next launch (low memory, unresponsive or unexplained, labelled
-inferred): it links to its exact frozen pointer as an other exit and never lowers
-the crash-free rate. tvOS has no release-health sessions. Missing outcomes remain unknown; neither an end nor
-its absence proves a healthy/crashed process. Duplicates are deduplicated, while
-late reports, retention and erasure can change the current counts. Anonymous
-subjects never become synthetic users. Web terminal attribution is unsupported,
-so web fatal fractions remain unavailable even when session counts exist.
+```swift
+#if !DEBUG
+await Everframe.shared.setReleaseHealth(ReleaseHealthConfiguration())
+#endif
+```
 
-Version 3 producers attach no session pointer while the app is in background, so a
-crash in background is outside the foreground session rates and does not make its
-launch fatal; version 2 native producers attributed it to their launch segment.
+```tsx
+releaseHealth: { enabled: !__DEV__ },
+```
 
-React Native sessions come from the native Android and iOS producers and form
-separate Android and iOS cohorts. An automatic unhandled JavaScript fatal from the
-SDK's Hermes `ErrorUtils` handler carries the session pointer, and counts as a
-fatal session, only when it is captured while the session is ready and its bundle
-exactly matches the session's known loaded build. Handled errors and promise
-rejections never carry a pointer. Fatals captured in background or before
-readiness, and fatals with a missing or mismatched bundle identity, carry none
-either; a foreground session that such a fatal ends keeps an unknown outcome. On
-Android, OS exit records are reported only for native crashes and ANRs, so the
-exit record of a process that React Native ends after a JavaScript fatal counts
-only when that exit is a native crash. When a session has both a JavaScript fatal
-and native or Java crash evidence, it is classified by the native or Java
-evidence, and the session and its launch still count once.
+Per platform:
 
-Android and iOS foreground sessions also have resolved crash-free rates. They count
-only sessions with a completed end or qualifying fatal evidence and report the rest
-as missing outcome coverage. They cover observed, opted-in foreground sessions
-only and are not population crash-free rates.
+- **Android** opens sessions in the app's default process only, through AndroidX
+  App Startup's `ProcessLifecycleInitializer`. It is there unless you removed it
+  from the manifest; without it no session opens and the SDK logs
+  `process-lifecycle-unavailable`. `Everframe.isReleaseHealthReady()` is true
+  while a foreground session is being recorded.
+- **iOS** needs the call again after every `Everframe.shared.start`. It returns
+  `true` once a foreground session has started. tvOS doesn't collect release
+  health.
+- **React Native** reports through the Android and iOS SDKs, so use the Provider
+  option and not the native calls. It needs the Hermes bundle identity that
+  `@everframe/metro` adds at build time, or the `jsBundle` option; without one,
+  the SDK logs an `[everframe]` warning and release health stays off. Every
+  Provider configure applies its own setting: a config without `releaseHealth`,
+  or with `enabled: false`, turns it off.
 
-## Durable delivery and privacy
+## What a crash-free session is
 
-A web start is committed to IndexedDB before its exposure token becomes available.
-Records survive reload and retain their original build, subject and credential
-route. The queue holds at most256 records/1MiB for7days. A full queue refuses the
-new start, reports capacity and loss diagnostics and keeps draining older records.
-Unavailable storage has no silent in-memory fallback. Requests time out after10s
-and retry on init, an online event or explicit `flush()`.
+A crash-free session is a foreground session that didn't end in a crash.
 
-Web `destroy()` and `pagehide` attempt to persist an end boundary. BFCache restore
-opens a new segment; visibility changes alone do not. Browser termination can
-interrupt asynchronous writes. Native producers likewise persist their start
-before exposing a pointer and retain their frozen records for offline delivery;
-their queue-loss accounting remains unavailable.
+A session starts when your app comes to the foreground and ends when it goes to
+the background. A session that reaches the background is **completed**. A
+session **crashed** when the app crashed during it, from any of these causes:
 
-Web `kill()`, `disabled:true` and explicit `releaseHealth.enabled:false` revoke the
-credential route and erase its queued records. Native disabling uses the SDK's
-existing release-health consent boundary. Requests already sent cannot reliably
-be recalled. Normal teardown preserves queued delivery. Other SDK keys/endpoints
-do not drain under new credentials; old-key rows remain until expiry or explicit
-erasure under the old route. A persisted generation prevents revoked pending work
-from resuming.
+- a native crash (C, C++, Swift or Objective-C) on Android or iOS;
+- an uncaught Kotlin or Java exception on Android;
+- an unhandled JavaScript error that ends a React Native app (Hermes);
+- app not responding on Android: the system ended the app because it stopped
+  responding (an ANR, reported on Android 11 and later).
 
-If web storage rejects erasure, the document keeps a revocation barrier until the
-purge succeeds. If the document exits while all persistent writes fail, it cannot
-retain that intent; preserve the disabled preference across future loads until
-storage recovers. Diagnostics expose the unavailable state. SDK opt-in, missing
-outcomes, queue losses and offline expiry keep population coverage incomplete at
-any volume, so these observations do not provide population crash-free rates.
-Configured crash-free target alerts are a separate check on retained Android and
-iOS foreground evidence that counts unknown outcomes as healthy; see
-[foreground crash-free target webhooks](release-health-rate-alerts.md).
+Crash-free sessions = completed ÷ (completed + crashed).
+
+Sessions with an unknown outcome are left out of both sides; see
+[unknown outcomes](#unknown-outcomes). A version shows a rate once it has at
+least 20 completed or crashed sessions. With fewer, the page says "Too few
+sessions" instead of a number that a single crash could swing.
+
+A version is "Below target" when it has at least the alert rule's minimum of
+completed or crashed sessions and its rate is under the rule's target. Without a
+rule, the target is 99% and the minimum 100 sessions. A rate exactly at the
+target is not below it. The page applies this to the period and platform you're
+looking at; the alert applies it to the last 7 days across all platforms. Both
+use the same rate.
+
+Each crashed session counts once, under one cause. When a session has more than
+one, "What crashed" uses the first of: native crash, Kotlin or Java crash,
+JavaScript crash, app not responding.
+
+These don't count as crashes:
+
+- a crash after the app went to the background, because its session had
+  already completed;
+- a handled error or a promise rejection. The SDK reports those under Errors
+  instead.
+
+"Last 7 days" and "Last 30 days" are rolling periods that end now. The daily
+chart uses UTC days. Web apps don't report sessions, because a browser tab
+can't report how it ended; their problems show up under Errors.
+
+## Unknown outcomes
+
+Some sessions end without the SDK learning how:
+
+- the user force-quit the app, or the device shut down or restarted;
+- the system ended the app to free memory (a low-memory kill), including the
+  low-memory, unresponsive and unexplained terminations that the iOS SDK infers
+  on the next launch. On Android, a low-memory kill while the app was visible
+  still appears under Errors as a "Low memory kill" crash, but its session
+  counts as unknown;
+- the app crashed in a way the SDK couldn't tie to the session: before the
+  session start was saved, or a React Native JavaScript error raised from a
+  JavaScript bundle other than the one the session started with;
+- the session's records were lost: the device stayed offline past the seven-day
+  retry window, the queue on the device was full, or storage failed.
+
+These sessions count as neither completed nor crashed, so they don't move the
+rate either way. The version page shows the share of sessions with a known
+outcome. A low share means the rate rests on fewer sessions than the total
+suggests.
+
+## Why set a user ID
+
+Without a user ID every session is anonymous, and the page can count sessions
+but not people. With one, it also shows:
+
+- **Crash-free users**: of the users whose outcome is known, the share who
+  didn't crash. A user crashed when any of their sessions crashed, and is
+  crash-free when all of their sessions completed.
+- **Users affected**: how many users had at least one crashed session.
+
+Crash-free users needs at least 80% of a version's sessions to carry a user ID,
+and at least 20 users with a known outcome. Below that the page says "Set a
+user ID to see this" or "Too few users" instead of a number.
+
+Use your own opaque account ID, never an email address or a name. It must be
+non-blank, at most 128 UTF-16 code units and free of control characters
+(U+0000 to U+001F) and unpaired surrogates. The SDK never copies it from
+`setUser`.
+
+- **Android:** `ReleaseHealthConfig(userId = accountId)`. On login, logout or an
+  account switch, call `Everframe.start` again with the new value
+  (`userId = null` on logout). An invalid ID keeps release health off; nothing
+  is thrown.
+- **iOS:** `try ReleaseHealthConfiguration(userId: accountId)`, then
+  `setReleaseHealth` again whenever it changes (`ReleaseHealthConfiguration()`
+  on logout). An invalid ID throws
+  `ReleaseHealthConfiguration.ValidationError.invalidUserIdentity`.
+- **React Native:** `releaseHealth: { enabled: true, userId: accountId }`.
+  Remount the Provider with a changed `key` when the ID changes; changing the
+  `config` prop alone does nothing. An invalid ID logs a warning and turns
+  release health off.
+
+Changing the ID ends the current session and starts a new one. A session keeps
+the ID it started with.
+
+## Versions and builds
+
+A release is an app version. The SDK reads it, and you don't pass it:
+
+- **Android:** `versionName`, trimmed. When it is missing, blank, longer than 64
+  UTF-16 code units or holds control characters, the SDK uses `versionCode` as
+  text instead, and `0.0.0` only when it can't read the package at all. The
+  build is `versionCode`.
+- **iOS:** `CFBundleShortVersionString`, trimmed, else `CFBundleVersion`, else
+  `0.0.0`. The build is `CFBundleVersion`, or none.
+- **React Native:** the native app's version and build, read as above. An
+  over-the-air JavaScript update keeps the native version, so its sessions count
+  toward that version.
+
+Crash and error reports carry the same version in `context.app.version`. That is
+how a version's "New errors" (error groups first seen in it) and "Top errors"
+match its sessions. Every build of a version counts toward the version, and the
+version page lists the builds it has seen. A debug build that reports the same
+version counts too, which is why the setup above turns release health on in
+release builds only.
+
+On iOS, `EverframeConfig(release:)` overrides the version of native crash
+reports. If you set it, native crashes (Mach exceptions and signals) and the
+terminations the SDK infers on the next launch report under that value instead
+of the app version. Release health keeps using the app version, so those crashes
+still count against the right session, but their errors show up under "New
+errors" and "Top errors" only for a version that matches `release`. Leave
+`release` unset, or set it to the app version, to keep them together.
+
+A version can be any text up to 64 UTF-16 code units, such as `2.4.0`,
+`2.4.0+42` or `1.0 (beta)`. Two different strings are two versions.
+
+"First seen" is the start of the oldest session of that version that Everframe
+still keeps. Sessions are kept for 30 days, so an older version shows the oldest
+session still kept. The latest release is the version first seen most recently,
+and the page compares it with the version first seen before it.
+
+## Privacy and delivery
+
+Release health is separate from replay, vitals, `setUser` and install
+identifiers. A session record holds the app version and build, the platform, the
+SDK version, the loaded JavaScript bundle ID in React Native apps, the start
+time and length, and the user ID if you set one. It holds no device or install
+identifier.
+
+The SDK saves each session start to an encrypted, app-private queue before it
+ties crash reports to that session. The queue keeps at most 256 records and
+1 MiB, for seven days. When it is full, the SDK refuses new records rather than
+dropping older ones. Retries resend each record's original bytes to its original
+SDK key and endpoint. Session records are sent independently of crash and error
+reports, which have their own queue.
+
+Turning release health off erases the records still waiting on the device:
+`releaseHealth = null` or `ReleaseHealthConfig(enabled = false)` on Android,
+`setReleaseHealth(nil)` on iOS, a config without `releaseHealth` or with
+`enabled: false` in React Native, and `kill()` on every platform. Records
+Everframe has already received are not recalled; they expire after 30 days.
+Crash reports already captured keep their own delivery and retention.
+
+## Alerts
+
+A project can send a webhook when a version drops below a crash-free target.
+See [release health alerts](release-health-alerts.md).

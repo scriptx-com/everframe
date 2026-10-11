@@ -1,4 +1,4 @@
-# @everframe/metro
+<!-- SPDX-License-Identifier: MIT -->
 
 ## 0.1.0
 

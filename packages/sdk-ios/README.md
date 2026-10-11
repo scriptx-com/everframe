@@ -157,8 +157,8 @@ run seen within the last 14 days. Only the newest previous run is evaluated, and
 each is imported once.
 
 Like Android's OS exit records, the event is anonymous: no user, session, identity,
-attachments, breadcrumbs or logs. On iOS with release health it links to its frozen
-session pointer as an other exit and never lowers the crash-free rate. It follows
+attachments, breadcrumbs or logs. With release health on, the session it ended
+counts as an unknown outcome, never as a crash. It follows
 `capture.crash`; there is no separate switch. App extensions, Mac Catalyst and iOS
 apps running on a Mac are excluded, and the simulator is excluded unless
 `EVERFRAME_SIMULATOR_TERMINATION_INFERENCE=1` is set for the qualification host
@@ -170,89 +170,24 @@ qualification of jetsam and watchdog thresholds is pending.
 
 ---
 
-## Foreground release-health sessions (iOS)
+## Release health (iOS)
 
-Release-health collection is off by default. After `start` has published the SDK
-configuration, opt in with the identity of the native build actually running:
-
-```swift
-let health = try ReleaseHealthConfiguration(nativeBuildId: "ios-2026.10.08.1",
-    loadedBuildId: nil, loadedBundleStatus: .notApplicable,
-    userId: "opaque-account-id") // Optional; anonymous when omitted.
-let ready = await Everframe.shared.setReleaseHealth(health)
-```
-
-`true` means an active foreground session start was durably appended. A `false`
-result means the app is in background, SDK is not started/ready, storage is
-unavailable, or this platform is unsupported. During launch the call first waits
-until the SDK has observed the application state on the main thread. Opting in
-while background keeps the configuration and waits for foreground; it does not
-create a session.
-For an embedded JavaScript bundle, pass its actual loaded build ID with
-`loadedBundleStatus: .known`; use `.unknown` when its identity is unavailable.
-Use `.notApplicable` for a native-only app. Do not pass a bundle
-that was downloaded but has not loaded. In a React Native app, enable release
-health with the React Native Provider's `releaseHealth` option instead: each
-Provider configure applies its own setting, so one without `releaseHealth`, with
-`enabled: false` or with a rejected identity revokes a native opt-in and erases
-its queued, undelivered records.
-
-Each SDK start requires a new opt-in. Version-3 records use `foreground-v1`:
-entering foreground opens a fresh session; entering background closes it with
-`outcome: completed`. UIKit inactive interruptions do not close a session.
-Changing the health configuration, account or loaded bundle closes the old session
-and opens a new one if foreground. Sessions in the same process share a launch
-UUID but have distinct exposure UUIDs. Completion marks the end of foreground
-monitoring, not healthy process termination. Death never invents a completed end.
-
-Sessions are anonymous unless you pass `userId:`, an optional project-local
-opaque account ID that is never copied from `setUser`. It must be nonblank, at
-most 128 UTF-16 units and free of U+0000–U+001F control characters; otherwise
-the initializer throws `ValidationError.invalidUserIdentity`. The ID is frozen for
-its session. On login, logout or account switch, call `setReleaseHealth` with a
-new configuration (`userId: nil` on logout); do the same when the loaded bundle
-changes. Queued records keep their original subject. See
-[release health observations](../../docs/release-health.md).
-
-Collection works independently of replay, vitals and crash capture. When native
-crash capture is enabled, only a pointer already durably ready can be frozen into
-its immutable fatal context. Background removes that pointer synchronously;
-independent background crash capture continues with no session pointer, so a crash
-in background is not attributed to any session or launch. A stored React Native
-JavaScript fatal closes native capture, so the abort that follows is not reported
-as a second crash. When release health is enabled through the React Native
-Provider, an automatic unhandled Hermes fatal captured while a session is ready
-carries that session's pointer if its bundle exactly matches the session's known
-loaded build, and marks the session fatal. Other JavaScript fatals (in background,
-before readiness, or with a missing or different bundle identity) carry none, and
-a foreground session that such a fatal ends keeps an unknown outcome. Handled
-errors and promise rejections never carry a pointer. Recovery never borrows the
-relaunch's session. Apple MetricKit reporting windows are not joined to these
-sessions. The receiving service must support v3 before enabling this producer;
-previously queued records retain their original wire version.
-
-The encrypted app-private journal retains at most 256 records, 1 MiB total and
-seven days. Capacity failure does not evict earlier records to invent coverage;
-queue-loss accounting remains unavailable. Delivery retries preserve the original
-route, SDK key and serialized record. Revoked or expired keys may prevent delivery.
+Release health counts crash-free foreground sessions for each version of your
+app. It is off by default; turn it on after `Everframe.shared.start`:
 
 ```swift
-let erasedLocally = await Everframe.shared.setReleaseHealth(nil)
+await Everframe.shared.setReleaseHealth(ReleaseHealthConfiguration())
 ```
 
-Disabling clears readiness immediately and attempts to erase pending health
-records. A failed erase keeps an in-process purge obligation that must succeed
-before another opt-in becomes ready. Retry cleanup when the result is `false`;
-the failed erase obligation is not guaranteed to survive process loss or restart.
-Disabling prevents new native admissions from freezing the old pointer; already
-admitted independent crash evidence retains its original bytes under crash
-delivery/retention policy. This is not retroactive server erasure.
-`kill()` revokes both capture and health. A missing end record or exit does not
-mean a crash or a healthy termination. Resolved foreground-session rates describe
-only sessions with a completed boundary or qualified fatal evidence; missing
-outcomes remain unknown. They do not measure the full install population. tvOS
-compiles this API but returns `false` for enabling collection. Automated lifecycle,
-context and compilation checks do not replace physical-device qualification.
+The SDK reads the version from `CFBundleShortVersionString` (or
+`CFBundleVersion` when it is missing) and the build from `CFBundleVersion`, and
+crash reports carry the same version. Call it again after every `start`. Pass
+`try ReleaseHealthConfiguration(userId: accountId)` to count crash-free users,
+and call `setReleaseHealth` again when the account changes.
+`setReleaseHealth(nil)` or `kill()` turns release health off and erases its
+queued records. tvOS doesn't collect release health. In a React Native app, use
+the Provider's `releaseHealth` option instead. See
+[release health](../../docs/release-health.md).
 
 ## Apple hang and exit diagnostics
 
