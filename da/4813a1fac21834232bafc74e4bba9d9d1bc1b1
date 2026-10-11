@@ -1,0 +1,21 @@
+examples/android-views/app/src/main/java/com/example/viewssample/MainActivity.java
+  s_269319d6df67e5::t_7208c4494d97bb 53-56
+examples/android-views/app/src/main/res/layout/activity_main.xml
+  s_269319d6df67e5::t_cf36bdb657ecbd 34-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "da4813a1fac21834232bafc74e4bba9d9d1bc1b1",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
