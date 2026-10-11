@@ -1,0 +1,37 @@
+packages/protocol/compat/native-exposure/ConfigMain.kt
+  s_fbcdadc1064236::t_d25eb150e6962f 8-10,15-18
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_fbcdadc1064236::t_78399a34a02351 55,717-724,871,881-882,884
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_fbcdadc1064236::t_b25d59ef2c2cdc 100-107,109,128,130
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReleaseHealthConfig.kt
+  s_fbcdadc1064236::t_03bb9a0e6e7df8 6-8,20-25
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthBuildGate.kt
+  s_fbcdadc1064236::t_c738037f84cd3a 1-33
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_fbcdadc1064236::t_e61d52c6226268 68-69
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_fbcdadc1064236::t_4981f7bcd1d233 191,203-216
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReleaseHealthDefaultTest.kt
+  s_fbcdadc1064236::t_6bbeb6e1a85ffb 1-33
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthBuildGateTest.kt
+  s_fbcdadc1064236::t_3311eb09640524 1-67
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/health/ReleaseHealthRuntimeTest.kt
+  s_fbcdadc1064236::t_e1ef6d7fe26891 47,139-141,172,193-194,215-254,372-415
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a8cd53fa9b6aa0c357422ca69005d5420e137663",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
