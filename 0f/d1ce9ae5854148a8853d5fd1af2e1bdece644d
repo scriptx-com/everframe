@@ -1,0 +1,43 @@
+docs/release-health.md
+  s_fbcdadc1064236::t_c871d64da67b81 4-53,56-234
+docs/release-health-alerts.md
+  s_fbcdadc1064236::t_c5d1903ffc2e28 4,6-8,10-20,23-142
+.changeset/release-health-by-version.md
+  s_fbcdadc1064236::t_d21ff00f5b914e 1-19
+docs/crash-reporting-support.md
+  s_fbcdadc1064236::t_ae530409c339e3 47-53
+packages/bundler-plugin/CHANGELOG.md
+  s_fbcdadc1064236::t_563307c41cbc9c 1
+packages/expo/CHANGELOG.md
+  s_fbcdadc1064236::t_fd74bb524bc23d 1
+packages/metro/CHANGELOG.md
+  s_fbcdadc1064236::t_0c73901abda484 1
+packages/protocol/compat/native-exposure/README.md
+  s_fbcdadc1064236::t_874ee6ea05b9b4 12
+packages/sdk-android/android/README.md
+  s_fbcdadc1064236::t_bf7c56ecf52ae9 95,97-98,101,104-112
+packages/sdk-android/tests/native-crash-host/README.md
+  s_fbcdadc1064236::t_bcc9ba15ad8373 17,19
+packages/sdk-ios/CHANGELOG.md
+  s_fbcdadc1064236::t_e13a93f56c56de 1
+packages/sdk-ios/README.md
+  s_fbcdadc1064236::t_62781ff86fe405 160-161,173,175-176,179,182-190
+packages/sdk-react-native/README.md
+  s_fbcdadc1064236::t_861c8045db8042 102,104-105,108,111-119,474
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0fd1ce9ae5854148a8853d5fd1af2e1bdece644d",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
