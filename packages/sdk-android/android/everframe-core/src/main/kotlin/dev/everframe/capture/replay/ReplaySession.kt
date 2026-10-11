@@ -344,20 +344,21 @@ class ReplaySession(
      * - both replays are used.
      * The caller's thread only reads fields under the lock.
      */
-    internal fun beginErrorReplay(): ErrorReplaySnapshot? {
+    internal fun beginErrorReplay(expectedStartEpoch: Int = originatingStartEpoch): ErrorReplaySnapshot? {
         val claim = Everframe.withReportAuthorizationLock {
             val bound = recorder
-            if (bound == null || isTornDown.get() || Everframe.currentStartEpochVolatile() != originatingStartEpoch ||
+            if (bound == null || isTornDown.get() || expectedStartEpoch != originatingStartEpoch ||
+                Everframe.currentStartEpochVolatile() != originatingStartEpoch ||
                 !authorized || activeOwner != null || state != NativeVideoRecorder.State.BUFFERING ||
                 bound.state != NativeVideoRecorder.State.BUFFERING || !Everframe.captureGate ||
                 !VideoPrivacyRevocation.permits(privacyEpoch) ||
                 errorReplaysSent + errorReplaysPending >= ErrorReplayWork.MAX_PER_SESSION
             ) return@withReportAuthorizationLock null
             errorReplaysPending++
-            bound to generation
+            Triple(bound, generation, bound.bufferGeneration)
         } ?: return null
         val startedNanos = System.nanoTime()
-        val (bound, capturedGeneration) = claim
+        val (bound, capturedGeneration, capturedBufferGeneration) = claim
         val build = errorReplayAttachment
         val result = ErrorReplayWork.scope.async {
             try { bound.snapshot(bound.owner, build) } catch (_: Throwable) { null }
@@ -366,6 +367,8 @@ class ReplaySession(
             allowed = {
                 Everframe.withReportAuthorizationLock {
                     !isTornDown.get() && authorized && generation == capturedGeneration &&
+                        Everframe.currentStartEpochVolatile() == expectedStartEpoch &&
+                        bound.bufferGeneration == capturedBufferGeneration &&
                         VideoPrivacyRevocation.permits(privacyEpoch)
                 }
             },

@@ -31,6 +31,7 @@ import dev.everframe.config.IngestEndpoint
 import dev.everframe.envelope.EnvelopeBuilder
 import dev.everframe.outbox.CrashSidecar
 import dev.everframe.outbox.OutboxEntry
+import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.protocol.generated.Crash
 import dev.everframe.protocol.generated.CrashDetails
 import dev.everframe.protocol.generated.JSBundle
@@ -63,7 +64,9 @@ object CrashReporter {
 
     /** The live session's error-replay claim. Tests substitute a fake snapshot. */
     @VisibleForTesting @Volatile
-    internal var errorReplaySource: () -> ErrorReplaySnapshot? = { dev.everframe.Everframe._replaySession?.beginErrorReplay() }
+    internal var errorReplaySource: (Int) -> ErrorReplaySnapshot? = { startEpoch ->
+        dev.everframe.Everframe._replaySession?.beginErrorReplay(startEpoch)
+    }
 
     @Volatile private var appContext: Context? = null
 
@@ -203,7 +206,7 @@ object CrashReporter {
             try {
                 reservation = handledAdmission.reserve(throwable, captured.user.startEpoch) ?: return diagnostic.reject(CaptureOutcome.ADMISSION_SUPPRESSED)
                 // Spec 2026-10-11: the snapshot starts at capture time, before host getters run, off this thread.
-                if (sdkName in ERROR_REPLAY_HANDLED_SDKS) errorReplay = runCatching { errorReplaySource() }.getOrNull()
+                if (sdkName in ERROR_REPLAY_HANDLED_SDKS) errorReplay = runCatching { errorReplaySource(captured.user.startEpoch) }.getOrNull()
                 val type = redactAndCap(throwable.javaClass.name, 256)
                 val message = runCatching { throwable.message }.getOrNull() ?: type
                 val frames = runCatching { throwable.stackTrace }.getOrNull()
@@ -311,7 +314,7 @@ object CrashReporter {
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.BRIDGE_AUTOMATIC)
         // A fatal JavaScript error ends the app: it is a crash and never takes a snapshot.
         val errorReplay = if (replay && !fatal && captured.captureConsent && captured.config?.capture?.crash == true)
-            runCatching { errorReplaySource() }.getOrNull() else null
+            runCatching { errorReplaySource(captured.user.startEpoch) }.getOrNull() else null
         val accepted = try {
             runCatching {
                 capture(
@@ -408,7 +411,7 @@ object CrashReporter {
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.BRIDGE_HANDLED)
         val errorReplay = if (replay && sdkName != FLUTTER_SDK && captured.captureConsent && captured.config?.capture?.crash == true)
-            runCatching { errorReplaySource() }.getOrNull() else null
+            runCatching { errorReplaySource(captured.user.startEpoch) }.getOrNull() else null
         return try { runCatching {
             capture(
                 exceptionType = exceptionType.take(256),
@@ -651,7 +654,15 @@ object CrashReporter {
                 val token = if (waitForStorage) sidecar.appendHandledSyncToken(entry, authorization, diagnostic.owner)
                     else sidecar.appendSyncToken(entry, authorization, diagnostic.owner)
                 if (token == null || !errorReplay!!.handOff()) ErrorReplayHolds.release(entry.reportId)
-                else ErrorReplayUpgrade.schedule(errorReplay, sidecar, token, entry, encoded.envelope, authorization)
+                else {
+                    // Optional video must belong to the error's captured start. Automatic error
+                    // admission itself remains valid across starts, as before.
+                    val replayAuthorization = object : OutboxAuthorization {
+                        override fun isAllowed() = authorization.isAllowed() &&
+                            captured.user.startEpoch == dev.everframe.Everframe.currentStartEpochVolatile()
+                    }
+                    ErrorReplayUpgrade.schedule(errorReplay, sidecar, token, entry, encoded.envelope, replayAuthorization)
+                }
                 return diagnostic.accepted(token != null)
             }
             val accepted = if (waitForStorage) sidecar.appendHandledSyncAccepted(entry, authorization, diagnostic.owner)
@@ -706,7 +717,7 @@ object CrashReporter {
         __afterUserSnapshotHookForTesting = null
         __exposureForTesting = null
         sidecarFactory = { CrashSidecar(it) }
-        errorReplaySource = { dev.everframe.Everframe._replaySession?.beginErrorReplay() }
+        errorReplaySource = { startEpoch -> dev.everframe.Everframe._replaySession?.beginErrorReplay(startEpoch) }
     }
 
     @VisibleForTesting

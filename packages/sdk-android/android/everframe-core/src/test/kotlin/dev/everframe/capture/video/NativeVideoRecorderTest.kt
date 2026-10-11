@@ -89,6 +89,110 @@ class NativeVideoRecorderTest {
         assertEquals(0, h.budget.usedBytes)
     }
 
+    @Test fun pauseDropsClosedHistoryAndTheWritingEncoderBeforeResume() = runBlocking {
+        for (environmentPause in listOf(false, true)) {
+            val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+            val before = h.segment(2_000_000); val writing = h.segment(4_000_000); val after = h.segment(6_000_000)
+            val recordings = ArrayDeque(listOf(listOf(before), listOf(writing), listOf(after)))
+            var devicePaused = false
+            val recorder = NativeVideoRecorder(h.owner, scheduler, { block -> block(); true }, { VideoSize(4, 4) }, { null },
+                { _, _, _ ->
+                    var owned = recordings.removeFirstOrNull().orEmpty()
+                    object : RecordingVideoEncoder {
+                        override fun prepare(size: VideoSize, fps: Int) = size
+                        override fun offer(frame: SafeVideoFrame) = false
+                        override fun finish(deadline: Long) = owned.also { owned = emptyList() }
+                        override val isTerminal = false
+                        override fun close() { owned.forEach { it.close() }; owned = emptyList() }
+                    }
+                }, { segments, allowed -> h.exporter.export(h.owner, segments, allowed) },
+                devicePause = { devicePaused },
+                snapshotExporter = { segments, allowed -> h.exporter.exportBorrowed(h.owner, segments, allowed) })
+            fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
+            try {
+                recorder.start(NativeVideoSettings(2), 30); drainMain()
+                assertNotNull(recorder.snapshot(h.owner) { NativeVideoAttachment(h.scheduler).build(it) }); drainMain()
+                if (environmentPause) {
+                    devicePaused = true; scheduler.timers.removeAt(0).invoke(); drainMain()
+                } else recorder.pause()
+                assertEquals(NativeVideoRecorder.State.SUSPENDED, recorder.state)
+                assertFalse("closed pre-pause history must be deleted", before.path.exists())
+                assertFalse("the writing pre-pause ring must be deleted", writing.path.exists())
+                devicePaused = false; recorder.resume(); drainMain()
+                assertNotNull(recorder.snapshot(h.owner) { NativeVideoAttachment(h.scheduler).build(it) })
+                assertEquals(listOf(listOf(2_000_000L), listOf(6_000_000L)), h.inputs)
+            } finally { recorder.close(); recordings.flatten().forEach { it.close() } }
+            assertEquals(0, h.budget.usedBytes)
+        }
+    }
+
+    @Test fun pauseInvalidatesLateSnapshotFinishExportAndAttachmentResults() = runBlocking {
+        for (phase in listOf("finish", "export", "build")) {
+            val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+            val before = h.segment(2_000_000); val after = h.segment(4_000_000)
+            val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val controls = ArrayDeque<() -> Unit>(); var queueControl = false
+            val recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(before), listOf(after))),
+                control = { block -> if (queueControl) { controls.addLast(block); entered.complete(Unit) } else block(); true },
+                snapshotExporter = { segments, allowed ->
+                    if (phase == "export") { entered.complete(Unit); release.await() }
+                    h.exporter.exportBorrowed(h.owner, segments, allowed)
+                })
+            fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
+            try {
+                recorder.start(NativeVideoSettings(2), 30); drainMain()
+                queueControl = phase == "finish"
+                val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                    recorder.snapshot(h.owner) { clip ->
+                        if (phase == "build") { entered.complete(Unit); release.await() }
+                        NativeVideoAttachment(h.scheduler).build(clip)
+                    }
+                }
+                entered.await(); recorder.pause(); recorder.resume()
+                queueControl = false
+                controls.forEach { it() }; controls.clear(); release.complete(Unit)
+                assertNull("pre-pause $phase output must never publish after resume", pending.await())
+                assertFalse(before.path.exists())
+                drainMain()
+                assertNotNull(recorder.snapshot(h.owner) { NativeVideoAttachment(h.scheduler).build(it) })
+                assertEquals(listOf(4_000_000L), h.inputs.last())
+            } finally { release.complete(Unit); recorder.close() }
+            assertEquals(0, h.budget.usedBytes)
+        }
+    }
+
+    @Test fun pauseDuringSizeReplacementCannotReintroduceOldHistory() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val before = h.segment(2_000_000); val after = h.segment(4_000_000)
+        val finishes = ArrayDeque(listOf(listOf(before), listOf(after)))
+        val controls = ArrayDeque<() -> Unit>(); var queueControl = false
+        var dimensions = VideoSize(4, 4)
+        val recorder = NativeVideoRecorder(h.owner, scheduler,
+            { block -> if (queueControl) controls.addLast(block) else block(); true }, { dimensions }, { null },
+            { _, _, _ -> object : RecordingVideoEncoder {
+                override fun prepare(size: VideoSize, fps: Int) = size
+                override fun offer(frame: SafeVideoFrame) = false
+                override fun finish(deadline: Long) = finishes.removeFirstOrNull().orEmpty()
+                override val isTerminal = false
+                override fun close() = Unit
+            } }, { segments, allowed -> h.exporter.export(h.owner, segments, allowed) },
+            snapshotExporter = { segments, allowed -> h.exporter.exportBorrowed(h.owner, segments, allowed) })
+        fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
+        try {
+            recorder.start(NativeVideoSettings(2), 30); drainMain()
+            queueControl = true; dimensions = VideoSize(6, 6)
+            scheduler.timers.removeAt(0).invoke(); drainMain()
+            assertEquals(1, controls.size)
+            recorder.pause(); recorder.resume()
+            queueControl = false; controls.removeFirst().invoke(); drainMain()
+            assertFalse("late replacement output cannot restore pre-pause files", before.path.exists())
+            assertNotNull(recorder.snapshot(h.owner) { NativeVideoAttachment(h.scheduler).build(it) })
+            assertEquals(listOf(listOf(4_000_000L)), h.inputs)
+        } finally { recorder.close() }
+        assertEquals(0, h.budget.usedBytes)
+    }
+
     private fun snapshotRecorder(
         h: VideoExporterTest.Harness, scheduler: RecorderScheduler, finishes: ArrayDeque<List<VideoSegment>>,
         control: (() -> Unit) -> Boolean = { block -> block(); true },
@@ -244,9 +348,8 @@ class NativeVideoRecorderTest {
             }, { segments, allowed -> h.exporter.export(h.owner, segments, allowed) })
         recorder.start(NativeVideoSettings(5), 30)
         scheduler.mainTasks.removeAt(0).invoke()
-        recorder.pause(); recorder.resume()
         val export = recorder.freeze(h.owner)
-        recorder.pause()
+        recorder.pause(); recorder.resume() // Frozen report ownership survives lifecycle pauses.
         val clip = export()!!
         assertEquals(h.owner, clip.owner); assertEquals(1, anchors.size)
         assertNull(export()); assertFalse(segment.path.exists())

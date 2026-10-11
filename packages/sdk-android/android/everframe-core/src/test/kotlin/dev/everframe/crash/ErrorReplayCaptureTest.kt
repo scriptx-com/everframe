@@ -47,6 +47,7 @@ class ErrorReplayCaptureTest {
     private val keys = JceTestOutboxKeyProvider()
     private lateinit var storageDir: File
     private val asked = AtomicInteger()
+    private val starts = mutableListOf<Pair<Thread, java.util.concurrent.CountDownLatch>>()
 
     private class Fake(started: Long = System.nanoTime(), now: () -> Long = System::nanoTime) {
         val result = CompletableDeferred<VideoAttachmentPair?>()
@@ -82,12 +83,54 @@ class ErrorReplayCaptureTest {
     }
 
     @After fun tearDown() {
+        if (starts.isNotEmpty()) Everframe.kill()
+        starts.forEach { (thread, release) -> release.countDown(); thread.join(5_000); assertFalse(thread.isAlive) }
+        Everframe.__resetStartTailDelayHookForTesting()
         ErrorReplayHolds.clock = System::nanoTime
         Everframe.setUser(null)
         appContextField.set(null, previousAppContext)
         Everframe.__setConfigForTesting(null)
         Everframe.captureGate = false
         CrashReporter.__resetForTesting()
+    }
+
+    private fun restartIntoAnotherApp() {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        Everframe.__beforeDrainLaunchForTesting = { entered.countDown(); check(release.await(30, java.util.concurrent.TimeUnit.SECONDS)) }
+        val thread = Thread { Everframe.start(context, EverframeConfig("app-B", "key-B")) }
+        starts += thread to release
+        thread.start()
+        assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        Everframe.__beforeDrainLaunchForTesting = null
+        appContextField.set(null, null)
+    }
+
+    @Test fun `automatic error captured in A cannot acquire replay from a later start B`() = runBlocking {
+        val fakeB = Fake()
+        val capturedStart = Everframe.currentStartEpochVolatile()
+        var requestedStart: Int? = null
+        CrashReporter.errorReplaySource = { start -> requestedStart = start; restartIntoAnotherApp(); fakeB.snapshot }
+        assertTrue(CrashReporter.captureFactsAcceptedWithReplay("Error", "from A", emptyList(), "errorutils", false,
+            "2026-10-11T00:00:00Z", null, null, null))
+        fakeB.result.complete(pair()); idle()
+        val original = entries().single()
+        assertEquals("sk", original.sdkKey)
+        assertEquals("acquisition is bound to A, even when the source now belongs to B", capturedStart, requestedStart)
+        assertTrue("A remains durably queued without B's replay", original.attachmentRefs.isEmpty())
+        assertEquals(listOf(false), fakeB.settled.toList())
+    }
+
+    @Test fun `automatic error replay cannot publish after its captured start changes`() = runBlocking {
+        val fakeA = Fake(); CrashReporter.errorReplaySource = { fakeA.snapshot }
+        assertTrue(CrashReporter.captureFactsAcceptedWithReplay("Error", "from A", emptyList(), "errorutils", false,
+            "2026-10-11T00:00:00Z", null, null, null))
+        val original = entries().single()
+        restartIntoAnotherApp()
+        fakeA.result.complete(pair()); idle()
+        assertEquals(listOf(original), entries())
+        assertEquals("crash-capture;replay_omitted", reason(entries().single()))
+        assertEquals(listOf(false), fakeA.settled.toList())
     }
 
     @Test fun `handled error is stored at once and upgraded with its replay`() = runBlocking {

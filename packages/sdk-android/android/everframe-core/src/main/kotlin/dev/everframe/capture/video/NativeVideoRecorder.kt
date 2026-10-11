@@ -50,6 +50,8 @@ internal class NativeVideoRecorder(
     @Volatile private var revoked = false
     val replayAllowed: Boolean get() = !revoked && state != State.DISABLED && state != State.CLOSED
     private var generation = 0L
+    // Only a live-buffer pause advances this fence. Freeze/report cleanup keep independent copies valid.
+    @Volatile internal var bufferGeneration = 0L; private set
     private var settings: NativeVideoSettings? = null
     private var durationUs = 0L
     private var anchor: VideoTimeAnchor? = null
@@ -93,8 +95,13 @@ internal class NativeVideoRecorder(
         tick()
     }
     fun pause() {
-        synchronized(lock) { manuallyPaused = true; if (state != State.BUFFERING) return; state = State.SUSPENDED; generation++ }
-        cancelTick?.invoke(); capture?.cancel()
+        val discarded = synchronized(lock) {
+            manuallyPaused = true
+            if (state != State.BUFFERING) return
+            state = State.SUSPENDED; generation++
+            invalidateBufferLocked()
+        }
+        cancelTick?.invoke(); capture?.cancel(); discarded?.close()
     }
     fun resume() {
         synchronized(lock) { manuallyPaused = false; if (state != State.SUSPENDED || revoked) return; state = State.BUFFERING }
@@ -155,12 +162,25 @@ internal class NativeVideoRecorder(
     }
 
     private fun suspendForEnvironment(epoch: Long) {
-        synchronized(lock) {
+        val discarded = synchronized(lock) {
             if (!buffering(epoch)) return
             state = State.SUSPENDED; generation++
+            invalidateBufferLocked()
         }
-        acquisitionDrops.incrementAndGet(); capture?.cancel(); watchEnvironment()
+        acquisitionDrops.incrementAndGet(); capture?.cancel(); discarded?.close(); watchEnvironment()
     }
+    /** Caller holds lock: publish invalidation and queue deletion before any resume can prepare. */
+    private fun invalidateBufferLocked(): RecordingVideoEncoder? {
+        bufferGeneration++
+        val discarded = encoder.also { encoder = null }
+        ownedWorker {
+            history.forEach { it.close() }; history.clear(); observeRing(0, 0)
+            VideoDiskBudget.process.retryCleanup()
+        }
+        return discarded
+    }
+    private fun ownsBuffer(epoch: Long) = !revoked && bufferGeneration == epoch
+
     private fun watchEnvironment() {
         synchronized(lock) {
             if (state != State.SUSPENDED || manuallyPaused || revoked) return
@@ -183,16 +203,16 @@ internal class NativeVideoRecorder(
         }
     }
     private fun prepare(epoch: Long, requested: VideoSize) {
-        val previous = synchronized(lock) {
+        val (previous, retainedGeneration) = synchronized(lock) {
             if (!buffering(epoch) || preparing) return
             preparing = true; controlTasks++
-            encoder.also { encoder = null }
+            encoder.also { encoder = null } to bufferGeneration
         }
         capture?.cancel()
         if (!submitControl {
             val retained = try { previous?.finish(scheduler.nowNanos() / 1_000_000 + 3_000).orEmpty() }
                 catch (_: Throwable) { previous?.close(); emptyList() }
-            ownedWorker { if (replayAllowed) history.addAll(retained) else retained.forEach { it.close() } }
+            ownedWorker { if (ownsBuffer(retainedGeneration)) history.addAll(retained) else retained.forEach { it.close() } }
             if (!buffering(epoch)) { synchronized(lock) { preparing = false }; tick(); return@submitControl }
             val next = try { encoderFactory(owner, anchor!!, durationUs) } catch (_: Throwable) {
                 synchronized(lock) { preparing = false }
@@ -230,12 +250,12 @@ internal class NativeVideoRecorder(
     suspend fun snapshot(owner: VideoOwner, build: suspend (OwnedVideoClip) -> VideoAttachmentPair?): VideoAttachmentPair? {
         require(owner == this.owner)
         val completed = CompletableDeferred<Unit>()
-        val current = synchronized(lock) {
+        val (current, capturedBufferGeneration) = synchronized(lock) {
             // A freeze (open bug report), pause, revocation or in-flight replacement refuses with no codec work.
             if (revoked || state != State.BUFFERING || preparing) return null
             preparing = true; controlTasks++
             snapshotFinished = completed
-            encoder.also { encoder = null }
+            encoder.also { encoder = null } to bufferGeneration
         }
         capture?.cancel()
         try {
@@ -244,7 +264,7 @@ internal class NativeVideoRecorder(
                 val segments = try { current?.finish(scheduler.nowNanos() / 1_000_000 + 3_000).orEmpty() }
                     catch (_: Throwable) { current?.close(); emptyList() }
                 ownedWorker {
-                    if (!replayAllowed) {
+                    if (!ownsBuffer(capturedBufferGeneration)) {
                         segments.forEach { it.close() }; retained.complete(emptyList())
                     } else {
                         history.addAll(segments)
@@ -256,7 +276,7 @@ internal class NativeVideoRecorder(
             if (!submitted) {
                 // A full control lane keeps the untouched encoder recording, rather than losing its ring.
                 val restored = synchronized(lock) {
-                    if (encoder == null && !revoked && (state == State.BUFFERING || state == State.FROZEN)) {
+                    if (encoder == null && ownsBuffer(capturedBufferGeneration) && (state == State.BUFFERING || state == State.FROZEN)) {
                         encoder = current; true
                     } else false
                 }
@@ -266,9 +286,9 @@ internal class NativeVideoRecorder(
             // finish() is bounded at 3 s and the worker hop is immediate. The bound only keeps a lost
             // completion from parking `preparing`; the segments stay recorder-owned either way.
             val borrowed = withTimeoutOrNull(6_000) { retained.await() } ?: return null
-            if (borrowed.isEmpty() || !replayAllowed) return null
-            val clip = snapshotExporter(borrowed) { replayAllowed } ?: return null
-            return try { build(clip) } finally { clip.close() }
+            if (borrowed.isEmpty() || !ownsBuffer(capturedBufferGeneration)) return null
+            val clip = snapshotExporter(borrowed) { ownsBuffer(capturedBufferGeneration) } ?: return null
+            return try { build(clip)?.takeIf { ownsBuffer(capturedBufferGeneration) } } finally { clip.close() }
         } finally {
             synchronized(lock) {
                 preparing = false

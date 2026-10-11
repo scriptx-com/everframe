@@ -113,12 +113,37 @@ class ErrorReplaySessionTest {
         }
     }
 
+    @Test fun aReplayClaimFromAnotherStartCannotAcquireThisSessionsHistory() = runBlocking {
+        assertNull(session.beginErrorReplay(Everframe.currentStartEpochVolatile() - 1))
+        assertTrue("a foreign start cannot export this recorder", h.inputs.isEmpty())
+        assertNotNull(attach())
+    }
+
     @Test fun anOpenBugReportBlocksErrorReplays() = runBlocking {
         val report = session.freezeOwnedCapture()
         try { assertNull(session.beginErrorReplay()) } finally { report.cancel() }
         drainMain()
         val after = checkNotNull(session.beginErrorReplay()) { "a released report gives the buffer back" }
         after.await(); after.settle(false)
+    }
+
+    @Test fun pauseAfterExportInvalidatesPublicationEvenAfterResume() = runBlocking {
+        val snapshot = checkNotNull(session.beginErrorReplay())
+        assertNotNull(snapshot.await())
+        session.pause(); session.resume()
+        assertFalse("a pre-pause attachment must not publish from a resumed buffer", snapshot.replayAllowed())
+        snapshot.settle(false)
+    }
+
+    @Test fun consumingAConcurrentReportDoesNotRevokeAnErrorsIndependentCopy() = runBlocking {
+        val snapshot = checkNotNull(session.beginErrorReplay())
+        assertNotNull(snapshot.await())
+        val report = session.freezeOwnedCapture()
+        try {
+            assertNotNull(report.exportVideo()?.also { it.close() })
+            report.finishConsumption()
+            assertTrue("report cleanup must not revoke the error's own copy", snapshot.replayAllowed())
+        } finally { report.cancel(); snapshot.settle(false) }
     }
 
     @Test fun aPausedSessionDoesNotSnapshot() = runBlocking {
