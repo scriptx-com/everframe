@@ -1,0 +1,31 @@
+.changeset/release-health-on-by-default.md
+  s_fbcdadc1064236::t_6d9dada5b75535 1-14
+docs/crash-reporting-support.md
+  s_fbcdadc1064236::t_7cee4ca7d45a40 51-54
+docs/release-health.md
+  s_fbcdadc1064236::t_26b1d097c950e2 14-16,18-29,32,36,40,43-45,47,50,54,58,68-71,74-77,167-169,171-173,194-196,212,233-236
+packages/sdk-android/android/README.md
+  s_fbcdadc1064236::t_8642c26cc37c08 95,98-99,102,109-110
+packages/sdk-ios/README.md
+  s_fbcdadc1064236::t_ae7a26e8cfdf1f 96-97,176-178,181,186-193
+packages/sdk-ios/Tests/ReleaseHealthProof/README.md
+  s_fbcdadc1064236::t_b200103dbb9a77 5-10
+packages/sdk-react-native/README.md
+  s_fbcdadc1064236::t_4795e5c8d9349f 105-106,109,115-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "afb54330835761f44a05a737427d101a1f6f46f3",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
