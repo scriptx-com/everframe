@@ -320,10 +320,11 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
     // Map host-sensitive elements onto rr-block so rrweb omits their subtree.
     const els = deps.sensitiveElements?.() ?? [];
     if (els.length > 0 && typeof document !== 'undefined') {
-      // Attribute-marked nodes are already blocked dynamically; leaving their
-      // class alone lets removeRef release a registry-owned marker mid-recording.
+      // Attribute-marked nodes and their descendants are already blocked
+      // dynamically. Leaving their classes alone lets removeRef release the
+      // entire subtree, including expanded display:contents children.
       // For other refs, restore only classes this recorder actually added.
-      restoreMasks = applyReplayMaskClasses(els.filter((el) => !el.hasAttribute(SENSITIVE_ATTR)));
+      restoreMasks = applyReplayMaskClasses(els.filter((el) => el.closest(`[${SENSITIVE_ATTR}]`) === null));
     }
     const options = buildRecordOptions({
       durationSec,

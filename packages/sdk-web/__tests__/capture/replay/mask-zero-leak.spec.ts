@@ -223,6 +223,18 @@ describe('REPLAY-04 golden-file masking', () => {
     expect(json).toContain('Authorization: [REDACTED]');
   });
 
+  it.each([
+    'abc.123-45-6789.secretSuffix',
+    'abc.4111111111111111.secretSuffix',
+  ])('removes complete bearer credentials before overlapping pattern redaction: %s', (token) => {
+    const text = `Authorization: Bearer ${token}`;
+    const event = { type: FULL, data: { node: { textContent: text, attributes: { class: text } } } };
+    const [scrubbed] = scrubReplayEvents([event]);
+    expect(scrubbed!.data.node.textContent).toBe('Authorization: [REDACTED]');
+    expect(scrubbed!.data.node.attributes.class).toBe('Authorization: [REDACTED]');
+    expect(JSON.stringify(scrubbed)).not.toContain('secretSuffix');
+  });
+
   it('scrubs style diff objects on attribute mutations', () => {
     const json = JSON.stringify(scrubReplayEvents(seededIncrementals()));
     expect(json).not.toContain(SEEDED_PII[1]!);
@@ -383,9 +395,16 @@ describe('real rrweb, end to end', () => {
   });
 
 
-  it.each([false, true])('blocks registered refs until removal (registered before start: %s)', async (beforeStart) => {
-    document.body.innerHTML = '<section id="registered"></section>';
-    const element = document.querySelector('#registered')!;
+  it.each([
+    { beforeStart: false, displayContents: false },
+    { beforeStart: true, displayContents: false },
+    { beforeStart: false, displayContents: true },
+    { beforeStart: true, displayContents: true },
+  ])('blocks refs until removal (before start: $beforeStart, display:contents: $displayContents)', async ({ beforeStart, displayContents }) => {
+    document.body.innerHTML = '<section id="registered"><span></span></section>';
+    const element = document.querySelector<HTMLElement>('#registered')!;
+    const child = element.querySelector('span')!;
+    if (displayContents) element.style.display = 'contents';
     expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
     expect(element.classList.contains(RR_BLOCK_CLASS)).toBe(false);
     if (beforeStart) sensitiveRegistry.addRef(element);
@@ -394,12 +413,13 @@ describe('real rrweb, end to end', () => {
       rec.start(30);
       await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
       if (!beforeStart) sensitiveRegistry.addRef(element);
-      element.textContent = 'late-registry-private-secret';
+      child.textContent = 'late-registry-private-secret';
       await new Promise((resolve) => setTimeout(resolve, 0));
       record.takeFullSnapshot(true);
-      element.textContent = '';
+      child.textContent = '';
       sensitiveRegistry.removeRef(element);
-      element.textContent = 'Public after removal';
+      expect(child.classList.contains(RR_BLOCK_CLASS)).toBe(false);
+      child.textContent = 'Public after removal';
       await new Promise((resolve) => setTimeout(resolve, 0));
       record.takeFullSnapshot(true);
       rec.freeze();

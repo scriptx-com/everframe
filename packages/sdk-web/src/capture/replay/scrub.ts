@@ -96,12 +96,12 @@ function stripCssUrls(value: string): string {
 }
 
 /**
- * Scrub a single string value: the sdk-core default-deny Luhn/JWT/SSN scrubber
- * (with email masking forced ON — replay must never carry an email even though
- * the SDK-wide default leaves email opt-in), then bearer tokens.
+ * Remove complete bearer credentials first: other pattern redactors can split
+ * a credential and leave a suffix the bearer expression no longer recognizes.
+ * Then run sdk-core's Luhn/JWT/SSN scrubber with email masking forced ON.
  */
 function scrubText(value: string, config: RedactionEngineConfig): string {
-  return redactStringContent(value, config).replace(BEARER, BEARER_REPLACEMENT);
+  return redactStringContent(value.replace(BEARER, BEARER_REPLACEMENT), config);
 }
 
 /**
