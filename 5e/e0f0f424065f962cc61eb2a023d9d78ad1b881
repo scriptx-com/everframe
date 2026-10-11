@@ -1,0 +1,26 @@
+packages/sdk-web/src/capture/replay/recorder.ts
+  s_269319d6df67e5::t_d92e593691872c 471,474-479
+  s_269319d6df67e5::t_994bb86f19473b 29,84-94,117-118,127-132,204-236,252-253,293-294,301-375,389,428,453-461,614-638,655,686,735
+.changeset/web-replay-hidden-tab.md
+  s_269319d6df67e5::t_d92e593691872c 1-8
+packages/sdk-web/__tests__/capture/replay/snapshot.spec.ts
+  s_269319d6df67e5::t_90bdcb10f9f2bb 1-197
+packages/sdk-web/__tests__/capture/replay/hidden-tab-pause.spec.ts
+  s_269319d6df67e5::t_90bdcb10f9f2bb 1-217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ee0f0f424065f962cc61eb2a023d9d78ad1b881",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
