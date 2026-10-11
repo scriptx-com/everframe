@@ -1,0 +1,70 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/AppReleaseTest.kt
+  s_fbcdadc1064236::t_8582a4ad52eb9a 1-35
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/NativeExposurePointerTest.kt
+  s_fbcdadc1064236::t_33d88e13289a44 5,7,15-21,36-62
+packages/protocol/__tests__/generated-identity.spec.ts
+  s_fbcdadc1064236::t_a8f76e627becfa 59-71
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/AppRelease.kt
+  s_fbcdadc1064236::t_9b20b32c397906 1-29
+packages/protocol/scripts/codegen-kotlin.sh
+  s_fbcdadc1064236::t_ca7d36ee14a476 252-254,260-262,265-275
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/capture/DeviceMetadataAppReleaseTest.kt
+  s_fbcdadc1064236::t_589c89eea61a6f 1-37
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReleaseHealthConfig.kt
+  s_fbcdadc1064236::t_2a95f89fb877bf 5-8,16-18
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/DiagnosticExposureProtocolTest.kt
+  s_fbcdadc1064236::t_55a8749ba82fae 9,15-20,23-38
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/DeviceMetadata.kt
+  s_fbcdadc1064236::t_2135e8d62916b4 45-47
+  s_fbcdadc1064236::t_e6f6fdba392eae 73-78
+packages/protocol/compat/native-exposure/ConfigMain.kt
+  s_fbcdadc1064236::t_9a18a55df3447a 9
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/NativeExposurePointer.kt
+  s_fbcdadc1064236::t_8e80768e8a6ec5 5-6,17,21-23,26,29,39,41-49,55-58
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthController.kt
+  s_fbcdadc1064236::t_f164b8873b63b2 5,103,118
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthProducer.kt
+  s_fbcdadc1064236::t_58a299d447bbd2 5,25,38,42,44,50,98
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/health/ReleaseHealthRuntime.kt
+  s_fbcdadc1064236::t_26ba5e2a35c640 11,89-90,119
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeExposureLinkTest.kt
+  s_fbcdadc1064236::t_045d761e7dbedf 5,30-31,48,65,69-86,133
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecordImportTest.kt
+  s_fbcdadc1064236::t_79ea37822c6148 56
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_fbcdadc1064236::t_8479a8b618e224 65,80,113
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_fbcdadc1064236::t_053f12d6105af4 51,65,81
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_fbcdadc1064236::t_3cd9c2f7b37170 131,142,149,211-213,222-223,230-244
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthControllerTest.kt
+  s_fbcdadc1064236::t_14aa19c9e211ca 5,30,46-50,68,78,86,103,124,137,149,152,154,161,165-166,175,177-178,185,187-188,195,201,207,209,226-230,234
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthProducerTest.kt
+  s_fbcdadc1064236::t_95f7ebbe48b1be 5,32,35-38,44,46,51,99-100,103,110,114,120-124,132,136-159,175,178,183-185,189-193,201,206,223,247
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/health/ReleaseHealthTransportTest.kt
+  s_fbcdadc1064236::t_1c06344ffb561d 5,24-25
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/health/ReleaseHealthRuntimeTest.kt
+  s_fbcdadc1064236::t_38e31575e4c1bd 63,211-224
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_fbcdadc1064236::t_3a781701d6dda7 808-809,825-831
+packages/sdk-android/tests/native-crash-host/app/build.gradle.kts
+  s_fbcdadc1064236::t_37000390246645 12-16
+packages/sdk-android/tests/native-crash-host/app/src/main/java/dev/everframe/nativeproof/MainActivity.kt
+  s_fbcdadc1064236::t_cf3f027dcfae02 49,114,141,168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ce7f0d47fdde08d79b52116590783eeeec3d4c6",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
