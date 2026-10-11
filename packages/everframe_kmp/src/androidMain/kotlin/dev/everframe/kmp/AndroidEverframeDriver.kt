@@ -55,8 +55,8 @@ class AndroidEverframeDriver(
                 sdkKey = sdkKey,
                 environment = nativeEnvironment,
                 capture = CaptureConfig(screenshot = false, crash = true, network = true, networkBodies = false),
-                // The plugin has no release-health option yet, so release health stays off.
-                releaseHealth = null,
+                // When this plugin moves to native 1.2.0 or later, pass `releaseHealth = null`: release health
+                // is on by default from 1.2.0 and the plugin has no option for it yet.
             ), hostActivity())
             Everframe.captureGate.also {
                 started = it
