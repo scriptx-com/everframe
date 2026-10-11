@@ -1,0 +1,31 @@
+packages/sdk-react-native/__tests__/release-health-bridge-wiring.spec.ts
+  s_fbcdadc1064236::t_c3accd801db387 27,32-42
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_fbcdadc1064236::t_e9d33ac057b3b2 10-13,21-30,35,37,41-42,44-45,48-49,58-59,61-68,71-74,79,84-85,90,110,115,126,129-134
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_fbcdadc1064236::t_9808f1b45e3993 222,227-229
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReleaseHealthConfigureTest.kt
+  s_fbcdadc1064236::t_7f2782549c5e0d 36,49,51-52,66,70
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_fbcdadc1064236::t_7765a43cd9184e 129-132
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_fbcdadc1064236::t_8c54e643e59f07 221
+packages/sdk-react-native/src/runtime.ts
+  s_fbcdadc1064236::t_d80cea6672cdaf 112-116,799
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "797f6f2b98bb493bac4950cf96642f0aeaaa1638",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
