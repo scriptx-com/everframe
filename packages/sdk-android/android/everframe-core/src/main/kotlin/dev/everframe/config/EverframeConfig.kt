@@ -112,6 +112,10 @@ data class EverframeConfig(
      */
     val debugBuild: Boolean? = null,
 ) {
+    // The constructors and copy overloads below keep the exact JVM descriptors released builds were compiled
+    // against (EverframeConfigBinaryCompatTest pins them); each forwards to the primary constructor with
+    // `debugBuild = null`, or with this configuration's `debugBuild` for copy.
+
     /** Preserve the previous Java constructor and Kotlin default-argument descriptor; both get the release health default. */
     constructor(
         appId: String,
@@ -129,12 +133,33 @@ data class EverframeConfig(
         installIdentifierEnabled: Boolean = true,
         vitals: VitalsConfig = VitalsConfig(),
         r8MappingId: String? = null,
-        debugBuild: Boolean? = null,
     ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
         companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
-        theme, installIdentifierEnabled, vitals, r8MappingId, ReleaseHealthConfig(), debugBuild)
+        theme, installIdentifierEnabled, vitals, r8MappingId, ReleaseHealthConfig(), null)
 
-    /** Old compiled copy calls keep this configuration's release health setting, including an explicit `null`. */
+    /** The constructor that was primary before `debugBuild`: same descriptor and default-argument variant. */
+    constructor(
+        appId: String,
+        sdkKey: String,
+        environment: Environment = Environment.production,
+        release: String? = null,
+        capture: CaptureConfig = CaptureConfig(),
+        bubble: Boolean = true,
+        useDynamicColor: Boolean = false,
+        companionDeviceId: String? = null,
+        companionBadgeEnabled: Boolean = true,
+        shakeToReportEnabled: Boolean = true,
+        companionBadgePosition: String? = null,
+        theme: ReporterThemeOptions? = null,
+        installIdentifierEnabled: Boolean = true,
+        vitals: VitalsConfig = VitalsConfig(),
+        r8MappingId: String? = null,
+        releaseHealth: ReleaseHealthConfig? = ReleaseHealthConfig(),
+    ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
+        companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
+        theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, null)
+
+    /** Old compiled copy calls keep this configuration's release health and `debugBuild` settings, including an explicit `null`. */
     fun copy(
         appId: String = this.appId,
         sdkKey: String = this.sdkKey,
@@ -151,7 +176,28 @@ data class EverframeConfig(
         installIdentifierEnabled: Boolean = this.installIdentifierEnabled,
         vitals: VitalsConfig = this.vitals,
         r8MappingId: String? = this.r8MappingId,
-        debugBuild: Boolean? = this.debugBuild,
+    ): EverframeConfig = EverframeConfig(appId, sdkKey, environment, release, capture,
+        bubble, useDynamicColor, companionDeviceId, companionBadgeEnabled, shakeToReportEnabled,
+        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild)
+
+    /** The `copy` that was generated before `debugBuild`: same descriptor; keeps this configuration's `debugBuild`. */
+    fun copy(
+        appId: String = this.appId,
+        sdkKey: String = this.sdkKey,
+        environment: Environment = this.environment,
+        release: String? = this.release,
+        capture: CaptureConfig = this.capture,
+        bubble: Boolean = this.bubble,
+        useDynamicColor: Boolean = this.useDynamicColor,
+        companionDeviceId: String? = this.companionDeviceId,
+        companionBadgeEnabled: Boolean = this.companionBadgeEnabled,
+        shakeToReportEnabled: Boolean = this.shakeToReportEnabled,
+        companionBadgePosition: String? = this.companionBadgePosition,
+        theme: ReporterThemeOptions? = this.theme,
+        installIdentifierEnabled: Boolean = this.installIdentifierEnabled,
+        vitals: VitalsConfig = this.vitals,
+        r8MappingId: String? = this.r8MappingId,
+        releaseHealth: ReleaseHealthConfig? = this.releaseHealth,
     ): EverframeConfig = EverframeConfig(appId, sdkKey, environment, release, capture,
         bubble, useDynamicColor, companionDeviceId, companionBadgeEnabled, shakeToReportEnabled,
         companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild)
