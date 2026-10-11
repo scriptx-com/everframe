@@ -403,10 +403,12 @@ public extension EverframeContext {
 // MARK: - EverframeApp
 public struct EverframeApp: Codable {
     public let build: String?
+    public let debug: Bool?
     public let name, version: String
 
-    public init(build: String?, name: String, version: String) {
+    public init(build: String?, debug: Bool?, name: String, version: String) {
         self.build = build
+        self.debug = debug
         self.name = name
         self.version = version
     }
@@ -432,11 +434,13 @@ public extension EverframeApp {
 
     func with(
         build: String?? = nil,
+        debug: Bool?? = nil,
         name: String? = nil,
         version: String? = nil
     ) -> EverframeApp {
         return EverframeApp(
             build: build ?? self.build,
+            debug: debug ?? self.debug,
             name: name ?? self.name,
             version: version ?? self.version
         )
@@ -2429,17 +2433,20 @@ public extension EverframeNativeExposure {
 // MARK: - EverframeNativeExposureApp
 public struct EverframeNativeExposureApp: Codable {
     public let build: String?
+    public let debug: Bool
     public let version: String
 
-    public init(build: String?, version: String) {
+    public init(build: String?, debug: Bool, version: String) {
         self.build = build
+        self.debug = debug
         self.version = version
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(build, forKey: .build)
         try container.encode(version, forKey: .version)
+        try container.encode(build, forKey: .build)
+        try container.encode(debug, forKey: .debug)
     }
 }
 
@@ -2463,10 +2470,12 @@ public extension EverframeNativeExposureApp {
 
     func with(
         build: String?? = nil,
+        debug: Bool? = nil,
         version: String? = nil
     ) -> EverframeNativeExposureApp {
         return EverframeNativeExposureApp(
             build: build ?? self.build,
+            debug: debug ?? self.debug,
             version: version ?? self.version
         )
     }

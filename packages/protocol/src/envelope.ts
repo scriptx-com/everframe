@@ -178,6 +178,9 @@ export const ReportEnvelope = z
             name: z.string(),
             version: z.string(),
             build: z.string().optional(),
+            /** True when the SDK detected a debug or development build (or `debugBuild` was set).
+             * The server never creates a release from a debug build. Absent means a release build. */
+            debug: z.boolean().optional(),
           })
           .passthrough(),
         device: z
