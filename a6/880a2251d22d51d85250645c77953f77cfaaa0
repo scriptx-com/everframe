@@ -1,0 +1,25 @@
+.changeset/web-release-health-removal.md
+  s_fbcdadc1064236::t_eaf55b493121db 1-9
+packages/sdk-react/__tests__/provider-strict-mode-repair.spec.tsx
+  s_fbcdadc1064236::t_254a4d6ea2560e 3-45,47-48,50,52-71,73-88
+packages/sdk-react/src/provider.tsx
+  s_fbcdadc1064236::t_883ba31965bd5b 55-60,108,158-161,166,169,223-226,241,250
+packages/sdk-web/__tests__/release-health-removed.spec.ts
+  s_fbcdadc1064236::t_6307bbb4767bc8 3-11,13-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a6880a2251d22d51d85250645c77953f77cfaaa0",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
