@@ -5,6 +5,7 @@ name: ReplayTV
 options:
   deploymentTarget:
     tvOS: "16.0"
+    iOS: "16.0"
 packages:
   Everframe:
     path: ../../packages/sdk-ios
@@ -38,6 +39,33 @@ targets:
     dependencies:
       - package: Everframe
         product: Everframe
+  ReplayPhone:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.replaytv.phone
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG"
+    info:
+      path: build/Info-Phone.plist
+      properties:
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Sends test reports to a local Everframe API on this network.
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
+    dependencies:
+      - package: Everframe
+        product: Everframe
   ReplayTVUITests:
     type: bundle.ui-testing
     platform: tvOS
@@ -59,3 +87,9 @@ schemes:
     test:
       config: Release
       targets: [ReplayTVUITests]
+  ReplayPhone:
+    build:
+      targets:
+        ReplayPhone: all
+    run:
+      config: Release
