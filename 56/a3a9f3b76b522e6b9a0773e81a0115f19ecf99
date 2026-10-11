@@ -1,0 +1,39 @@
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoRecorder.swift
+  s_269319d6df67e5::t_aa098c210accf1 159-160
+  s_269319d6df67e5::t_77cdf6e8e79e78 158,175,220
+packages/sdk-react-native/README.md
+  s_269319d6df67e5::t_77cdf6e8e79e78 52-53
+packages/sdk-android/android/README.md
+  s_269319d6df67e5::t_77cdf6e8e79e78 10-11
+packages/sdk-web/README.md
+  s_269319d6df67e5::t_aa098c210accf1 341
+  s_269319d6df67e5::t_6162f480a3f10a 342
+packages/sdk-ios/README.md
+  s_269319d6df67e5::t_77cdf6e8e79e78 10-11
+docs/session-replay.md
+  s_269319d6df67e5::t_aa098c210accf1 23
+  s_269319d6df67e5::t_77cdf6e8e79e78 1-21,24-99
+  s_269319d6df67e5::t_1bb0308c8fbf3f 22
+.changeset/error-replays.md
+  s_269319d6df67e5::t_aa098c210accf1 26
+  s_269319d6df67e5::t_77cdf6e8e79e78 1-25,30-40
+  s_269319d6df67e5::t_1bb0308c8fbf3f 27-29
+docs/crash-reporting-support.md
+  s_269319d6df67e5::t_77cdf6e8e79e78 56-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "56a3a9f3b76b522e6b9a0773e81a0115f19ecf99",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
