@@ -22,11 +22,12 @@ const crash = () => {
   delete value.sessionId; delete value.reporter.user;
   return value;
 };
-const health = () => ({ schemaVersion: 1, recordId: '33333333-3333-4333-8333-333333333333', phase: 'start', sequence: 0,
+const health = () => ({ schemaVersion: 4, recordId: '33333333-3333-4333-8333-333333333333', phase: 'start', sequence: 0,
   capturedAt: '2026-10-07T12:00:00.000Z', elapsedMs: 0,
-  exposure: { exposureId: id, pageLaunchId: '22222222-2222-4222-8222-222222222222',
-    startedAt: '2026-10-07T12:00:00.000Z', platform: 'web', sdkVersion: '1.0.0', nativeRelease: 'not_applicable',
-    loadedBuildId: 'executed-build-a', subject: 'anonymous_exposure', coverage: { policy: 'web-page-v1', sampleRate: 1, priorQueueLosses: 0 } },
+  exposure: { exposureId: id, processLaunchId: '22222222-2222-4222-8222-222222222222',
+    startedAt: '2026-10-07T12:00:00.000Z', platform: 'android', sdkVersion: '1.0.0', app: { version: '2.4.0', build: '412' },
+    loadedBuildId: null, loadedBundleStatus: 'not_applicable', subject: { kind: 'anonymous' }, sessionPolicy: 'foreground-v1',
+    coverage: { policy: 'android-sdk-segment-v1', sampleRate: 1, priorQueueLosses: null, queueLossAccounting: 'unavailable' } },
 });
 describe('combined crash, symbol and exposure contracts', () => {
   it('keeps one fatal native crash with its diagnostic sidecar and accepts its ELF artifact contract', () => {
@@ -39,7 +40,7 @@ describe('combined crash, symbol and exposure contracts', () => {
     expect(protocol.parseManifest({ version: 5, runtime: 'android-native', platform: 'android', buildId: 'elf:' + digest,
       artifacts: [{ url: 'elf://android/library', mapSha256: digest, mapBytes: 1024 }] }).version).toBe(5);
   });
-  it('accepts independent anonymous web exposure without inventing a healthy outcome', () => {
+  it('accepts an independent Android session start without inventing a healthy outcome', () => {
     expect(protocol.ReleaseHealthRecordSchema.parse(health())).toEqual(health());
     expect(protocol.ReleaseHealthRecordSchema.safeParse({ ...health(), outcome: 'healthy' }).success).toBe(false);
   });

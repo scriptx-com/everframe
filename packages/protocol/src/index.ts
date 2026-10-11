@@ -65,14 +65,15 @@ export {
 // Zod-free, so the SDK's eager bundle can import it without pulling in schemas.
 export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';
 export {
-  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema, NativeExposurePointerSchema,
-  WebReleaseHealthExposureSchema, AndroidReleaseHealthExposureSchema, IOSReleaseHealthExposureSchema,
-  WebReleaseHealthExposureV2Schema, AndroidReleaseHealthExposureV2Schema, IOSReleaseHealthExposureV2Schema,
-  ReleaseHealthRecordV1Schema, ReleaseHealthRecordV2Schema, ReleaseHealthRecordV3Schema, ReleaseHealthSubjectSchema,
-  AndroidReleaseHealthExposureV3Schema, IOSReleaseHealthExposureV3Schema, ReleaseHealthExposureV3Schema,
+  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema, NativeExposurePointerSchema, ReleaseHealthAppSchema,
+  AndroidReleaseHealthExposureSchema, IOSReleaseHealthExposureSchema, ReleaseHealthSubjectSchema,
   RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
+  RELEASE_HEALTH_SCHEMA_VERSION, RELEASE_HEALTH_APP_TEXT_MAX,
 } from './release-health.js';
-export type { AndroidReleaseHealthExposureV3, IOSReleaseHealthExposureV3, WebReleaseHealthExposureV2, AndroidReleaseHealthExposureV2, IOSReleaseHealthExposureV2, ReleaseHealthRecord, ReleaseHealthExposure, NativeExposurePointer, WebReleaseHealthExposure, AndroidReleaseHealthExposure, IOSReleaseHealthExposure } from './release-health.js';
+export type {
+  ReleaseHealthRecord, ReleaseHealthExposure, AndroidReleaseHealthExposure, IOSReleaseHealthExposure,
+  NativeExposurePointer, ReleaseHealthApp, ReleaseHealthSubject,
+} from './release-health.js';
 
 export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
 
@@ -84,10 +85,7 @@ export {
   InferredTerminationEvidence, InferredTerminationCause, INFERRED_TERMINATION_MECHANISM, INFERRED_TERMINATION_STALL_MS,
   INFERRED_TERMINATION_EXCEPTION_TYPES, INFERRED_TERMINATION_FINGERPRINTS,
 } from './inferred-termination.js';
-export { ReleaseHealthAlertCohortSchema, ReleaseHealthThresholdEventSchema } from './release-health-alert.js';
-export type { ReleaseHealthThresholdEvent, ReleaseHealthAlertCohort } from './release-health-alert.js';
-
-export { ReleaseHealthRateMetricSchema, ReleaseHealthRatePolicySchema, ReleaseHealthRateCountsSchema,
-  ReleaseHealthRateThresholdEventSchema } from './release-health-rate-alert.js';
-export type { ReleaseHealthRateMetric, ReleaseHealthRatePolicy, ReleaseHealthRateCounts,
-  ReleaseHealthRateThresholdEvent } from './release-health-rate-alert.js';
+export {
+  RELEASE_HEALTH_ALERT_SCHEMA_VERSION, ReleaseHealthAlertTargetSchema, ReleaseHealthThresholdEventSchema,
+} from './release-health-alert.js';
+export type { ReleaseHealthAlertTarget, ReleaseHealthThresholdEvent } from './release-health-alert.js';

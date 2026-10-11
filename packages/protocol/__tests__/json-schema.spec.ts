@@ -226,7 +226,10 @@ describe('native exposure pointer JSON schema', () => {
   const ajv = new AjvCtor({ strict: false, allErrors: true });
   addFormatsFn(ajv);
   const validate = ajv.compile(jsonSchema);
-  it('retains the frozen pointer for independent schema consumers', () => {
+  const pointer = () => ({ exposureId: '33333333-3333-4333-8333-333333333333',
+    processLaunchId: '22222222-2222-4222-8222-222222222222', startedAt: '2026-10-07T09:00:00.000Z',
+    app: { version: '2.4.0', build: null as string | null }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
+  const diagnostic = (nativeExposure: unknown) => {
     const value = structuredClone(minimal) as any;
     value.source = 'diagnostic'; value.sdk.platform = 'android';
     value.payload = { diagnostic: {
@@ -236,13 +239,35 @@ describe('native exposure pointer JSON schema', () => {
       attribution: { process: 'exact_os_token', release: 'frozen', session: 'unavailable', webExposure: 'unavailable' },
       android: { apiLevel: 35, reason: 6, pid: 100 },
       trace: { status: 'unavailable', format: 'none', truncated: false, frames: [] },
-      nativeExposure: { exposureId: '33333333-3333-4333-8333-333333333333',
-        processLaunchId: '22222222-2222-4222-8222-222222222222', startedAt: '2026-10-07T09:00:00.000Z',
-        nativeBuildId: 'native-artifact-a', loadedBuildId: null, loadedBundleStatus: 'not_applicable' },
+      nativeExposure,
     } };
-    expect(validate(value)).toBe(true);
-    value.payload.diagnostic.nativeExposure.nativeBuildId = '';
-    expect(validate(value)).toBe(false);
+    return value;
+  };
+  it('requires the app identity on the pointer, with build always present', () => {
+    const { NativeExposure, NativeExposureApp } = jsonSchema.$defs;
+    expect(NativeExposure.required)
+      .toEqual(['exposureId', 'processLaunchId', 'startedAt', 'app', 'loadedBuildId', 'loadedBundleStatus']);
+    expect(NativeExposure.properties.app).toEqual({ $ref: '#/$defs/NativeExposureApp' });
+    expect(NativeExposure.properties).not.toHaveProperty('nativeBuildId');
+    expect(NativeExposureApp.title).toBe('NativeExposureApp');
+    expect(NativeExposureApp.required).toEqual(['version', 'build']);
+    expect(NativeExposureApp.additionalProperties).toBe(false);
+    expect(NativeExposureApp.properties.version).toMatchObject({ type: 'string', minLength: 1, maxLength: 64 });
+    expect(NativeExposureApp.properties.build.anyOf).toContainEqual({ type: 'null' });
+    expect(NativeExposureApp.properties.build.anyOf)
+      .toContainEqual(expect.objectContaining({ type: 'string', minLength: 1, maxLength: 64 }));
+  });
+  it('validates a diagnostic carrying the version 4 pointer', () => {
+    expect(validate(diagnostic(pointer()))).toBe(true);
+    expect(validate(diagnostic({ ...pointer(), app: { version: '2.4.0', build: '412' } }))).toBe(true);
+  });
+  it.each([
+    ['the retired nativeBuildId', { nativeBuildId: 'native-artifact-a' }],
+    ['an app without build', { app: { version: '2.4.0' } }],
+    ['an empty version', { app: { version: '', build: null } }],
+    ['an extra app key', { app: { version: '2.4.0', build: null, name: 'Shop' } }],
+  ] as const)('rejects a pointer with %s', (_name, patch) => {
+    expect(validate(diagnostic({ ...pointer(), ...patch }))).toBe(false);
   });
 
   it('accepts the exit evidence R8 mapping ID exactly as Zod does', () => {

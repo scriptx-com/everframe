@@ -131,7 +131,7 @@ describe('process-exit evidence', () => {
 
 const nativeExposurePointer = () => ({
   exposureId: '33333333-3333-4333-8333-333333333333', processLaunchId: diagnostic().processLaunchId,
-  startedAt: '2026-10-07T09:00:00.000Z', nativeBuildId: 'native-artifact-a',
+  startedAt: '2026-10-07T09:00:00.000Z', app: { version: '2.4.0', build: null },
   loadedBuildId: null, loadedBundleStatus: 'not_applicable',
 });
 describe('frozen native exposure evidence', () => {
@@ -141,7 +141,8 @@ describe('frozen native exposure evidence', () => {
   });
   it.each([
     { processLaunchId: '44444444-4444-4444-8444-444444444444' },
-    { loadedBuildId: 'bundle-a' }, { nativeBuildId: '' }, { currentSessionId: 'borrowed' },
+    { loadedBuildId: 'bundle-a' }, { nativeBuildId: 'native-artifact-a' }, { app: { version: '2.4.0' } },
+    { app: { version: '', build: null } }, { currentSessionId: 'borrowed' },
   ])('rejects a contradictory or invented frozen pointer %j', patch => {
     const value = envelope(); value.payload.diagnostic.nativeExposure = { ...nativeExposurePointer(), ...patch };
     expect(ReportEnvelope.safeParse(value).success).toBe(false);
