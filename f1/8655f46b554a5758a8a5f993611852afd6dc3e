@@ -1,0 +1,31 @@
+.changeset/release-health-by-version.md
+  s_fbcdadc1064236::t_7bf0fe135b2afc 11,19
+docs/release-health.md
+  s_fbcdadc1064236::t_10a6b0ab9f9f41 28-31,180-186
+packages/everframe_flutter/README.md
+  s_fbcdadc1064236::t_331075fb0c73bd 20,23-25
+packages/everframe_flutter/ios/everframe_flutter.podspec
+  s_fbcdadc1064236::t_9583a65a59c658 15-16
+packages/everframe_flutter/ios/everframe_flutter/Package.swift
+  s_fbcdadc1064236::t_3ed63593fad2d3 17-18
+packages/everframe_kmp/README.md
+  s_fbcdadc1064236::t_28dfb9facddfce 38
+packages/protocol/compat/native-exposure/README.md
+  s_fbcdadc1064236::t_6193c4224d5b51 9-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f18655f46b554a5758a8a5f993611852afd6dc3e",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
