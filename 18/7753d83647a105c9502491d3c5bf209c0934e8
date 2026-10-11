@@ -1,0 +1,23 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/AppReleaseTest.kt
+  s_fbcdadc1064236::t_b12d05b3148596 29-30,33
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_fbcdadc1064236::t_af20d132375f8b 35,37,58
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReleaseHealthConfigureTest.kt
+  s_fbcdadc1064236::t_a0d310a5252817 51,66,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "187753d83647a105c9502491d3c5bf209c0934e8",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
