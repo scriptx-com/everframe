@@ -2,8 +2,23 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 #if canImport(UIKit)
 import Foundation
+@preconcurrency import AVFoundation
 import Testing
 @testable import EverframeKit
+
+actor SnapshotTestGate {
+    private var released = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    func wait() async {
+        if released { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    func release() {
+        released = true
+        let pending = waiters; waiters.removeAll()
+        for waiter in pending { waiter.resume() }
+    }
+}
 
 struct NativeVideoRecorderTests {
     @Test(arguments: [1, 2, 5, 10])
@@ -96,5 +111,101 @@ struct NativeVideoRecorderTests {
         #expect(try await recorder.append(frame(4_000_000_000)) == false)
         #expect(try await recorder.finish(anchorNanos: 0, anchorEpochMs: 0) == nil)
     }
+    @Test func snapshotLeavesRecordingRunningAndFreezeKeepsTheWholeWindow() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5, durationNanos: 30_000_000_000)
+        for timestamp: UInt64 in [0, 400_000_000, 800_000_000, 1_200_000_000, 1_600_000_000, 2_000_000_000, 2_400_000_000] {
+            #expect(try await recorder.append(frame(timestamp)))
+        }
+        let copy = try #require(await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 2_500_000_000))
+        defer { copy.removeOwnedFile() }
+        #expect(copy.startEpochMs == 10_000)
+        #expect(abs(copy.durationMs - 2500) < 2)
+        #expect(copy.url.deletingLastPathComponent().standardizedFileURL != dir.standardizedFileURL)
+        #expect(try await frameTimes(copy.url) == [0, 400, 800, 1200, 1600, 2000, 2400])
+        // The ring still owns both closed segments.
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".mp4") }.count == 2)
+        for timestamp: UInt64 in [2_700_000_000, 3_100_000_000] {
+            #expect(try await recorder.append(frame(timestamp)))
+        }
+        let frozen = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 3_300_000_000))
+        defer { frozen.removeOwnedFile() }
+        #expect(frozen.startEpochMs == 10_000)
+        #expect(abs(frozen.durationMs - 3300) < 2)
+        // The first frame after the snapshot starts where it closed (2.5 s):
+        // no gap between segments, so no decoded black frame.
+        #expect(try await frameTimes(frozen.url) == [0, 400, 800, 1200, 1600, 2000, 2400, 2500, 3100])
+    }
+    @Test func freezeRacingASnapshotStillExportsTheWholeWindow() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 10)
+        for timestamp: UInt64 in [0, 100_000_000, 200_000_000] {
+            #expect(try await recorder.append(frame(timestamp)))
+        }
+        async let copy = recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 300_000_000)
+        async let frozen = recorder.finish(anchorNanos: 0, anchorEpochMs: 0, endNanos: 300_000_000)
+        let (snapshot, report) = try await (copy, frozen)
+        defer { snapshot?.removeOwnedFile(); report?.removeOwnedFile() }
+        let whole = try #require(report)
+        #expect(abs(whole.durationMs - 300) < 2)
+        if let snapshot { #expect(abs(snapshot.durationMs - 300) < 2) }
+    }
+    @Test func emptySnapshotIsNilAndRecordingContinues() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 2)
+        #expect(try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 1) == nil)
+        #expect(try await recorder.append(frame(0)))
+        await recorder.cancel()
+    }
+    @Test(.timeLimit(.minutes(1)))
+    func reportFinishesWhileStartedSnapshotExportsItsIndependentCopy() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let exporting = SnapshotTestGate(), releaseExport = SnapshotTestGate()
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5,
+            snapshotExport: { directory, segments, dimensions, anchor, epoch in
+                await exporting.release()
+                await releaseExport.wait()
+                return try await NativeVideoExporter(directory: directory).export(segments: segments,
+                    dimensions: dimensions, anchorNanos: anchor, anchorEpochMs: epoch)
+            })
+        for timestamp: UInt64 in [0, 400_000_000, 2_000_000_000, 2_400_000_000] {
+            #expect(try await recorder.append(frame(timestamp)))
+        }
+        let snapshot = Task { try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 2_500_000_000) }
+        await exporting.wait()
+        #expect(try await recorder.append(frame(2_700_000_000)))
+        let report = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 3_000_000_000))
+        #expect(try await frameTimes(report.url) == [0, 400, 2000, 2400, 2500])
+        report.removeOwnedFile()
+        #expect(!FileManager.default.fileExists(atPath: dir.path))
+        await releaseExport.release()
+        let copy = try #require(await snapshot.value)
+        #expect(try await frameTimes(copy.url) == [0, 400, 2000, 2400])
+        #expect(abs(copy.durationMs - 2500) < 2)
+        #expect(copy.startEpochMs == 10_000)
+        let copyDirectory = try #require(copy.ownedDirectory)
+        copy.removeOwnedFile()
+        #expect(!FileManager.default.fileExists(atPath: copyDirectory.path))
+    }
+
+    private func frameTimes(_ url: URL) async throws -> [Int] {
+        let asset = AVURLAsset(url: url)
+        let track = try #require(await asset.loadTracks(withMediaType: .video).first)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track,
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        reader.add(output)
+        #expect(reader.startReading())
+        var times: [Int] = []
+        while let sample = output.copyNextSampleBuffer() {
+            guard CMSampleBufferGetNumSamples(sample) > 0 else { continue }
+            let seconds = CMSampleBufferGetPresentationTimeStamp(sample).seconds
+            try #require(seconds.isFinite)
+            times.append(Int((seconds * 1000).rounded()))
+        }
+        #expect(reader.status == .completed)
+        return times
+    }
+
 }
 #endif

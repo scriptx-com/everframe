@@ -25,7 +25,8 @@ struct NativeVideoWriterTests {
         #expect(try await writer.append(frame(step, value: 255)))
         let segment = try #require(await writer.finish())
         #expect(segment.endNanos == 2 * step)
-        #expect(abs(AVURLAsset(url: segment.url).duration.seconds - Double(2 * step) / 1e9) < 0.002)
+        let duration = try await AVURLAsset(url: segment.url).load(.duration)
+        #expect(abs(duration.seconds - Double(2 * step) / 1e9) < 0.002)
     }
 
     @Test func rolloverEndsAtNextFrameRatherThanNominalCadence() async throws {
