@@ -218,9 +218,8 @@ export type ConfigOpts = {
   vitalsEnabled?: boolean;
   vitalsSampleRate?: number;
   vitalsCaptureSourceQuery?: boolean;
-  /** Explicit native foreground monitoring; absent or false revokes monitoring. */
+  /** Explicit native foreground monitoring; absent or false revokes monitoring. The native SDK reads the app version. */
   releaseHealthEnabled?: boolean;
-  releaseHealthNativeBuildId?: string;
   releaseHealthLoadedBuildId?: string;
   releaseHealthUserId?: string;
 };

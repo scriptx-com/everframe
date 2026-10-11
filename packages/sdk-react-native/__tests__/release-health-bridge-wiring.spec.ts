@@ -24,9 +24,20 @@ describe('release-health native bridge contracts', () => {
   it('forwards the release-health scalar fields through codegen', () => {
     // The pre-release-health Objective-C configure overload was removed (no customers yet).
     const objc = source('ios/Sources/EverframeModule.mm');
-    for (const name of ['releaseHealthEnabled', 'releaseHealthNativeBuildId', 'releaseHealthLoadedBuildId', 'releaseHealthUserId']) {
+    for (const name of ['releaseHealthEnabled', 'releaseHealthLoadedBuildId', 'releaseHealthUserId']) {
       expect(objc).toContain(`opts.${name}()`);
       expect(objc).toContain(`${name}:`);
     }
+  });
+  it('passes no developer-typed native build ID across either bridge', () => {
+    // The native SDKs read the app version; the bridges carry the flag, the loaded bundle and the user ID.
+    for (const path of ['ios/Sources/EverframeModule.mm', 'ios/Sources/EverframeBridge.swift', 'src/NativeEverframe.ts',
+      'src/runtime.ts', 'android/src/main/java/dev/everframe/rn/EverframeModule.kt']) {
+      expect(source(path), path).not.toContain('releaseHealthNativeBuildId');
+    }
+    expect(source('android/src/main/java/dev/everframe/rn/EverframeModule.kt')).toContain(
+      'ReleaseHealthConfig(enabled = true, userId = user, loadedBuildId = loaded,');
+    expect(source('ios/Sources/EverframeBridge.swift')).toContain(
+      'ReleaseHealthConfiguration(userId: releaseHealthUserId as String?,');
   });
 });

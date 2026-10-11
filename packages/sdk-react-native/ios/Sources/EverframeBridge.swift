@@ -63,7 +63,6 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         vitalsSampleRate: NSNumber?,
         vitalsCaptureSourceQuery: NSNumber?,
         releaseHealthEnabled: Bool,
-        releaseHealthNativeBuildId: NSString?,
         releaseHealthLoadedBuildId: NSString?,
         releaseHealthUserId: NSString?
     ) throws {
@@ -127,10 +126,10 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // reconfiguration even when the SDK configuration itself compares equal.
         let newAttachPinUi = Self.parseAttachPinUi(attachPinUi as String?)
         let health: ReleaseHealthConfiguration?
-        if releaseHealthEnabled, let native = releaseHealthNativeBuildId, let loaded = releaseHealthLoadedBuildId {
-            health = try? ReleaseHealthConfiguration(nativeBuildId: native as String,
-                loadedBuildId: loaded as String, loadedBundleStatus: .known,
-                userId: releaseHealthUserId as String?)
+        if releaseHealthEnabled, let loaded = releaseHealthLoadedBuildId {
+            // The SDK reads the app version itself; the bridge carries the loaded bundle and user ID.
+            health = try? ReleaseHealthConfiguration(userId: releaseHealthUserId as String?,
+                loadedBuildId: loaded as String, loadedBundleStatus: .known)
         } else {
             health = nil
         }

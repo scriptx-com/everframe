@@ -95,7 +95,6 @@ export interface RuntimeConfig
     | "vitalsSampleRate"
     | "vitalsCaptureSourceQuery"
     | "releaseHealthEnabled"
-    | "releaseHealthNativeBuildId"
     | "releaseHealthLoadedBuildId"
     | "releaseHealthUserId"
   > {
@@ -107,19 +106,17 @@ export interface RuntimeConfig
    */
   sdkKey: string;
   appName?: string;
-  appVersion?: string;
-  appBuild?: string;
   /** Exact loaded Hermes bundle identity, independent of the native app build. */
   jsBundle?: JsBundleConfig;
   /**
-   * Explicit opt-in to native foreground-session monitoring. The loaded build
-   * comes from validated Hermes jsBundle metadata. userId is an optional opaque
-   * identifier supplied for this purpose; null or omitted means anonymous, and
-   * setUser never supplies it implicitly.
+   * Explicit opt-in to native foreground-session monitoring: `{ enabled: true }`.
+   * The native SDK reads the app version and build; the loaded build comes from
+   * validated Hermes jsBundle metadata. userId is an optional opaque identifier
+   * supplied for this purpose; null or omitted means anonymous, and setUser never
+   * supplies it implicitly.
    */
   releaseHealth?: {
     enabled: boolean;
-    nativeBuildId: string;
     userId?: string | null;
   };
   /**
@@ -799,12 +796,10 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
       const bundle = captureJsBundleMetadata(config.jsBundle);
       const rejected: string[] = [];
       if (!bundle || !validReleaseHealthText(bundle.buildId, 200)) rejected.push("jsBundle (no valid Hermes bundle identity)");
-      if (!validReleaseHealthText(health.nativeBuildId, 200)) rejected.push("releaseHealth.nativeBuildId");
-      // A null user ID is anonymous, as on the native, web and React SDKs.
+      // A null user ID is anonymous, as on the native SDKs.
       if (health.userId != null && !validReleaseHealthText(health.userId, 128)) rejected.push("releaseHealth.userId");
       if (bundle && rejected.length === 0) {
         bridge.releaseHealthEnabled = true;
-        bridge.releaseHealthNativeBuildId = health.nativeBuildId;
         bridge.releaseHealthLoadedBuildId = bundle.buildId;
         if (typeof health.userId === "string") bridge.releaseHealthUserId = health.userId;
       } else {
