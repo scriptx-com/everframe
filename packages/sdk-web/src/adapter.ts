@@ -173,6 +173,25 @@ export interface IdentityTokenHolderLike {
  */
 export interface WebPlatformAdapter extends PlatformAdapter {
   /**
+   * Teardown. sdk-core's `client.kill()` calls it with no argument: the host's
+   * consent switch, which also cancels any crash report still being persisted
+   * or sent. The React provider's unmount passes `'release'`: the adapter
+   * stops capturing exactly as for a kill, but a crash it already accepted is
+   * still persisted and delivered. React reports an error that no boundary
+   * caught in the same commit that unmounts the provider, so without this the
+   * unmount discarded the report of the crash that caused it.
+   */
+  onKill?(reason?: 'release'): void;
+  /**
+   * Provider-only seam — an error that no error boundary inside the React
+   * provider caught, so React unmounts everything the provider wraps.
+   * Reported as a fatal crash (`source: 'crash'`, `fatal: true`, mechanism
+   * `onerror`, unhandled) with React's component stack after the message.
+   * When the same error object then reaches `window.onerror`, it is not
+   * reported a second time. Never throws.
+   */
+  __captureUncaughtReactError(error: unknown, componentStack?: string): void;
+  /**
    * Imperative open() invoked by `useEverframe().open()` / top-level `open()`.
    * Returns a Promise that resolves with the user-facing outcome of the report:
    *   - 'submitted' once submit succeeds,
@@ -574,9 +593,17 @@ export function createWebPlatformAdapter(
   // is NOT re-established by a remount — it is what stops one. See round-4
   // finding 2 at that function and at `ReplayRecorder.revive`.
   let reportingKilled = false;
-  // Changes whenever a host releases or reclaims this adapter. Async crash
-  // work must belong to the same ownership epoch from extraction through send.
+  // Changes whenever a host releases or reclaims this adapter. Async capture
+  // work (a crash's extraction, a TV shot) must belong to the same ownership
+  // epoch from start to finish. A crash report already accepted answers to
+  // `consentRevocations` instead, below.
   let reportingOwnership = 0;
+  // Changes only when consent is withdrawn: every `onKill()` except the React
+  // provider's unmount (`onKill('release')`). A crash already accepted belongs
+  // to the consent it was captured under, not to the mount: an uncaught React
+  // error unmounts the provider in the same commit that reports it, and that
+  // release must not discard the report.
+  let consentRevocations = 0;
 
   // Adapter-OWNED window listeners (today: the 'online' outbox-drain
   // listener). Distinct from `uninstallers`, which is dominated by the
@@ -1450,6 +1477,7 @@ export function createWebPlatformAdapter(
           error: unknown,
           mechanism: 'onerror' | 'unhandledrejection' | 'captureException',
           captureOptions?: CaptureExceptionOptions,
+          uncaughtReact?: { componentStack?: string | undefined },
         ): void => {
           // Codex round-1 finding 2 (P1, kill switch) — a DEAD adapter must not
           // report crashes. The module-level forwarding slot below deliberately
@@ -1470,6 +1498,11 @@ export function createWebPlatformAdapter(
           const ownership = reportingOwnership;
           const stillOwned = (): boolean =>
             !reportingKilled && reportingOwnership === ownership;
+          // Once accepted, persistence and delivery answer to consent only: a
+          // provider release in between (see `consentRevocations`) is not a
+          // reason to drop the report of the crash that caused it.
+          const consent = consentRevocations;
+          const stillPermitted = (): boolean => consentRevocations === consent;
           const crashRedaction = _config.redaction ?? {};
           // Whenever crashSink is defined (this branch), `_config.disabled !== true`,
           // so `outbox` (created a few lines above under the same guard) is always
@@ -1515,9 +1548,13 @@ export function createWebPlatformAdapter(
               facts,
               ...(causeChain ? { causeChain } : {}),
               mechanism,
-              source: 'error', // web page survives uncaught errors
+              // A web page survives an uncaught error. An error no boundary
+              // inside the React provider caught does not leave the app
+              // standing: React unmounts everything the provider wraps.
+              source: uncaughtReact ? 'crash' : 'error',
               handled,
-              fatal: false,
+              fatal: uncaughtReact !== undefined,
+              ...(uncaughtReact?.componentStack ? { componentStack: uncaughtReact.componentStack } : {}),
               occurredAt: new Date().toISOString(),
               reportId: generateReportId(),
               submittedAt: new Date().toISOString(),
@@ -1613,9 +1650,9 @@ export function createWebPlatformAdapter(
             // Persist first (durable if the tab dies), then ship immediately —
             // "next launch" may never come for a closed tab.
             void (async () => {
-              if (!stillOwned()) return;
+              if (!stillPermitted()) return;
               await ob.enqueue(item);
-              if (!stillOwned()) {
+              if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
                 return;
               }
@@ -1627,7 +1664,7 @@ export function createWebPlatformAdapter(
               // even when the crash genuinely belongs to the currently
               // signed-in user this whole call site exists to recognize.
               recordEnqueuedIdentitySubject(item.reportId, crashTimeSubject);
-              if (!stillOwned()) {
+              if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
                 return;
               }
@@ -1646,9 +1683,9 @@ export function createWebPlatformAdapter(
                   // hit the crash matters most.
                   identityToken: identityTokenReader,
                 },
-                stillOwned,
+                stillPermitted,
               );
-              if (!stillOwned()) {
+              if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
                 return;
               }
@@ -1904,6 +1941,13 @@ export function createWebPlatformAdapter(
   const adapter = {
     captureException: (error: unknown, options?: CaptureExceptionOptions): void =>
       crashSink?.(error, 'captureException', options),
+    __captureUncaughtReactError: (error: unknown, componentStack?: string): void => {
+      try {
+        crashSink?.(error, 'onerror', undefined, { componentStack });
+      } catch {
+        /* swallow — DEFE-02; the boundary relaying the error must keep going */
+      }
+    },
     // ── The capture primitives ────────────────────────────────────────────
     //
     // Codex round-3 findings 2 and 4. These four are THE choke point for
@@ -2186,7 +2230,7 @@ export function createWebPlatformAdapter(
       }
       ownWindowListenerUninstallers.length = 0;
     },
-    onKill: (): void => {
+    onKill: (reason?: 'release'): void => {
       // F17/F18 (round-4 review) — see PlatformAdapter.onKill's doc comment.
       // Order matters only in that this must be synchronous and idempotent-
       // safe: `killed` flips first so any code below (there is none today)
@@ -2199,6 +2243,9 @@ export function createWebPlatformAdapter(
       // declaration for why that is required rather than sloppy.
       reportingKilled = true;
       reportingOwnership += 1;
+      // A release (the React provider unmounting) is not a consent decision:
+      // crash reports already accepted still get persisted and delivered.
+      if (reason !== 'release') consentRevocations += 1;
       // A smart-TV pre-capture taken before kill() must never be handed out
       // after a revive (`__rebindCrumbHooks`) either.
       tvPreCapture = null;

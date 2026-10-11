@@ -443,4 +443,95 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       expect(await adapter.outbox!.list()).toEqual([]);
     });
   });
+
+  // The React provider's unmount is not a consent decision. React reports an
+  // error no boundary caught in the same commit that unmounts the provider,
+  // so the provider releases the adapter with `onKill('release')` while that
+  // crash's report is still being persisted. The release closes capture for
+  // anything new, exactly like a kill, but must not discard what was already
+  // accepted.
+  describe('a provider release is not a kill', () => {
+    it('persists and delivers a crash accepted before the release', async () => {
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const outbox = adapter.outbox!;
+      const realEnqueue = outbox.enqueue.bind(outbox);
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      let started!: () => void;
+      const enqueueStarted = new Promise<void>((resolve) => { started = resolve; });
+      outbox.enqueue = async (item) => {
+        started();
+        await gate;
+        await realEnqueue(item);
+      };
+
+      window.onerror?.('boom', 'a.ts', 1, 1, boom());
+      await enqueueStarted;
+      adapter.onKill?.('release');
+      release();
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      await vi.waitFor(async () => expect(await outbox.list()).toEqual([]));
+    });
+
+    it('still delivers it when a remount claims the adapter in between', async () => {
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const outbox = adapter.outbox!;
+      const realList = outbox.list.bind(outbox);
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      let started!: () => void;
+      const listStarted = new Promise<void>((resolve) => { started = resolve; });
+      outbox.list = async () => {
+        started();
+        await gate;
+        return realList();
+      };
+
+      adapter.captureException?.(boom());
+      await listStarted;
+      adapter.onKill?.('release');
+      adapter.__rebindCrumbHooks();
+      release();
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    });
+
+    it('accepts nothing new after the release', async () => {
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+
+      adapter.onKill?.('release');
+      window.onerror?.('boom', 'a.ts', 1, 1, boom());
+      adapter.__captureUncaughtReactError(boom(), '\n    at Row (a.ts:1:1)');
+
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(await adapter.outbox!.list()).toEqual([]);
+    });
+
+    it('a kill after the release still cancels the accepted crash', async () => {
+      const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+      const outbox = adapter.outbox!;
+      const realEnqueue = outbox.enqueue.bind(outbox);
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      let started!: () => void;
+      const enqueueStarted = new Promise<void>((resolve) => { started = resolve; });
+      outbox.enqueue = async (item) => {
+        started();
+        await gate;
+        await realEnqueue(item);
+      };
+
+      adapter.captureException?.(boom());
+      await enqueueStarted;
+      adapter.onKill?.('release');
+      adapter.onKill?.();
+      release();
+
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      expect(await outbox.list()).toEqual([]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
 });
