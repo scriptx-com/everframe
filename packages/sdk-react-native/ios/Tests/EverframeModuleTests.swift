@@ -18,7 +18,7 @@
 #if canImport(UIKit) && canImport(XCTest)
 import XCTest
 import UIKit
-@testable import Everframe_ReactNative
+@testable import EverframeRN
 
 final class EverframeModuleTests: XCTestCase {
 

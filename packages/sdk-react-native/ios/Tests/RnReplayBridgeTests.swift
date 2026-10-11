@@ -22,11 +22,11 @@
 #if canImport(UIKit) && canImport(XCTest)
 import XCTest
 import UIKit
-@testable import Everframe_ReactNative
+@testable import EverframeRN
 // Task 14's addBreadcrumb test drives `Everframe.shared` + `BreadcrumbRingBuffer
 // .shared` directly (both public API) to prove the bridge reaches the native
 // singleton — explicit import since this module isn't re-exported by
-// `Everframe_ReactNative`.
+// `EverframeRN`.
 import EverframeKit
 
 final class RnReplayBridgeTests: XCTestCase {
