@@ -93,6 +93,36 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 }
 
+// AGP 8.7 floor (smoke round 2026-10). The lint checks that androidx.lifecycle
+// 2.9+ and Compose runtime 1.9+ ship call Kotlin analysis types as interfaces
+// that AGP 8.7's lint still has as classes, so lintVitalAnalyzeRelease crashes
+// in every app that adds this artifact. Fail here before a bump ships that.
+val verifyAgp87LintFloor = tasks.register("verifyAgp87LintFloor") {
+    group = "verification"
+    description = "Fails if the release runtime classpath needs androidx.lifecycle 2.9+ or Compose runtime 1.9+."
+    val releaseRuntime = provider { configurations.getByName("releaseRuntimeClasspath") }
+    doLast {
+        val ceilings = mapOf("androidx.lifecycle" to listOf(2, 9), "androidx.compose.runtime" to listOf(1, 9))
+        fun reaches(version: String, ceiling: List<Int>): Boolean {
+            val parts = version.split('.', '-').map { it.toIntOrNull() ?: 0 }
+            for (i in ceiling.indices) {
+                val part = parts.getOrElse(i) { 0 }
+                if (part != ceiling[i]) return part > ceiling[i]
+            }
+            return true
+        }
+        val offenders = releaseRuntime.get().incoming.resolutionResult.allComponents.mapNotNull { it.moduleVersion }
+            .filter { id -> ceilings[id.group]?.let { reaches(id.version, it) } == true }
+            .map { "${it.group}:${it.name}:${it.version}" }
+            .sorted()
+        check(offenders.isEmpty()) {
+            "reporter-ui would break release builds on AGP 8.7 (lintVitalAnalyzeRelease crash): $offenders. " +
+                "Keep compose-bom at 2025.07.00 (Compose 1.8, lifecycle 2.8) or raise the documented minimum AGP."
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifyAgp87LintFloor) }
+
 // Maven Central publishing — see everframe-core/build.gradle.kts for the full
 // rationale + signing env-var contract.
 afterEvaluate {

@@ -7,7 +7,12 @@
 [versions]
 agp = "8.7.2"                       # AGP 8.7.x (LOCKED per CONTEXT carry-forward)
 kotlin = "2.1.0"                    # Kotlin 2.1.x stable
-compose-bom = "2025.10.01"          # Compose BOM that includes Material3 + tv-foundation + tv-material GA
+# Compose 1.8.3 + Material3 1.3.2, which need androidx.lifecycle 2.8.7. Do not
+# raise past 2025.07.00 while AGP 8.7 is supported: Compose 1.9 needs lifecycle
+# 2.9, and the lint checks lifecycle 2.9 and Compose runtime 1.9 ship crash AGP
+# 8.7's lintVitalAnalyzeRelease in every app that adds reporter-ui (smoke round
+# 2026-10). :everframe-reporter-ui's verifyAgp87LintFloor task enforces this.
+compose-bom = "2025.07.00"
 okhttp = "4.12.0"                   # NOT 5.x — still alpha
 coroutines = "1.9.0"                # kotlinx.coroutines stable
 serialization = "1.7.3"             # kotlinx.serialization stable (matches quicktype --framework kotlinx)
