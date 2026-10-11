@@ -100,9 +100,10 @@ data class EverframeConfig(
     /**
      * Release health: durable foreground sessions that give crash-free rates for each app version,
      * anonymous unless [ReleaseHealthConfig.userId] is set. On by default and independent of replay and
-     * vitals. `null` or `ReleaseHealthConfig(enabled = false)` turns it off, and `start` then erases
-     * undelivered local records before it returns. Debuggable builds of the app record nothing unless
-     * [ReleaseHealthConfig.includeDebugBuilds] is set.
+     * vitals. `null` or `ReleaseHealthConfig(enabled = false)` turns it off and erases undelivered local
+     * records: `enabled = false` erases before `start` returns, while `null` erases afterwards, off the
+     * caller thread. Debuggable builds of the app record nothing and erase the same way (afterwards, off
+     * the caller thread) unless [ReleaseHealthConfig.includeDebugBuilds] is set.
      */
     val releaseHealth: ReleaseHealthConfig? = ReleaseHealthConfig(),
 ) {

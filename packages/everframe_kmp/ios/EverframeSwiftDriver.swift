@@ -23,8 +23,9 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
         capture.networkBodies = false
         do {
             // The Swift SDK takes only the SDK key; the App ID is unused here.
+            // The plugin has no release-health option yet, so release health stays off.
             try Everframe.shared.start(config: EverframeConfig(
-                sdkKey: sdkKey, environment: environment, capture: capture))
+                sdkKey: sdkKey, environment: environment, capture: capture, releaseHealth: nil))
             return Everframe.shared.captureGate
         } catch {
             return false

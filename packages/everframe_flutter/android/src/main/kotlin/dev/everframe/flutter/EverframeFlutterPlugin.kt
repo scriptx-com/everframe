@@ -78,6 +78,8 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                         sdkKey = sdkKey,
                         environment = environment,
                         capture = CaptureConfig(screenshot = false, crash = crash),
+                        // The plugin has no release-health option yet, so release health stays off.
+                        releaseHealth = null,
                     ), activity)
                     result.success(null)
                 }
