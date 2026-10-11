@@ -87,6 +87,16 @@ final class EverframeConfigEquatableTests: XCTestCase {
         XCTAssertNotEqual(makeConfig(), headers)
     }
 
+    func test_release_health_is_on_by_default_and_participates_in_the_comparison() throws {
+        XCTAssertEqual(EverframeConfig(sdkKey: sdkKey).releaseHealth, ReleaseHealthConfiguration())
+        var off = makeConfig(); off.releaseHealth = nil
+        XCTAssertNotEqual(makeConfig(), off)
+        var user = makeConfig(); user.releaseHealth = try ReleaseHealthConfiguration(userId: "opaque-a")
+        XCTAssertNotEqual(makeConfig(), user)
+        var debug = makeConfig(); debug.releaseHealth = ReleaseHealthConfiguration(includeDebugBuilds: true)
+        XCTAssertNotEqual(makeConfig(), debug)
+    }
+
     /// SDK 1.1 named the key `appId`. The deprecated spelling still compiles and
     /// builds the same config, so a 1.1 call site keeps working in a minor release.
     @available(*, deprecated)

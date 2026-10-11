@@ -111,12 +111,13 @@ final class CrashReporterTests: XCTestCase {
         let healthRoot = tempDir.appendingPathComponent("health")
         let key = Data(repeating: 0x78, count: 32)
         let runtime = ReleaseHealthRuntime(root: healthRoot, keyProvider: { key }, appRelease: { AppRelease(version: "2.4.0", build: nil) }, transport: { _, _ in .retry })
-        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
-        let config = EverframeConfig(sdkKey: "evf_live_" + String(repeating: "a", count: 32),
-            capture: .init(screenshot: false, focus: false, logs: false, network: false, crash: true), vitals: .init(enabled: false))
-        try sdk.start(config: config)
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime, isDebugBuild: { false })
         let health = try ReleaseHealthConfiguration(userId: nil, loadedBuildId: "js-fixture", loadedBundleStatus: .known)
-        let enabled = await sdk.setReleaseHealth(health); XCTAssertTrue(enabled)
+        let config = EverframeConfig(sdkKey: "evf_live_" + String(repeating: "a", count: 32),
+            capture: .init(screenshot: false, focus: false, logs: false, network: false, crash: true), vitals: .init(enabled: false),
+            releaseHealth: health)
+        try sdk.start(config: config)
+        let enabled = await sdk.releaseHealthStartTask?.value ?? false; XCTAssertTrue(enabled)
         let pointer = try XCTUnwrap(runtime.readyPointer)
         Everframe.__setConfigForTesting(config)
         CrashReporter.__exposureForTesting = { runtime.readyPointer }

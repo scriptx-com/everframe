@@ -29,15 +29,17 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             configuration.protocolClasses?.contains(where: { NSStringFromClass($0) == NSStringFromClass(LoopbackTransport.self) }) == true
         }) else { ready(["error": "SDK upload session is not loopback isolated"]); return true }
         let original = mode == "fatal"
+        // Owners differ by user ID. Both runs report the app's own MARKETING_VERSION. The SDK treats
+        // the simulator as a debug build, so the proof includes debug builds.
+        let configuration = try! ReleaseHealthConfiguration(userId: original ? "proof-a" : "proof-b", includeDebugBuilds: true)
         do {
             try Everframe.shared.start(config: .init(sdkKey: key, release: original ? "release-A" : "release-B",
                 capture: .init(logs: false, crash: mode != "off" && mode != "health-only"), companionBadgeEnabled: false,
-                shakeToReportEnabled: false, installIdentifierEnabled: false, vitals: .init(enabled: false)))
+                shakeToReportEnabled: false, installIdentifierEnabled: false, vitals: .init(enabled: false),
+                releaseHealth: mode == "off" ? nil : configuration))
             Everframe.shared.setUser(.init(id: original ? "user-A" : "user-B"))
         } catch { ready(["error": String(describing: error)]); return true }
         Task { @MainActor in
-            // Owners differ by user ID. Both runs report the app's own MARKETING_VERSION.
-            let configuration = try! ReleaseHealthConfiguration(userId: original ? "proof-a" : "proof-b")
             var healthReady = false
             if mode == "off" {
                 healthReady = await Everframe.shared.setReleaseHealth(nil)

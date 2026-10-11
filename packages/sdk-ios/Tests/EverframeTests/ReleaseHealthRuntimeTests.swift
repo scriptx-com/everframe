@@ -52,6 +52,21 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         let erased = await runtime.finishRevocation(runtime.revoke().request); XCTAssertTrue(erased)
         XCTAssertTrue(try rows().isEmpty)
     }
+    func testRevocationWithNothingStoredCreatesNothing() async throws {
+        let missing = root.appendingPathComponent("release-health")
+        let reads = KeyReads(key), now = now
+        let runtime = ReleaseHealthRuntime(root: missing, keyProvider: { reads.read() }, appRelease: { .testRelease },
+            now: { now }, transport: { _, _ in .retry })
+        let erased = await runtime.finishRevocation(runtime.revoke().request); XCTAssertTrue(erased)
+        XCTAssertNil(try NativeCrashContextFiles.info(missing), "erasing an absent store created its directory")
+        XCTAssertEqual(reads.count, 0, "erasing an absent store read the encryption key")
+        // A later enable still creates the store and records a session.
+        let ticket = runtime.requestEnable(configuration: try configuration(), sdkKey: "key-a",
+            endpoint: "https://a.example/api/ingest/release-health").ticket
+        let enabled = await runtime.enable(ticket: ticket, sdkVersion: "1.0.0"); XCTAssertTrue(enabled)
+        XCTAssertNotNil(try NativeCrashContextFiles.info(missing))
+        XCTAssertEqual(reads.count, 1)
+    }
     func testCanonicallyEquivalentOpaqueIDsRotateWithoutAnExplicitBoundary() async throws {
         let runtime = runtime(), composed = "\u{00e9}", decomposed = "e\u{0301}"
         let a = try ReleaseHealthConfiguration(userId: composed)
@@ -319,4 +334,12 @@ private actor HealthAsyncGate {
     private var released = false
     func wait() async { if !released { await withCheckedContinuation { continuation = $0 } } }
     func release() { released = true; continuation?.resume(); continuation = nil }
+}
+
+/// Counts encryption-key reads; the runtime calls its key provider on its worker.
+private final class KeyReads: @unchecked Sendable {
+    private let lock = NSLock(); private var reads = 0; private let key: Data
+    init(_ key: Data) { self.key = key }
+    var count: Int { lock.withLock { reads } }
+    func read() -> Data { lock.withLock { reads += 1 }; return key }
 }
