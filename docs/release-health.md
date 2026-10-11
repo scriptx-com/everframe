@@ -40,6 +40,7 @@ same version counts toward that version, so crashes during development would
 lower its rate:
 
 ```kotlin
+// BuildConfig.DEBUG needs `android { buildFeatures { buildConfig = true } }` in the app module (AGP 8 and later).
 releaseHealth = if (BuildConfig.DEBUG) null else ReleaseHealthConfig(),
 ```
 
@@ -202,10 +203,12 @@ errors" and "Top errors" only for a version that matches `release`. Leave
 A version can be any text up to 64 UTF-16 code units, such as `2.4.0`,
 `2.4.0+42` or `1.0 (beta)`. Two different strings are two versions.
 
-"First seen" is the start of the oldest session of that version that Everframe
-still keeps. Sessions are kept for 30 days, so an older version shows the oldest
-session still kept. The latest release is the version first seen most recently,
-and the page compares it with the version first seen before it.
+"First seen" is the start of the earliest session of that version that
+Everframe has received. It is kept after the sessions themselves expire, so a
+version shipped months ago keeps its first-seen day. For a version already in use
+when you turned release health on, it is the first session Everframe received.
+The latest release is the version first seen most recently, and the page
+compares it with the version first seen before it.
 
 ## Privacy and delivery
 
@@ -225,7 +228,7 @@ reports, which have their own queue.
 Turning release health off erases the records still waiting on the device:
 `releaseHealth = null` or `ReleaseHealthConfig(enabled = false)` on Android,
 `setReleaseHealth(nil)` on iOS, a config without `releaseHealth` or with
-`enabled: false` in React Native, and `kill()` on every platform. Records
+`enabled: false` in React Native, and `kill()` on Android and iOS. Records
 Everframe has already received are not recalled; they expire after 30 days.
 Crash reports already captured keep their own delivery and retention.
 
