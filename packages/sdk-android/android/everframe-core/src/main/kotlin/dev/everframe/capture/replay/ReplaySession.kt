@@ -18,6 +18,7 @@ import dev.everframe.capture.video.*
 import dev.everframe.config.*
 import dev.everframe.vitals.toVitalsServerConfig
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -74,6 +75,12 @@ class ReplaySession(
     private var privacySubscription: AutoCloseable? = null
     private var foreground = true
     private var state = NativeVideoRecorder.State.DISABLED
+    // Error replays (spec 2026-10-11). Guarded by the report authorization lock, like the fields above.
+    private var errorReplaysSent = 0
+    private var errorReplaysPending = 0
+    /** Internal construction boundary: builds the attachment inside the recorder's snapshot gap. */
+    internal var errorReplayAttachment: suspend (OwnedVideoClip) -> VideoAttachmentPair? = { NativeVideoAttachment().build(it) }
+
 
     /**
      * Report Resource Window (spec 2026-09-05) — CPU/memory sampler feeding
@@ -325,6 +332,49 @@ class ReplaySession(
             binding.third.cancel(binding.first); binding.third.release(binding.first)
             FrozenReportCapture.empty(originatingStartEpoch, sessionId)
         }
+    }
+
+    /**
+     * Error replays (spec 2026-10-11): reserves one of this session's two error replays and starts a
+     * non-destructive snapshot on [ErrorReplayWork.scope]. Returns null when the error ships without a
+     * replay:
+     * - no recorder, or it is paused;
+     * - an open bug report owns the buffer;
+     * - consent or privacy is revoked;
+     * - both replays are used.
+     * The caller's thread only reads fields under the lock.
+     */
+    internal fun beginErrorReplay(): ErrorReplaySnapshot? {
+        val claim = Everframe.withReportAuthorizationLock {
+            val bound = recorder
+            if (bound == null || isTornDown.get() || Everframe.currentStartEpochVolatile() != originatingStartEpoch ||
+                !authorized || activeOwner != null || state != NativeVideoRecorder.State.BUFFERING ||
+                bound.state != NativeVideoRecorder.State.BUFFERING || !Everframe.captureGate ||
+                !VideoPrivacyRevocation.permits(privacyEpoch) ||
+                errorReplaysSent + errorReplaysPending >= ErrorReplayWork.MAX_PER_SESSION
+            ) return@withReportAuthorizationLock null
+            errorReplaysPending++
+            bound to generation
+        } ?: return null
+        val startedNanos = System.nanoTime()
+        val (bound, capturedGeneration) = claim
+        val build = errorReplayAttachment
+        val result = ErrorReplayWork.scope.async {
+            try { bound.snapshot(bound.owner, build) } catch (_: Throwable) { null }
+        }
+        return ErrorReplaySnapshot(result, startedNanos,
+            allowed = {
+                Everframe.withReportAuthorizationLock {
+                    !isTornDown.get() && authorized && generation == capturedGeneration &&
+                        VideoPrivacyRevocation.permits(privacyEpoch)
+                }
+            },
+            settled = { attached ->
+                Everframe.withReportAuthorizationLock {
+                    errorReplaysPending--
+                    if (attached) errorReplaysSent++
+                }
+            })
     }
 
     private companion object {

@@ -11,6 +11,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VideoExporterTest {
+ @Test fun borrowedExportLeavesInputsWithTheCaller()=runBlocking {
+  val h=Harness();val a=h.segment();val b=h.segment(4_000_000)
+  val clip=h.exporter.exportBorrowed(h.owner,listOf(a,b)){true}!!
+  assertTrue(a.path.exists());assertTrue(b.path.exists());assertEquals(listOf(listOf(2_000_000L,4_000_000L)),h.inputs)
+  clip.close()
+  h.fail=true;assertNull(h.exporter.exportBorrowed(h.owner,listOf(a,b)){true})
+  assertTrue("a failed borrowed export still leaves the inputs",a.path.exists() && b.path.exists())
+  a.close();b.close();assertEquals(0,h.budget.usedBytes)
+ }
+
  internal class Scheduler:VideoCaptureScheduler {
   var now=0L; var timeout:(()->Unit)?=null
   override fun main(block:()->Unit)=block()

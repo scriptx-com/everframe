@@ -10,6 +10,7 @@ import dev.everframe.config.NATIVE_VIDEO_FRAME_RATES
 import dev.everframe.config.NativeVideoSettings
 import kotlinx.serialization.json.*
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
@@ -40,6 +41,8 @@ internal class NativeVideoRecorder(
     private val exporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip?,
     /** Battery Saver or MODERATE heat (spec 2026-10-11). True pauses exactly like a lost window. */
     private val devicePause: () -> Boolean = { false },
+    /** Error replays: export retained segments without taking ownership of them. */
+    private val snapshotExporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip? = { _, _ -> null },
 ) : AutoCloseable {
     enum class State { DISABLED, BUFFERING, SUSPENDED, FROZEN, CLOSED }
     private val lock = Any()
@@ -57,6 +60,8 @@ internal class NativeVideoRecorder(
     private var size: VideoSize? = null
     private var requestedSize: VideoSize? = null
     private var preparing = false
+    // Freeze may claim immediately, but cannot consume borrowed history or codec admission.
+    private var snapshotFinished: CompletableDeferred<Unit>? = null
     private var manuallyPaused = false
     private var cancelTick: (() -> Unit)? = null
     private var exported = false
@@ -214,9 +219,74 @@ internal class NativeVideoRecorder(
         cancelTick?.invoke(); capture?.cancel()
         return { exportFrozen() }
     }
+    /**
+     * Error replays (spec 2026-10-11): a non-destructive copy of the retained window. The writing
+     * encoder finishes early, so its open segment closes, and its segments join [history] exactly as
+     * a size-change replacement's do. The retained segments are exported as borrowed inputs, and
+     * [build] turns the clip into an attachment, both while no encoder holds the process worker
+     * admission. Then [tick] prepares a new encoder. [state] never changes, so a later error or
+     * bug-report freeze still sees the whole history.
+     */
+    suspend fun snapshot(owner: VideoOwner, build: suspend (OwnedVideoClip) -> VideoAttachmentPair?): VideoAttachmentPair? {
+        require(owner == this.owner)
+        val completed = CompletableDeferred<Unit>()
+        val current = synchronized(lock) {
+            // A freeze (open bug report), pause, revocation or in-flight replacement refuses with no codec work.
+            if (revoked || state != State.BUFFERING || preparing) return null
+            preparing = true; controlTasks++
+            snapshotFinished = completed
+            encoder.also { encoder = null }
+        }
+        capture?.cancel()
+        try {
+            val retained = CompletableDeferred<List<VideoSegment>>()
+            val submitted = submitControl {
+                val segments = try { current?.finish(scheduler.nowNanos() / 1_000_000 + 3_000).orEmpty() }
+                    catch (_: Throwable) { current?.close(); emptyList() }
+                ownedWorker {
+                    if (!replayAllowed) {
+                        segments.forEach { it.close() }; retained.complete(emptyList())
+                    } else {
+                        history.addAll(segments)
+                        trimHistory(anchor!!.ptsUs(retentionTimeNanos()), 0, 0); observeRing(0, 0)
+                        retained.complete(history.toList())
+                    }
+                }
+            }
+            if (!submitted) {
+                // A full control lane keeps the untouched encoder recording, rather than losing its ring.
+                val restored = synchronized(lock) {
+                    if (encoder == null && !revoked && (state == State.BUFFERING || state == State.FROZEN)) {
+                        encoder = current; true
+                    } else false
+                }
+                if (!restored) current?.close()
+                return null
+            }
+            // finish() is bounded at 3 s and the worker hop is immediate. The bound only keeps a lost
+            // completion from parking `preparing`; the segments stay recorder-owned either way.
+            val borrowed = withTimeoutOrNull(6_000) { retained.await() } ?: return null
+            if (borrowed.isEmpty() || !replayAllowed) return null
+            val clip = snapshotExporter(borrowed) { replayAllowed } ?: return null
+            return try { build(clip) } finally { clip.close() }
+        } finally {
+            synchronized(lock) {
+                preparing = false
+                if (snapshotFinished === completed) snapshotFinished = null
+            }
+            completed.complete(Unit)
+            tick()
+        }
+    }
+
     private fun retentionTimeNanos(): Long = frozenAtNanos ?: scheduler.nowNanos()
 
     private suspend fun exportFrozen(): OwnedVideoClip? {
+        // Wait outside the lock and the control/capture workers. This only bounds the report's
+        // wait; cancelling the snapshot itself could quarantine the shared native worker.
+        // Finish/worker handoff is bounded at 6 s; export and attachment read at 3 s each.
+        val snapshot = synchronized(lock) { snapshotFinished }
+        if (snapshot != null && withTimeoutOrNull(12_000) { snapshot.await(); true } != true) return null
         val current = synchronized(lock) {
             if (exported || !replayAllowed || state != State.FROZEN) return null
             exported = true; controlTasks++; encoder.also { encoder = null }
@@ -332,7 +402,8 @@ internal class NativeVideoRecorder(
                     override fun close() = encoder.close()
                 }
             }, { segments, allowed -> VideoExporter(context).export(owner, segments, allowed) },
-                devicePause = conditions::pauseRecording)
+                devicePause = conditions::pauseRecording,
+                snapshotExporter = { segments, allowed -> VideoExporter(context).exportBorrowed(owner, segments, allowed) })
             return recorder
         }
     }

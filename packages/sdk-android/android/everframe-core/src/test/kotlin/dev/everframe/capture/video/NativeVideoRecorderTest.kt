@@ -11,6 +11,170 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NativeVideoRecorderTest {
+    @Test fun bugReportOpenedDuringSnapshotKeepsIndependentFullHistory() = runBlocking {
+        for (freezeDuringBuild in listOf(false, true)) {
+            val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+            val first = h.segment(2_000_000); val second = h.segment(4_000_000)
+            val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(first, second))),
+                snapshotExporter = { segments, allowed ->
+                    if (!freezeDuringBuild) { entered.complete(Unit); release.await() }
+                    h.exporter.exportBorrowed(h.owner, segments, allowed)
+                })
+            try {
+                recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
+                val error = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                    recorder.snapshot(h.owner) { clip ->
+                        if (freezeDuringBuild) { entered.complete(Unit); release.await() }
+                        NativeVideoAttachment(h.scheduler).build(clip)
+                    }
+                }
+                entered.await()
+                val frozen = recorder.freeze(h.owner)
+                scheduler.now = 90_000_000_000L // Editing must retain the window captured at freeze.
+                val report = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { frozen() }
+                assertFalse("report must wait for the borrowed inputs and shared worker admission", report.isCompleted)
+                assertTrue(first.path.exists()); assertTrue(second.path.exists())
+                release.complete(Unit)
+                assertNotNull("the already-started error keeps its own replay", error.await())
+                val clip = checkNotNull(report.await())
+                assertEquals(listOf(listOf(2_000_000L, 4_000_000L), listOf(2_000_000L, 4_000_000L)), h.inputs)
+                clip.close()
+                assertFalse(first.path.exists()); assertFalse(second.path.exists())
+            } finally { release.complete(Unit); recorder.close() }
+            assertEquals(0, h.budget.usedBytes)
+        }
+    }
+
+    @Test fun freezeRacingARefusedSnapshotControlTaskKeepsTheWritingEncoder() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val segment = h.segment()
+        lateinit var recorder: NativeVideoRecorder
+        lateinit var frozen: suspend () -> OwnedVideoClip?
+        var refuse = false
+        recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(segment))), control = { block ->
+            if (refuse) { frozen = recorder.freeze(h.owner); false } else { block(); true }
+        })
+        try {
+            recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
+            refuse = true
+            assertNull(recorder.snapshot(h.owner) { error("refused") })
+            refuse = false
+            assertNotNull("freeze must keep the untouched encoder after a refused snapshot", frozen()?.also { it.close() })
+        } finally { recorder.close() }
+        assertEquals(0, h.budget.usedBytes)
+    }
+
+    @Test fun reporterTimeoutDoesNotCancelTheSnapshotOrConsumeItsHistory() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(h.segment()))))
+        try {
+            recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
+            val error = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                recorder.snapshot(h.owner) { clip ->
+                    entered.complete(Unit); release.await(); NativeVideoAttachment(h.scheduler).build(clip)
+                }
+            }
+            entered.await()
+            val frozen = recorder.freeze(h.owner)
+            assertNull(kotlinx.coroutines.withTimeout(13_000) { frozen() })
+            assertTrue("a report timeout must not quarantine the snapshot's native work", error.isActive)
+            release.complete(Unit)
+            assertNotNull(error.await())
+            assertNotNull("a retry still owns the full history", frozen()?.also { it.close() })
+        } finally { release.complete(Unit); recorder.close() }
+        assertEquals(0, h.budget.usedBytes)
+    }
+
+    private fun snapshotRecorder(
+        h: VideoExporterTest.Harness, scheduler: RecorderScheduler, finishes: ArrayDeque<List<VideoSegment>>,
+        control: (() -> Unit) -> Boolean = { block -> block(); true },
+        encoders: java.util.concurrent.atomic.AtomicInteger = java.util.concurrent.atomic.AtomicInteger(),
+        snapshotExporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip? =
+            { segments, allowed -> h.exporter.exportBorrowed(h.owner, segments, allowed) },
+    ) = NativeVideoRecorder(h.owner, scheduler, control, { VideoSize(4, 4) }, { null }, { _, _, _ ->
+        encoders.incrementAndGet()
+        object : RecordingVideoEncoder {
+            override fun prepare(size: VideoSize, fps: Int) = size
+            override fun offer(frame: SafeVideoFrame) = false
+            override fun finish(deadline: Long) = finishes.removeFirstOrNull().orEmpty()
+            override val isTerminal = false
+            override fun close() = Unit
+        }
+    }, { segments, allowed -> h.exporter.export(h.owner, segments, allowed) }, snapshotExporter = snapshotExporter)
+
+    @Test fun snapshotKeepsRecordingAndALaterFreezeStillHasTheWholeHistory() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val first = h.segment(2_000_000); val second = h.segment(4_000_000)
+        val encoders = java.util.concurrent.atomic.AtomicInteger()
+        val recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(first), listOf(second))), encoders = encoders)
+        try {
+            recorder.start(NativeVideoSettings(2), 30)
+            scheduler.mainTasks.removeAt(0).invoke(); assertEquals(1, encoders.get())
+            val pair = recorder.snapshot(h.owner) { clip -> NativeVideoAttachment(h.scheduler).build(clip) }
+            assertNotNull(pair); assertEquals(sha256(pair!!.part.data), pair.envelope.sha256)
+            assertTrue("the snapshot borrows; the recorder keeps the segment", first.path.exists())
+            assertEquals(NativeVideoRecorder.State.BUFFERING, recorder.state)
+            while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke()
+            assertEquals("recording continues into a new encoder", 2, encoders.get())
+            val clip = recorder.freeze(h.owner)()!!
+            assertEquals(listOf(listOf(2_000_000L), listOf(2_000_000L, 4_000_000L)), h.inputs)
+            clip.close(); assertFalse(first.path.exists()); assertFalse(second.path.exists())
+        } finally { recorder.close() }
+        assertEquals(0, h.budget.usedBytes)
+    }
+
+    @Test fun aFrozenBugReportRefusesTheSnapshotWithoutTouchingItsEncoder() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val finishes = ArrayDeque(listOf(listOf(h.segment())))
+        val recorder = snapshotRecorder(h, scheduler, finishes)
+        try {
+            recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
+            val export = recorder.freeze(h.owner)
+            assertNull(recorder.snapshot(h.owner) { error("no build while a report owns the buffer") })
+            assertEquals("the report's encoder was not finished by the snapshot", 1, finishes.size)
+            export()!!.close()
+        } finally { recorder.close() }
+        assertEquals(0, h.budget.usedBytes)
+    }
+
+    @Test fun revocationDuringTheSnapshotOmitsTheReplayAndDiscardsHistory() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val segment = h.segment()
+        lateinit var recorder: NativeVideoRecorder
+        recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(segment))), snapshotExporter = { segments, allowed ->
+            recorder.revoke(); h.exporter.exportBorrowed(h.owner, segments, allowed)
+        })
+        try {
+            recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
+            assertNull(recorder.snapshot(h.owner) { clip -> NativeVideoAttachment(h.scheduler).build(clip) })
+            assertFalse("revocation still deletes history the snapshot borrowed", segment.path.exists())
+        } finally { recorder.close() }
+        assertEquals(0, h.budget.usedBytes)
+    }
+
+    @Test fun aFullControlLaneKeepsRecordingIntoTheSameEncoder() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val finishes = ArrayDeque(listOf(listOf(h.segment())))
+        var accept = true; val encoders = java.util.concurrent.atomic.AtomicInteger()
+        val recorder = snapshotRecorder(h, scheduler, finishes,
+            control = { block -> if (accept) { block(); true } else false }, encoders = encoders)
+        try {
+            recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
+            accept = false
+            assertNull(recorder.snapshot(h.owner) { error("no export without the control lane") })
+            accept = true
+            while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke()
+            assertEquals("the restored encoder kept its ring", 1, finishes.size)
+            assertEquals(1, encoders.get())
+            assertNotNull(recorder.freeze(h.owner)()?.also { it.close() })
+        } finally { recorder.close() }
+        assertEquals(0, h.budget.usedBytes)
+    }
+
     @Test fun mainEnvironmentTimingIncludesSuspendedRechecksWithoutWaitTime() {
         val scheduler = RecorderScheduler()
         val recorder = NativeVideoRecorder(VideoOwner("sensitive-session", "sensitive-capture"), scheduler,

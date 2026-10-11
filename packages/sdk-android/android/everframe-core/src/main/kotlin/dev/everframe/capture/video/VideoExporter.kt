@@ -92,9 +92,19 @@ internal class VideoExporter(
     constructor(context:Context):this(File(context.noBackupFilesDir,"everframe-video"))
     /** Consumes all supplied references, including on rejection or cancellation. */
     suspend fun export(owner:VideoOwner,segments:List<VideoSegment>,replayAllowed:()->Boolean):OwnedVideoClip? =
+        exportSegments(owner,segments,replayAllowed,consume=true)
+
+    /**
+     * Error replays (spec 2026-10-11): reads [segments] and never closes them, so the recorder keeps
+     * them for a later error or bug report. Same deadline, admission, budget and size cap as [export].
+     */
+    suspend fun exportBorrowed(owner:VideoOwner,segments:List<VideoSegment>,replayAllowed:()->Boolean):OwnedVideoClip? =
+        exportSegments(owner,segments,replayAllowed,consume=false)
+
+    private suspend fun exportSegments(owner:VideoOwner,segments:List<VideoSegment>,replayAllowed:()->Boolean,consume:Boolean):OwnedVideoClip? =
         suspendCancellableCoroutine { continuation ->
             val lease = try { VideoDirectoryLeases.acquire() } catch (_: IllegalStateException) {
-                scheduler.worker { segments.forEach { it.close() } }
+                if(consume) scheduler.worker { segments.forEach { it.close() } }
                 continuation.resume(null)
                 return@suspendCancellableCoroutine
             }
@@ -154,7 +164,7 @@ internal class VideoExporter(
                     if(t is VideoMuxerReleaseFailure) synchronized(lock){ticket?.quarantine()}
                     clip?.close();clip=null
                 } finally {
-                    segments.forEach{it.close()};synchronized(lock){ticket?.close()};timer()
+                    if(consume) segments.forEach{it.close()};synchronized(lock){ticket?.close()};timer()
                 }
                 val result=clip
                 if(!completion.finish {

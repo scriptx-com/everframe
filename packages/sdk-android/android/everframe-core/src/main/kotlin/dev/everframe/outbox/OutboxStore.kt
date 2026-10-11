@@ -310,6 +310,38 @@ internal class OutboxStore(
         }
     }
 
+    /**
+     * Error replays (spec 2026-10-11): commit [replacement] for the same report, then retire [token].
+     * The original stays queued unless the replacement commits. A process death between the two
+     * leaves both; ingest deduplicates them by (app, reportId). False when [token] is no longer queued.
+     */
+    fun replaceSync(token: OutboxToken, replacement: OutboxEntry, authorization: OutboxAuthorization,
+                    diagnostics: ReportDiagnostics.Handle? = null): Boolean =
+        observingFailure(diagnostics, QueueOperation.ENQUEUE_FAILED) {
+            if (coordinator.lock.isHeldByCurrentThread) throw OutboxWriteException(OutboxFailure.IO)
+            locked {
+                if (!presentLocked(token)) return@locked false
+                if (decode(token, file(token)).reportId != replacement.reportId) throw OutboxWriteException(OutboxFailure.INVALID_ENTRY)
+                val size = try { cipher.encryptedSize(replacement) }
+                    catch (invalid: IllegalArgumentException) { throw OutboxWriteException(OutboxFailure.INVALID_ENTRY, invalid) }
+                checkAllowed(authorization)
+                val used = physicalUsage()
+                if (size > maxTotalBytes - maintenanceReserveBytes || used > maxTotalBytes - maintenanceReserveBytes - size)
+                    throw OutboxWriteException(OutboxFailure.CAPACITY)
+                val next = OutboxToken(token.generation, UUID.randomUUID().toString())
+                val tmp = File(active, "${next.fileId}.tmp")
+                tmp.outputStream().use { cipher.write(replacement, next, it) }
+                ops.syncFile(tmp)
+                checkAllowed(authorization)
+                ops.renameAtomic(tmp, file(next))
+                ops.syncDirectory(active)
+                finishAdmission(next, authorization)
+                removeLocked(token)
+                diagnostics?.queueOperation(QueueOperation.ENQUEUE_COMMITTED)
+                true
+            }
+        }
+
     /** Atomic only: safe alongside Everframe's monotonic kill boundary under stateLock. */
     fun invalidateSync() { coordinator.epoch.incrementAndGet() }
     fun hasCurrentLease(): Boolean = lease == coordinator.epoch.get() && !isRevocationPending()
