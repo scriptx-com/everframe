@@ -1,0 +1,45 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_dbd309ddf8ec5b::t_ff80bb5776d4df 501-508
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_dbd309ddf8ec5b::t_9c403756755a9d 80-90
+packages/protocol/__tests__/json-schema.spec.ts
+  s_dbd309ddf8ec5b::t_ef94b3eaf63c02 247-265
+.changeset/android-exit-mapping-id.md
+  s_dbd309ddf8ec5b::t_7126a7a3849172 1-10
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_dbd309ddf8ec5b::t_ac75744439f5ba 3237-3240
+packages/protocol/src/diagnostic.ts
+  s_dbd309ddf8ec5b::t_02f620872f315c 5,52-56
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidExitDiagnostic.kt
+  s_dbd309ddf8ec5b::t_38153b1abec71b 93-97,99,116
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_dbd309ddf8ec5b::t_140cc93d450372 104-108
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_dbd309ddf8ec5b::t_0221cfe5201f92 80,98-99,259-260
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_dbd309ddf8ec5b::t_ac6fc6221fb3be 37,54-57,59-60,63-64,67-68,83,108-109,170
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/JvmCrashContext.kt
+  s_dbd309ddf8ec5b::t_6f1f0376024c93 14-15
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidExitDiagnosticTest.kt
+  s_dbd309ddf8ec5b::t_b931142b23c0c0 22,28-29,103-120
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_dbd309ddf8ec5b::t_6970bdd3323656 894-897
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_dbd309ddf8ec5b::t_a43ce216cd7daf 2568,2575-2577,2583,2587,2617,2627
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4fc722135359f442f3ff653f8bd2c9a0d2e6cfac",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
