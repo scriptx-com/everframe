@@ -14,7 +14,9 @@ external JSBoolean? get _captureReady;
 
 extension type _WebConfig._(JSObject _) implements JSObject {
   external factory _WebConfig({JSString sdkKey, JSString appVersion,
-    JSString sdkName, JSString sdkVersion, JSBoolean? debugBuild});
+    JSString sdkName, JSString sdkVersion});
+  // Set only when the host chose a value: @everframe/web detects on `undefined`, not on `null`.
+  external set debugBuild(JSBoolean value);
 }
 
 extension type _WebUser._(JSObject _) implements JSObject {
@@ -86,8 +88,8 @@ class EverframeWebBridge {
       appVersion: appVersion.toJS,
       sdkName: 'everframe-flutter'.toJS,
       sdkVersion: '1.0.0'.toJS,
-      debugBuild: debugBuild?.toJS,
     );
+    if (debugBuild != null) config.debugBuild = debugBuild.toJS;
     _handle = init.callAsFunction(null, config) as _WebHandle;
   }
 
