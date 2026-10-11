@@ -47,13 +47,17 @@ import {
 } from '@everframe/web/ui';
 import { PKG_VERSION } from './internal/version.js';
 import { __setCurrentContext } from './contextSeam.js';
-import { createProviderReleaseHealth } from './release-health.js';
 
 export interface InternalContext {
   client: EverframeClient;
   adapter: WebPlatformAdapter;
   config: ResolvedWebEverframeConfig;
-  releaseHealth: ReturnType<typeof createProviderReleaseHealth>;
+  /**
+   * True once this Provider's own cleanup stopped the client, unless a kill()
+   * from anywhere else reached it first. Only such a context is rebuilt after a
+   * StrictMode remount; an explicit kill() stays terminal.
+   */
+  readonly stoppedNormally: boolean;
   stopClient: () => void;
   /** Freeze-then-open helper — freezes the replay buffer before mounting the modal. */
   openModal: () => void;
@@ -101,13 +105,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // Repairable client contexts share the same real-mount configuration. A
   // child's effect may mutate the caller's object before StrictMode repairs it.
   // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
-  const [mountConfig] = useState<ResolvedWebEverframeConfig>(() => {
-    const resolved = resolveSdkKey(config);
-    return {
-      ...resolved,
-      ...(resolved.releaseHealth ? { releaseHealth: { ...resolved.releaseHealth } } : {}),
-    };
-  });
+  const [mountConfig] = useState<ResolvedWebEverframeConfig>(() => ({ ...resolveSdkKey(config) }));
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({
@@ -157,15 +155,18 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     });
     const client = createClient(adapter);
     client.init(config);
-    const releaseHealth = createProviderReleaseHealth(config, PKG_VERSION);
+    // `stopped`: this Provider's unmount cleanup killed the client. `hostKilled`:
+    // a kill() reached it from anywhere else, such as a child's mount effect.
+    let stopped = false;
+    let hostKilled = false;
     let normalCleanupCall = false;
     const originalOnKill = adapter.onKill?.bind(adapter);
     adapter.onKill = () => {
       try { originalOnKill?.(); }
-      finally { if (!normalCleanupCall) releaseHealth.revoke(); }
+      finally { if (!normalCleanupCall) hostKilled = true; }
     };
     const stopClient = () => {
-      releaseHealth.stop();
+      stopped = true;
       normalCleanupCall = true;
       try { client.kill(); }
       finally { normalCleanupCall = false; }
@@ -219,7 +220,10 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // __openReporter's pending-promise lifecycle now; it calls this on every
     // open request).
     adapter.__registerShowModal(openModal);
-    return { client, adapter, config, releaseHealth, stopClient, openModal };
+    return {
+      client, adapter, config, stopClient, openModal,
+      get stoppedNormally() { return stopped && !hostKilled; },
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   };
   // Single-init by design — config swap requires Provider remount.
@@ -234,7 +238,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // explicitly kill the client before our effect runs; that consent decision
   // must remain terminal instead of being mistaken for StrictMode cleanup.
   useEffect(() => {
-    if (__internalClientState.get(ctxValue.client)?.killed && ctxValue.releaseHealth.stoppedNormally) {
+    if (__internalClientState.get(ctxValue.client)?.killed && ctxValue.stoppedNormally) {
       setCtxValue(createCtx());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- createCtx is recreated each render; only the killed client matters
@@ -243,12 +247,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // effect that ran before these effects. The mount effects below must not
   // revive capture, fetch config or drain the outbox for it.
   const explicitlyKilled = (): boolean =>
-    __internalClientState.get(ctxValue.client)?.killed === true && !ctxValue.releaseHealth.stoppedNormally;
-
-  useEffect(() => {
-    ctxValue.releaseHealth.start();
-    return () => ctxValue.releaseHealth.stop();
-  }, [ctxValue]);
+    __internalClientState.get(ctxValue.client)?.killed === true && !ctxValue.stoppedNormally;
 
   // One screen recorder per provider instance: it holds the `previous`-screen
   // state that derives each `from → to` transition in a closure, so a fresh

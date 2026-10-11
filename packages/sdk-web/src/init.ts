@@ -60,7 +60,6 @@ import type { ToastTone } from './reporter-ui/primitives/Toast.js';
 import { assertBrowser } from './ssr.js';
 import type { ResolvedWebEverframeConfig, WebEverframeConfig } from './internal/types.js';
 import { EverframeNotMountedError } from './reporter-types.js';
-import { setupReleaseHealth, type ReleaseHealthHandle } from './release-health/runtime.js';
 import type { ReporterResult } from './reporter-types.js';
 
 /**
@@ -69,8 +68,6 @@ import type { ReporterResult } from './reporter-types.js';
  * unmounting it.
  */
 export interface Everframe {
-  /** Durable exposure status; unavailable storage or an invalid user ID is explicitly reported. */
-  releaseHealth: ReleaseHealthHandle;
   /**
    * Open the reporter. Resolves with the outcome, exactly like the React
    * `open()`. Rejects with `EverframeNotMountedError` if the reporter UI is not
@@ -227,10 +224,6 @@ export function init(input: WebEverframeConfig): Everframe {
   });
   const client = createClient(adapter);
   client.init(config);
-  const releaseHealth = setupReleaseHealth(config, INGEST_URL, sdkVersion);
-  let stoppingNormally = false;
-  const originalOnKill = adapter.onKill?.bind(adapter);
-  adapter.onKill = () => { originalOnKill?.(); if (!stoppingNormally) void releaseHealth.revoke(); };
 
   /**
    * THE kill predicate for this instance — sdk-core's own `state.killed`.
@@ -974,7 +967,6 @@ export function init(input: WebEverframeConfig): Everframe {
   }
 
   const handle: InternalHandle = {
-    releaseHealth,
     open: (): Promise<ReporterResult> => {
       // A hang is the worst possible answer here, so both dead states reject
       // with the error the React SDK already raises when nothing is mounted.
@@ -1016,7 +1008,6 @@ export function init(input: WebEverframeConfig): Everframe {
       // that was already superseded, must not tear down a LIVE instance.
       if (current !== handle) return;
       disposed = true;
-      void releaseHealth.stop();
       // Always finalizes (collector.stop() sends the final summary) and is
       // idempotent — a server-config-flip stop that already ran this session
       // is a no-op here, never a double final summary. Ahead of
@@ -1084,15 +1075,10 @@ export function init(input: WebEverframeConfig): Everframe {
       // a no-op), and are re-claimed by the next init()'s
       // `__rebindCrumbHooks()`; `kill()` is what stops THIS client from
       // capturing through them.
-      stoppingNormally = true;
       try {
         client.kill();
       } catch {
         /* swallow — DEFE-02 */
-      } finally {
-        // A later explicit kill on the retained handle must still revoke its
-        // durable health route; only this internal teardown call is exempt.
-        stoppingNormally = false;
       }
       current = null;
     },
