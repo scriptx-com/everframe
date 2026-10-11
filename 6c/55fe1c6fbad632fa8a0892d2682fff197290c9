@@ -1,0 +1,19 @@
+packages/protocol/__tests__/release-health.spec.ts
+  s_fbcdadc1064236::t_497a03bc7d3930 49,97-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c55fe1c6fbad632fa8a0892d2682fff197290c9",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
