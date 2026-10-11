@@ -41,6 +41,22 @@ private actor LateSnapshotRecorder: NativeVideoRecording {
 }
 
 @MainActor @Suite(.serialized) struct NativeVideoSessionTests {
+    @Test func recordingChangesAreReportedForTheErrorGate() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scheduler = VideoTestScheduler()
+        var published: [Bool] = []
+        let session = NativeVideoSession(scheduler: scheduler, capture: { _ in nil }, clearCapture: {},
+            makeRecorder: { fps, duration in try NativeVideoRecorder(directory: directory.appendingPathComponent(UUID().uuidString), framesPerSecond: fps, durationNanos: duration) },
+            onRecordingChange: { published.append($0) })
+        session.apply(settings: try settings(5))
+        session.freeze()
+        session.reporterDidClose()
+        session.setSuspended(true)
+        session.setSuspended(false)
+        session.stop()
+        #expect(published == [true, false, true, false, true, false])
+    }
     @Test func suspensionBeforeClaimPreservesFrozenMovie() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -212,6 +228,29 @@ private actor LateSnapshotRecorder: NativeVideoRecording {
         session.apply(settings: NativeVideoSettings(), samplingRate: 0.5)
         #expect(draws == 1); #expect(allocations == 0); #expect(scheduler.fps == nil)
     }
+    @Test func snapshotAlreadyExportingSurvivesConcurrentReporterFreeze() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("error.mp4")
+        try Data([1, 2, 3]).write(to: url)
+        let recorder = LateSnapshotRecorder(artifact: .init(url: url, byteCount: 3,
+            startEpochMs: 0, durationMs: 200, width: 64, height: 64, ownedDirectory: directory))
+        let session = NativeVideoSession(scheduler: VideoTestScheduler(), capture: { _ in nil }, clearCapture: {},
+            makeRecorder: { _, _ in recorder })
+        defer { session.stop() }
+        session.apply(settings: try settings(2))
+        let snapshot = Task { await session.snapshotClaim() }
+        await recorder.started.wait()
+        session.freeze()
+        await recorder.release.release()
+        let claim = try #require(await snapshot.value)
+        #expect(claim.isValid)
+        #expect(try Data(contentsOf: #require(claim.artifact).url) == Data([1, 2, 3]))
+        #expect(session.state == .frozen)
+        #expect(await recorder.cancelled == false)
+    }
+
     @Test func snapshotClaimKeepsRecordingAndOnlyConsentRevokesIt() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

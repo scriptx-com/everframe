@@ -41,6 +41,12 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
     /// header, rather than being silently discarded.
     public let identitySubject: String?
 
+    /// Set only on a handled error whose capture is still waiting for its
+    /// replay snapshot. Until then the capture may swap the entry for its
+    /// final form, so a drain that reads it skips it. Absent (and not encoded)
+    /// on every other entry, including lines written before this field.
+    public let heldUntil: Date?
+
     public struct AttachmentRef: Codable, Sendable, Equatable {
         public let name: String
         public let filename: String
@@ -65,7 +71,8 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
         attachmentRefs: [AttachmentRef],
         sdkKey: String,
         endpoint: String,
-        identitySubject: String? = nil
+        identitySubject: String? = nil,
+        heldUntil: Date? = nil
     ) {
         self.reportId = reportId
         self.createdAt = createdAt
@@ -75,6 +82,27 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
         self.sdkKey = sdkKey
         self.endpoint = endpoint
         self.identitySubject = identitySubject
+        self.heldUntil = heldUntil
+    }
+}
+
+extension OutboxEntry {
+    /// True while the capture that queued this error may still replace it.
+    /// `asOf` must be read before the entry was. A hold more than a minute
+    /// ahead (the clock moved back) is not trusted.
+    func isHeldForReplay(asOf: Date) -> Bool {
+        guard let heldUntil else { return false }
+        let remaining = heldUntil.timeIntervalSince(asOf)
+        return remaining > 0 && remaining <= 60
+    }
+
+    /// The same report with final envelope bytes and attachments; the hold
+    /// is cleared. Never sent while held, so a new idempotency key is safe.
+    func releasingHold(envelopeBytes: Data, attachmentRefs: [AttachmentRef]) -> OutboxEntry {
+        OutboxEntry(reportId: reportId, createdAt: createdAt, envelopeBytes: envelopeBytes,
+            idempotencyKey: SHA256.hash(data: envelopeBytes).map { String(format: "%02x", $0) }.joined(),
+            attachmentRefs: attachmentRefs, sdkKey: sdkKey, endpoint: endpoint,
+            identitySubject: identitySubject)
     }
 }
 
@@ -235,6 +263,24 @@ public final class JSONLOutbox: @unchecked Sendable {
                 diagnostics?.queueOperation(.enqueueFailed, failure: Self.failure(error))
                 throw error
             }
+        }
+    }
+
+    /// Swaps a held error for its final form, only while its hold is live.
+    /// A drain that read the entry during the hold skipped it, and once the
+    /// hold lapses no swap can follow, so a stale copy never uploads after a
+    /// swap. The final entry moves to the back, as the newest.
+    internal func replaceHeld(_ entry: OutboxEntry, now: Date) throws -> Bool {
+        try queue.sync {
+            var entries = try readAll()
+            guard let index = entries.firstIndex(where: { $0.reportId == entry.reportId }),
+                  // Re-read under the storage queue: `now` may precede a wait
+                  // behind another disk operation. Never reopen an expired hold.
+                  entries[index].isHeldForReplay(asOf: max(now, Date())) else { return false }
+            entries.remove(at: index)
+            entries.append(entry)
+            try writeAll(try applyCapacity(entries))
+            return true
         }
     }
 

@@ -21,6 +21,49 @@ private actor VideoConfigFetcher: URLSessionFetching {
 }
 
 @MainActor @Suite(.serialized) struct NativeVideoCoordinatorTests {
+    @Test func errorReplayGateFollowsRecordingAndTheReporterFreeze() async {
+        await withGlobalCaptureStateLock {
+            ErrorReplayGate.shared.__resetForTesting()
+            defer { ErrorReplayGate.shared.__resetForTesting() }
+            let epoch = Everframe.shared.currentStartEpoch
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
+            let session = ReplaySession(provider: provider, locallyDisabled: false)
+            defer { session.teardown() }
+            #expect(!ErrorReplayGate.shared.reserve(epoch: epoch))
+            await session.refreshConfigNow()
+            #expect(ErrorReplayGate.shared.reserve(epoch: epoch))
+            ErrorReplayGate.shared.release(epoch: epoch)
+            session.freezeForReporter()
+            #expect(!ErrorReplayGate.shared.reserve(epoch: epoch))
+            guard case .omitted(let frozenReason) = await session.errorSnapshot(epoch: epoch) else {
+                Issue.record("a frozen buffer served an error snapshot"); return
+            }
+            #expect(frozenReason == "replay_unavailable")
+            session.cancelForReporter()
+            #expect(ErrorReplayGate.shared.reserve(epoch: epoch))
+            session.teardown()
+            #expect(!ErrorReplayGate.shared.reserve(epoch: epoch))
+        }
+    }
+
+    @Test func errorSnapshotKeepsTheSessionBufferingAndRefusesAnotherSessionsEpoch() async {
+        await withGlobalCaptureStateLock {
+            let epoch = Everframe.shared.currentStartEpoch
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
+            let session = ReplaySession(provider: provider, locallyDisabled: false)
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            guard case .omitted(let foreign) = await session.errorSnapshot(epoch: epoch + 1) else {
+                Issue.record("another session's error took this recording"); return
+            }
+            #expect(foreign == "replay_unavailable")
+            switch await session.errorSnapshot(epoch: epoch) {
+            case .movie(let artifact): artifact.removeOwnedFile()
+            case .omitted(let reason): #expect(reason == "empty_recording")
+            }
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
     @Test func lowPowerModeAndSeriousHeatPauseCaptureUntilConditionsClear() async {
         await withGlobalCaptureStateLock {
             let conditions = DeviceConditionsBox()

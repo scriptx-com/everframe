@@ -226,7 +226,9 @@ public final class ReplaySession: NSObject {
         deviceConditions: @escaping @MainActor () -> ReplayDeviceConditions = ReplayDeviceConditions.live
     ) {
         self.provider = provider
-        self.video = NativeVideoSession()
+        self.video = NativeVideoSession(onRecordingChange: { recording in
+            ErrorReplayGate.shared.publish(recording: recording, epoch: startEpoch)
+        })
         self.locallyDisabled = locallyDisabled
         self.configBox = ConfigBox()
         self.startEpochAtCreation = startEpoch
@@ -624,6 +626,20 @@ public final class ReplaySession: NSObject {
     public func freezeForReporter() {
         guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation else { return }
         video.freeze()
+    }
+
+    /// A handled error's own copy of the window, for the session it was
+    /// captured in. Waits at most the snapshot deadline (3 s).
+    internal func errorSnapshot(epoch: Int) async -> ErrorReplaySnapshot {
+        guard !isTornDown, epoch == startEpochAtCreation,
+              Everframe.shared.currentStartEpoch == startEpochAtCreation,
+              let claim = await video.snapshotClaim() else { return .omitted("replay_unavailable") }
+        guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation, claim.isValid else {
+            claim.artifact?.removeOwnedFile()
+            return .omitted("replay_revoked")
+        }
+        guard let artifact = claim.artifact else { return .omitted(claim.omissionReason ?? "empty_recording") }
+        return .movie(artifact)
     }
 
     internal func completeVideoForSubmit() async -> NativeVideoClaim? {

@@ -54,6 +54,13 @@ public enum CrashReporter {
     /// Overrides only the memory-only foreground read; ownership still comes from the SDK lock.
     nonisolated(unsafe) internal static var __exposureForTesting: (() -> EverframeNativeExposure?)?
 
+    /// Lets tests run a held error's replay work themselves. Production
+    /// leaves this nil and runs it in a Task.
+    nonisolated(unsafe) internal static var __scheduleErrorReplayForTesting: ((@escaping @Sendable () async -> Void) -> Void)?
+
+    /// Replaces the snapshot-and-pack step in tests.
+    nonisolated(unsafe) internal static var __errorReplayProviderForTesting: ErrorReplayProvider?
+
     private enum Classification { case automatic, handled }
 
     /// Prime the device-metadata cache. Call at start()/configure() time.
@@ -142,13 +149,17 @@ public enum CrashReporter {
     /// window it captures (see below). Every existing caller either passes a
     /// real config (tests) or relies on the default (the RN bridge), so the
     /// observable behaviour is unchanged.
+    /// `attachReplay` lets a host bridge (React Native) ask for a session
+    /// replay on a non-fatal error; fatal facts never wait for one.
     public static func captureFacts(
         json: String,
         sdkName: String = "everframe-ios",
         outbox: JSONLOutbox = JSONLOutbox(),
-        config: EverframeConfig? = nil
+        config: EverframeConfig? = nil,
+        attachReplay: Bool = false
     ) -> Bool {
-        capture(json: json, sdkName: sdkName, outbox: outbox, config: config, classification: .automatic)
+        capture(json: json, sdkName: sdkName, outbox: outbox, config: config, classification: .automatic,
+                attachReplay: attachReplay)
     }
 
     /// Persist an explicit exception. Acceptance means encrypted enqueue completed,
@@ -157,9 +168,11 @@ public enum CrashReporter {
         json: String,
         sdkName: String = "everframe-ios",
         outbox: JSONLOutbox = JSONLOutbox(),
-        config: EverframeConfig? = nil
+        config: EverframeConfig? = nil,
+        attachReplay: Bool = false
     ) -> Bool {
-        capture(json: json, sdkName: sdkName, outbox: outbox, config: config, classification: .handled)
+        capture(json: json, sdkName: sdkName, outbox: outbox, config: config, classification: .handled,
+                attachReplay: attachReplay)
     }
 
     /// Capture a caught native Error. `true` means encrypted enqueue completed;
@@ -236,6 +249,7 @@ public enum CrashReporter {
             requireCurrentSession: true,
             details: details,
             causeChain: causeChain,
+            replayEligible: sdkName != "everframe-flutter",
             diagnostic: diagnostic
         )
         return accepted
@@ -243,7 +257,7 @@ public enum CrashReporter {
 
     private static func capture(
         json: String, sdkName: String, outbox: JSONLOutbox,
-        config: EverframeConfig?, classification: Classification
+        config: EverframeConfig?, classification: Classification, attachReplay: Bool
     ) -> Bool {
         let diagnostic = CaptureObservation(classification == .handled ? .bridgeHandled : .bridgeAutomatic)
         defer { diagnostic.settle() }
@@ -316,6 +330,7 @@ public enum CrashReporter {
             device: device,
             requireCurrentSession: false,
             nativeExposure: snapshot.exposure,
+            replayEligible: attachReplay && sdkName != "everframe-flutter",
             diagnostic: diagnostic
         )
     }
@@ -332,6 +347,7 @@ public enum CrashReporter {
         nativeExposure: EverframeNativeExposure? = nil,
         details: EverframeCrashDetails? = nil,
         causeChain: EverframeCrashCauseChain? = nil,
+        replayEligible: Bool = false,
         diagnostic: CaptureObservation
     ) -> Bool {
         guard let exceptionType = facts.exceptionType else { return diagnostic.reject(.invalidInput) }
@@ -434,6 +450,7 @@ public enum CrashReporter {
             if let displayName = user.displayName { extra["user.displayName"] = displayName }
         }
 
+        var heldForReplay = false
         do {
             let reportId = UUID()
             // Session Vitals (codex round-1, Critical 1) — same rule as the captured user two
@@ -536,11 +553,43 @@ public enum CrashReporter {
             // header on the strength of a subject the Everframe SDK had already
             // concluded it should not rely on.
             let capturedEpochStillCurrent = capturedUser.startEpoch == Everframe.shared.currentStartEpoch
-            try outbox.enqueue(OutboxEntry(
-                reportId: reportId, createdAt: Date(), envelopeBytes: bytes,
-                idempotencyKey: idempotencyKey, attachmentRefs: [],
+            // Replays on errors: a non-fatal error from a recording session,
+            // under the per-session cap and with no report owning the buffer,
+            // is queued now but held while its replay is taken. Reserved after
+            // the revocation check above, so a refused capture holds no slot.
+            heldForReplay = replayEligible && !fatal
+                && ErrorReplayGate.shared.reserve(epoch: capturedUser.startEpoch)
+            var queuedBytes = bytes
+            if heldForReplay {
+                if let flagged = ErrorReplayEnvelope.flagging("replay_unavailable", in: bytes) {
+                    queuedBytes = flagged
+                } else {
+                    ErrorReplayGate.shared.release(epoch: capturedUser.startEpoch)
+                    heldForReplay = false
+                }
+            }
+            let queuedKey = heldForReplay
+                ? SHA256.hash(data: queuedBytes).map { String(format: "%02x", $0) }.joined()
+                : idempotencyKey
+            var entry = OutboxEntry(
+                reportId: reportId, createdAt: Date(), envelopeBytes: queuedBytes,
+                idempotencyKey: queuedKey, attachmentRefs: [],
                 sdkKey: config.sdkKey, endpoint: IngestEndpoint.url.absoluteString,
-                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil), diagnostics: deliveryOwner)
+                identitySubject: capturedEpochStillCurrent ? capturedUser.identitySubject : nil,
+                heldUntil: heldForReplay ? Date().addingTimeInterval(ErrorReplayPolicy.holdSeconds) : nil)
+            do {
+                try outbox.enqueue(entry, diagnostics: deliveryOwner)
+            } catch OutboxStorageError.capacityExceeded where heldForReplay {
+                // Optional replay metadata must never make an otherwise admissible
+                // error fail. No replay work has started; relinquish its slot and
+                // retry the original capture under the existing capacity policy.
+                ErrorReplayGate.shared.release(epoch: capturedUser.startEpoch)
+                heldForReplay = false
+                entry = OutboxEntry(reportId: reportId, createdAt: entry.createdAt,
+                    envelopeBytes: bytes, idempotencyKey: idempotencyKey, attachmentRefs: [],
+                    sdkKey: entry.sdkKey, endpoint: entry.endpoint, identitySubject: entry.identitySubject)
+                try outbox.enqueue(entry, diagnostics: deliveryOwner)
+            }
             diagnostic.outcome = .persisted
             if fatal {
                 // The host runtime aborts next (React Native throws RCTFatalException).
@@ -584,7 +633,26 @@ public enum CrashReporter {
                         currentEpoch: { Everframe.shared.currentStartEpoch }
                     )
                 }
-                if let schedule = __scheduleDrainForTesting {
+                if heldForReplay {
+                    // Swap first, then drain; other drains skip the held entry.
+                    let startEpoch = capturedUser.startEpoch
+                    let killGeneration = captured.killGeneration
+                    let configGeneration = captured.configGeneration
+                    let provider = __errorReplayProviderForTesting ?? ErrorReplayLive.provider
+                    let heldEntry = entry
+                    let work: @Sendable () async -> Void = {
+                        await ErrorReplayCompletion.run(
+                            entry: heldEntry, startEpoch: startEpoch,
+                            stillOwned: {
+                                !Everframe.killGenerationChanged(since: killGeneration)
+                                    && !Everframe.configGenerationChanged(since: configGeneration)
+                                    && Everframe.shared.currentStartEpoch == startEpoch
+                            },
+                            outbox: outbox, provider: provider)
+                        if let schedule = __scheduleDrainForTesting { schedule(drain) } else { await drain() }
+                    }
+                    if let schedule = __scheduleErrorReplayForTesting { schedule(work) } else { Task { await work() } }
+                } else if let schedule = __scheduleDrainForTesting {
                     schedule(drain)
                 } else {
                     Task { await drain() }
@@ -592,6 +660,7 @@ public enum CrashReporter {
             }
             return true
         } catch {
+            if heldForReplay { ErrorReplayGate.shared.release(epoch: capturedUser.startEpoch) }
             return diagnostic.reject(.storageUnavailable)
         }
     }

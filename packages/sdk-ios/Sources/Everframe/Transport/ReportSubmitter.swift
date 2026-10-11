@@ -314,8 +314,12 @@ public final class ReportSubmitter: Sendable {
         epochAtInitiation: Int,
         currentEpoch: @escaping @Sendable () -> Int
     ) async {
+        // Read the clock before the entries: an error held for its replay can
+        // be swapped only while its hold is live, so skipping it here is final.
+        let hydratedAt = Date()
         let entries = (try? outbox.hydrate(diagnostics: diagnostics)) ?? []
         for e in entries {
+            if e.isHeldForReplay(asOf: hydratedAt) { continue }
             let appleDiagnostic = AppleDiagnosticDelivery.isApple(e)
             if appleDiagnosticsOnly && !appleDiagnostic { continue }
             if appleDiagnostic && !AppleDiagnosticDelivery.allows(e) { continue }
@@ -484,6 +488,10 @@ public final class ReportSubmitter: Sendable {
         guard var envelope = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
               let refs = envelope["attachments"] as? [[String: Any]] else { return nil }
         envelope["attachments"] = refs.filter { ($0["partName"] as? String) != "replay" }
+        if envelope["source"] as? String == "error",
+           let stripped = try? JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys]) {
+            return ErrorReplayEnvelope.flagging("replay_revoked", in: stripped)
+        }
         var control = envelope["captureControl"] as? [String: Any] ?? [:]
         control["degradedReason"] = "replay_revoked"
         envelope["captureControl"] = control

@@ -55,6 +55,9 @@ import UIKit
     /// Error exports have their own deadline; report finalization stays at 5 s.
     static let errorSnapshotDeadlineNanos: UInt64 = 3_000_000_000
     private let snapshotDeadline: @Sendable () async throws -> Void
+    /// Told when recording starts or stops, so a synchronous error capture can
+    /// decide on a replay without MainActor.
+    private let onRecordingChange: @MainActor (Bool) -> Void
     private var settings: NativeVideoSettings?
     private var durationSec = 30
     private var sampledIn: Bool?
@@ -68,10 +71,15 @@ import UIKit
     private var finalization: NativeVideoFinalization?
     private var anchorNanos: UInt64 = 0
     private var anchorEpochMs: Double = 0
-    private(set) var state: ReplayState = .idle
+    private(set) var state: ReplayState = .idle {
+        didSet {
+            let recording = state == .buffering
+            if recording != (oldValue == .buffering) { onRecordingChange(recording) }
+        }
+    }
     private(set) var omissionReason: String?
 
-    convenience init() {
+    convenience init(onRecordingChange: @escaping @MainActor (Bool) -> Void = { _ in }) {
         let capture = NativeVideoCapture()
         self.init(scheduler: NativeVideoTimer(), capture: { time in
             guard !Everframe.shared.report.isPresenting else { return nil }
@@ -80,7 +88,7 @@ import UIKit
         }, clearCapture: { capture.clear() }, makeRecorder: { fps, duration in
             let directory = try NativeVideoStorage.shared.makeDirectory()
             return try NativeVideoRecorder(directory: directory, framesPerSecond: fps, durationNanos: duration)
-        })
+        }, onRecordingChange: onRecordingChange)
     }
 
     init(scheduler: any NativeVideoScheduling,
@@ -90,10 +98,12 @@ import UIKit
          now: @escaping @MainActor () -> UInt64 = { DispatchTime.now().uptimeNanoseconds },
          epochMs: @escaping @MainActor () -> Double = { Date().timeIntervalSince1970 * 1000 },
          random: @escaping @MainActor () -> Double = { Double.random(in: 0..<1) },
-         snapshotDeadline: @escaping @Sendable () async throws -> Void = { try await Task.sleep(nanoseconds: NativeVideoSession.errorSnapshotDeadlineNanos) }) {
+         snapshotDeadline: @escaping @Sendable () async throws -> Void = { try await Task.sleep(nanoseconds: NativeVideoSession.errorSnapshotDeadlineNanos) },
+         onRecordingChange: @escaping @MainActor (Bool) -> Void = { _ in }) {
         self.scheduler = scheduler; self.capture = capture; self.clearCapture = clearCapture
         self.makeRecorder = makeRecorder; self.now = now; self.epochMs = epochMs; self.random = random
         self.snapshotDeadline = snapshotDeadline
+        self.onRecordingChange = onRecordingChange
     }
 
     func apply(settings: NativeVideoSettings?, durationSec: Int = 30, samplingRate: Double = 1) {
