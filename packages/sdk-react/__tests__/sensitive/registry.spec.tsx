@@ -139,12 +139,15 @@ describe('shared sensitive API', () => {
       initialProps: { bounds: rect as typeof rect | null },
     });
     expect(sensitiveRegistry.snapshotElements()).toContain(element);
+    expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(true);
     rerender({ bounds: null });
     expect(sensitiveRegistry.snapshotElements()).not.toContain(element);
+    expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
     rerender({ bounds: rect });
     expect(sensitiveRegistry.snapshotElements()).toContain(element);
     unmount();
     expect(sensitiveRegistry.snapshotElements()).not.toContain(element);
+    expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
   });
 });
 

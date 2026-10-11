@@ -29,7 +29,7 @@ import {
   type BufferEvent,
   type RollingBuffer,
 } from './buffer.js';
-import { buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
+import { applyReplayMaskClasses, buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
 import { scrubReplayEvents } from './scrub.js';
 import { SENSITIVE_ATTR } from '../../sensitive/registry.js';
 
@@ -319,26 +319,11 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
     if (!buffer) buffer = createRollingBuffer({ durationSec });
     // Map host-sensitive elements onto rr-block so rrweb omits their subtree.
     const els = deps.sensitiveElements?.() ?? [];
-    // applyReplayMaskClasses is applied lazily where DOM exists; import here to
-    // avoid a hard DOM dependency in non-DOM test contexts.
     if (els.length > 0 && typeof document !== 'undefined') {
-      // Defer to a dynamic require-free path: add the class directly.
-      for (const el of els) {
-        try {
-          (el as Element).classList?.add('rr-block');
-        } catch {
-          /* ignore */
-        }
-      }
-      restoreMasks = () => {
-        for (const el of els) {
-          try {
-            (el as Element).classList?.remove('rr-block');
-          } catch {
-            /* ignore */
-          }
-        }
-      };
+      // Attribute-marked nodes are already blocked dynamically; leaving their
+      // class alone lets removeRef release a registry-owned marker mid-recording.
+      // For other refs, restore only classes this recorder actually added.
+      restoreMasks = applyReplayMaskClasses(els.filter((el) => !el.hasAttribute(SENSITIVE_ATTR)));
     }
     const options = buildRecordOptions({
       durationSec,

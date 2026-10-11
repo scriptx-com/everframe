@@ -29,7 +29,7 @@ import {
   RR_BLOCK_CLASS,
   RR_MASK_CLASS,
 } from '../../../src/capture/replay/mask-mapping.js';
-import { SENSITIVE_ATTR } from '../../../src/sensitive/registry.js';
+import { sensitiveRegistry, SENSITIVE_ATTR } from '../../../src/sensitive/registry.js';
 
 // jsdom Blob lacks .stream() → inject a node:zlib gzip that round-trips with gunzipSync.
 const testGzip = async (input: Uint8Array): Promise<Uint8Array> =>
@@ -288,6 +288,7 @@ describe('record options (spec 2026-10-11, "Web masking")', () => {
 
 describe('real rrweb, end to end', () => {
   afterEach(() => {
+    sensitiveRegistry.__clearForTesting();
     document.body.innerHTML = '';
   });
 
@@ -379,6 +380,52 @@ describe('real rrweb, end to end', () => {
     } finally {
       rec.stop();
     }
+  });
+
+
+  it.each([false, true])('blocks registered refs until removal (registered before start: %s)', async (beforeStart) => {
+    document.body.innerHTML = '<section id="registered"></section>';
+    const element = document.querySelector('#registered')!;
+    expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
+    expect(element.classList.contains(RR_BLOCK_CLASS)).toBe(false);
+    if (beforeStart) sensitiveRegistry.addRef(element);
+    const rec = createReplayRecorder({ sensitiveElements: () => sensitiveRegistry.snapshotElements(), gzip: testGzip });
+    try {
+      rec.start(30);
+      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+      if (!beforeStart) sensitiveRegistry.addRef(element);
+      element.textContent = 'late-registry-private-secret';
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      record.takeFullSnapshot(true);
+      element.textContent = '';
+      sensitiveRegistry.removeRef(element);
+      element.textContent = 'Public after removal';
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      record.takeFullSnapshot(true);
+      rec.freeze();
+      const capture = await rec.takeFrozen();
+      expect(capture).not.toBeNull();
+      const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
+      expect(json).not.toContain('late-registry-private-secret');
+      expect(json).toContain('Public after removal');
+      expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
+    } finally {
+      rec.stop();
+      sensitiveRegistry.removeRef(element);
+    }
+  });
+
+  it('preserves host block classes when restoring the recording DOM', async () => {
+    document.body.innerHTML = '<section class="rr-block">host-private-secret</section>';
+    const element = document.querySelector('section')!;
+    const rec = createReplayRecorder({ sensitiveElements: () => [element], gzip: testGzip });
+    try {
+      rec.start(30);
+      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+    } finally {
+      rec.stop();
+    }
+    expect(element.classList.contains(RR_BLOCK_CLASS)).toBe(true);
   });
 
 });
