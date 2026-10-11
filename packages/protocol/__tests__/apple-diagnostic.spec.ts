@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { videoReplayRef } from './helpers/replay-attachment.js';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { ReportEnvelope } from '../src/index.js';
@@ -36,6 +37,7 @@ describe('Apple MetricKit diagnostic evidence', () => {
     ['source', ['source'], exclusive, (v: any) => { v.source = 'crash'; }],
     ['platform', ['sdk', 'platform'], 'MetricKit evidence requires iOS', (v: any) => { v.sdk.platform = 'tvos'; }],
     ['user', ['payload', 'appleDiagnostic'], anonymous, (v: any) => { v.reporter.user = { id: 'live-user' }; }],
+    ['a session replay', ['payload', 'appleDiagnostic'], anonymous, (v: any) => { v.attachments = [videoReplayRef()]; }],
     ['attachments', ['payload', 'appleDiagnostic'], anonymous, (v: any) => {
       v.attachments = [{ partName: 'screenshot', kind: 'screenshot', contentType: 'image/png', byteLength: 1, sha256: 'a'.repeat(64) }];
     }],

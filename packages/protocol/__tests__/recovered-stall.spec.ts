@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { videoReplayRef } from './helpers/replay-attachment.js';
 import { describe, expect, it } from 'vitest';
 import { ReportEnvelope } from '../src/index.js';
 import { baseEnvelope } from './helpers/base-envelope.js';
@@ -55,6 +56,7 @@ describe('recovered main-thread probe evidence', () => {
     ['unknown payload', (v: any) => { v.payload.custom = 'secret'; }],
     ['capture claim', (v: any) => { v.captures.logs = true; }],
     ['route', (v: any) => { v.context.route = '/private'; }],
+    ['session replay', (v: any) => { v.attachments = [videoReplayRef()]; }],
   ] as const)('rejects %s', (_name, mutate) => {
     const value = envelope(); mutate(value); expect(ReportEnvelope.safeParse(value).success).toBe(false);
   });

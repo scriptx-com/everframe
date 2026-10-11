@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { videoReplayRef } from './helpers/replay-attachment.js';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { ReportEnvelope } from '../src/index.js';
@@ -77,6 +78,15 @@ describe('process-exit evidence', () => {
     const value = lowMemory(); mutate(value);
     expect(ReportEnvelope.safeParse(value).success).toBe(false);
   });
+  it('keeps OS exit evidence attachment-free: no session replay on an ANR or a visible low-memory kill', () => {
+    for (const value of [envelope(), lowMemory()]) {
+      value.attachments = [videoReplayRef()];
+      const parsed = ReportEnvelope.safeParse(value);
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues.map((issue) => issue.message))
+        .toContain('Recovered process evidence must be anonymous and attachment-free');
+    }
+  });
   it('carries the exited build R8 mapping ID on ANR and low-memory evidence, in the JVM crash format', () => {
     const jvmMappingId = 'r8-map-id-a218cbe3a744e025b5841d1924f117233eac06243f3e328f4f83d2eecea499c5';
     const anr = envelope(); anr.payload.diagnostic.android.mappingId = jvmMappingId;
@@ -147,4 +157,6 @@ describe('frozen native exposure evidence', () => {
     const value = envelope(); value.payload.diagnostic.nativeExposure = { ...nativeExposurePointer(), ...patch };
     expect(ReportEnvelope.safeParse(value).success).toBe(false);
   });
+
+
 });
