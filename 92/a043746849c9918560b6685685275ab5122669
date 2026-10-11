@@ -1,0 +1,49 @@
+.changeset/automatic-releases-debug-flag.md
+  s_ce922b03c469a7::t_ef22684eeca906 5
+packages/sdk-react-native/README.md
+  s_ce922b03c469a7::t_672947f4860afa 121-123
+packages/sdk-react-native/__tests__/EverframeProvider.spec.tsx
+  s_ce922b03c469a7::t_aa0c42cc05c50e 103
+packages/sdk-react-native/__tests__/release-health-bridge-wiring.spec.ts
+  s_ce922b03c469a7::t_42cca614b4e5e8 52-60
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_ce922b03c469a7::t_bcb008b84143b5 20-42
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_ce922b03c469a7::t_2b84c4c1c1c498 297-299
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReleaseHealthConfigureTest.kt
+  s_ce922b03c469a7::t_bd6878a5cf057b 79-88
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_ce922b03c469a7::t_b3a0a0360cc720 65,123-124
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_ce922b03c469a7::t_a88c658646f281 184-185,204
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_ce922b03c469a7::t_5c2ca94f420753 221-225
+packages/sdk-react-native/src/runtime.ts
+  s_ce922b03c469a7::t_147a81c9e8c2b9 112-116,803-805
+packages/sdk-vega/README.md
+  s_ce922b03c469a7::t_c57ec646989e2a 82
+packages/sdk-vega/__tests__/client.spec.ts
+  s_ce922b03c469a7::t_986bd9dd650297 108-123
+packages/sdk-vega/src/client.ts
+  s_ce922b03c469a7::t_0ed7082f42b2be 406
+packages/sdk-vega/src/config.ts
+  s_ce922b03c469a7::t_f5be9942f21886 60-64,85,94-98,116
+packages/sdk-vega/src/envelope.ts
+  s_ce922b03c469a7::t_c84547507d00fe 139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92a043746849c9918560b6685685275ab5122669",
+  "prompts": {},
+  "sessions": {
+    "s_ce922b03c469a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dcb771b6-aba6-44d8-8cd0-248bd018d734",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
