@@ -49,6 +49,8 @@ the web mask registry. Native iOS and Android use their native capture. A web
 bundler that honors the `browser` export condition can keep the regular package
 import; use the `/web` subpath if its resolver does not select that condition.
 
+Replays also attach to errors; see [session replay](../../docs/session-replay.md).
+
 ## Usage
 
 Wrap your app with `<EverframeProvider>` at the highest practical level

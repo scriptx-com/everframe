@@ -338,6 +338,8 @@ Either way, pixels under that element's rect are blanked at capture time
 before the screenshot bytes leave the browser. `<input type="password">`
 elements are auto-masked with no action required.
 
+Replays also attach to errors; see [session replay](../../docs/session-replay.md).
+
 ### Smart-TV screenshots
 
 On smart-TV web apps (LG webOS, Samsung Tizen and similar webviews), when your

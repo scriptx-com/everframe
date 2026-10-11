@@ -155,9 +155,9 @@ actor NativeVideoRecorder: NativeVideoRecording {
     }
 
     /// A copy of the retained window that leaves this recording running.
-    /// Closes the open segment early so it is complete, clones the retained
-    /// segments into a private sibling directory and exports the clones. A
-    /// later snapshot or `finish` still sees the whole window.
+    /// Closes the open segment early so it is complete, copies the retained
+    /// segments into an independently owned sibling directory and exports the
+    /// copies. A later snapshot or `finish` still sees the whole window.
     func snapshot(anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64) async throws -> NativeVideoArtifact? {
         while busy && state == .active { await withCheckedContinuation { idleWaiters.append($0) } }
         guard state == .active, !Task.isCancelled else { return nil }
@@ -172,7 +172,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
         releaseBusy()
         guard let staged else { return nil }
         // Runs after `busy` is released: frames, rollovers and a freeze proceed
-        // against the originals while the clones export.
+        // against the originals while the independent copies export.
         return try await snapshotExport(staged.directory, staged.segments, staged.dimensions, anchorNanos, anchorEpochMs)
     }
 
@@ -217,7 +217,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
         var copies: [NativeVideoSegment] = []
         do {
             for segment in ring.segments {
-                // An APFS clone: the ring keeps evicting its own files meanwhile.
+                // An independently owned copy: the ring may evict its original meanwhile.
                 let copy = target.appendingPathComponent(segment.url.lastPathComponent)
                 try FileManager.default.copyItem(at: segment.url, to: copy)
                 try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete],

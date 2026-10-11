@@ -7,6 +7,8 @@ Native iOS Swift Package for Everframe — in-app bug reporting with annotated
 screenshots, session replay, log/network ring buffers, and a built-in
 SwiftUI reporter UI. Covers iPhone, iPad, and Apple TV (tvOS).
 
+Replays also attach to errors; see [session replay](../../docs/session-replay.md).
+
 The public repository provides source and tagged binary releases. The root
 SwiftPM manifest resolves the release artifacts; the source manifest used by
 contributors lives beside this README.
