@@ -52,6 +52,13 @@ class DeviceMetadataAppReleaseTest {
         assertEquals("false", DeviceMetadata.collect(app)["appDebug"])
         assertFalse(DeviceMetadata.appRelease(app, debugBuild = null).debug)
     }
+    @Test fun `an unreadable ApplicationInfo is a release build`() {
+        val noInfo = object : android.content.ContextWrapper(null) {
+            override fun getApplicationInfo(): ApplicationInfo? = null
+        }
+        assertFalse(DeviceMetadata.isDebugBuild(noInfo, configured = null))
+        assertTrue(DeviceMetadata.isDebugBuild(noInfo, configured = true))
+    }
     @Test fun `debugBuild wins`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         app.applicationInfo.flags = app.applicationInfo.flags or ApplicationInfo.FLAG_DEBUGGABLE

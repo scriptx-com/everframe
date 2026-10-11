@@ -423,4 +423,22 @@ class ReleaseHealthRuntimeTest {
         assertEquals("start", records().single().text("phase"))
         assertEquals(emptyList<String>(), skipLines())
     }
+
+    @Test fun `debugBuild false records on a debuggable host and debugBuild true skips a release host`() {
+        ShadowLog.clear()
+        ReleaseHealthBuildGate.__debuggableForTesting = true
+        start(using = config.copy(debugBuild = false))
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertTrue("debugBuild = false did not keep release health on", Everframe.isReleaseHealthReady())
+        assertEquals(false, pointer()!!.app.debug)
+        assertEquals(emptyList<String>(), skipLines())
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP); settle()
+
+        ReleaseHealthBuildGate.__debuggableForTesting = false
+        Everframe.start(context, config.copy(debugBuild = true))
+        idleUntil("the debugBuild = true start never skipped release health") { skipLines().isNotEmpty() }
+        assertEquals(listOf(skipLine), skipLines())
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertFalse(Everframe.isReleaseHealthReady())
+    }
 }

@@ -39,9 +39,9 @@ object DeviceMetadata {
         else -> "phone"
     }
 
-    /** A debuggable host app is a debug build; `BuildConfig.DEBUG` would describe this library instead. */
+    /** A debuggable host app is a debug build; `BuildConfig.DEBUG` would describe this library instead. An unreadable ApplicationInfo counts as a release build. */
     fun isDebugBuild(context: Context, configured: Boolean?): Boolean =
-        configured ?: ((context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+        configured ?: (((context.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_DEBUGGABLE) != 0)
 
     /**
      * Capture a snapshot of host device metadata. [debugBuild] is `EverframeConfig.debugBuild`;
