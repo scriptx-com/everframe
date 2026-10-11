@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -17,16 +16,11 @@ class EverframeNativeBridge {
   /// Starts the native SDK. [crash] is its crash capture switch (`capture.crash`): on Android it
   /// covers JVM exceptions, native crashes and ANRs; on iOS native crashes. It also gates
   /// [captureException]. On by default, as in the native SDKs.
-  ///
-  /// [debugBuild] says whether this is a debug build, which Everframe never turns into a release.
-  /// Left null it is Flutter's own [kDebugMode], so a `flutter run` build is a debug build and a
-  /// release or profile build is not.
   Future<void> start({
     required String appId,
     required String sdkKey,
     String environment = 'production',
     bool crash = true,
-    bool? debugBuild,
   }) {
     if (appId.isEmpty || sdkKey.isEmpty) {
       throw ArgumentError('appId and sdkKey are required');
@@ -41,7 +35,6 @@ class EverframeNativeBridge {
       'sdkKey': sdkKey,
       'environment': environment,
       'crash': crash,
-      'debugBuild': debugBuild ?? kDebugMode,
     });
   }
 

@@ -24,11 +24,9 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
         do {
             // The Swift SDK takes only the SDK key; the App ID is unused here.
             // The plugin has no release-health option yet, so release health stays off.
-            var config = EverframeConfig(
-                sdkKey: sdkKey, environment: environment, capture: capture, releaseHealth: nil)
-            // nil lets the Swift SDK detect a debug build.
-            config.debugBuild = debugBuild?.boolValue
-            try Everframe.shared.start(config: config)
+            // debugBuild is not forwarded: the pinned Swift SDK detects debug builds itself.
+            try Everframe.shared.start(config: EverframeConfig(
+                sdkKey: sdkKey, environment: environment, capture: capture, releaseHealth: nil))
             return Everframe.shared.captureGate
         } catch {
             return false

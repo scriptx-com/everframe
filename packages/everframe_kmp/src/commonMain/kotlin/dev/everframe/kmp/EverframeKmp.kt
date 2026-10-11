@@ -7,7 +7,11 @@ class EverframeKmpConfig(
     val appId: String,
     val sdkKey: String,
     val environment: String = "production",
-    /** Whether this is a debug build, which Everframe never turns into a release. Null lets the platform SDK detect it. */
+    /**
+     * Whether this is a debug build, which Everframe never turns into a release. Null lets the platform SDK detect it.
+     * Only the browser driver passes it on today; the Android and iOS drivers ignore it because the pinned native
+     * SDKs detect debug builds themselves. Wiring it to them waits for a native SDK dependency bump.
+     */
     val debugBuild: Boolean? = null,
 )
 

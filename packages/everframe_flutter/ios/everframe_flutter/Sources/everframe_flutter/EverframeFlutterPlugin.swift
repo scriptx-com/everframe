@@ -46,11 +46,8 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             do {
                 // The iOS SDK takes only the SDK key; the App ID is unused here.
                 // The plugin has no release-health option yet, so release health stays off.
-                var config = EverframeConfig(
-                    sdkKey: sdkKey, environment: environment, capture: capture, releaseHealth: nil)
-                // Dart always sends a Bool (Flutter's kDebugMode unless the host overrides it).
-                config.debugBuild = args["debugBuild"] as? Bool
-                try Everframe.shared.start(config: config)
+                try Everframe.shared.start(config: EverframeConfig(
+                    sdkKey: sdkKey, environment: environment, capture: capture, releaseHealth: nil))
                 Task { @MainActor in
                     EFReporterPresenter.installResolver()
                     result(nil)
