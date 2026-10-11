@@ -130,7 +130,9 @@ export interface RuntimeConfig
   integrations?: EverframeIntegration[];
   /**
    * Crash/error reporting (spec 2026-07-18). Installs a default-on global
-   * ErrorUtils handler on mount — deliberately NOT gated behind
+   * ErrorUtils handler on mount, plus a hook on React Native's
+   * ExceptionsManager for errors no React error boundary catches (React 19
+   * reports those through the root, not ErrorUtils) — deliberately NOT gated behind
    * `integrations` (deviation from the RN integrations doctrine, recorded in
    * the spec): crash capture is a safety net, not an opt-in enrichment. Set
    * `disabled: true` to veto it entirely, including native crash and ANR capture.
@@ -617,6 +619,7 @@ export function createRuntime(input: EverframeProviderConfig): Runtime {
           jsBundle: config.jsBundle,
           isActive: () =>
             mounted === owner && __getCurrentContext() === runtime,
+          isUnowned: () => __getCurrentContext() === null,
         });
         if (mounted !== owner) {
           owner.controller.dispose();

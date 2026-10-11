@@ -15,6 +15,7 @@ import {
 } from './rejection-capture.js';
 
 import { createErrorCaptureLedger, emptyErrorCaptureStatus, type ErrorCaptureStatus, type ErrorCaptureOutcome } from './error-capture-status.js';
+import { reactNativeExceptionsManager, type ExceptionsManagerLike } from './exceptions-manager.js';
 
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
 interface ErrorUtilsLike {
@@ -23,16 +24,29 @@ interface ErrorUtilsLike {
 }
 // Shared across controllers: a host lookup can reentrantly install a new one.
 const handlerInstallations = new WeakMap<ErrorUtilsLike, object>();
+const exceptionsManagerInstallations = new WeakMap<ExceptionsManagerLike, object>();
 // Resolve the intrinsic before host values can run during capture. Reading a
 // bridge function's mutable `.call` after the final ownership guard could
 // otherwise dispose/remount the owner and still invoke its stale payload.
 const applyFunction = Reflect.apply;
+// React Native's own title separator, so the report reads like RN's and the
+// native layer can recognise RN's fatal wrapper of the same error.
+const COMPONENT_STACK_PREFIX = '\n\nThis error is located at:';
+const MAX_MESSAGE = 4096;
 export interface InstallErrorHandlerOptions {
   jsBundle?: JsBundleConfig | undefined;
   /** Test seam. Defaults to the global ErrorUtils. */
   errorUtils?: ErrorUtilsLike;
+  /** Test seam. Defaults to React Native's ExceptionsManager; null disables the hook. */
+  exceptionsManager?: ExceptionsManagerLike | null;
   /** Runtime mount ownership, checked by automatic and explicit paths. */
   isActive?: () => boolean;
+  /**
+   * True while no runtime owns capture. React reports an uncaught render error
+   * in the same commit that already unmounted the provider, so a disposed
+   * controller still takes that one fatal unless a newer owner exists.
+   */
+  isUnowned?: () => boolean;
 }
 export interface CaptureController {
   getErrorCaptureStatus(): ErrorCaptureStatus;
@@ -51,9 +65,16 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
   const ledger = createErrorCaptureLedger();
   const prepared = new WeakSet<PreparedRejection>();
   let active = true;
+  let draining = false;
   let capturing = false;
+  // Fatals the ErrorUtils wrapper already offered to capture. RN's ErrorUtils
+  // handler forwards them to ExceptionsManager, synchronously or later.
+  let offering = 0;
+  const offered = new WeakSet<object>();
   let restore: (() => void) | undefined;
+  let restoreExceptionsManager: (() => void) | undefined;
   const ownsCapture = () => active && (opts.isActive?.() ?? true);
+  const ownsFatalTail = () => draining && (opts.isUnowned?.() ?? false);
 
   function identityFor(error: unknown): CaptureIdentity | undefined {
     if ((typeof error !== 'object' || error === null) && typeof error !== 'function') return undefined;
@@ -117,8 +138,10 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     explicit: boolean,
     fatal: boolean,
     options?: CaptureExceptionOptions,
+    componentStack?: string,
+    owns: () => boolean = ownsCapture,
   ): void {
-    if (!ownsCapture()) return;
+    if (!owns()) return;
     const finish = ledger.begin(explicit ? 'handled' : 'errorUtils');
     if (capturing) { finish('reentrantSuppressed'); return; }
     capturing = true;
@@ -130,21 +153,26 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         const method = NativeEverframe.captureHandledException;
         if (typeof method === 'function') handledMethod = method;
       } catch (error) { if (explicit) throw error; /* automatic capture keeps its legacy path */ }
-      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      if (!owns()) { outcome = 'inactiveAborted'; return; }
       if (explicit && !handledMethod) { outcome = 'bridgeUnavailable'; return; }
       const identity = identityFor(error);
       if (!fatal && handledMethod && identity?.accepted) { outcome = 'duplicateSuppressed'; return; }
       const facts = extractFacts(error);
+      // Exactly how RN titles a component error, so the native layer can match
+      // RN's fatal wrapper and the dashboard can fold the component stack.
+      if (componentStack !== undefined) {
+        facts.message = `${facts.message}${COMPONENT_STACK_PREFIX}${componentStack}`.slice(0, MAX_MESSAGE);
+      }
       const keys = explicit ? handledKeys : automaticKeys;
       const key = captureKey(facts);
-      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      if (!owns()) { outcome = 'inactiveAborted'; return; }
       if (!fatal && keys.has(key)) { outcome = 'duplicateSuppressed'; return; }
       if (!fatal && keys.size >= 10) { outcome = 'allowanceSuppressed'; return; }
       const details = explicit
         ? normalizeCrashDetails(options, (value) => redactStringContent(value, {}), 'error')
         : undefined;
-      const causeChain = extractCrashCauseChain(error, (value) => redactStringContent(value, {}), ownsCapture);
-      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      const causeChain = extractCrashCauseChain(error, (value) => redactStringContent(value, {}), owns);
+      if (!owns()) { outcome = 'inactiveAborted'; return; }
       const payload = JSON.stringify({
         ...facts,
         ...(jsBundle ? { jsBundle } : {}),
@@ -156,13 +184,13 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         fatal,
         occurredAt: new Date().toISOString(),
       });
-      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      if (!owns()) { outcome = 'inactiveAborted'; return; }
       const legacyAttempt = !explicit && !handledMethod;
       // Preserve old-binary attempt accounting, including a failed lookup.
       if (!fatal && legacyAttempt) keys.add(key);
       const method = explicit ? handledMethod : NativeEverframe.reportCrash;
       // Bridge property reads may themselves reenter teardown.
-      if (!ownsCapture()) { outcome = 'inactiveAborted'; return; }
+      if (!owns()) { outcome = 'inactiveAborted'; return; }
       if (typeof method !== 'function') { outcome = 'bridgeUnavailable'; return; }
       const accepted = applyFunction(method, NativeEverframe, [payload]) === true;
       outcome = legacyAttempt ? 'legacyAttempted' : accepted ? 'accepted' : 'nativeRefused';
@@ -186,9 +214,18 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       // returning. A stale controller must not publish or restore a handler.
       if (ownsCapture()) {
         const handler: ErrorHandlerCallback = (...args) => {
+          const owned = ownsCapture();
           capture(args[0], false, args[1] === true);
-          // Inactive retained wrappers still chain the exact original arguments.
-          previous?.(...args);
+          if (!owned) {
+            // Inactive retained wrappers still chain the exact original arguments.
+            previous?.(...args);
+            return;
+          }
+          // RN's own handler forwards to ExceptionsManager; that hook must not
+          // report this fatal a second time.
+          if (args[1] === true) markOffered(args[0]);
+          offering++;
+          try { previous?.(...args); } finally { offering--; }
         };
         restore = () => {
           const installation = handlerInstallations.get(eu);
@@ -206,6 +243,41 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
   } catch {
     console.warn('[everframe] crash handler install threw');
   }
+  try {
+    // React 19 reports an error no boundary caught through the root's
+    // onUncaughtError, which calls ExceptionsManager.handleException(error,
+    // true) and never the ErrorUtils handler above.
+    const em = opts.exceptionsManager === undefined ? reactNativeExceptionsManager() : opts.exceptionsManager ?? undefined;
+    const original = em?.handleException;
+    if (em && typeof original === 'function' && ownsCapture()) {
+      const ownsUncaught = () => ownsCapture() || ownsFatalTail();
+      const wrapped = function (this: unknown, ...args: unknown[]): unknown {
+        const error = args[0];
+        if (args[1] === true && offering === 0 && !wasOffered(error) && ownsUncaught()) {
+          capture(error, false, true, undefined, componentStackOf(error), ownsUncaught);
+        }
+        return applyFunction(original, this, args);
+      };
+      const installation = {};
+      restoreExceptionsManager = () => {
+        if (em.handleException === wrapped && exceptionsManagerInstallations.get(em) === installation) {
+          em.handleException = original;
+        }
+      };
+      exceptionsManagerInstallations.set(em, installation);
+      em.handleException = wrapped;
+    }
+  } catch {
+    console.warn('[everframe] React error hook install threw');
+  }
+
+  function markOffered(error: unknown): void {
+    if ((typeof error === 'object' && error !== null) || typeof error === 'function') offered.add(error);
+  }
+  function wasOffered(error: unknown): boolean {
+    return ((typeof error === 'object' && error !== null) || typeof error === 'function') && offered.has(error);
+  }
+
   return {
     getErrorCaptureStatus() { return { ...emptyErrorCaptureStatus('active', 'none'), counters: ledger.snapshot() }; },
     prepareRejection,
@@ -215,8 +287,31 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       if (!active) return;
       active = false;
       try { restore?.(); } catch { console.warn('[everframe] crash handler teardown threw'); }
+      if (!restoreExceptionsManager) return;
+      // The provider's cleanup runs in React's mutation phase; the uncaught
+      // error that caused it is reported later in the same commit. Keep the
+      // hook until the current task ends.
+      draining = true;
+      const finishDrain = () => {
+        draining = false;
+        try { restoreExceptionsManager?.(); } catch { console.warn('[everframe] React error hook teardown threw'); }
+      };
+      try { setTimeout(finishDrain, 0); } catch { finishDrain(); }
     },
   };
+}
+
+/** React Native's root error handlers copy React's component stack onto the error. */
+function componentStackOf(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  try {
+    const descriptor = Object.getOwnPropertyDescriptor(error, 'componentStack');
+    return descriptor && 'value' in descriptor && typeof descriptor.value === 'string'
+      ? descriptor.value.slice(0, MAX_MESSAGE)
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Adapter for internal consumers; mounted runtimes own the shared controller. */

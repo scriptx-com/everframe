@@ -456,6 +456,22 @@ class CrashReporterTest {
     }
 
     @Test
+    fun `persisted React render fatal prevents RN's wrapper that carries the component stack`() {
+        val message = "smoke js-render: ExplodingRow\n\nThis error is located at:\n" +
+            "    at ExplodingRow (address at index.android.bundle:1:1243264)\n    at RCTView (<anonymous>)"
+        assertTrue(CrashReporter.captureFactsAccepted("Error", message,
+            listOf("at ExplodingRow (address at index.android.bundle:1:1243264)", "at apply (native)"),
+            "errorutils", true, "2026-10-11T00:00:00Z", rnBundle()))
+        CrashReporter.captureThrowable(Thread.currentThread(),
+            rnWrapper("Error: $message, stack:\nExplodingRow@1:1243264\n"))
+        val outbox = encryptedOutbox()
+        assertEquals(1, runBlocking { outbox.count() })
+        val crash = Json.parseToJsonElement(String(runBlocking { outbox.hydrate() }.single().envelopeBytes))
+            .jsonObject["payload"]!!.jsonObject["crash"]!!.jsonObject
+        assertEquals("errorutils", crash["mechanism"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun `different native crash remains after a persisted Hermes fatal`() {
         assertTrue(hermesFatal())
         CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("native bug"))
