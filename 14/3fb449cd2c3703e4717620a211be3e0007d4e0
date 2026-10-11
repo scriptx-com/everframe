@@ -1,0 +1,41 @@
+.changeset/ios-low-frame-rate-replay.md
+  s_269319d6df67e5::t_57418addd51467 1-8
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_269319d6df67e5::t_96797a5a5063a9 19-37,48,225-226,233,245-247,304-306,326
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoRecorder.swift
+  s_269319d6df67e5::t_0846652d51894e 37-39
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoSegmentWriter.swift
+  s_269319d6df67e5::t_51847a4471db79 40,126-129,133,138-145
+packages/sdk-ios/Sources/Everframe/Config/NativeVideoSettings.swift
+  s_269319d6df67e5::t_a0f68269fff241 6-9,16,18,22-27
+packages/sdk-ios/Sources/Everframe/Config/ReplayConfigProvider.swift
+  s_269319d6df67e5::t_433b21a99be861 638
+packages/sdk-ios/Tests/EverframeTests/NativeVideoConfigTests.swift
+  s_269319d6df67e5::t_91816a98a2304c 16-26,32,35-44
+packages/sdk-ios/Tests/EverframeTests/NativeVideoCoordinatorTests.swift
+  s_269319d6df67e5::t_b438b6a2e2cd50 19-22,24-59
+packages/sdk-ios/Tests/EverframeTests/NativeVideoRecorderTests.swift
+  s_269319d6df67e5::t_479cb5d87f8183 9-33
+packages/sdk-ios/Tests/EverframeTests/NativeVideoWriterTests.swift
+  s_269319d6df67e5::t_768b79a2f7d417 11-30
+packages/sdk-ios/Tests/EverframeTests/ReplayConfigProviderTests.swift
+  s_269319d6df67e5::t_03cc17acbb3b59 708
+packages/sdk-ios/Tests/EverframeTests/VitalsConfigNegotiationTests.swift
+  s_269319d6df67e5::t_f26225a955aa59 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "143fb449cd2c3703e4717620a211be3e0007d4e0",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
