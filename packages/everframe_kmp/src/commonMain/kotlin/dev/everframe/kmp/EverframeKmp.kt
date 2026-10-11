@@ -7,6 +7,8 @@ class EverframeKmpConfig(
     val appId: String,
     val sdkKey: String,
     val environment: String = "production",
+    /** Whether this is a debug build, which Everframe never turns into a release. Null lets the platform SDK detect it. */
+    val debugBuild: Boolean? = null,
 )
 
 class EverframeReportOutcome(
@@ -22,7 +24,7 @@ class EverframeReportOutcome(
 
 /** Swift hosts implement this protocol to call the existing Swift-only Everframe SDK. */
 interface EverframeNativeDriver {
-    fun start(appId: String, sdkKey: String, environment: String): Boolean
+    fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean
     fun setUser(id: String?, email: String?, displayName: String?)
     fun recordScreen(name: String)
     fun addBreadcrumb(message: String, kind: String?, level: String?)
@@ -40,7 +42,7 @@ class EverframeKmp(private val driver: EverframeNativeDriver) {
     fun start(config: EverframeKmpConfig): Boolean {
         if (config.environment !in setOf("development", "staging", "production") ||
             config.appId.isBlank() || config.sdkKey.isBlank()) return false
-        started = driver.start(config.appId, config.sdkKey, config.environment)
+        started = driver.start(config.appId, config.sdkKey, config.environment, config.debugBuild)
         return started
     }
 

@@ -116,4 +116,30 @@ describe('ef_envelope.brs', () => {
     `);
     expect(lines[0]).toEqual({ a: '9', b: ['1.0.0', null], c: ['1.0.0', '7'] });
   });
+
+  it('reports a sideloaded channel as a debug build unless start() said otherwise', async () => {
+    const { lines } = await runBrs(LIBS, `
+      a = EfE_Context("0.1.0").app.debug
+      m["efDebugBuild"] = false
+      b = EfE_Context("0.1.0").app.debug
+      m["efDebugBuild"] = true
+      c = EfE_Context("0.1.0").app.debug
+      print "EFTEST:" + FormatJson({ a: a, b: b, c: c })
+    `);
+    expect(lines[0]).toEqual({ a: true, b: false, c: true });
+  });
+
+  it('a record keeps the debug flag it was captured with, not the running app\'s', async () => {
+    const { lines } = await runBrs(LIBS, `
+      rec = EfR_FromException("soft", "captureException", true)
+      captured = rec.appDebug
+      m["efDebugBuild"] = false
+      ctx = EfE_Context("0.1.0")
+      sentLater = EfE_Build(rec, ctx, EfU_NowMs()).context.app.debug
+      rec.Delete("appDebug")
+      noStamp = EfE_Build(rec, ctx, EfU_NowMs()).context.app.debug
+      print "EFTEST:" + FormatJson({ captured: captured, sentLater: sentLater, noStamp: noStamp })
+    `);
+    expect(lines[0]).toEqual({ captured: true, sentLater: true, noStamp: false });
+  });
 });

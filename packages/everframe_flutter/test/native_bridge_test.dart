@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import 'package:everframe_flutter/everframe_flutter.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,6 +47,7 @@ void main() {
       'sdkKey': 'txx_dev_test',
       'environment': 'development',
       'crash': true,
+      'debugBuild': true,
     });
     expect(calls[1].arguments, {'id': 'u1', 'email': 'a@example.com'});
   });
@@ -66,7 +68,20 @@ void main() {
       'sdkKey': 'evf_live_test',
       'environment': 'production',
       'crash': true,
+      'debugBuild': true,
     });
+  });
+
+  test('reports Flutter\'s own debug mode unless the host overrides it', () async {
+    const bridge = EverframeNativeBridge();
+    // kDebugMode is true under `flutter test`.
+    await bridge.start(appId: 'app_test', sdkKey: 'evf_live_test');
+    await bridge.start(
+        appId: 'app_test', sdkKey: 'evf_live_test', debugBuild: false);
+    await bridge.start(
+        appId: 'app_test', sdkKey: 'evf_live_test', debugBuild: true);
+    expect(calls.map((call) => call.arguments['debugBuild']),
+        [kDebugMode, false, true]);
   });
 
   test('forwards the crash capture switch to the native SDK', () async {

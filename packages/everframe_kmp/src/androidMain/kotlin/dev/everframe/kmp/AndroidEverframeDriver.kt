@@ -47,7 +47,7 @@ class AndroidEverframeDriver(
         if (activity != null && started && Everframe.captureGate) beginCapture()
     }
 
-    override fun start(appId: String, sdkKey: String, environment: String): Boolean {
+    override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean {
         return try {
             val nativeEnvironment = Environment.entries.firstOrNull { it.name == environment } ?: return false
             Everframe.start(context, EverframeConfig(
@@ -55,6 +55,7 @@ class AndroidEverframeDriver(
                 sdkKey = sdkKey,
                 environment = nativeEnvironment,
                 capture = CaptureConfig(screenshot = false, crash = true, network = true, networkBodies = false),
+                debugBuild = debugBuild,
                 // When this plugin moves to native 1.2.0 or later, pass `releaseHealth = null`: release health
                 // is on by default from 1.2.0 and the plugin has no option for it yet.
             ), hostActivity())

@@ -151,10 +151,25 @@ function EfU_IsAbnormalExit(code as dynamic) as boolean
     return Instr(1, UCase(code), "CRASH") > 0
 end function
 
-' This session's app version/build as JSON { "v", "b"? }.
+' True for a Boolean, however boxed (type() reports "Boolean" on a device and
+' "roBoolean" for a value read out of an associative array in other runtimes).
+function EfU_IsBool(v as dynamic) as boolean
+    if v = invalid then return false
+    return GetInterface(v, "ifBoolean") <> invalid
+end function
+
+' Whether this is a debug build: the host's start({ debugBuild }), kept in
+' m["efDebugBuild"] by start() (and by the reporter task for its own scope),
+' else whether the channel is sideloaded.
+function EfU_DebugBuild() as boolean
+    if EfU_IsBool(m["efDebugBuild"]) then return m["efDebugBuild"]
+    return CreateObject("roAppInfo").IsDev()
+end function
+
+' This session's app version/build/debug flag as JSON { "v", "b"?, "d" }.
 function EfU_VersionJson() as string
     ai = CreateObject("roAppInfo")
-    out = { "v": ai.GetVersion() }
+    out = { "v": ai.GetVersion(), "d": EfU_DebugBuild() }
     build = ai.GetValue("build_version")
     if build <> invalid and build <> "" then out["b"] = build
     return FormatJson(out)

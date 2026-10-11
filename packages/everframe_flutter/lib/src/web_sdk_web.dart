@@ -14,7 +14,7 @@ external JSBoolean? get _captureReady;
 
 extension type _WebConfig._(JSObject _) implements JSObject {
   external factory _WebConfig({JSString sdkKey, JSString appVersion,
-    JSString sdkName, JSString sdkVersion});
+    JSString sdkName, JSString sdkVersion, JSBoolean? debugBuild});
 }
 
 extension type _WebUser._(JSObject _) implements JSObject {
@@ -50,9 +50,11 @@ class EverframeWebBridge {
   const EverframeWebBridge();
   static _WebHandle? _handle;
 
+  /// [debugBuild] overrides @everframe/web's own debug-build detection; null leaves it to the SDK.
   Future<void> start({
     required String sdkKey,
     required String appVersion,
+    bool? debugBuild,
   }) async {
     if (sdkKey.isEmpty || appVersion.isEmpty) {
       throw ArgumentError('sdkKey and appVersion are required');
@@ -84,6 +86,7 @@ class EverframeWebBridge {
       appVersion: appVersion.toJS,
       sdkName: 'everframe-flutter'.toJS,
       sdkVersion: '1.0.0'.toJS,
+      debugBuild: debugBuild?.toJS,
     );
     _handle = init.callAsFunction(null, config) as _WebHandle;
   }
