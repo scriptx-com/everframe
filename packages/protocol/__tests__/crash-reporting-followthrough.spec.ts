@@ -8,7 +8,7 @@ const processId = '22222222-2222-4222-8222-222222222222';
 const start = '2026-10-08T00:00:00.000Z';
 const collected = '2026-10-08T00:02:00.000Z';
 const pointer = () => ({ exposureId: id, processLaunchId: processId, startedAt: start,
-  nativeBuildId: 'release-42', loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
+  app: { version: '4.2.0', build: '42' }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
 const android = () => ({ version: 1, evidenceId: id, processLaunchId: processId, nativeExposure: pointer(),
   kind: 'process_exit', provenance: 'android_application_exit_info', scope: 'os_process', outcome: 'terminated', cause: 'anr',
   occurredAt: '2026-10-08T00:01:00.000Z', collectedAt: collected,

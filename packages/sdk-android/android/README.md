@@ -92,101 +92,24 @@ configuration. Set `r8MappingId` only to override it; it must match
 
 ---
 
-## Release health observations (opt in)
+## Release health (opt in)
 
-Set `EverframeConfig.releaseHealth` to monitor foreground sessions independently
-of replay, session vitals, `setUser`, and install identifiers. This remains
-opt-in, with anonymous subjects by default:
+Release health counts crash-free foreground sessions for each version of your
+app. Turn it on in `EverframeConfig`:
 
 ```kotlin
-releaseHealth = ReleaseHealthConfig(
-    nativeBuildId = BuildConfig.EXACT_NATIVE_ARTIFACT_ID,
-    loadedBundleStatus = ReleaseHealthBundleStatus.NOT_APPLICABLE,
-    // Optional: a project-local opaque account ID. Omit it for anonymous sessions.
-    userId = signedInAccountId,
-)
+releaseHealth = ReleaseHealthConfig(),
 ```
 
-Supply the exact native artifact identity from your build pipeline. For a loaded
-JavaScript bundle, use `KNOWN` with its actual `loadedBuildId`, or `UNKNOWN` with
-no ID. A downloaded update that has not loaded is not the running build. Blank
-or contradictory identities do not become ready. In a React Native app, enable
-release health with the React Native Provider's `releaseHealth` option instead:
-each Provider configure installs its own SDK configuration, so one without
-`releaseHealth`, with `enabled: false` or with a rejected identity revokes a
-native opt-in and erases its queued, undelivered records.
-
-Schema version 3 uses `sessionPolicy: foreground-v1`. A durable start opens only
-while the process lifecycle is foreground. Background closes that session with
-`outcome: completed` and `endReason: background`; reentry opens a fresh exposure
-UUID. Reconfiguration closes the previous foreground session with `sdk_stop`.
-These boundaries describe the monitored foreground interval. They do not prove
-healthy process termination. Process death leaves an unknown outcome, and a
-relaunch never invents a completed end.
-
-Foreground comes from AndroidX `ProcessLifecycleOwner`: it starts with the first
-started activity and stops shortly after the last one stops, so rotation and
-activity changes keep one session. App Startup attaches it in the default process
-only. If the app removes `androidx.startup.InitializationProvider` or its
-`androidx.lifecycle.ProcessLifecycleInitializer` entry, or enables release health
-in another process, no session opens, `isReleaseHealthReady()` stays false, and an
-`Everframe` warning names `process-lifecycle-unavailable`.
-
-`Everframe.isReleaseHealthReady()` means an active foreground start has committed
-to the encrypted journal. Background immediately removes its attribution pointer.
-Foreground sessions persist subject/build ownership and reuse immutable bytes
-and record IDs across retries. The journal is bounded to 256 records and 1 MiB,
-with a seven-day local retry window; write failures can leave outcomes unknown.
-`requestReleaseHealthFlush()` requests a retry with each record's frozen SDK key
-and endpoint. HTTP redirects are not followed. Ordinary report uploads progress
-independently while a health destination is unavailable.
-
-Absent/disabled release health and `kill()` revoke pending health records rather
-than complete sessions. `kill()` and a configuration with `enabled = false` erase
-them on the calling thread before returning; this is bounded local IO and can wait
-for an in-progress journal write. A start without `releaseHealth` erases them on
-the SDK's IO thread. Failed erasure must complete before a later re-enable. This
-control governs the health journal and future pointers. Crash and diagnostic
-evidence already captured with a session pointer (uncaught JVM exceptions, native
-signal and OS exit reports) keeps its immutable bytes under the separate crash and
-diagnostic delivery and retention policy. Health opt-out does not erase records
-already delivered to the server; server exposure erasure removes their linkage even
-when an older report arrives later. `kill()` revokes both local paths.
-
-Sessions are anonymous unless you set `userId`; it is never copied from
-`setUser`. It must be nonblank, at most 128 UTF-16 units and free of
-U+0000–U+001F control characters and unpaired surrogates. An invalid ID records
-nothing: release health does not become ready, and no exception is thrown. The ID
-is frozen for its session. On login, logout or account switch, or when the loaded
-OTA build changes, call `Everframe.start` again with a copy of your configuration
-whose `releaseHealth` carries the new values (`userId = null` on logout). That
-restart closes the previous foreground session with `sdk_stop` and opens a new one
-while foreground. Anonymous sessions never infer install identity. Queue-loss
-accounting remains unavailable. These are version 3 records: the receiving
-service must support version 3 before you enable them. See
-[release health observations](../../../docs/release-health.md).
-
-Uncaught JVM exceptions, OS exit recovery and diagnostics, and the optional
-API26–30 signal collector carry the frozen pointer of a ready foreground session.
-Crashes in background, or before a session's start is durable, carry none.
-Native capture arms at start, before release-health readiness.
-Entering foreground keeps native capture armed with its pointer-free context;
-once the session start is durable, that context is replaced with one carrying
-the pointer. Background clears the OS exit token and pauses the signal handler
-before a completed end can be persisted, then re-arms a pointer-free context on
-the SDK's IO thread. A native crash between that background fence and the
-re-arm, or while a context is being replaced, is not captured. Recovery uses
-the exact prior frozen pointer, never the relaunch session or process ID alone.
-
-When a React Native app enables release health through the React Native
-Provider, an automatic unhandled Hermes JavaScript fatal captured while a
-foreground session is ready carries that session's frozen pointer if its loaded
-bundle exactly matches the session's known loaded build, and marks the session
-fatal. Handled errors, promise rejections, fatals captured in background or
-before readiness, and fatals with a missing or different bundle identity carry
-none. On API 30+, the OS exit record of the process that React Native then
-terminates is reported only when it is a native crash, and can carry the
-pointer too; the session still counts once. See [release health observations](../../../docs/release-health.md).
+The SDK reads the version from `versionName` (or `versionCode` when there is no
+usable `versionName`) and the build from `versionCode`, and crash reports carry
+the same version. Pass `ReleaseHealthConfig(userId = accountId)` to count
+crash-free users, and call `Everframe.start` again with the new value on login,
+logout or an account switch. Sessions open in the default process only, through
+AndroidX App Startup's `ProcessLifecycleInitializer`. `releaseHealth = null` or
+`kill()` turns release health off and erases its queued records. In a React
+Native app, use the Provider's `releaseHealth` option instead. See
+[release health](../../../docs/release-health.md).
 
 ## Triggers are host-app concern
 

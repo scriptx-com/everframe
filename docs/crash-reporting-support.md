@@ -44,14 +44,13 @@ OS delivery behavior does not establish that a report passes SDK ownership check
 
 ## Release health
 
-[Reported launch sessions](release-health.md), [fatal-count webhooks](release-health-alerts.md)
-and [foreground crash-free target webhooks](release-health-rate-alerts.md) use
-explicitly observed starts and retained qualifying evidence. Supplied user IDs
-are opt-in and their absence is not a distinct anonymous person. Missing outcomes
-are unknown; target alerts count them as healthy, so they fire only when the
-target is missed even in that best case. Observed fractions, count thresholds and
-target alerts do not establish population crash-free rates, statistical
-regressions or healthy recovery.
+[Release health](release-health.md) counts crash-free foreground sessions for
+each app version on Android, iOS and React Native, and
+[release health alerts](release-health-alerts.md) send a webhook when a version
+drops below a target. Sessions that end without a known outcome are left out of
+the rate and shown as a share. The rates cover apps that turned release health
+on, and only sessions the service still keeps; they are not population
+crash-free rates, statistical regressions or proof that a release recovered.
 
 ## Promotion criteria
 

@@ -197,7 +197,6 @@ RCT_EXPORT_MODULE(Everframe)
                     vitalsSampleRate:vitalsSampleRate
             vitalsCaptureSourceQuery:vitalsCaptureSourceQuery
                 releaseHealthEnabled:opts.releaseHealthEnabled().value_or(false)
-          releaseHealthNativeBuildId:opts.releaseHealthNativeBuildId()
           releaseHealthLoadedBuildId:opts.releaseHealthLoadedBuildId()
                  releaseHealthUserId:opts.releaseHealthUserId()
                                error:&err];

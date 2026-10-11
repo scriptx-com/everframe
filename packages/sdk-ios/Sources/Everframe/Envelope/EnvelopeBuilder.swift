@@ -457,8 +457,10 @@ public struct EnvelopeBuilder {
         // real `Bundle.main` / `UIDevice.current` / `UIScreen.main` plumbing.
         #if canImport(Foundation)
         let bundleName = Bundle.main.bundleIdentifier ?? "unknown"
-        let bundleVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.0.0"
-        let bundleBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        // The same rule as release health, so errors join to the version their sessions report.
+        let release = AppRelease.current()
+        let bundleVersion = release.version
+        let bundleBuild = release.build
         #else
         let bundleName = "unknown"
         let bundleVersion = "0.0.0"

@@ -9,10 +9,11 @@ android {
     defaultConfig {
         applicationId = providers.gradleProperty("proofApplicationId").getOrElse("dev.everframe.nativeproof")
         minSdk = 24; targetSdk = 35
-        versionCode = 1; versionName = "native-proof-1"
-        val proofBuildId = providers.gradleProperty("proofNativeBuildId").getOrElse("native-proof-1")
-        require(Regex("[A-Za-z0-9._-]{1,100}").matches(proofBuildId))
-        buildConfigField("String", "PROOF_NATIVE_BUILD_ID", "\"$proofBuildId\"")
+        versionCode = 1
+        // Release health reads this version, so two proof APKs with different names are two releases.
+        val proofVersionName = providers.gradleProperty("proofVersionName").getOrElse("native-proof-1")
+        require(Regex("[A-Za-z0-9._-]{1,64}").matches(proofVersionName))
+        versionName = proofVersionName
         val proofCleartext = providers.gradleProperty("proofAllowCleartext").getOrElse("false")
         require(proofCleartext == "true" || proofCleartext == "false")
         manifestPlaceholders["proofAllowCleartext"] = proofCleartext

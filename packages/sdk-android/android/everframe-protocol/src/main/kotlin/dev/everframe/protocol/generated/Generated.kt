@@ -805,6 +805,8 @@ enum class NativeCrashHealthAttribution(val value: String) {
 
 @Serializable
 data class NativeExposure (
+    val app: NativeExposureApp,
+
     @SerialName("exposureId")
     val exposureID: String,
 
@@ -814,13 +816,17 @@ data class NativeExposure (
 
     val loadedBundleStatus: LoadedBundleStatus,
 
-    @SerialName("nativeBuildId")
-    val nativeBuildID: String,
-
     @SerialName("processLaunchId")
     val processLaunchID: String,
 
     val startedAt: String
+)
+
+@Serializable
+data class NativeExposureApp (
+    @Required
+    val build: String? = null,
+    val version: String
 )
 
 @Serializable

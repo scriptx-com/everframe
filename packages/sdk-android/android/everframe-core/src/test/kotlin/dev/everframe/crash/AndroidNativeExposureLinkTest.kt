@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.crash
 
+import dev.everframe.capture.AppRelease
 import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.health.*
 import dev.everframe.outbox.*
@@ -26,8 +27,8 @@ class AndroidNativeExposureLinkTest {
     private val allowed = object : OutboxAuthorization { override fun isAllowed() = true }
     private fun store(name: String) = OutboxStore(File(folder.root, name), keys, ops, 8, 2 * 1024 * 1024)
     private fun engine() = AndroidNativeRecovery(store("contexts"), store("prepared"))
-    private fun producer(build: String = "native-A") = ReleaseHealthProducer(store("health"), ReleaseHealthConfig(build),
-        "test", "key-A", "https://a.example", allowed, allowed, launch, { 1000 }, { 0 })
+    private fun producer(release: AppRelease = AppRelease("2.4.0", null)) = ReleaseHealthProducer(store("health"), ReleaseHealthConfig(),
+        release, "test", "key-A", "https://a.example", allowed, allowed, launch, { 1000 }, { 0 })
     private fun template() = UUID.randomUUID().toString().let { id -> OutboxEntry(id, 1000,
         """{"reportId":"$id","submittedAt":"1970-01-01T00:00:01Z","context":{"app":{"name":"A","version":"1","build":"17"}},"reporter":{"title":"","description":""},"payload":{}}""".toByteArray(),
         "template", emptyList(), "key-A", "https://a.example") }
@@ -44,7 +45,7 @@ class AndroidNativeExposureLinkTest {
         var token = byteArrayOf()
         engine().arm(template(), 99, "app", allowed, diagnostics = true, processLaunchId = launch.toString(), apiLevel = 35,
             nativeExposure = pointer) { token = it }
-        val next = producer("native-B"); assertTrue(next.start())
+        val next = producer(AppRelease("2.5.0", "413")); assertTrue(next.start())
         assertNotEquals(pointer.exposureId, next.readyPointer()!!.exposureId)
         val body = recover(token)
         val diagnostic = body["payload"]!!.jsonObject["diagnostic"]!!.jsonObject
@@ -61,8 +62,27 @@ class AndroidNativeExposureLinkTest {
         val payload = body["payload"]!!.jsonObject
         assertEquals("crash", body["source"]!!.jsonPrimitive.content)
         assertEquals(pointer.toJson(), payload["diagnostic"]!!.jsonObject["nativeExposure"])
+        assertEquals(JsonNull, payload["diagnostic"]!!.jsonObject["nativeExposure"]!!.jsonObject["app"]!!.jsonObject["build"])
         assertNotNull(payload["crash"])
         assertEquals(0, engine().recover(emptyList(), 4000, allowed) { error("duplicate") })
+    }
+    @Test fun `a context frozen with the old native build pointer still reports its crash without the pointer`() {
+        val owner = producer(); assertTrue(owner.start()); val pointer = owner.readyPointer()!!
+        var token = byteArrayOf()
+        engine().arm(template(), 99, "app", allowed, processLaunchId = launch.toString(), apiLevel = 35,
+            nativeExposure = pointer) { token = it }
+        // Rewrite the durable context the way an SDK before the app version persisted it.
+        val contexts = store("contexts")
+        val held = contexts.readIfPresent(contexts.snapshotTokens().single())!!
+        val state = Json.parseToJsonElement(held.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        val old = JsonObject(pointer.toJson() - "app" + (("native" + "BuildId") to JsonPrimitive("native-A")))
+        contexts.removeIfPresent(held.token)
+        contexts.enqueueSync(held.entry.copy(envelopeBytes = JsonObject(state + ("nativeExposure" to old)).toString().toByteArray()), allowed)
+        val body = recover(token, reason = 5, diagnostics = false)
+        assertEquals("crash", body["source"]!!.jsonPrimitive.content)
+        val payload = body["payload"]!!.jsonObject
+        assertNotNull(payload["crash"])
+        assertFalse(payload.containsKey("diagnostic"))
     }
     @Test fun `arm before health readiness stays unavailable after a later successful append`() {
         val owner = producer(); assertNull(owner.readyPointer())
@@ -110,7 +130,7 @@ class AndroidNativeExposureLinkTest {
     @Test fun `health opt out after pointer read prevents a new E8 admission using the cached pointer`() {
         val epoch = AtomicInteger(1)
         val health = ReleaseHealthController({ store("health") }, launch, initiallyForeground = true)
-        assertTrue(health.activate(health.request(1, true), ReleaseHealthConfig("native-A"), "test", "key-A",
+        assertTrue(health.activate(health.request(1, true), ReleaseHealthConfig(), AppRelease("2.4.0", null), "test", "key-A",
             "https://a.example", allowed, allowed))
         val selected = CountDownLatch(1); val resume = CountDownLatch(1)
         val registered = AtomicBoolean(false); val result = AtomicBoolean(true)

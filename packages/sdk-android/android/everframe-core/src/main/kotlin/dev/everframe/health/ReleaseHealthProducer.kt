@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.health
 
+import dev.everframe.capture.AppRelease
 import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.outbox.*
 import kotlinx.coroutines.CancellationException
@@ -21,6 +22,7 @@ internal fun interface HealthAdmission {
 internal class ReleaseHealthProducer(
     private val queue: OutboxStore,
     private val config: ReleaseHealthConfig,
+    app: AppRelease,
     private val sdkVersion: String,
     private val sdkKey: String,
     private val endpoint: String,
@@ -33,18 +35,19 @@ internal class ReleaseHealthProducer(
     private val startedMs = nowMillis()
     private val startedNanos = elapsedNanos()
     private val pointer = NativeExposurePointer(UUID.randomUUID().toString(), processLaunchId.toString(),
-        NativeExposurePointer.timestamp(startedMs), config.nativeBuildId, config.loadedBuildId, config.loadedBundleStatus)
+        NativeExposurePointer.timestamp(startedMs), app, config.loadedBuildId, config.loadedBundleStatus)
     private val exposure = buildJsonObject {
         put("exposureId", pointer.exposureId); put("processLaunchId", pointer.processLaunchId); put("startedAt", pointer.startedAt)
         put("platform", "android"); put("sdkVersion", sdkVersion)
-        putJsonObject("nativeRelease") { put("buildId", config.nativeBuildId) }
+        put("app", pointer.app.toJson())
         put("loadedBuildId", config.loadedBuildId?.let(::JsonPrimitive) ?: JsonNull)
-        put("loadedBundleStatus", config.loadedBundleStatus.wireValue); put("sessionPolicy", "foreground-v1")
+        put("loadedBundleStatus", config.loadedBundleStatus.wireValue)
         putJsonObject("subject") {
             val id = config.userId
             put("kind", if (id == null) "anonymous" else "provided")
             if (id != null) put("id", id)
         }
+        put("sessionPolicy", "foreground-v1")
         putJsonObject("coverage") { put("policy", "android-sdk-segment-v1"); put("sampleRate", 1)
             put("priorQueueLosses", JsonNull); put("queueLossAccounting", "unavailable") }
     }
@@ -92,7 +95,7 @@ internal class ReleaseHealthProducer(
     private fun entry(end: Boolean, capturedMs: Long, elapsedMs: Long, reason: String?): OutboxEntry {
         val id = UUID.randomUUID().toString()
         val bytes = buildJsonObject {
-            put("schemaVersion", 3); put("recordId", id); put("exposure", exposure)
+            put("schemaVersion", 4); put("recordId", id); put("exposure", exposure)
             put("capturedAt", NativeExposurePointer.timestamp(capturedMs)); put("phase", if (end) "end" else "start")
             put("sequence", if (end) 1 else 0); put("elapsedMs", elapsedMs)
             if (end) { require(reason == "background" || reason == "sdk_stop"); put("endReason", reason); put("outcome", "completed") }

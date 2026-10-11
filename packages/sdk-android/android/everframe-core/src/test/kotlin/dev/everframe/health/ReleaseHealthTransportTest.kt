@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.health
 
+import dev.everframe.capture.AppRelease
 import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.outbox.*
 import kotlinx.coroutines.runBlocking
@@ -20,7 +21,8 @@ class ReleaseHealthTransportTest {
     private val allowed = object : OutboxAuthorization { override fun isAllowed() = true }
     private val admission = HealthAdmission { gate, request -> if (gate()) request() else null }
     private fun store() = OutboxStore(File(folder.root, "health"), keys, JvmOutboxFileOps(), 256, 1024 * 1024, maintenanceReserveBytes = 16384)
-    private fun producer(key: String, url: String) = ReleaseHealthProducer(store(), ReleaseHealthConfig("native-A"), "test", key, url, allowed, allowed)
+    private fun producer(key: String, url: String) =
+        ReleaseHealthProducer(store(), ReleaseHealthConfig(), AppRelease("2.4.0", "412"), "test", key, url, allowed, allowed)
     @Test fun `real HTTP retry preserves frozen credentials endpoint and JSON bytes`() = runBlocking {
         MockWebServer().use { a -> MockWebServer().use { b ->
             a.start(); b.start()

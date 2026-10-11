@@ -25,7 +25,6 @@ class ReleaseHealthConfigureTest {
     private fun enabled() = JavaOnlyMap().apply {
         putString("sdkKey", "rn-test-key")
         putBoolean("releaseHealthEnabled", true)
-        putString("releaseHealthNativeBuildId", "native-a")
         putString("releaseHealthLoadedBuildId", "loaded-a")
         putString("releaseHealthUserId", "opaque-a")
     }
@@ -34,7 +33,7 @@ class ReleaseHealthConfigureTest {
         assertTrue(module.configureSync(opts))
         val installed = Everframe.currentConfig!!
         val health = installed.releaseHealth!!
-        assertEquals("native-a", health.nativeBuildId)
+        assertTrue(health.enabled)
         assertEquals("loaded-a", health.loadedBuildId)
         assertEquals(ReleaseHealthBundleStatus.KNOWN, health.loadedBundleStatus)
         assertEquals("opaque-a", health.userId)
@@ -47,10 +46,10 @@ class ReleaseHealthConfigureTest {
         val invalid = listOf(
             JavaOnlyMap().apply { putString("sdkKey", "rn-test-key") },
             enabled().apply { putBoolean("releaseHealthEnabled", false) },
-            enabled().apply { putNull("releaseHealthNativeBuildId") },
+            enabled().apply { putNull("releaseHealthEnabled") },
             enabled().apply { putNull("releaseHealthLoadedBuildId") },
             enabled().apply { putString("releaseHealthUserId", "\uFEFF") },
-            enabled().apply { putString("releaseHealthNativeBuildId", "a\u0001") },
+            enabled().apply { putString("releaseHealthLoadedBuildId", "a\u0001") },
             enabled().apply { putString("releaseHealthLoadedBuildId", "\uD800") },
             enabled().apply { putString("releaseHealthUserId", "x".repeat(129)) },
         )
@@ -64,10 +63,10 @@ class ReleaseHealthConfigureTest {
     @Test fun anonymousAndSupplementaryIdentifiersAreAcceptedWithoutInference() {
         val opts = enabled().apply {
             putNull("releaseHealthUserId")
-            putString("releaseHealthNativeBuildId", "native-\uD83D\uDE80")
+            putString("releaseHealthLoadedBuildId", "loaded-\uD83D\uDE80")
         }
         module.configure(opts)
         assertNull(Everframe.currentConfig!!.releaseHealth!!.userId)
-        assertEquals("native-\uD83D\uDE80", Everframe.currentConfig!!.releaseHealth!!.nativeBuildId)
+        assertEquals("loaded-\uD83D\uDE80", Everframe.currentConfig!!.releaseHealth!!.loadedBuildId)
     }
 }

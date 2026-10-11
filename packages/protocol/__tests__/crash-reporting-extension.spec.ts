@@ -8,7 +8,7 @@ const processId = '22222222-2222-4222-8222-222222222222';
 const start = '2026-10-08T00:00:00.000Z';
 const collected = '2026-10-08T00:02:00.000Z';
 const pointer = () => ({ exposureId: id, processLaunchId: processId, startedAt: start,
-  nativeBuildId: 'release-42', loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
+  app: { version: '4.2.0', build: '42' }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
 const android = () => ({ version: 1, evidenceId: id, processLaunchId: processId, nativeExposure: pointer(),
   kind: 'process_exit', provenance: 'android_application_exit_info', scope: 'os_process', outcome: 'terminated', cause: 'anr',
   occurredAt: '2026-10-08T00:01:00.000Z', collectedAt: collected,
@@ -43,13 +43,17 @@ describe('combined Apple diagnostics and Android health contracts', () => {
     }
     expect(protocol.ReportEnvelope.safeParse(envelope('ios', { appleDiagnostic: apple(), diagnostic: android() })).success).toBe(false);
   });
-  it('accepts native and web observations independently, retaining absent bundle uncertainty', () => {
-    const exposure = { ...pointer(), platform: 'android', sdkVersion: '1.0.0', nativeRelease: { buildId: 'release-42' },
-      subject: 'anonymous_exposure', coverage: { policy: 'android-sdk-segment-v1', sampleRate: 1, priorQueueLosses: null, queueLossAccounting: 'unavailable' } };
-    const { nativeBuildId: _nativeBuildId, ...wire } = exposure;
-    const record = { schemaVersion: 1, recordId: processId, phase: 'start', sequence: 0, elapsedMs: 0, capturedAt: start, exposure: wire };
-    expect(protocol.ReleaseHealthRecordSchema.parse(record)).toEqual(record);
+  it('accepts a version 4 Android start built from the pointer, retaining absent bundle uncertainty', () => {
+    const exposure = { ...pointer(), platform: 'android', sdkVersion: '1.0.0', subject: { kind: 'anonymous' },
+      sessionPolicy: 'foreground-v1',
+      coverage: { policy: 'android-sdk-segment-v1', sampleRate: 1, priorQueueLosses: null, queueLossAccounting: 'unavailable' } };
+    const record = { schemaVersion: 4, recordId: processId, phase: 'start', sequence: 0, elapsedMs: 0, capturedAt: start, exposure };
+    const parsed = protocol.ReleaseHealthRecordSchema.parse(record);
+    expect(parsed).toEqual(record);
+    // The start carries the pointer's identity field for field, so a crash links to it.
+    const { exposureId, processLaunchId, startedAt, app, loadedBuildId, loadedBundleStatus } = parsed.exposure;
+    expect({ exposureId, processLaunchId, startedAt, app, loadedBuildId, loadedBundleStatus }).toEqual(pointer());
     expect(protocol.ReleaseHealthRecordSchema.safeParse({ ...record, outcome: 'healthy' }).success).toBe(false);
-    expect(protocol.ReleaseHealthRecordSchema.safeParse({ ...record, exposure: { ...wire, loadedBundleStatus: 'known' } }).success).toBe(false);
+    expect(protocol.ReleaseHealthRecordSchema.safeParse({ ...record, exposure: { ...exposure, loadedBundleStatus: 'known' } }).success).toBe(false);
   });
 });

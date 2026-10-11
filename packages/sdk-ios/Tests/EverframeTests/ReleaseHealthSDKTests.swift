@@ -17,14 +17,21 @@ final class ReleaseHealthSDKTests: XCTestCase {
         try FileManager.default.removeItem(at: root)
     }
     private func runtime() -> ReleaseHealthRuntime {
-        let key = key; return ReleaseHealthRuntime(root: root, keyProvider: { key }, transport: { _, _ in .retry })
+        let key = key; return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, transport: { _, _ in .retry })
     }
     private func config(_ character: String = "a") -> EverframeConfig {
         .init(sdkKey: "evf_live_" + String(repeating: character, count: 32),
             capture: .init(screenshot: false, focus: false, logs: false, network: false, crash: false), vitals: .init(enabled: false))
     }
-    private func health(_ build: String = "native-a") throws -> ReleaseHealthConfiguration {
-        try .init(nativeBuildId: build, loadedBuildId: nil, loadedBundleStatus: .notApplicable)
+    /// Owners differ by user ID; nil is the anonymous owner.
+    private func health(_ user: String? = nil) throws -> ReleaseHealthConfiguration {
+        try .init(userId: user)
+    }
+    private func subjects() throws -> [String?] {
+        try rows().map { entry in
+            let body = try JSONSerialization.jsonObject(with: entry.body) as! [String: Any]
+            return ((body["exposure"] as! [String: Any])["subject"] as! [String: String])["id"]
+        }
     }
     private func rows() throws -> [ReleaseHealthEntry] { try ReleaseHealthStore(root: root, keyProvider: { self.key }).pending() }
     func testPreparedHealthReservesImmediatelyAndCannotOutliveDisableOrNativeOptIn() async throws {
@@ -36,9 +43,9 @@ final class ReleaseHealthSDKTests: XCTestCase {
         let stale = await old(); XCTAssertFalse(stale)
         let erased = await disable(); XCTAssertTrue(erased); XCTAssertTrue(try rows().isEmpty)
         let queued = try XCTUnwrap(sdk.prepareReleaseHealth(health("queued"), expectedConfig: config()))
-        let native = try await sdk.setReleaseHealth(health("native-current")); XCTAssertTrue(native)
+        let native = try await sdk.setReleaseHealth(health("current")); XCTAssertTrue(native)
         let rejected = await queued(); XCTAssertFalse(rejected)
-        XCTAssertEqual(runtime.readyPointer?.nativeBuildID, "native-current")
+        XCTAssertNotNil(runtime.readyPointer); XCTAssertEqual(try subjects(), ["current"])
         sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
 
@@ -116,7 +123,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
         let before = try await sdk.setReleaseHealth(health()); XCTAssertFalse(before)
         try sdk.start(config: config()); XCTAssertNil(runtime.readyPointer)
         let enabled = try await sdk.setReleaseHealth(health()); XCTAssertTrue(enabled)
-        XCTAssertEqual(runtime.readyPointer?.nativeBuildID, "native-a")
+        XCTAssertEqual(runtime.readyPointer?.app.version, "2.4.0"); XCTAssertEqual(runtime.readyPointer?.app.build, "412")
         let disabled = await sdk.setReleaseHealth(nil); XCTAssertTrue(disabled)
         XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
         sdk.kill(); await runtime.barrier()
@@ -126,7 +133,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
         try sdk.start(config: config()); let first = try await sdk.setReleaseHealth(health()); XCTAssertTrue(first)
         let a = try XCTUnwrap(runtime.readyPointer)
         try sdk.start(config: config("b")); XCTAssertNil(runtime.readyPointer)
-        let second = try await sdk.setReleaseHealth(health("native-b")); XCTAssertTrue(second)
+        let second = try await sdk.setReleaseHealth(health("user-b")); XCTAssertTrue(second)
         let b = try XCTUnwrap(runtime.readyPointer)
         XCTAssertNotEqual(a.exposureID, b.exposureID); XCTAssertEqual(a.processLaunchID, b.processLaunchID)
         XCTAssertEqual(try rows().map(\.sdkKey), [config().sdkKey, config().sdkKey, config("b").sdkKey])
@@ -136,8 +143,8 @@ final class ReleaseHealthSDKTests: XCTestCase {
         let runtime = runtime(); let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
         try sdk.start(config: config())
         await sdk.releaseHealthForegroundChanged(false).value
-        let a = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "a", loadedBundleStatus: .known, userId: "opaque-a")
-        let b = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "b", loadedBundleStatus: .known, userId: "opaque-b")
+        let a = try ReleaseHealthConfiguration(userId: "opaque-a", loadedBuildId: "a", loadedBundleStatus: .known)
+        let b = try ReleaseHealthConfiguration(userId: "opaque-b", loadedBuildId: "b", loadedBundleStatus: .known)
         let first = await sdk.setReleaseHealth(a); XCTAssertFalse(first)
         let changed = await sdk.setReleaseHealth(b); XCTAssertFalse(changed)
         XCTAssertTrue(try rows().isEmpty)
@@ -152,7 +159,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
     func testLaunchOptInWaitsForTheFirstLifecycleSnapshot() async throws {
         // As on iOS: admission reads background until the observer that init installs
         // delivers the first application state on a later main-actor turn.
-        let key = key, runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, initiallyForeground: false, transport: { _, _ in .retry })
+        let key = key, runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, initiallyForeground: false, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
         try sdk.start(config: config())
         sdk.releaseHealthLifecycleReady = Task { @MainActor in
@@ -175,7 +182,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
         let disabled = await sdk.setReleaseHealth(nil); XCTAssertTrue(disabled)
         release.signal(); try await replacement.value; Everframe.__bodyStateResetHookForTesting = nil
         XCTAssertNil(runtime.readyPointer)
-        let accepted = try await sdk.setReleaseHealth(health("native-b")); XCTAssertTrue(accepted)
+        let accepted = try await sdk.setReleaseHealth(health("user-b")); XCTAssertTrue(accepted)
         XCTAssertEqual(try rows().count, 1); XCTAssertEqual(try rows().first?.sdkKey, config("b").sdkKey)
         sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
     }

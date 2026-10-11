@@ -54,7 +54,6 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       sdkKey: "k",
 
       appName: "host",
-      appVersion: "1.2.3",
     });
     rt.mount();
     expect(nativeMock.configure).not.toHaveBeenCalled();

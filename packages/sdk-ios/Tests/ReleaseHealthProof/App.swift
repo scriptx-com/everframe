@@ -36,8 +36,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             Everframe.shared.setUser(.init(id: original ? "user-A" : "user-B"))
         } catch { ready(["error": String(describing: error)]); return true }
         Task { @MainActor in
-            let configuration = try! ReleaseHealthConfiguration(nativeBuildId: original ? "native-A" : "native-B",
-                loadedBuildId: nil, loadedBundleStatus: .notApplicable)
+            // Owners differ by user ID. Both runs report the app's own MARKETING_VERSION.
+            let configuration = try! ReleaseHealthConfiguration(userId: original ? "proof-a" : "proof-b")
             var healthReady = false
             if mode == "off" {
                 healthReady = await Everframe.shared.setReleaseHealth(nil)

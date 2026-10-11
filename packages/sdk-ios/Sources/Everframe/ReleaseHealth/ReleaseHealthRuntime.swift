@@ -30,6 +30,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     private let worker = DispatchQueue(label: "dev.everframe.release-health", qos: .utility)
     private let root: URL
     private let keyProvider: () throws -> Data
+    private let appRelease: @Sendable () -> AppRelease
     private let now: @Sendable () -> Date
     private let uptime: @Sendable () -> TimeInterval
     private let beforeCommit: () throws -> Void
@@ -40,13 +41,16 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     private var drainTask: Task<Void, Never>?
     private var timer: DispatchSourceTimer?
 
+    /// `appRelease` reads the app's version and build when a session opens. Tests inject it:
+    /// `swift test` runs under the xctest bundle's Info.plist.
     init(root: URL, keyProvider: @escaping () throws -> Data = { try OutboxEncryptionKey.getOrCreate() },
+         appRelease: @escaping @Sendable () -> AppRelease = { AppRelease.current() },
          processLaunchID: UUID = ReleaseHealthProcessIdentity.id, now: @escaping @Sendable () -> Date = { Date() },
          uptime: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
          beforeCommit: @escaping () throws -> Void = {},
          initiallyForeground: Bool = true,
          transport: @escaping ReleaseHealthSend = { entry, admission in await ReleaseHealthTransport.send(entry, admission: admission) }) {
-        self.root = root; self.keyProvider = keyProvider; self.processLaunchID = processLaunchID
+        self.root = root; self.keyProvider = keyProvider; self.appRelease = appRelease; self.processLaunchID = processLaunchID
         self.now = now; self.uptime = uptime; self.beforeCommit = beforeCommit; self.transport = transport
         self.foreground = initiallyForeground
     }
@@ -120,13 +124,15 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     func enable(ticket: UInt64, sdkVersion: String) async -> Bool {
         await onWorker {
             guard self.lock.withLock({ self.foreground }), let owner = self.owner(ticket), ReleaseHealthConfiguration.validText(sdkVersion, maximum: 64) else { return false }
+            let app = self.appRelease()
+            guard app.isValid else { return false }
             do {
                 try self.prepareStore()
                 guard self.finishErasure(), self.lock.withLock({ self.foreground }), self.owner(ticket) == owner, let store = self.store else { return false }
                 try store.maintain(now: self.now())
                 if self.active?.ticket != ticket {
                     self.closeActive()
-                    let segment = ReleaseHealthSegment(configuration: owner.configuration, sdkVersion: sdkVersion,
+                    let segment = ReleaseHealthSegment(configuration: owner.configuration, app: app, sdkVersion: sdkVersion,
                         sdkKey: owner.sdkKey, endpoint: owner.endpoint, processLaunchID: self.processLaunchID,
                         now: self.now(), uptime: self.uptime())
                     try store.append(segment.entry(end: false, now: self.now(), uptime: self.uptime()))

@@ -9,7 +9,7 @@ Keep the resulting caller bytecode unchanged when running against a candidate.
 `ConfigMain.kt` passes a new opt-in configuration through the old copy call and
 checks that release health remains enabled. The diagnostic caller takes a JSON
 fixture with a native exposure pointer and prints the result of an old copy call;
-the entire pointer, including `loadedBuildId: null`, must survive.
+the entire pointer, including `loadedBuildId: null` and `app.build: null`, must survive.
 
 For Swift, compile `OldDiagnosticCaller.swift` to an object against the previous
 protocol library with library evolution enabled. Link that unchanged object and

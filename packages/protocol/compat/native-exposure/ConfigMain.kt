@@ -6,7 +6,7 @@ import dev.everframe.config.ReleaseHealthConfig
 object ConfigMain {
     @JvmStatic fun main(args: Array<String>) {
         check(OldConfigCaller.construct().appId == "old-app")
-        val health = ReleaseHealthConfig("loaded-native-build")
+        val health = ReleaseHealthConfig()
         val current = EverframeConfig("current-app", "current-key", releaseHealth = health)
         val changed = OldConfigCaller.copy(current)
         check(changed.sdkKey == "copied-key" && changed.releaseHealth === health)

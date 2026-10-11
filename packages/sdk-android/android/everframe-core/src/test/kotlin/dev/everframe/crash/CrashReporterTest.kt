@@ -128,7 +128,7 @@ class CrashReporterTest {
     @Test fun `automatic JVM fatal freezes its entry foreground pointer and background has none`() {
         val launch = java.util.UUID.randomUUID().toString()
         var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
-            java.util.UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", "native", null,
+            java.util.UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null,
             dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         val first = pointer!!
         CrashReporter.__exposureForTesting = { pointer }
@@ -139,14 +139,14 @@ class CrashReporterTest {
         CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("background"))
         assertFalse(persistedEnvelope("background")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
         pointer = dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), launch,
-            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("reentry"))
         assertEquals(pointer!!.toJson(), persistedEnvelope("reentry")["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
     }
 
     private fun rnPointer(build: String? = "test-android", status: dev.everframe.config.ReleaseHealthBundleStatus = dev.everframe.config.ReleaseHealthBundleStatus.KNOWN) =
         dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), java.util.UUID.randomUUID().toString(),
-            "2026-10-09T10:00:00.000Z", "native-fixture", build, status)
+            "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", "412"), build, status)
 
     private fun rnBundle(build: String = "test-android", platform: dev.everframe.protocol.generated.JSBundlePlatform = dev.everframe.protocol.generated.JSBundlePlatform.Android) =
         dev.everframe.protocol.generated.JSBundle(buildID = build, bundleName = "index.android.bundle",
@@ -208,7 +208,9 @@ class CrashReporterTest {
         val queue = dev.everframe.outbox.OutboxStore(tmp.newFolder(), keys, JvmOutboxFileOps(), 8, 1024L * 1024, maintenanceReserveBytes = 1024)
         val authorized = object : dev.everframe.outbox.OutboxAuthorization { override fun isAllowed() = true }
         val producer = dev.everframe.health.ReleaseHealthProducer(queue,
-            dev.everframe.config.ReleaseHealthConfig("native-fixture", "test-android", dev.everframe.config.ReleaseHealthBundleStatus.KNOWN),
+            dev.everframe.config.ReleaseHealthConfig(loadedBuildId = "test-android",
+                loadedBundleStatus = dev.everframe.config.ReleaseHealthBundleStatus.KNOWN),
+            dev.everframe.capture.AppRelease("2.4.0", null),
             Everframe.SDK_VERSION, config.sdkKey, "http://127.0.0.1:9/api/ingest/release-health", authorized, authorized)
         assertTrue(producer.start())
         val pointer = requireNotNull(producer.readyPointer())
@@ -217,10 +219,27 @@ class CrashReporterTest {
         val entry = runBlocking { encryptedOutbox().hydrate() }.single()
         val envelope = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
         assertEquals(pointer.toJson(), envelope["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+        assertEquals(kotlinx.serialization.json.JsonNull,
+            envelope["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"]!!.jsonObject["app"]!!.jsonObject["build"])
         assertTrue(producer.end("background"))
         val records = queue.snapshotTokens().map { Json.parseToJsonElement(queue.readIfPresent(it)!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject }
         assertEquals(2, records.size)
 
+    }
+
+    // Review Focus 2: the crash envelope's version is the one its sessions report, so the
+    // error group's first-seen version matches the release.
+    @Test @Config(sdk = [33])
+    fun `crash envelope version follows the release rule when versionName is missing`() {
+        org.robolectric.Shadows.shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName).apply {
+            versionName = null; longVersionCode = 42
+        }
+        assertEquals(dev.everframe.capture.AppReleaseRule.of(null, 42).version,
+            dev.everframe.capture.DeviceMetadata.collect(context)["appVersion"])
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("no version name"))
+        val app = persistedEnvelope("versionless")["context"]!!.jsonObject["app"]!!.jsonObject
+        assertEquals("42", app["version"]!!.jsonPrimitive.content)
+        assertEquals("42", app["build"]!!.jsonPrimitive.content)
     }
 
     @Test fun `diagnostics distinguish invalid bridge input disabled capture and reentrancy`() {

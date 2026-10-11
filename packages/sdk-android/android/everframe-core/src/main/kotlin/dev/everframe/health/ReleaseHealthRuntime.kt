@@ -8,6 +8,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import dev.everframe.Everframe
 import dev.everframe.TXCapturedSession
+import dev.everframe.capture.DeviceMetadata
 import dev.everframe.crash.AndroidNativeCrashRuntime
 import dev.everframe.crash.AndroidNativeSignalRuntime
 import dev.everframe.envelope.txGuardSuspend
@@ -85,6 +86,8 @@ internal object ReleaseHealthRuntime {
         controller.finishBoundary(request)
         val health = config.releaseHealth ?: return
         if (!request.enabled) return
+        // Read once per start: every session this start opens carries the same release.
+        val app = DeviceMetadata.appRelease(application)
         val current = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch &&
                 !Everframe.killGenerationChangedVolatile(captured.killGeneration)
@@ -113,7 +116,7 @@ internal object ReleaseHealthRuntime {
                 txGuardSuspend("releaseHealth.lifecycleWork") {
                     lifecycleWork.withLock {
                         if (controller.currentRequest(epoch) !== request || !current.isAllowed()) return@withLock
-                        if (foreground) controller.activate(request, health, Everframe.SDK_VERSION, config.sdkKey,
+                        if (foreground) controller.activate(request, health, app, Everframe.SDK_VERSION, config.sdkKey,
                             endpoint.trimEnd('/') + "/api/ingest/release-health", current, retained)
                         AndroidNativeCrashRuntime.refreshExposure(epoch)
                         AndroidNativeSignalRuntime.refreshExposure(epoch)

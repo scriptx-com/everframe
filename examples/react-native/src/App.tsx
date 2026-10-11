@@ -69,7 +69,6 @@ const STATUS_BAR_HEIGHT = Platform.isTV
 const EVERFRAME_CONFIG = {
   sdkKey: process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? '',
   appName: 'examplereactnative',
-  appVersion: '1.0.0',
   ...(process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID ? {
     jsBundle: {
       buildId: process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID,

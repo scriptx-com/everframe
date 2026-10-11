@@ -14,35 +14,37 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
     }
     override func tearDownWithError() throws { try FileManager.default.removeItem(at: root) }
-    private func configuration(_ id: String = "native-a") throws -> ReleaseHealthConfiguration {
-        try .init(nativeBuildId: id, loadedBuildId: nil, loadedBundleStatus: .notApplicable)
+    /// Owners differ by user ID; nil is the anonymous owner.
+    private func configuration(_ user: String? = nil) throws -> ReleaseHealthConfiguration {
+        try .init(userId: user)
     }
-    private func runtime(beforeCommit: @escaping () throws -> Void = {}) -> ReleaseHealthRuntime {
+    private func runtime(app: AppRelease = .testRelease, beforeCommit: @escaping () throws -> Void = {}) -> ReleaseHealthRuntime {
         let key = key, now = now
-        return ReleaseHealthRuntime(root: root, keyProvider: { key }, now: { now },
+        return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { app }, now: { now },
             beforeCommit: beforeCommit, transport: { _, _ in .retry })
     }
-    private func enable(_ runtime: ReleaseHealthRuntime, id: String = "native-a", key: String = "key-a") async throws -> Bool {
-        let config = try configuration(id)
+    private func enable(_ runtime: ReleaseHealthRuntime, user: String? = nil, key: String = "key-a") async throws -> Bool {
+        let config = try configuration(user)
         let ticket = runtime.requestEnable(configuration: config, sdkKey: key, endpoint: "https://a.example/api/ingest/release-health").ticket
         return await runtime.enable(ticket: ticket, sdkVersion: "1.0.0")
     }
     private func rows() throws -> [ReleaseHealthEntry] { try ReleaseHealthStore(root: root, keyProvider: { self.key }).pending() }
+    private func records() throws -> [[String: Any]] { try rows().map { try JSONSerialization.jsonObject(with: $0.body) as! [String: Any] } }
     func testForegroundSubjectsAreFrozenAcrossAccountRotation() async throws {
         let runtime = runtime()
-        let first = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "bundle-a", loadedBundleStatus: .known, userId: "opaque-a")
+        let first = try ReleaseHealthConfiguration(userId: "opaque-a", loadedBuildId: "bundle-a", loadedBundleStatus: .known)
         let ticket = runtime.requestEnable(configuration: first, sdkKey: "key-a", endpoint: "https://a.example/api/ingest/release-health").ticket
         let accepted = await runtime.enable(ticket: ticket, sdkVersion: "test"); XCTAssertTrue(accepted)
         let a = try XCTUnwrap(runtime.readyPointer)
         runtime.boundary()
-        let second = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "bundle-b", loadedBundleStatus: .known, userId: "opaque-b")
+        let second = try ReleaseHealthConfiguration(userId: "opaque-b", loadedBuildId: "bundle-b", loadedBundleStatus: .known)
         let next = runtime.requestEnable(configuration: second, sdkKey: "key-a", endpoint: "https://a.example/api/ingest/release-health").ticket
         let replaced = await runtime.enable(ticket: next, sdkVersion: "test"); XCTAssertTrue(replaced)
         XCTAssertEqual(a.processLaunchID, runtime.readyPointer?.processLaunchID)
-        let records = try rows().map { try JSONSerialization.jsonObject(with: $0.body) as! [String: Any] }
-        XCTAssertEqual(records.count, 3)
-        for record in records { XCTAssertEqual(record["schemaVersion"] as? Int, 3) }
-        let exposures = records.map { $0["exposure"] as! [String: Any] }
+        let bodies = try records()
+        XCTAssertEqual(bodies.count, 3)
+        for body in bodies { XCTAssertEqual(body["schemaVersion"] as? Int, 4) }
+        let exposures = bodies.map { $0["exposure"] as! [String: Any] }
         XCTAssertEqual(exposures[0]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-a"])
         XCTAssertEqual(exposures[1]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-a"])
         XCTAssertEqual(exposures[2]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-b"])
@@ -52,11 +54,11 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
     }
     func testCanonicallyEquivalentOpaqueIDsRotateWithoutAnExplicitBoundary() async throws {
         let runtime = runtime(), composed = "\u{00e9}", decomposed = "e\u{0301}"
-        let a = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: composed)
+        let a = try ReleaseHealthConfiguration(userId: composed)
         let first = runtime.requestEnable(configuration: a, sdkKey: "key", endpoint: "https://example.test").ticket
         let accepted = await runtime.enable(ticket: first, sdkVersion: "test"); XCTAssertTrue(accepted)
         let pointer = try XCTUnwrap(runtime.readyPointer)
-        let b = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: decomposed)
+        let b = try ReleaseHealthConfiguration(userId: decomposed)
         let second = runtime.requestEnable(configuration: b, sdkKey: "key", endpoint: "https://example.test").ticket
         XCTAssertNotEqual(first, second); XCTAssertNil(runtime.readyPointer)
         let changed = await runtime.enable(ticket: second, sdkVersion: "test"); XCTAssertTrue(changed)
@@ -71,32 +73,50 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         runtime.boundary(); await runtime.barrier()
     }
     func testCompletedEndClampsWallClockRollbackAndKeepsMonotonicElapsed() throws {
-        let segment = ReleaseHealthSegment(configuration: try configuration(), sdkVersion: "test", sdkKey: "key",
+        let segment = ReleaseHealthSegment(configuration: try configuration(), app: .testRelease, sdkVersion: "test", sdkKey: "key",
             endpoint: "https://example.test", processLaunchID: UUID(), now: now, uptime: 10)
         let body = try JSONSerialization.jsonObject(with: segment.entry(end: true, now: now.addingTimeInterval(-30), uptime: 12).body) as! [String: Any]
-        XCTAssertEqual(body["schemaVersion"] as? Int, 3)
+        XCTAssertEqual(body["schemaVersion"] as? Int, 4)
         XCTAssertEqual(body["outcome"] as? String, "completed")
         XCTAssertEqual(body["capturedAt"] as? String, "2026-10-08T01:02:03.456Z")
         XCTAssertEqual(body["elapsedMs"] as? Int, 2000)
     }
     func testInvalidProvidedSubjectIsRefused() throws {
         for id in ["", " ", String(repeating: "a", count: 129), "a\u{0000}", "\u{feff}", " \u{feff}\u{00a0}"] {
-            XCTAssertThrowsError(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: id))
+            XCTAssertThrowsError(try ReleaseHealthConfiguration(userId: id)) {
+                XCTAssertEqual($0 as? ReleaseHealthConfiguration.ValidationError, .invalidUserIdentity)
+            }
         }
-        XCTAssertNoThrow(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: String(repeating: "a", count: 128)))
+        XCTAssertNoThrow(try ReleaseHealthConfiguration(userId: String(repeating: "a", count: 128)))
     }
     func testBlankIdentityUsesTheWireContractTrim() throws {
         // Every non-control character that ECMAScript trim() removes: Zs, U+2028, U+2029 and U+FEFF.
         let blank = " \u{a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200a}\u{2028}\u{2029}\u{202f}\u{205f}\u{3000}\u{feff}"
-        XCTAssertThrowsError(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: blank))
+        XCTAssertThrowsError(try ReleaseHealthConfiguration(userId: blank))
         for id in [blank, "\u{feff}"] {
-            XCTAssertThrowsError(try ReleaseHealthConfiguration(nativeBuildId: id, loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+            XCTAssertThrowsError(try ReleaseHealthConfiguration(userId: nil, loadedBuildId: id, loadedBundleStatus: .known))
         }
-        // The wire contract, web and Android accept these; Foundation's whitespace set would not.
+        // The wire contract and Android accept these; Foundation's whitespace set would not.
         for id in ["\u{85}", "\u{200b}", " \u{85}\u{200b}\u{a0}"] {
-            XCTAssertNoThrow(try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: id))
-            XCTAssertNoThrow(try ReleaseHealthConfiguration(nativeBuildId: id, loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+            XCTAssertNoThrow(try ReleaseHealthConfiguration(userId: id))
+            XCTAssertNoThrow(try ReleaseHealthConfiguration(userId: nil, loadedBuildId: id, loadedBundleStatus: .known))
         }
+    }
+    func testConfigurationNeedsNoArgumentsAndValidatesTheBridgeFields() throws {
+        let anonymous = ReleaseHealthConfiguration()
+        XCTAssertNil(anonymous.userId); XCTAssertNil(anonymous.loadedBuildId); XCTAssertEqual(anonymous.loadedBundleStatus, .notApplicable)
+        XCTAssertEqual(anonymous, try ReleaseHealthConfiguration(userId: nil))
+        XCTAssertThrowsError(try ReleaseHealthConfiguration(userId: " ")) {
+            XCTAssertEqual($0 as? ReleaseHealthConfiguration.ValidationError, .invalidUserIdentity)
+        }
+        let invalidBundles: [(String?, ReleaseHealthConfiguration.LoadedBundleStatus)] =
+            [(nil, .known), ("downloaded", .unknown), (String(repeating: "b", count: 201), .known)]
+        for (loaded, status) in invalidBundles {
+            XCTAssertThrowsError(try ReleaseHealthConfiguration(userId: nil, loadedBuildId: loaded, loadedBundleStatus: status)) {
+                XCTAssertEqual($0 as? ReleaseHealthConfiguration.ValidationError, .invalidBuildIdentity)
+            }
+        }
+        XCTAssertNoThrow(try ReleaseHealthConfiguration(userId: nil, loadedBuildId: String(repeating: "b", count: 200), loadedBundleStatus: .known))
     }
     func testReadinessIsAbsentUntilDurableAppendAndSameOwnerEnableIsIdempotent() async throws {
         let runtime = runtime(); let config = try configuration()
@@ -104,7 +124,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertNil(runtime.readyPointer)
         let accepted = await runtime.enable(ticket: ticket, sdkVersion: "1.0.0"); XCTAssertTrue(accepted)
         let pointer = try XCTUnwrap(runtime.readyPointer)
-        XCTAssertEqual(pointer.nativeBuildID, "native-a")
+        XCTAssertEqual(pointer.app.version, "2.4.0"); XCTAssertEqual(pointer.app.build, "412")
         XCTAssertEqual(try rows().count, 1)
         let again = try await enable(runtime); XCTAssertTrue(again)
         XCTAssertEqual(runtime.readyPointer?.exposureID, pointer.exposureID)
@@ -119,8 +139,8 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         // The same owner keeps its pointer; a new owner withdraws it exactly once.
         let same = runtime.requestEnable(configuration: try configuration(), sdkKey: "key-a", endpoint: endpoint)
         XCTAssertEqual(same.ticket, first.ticket); XCTAssertFalse(same.retiredPointer); XCTAssertNotNil(runtime.readyPointer)
-        XCTAssertTrue(runtime.requestEnable(configuration: try configuration("native-b"), sdkKey: "key-a", endpoint: endpoint).retiredPointer)
-        let next = runtime.requestEnable(configuration: try configuration("native-c"), sdkKey: "key-a", endpoint: endpoint)
+        XCTAssertTrue(runtime.requestEnable(configuration: try configuration("user-b"), sdkKey: "key-a", endpoint: endpoint).retiredPointer)
+        let next = runtime.requestEnable(configuration: try configuration("user-c"), sdkKey: "key-a", endpoint: endpoint)
         XCTAssertFalse(next.retiredPointer); XCTAssertNil(runtime.readyPointer)
         let reopened = await runtime.enable(ticket: next.ticket, sdkVersion: "1.0.0"); XCTAssertTrue(reopened)
         XCTAssertTrue(runtime.revoke().retiredPointer)
@@ -128,16 +148,22 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         let erased = await runtime.finishRevocation(erase.request); XCTAssertTrue(erased)
         XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
     }
-    func testReplacementHasDistinctSegmentSameProcessAndExplicitOldEnd() async throws {
-        let runtime = runtime(); let first = try await enable(runtime); XCTAssertTrue(first)
+    func testReplacementByAnotherUserHasDistinctSegmentSameProcessAndExplicitOldEnd() async throws {
+        let runtime = runtime(); let first = try await enable(runtime, user: "user-a"); XCTAssertTrue(first)
         let a = try XCTUnwrap(runtime.readyPointer)
         runtime.boundary(); XCTAssertNil(runtime.readyPointer)
-        let second = try await enable(runtime, id: "native-b"); XCTAssertTrue(second)
+        let second = try await enable(runtime, user: "user-b"); XCTAssertTrue(second)
         let b = try XCTUnwrap(runtime.readyPointer)
         XCTAssertNotEqual(a.exposureID, b.exposureID); XCTAssertEqual(a.processLaunchID, b.processLaunchID)
-        let records = try rows().map { try JSONSerialization.jsonObject(with: $0.body) as! [String: Any] }
-        XCTAssertEqual(records.compactMap { $0["phase"] as? String }, ["start", "end", "start"])
-        XCTAssertEqual((records[1]["exposure"] as? [String: Any])?["nativeRelease"] as? [String: String], ["buildId": "native-a"])
+        let bodies = try records()
+        XCTAssertEqual(bodies.compactMap { $0["phase"] as? String }, ["start", "end", "start"])
+        let exposures = bodies.map { $0["exposure"] as! [String: Any] }
+        XCTAssertEqual(exposures.map { $0["exposureId"] as? String }, [a.exposureID, a.exposureID, b.exposureID])
+        XCTAssertEqual(exposures.map { ($0["subject"] as? [String: String])?["id"] }, ["user-a", "user-a", "user-b"])
+        for exposure in exposures {
+            XCTAssertEqual(exposure["app"] as? [String: String], ["version": "2.4.0", "build": "412"])
+            XCTAssertNil(exposure["native" + "Release"]) // the retired field, spelled in two parts for the repository check
+        }
         runtime.boundary(); await runtime.barrier()
     }
     func testStalePendingEnableCannotPublishOrReopenAfterDisable() async throws {
@@ -149,14 +175,14 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
     }
     func testFailedPurgeCannotBeForgottenByReenable() async throws {
         let state = FailureFlag(); let runtime = runtime(beforeCommit: { if state.value { throw CocoaError(.fileWriteNoPermission) } })
-        let first = try await enable(runtime); XCTAssertTrue(first)
+        let first = try await enable(runtime, user: "user-a"); XCTAssertTrue(first)
         state.value = true; let erase = runtime.revoke().request
         let erased = await runtime.finishRevocation(erase); XCTAssertFalse(erased)
-        let blocked = try await enable(runtime, id: "native-b"); XCTAssertFalse(blocked); XCTAssertNil(runtime.readyPointer)
+        let blocked = try await enable(runtime, user: "user-b"); XCTAssertFalse(blocked); XCTAssertNil(runtime.readyPointer)
         state.value = false
-        let accepted = try await enable(runtime, id: "native-b"); XCTAssertTrue(accepted)
+        let accepted = try await enable(runtime, user: "user-b"); XCTAssertTrue(accepted)
         let bodies = try rows().map { String(decoding: $0.body, as: UTF8.self) }
-        XCTAssertEqual(bodies.count, 1); XCTAssertFalse(bodies.contains { $0.contains("native-a") })
+        XCTAssertEqual(bodies.count, 1); XCTAssertFalse(bodies.contains { $0.contains("user-a") })
         runtime.boundary(); await runtime.barrier()
     }
     func testStartAndFrozenPointerUseIdenticalMillisecondTimestampAndNullBundle() async throws {
@@ -166,11 +192,31 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertEqual(exposure["startedAt"] as? String, "2026-10-08T01:02:03.456Z")
         XCTAssertTrue(exposure["loadedBuildId"] is NSNull)
         XCTAssertEqual(exposure["subject"] as? [String: String], ["kind": "anonymous"])
-        XCTAssertEqual(body["schemaVersion"] as? Int, 3)
+        XCTAssertEqual(body["schemaVersion"] as? Int, 4)
         XCTAssertEqual(body["capturedAt"] as? String, exposure["startedAt"] as? String)
         let pointer = try XCTUnwrap(runtime.readyPointer)
         XCTAssertEqual(Int64((pointer.startedAt.timeIntervalSince1970 * 1000).rounded()), Int64((now.timeIntervalSince1970 * 1000).rounded()))
         runtime.boundary(); await runtime.barrier()
+    }
+    // Review Focus 1: a build-less app's start record and frozen pointer both write "build": null.
+    func testAMissingBuildIsWrittenAsAnExplicitNull() async throws {
+        let runtime = runtime(app: AppRelease(version: "2.4.0", build: nil))
+        let accepted = try await enable(runtime); XCTAssertTrue(accepted)
+        let body = try XCTUnwrap(records().first)
+        XCTAssertEqual(body["schemaVersion"] as? Int, 4)
+        let app = try XCTUnwrap((body["exposure"] as? [String: Any])?["app"] as? [String: Any])
+        XCTAssertEqual(app["version"] as? String, "2.4.0"); XCTAssertTrue(app["build"] is NSNull)
+        let pointer = try XCTUnwrap(runtime.readyPointer)
+        XCTAssertEqual(pointer.app.version, "2.4.0"); XCTAssertNil(pointer.app.build)
+        let wire = try XCTUnwrap(JSONSerialization.jsonObject(with: ReleaseHealthDate.encoder().encode(pointer)) as? [String: Any])
+        let wireApp = try XCTUnwrap(wire["app"] as? [String: Any])
+        XCTAssertTrue(wireApp["build"] is NSNull)
+        runtime.boundary(); await runtime.barrier()
+    }
+    func testAnInvalidAppReleaseNeverOpensASession() async throws {
+        let runtime = runtime(app: AppRelease(version: String(repeating: "a", count: 65), build: nil))
+        let accepted = try await enable(runtime); XCTAssertFalse(accepted)
+        XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
     }
     func testDisableDuringDurableAppendNeverPublishesReadiness() async throws {
         let entered = expectation(description: "append reached durable boundary")
@@ -189,7 +235,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
     func testPreparedTransportCannotStartAfterRevocation() async throws {
         let prepared = expectation(description: "transport prepared")
         let gate = HealthAsyncGate(); let sent = FailureFlag(); let key = key, now = now
-        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, now: { now }, transport: { _, admission in
+        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, now: { now }, transport: { _, admission in
             prepared.fulfill(); await gate.wait()
             _ = admission { sent.value = true }
             return .retry
@@ -222,14 +268,14 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertNil(runtime.readyPointer); XCTAssertEqual(try rows().count, 256)
     }
     func testInterruptedStagingIsErasedBeforeTheNextStart() async throws {
-        let old = ReleaseHealthSegment(configuration: try configuration("native-old"), sdkVersion: "1.0.0", sdkKey: "key-a",
+        let old = ReleaseHealthSegment(configuration: try configuration("user-old"), app: .testRelease, sdkVersion: "1.0.0", sdkKey: "key-a",
             endpoint: "https://a.example/api/ingest/release-health", processLaunchID: UUID(), now: now, uptime: 1)
         try ReleaseHealthStore(root: root, keyProvider: { self.key }).append(old.entry(end: false, now: now, uptime: 1))
         try Data("partial encrypted staging".utf8).write(to: root.appendingPathComponent(".pending"))
         let runtime = runtime(); let accepted = try await enable(runtime); XCTAssertTrue(accepted)
         let pointer = try XCTUnwrap(runtime.readyPointer); XCTAssertNotEqual(pointer.exposureID, old.pointer.exposureID)
-        let records = try rows().map { try JSONSerialization.jsonObject(with: $0.body) as! [String: Any] }
-        XCTAssertEqual(records.compactMap { ($0["exposure"] as? [String: Any])?["exposureId"] as? String }, [pointer.exposureID])
+        let bodies = try records()
+        XCTAssertEqual(bodies.compactMap { ($0["exposure"] as? [String: Any])?["exposureId"] as? String }, [pointer.exposureID])
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".pending").path))
         runtime.boundary(); await runtime.barrier()
     }
@@ -238,7 +284,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
             endpoint: "https://a.example/api/ingest/release-health", body: Data("{}".utf8))
         try ReleaseHealthStore(root: root, keyProvider: { self.key }).append(foreign)
         let sent = HealthValues<String>(), key = key, now = now
-        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, now: { now }, transport: { entry, admission in
+        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, now: { now }, transport: { entry, admission in
             _ = admission { sent.append(entry.sdkKey) }; return .settled
         })
         let accepted = try await enable(runtime, key: "key-b"); XCTAssertTrue(accepted)

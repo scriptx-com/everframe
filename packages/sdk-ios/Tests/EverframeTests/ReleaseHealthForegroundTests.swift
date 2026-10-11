@@ -15,11 +15,11 @@ final class ReleaseHealthForegroundTests: XCTestCase {
     override func tearDownWithError() throws { try FileManager.default.removeItem(at: root) }
     private func runtime(foreground: Bool = true, beforeCommit: @escaping () throws -> Void = {}) -> ReleaseHealthRuntime {
         let key = key, now = now
-        return ReleaseHealthRuntime(root: root, keyProvider: { key }, now: { now }, beforeCommit: beforeCommit,
+        return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, now: { now }, beforeCommit: beforeCommit,
             initiallyForeground: foreground, transport: { _, _ in .retry })
     }
     private func enable(_ runtime: ReleaseHealthRuntime, user: String = "opaque-a") async throws -> Bool {
-        let config = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable, userId: user)
+        let config = try ReleaseHealthConfiguration(userId: user)
         let ticket = runtime.requestEnable(configuration: config, sdkKey: "key", endpoint: "https://example.test").ticket
         return await runtime.enable(ticket: ticket, sdkVersion: "test")
     }
@@ -75,7 +75,7 @@ final class ReleaseHealthForegroundTests: XCTestCase {
     }
     func testConfigurationBoundaryCompletesOldSessionEvenWhenReplacementCannotStart() async throws {
         let runtime = runtime(); let opened = try await enable(runtime); XCTAssertTrue(opened)
-        let config = try ReleaseHealthConfiguration(nativeBuildId: "replacement", loadedBuildId: nil, loadedBundleStatus: .notApplicable)
+        let config = ReleaseHealthConfiguration()
         let ticket = runtime.requestEnable(configuration: config, sdkKey: "key", endpoint: "https://example.test").ticket
         let rejected = await runtime.enable(ticket: ticket, sdkVersion: ""); XCTAssertFalse(rejected)
         await runtime.barrier()
