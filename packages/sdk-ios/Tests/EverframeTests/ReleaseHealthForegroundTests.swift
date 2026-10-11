@@ -15,7 +15,7 @@ final class ReleaseHealthForegroundTests: XCTestCase {
     override func tearDownWithError() throws { try FileManager.default.removeItem(at: root) }
     private func runtime(foreground: Bool = true, beforeCommit: @escaping () throws -> Void = {}) -> ReleaseHealthRuntime {
         let key = key, now = now
-        return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, now: { now }, beforeCommit: beforeCommit,
+        return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { _ in .testRelease }, now: { now }, beforeCommit: beforeCommit,
             initiallyForeground: foreground, transport: { _, _ in .retry })
     }
     private func enable(_ runtime: ReleaseHealthRuntime, user: String = "opaque-a") async throws -> Bool {

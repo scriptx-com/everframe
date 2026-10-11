@@ -45,7 +45,7 @@ public final class Everframe: @unchecked Sendable {
                   releaseHealthRuntime: ReleaseHealthRuntime? = ReleaseHealthRuntime.makeRuntime(),
                   appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
                   nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() },
-                  isDebugBuild: @escaping @Sendable () -> Bool = { DebugBuildDetector.current },
+                  isDebugBuild: @escaping @Sendable (_ configured: Bool?) -> Bool = { DebugBuild.current(configured: $0) },
                   releaseHealthNotice: @escaping @Sendable (String) -> Void = { InternalLogger.notice($0) }) {
         self.nativeCrashRuntime = nativeCrashRuntime
         self.appleDiagnosticRuntime = appleDiagnosticRuntime
@@ -71,9 +71,10 @@ public final class Everframe: @unchecked Sendable {
     private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
     /// Delivers the first application state. Assigned once, by init on iOS.
     internal var releaseHealthLifecycleReady: Task<Void, Never>?
-    /// Release health skips debug builds. Injected so tests get one answer on the macOS host and
-    /// in the simulator, where the production check reads debug.
-    private let isDebugBuild: @Sendable () -> Bool
+    /// Release health skips debug builds. Takes `EverframeConfig.debugBuild`, which wins when set.
+    /// Injected so tests get one answer on the macOS host and in the simulator, where the
+    /// production check reads debug.
+    private let isDebugBuild: @Sendable (_ configured: Bool?) -> Bool
     /// Writes SDK status lines, such as the debug-build skip, to the console.
     private let releaseHealthNotice: @Sendable (String) -> Void
     /// The deferred `config.releaseHealth` work of the latest `start(config:)`; nil when it had none.
@@ -223,7 +224,8 @@ public final class Everframe: @unchecked Sendable {
         // A debug build is off unless the configuration includes debug builds. The skip takes nil's
         // path: revoke now and erase in the returned operation, so an earlier includeDebugBuilds run
         // leaves nothing behind. The detector runs outside stateLock; its first call may read a file.
-        let skipped = requested.map { !$0.includeDebugBuilds && isDebugBuild() } ?? false
+        let debugBuild = (expectedConfig ?? stateLock.withLock { _config })?.debugBuild
+        let skipped = requested.map { !$0.includeDebugBuilds && isDebugBuild(debugBuild) } ?? false
         let configuration = skipped ? nil : requested
         var notice = false
         let reserved: (command: UInt64, epoch: Int, configGeneration: UInt64, ticket: UInt64)? = stateLock.withLock {
@@ -240,7 +242,8 @@ public final class Everframe: @unchecked Sendable {
             let change: (UInt64, Bool)
             if let configuration, let config = _config {
                 change = runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
-                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString)
+                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString,
+                    debugBuild: config.debugBuild)
             } else { change = runtime.revoke() }
             // Only a withdrawn pointer can be carried by an armed or pending native context. An
             // unchanged owner, or one that was never ready, leaves native capture untouched.
@@ -274,7 +277,8 @@ public final class Everframe: @unchecked Sendable {
                       _configGeneration == reserved.configGeneration, Self.captureGate,
                       nativeCrashPublishedEpoch == _startEpoch, let config = _config else { return nil }
                 return runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
-                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString).ticket
+                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString,
+                    debugBuild: config.debugBuild).ticket
             }
             guard let ticket else { return false }
             let enabled = await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION)

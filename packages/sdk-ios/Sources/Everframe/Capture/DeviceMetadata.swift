@@ -84,8 +84,9 @@ public struct DeviceMetadata: Codable, Sendable {
         let screenHeight: Double = 0
         let pixelRatio: Double = 1
         #endif
-        // One rule for release health and every report's app version (AppRelease).
-        let release = AppRelease.current()
+        // One rule for release health and every report's app version (AppRelease). Only the
+        // version and build are read here; `app.debug` comes from the config at each call site.
+        let release = AppRelease.current(debugBuild: nil)
         return DeviceMetadata(
             model: model,
             osName: osName,

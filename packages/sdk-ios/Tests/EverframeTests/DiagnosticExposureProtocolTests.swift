@@ -5,7 +5,7 @@ import EverframeProtocol
 
 final class DiagnosticExposureProtocolTests: XCTestCase {
     private func pointer(build: String?) -> EverframeNativeExposure {
-        EverframeNativeExposure(app: EverframeNativeExposureApp(build: build, version: "2.4.0"), exposureID: "exposure",
+        EverframeNativeExposure(app: EverframeNativeExposureApp(build: build, debug: false, version: "2.4.0"), exposureID: "exposure",
             loadedBuildID: nil, loadedBundleStatus: .notApplicable, processLaunchID: "process",
             startedAt: Date(timeIntervalSince1970: 0))
     }
@@ -29,7 +29,7 @@ final class DiagnosticExposureProtocolTests: XCTestCase {
     }
     func testTheEnvelopeAppKeepsItsGeneratedName() {
         // If quicktype renamed the envelope's app type to tell it from the pointer's app, this stops compiling.
-        let app: EverframeApp = EverframeApp(build: "412", name: "dev.example", version: "2.4.0")
+        let app: EverframeApp = EverframeApp(build: "412", debug: false, name: "dev.example", version: "2.4.0")
         XCTAssertEqual(app.version, "2.4.0")
     }
     func testLegacyInitializerDoesNotRequireAnExposure() throws {

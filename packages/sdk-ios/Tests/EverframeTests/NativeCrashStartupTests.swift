@@ -38,6 +38,15 @@ final class NativeCrashStartupTests: XCTestCase {
         XCTAssertNil(envelope.reporter.user); XCTAssertEqual(envelope.context.app.version, "1.2.3")
         XCTAssertNil(context.identitySubject)
     }
+    func testTemplateCarriesTheConfiguredDebugBuild() throws {
+        for configured in [true, false] {
+            let context = try NativeCrashStartupContext.make(config: .init(sdkKey: "sdk-A", debugBuild: configured), user: nil,
+                device: device, endpoint: "https://example.invalid")
+            XCTAssertEqual(try EverframeReportEnvelope(data: context.envelopeTemplate).context.app.debug, configured)
+        }
+        let detected = try NativeCrashStartupContext.make(config: .init(sdkKey: "sdk-A"), user: nil, device: device, endpoint: "https://example.invalid")
+        XCTAssertEqual(try EverframeReportEnvelope(data: detected.envelopeTemplate).context.app.debug, DebugBuildDetector.current)
+    }
     func testNormalBreadcrumbInstallationDoesNotReplaceProcessFatalHandler() {
         // The legacy adapter installs once per process. Reset it so an earlier
         // start() in this process cannot mask a reintroduced installation.

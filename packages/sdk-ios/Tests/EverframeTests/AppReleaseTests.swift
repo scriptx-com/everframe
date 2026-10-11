@@ -5,29 +5,40 @@ import XCTest
 
 extension AppRelease {
     /// The release runtime tests inject: `swift test` runs under the xctest bundle's Info.plist.
-    static let testRelease = AppRelease(version: "2.4.0", build: "412")
+    static let testRelease = AppRelease(version: "2.4.0", build: "412", debug: false)
 }
 
 /// The one version rule shared by release health and every report's context.app.version (Review Focus 2).
 final class AppReleaseTests: XCTestCase {
-    private func release(_ short: String?, _ bundle: String?) -> AppRelease { .from(shortVersion: short, bundleVersion: bundle) }
+    private func release(_ short: String?, _ bundle: String?) -> AppRelease { .from(shortVersion: short, bundleVersion: bundle, debug: false) }
 
+    func testDebugIsCarriedAsGiven() {
+        XCTAssertTrue(AppRelease.from(shortVersion: "2.4.0", bundleVersion: "412", debug: true).debug)
+        XCTAssertFalse(AppRelease.from(shortVersion: "2.4.0", bundleVersion: "412", debug: false).debug)
+        XCTAssertNotEqual(AppRelease(version: "2.4.0", build: "412", debug: true), AppRelease(version: "2.4.0", build: "412", debug: false))
+    }
+    /// The configured value wins over the signing check, which the test host's own signing decides.
+    func testCurrentTakesDebugFromTheConfiguredValue() {
+        XCTAssertTrue(AppRelease.current(debugBuild: true).debug)
+        XCTAssertFalse(AppRelease.current(debugBuild: false).debug)
+        XCTAssertEqual(AppRelease.current(debugBuild: nil).debug, DebugBuildDetector.current)
+    }
     func testTheShortVersionIsTheVersionAndTheBundleVersionTheBuild() {
-        XCTAssertEqual(release("2.4.0", "412"), AppRelease(version: "2.4.0", build: "412"))
-        XCTAssertEqual(release(" 2.4.0 ", "412"), AppRelease(version: "2.4.0", build: "412"))
+        XCTAssertEqual(release("2.4.0", "412"), AppRelease(version: "2.4.0", build: "412", debug: false))
+        XCTAssertEqual(release(" 2.4.0 ", "412"), AppRelease(version: "2.4.0", build: "412", debug: false))
     }
     func testAMissingOrInvalidShortVersionReportsTheBundleVersion() {
-        XCTAssertEqual(release(nil, "412"), AppRelease(version: "412", build: "412"))
-        XCTAssertEqual(release(String(repeating: "a", count: 65), "412"), AppRelease(version: "412", build: "412"))
-        XCTAssertEqual(release("bad\u{0}", "412"), AppRelease(version: "412", build: "412"))
+        XCTAssertEqual(release(nil, "412"), AppRelease(version: "412", build: "412", debug: false))
+        XCTAssertEqual(release(String(repeating: "a", count: 65), "412"), AppRelease(version: "412", build: "412", debug: false))
+        XCTAssertEqual(release("bad\u{0}", "412"), AppRelease(version: "412", build: "412", debug: false))
     }
     func testNeitherKeyGivesVersion000AndNoBuild() {
-        XCTAssertEqual(release("", nil), AppRelease(version: "0.0.0", build: nil))
-        XCTAssertEqual(release(nil, nil), AppRelease(version: "0.0.0", build: nil))
+        XCTAssertEqual(release("", nil), AppRelease(version: "0.0.0", build: nil, debug: false))
+        XCTAssertEqual(release(nil, nil), AppRelease(version: "0.0.0", build: nil, debug: false))
         XCTAssertEqual(AppRelease.unknownVersion, "0.0.0")
     }
     func testABlankBundleVersionIsNoBuild() {
-        XCTAssertEqual(release("2.4.0", "  "), AppRelease(version: "2.4.0", build: nil))
+        XCTAssertEqual(release("2.4.0", "  "), AppRelease(version: "2.4.0", build: nil, debug: false))
     }
     func testSixtyFourUTF16UnitsIsTheLongestVersion() {
         XCTAssertEqual(AppRelease.maxLength, 64)
@@ -41,8 +52,8 @@ final class AppReleaseTests: XCTestCase {
     }
     func testInjectedValuesAreCheckedBeforeTheyOpenASession() {
         XCTAssertTrue(AppRelease.testRelease.isValid)
-        XCTAssertTrue(AppRelease(version: "2.4.0", build: nil).isValid)
-        XCTAssertFalse(AppRelease(version: String(repeating: "a", count: 65), build: nil).isValid)
-        XCTAssertFalse(AppRelease(version: "2.4.0", build: " ").isValid)
+        XCTAssertTrue(AppRelease(version: "2.4.0", build: nil, debug: false).isValid)
+        XCTAssertFalse(AppRelease(version: String(repeating: "a", count: 65), build: nil, debug: false).isValid)
+        XCTAssertFalse(AppRelease(version: "2.4.0", build: " ", debug: false).isValid)
     }
 }

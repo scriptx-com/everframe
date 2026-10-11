@@ -458,17 +458,22 @@ public struct EnvelopeBuilder {
         #if canImport(Foundation)
         let bundleName = Bundle.main.bundleIdentifier ?? "unknown"
         // The same rule as release health, so errors join to the version their sessions report.
-        let release = AppRelease.current()
+        // Callers that hold the config pass `app.debug` in `extra`, so `debugBuild` wins; the
+        // detected answer is the fallback.
+        let release = AppRelease.current(debugBuild: nil)
         let bundleVersion = release.version
         let bundleBuild = release.build
+        let bundleDebug = release.debug
         #else
         let bundleName = "unknown"
         let bundleVersion = "0.0.0"
         let bundleBuild: String? = nil
+        let bundleDebug = false
         #endif
 
         let app = EverframeApp(
             build: extra["app.build"] ?? bundleBuild,
+            debug: extra["app.debug"].map { $0 == "true" } ?? bundleDebug,
             name: extra["app.name"] ?? bundleName,
             version: extra["app.version"] ?? bundleVersion
         )

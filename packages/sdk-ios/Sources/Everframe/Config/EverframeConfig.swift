@@ -82,6 +82,14 @@ public struct EverframeConfig: Sendable, Equatable {
     /// Debug builds record nothing unless `includeDebugBuilds` is set. tvOS does not collect it.
     /// The React Native bridge passes its health separately and leaves this nil.
     public var releaseHealth: ReleaseHealthConfiguration?
+    /// Whether this app is a debug build, which Everframe never creates a release from. `nil` (the
+    /// default) detects it: a simulator build, or one signed for development (its embedded
+    /// provisioning profile sets `get-task-allow`), is a debug build; TestFlight and App Store
+    /// builds are not. `#if DEBUG` is not used, because it would describe how this SDK was
+    /// compiled, not your app. Set it to force the answer, for example `false` for a development-signed
+    /// build that should count as a release. Also decides whether release health skips the build.
+    /// Mirrors Android's `EverframeConfig.debugBuild`.
+    public var debugBuild: Bool?
 
     public enum Environment: Sendable, Equatable {
         case development
@@ -102,7 +110,8 @@ public struct EverframeConfig: Sendable, Equatable {
         theme: ReporterThemeOptions? = nil,
         installIdentifierEnabled: Bool = true,
         vitals: VitalsConfig = VitalsConfig(),
-        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration()
+        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration(),
+        debugBuild: Bool? = nil
     ) {
         self.sdkKey = sdkKey
         self.environment = environment
@@ -117,12 +126,13 @@ public struct EverframeConfig: Sendable, Equatable {
         self.installIdentifierEnabled = installIdentifierEnabled
         self.vitals = vitals
         self.releaseHealth = releaseHealth
+        self.debugBuild = debugBuild
     }
 
     /// The SDK 1.1 spelling of `init(sdkKey:…)`. Its `appId` took the SDK key
     /// (`evf_live_…`), never the App ID, so it forwards unchanged. Deprecated
     /// rather than removed so 1.1 call sites keep compiling.
-    @available(*, deprecated, renamed: "init(sdkKey:environment:release:capture:redaction:companionDeviceId:companionBadgeEnabled:shakeToReportEnabled:companionBadgePosition:theme:installIdentifierEnabled:vitals:releaseHealth:)")
+    @available(*, deprecated, renamed: "init(sdkKey:environment:release:capture:redaction:companionDeviceId:companionBadgeEnabled:shakeToReportEnabled:companionBadgePosition:theme:installIdentifierEnabled:vitals:releaseHealth:debugBuild:)")
     public init(
         appId: String,
         environment: Environment = .production,
@@ -136,14 +146,16 @@ public struct EverframeConfig: Sendable, Equatable {
         theme: ReporterThemeOptions? = nil,
         installIdentifierEnabled: Bool = true,
         vitals: VitalsConfig = VitalsConfig(),
-        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration()
+        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration(),
+        debugBuild: Bool? = nil
     ) {
         self.init(
             sdkKey: appId, environment: environment, release: release, capture: capture,
             redaction: redaction, companionDeviceId: companionDeviceId,
             companionBadgeEnabled: companionBadgeEnabled, shakeToReportEnabled: shakeToReportEnabled,
             companionBadgePosition: companionBadgePosition, theme: theme,
-            installIdentifierEnabled: installIdentifierEnabled, vitals: vitals, releaseHealth: releaseHealth
+            installIdentifierEnabled: installIdentifierEnabled, vitals: vitals, releaseHealth: releaseHealth,
+            debugBuild: debugBuild
         )
     }
 
