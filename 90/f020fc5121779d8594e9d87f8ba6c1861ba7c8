@@ -1,0 +1,43 @@
+.changeset/ios-error-replays.md
+  s_269319d6df67e5::t_8723e13350ef72 1-8
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_269319d6df67e5::t_7365d3646629a0 229-231,631-644
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoSession.swift
+  s_269319d6df67e5::t_3acc7006309caa 58-60,74-79,82,91,101-102,106
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_269319d6df67e5::t_674b75ad721d8d 57-63,152-153,158-159,161-162,171-172,174-175,252,260,333,350,453,556-576,578-592,636-655,663
+packages/sdk-ios/Sources/Everframe/Crash/ErrorReplay.swift
+  s_269319d6df67e5::t_d0f985026f7677 1-194
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_269319d6df67e5::t_9b8a8f2b5e9d24 2118-2127
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_269319d6df67e5::t_4aaaab0ee660b7 44-49,74-75,85-105,269-286
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_269319d6df67e5::t_712f5a1be6dbc9 744-746
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_269319d6df67e5::t_fe2eb2696006f0 317-319,322,491-494
+packages/sdk-ios/Tests/EverframeTests/CompanionFreezeLifecycleTests.swift
+  s_269319d6df67e5::t_313b1246cde6f7 25-34,37-38,48-49,64-65
+packages/sdk-ios/Tests/EverframeTests/ErrorReplayTests.swift
+  s_269319d6df67e5::t_9dae253158529d 1-415
+packages/sdk-ios/Tests/EverframeTests/NativeVideoCoordinatorTests.swift
+  s_269319d6df67e5::t_f971714f730c73 24-66
+packages/sdk-ios/Tests/EverframeTests/NativeVideoSessionTests.swift
+  s_269319d6df67e5::t_e4cf7ff0a9b9f7 44-59,231-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "90f020fc5121779d8594e9d87f8ba6c1861ba7c8",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
