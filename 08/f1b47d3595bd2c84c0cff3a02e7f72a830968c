@@ -1,0 +1,33 @@
+.changeset/web-error-replays.md
+  s_269319d6df67e5::t_739071738ad3c2 1-8
+packages/sdk-web/__tests__/capture/replay/error-replay-adapter.spec.ts
+  s_269319d6df67e5::t_d9df2055a3df6a 1-310
+packages/sdk-web/__tests__/capture/replay/error-replay.spec.ts
+  s_269319d6df67e5::t_1ef89930d58345 1-173
+packages/sdk-web/__tests__/transport/error-replay-drain.spec.ts
+  s_269319d6df67e5::t_f85f49056058ba 1-256
+packages/sdk-web/src/adapter.ts
+  s_269319d6df67e5::t_2b6948e7038db9 110-115,1656-1667,1669-1671,1673-1676,1694-1700,1735-1738
+packages/sdk-web/src/capture/replay/error-replay.ts
+  s_269319d6df67e5::t_74fa0aa9101e94 1-115
+packages/sdk-web/src/transport/error-replay-parts.ts
+  s_269319d6df67e5::t_a91aebe58713d2 1-96
+packages/sdk-web/src/transport/submit.ts
+  s_269319d6df67e5::t_59cd658714424e 26-31,545,550,608-609,626,688-691,693,696,702,704-714,720,753
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08f1b47d3595bd2c84c0cff3a02e7f72a830968c",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
