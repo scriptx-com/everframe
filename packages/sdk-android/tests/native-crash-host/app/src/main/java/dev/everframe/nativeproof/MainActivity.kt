@@ -46,7 +46,7 @@ class MainActivity : Activity() {
         val config = EverframeConfig(appId = "native-proof-app", sdkKey = intent.getStringExtra("key") ?: "native-proof-key",
             capture = CaptureConfig(crash = true, logs = false, network = false),
             installIdentifierEnabled = false, vitals = VitalsConfig(enabled = false), shakeToReportEnabled = false,
-            releaseHealth = if (intent.getBooleanExtra("health", false)) ReleaseHealthConfig(BuildConfig.PROOF_NATIVE_BUILD_ID) else null)
+            releaseHealth = if (intent.getBooleanExtra("health", false)) ReleaseHealthConfig() else null)
         Everframe.start(applicationContext, config, this)
         scope.launch {
             try {
@@ -111,7 +111,7 @@ class MainActivity : Activity() {
                         check(!Everframe.isNativeCrashCaptureReady())
                     }
                     File(root, "$marker.json").writeText(JSONObject().put("mode", mode).put("ready", Everframe.isNativeCrashCaptureReady())
-                        .put("healthReady", Everframe.isReleaseHealthReady()).put("nativeBuildId", BuildConfig.PROOF_NATIVE_BUILD_ID)
+                        .put("healthReady", Everframe.isReleaseHealthReady()).put("appVersion", BuildConfig.VERSION_NAME)
                         .put("pid", android.os.Process.myPid()).put("reports", reports).put("attempts", attempts)
                         .put("queueAfter", outbox.count()).put("exits", exits).toString())
                 }
@@ -138,7 +138,7 @@ class MainActivity : Activity() {
         fun config(key: String, enabled: Boolean = true) = EverframeConfig(appId = "native-proof-app", sdkKey = key,
             capture = CaptureConfig(screenshot = false, focus = false, crash = true, logs = false, network = false),
             installIdentifierEnabled = false, vitals = VitalsConfig(enabled = false), shakeToReportEnabled = false,
-            releaseHealth = if (enabled) ReleaseHealthConfig(BuildConfig.PROOF_NATIVE_BUILD_ID) else null)
+            releaseHealth = if (enabled) ReleaseHealthConfig() else null)
         val key = intent.getStringExtra("key") ?: "native-proof-key"
         when (mode) {
             "health-start", "health-replace" -> Everframe.start(applicationContext, config(key), this)
@@ -165,7 +165,7 @@ class MainActivity : Activity() {
                             File(root, "${entry.reportId}.json").writeBytes(entry.envelopeBytes)
                     }
                     File(root, "$marker.json").writeText(JSONObject().put("mode", mode)
-                        .put("healthReady", Everframe.isReleaseHealthReady()).put("nativeBuildId", BuildConfig.PROOF_NATIVE_BUILD_ID)
+                        .put("healthReady", Everframe.isReleaseHealthReady()).put("appVersion", BuildConfig.VERSION_NAME)
                         .put("pid", android.os.Process.myPid()).toString())
                 }
             } catch (failure: Throwable) {

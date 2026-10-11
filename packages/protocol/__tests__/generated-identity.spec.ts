@@ -56,4 +56,17 @@ describe('generated Everframe protocol identity', () => {
     expect(source).toContain('@SerialName("traceitx-vtree-v1") LegacyV1("traceitx-vtree-v1")');
     expect(source).toContain('encoder.encodeString("everframe-vtree-v1")');
   });
+
+  it('generated Kotlin writes the pointer app build as an explicit null and keeps App', () => {
+    const source = readFileSync(path.join(kotlinRoot, 'Generated.kt'), 'utf8');
+    expect(source).toMatch(
+      /\ndata class NativeExposureApp \(\n {4}@Required\n {4}val build: String\? = null,\n {4}val version: String\n\)/u,
+    );
+    expect(source).toMatch(/\ndata class NativeExposure \(\n {4}val app: NativeExposureApp,\n/u);
+    expect(source).toMatch(
+      /\n@Serializable\ndata class App \(\n {4}val build: String\? = null,\n {4}val name: String,\n {4}val version: String\n\)/u,
+    );
+    // Spelled in two parts so the repository-wide check for the retired field stays clean.
+    expect(source).not.toContain('native' + 'BuildId');
+  });
 });

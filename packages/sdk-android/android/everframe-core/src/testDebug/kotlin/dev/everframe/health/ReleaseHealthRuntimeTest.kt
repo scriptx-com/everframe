@@ -60,7 +60,7 @@ import kotlin.io.path.createTempDirectory
 class ReleaseHealthRuntimeTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
     private val config = EverframeConfig(appId = "health-runtime", sdkKey = "txx_live_health_runtime_test",
-        capture = CaptureConfig(logs = false), releaseHealth = ReleaseHealthConfig("native-build-A"))
+        capture = CaptureConfig(logs = false), releaseHealth = ReleaseHealthConfig())
     /** Stands in for the Keystore: it outlives a simulated process death. */
     private val keystore: MutableMap<String, SecretKey> = Collections.synchronizedMap(HashMap())
     private val nativeKeys = mapOf("contexts" to JceTestOutboxKeyProvider(), "prepared" to JceTestOutboxKeyProvider())
@@ -208,6 +208,20 @@ class ReleaseHealthRuntimeTest {
     private fun capsule() = decoded(OutboxStore(File(context.noBackupFilesDir, "dev.everframe/native-signal-v1/capsules"),
         signalKeys, JvmOutboxFileOps(), 8, 2L * 1024 * 1024)).single().second
 
+    @Test fun `the session carries the app version and build the package declares`() {
+        shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName).apply {
+            versionName = "2.4.0"; longVersionCode = 412
+        }
+        start()
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        val session = pointer()!!
+        assertEquals(dev.everframe.capture.AppRelease("2.4.0", "412"), session.app)
+        val record = records().single()
+        assertEquals(4, record.getValue("schemaVersion").jsonPrimitive.int)
+        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", "412") },
+            record.getValue("exposure").jsonObject.getValue("app"))
+        assertEquals(session.toJson(), JsonObject(record.getValue("exposure").jsonObject.filterKeys { it in session.toJson().keys }))
+    }
     @Test fun `foreground entry keeps the OS context registered until the session context replaces it`() {
         start()
         assertFalse(Everframe.isReleaseHealthReady())

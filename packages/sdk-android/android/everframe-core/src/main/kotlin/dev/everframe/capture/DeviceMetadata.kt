@@ -42,7 +42,9 @@ object DeviceMetadata {
     fun collect(context: Context): Map<String, Any?> {
         val cfg = context.resources.configuration
         val pm = context.packageManager
-        val (appVersion, appBuild) = readAppVersion(context, pm)
+        val (versionName, appBuild) = readAppVersion(context, pm)
+        // The same rule names the release-health version, so errors join to their sessions' version.
+        val appVersion = AppReleaseRule.of(versionName, appBuild).version
 
         val isTv = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
             (cfg.uiMode and Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION
@@ -66,6 +68,12 @@ object DeviceMetadata {
             put("isTv", isTv)
             put("isTablet", isTablet)
         }
+    }
+
+    /** The app's version and build under [AppReleaseRule]; ("0.0.0", null) when the package info is unreadable. */
+    internal fun appRelease(context: Context): AppRelease {
+        val (versionName, versionCode) = readAppVersion(context, context.packageManager)
+        return AppReleaseRule.of(versionName, versionCode)
     }
 
     private fun readAppVersion(

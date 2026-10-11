@@ -249,15 +249,30 @@ ${nativeParams.join(',\n')}
 ${nativeParams.map((p, i) => `${p} = this.${nativeNames[i]}`).join(',\n')}
     ): NativeCrashMetadata = NativeCrashMetadata(${nativeNames.join(', ')}, releaseHealthEvidence)
 }`);
-// This nullable field is required on the wire: omission changes the exact
-// frozen pointer and must not result from the default encoder configuration.
+// These nullable fields are required on the wire: the API matches a crash to its
+// session by the exact frozen pointer, so a null must be written, never omitted
+// by the default encoder configuration.
 const exposurePattern = /data class NativeExposure \(\n([\s\S]*?)\n\)/;
 const exposureMatch = rewritten.match(exposurePattern);
 if (!exposureMatch || !exposureMatch[1].includes('    val loadedBuildID: String? = null,')) {
   throw new Error('codegen-kotlin: NativeExposure.loadedBuildID shape changed');
 }
+if (!exposureMatch[1].includes('    val app: NativeExposureApp,')) {
+  throw new Error('codegen-kotlin: NativeExposure.app missing; the schema must name it NativeExposureApp');
+}
 rewritten = rewritten.replace(exposurePattern, exposureMatch[0].replace(
   '    val loadedBuildID: String? = null,', '    @Required\n    val loadedBuildID: String? = null,'));
+const exposureAppPattern = /data class NativeExposureApp \(\n([\s\S]*?)\n\)/;
+const exposureAppMatch = rewritten.match(exposureAppPattern);
+if (!exposureAppMatch || !exposureAppMatch[1].includes('    val build: String? = null,')) {
+  throw new Error('codegen-kotlin: NativeExposureApp.build shape changed');
+}
+rewritten = rewritten.replace(exposureAppPattern, exposureAppMatch[0].replace(
+  '    val build: String? = null,', '    @Required\n    val build: String? = null,'));
+// The pointer's app must not take the envelope app's published name.
+if (!/\n@Serializable\ndata class App \(\n    val build: String\? = null,\n    val name: String,\n    val version: String\n\)/.test(rewritten)) {
+  throw new Error('codegen-kotlin: App was renamed or reshaped');
+}
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {
   throw new Error('codegen-kotlin: Format block shape changed');

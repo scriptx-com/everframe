@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.health
 
+import dev.everframe.capture.AppRelease
 import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.outbox.OutboxStore
@@ -99,7 +100,7 @@ internal class ReleaseHealthController(
             completedRevocation == revocation.get()
         } catch (_: Exception) { false }
     }
-    fun activate(request: ReleaseHealthRequest, config: ReleaseHealthConfig, sdkVersion: String,
+    fun activate(request: ReleaseHealthRequest, config: ReleaseHealthConfig, app: AppRelease, sdkVersion: String,
                  sdkKey: String, endpoint: String, currentAuthorization: OutboxAuthorization,
                  retentionAuthorization: OutboxAuthorization): Boolean = synchronized(storageLock) {
         if (!request.enabled || !config.enabled || state.get()?.foreground != true || !current(request) || !currentAuthorization.isAllowed()) return@synchronized false
@@ -114,7 +115,7 @@ internal class ReleaseHealthController(
         val retainedGate = object : OutboxAuthorization {
             override fun isAllowed() = request.revocation == revocation.get() && retentionAuthorization.isAllowed()
         }
-        val producer = ReleaseHealthProducer(queue, config, sdkVersion, sdkKey, endpoint,
+        val producer = ReleaseHealthProducer(queue, config, app, sdkVersion, sdkKey, endpoint,
             currentGate, retainedGate, processLaunchId)
         val expected = state.get() ?: return@synchronized false
         if (expected.request !== request) return@synchronized false

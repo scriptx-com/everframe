@@ -48,7 +48,7 @@ class AndroidNativeSignalControllerTest {
     @Test fun `refresh rotates frozen signal attribution and keeps background capture armed`() {
         val launch = UUID.randomUUID().toString()
         var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
-            UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", "native", null,
+            UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null,
             dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         val p = Producer()
         val c = AndroidNativeSignalController(::engine, p, { null }, launch, { 3000 }, exposure = { pointer })
@@ -62,7 +62,7 @@ class AndroidNativeSignalControllerTest {
         assertTrue(c.refreshExposure(1))
         assertTrue(p.armed); assertTrue(c.ready(1)); assertFalse(frozen().containsKey("nativeExposure"))
         pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
-            "2026-10-09T10:00:01.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         c.invalidateExposure(); assertTrue(c.refreshExposure(1))
         assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
         assertEquals(3, p.arms)
@@ -78,7 +78,7 @@ class AndroidNativeSignalControllerTest {
         assertTrue(enable(c)); assertFalse(frozen().containsKey("nativeExposure"))
         // Foreground entry fences nothing; the refresh after the durable start replaces the capsule.
         pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
-            "2026-10-09T10:00:00.000Z", "native", null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+            "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         assertTrue(c.refreshExposure(1))
         assertEquals(pointer!!.toJson(), frozen()["nativeExposure"])
         assertTrue(p.armed); assertTrue(c.ready(1)); assertEquals(2, p.arms)
