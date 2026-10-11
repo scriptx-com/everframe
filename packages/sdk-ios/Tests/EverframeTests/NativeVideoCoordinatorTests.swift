@@ -16,7 +16,47 @@ private actor VideoConfigFetcher: URLSessionFetching {
     }
 }
 
+@MainActor private final class DeviceConditionsBox {
+    var value = ReplayDeviceConditions(thermal: .nominal, lowPowerMode: false)
+}
+
 @MainActor @Suite(.serialized) struct NativeVideoCoordinatorTests {
+    @Test func lowPowerModeAndSeriousHeatPauseCaptureUntilConditionsClear() async {
+        await withGlobalCaptureStateLock {
+            let conditions = DeviceConditionsBox()
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
+            let session = ReplaySession(provider: provider, locallyDisabled: false, deviceConditions: { conditions.value })
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+            conditions.value.lowPowerMode = true
+            await postFromBackgroundQueue(.NSProcessInfoPowerStateDidChange)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+            await session.refreshConfigNow()
+            #expect(session.__lifecycleStateForTesting() == .idle)
+            conditions.value.lowPowerMode = false
+            await postFromBackgroundQueue(.NSProcessInfoPowerStateDidChange)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+            conditions.value.thermal = .serious
+            await postFromBackgroundQueue(ProcessInfo.thermalStateDidChangeNotification)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+            conditions.value.thermal = .fair
+            await postFromBackgroundQueue(ProcessInfo.thermalStateDidChangeNotification)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
+
+    /// Foundation posts both notifications off the main queue; the session's
+    /// MainActor hop is queued before this continuation resumes.
+    private func postFromBackgroundQueue(_ name: Notification.Name) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                NotificationCenter.default.post(name: name, object: ProcessInfo.processInfo)
+                DispatchQueue.main.async { continuation.resume() }
+            }
+        }
+    }
+
     private final class AssemblyState { var assembled = false }
 
     private func waitForAssembly(_ state: AssemblyState) async -> Bool {

@@ -705,7 +705,7 @@ final class ReplayConfigProviderTests: XCTestCase {
         // these blocks arrive, and widening it should have to be deliberate.
         XCTAssertEqual(
             req?.value(forHTTPHeaderField: "X-Everframe-SDK-Features"),
-            "networkbodies, identity, companionbadge, branding, nativevideo, vitals, resources, shaketoreport"
+            "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport"
         )
     }
 

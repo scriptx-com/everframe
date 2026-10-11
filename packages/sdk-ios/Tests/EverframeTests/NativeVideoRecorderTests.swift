@@ -6,6 +6,31 @@ import Testing
 @testable import EverframeKit
 
 struct NativeVideoRecorderTests {
+    @Test(arguments: [1, 2, 5, 10])
+    func everyConfiguredRateStartsARecorder(fps: Int) throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        _ = try NativeVideoRecorder(directory: dir, framesPerSecond: fps)
+    }
+    @Test(arguments: [0, 3, 7, 30])
+    func unsupportedRatesAreRefused(fps: Int) throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        #expect(throws: NativeVideoWriterError.invalidFrame) {
+            try NativeVideoRecorder(directory: dir, framesPerSecond: fps)
+        }
+    }
+    @Test func oneFrameASecondRollsOverEveryTwoSecondsAndExportsTheWindow() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 1, durationNanos: 15_000_000_000)
+        for second: UInt64 in 0...4 {
+            #expect(try await recorder.append(frame(second * 1_000_000_000)))
+        }
+        let artifact = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 10_000,
+            endNanos: 5_000_000_000))
+        defer { artifact.removeOwnedFile() }
+        #expect(artifact.startEpochMs == 10_000)
+        #expect(abs(artifact.durationMs - 5000) < 2)
+    }
+
     @MainActor @Test func storageSweepsOrphansOnlyOnceAndPreservesTransferredMovie() throws {
         let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
         let old = root.appendingPathComponent(UUID().uuidString, isDirectory: true)

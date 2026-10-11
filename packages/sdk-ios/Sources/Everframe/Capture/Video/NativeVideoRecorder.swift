@@ -34,7 +34,9 @@ actor NativeVideoRecorder: NativeVideoRecording {
 
     init(directory: URL, framesPerSecond: Int, durationNanos: UInt64 = 30_000_000_000,
          byteLimit: Int = 8 * 1024 * 1024) throws {
-        guard framesPerSecond == 5 || framesPerSecond == 10 else { throw NativeVideoWriterError.invalidFrame }
+        guard NativeVideoSettings.allowedFramesPerSecond.contains(framesPerSecond) else {
+            throw NativeVideoWriterError.invalidFrame
+        }
         self.directory = directory
         self.framesPerSecond = framesPerSecond
         ring = NativeVideoRing(directory: directory, durationNanos: min(NativeVideoLimits.maxDurationNanos, durationNanos),
