@@ -1,0 +1,27 @@
+examples/tvos-replay/README.md
+  s_269319d6df67e5::t_3d96d7a32350cd 39-44
+examples/tvos-replay/Sources/App.swift
+  s_269319d6df67e5::t_b227f4dff024bf 33,45
+examples/tvos-replay/Sources/ErrorProbe.swift
+  s_269319d6df67e5::t_a6ff97ae56aefb 1-24
+examples/tvos-replay/Sources/RailsController.swift
+  s_269319d6df67e5::t_e1f2991d613770 97-100
+examples/tvos-replay/project.yml
+  s_269319d6df67e5::t_24e691c734b928 8,42-68,90-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45911651436dd671988a0ba94faaffa03c037dd6",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
