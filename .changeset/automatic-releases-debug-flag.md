@@ -1,5 +1,6 @@
 ---
 "@everframe/protocol": minor
+"@everframe/sdk-android": minor
 "@everframe/web": minor
 ---
 

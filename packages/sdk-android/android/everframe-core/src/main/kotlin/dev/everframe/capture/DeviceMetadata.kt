@@ -21,6 +21,7 @@
 package dev.everframe.capture
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
@@ -38,13 +39,20 @@ object DeviceMetadata {
         else -> "phone"
     }
 
-    /** Capture a snapshot of host device metadata. */
-    fun collect(context: Context): Map<String, Any?> {
+    /** A debuggable host app is a debug build; `BuildConfig.DEBUG` would describe this library instead. */
+    fun isDebugBuild(context: Context, configured: Boolean?): Boolean =
+        configured ?: ((context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+
+    /**
+     * Capture a snapshot of host device metadata. [debugBuild] is `EverframeConfig.debugBuild`;
+     * when null the host's `FLAG_DEBUGGABLE` decides.
+     */
+    fun collect(context: Context, debugBuild: Boolean? = null): Map<String, Any?> {
         val cfg = context.resources.configuration
         val pm = context.packageManager
         val (versionName, appBuild) = readAppVersion(context, pm)
         // The same rule names the release-health version, so errors join to their sessions' version.
-        val appVersion = AppReleaseRule.of(versionName, appBuild).version
+        val appVersion = AppReleaseRule.of(versionName, appBuild, debug = false).version
 
         val isTv = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
             (cfg.uiMode and Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION
@@ -59,6 +67,7 @@ object DeviceMetadata {
             put("brand", Build.BRAND)
             put("appVersion", appVersion)
             put("appBuild", appBuild)
+            put("appDebug", isDebugBuild(context, debugBuild).toString())
             put("bundleIdentifier", context.packageName)
             put("locale", readLocaleTag(cfg))
             put("timezone", TimeZone.getDefault().id)
@@ -70,10 +79,10 @@ object DeviceMetadata {
         }
     }
 
-    /** The app's version and build under [AppReleaseRule]; ("0.0.0", null) when the package info is unreadable. */
-    internal fun appRelease(context: Context): AppRelease {
+    /** The app's version and build under [AppReleaseRule], and whether it is a debug build; ("0.0.0", null) when the package info is unreadable. */
+    internal fun appRelease(context: Context, debugBuild: Boolean?): AppRelease {
         val (versionName, versionCode) = readAppVersion(context, context.packageManager)
-        return AppReleaseRule.of(versionName, versionCode)
+        return AppReleaseRule.of(versionName, versionCode, isDebugBuild(context, debugBuild))
     }
 
     private fun readAppVersion(

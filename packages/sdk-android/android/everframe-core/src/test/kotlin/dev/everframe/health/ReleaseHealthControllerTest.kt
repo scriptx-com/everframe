@@ -27,7 +27,7 @@ class ReleaseHealthControllerTest {
     private var failFactory = false
     private var afterRename: () -> Unit = {}
     private val allowed = object : OutboxAuthorization { override fun isAllowed() = true }
-    private val app = AppRelease("2.4.0", "412")
+    private val app = AppRelease("2.4.0", "412", debug = false)
     private val ops = object : OutboxFileOps by JvmOutboxFileOps() {
         override fun syncFile(file: File) {
             if (failPurge && file.name == "kill.pending") throw IOException("purge sync blocked")

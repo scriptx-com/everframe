@@ -30,4 +30,11 @@ class ReleaseHealthDefaultTest {
         val disabled = base.copy(releaseHealth = ReleaseHealthConfig(enabled = false))
         assertFalse(disabled.copy(sdkKey = "txx_live_other").releaseHealth!!.enabled)
     }
+
+    @Test fun `debugBuild is unset by default and survives both copy overloads`() {
+        assertNull(base.debugBuild)
+        assertEquals(true, base.copy(debugBuild = true).debugBuild)
+        assertEquals(true, base.copy(debugBuild = true).copy(sdkKey = "txx_live_other").debugBuild)
+        assertEquals(false, base.copy(releaseHealth = null, debugBuild = false).debugBuild)
+    }
 }

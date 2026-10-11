@@ -106,6 +106,11 @@ data class EverframeConfig(
      * the caller thread) unless [ReleaseHealthConfig.includeDebugBuilds] is set.
      */
     val releaseHealth: ReleaseHealthConfig? = ReleaseHealthConfig(),
+    /**
+     * Marks this as a debug build, so Everframe never creates a release from it. Detected from
+     * `FLAG_DEBUGGABLE` when null.
+     */
+    val debugBuild: Boolean? = null,
 ) {
     /** Preserve the previous Java constructor and Kotlin default-argument descriptor; both get the release health default. */
     constructor(
@@ -124,9 +129,10 @@ data class EverframeConfig(
         installIdentifierEnabled: Boolean = true,
         vitals: VitalsConfig = VitalsConfig(),
         r8MappingId: String? = null,
+        debugBuild: Boolean? = null,
     ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
         companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
-        theme, installIdentifierEnabled, vitals, r8MappingId, ReleaseHealthConfig())
+        theme, installIdentifierEnabled, vitals, r8MappingId, ReleaseHealthConfig(), debugBuild)
 
     /** Old compiled copy calls keep this configuration's release health setting, including an explicit `null`. */
     fun copy(
@@ -145,9 +151,10 @@ data class EverframeConfig(
         installIdentifierEnabled: Boolean = this.installIdentifierEnabled,
         vitals: VitalsConfig = this.vitals,
         r8MappingId: String? = this.r8MappingId,
+        debugBuild: Boolean? = this.debugBuild,
     ): EverframeConfig = EverframeConfig(appId, sdkKey, environment, release, capture,
         bubble, useDynamicColor, companionDeviceId, companionBadgeEnabled, shakeToReportEnabled,
-        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth)
+        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild)
 }
 
 /**

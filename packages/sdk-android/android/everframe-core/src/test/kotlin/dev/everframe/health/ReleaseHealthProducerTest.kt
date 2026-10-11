@@ -29,7 +29,7 @@ class ReleaseHealthProducerTest {
     private val currentGate = object : OutboxAuthorization { override fun isAllowed() = current && consent }
     private val consentGate = object : OutboxAuthorization { override fun isAllowed() = consent }
     private val admission = HealthAdmission { allowed, request -> if (allowed()) request() else null }
-    private val app = AppRelease("2.4.0", "412")
+    private val app = AppRelease("2.4.0", "412", debug = false)
     private fun store(maxEntries: Int = 256, maxBytes: Long = 1024 * 1024) =
         OutboxStore(File(folder.root, "health"), keys, ops, maxEntries, maxBytes, maintenanceReserveBytes = 1024)
     private fun producer(queue: OutboxStore = store(), config: ReleaseHealthConfig = ReleaseHealthConfig(),
@@ -48,7 +48,7 @@ class ReleaseHealthProducerTest {
         val records = entries().map(::record)
         assertEquals(3, records.size)
         for (body in records) {
-            assertEquals(4, body["schemaVersion"]!!.jsonPrimitive.int)
+            assertEquals(5, body["schemaVersion"]!!.jsonPrimitive.int)
             val exposure = body["exposure"]!!.jsonObject
             assertEquals("foreground-v1", exposure["sessionPolicy"]!!.jsonPrimitive.content)
             val expected = if (exposure["loadedBuildId"]!!.jsonPrimitive.content == "bundle-a") "opaque-a" else "opaque-b"
@@ -111,13 +111,13 @@ class ReleaseHealthProducerTest {
         val entry = entries().single()
         val body = record(entry)
         assertEquals("start", body["phase"]!!.jsonPrimitive.content)
-        assertEquals(4, body["schemaVersion"]!!.jsonPrimitive.int)
+        assertEquals(5, body["schemaVersion"]!!.jsonPrimitive.int)
         assertEquals(buildJsonObject { put("kind", "anonymous") }, body["exposure"]!!.jsonObject["subject"])
         assertEquals(0, body["sequence"]!!.jsonPrimitive.int)
         val exposure = body["exposure"]!!.jsonObject
         assertEquals(pointer.exposureId, exposure["exposureId"]!!.jsonPrimitive.content)
         assertEquals(launch.toString(), exposure["processLaunchId"]!!.jsonPrimitive.content)
-        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", "412") }, exposure["app"])
+        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", "412"); put("debug", false) }, exposure["app"])
         assertEquals(pointer.toJson()["app"], exposure["app"])
         assertFalse(exposure.containsKey("native" + "Release")) // retired field, spelled in two parts for the repository check
         assertEquals(listOf("exposureId", "processLaunchId", "startedAt", "platform", "sdkVersion", "app", "loadedBuildId",
@@ -133,29 +133,29 @@ class ReleaseHealthProducerTest {
         assertTrue(owner.start())
         assertEquals(entry, entries().single())
     }
-    @Test fun `start and end carry schema 4 the same app and a completed outcome within the size limit`() {
+    @Test fun `start and end carry schema 5 the same app and a completed outcome within the size limit`() {
         val owner = producer(config = ReleaseHealthConfig(loadedBuildId = "b".repeat(200),
             loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN, userId = "u".repeat(128)),
-            release = AppRelease("v".repeat(64), "9".repeat(19)))
+            release = AppRelease("v".repeat(64), "9".repeat(19), debug = false))
         assertTrue(owner.start()); now += 1000; elapsed += 1_000_000_000
         assertTrue(owner.end("background"))
         val stored = entries()
         assertEquals(2, stored.size)
         assertTrue(stored.all { it.envelopeBytes.size <= 8192 })
         val records = stored.map(::record)
-        assertEquals(listOf(4, 4), records.map { it["schemaVersion"]!!.jsonPrimitive.int })
+        assertEquals(listOf(5, 5), records.map { it["schemaVersion"]!!.jsonPrimitive.int })
         assertEquals(1, records.map { it["exposure"] }.toSet().size)
-        assertEquals(buildJsonObject { put("version", "v".repeat(64)); put("build", "9".repeat(19)) },
+        assertEquals(buildJsonObject { put("version", "v".repeat(64)); put("build", "9".repeat(19)); put("debug", false) },
             records.first()["exposure"]!!.jsonObject["app"])
         val end = records.single { it["phase"]!!.jsonPrimitive.content == "end" }
         assertEquals("completed", end["outcome"]!!.jsonPrimitive.content)
         assertEquals("background", end["endReason"]!!.jsonPrimitive.content)
     }
     @Test fun `a missing build is an explicit null in the record and the pointer`() {
-        val owner = producer(release = AppRelease("2.4.0", null)); assertTrue(owner.start())
+        val owner = producer(release = AppRelease("2.4.0", null, debug = false)); assertTrue(owner.start())
         val text = entries().single().envelopeBytes.toString(Charsets.UTF_8)
-        assertTrue(text, text.contains("\"app\":{\"version\":\"2.4.0\",\"build\":null}"))
-        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", JsonNull) }, owner.readyPointer()!!.toJson()["app"])
+        assertTrue(text, text.contains("\"app\":{\"version\":\"2.4.0\",\"build\":null,\"debug\":false}"))
+        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", JsonNull); put("debug", false) }, owner.readyPointer()!!.toJson()["app"])
     }
     @Test fun `full queue publishes no ready token and does not replace older records`() {
         val first = producer(store(maxEntries = 1)); assertTrue(first.start())
@@ -172,7 +172,7 @@ class ReleaseHealthProducerTest {
         }
         val failedStore = OutboxStore(File(folder.root, "health"), keys, failedOps, 256, 1024 * 1024,
             maintenanceReserveBytes = 16 * 1024)
-        val failed = producer(queue = failedStore, release = AppRelease("never-plaintext-version", "412"))
+        val failed = producer(queue = failedStore, release = AppRelease("never-plaintext-version", "412", debug = false))
         assertFalse(failed.start()); assertNull(failed.readyPointer())
         val disk = folder.root.walkTopDown().filter { it.isFile }.joinToString { it.readBytes().toString(Charsets.ISO_8859_1) }
         assertFalse(disk.contains("never-plaintext-version")); assertFalse(disk.contains("route-key-A"))
@@ -186,8 +186,8 @@ class ReleaseHealthProducerTest {
             val owner = producer(config = config)
             assertFalse(owner.start()); assertNull(owner.readyPointer())
         }
-        for (release in listOf(AppRelease("", "412"), AppRelease(" ", null), AppRelease("a".repeat(65), "412"),
-            AppRelease("bad\u0000", null), AppRelease("2.4.0", ""), AppRelease("2.4.0", "b".repeat(65)))) {
+        for (release in listOf(AppRelease("", "412", debug = false), AppRelease(" ", null, debug = false), AppRelease("a".repeat(65), "412", debug = false),
+            AppRelease("bad\u0000", null, debug = false), AppRelease("2.4.0", "", debug = false), AppRelease("2.4.0", "b".repeat(65), debug = false))) {
             val owner = producer(release = release)
             assertFalse(release.toString(), owner.start()); assertNull(owner.readyPointer())
         }
