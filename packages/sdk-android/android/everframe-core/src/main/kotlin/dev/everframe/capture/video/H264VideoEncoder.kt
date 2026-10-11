@@ -3,6 +3,7 @@
 
 package dev.everframe.capture.video
 
+import dev.everframe.config.NATIVE_VIDEO_FRAME_RATES
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaCodecList
@@ -18,6 +19,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /** A vendor call cannot be force-freed safely. Quarantine is process-lifetime, without replacement threads. */
+/** Spec 2026-10-11 (C3): unchanged at 5 fps and above, `base × fps / 5` below. */
+internal const val H264_BASE_BITRATE = 1_500_000
+internal fun h264BitrateFor(fps: Int): Int = if (fps >= 5) H264_BASE_BITRATE else H264_BASE_BITRATE * fps / 5
+
 internal class VideoEncoderWorkerAdmission {
     private var occupied: Ticket? = null
     private var quarantined = false
@@ -76,6 +81,7 @@ internal class H264VideoEncoder(
     private var finishAt=Long.MAX_VALUE
     private var cancelPoll:(()->Unit)?=null
     private var disposed=false
+    private var stallLimitMs=1_000L
     /** Admission has ended; finish() still owns the bounded cleanup wait and retained-history transfer. */
     val isTerminal: Boolean get() = synchronized(this) { disposed }
 
@@ -83,8 +89,11 @@ internal class H264VideoEncoder(
     fun prepare(size:VideoSize,fps:Int):VideoSize? {
         check(!scheduler.isWorkerThread())
         synchronized(this) {
-            if(fps !in listOf(5,10) || retentionUs <= 0 || cancelled.get() || finishing.get() || disposed || ticket != null) return null
+            if(fps !in NATIVE_VIDEO_FRAME_RATES || retentionUs <= 0 || cancelled.get() || finishing.get() || disposed || ticket != null) return null
             ticket=admission.acquire() ?: return null
+            // A vendor encoder may hold a frame for lookahead: one second at 1 fps. The no-progress
+            // limit spans five frame intervals, so it is unchanged (1 s) at 5 and 10 fps.
+            stallLimitMs=maxOf(1_000L,5_000L/fps)
         }
         val ready=CountDownLatch(1);val prepared=AtomicReference<VideoSize?>()
         scheduler.worker {
@@ -179,7 +188,7 @@ internal class H264VideoEncoder(
         if(finishing.get() && !eosQueued) eosQueued=backend?.endInput() ?: true
         drain()
         if(disposed) return
-        if(inflight > 0 && nowMs()-lastProgress >= 1_000) {cancelled.set(true);dispose(false);return}
+        if(inflight > 0 && nowMs()-lastProgress >= stallLimitMs) {cancelled.set(true);dispose(false);return}
         if(backend == null && finishing.get()) dispose(false) else schedulePoll()
     }
     private fun drain() {
@@ -254,7 +263,7 @@ internal class AndroidH264Backend(private val input:VideoEncoderInput):VideoEnco
             if(width<2 || height<2 || !video.areSizeAndRateSupported(width,height,fps.toDouble())) continue
             val aligned=VideoSize(width,height)
             val f=MediaFormat.createVideoFormat("video/avc",width,height).apply {
-                setInteger(MediaFormat.KEY_BIT_RATE,1_500_000);setInteger(MediaFormat.KEY_FRAME_RATE,fps)
+                setInteger(MediaFormat.KEY_BIT_RATE,h264BitrateFor(fps));setInteger(MediaFormat.KEY_FRAME_RATE,fps)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,2);setInteger(MediaFormat.KEY_PROFILE,MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
                 setInteger(MediaFormat.KEY_MAX_B_FRAMES,0)
                 setInteger(MediaFormat.KEY_COLOR_STANDARD,MediaFormat.COLOR_STANDARD_BT709)

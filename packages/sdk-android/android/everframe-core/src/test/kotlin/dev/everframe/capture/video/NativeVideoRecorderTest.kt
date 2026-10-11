@@ -200,10 +200,54 @@ class NativeVideoRecorderTest {
         var now = 0L
         val mainTasks = mutableListOf<() -> Unit>()
         val timers = mutableListOf<() -> Unit>()
+        val delays = mutableListOf<Long>()
         override fun main(block: () -> Unit) { mainTasks += block }
         override fun worker(block: () -> Unit) = block()
-        override fun later(delayMs: Long, block: () -> Unit): () -> Unit { timers += block; return { timers.remove(block); Unit } }
+        override fun later(delayMs: Long, block: () -> Unit): () -> Unit { delays += delayMs; timers += block; return { timers.remove(block); Unit } }
         override fun isWorkerThread() = false
         override fun nowNanos() = now
+    }
+
+    @Test fun lowFrameRatesRecordAndTickOncePerFrameInterval() {
+        for ((fps, interval) in listOf(1 to 1_000L, 2 to 500L)) {
+            val scheduler = RecorderScheduler()
+            val recorder = NativeVideoRecorder(VideoOwner("a", "c"), scheduler, { block -> block(); true },
+                { VideoSize(4, 4) }, { null }, { _, _, _ -> object : RecordingVideoEncoder {
+                    override fun prepare(size: VideoSize, fps: Int) = size
+                    override fun offer(frame: SafeVideoFrame) = false
+                    override fun finish(deadline: Long) = emptyList<VideoSegment>()
+                    override val isTerminal = false
+                    override fun close() = Unit
+                } }, { _, _ -> null })
+            try {
+                recorder.start(NativeVideoSettings(fps), 30)
+                assertEquals(NativeVideoRecorder.State.BUFFERING, recorder.state)
+                scheduler.mainTasks.removeAt(0).invoke() // installs the encoder
+                scheduler.mainTasks.removeAt(0).invoke() // first acquisition, then the next tick
+                assertEquals("fps=$fps", listOf(interval), scheduler.delays)
+            } finally { recorder.close() }
+        }
+        val rejected = NativeVideoRecorder(VideoOwner("a", "d"), RecorderScheduler(), { block -> block(); true },
+            { VideoSize(4, 4) }, { null }, { _, _, _ -> error("unsupported rate") }, { _, _ -> null })
+        rejected.start(NativeVideoSettings(3), 30)
+        assertEquals(NativeVideoRecorder.State.DISABLED, rejected.state); rejected.close()
+    }
+
+    @Test fun devicePauseSuspendsLikeALostWindowAndResumesWhenCleared() {
+        val scheduler = RecorderScheduler(); var paused = true; var dimensionReads = 0
+        val recorder = NativeVideoRecorder(VideoOwner("a", "c"), scheduler, { block -> block(); true },
+            { dimensionReads++; VideoSize(4, 4) }, { null }, { _, _, _ -> error("no encoder while paused") }, { _, _ -> null },
+            devicePause = { paused })
+        try {
+            recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
+            assertEquals(NativeVideoRecorder.State.SUSPENDED, recorder.state)
+            assertTrue("same claim semantics as the existing environment pause", recorder.replayAllowed)
+            assertEquals("the device gate is read before any window state", 0, dimensionReads)
+            scheduler.timers.removeAt(0).invoke(); scheduler.mainTasks.removeAt(0).invoke()
+            assertEquals("still paused: the 500 ms watch re-arms", NativeVideoRecorder.State.SUSPENDED, recorder.state)
+            paused = false
+            scheduler.timers.removeAt(0).invoke(); scheduler.mainTasks.removeAt(0).invoke()
+            assertEquals(NativeVideoRecorder.State.BUFFERING, recorder.state)
+        } finally { recorder.close() }
     }
 }

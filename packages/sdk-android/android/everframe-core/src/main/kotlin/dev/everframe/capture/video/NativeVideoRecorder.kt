@@ -6,7 +6,7 @@ package dev.everframe.capture.video
 import android.app.Activity
 import android.content.Context
 import android.os.Build
-import android.os.PowerManager
+import dev.everframe.config.NATIVE_VIDEO_FRAME_RATES
 import dev.everframe.config.NativeVideoSettings
 import kotlinx.serialization.json.*
 import kotlinx.coroutines.CompletableDeferred
@@ -38,6 +38,8 @@ internal class NativeVideoRecorder(
     private val captureFactory: () -> PixelCopyVideoCapture?,
     private val encoderFactory: (VideoOwner, VideoTimeAnchor, Long) -> RecordingVideoEncoder,
     private val exporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip?,
+    /** Battery Saver or MODERATE heat (spec 2026-10-11). True pauses exactly like a lost window. */
+    private val devicePause: () -> Boolean = { false },
 ) : AutoCloseable {
     enum class State { DISABLED, BUFFERING, SUSPENDED, FROZEN, CLOSED }
     private val lock = Any()
@@ -78,7 +80,7 @@ internal class NativeVideoRecorder(
 
     fun start(settings: NativeVideoSettings, durationSec: Int) {
         synchronized(lock) {
-            if (state != State.DISABLED || revoked || settings.framesPerSecond !in listOf(5, 10) || durationSec <= 0) return
+            if (state != State.DISABLED || revoked || settings.framesPerSecond !in NATIVE_VIDEO_FRAME_RATES || durationSec <= 0) return
             this.settings = settings; durationUs = minOf(durationSec, 60) * 1_000_000L
             anchor = VideoTimeAnchor(System.currentTimeMillis(), scheduler.nowNanos())
             state = State.BUFFERING
@@ -119,8 +121,10 @@ internal class NativeVideoRecorder(
     }
     private fun observeDimensions(): VideoSize? {
         val began = scheduler.nowNanos()
-        return try { runCatching { dimensions() }.getOrNull() }
-        finally { mainEnvironmentNs.add(scheduler.nowNanos() - began) }
+        return try {
+            // An unreadable gate fails closed, like every other optional-video failure.
+            if (runCatching { devicePause() }.getOrDefault(true)) null else runCatching { dimensions() }.getOrNull()
+        } finally { mainEnvironmentNs.add(scheduler.nowNanos() - began) }
     }
 
     /** Numeric-only, detached rolling samples. Called on demand, never uploaded. */
@@ -297,14 +301,17 @@ internal class NativeVideoRecorder(
     }
 
     companion object {
-        fun create(context: Context, owner: VideoOwner, activity: () -> Activity?): NativeVideoRecorder {
+        fun create(
+            context: Context, owner: VideoOwner, activity: () -> Activity?,
+            conditions: VideoDeviceConditions = AndroidVideoDeviceConditions.of(context),
+        ): NativeVideoRecorder {
             val scheduler = AndroidVideoCaptureScheduler
             lateinit var recorder: NativeVideoRecorder
             recorder = NativeVideoRecorder(owner, scheduler, VideoRecorderControl::submit, {
                 val a = activity()
                 val root = a?.window?.decorView
-                val thermal = if (Build.VERSION.SDK_INT >= 29) (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.currentThermalStatus ?: 0 else 0
-                if (Build.VERSION.SDK_INT < 29 || root == null || !root.hasWindowFocus() || thermal >= PowerManager.THERMAL_STATUS_SEVERE) null
+                // Heat moved to devicePause, which now also covers Battery Saver and pauses at MODERATE.
+                if (Build.VERSION.SDK_INT < 29 || root == null || !root.hasWindowFocus()) null
                 else {
                     val scale = minOf(1.0, 854.0 / maxOf(root.width, root.height).coerceAtLeast(1))
                     val width = (root.width * scale).toInt() / 2 * 2
@@ -324,7 +331,8 @@ internal class NativeVideoRecorder(
                     override val isTerminal get() = encoder.isTerminal
                     override fun close() = encoder.close()
                 }
-            }, { segments, allowed -> VideoExporter(context).export(owner, segments, allowed) })
+            }, { segments, allowed -> VideoExporter(context).export(owner, segments, allowed) },
+                devicePause = conditions::pauseRecording)
             return recorder
         }
     }

@@ -114,7 +114,7 @@ class ReplayConfigProviderTest {
 
     @Test
     fun `valid nativeVideo frame rates decode`() = runTest {
-        for (framesPerSecond in listOf(5, 10)) {
+        for (framesPerSecond in listOf(1, 2, 5, 10)) {
             val p = provider(
                 fetcher = {
                     response(200, nativeVideoBody("""{"framesPerSecond":$framesPerSecond}"""))
@@ -145,6 +145,7 @@ class ReplayConfigProviderTest {
         val malformedBlocks = listOf(
             "{}",
             "{\"framesPerSecond\":6}",
+            "{\"framesPerSecond\":3}",
             "{\"framesPerSecond\":\"5\"}",
             "{\"framesPerSecond\":5.5}",
             "{\"framesPerSecond\":null}",
@@ -169,6 +170,7 @@ class ReplayConfigProviderTest {
         val malformedBlocks = listOf(
             "{}",
             "{\"framesPerSecond\":6}",
+            "{\"framesPerSecond\":3}",
             "{\"framesPerSecond\":\"5\"}",
             "{\"framesPerSecond\":5.5}",
             "{\"framesPerSecond\":null}",
@@ -466,7 +468,7 @@ class ReplayConfigProviderTest {
         // that declare it, so this header is the whole reason any of these
         // blocks arrive. Adding a capability here is a real contract change and
         // should have to be made on purpose.
-        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, nativevideo", seen?.header("X-Everframe-SDK-Features"))
+        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
     }
 
     @Test
@@ -1263,5 +1265,16 @@ class ReplayConfigProviderTest {
         assertTrue(
             ReplayConfigProvider.SDK_FEATURES_HEADER_VALUE.contains("resources"),
         )
+    }
+    @Test
+    fun `low frame rates decode and three stays malformed`() = runTest {
+        for (framesPerSecond in listOf(1, 2)) {
+            val p = provider(fetcher = { response(200, nativeVideoBody("""{"framesPerSecond":$framesPerSecond}""")) })
+            assertTrue(p.refresh(force = true))
+            assertEquals(framesPerSecond, p.current.nativeVideo?.framesPerSecond)
+        }
+        val p = provider(fetcher = { response(200, nativeVideoBody("""{"framesPerSecond":3}""")) })
+        assertFalse(p.refresh(force = true))
+        assertEquals(ReplayConfig.OFF, p.current)
     }
 }

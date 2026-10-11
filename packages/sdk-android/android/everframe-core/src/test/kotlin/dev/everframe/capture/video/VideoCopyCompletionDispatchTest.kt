@@ -148,7 +148,7 @@ class VideoCopyCompletionDispatchTest {
 
     @Test @Config(sdk = [27]) fun oldApiRealRecorderStartupSuspendsWithoutCapture() {
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
-        val recorder = NativeVideoRecorder.create(context, VideoOwner("old", "api")) { null }
+        val recorder = NativeVideoRecorder.create(context, VideoOwner("old", "api"), activity = { null })
         try {
             recorder.start(dev.everframe.config.NativeVideoSettings(framesPerSecond = 5), 30)
             shadowOf(Looper.getMainLooper()).idle()

@@ -66,6 +66,8 @@ class ReplaySession(
     /** Internal construction boundary for controlled encoder comparisons and deterministic native tests. */
     internal var recorderFactory: (Context, VideoOwner, () -> Activity?) -> NativeVideoRecorder = NativeVideoRecorder::create
     internal var videoStartupAdmission: VideoStartupAdmission? = null
+    /** Test seam for Battery Saver, heat and low RAM (spec 2026-10-11). Null uses the process instance. */
+    internal var videoDeviceConditions: VideoDeviceConditions? = null
     private var startupPending: Any? = null
     private var activeOwner: VideoOwner? = null
     private var privacyEpoch = VideoPrivacyRevocation.current
@@ -237,13 +239,19 @@ class ReplaySession(
         val capturedEpoch = epoch.get()
         // The existing worker owns discovery and deletion; construction still has no file IO.
         (videoStartupAdmission ?: VideoStartupAdmission.process).request(appContext) { allowed ->
+            // Spec 2026-10-11: the first read registers the power callbacks. An admitted request
+            // completes on the capture worker, so this never runs under the authorization lock.
+            val lowRam = allowed && runCatching {
+                (videoDeviceConditions ?: AndroidVideoDeviceConditions.of(appContext)).lowRamDevice
+            }.getOrDefault(true)
             Everframe.withReportAuthorizationLock {
                 if (startupPending !== pending) return@withReportAuthorizationLock
                 startupPending = null
                 if (!currentGenerationValid(capturedEpoch) || generation != capturedGeneration ||
                     !authorized || activeOwner != null || recorder != null || !Everframe.captureGate ||
                     !VideoPrivacyRevocation.permits(privacyEpoch)) return@withReportAuthorizationLock
-                if (!allowed) { revokeReplayLocked(); return@withReportAuthorizationLock }
+                // A low-RAM device never records, exactly like a refused startup admission.
+                if (!allowed || lowRam) { revokeReplayLocked(); return@withReportAuthorizationLock }
                 recordingOwner = newOwner()
                 try {
                     recorder = recorderFactory(appContext, recordingOwner, activitySupplier)
@@ -254,6 +262,7 @@ class ReplaySession(
             }
         }
     }
+
 
     fun pause() = Everframe.withReportAuthorizationLock {
         foreground = false; recorder?.pause()
