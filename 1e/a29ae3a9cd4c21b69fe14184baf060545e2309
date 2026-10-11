@@ -1,0 +1,39 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/envelope/EnvelopeBuilder.kt
+  s_dbd309ddf8ec5b::t_ea26eea5db61f7 180-185
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_dbd309ddf8ec5b::t_9f238fa814468d 481-483
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_dbd309ddf8ec5b::t_932704d32fac02 474-499
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnReplayBridgeTest.kt
+  s_dbd309ddf8ec5b::t_7f76abb24be453 338-356
+.changeset/android-tv-form-factor.md
+  s_dbd309ddf8ec5b::t_a66d00eb98ff02 1-9
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/AccountSwitchEvidenceDiscardTest.kt
+  s_dbd309ddf8ec5b::t_fba66632ecb257 148
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_dbd309ddf8ec5b::t_80d2a25150d854 664
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/EnvelopeBuilderTest.kt
+  s_dbd309ddf8ec5b::t_6b23a1fed2a1b8 50,97,116,139,160-161,215,242,274,288,312,343,379,412
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/EnvelopeVitalsStampTest.kt
+  s_dbd309ddf8ec5b::t_f3328b5756be4e 18,37
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/NetworkBodyEnvelopeTest.kt
+  s_dbd309ddf8ec5b::t_f21cc6f4e36be3 73,88,97,113,133,150,169,202,227
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/ResourceEnvelopeTest.kt
+  s_dbd309ddf8ec5b::t_3dece0045f3854 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ea29ae3a9cd4c21b69fe14184baf060545e2309",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
