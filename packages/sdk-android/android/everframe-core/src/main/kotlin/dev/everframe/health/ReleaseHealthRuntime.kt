@@ -65,8 +65,8 @@ internal object ReleaseHealthRuntime {
     fun readyPointer(epoch: Int) = controller.readyPointer(epoch)
 
     /** Disabled boundaries attempt durable erasure on the calling thread, outside the SDK authorization
-     * lock, before kill() or a disabled start returns. A start without health configuration passes
-     * [erase] false and leaves that erasure to [start]. */
+     * lock, before kill() or an explicit `enabled = false` start returns. A null configuration or a
+     * skipped debug build passes [erase] false and leaves that erasure to [start], off the caller thread. */
     fun boundary(application: Context?, epoch: Int, erase: Boolean = true) {
         if (application != null) context = application.applicationContext
         if (!erase) return

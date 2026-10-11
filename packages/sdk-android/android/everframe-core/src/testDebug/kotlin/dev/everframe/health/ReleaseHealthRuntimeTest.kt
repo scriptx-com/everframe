@@ -44,6 +44,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowApplication
+import org.robolectric.shadows.ShadowLog
 import java.io.File
 import java.util.Collections
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -135,6 +136,9 @@ class ReleaseHealthRuntimeTest {
         ReleaseHealthRuntime.__keysForTesting = JceTestOutboxKeyProvider(keystore)
         ReleaseHealthRuntime.__fileOpsForTesting = healthOps
         ReleaseHealthRuntime.__lifecycleOwnerForTesting = lifecycle
+        // Robolectric runs against the merged debug unit-test manifest (android:debuggable="true";
+        // Config.NONE is ignored with includeAndroidResources). These tests model a release host.
+        ReleaseHealthBuildGate.__debuggableForTesting = false
         AndroidNativeCrashRuntime.__resetForTesting()
         // Production owner shape: the OS context freezes the release-health ready pointer.
         AndroidNativeCrashRuntime.__controllerFactoryForTesting = { app ->
@@ -165,6 +169,7 @@ class ReleaseHealthRuntimeTest {
         ReleaseHealthRuntime.__keysForTesting = null
         ReleaseHealthRuntime.__fileOpsForTesting = null
         ReleaseHealthRuntime.__lifecycleOwnerForTesting = null
+        ReleaseHealthBuildGate.__debuggableForTesting = null
         AndroidNativeCrashRuntime.__controllerFactoryForTesting = null
         AndroidNativeCrashRuntime.__resetForTesting()
         AndroidNativeSignalRuntime.__resetForTesting()
@@ -185,8 +190,8 @@ class ReleaseHealthRuntimeTest {
     }
     /** Waits for the lifecycle and delivery work the runtime has launched so far. */
     private fun settle() = runBlocking { withTimeout(5_000) { ReleaseHealthRuntime.__pendingWorkForTesting().joinAll() } }
-    private fun start(host: Context = context, owner: TestLifecycleOwner = lifecycle) {
-        Everframe.start(host, config)
+    private fun start(host: Context = context, owner: TestLifecycleOwner = lifecycle, using: EverframeConfig = config) {
+        Everframe.start(host, using)
         idleUntil("release health never installed its lifecycle observer") { owner.observerCount == 1 }
         settle()
     }
@@ -207,6 +212,46 @@ class ReleaseHealthRuntimeTest {
     }
     private fun capsule() = decoded(OutboxStore(File(context.noBackupFilesDir, "dev.everframe/native-signal-v1/capsules"),
         signalKeys, JvmOutboxFileOps(), 8, 2L * 1024 * 1024)).single().second
+    private val skipLine = "[everframe] Release health is off in debug builds."
+    private fun skipLines() = ShadowLog.getLogsForTag("Everframe").map { it.msg }.filter { it == skipLine }
+    /** The journal as a process that died the moment start() returned would find it on its next launch. */
+    private fun recordsAfterProcessDeath(): List<JsonObject> {
+        val source = File(context.noBackupFilesDir, "dev.everframe/release-health-v1")
+        val image = File(createTempDirectory(storage.toPath(), "image").toFile(), "release-health-v1")
+        if (source.exists()) source.copyRecursively(image)
+        val survivingKeys = JceTestOutboxKeyProvider(synchronized(keystore) { HashMap(keystore) })
+        return decoded(OutboxStore(image, survivingKeys, JvmOutboxFileOps(), 256, 1024 * 1024,
+            maintenanceReserveBytes = 16 * 1024)).map { it.second }
+    }
+    /** Polls an image copied while the IO tail may still be deleting the journal: a copy that races the deletion is not done yet. */
+    private fun imageIsEmptyOnceErasureFinishes() = runCatching { recordsAfterProcessDeath().isEmpty() }.getOrDefault(false)
+    /** A foreground session whose start is journaled; afterwards journal IO off this thread waits on [hold]. */
+    private fun recordThenHold() {
+        start()
+        idleUntil("native recovery never registered its context") { exitReady() }
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertNotNull("the foreground session never became ready", pointer())
+        assertTrue("the session start never reached the journal", records().isNotEmpty())
+        hold = CountDownLatch(1)
+    }
+    /** With IO-thread erasure held, an empty image proves that start() erased on its own thread. */
+    private fun assertOffStartErases(off: EverframeConfig) {
+        recordThenHold()
+        Everframe.start(context, off)
+        assertTrue("start() returned before erasing undelivered health records", recordsAfterProcessDeath().isEmpty())
+        hold!!.countDown()
+        assertFalse(Everframe.isReleaseHealthReady())
+        assertNull(pointer())
+    }
+    /** Null and a skipped debug build leave erasure to the IO tail: start() returns first, then the journal empties. */
+    private fun assertOffStartErasesInBackground(off: EverframeConfig) {
+        recordThenHold()
+        Everframe.start(context, off)
+        hold!!.countDown()
+        idleUntil("the off start never erased undelivered health records") { imageIsEmptyOnceErasureFinishes() }
+        assertFalse(Everframe.isReleaseHealthReady())
+        assertNull(pointer())
+    }
 
     @Test fun `the session carries the app version and build the package declares`() {
         shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName).apply {
@@ -323,5 +368,49 @@ class ReleaseHealthRuntimeTest {
         assertTrue("the relaunch opened no session", Everframe.isReleaseHealthReady())
         assertTrue("the relaunch offered no session for delivery", sent.isNotEmpty())
         assertTrue("a record captured before kill() was sent after it", sent.none { it.exposureId() == killed })
+    }
+
+    @Test fun `a configuration that leaves release health out records on a release host`() {
+        start(using = EverframeConfig(appId = "health-runtime", sdkKey = "txx_live_health_runtime_test",
+            capture = CaptureConfig(logs = false)))
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertNotNull("the default configuration opened no session", pointer())
+        assertTrue(Everframe.isReleaseHealthReady())
+        assertEquals("start", records().single().text("phase"))
+    }
+
+    @Test fun `a null release health configuration is off and erases in the background`() =
+        assertOffStartErasesInBackground(config.copy(releaseHealth = null))
+
+    @Test fun `a disabled release health configuration is off and erases before start returns`() =
+        assertOffStartErases(config.copy(releaseHealth = ReleaseHealthConfig(enabled = false)))
+
+    @Test fun `a debuggable host is skipped, says so once per start and erases in the background`() {
+        recordThenHold()
+        ShadowLog.clear()
+        ReleaseHealthBuildGate.__debuggableForTesting = true
+        Everframe.start(context, config)
+        hold!!.countDown()
+        idleUntil("the skipped start never erased undelivered health records") { imageIsEmptyOnceErasureFinishes() }
+        assertEquals(listOf(skipLine), skipLines())
+        idleUntil("the skipped start left the previous lifecycle observer installed") { lifecycle.observerCount == 0 }
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertFalse(Everframe.isReleaseHealthReady())
+        assertNull(pointer())
+        assertTrue("a skipped start journaled a session", records().isEmpty())
+        Everframe.start(context, config)
+        assertEquals("each skipped start says so exactly once", listOf(skipLine, skipLine), skipLines())
+    }
+
+    @Test fun `includeDebugBuilds records on a debuggable host`() {
+        ShadowLog.clear()
+        ReleaseHealthBuildGate.__debuggableForTesting = true
+        start(using = config.copy(releaseHealth = ReleaseHealthConfig(includeDebugBuilds = true)))
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertNotNull("includeDebugBuilds opened no session on a debuggable host", pointer())
+        assertTrue(Everframe.isReleaseHealthReady())
+        assertEquals("start", records().single().text("phase"))
+        assertEquals(emptyList<String>(), skipLines())
     }
 }

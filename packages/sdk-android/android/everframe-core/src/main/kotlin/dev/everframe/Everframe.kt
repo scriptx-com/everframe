@@ -52,6 +52,7 @@ import dev.everframe.config.TXUser
 import dev.everframe.config.EverframeConfig
 import dev.everframe.protocol.generated.BreadcrumbKind
 import dev.everframe.protocol.generated.Level
+import dev.everframe.envelope.txGuard
 import dev.everframe.envelope.txGuardSuspend
 import dev.everframe.envelope.txGuardVoid
 import dev.everframe.identity.IdentityTokenHolder
@@ -713,6 +714,14 @@ object Everframe {
         // the uncaught-exception handler remain in the detached install below.
         dev.everframe.crash.CrashReporter.configure(context.applicationContext)
 
+        // Release health is on by default and skips the host's debuggable builds unless
+        // includeDebugBuilds is set. Decided here, where the host context is available, so the
+        // request published with this start's epoch below is already final; the flag read and its
+        // one Logcat line stay outside both locks. A failed check counts as a release build.
+        val releaseHealthEnabled = txGuard("start.releaseHealthBuild") {
+            dev.everframe.health.ReleaseHealthBuildGate.enabled(context, config.releaseHealth)
+        } ?: (config.releaseHealth?.enabled == true)
+
         // State mutation guarded by stateLock; gate flip is the kill switch contract.
         // Re-review gap: bump _startEpoch in the SAME critical section and
         // capture the resulting value — this is the epoch the heavy-init
@@ -859,7 +868,7 @@ object Everframe {
             // Important 7 — the lock-free mirror, written in the same critical
             // section as the field it mirrors. See currentStartEpochVolatile().
             _startEpochMirror.set(_startEpoch)
-            dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, config.releaseHealth?.enabled == true)
+            dev.everframe.health.ReleaseHealthRuntime.request(_startEpoch, releaseHealthEnabled)
             dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
             val nativeSignalCommand = dev.everframe.crash.AndroidNativeSignalRuntime.request()
             dev.everframe.crash.AndroidNativeSignalRuntime.retireAfterStart(nativeSignalCommand)
@@ -869,9 +878,10 @@ object Everframe {
         // that publishes or unpublishes process-global state is gated on it.
         val stillNewest = { stateLock.withLock { _startEpoch == epoch } }
         txGuardVoid("start.releaseHealthBoundary") {
-            // Only an explicit disabled configuration waits for erasure on this thread.
+            // Only an explicit enabled = false waits for erasure on this thread. A null configuration
+            // or a skipped debug build erases in ReleaseHealthRuntime.start, off the caller (64f6c28e).
             dev.everframe.health.ReleaseHealthRuntime.boundary(context.applicationContext, epoch,
-                erase = config.releaseHealth != null)
+                erase = config.releaseHealth?.enabled == false)
         }
         txGuardVoid("start.nativeCrashBoundary") {
             dev.everframe.crash.AndroidNativeCrashRuntime.boundary(context.applicationContext, epoch, false,

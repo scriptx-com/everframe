@@ -188,7 +188,7 @@ class EverframeTest {
     }
 
     @Test
-    fun `start without release health leaves health journal work off the caller thread`() {
+    fun `release health journal work stays off the caller thread unless enabled is false`() {
         val caller = Thread.currentThread()
         val resolvedOn = java.util.concurrent.ConcurrentLinkedQueue<Thread>()
         val tracking = object : android.content.ContextWrapper(context) {
@@ -200,12 +200,20 @@ class EverframeTest {
                 return super.getNoBackupFilesDir()
             }
         }
-        Everframe.start(tracking, validConfig())
-        assertFalse("start() resolved the release health journal on the caller thread", caller in resolvedOn)
-        // Absent health still checks for an earlier journal to erase, on the SDK IO scope.
-        val deadline = System.currentTimeMillis() + 5_000
-        while (resolvedOn.none { it !== caller } && System.currentTimeMillis() < deadline) Thread.sleep(5)
-        assertTrue("absent release health never checked for an earlier journal", resolvedOn.any { it !== caller })
+        try {
+            dev.everframe.health.ReleaseHealthBuildGate.__debuggableForTesting = false
+            Everframe.start(tracking, validConfig())
+            assertFalse("an enabled start resolved the release health journal on the caller thread", caller in resolvedOn)
+            Everframe.start(tracking, validConfig().copy(releaseHealth = null))
+            assertFalse("a null start resolved the release health journal on the caller thread", caller in resolvedOn)
+            dev.everframe.health.ReleaseHealthBuildGate.__debuggableForTesting = true
+            Everframe.start(tracking, validConfig())
+            assertFalse("a skipped debug build resolved the release health journal on the caller thread", caller in resolvedOn)
+            Everframe.start(tracking, validConfig().copy(releaseHealth = dev.everframe.config.ReleaseHealthConfig(enabled = false)))
+            assertTrue("an enabled = false start returned before checking for an earlier journal", caller in resolvedOn)
+        } finally {
+            dev.everframe.health.ReleaseHealthBuildGate.__debuggableForTesting = null
+        }
     }
 
     @Test
