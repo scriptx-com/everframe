@@ -1,0 +1,23 @@
+packages/sdk-react-native/ios/Tests/EverframeCompanionBridgeTests.swift
+  s_269319d6df67e5::t_1410a2e8dc082d 18
+packages/sdk-react-native/ios/Tests/RnReplayBridgeTests.swift
+  s_269319d6df67e5::t_1410a2e8dc082d 25,29
+packages/sdk-react-native/ios/Tests/EverframeModuleTests.swift
+  s_269319d6df67e5::t_1410a2e8dc082d 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fa0b23e9957430100399c44716e550205a552837",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
