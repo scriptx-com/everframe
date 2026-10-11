@@ -218,10 +218,16 @@ export type ConfigOpts = {
   vitalsEnabled?: boolean;
   vitalsSampleRate?: number;
   vitalsCaptureSourceQuery?: boolean;
-  /** Explicit native foreground monitoring; absent or false revokes monitoring. The native SDK reads the app version. */
+  /**
+   * Native foreground monitoring (release health). The JS facade always sends this flag: `true` with a
+   * validated loaded bundle, or `false` to revoke monitoring. A bridge that finds it missing treats it as
+   * on, and only an explicit `false` as off. The native SDK reads the app version.
+   */
   releaseHealthEnabled?: boolean;
   releaseHealthLoadedBuildId?: string;
   releaseHealthUserId?: string;
+  /** Count debug builds, which the native SDKs skip by default. Absent means false. */
+  releaseHealthIncludeDebugBuilds?: boolean;
 };
 
 /**

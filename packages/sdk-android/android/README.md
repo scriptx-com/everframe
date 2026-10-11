@@ -92,20 +92,22 @@ configuration. Set `r8MappingId` only to override it; it must match
 
 ---
 
-## Release health (opt in)
+## Release health
 
 Release health counts crash-free foreground sessions for each version of your
-app. Turn it on in `EverframeConfig`:
+app. It is on by default, and debug builds (a debuggable app) aren't counted.
+Turn it off in `EverframeConfig`:
 
 ```kotlin
-releaseHealth = ReleaseHealthConfig(),
+releaseHealth = null,
 ```
 
 The SDK reads the version from `versionName` (or `versionCode` when there is no
 usable `versionName`) and the build from `versionCode`, and crash reports carry
 the same version. Pass `ReleaseHealthConfig(userId = accountId)` to count
 crash-free users, and call `Everframe.start` again with the new value on login,
-logout or an account switch. Sessions open in the default process only, through
+logout or an account switch. `ReleaseHealthConfig(includeDebugBuilds = true)`
+counts debug builds too. Sessions open in the default process only, through
 AndroidX App Startup's `ProcessLifecycleInitializer`. `releaseHealth = null` or
 `kill()` turns release health off and erases its queued records. In a React
 Native app, use the Provider's `releaseHealth` option instead. See

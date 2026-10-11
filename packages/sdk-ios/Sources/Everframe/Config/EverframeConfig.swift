@@ -76,6 +76,12 @@ public struct EverframeConfig: Sendable, Equatable {
     /// Session Vitals local controls (iOS spec 2026-09-05 §1). See
     /// `VitalsConfig`'s own doc for the opt-out-only posture.
     public var vitals: VitalsConfig
+    /// Release health: crash-free sessions for each app version (spec 2026-10-11). On by default
+    /// and anonymous. `nil` turns it off and erases undelivered local records at `start`.
+    /// `start(config:)` applies it; `setReleaseHealth(_:)` changes it until the next `start`.
+    /// Debug builds record nothing unless `includeDebugBuilds` is set. tvOS does not collect it.
+    /// The React Native bridge passes its health separately and leaves this nil.
+    public var releaseHealth: ReleaseHealthConfiguration?
 
     public enum Environment: Sendable, Equatable {
         case development
@@ -95,7 +101,8 @@ public struct EverframeConfig: Sendable, Equatable {
         companionBadgePosition: String? = nil,
         theme: ReporterThemeOptions? = nil,
         installIdentifierEnabled: Bool = true,
-        vitals: VitalsConfig = VitalsConfig()
+        vitals: VitalsConfig = VitalsConfig(),
+        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration()
     ) {
         self.sdkKey = sdkKey
         self.environment = environment
@@ -109,12 +116,13 @@ public struct EverframeConfig: Sendable, Equatable {
         self.theme = theme
         self.installIdentifierEnabled = installIdentifierEnabled
         self.vitals = vitals
+        self.releaseHealth = releaseHealth
     }
 
     /// The SDK 1.1 spelling of `init(sdkKey:…)`. Its `appId` took the SDK key
     /// (`evf_live_…`), never the App ID, so it forwards unchanged. Deprecated
     /// rather than removed so 1.1 call sites keep compiling.
-    @available(*, deprecated, renamed: "init(sdkKey:environment:release:capture:redaction:companionDeviceId:companionBadgeEnabled:shakeToReportEnabled:companionBadgePosition:theme:installIdentifierEnabled:vitals:)")
+    @available(*, deprecated, renamed: "init(sdkKey:environment:release:capture:redaction:companionDeviceId:companionBadgeEnabled:shakeToReportEnabled:companionBadgePosition:theme:installIdentifierEnabled:vitals:releaseHealth:)")
     public init(
         appId: String,
         environment: Environment = .production,
@@ -127,14 +135,15 @@ public struct EverframeConfig: Sendable, Equatable {
         companionBadgePosition: String? = nil,
         theme: ReporterThemeOptions? = nil,
         installIdentifierEnabled: Bool = true,
-        vitals: VitalsConfig = VitalsConfig()
+        vitals: VitalsConfig = VitalsConfig(),
+        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration()
     ) {
         self.init(
             sdkKey: appId, environment: environment, release: release, capture: capture,
             redaction: redaction, companionDeviceId: companionDeviceId,
             companionBadgeEnabled: companionBadgeEnabled, shakeToReportEnabled: shakeToReportEnabled,
             companionBadgePosition: companionBadgePosition, theme: theme,
-            installIdentifierEnabled: installIdentifierEnabled, vitals: vitals
+            installIdentifierEnabled: installIdentifierEnabled, vitals: vitals, releaseHealth: releaseHealth
         )
     }
 

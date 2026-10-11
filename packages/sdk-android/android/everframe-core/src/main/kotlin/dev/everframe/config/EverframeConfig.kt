@@ -97,10 +97,17 @@ data class EverframeConfig(
      * omits invalid values.
      */
     val r8MappingId: String? = null,
-    /** Durable foreground monitoring sessions, anonymous unless [ReleaseHealthConfig.userId] is set. Explicit opt-in; independent of replay/vitals. */
-    val releaseHealth: ReleaseHealthConfig? = null,
+    /**
+     * Release health: durable foreground sessions that give crash-free rates for each app version,
+     * anonymous unless [ReleaseHealthConfig.userId] is set. On by default and independent of replay and
+     * vitals. `null` or `ReleaseHealthConfig(enabled = false)` turns it off and erases undelivered local
+     * records: `enabled = false` erases before `start` returns, while `null` erases afterwards, off the
+     * caller thread. Debuggable builds of the app record nothing and erase the same way (afterwards, off
+     * the caller thread) unless [ReleaseHealthConfig.includeDebugBuilds] is set.
+     */
+    val releaseHealth: ReleaseHealthConfig? = ReleaseHealthConfig(),
 ) {
-    /** Preserve the previous Java constructor and Kotlin default-argument descriptor. */
+    /** Preserve the previous Java constructor and Kotlin default-argument descriptor; both get the release health default. */
     constructor(
         appId: String,
         sdkKey: String,
@@ -119,9 +126,9 @@ data class EverframeConfig(
         r8MappingId: String? = null,
     ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
         companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
-        theme, installIdentifierEnabled, vitals, r8MappingId, null)
+        theme, installIdentifierEnabled, vitals, r8MappingId, ReleaseHealthConfig())
 
-    /** Old compiled copy calls must retain the new opt-in on an existing configuration. */
+    /** Old compiled copy calls keep this configuration's release health setting, including an explicit `null`. */
     fun copy(
         appId: String = this.appId,
         sdkKey: String = this.sdkKey,

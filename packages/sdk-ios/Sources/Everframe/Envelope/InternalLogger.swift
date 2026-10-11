@@ -33,6 +33,12 @@ enum InternalLogger {
         log.error("safeWrap failed: \(entry.label, privacy: .public) — \(entry.message, privacy: .private)")
     }
 
+    /// A one-line status a developer should see in the console, such as release health being off
+    /// in a debug build. Public because it carries no app or user data.
+    static func notice(_ message: String) {
+        log.notice("\(message, privacy: .public)")
+    }
+
     /// Drained by EnvelopeBuilder into `captureControl.degradedReason`. After
     /// drain the buffer is cleared so each report only carries new failures.
     @discardableResult

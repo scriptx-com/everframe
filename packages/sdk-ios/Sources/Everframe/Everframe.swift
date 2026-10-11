@@ -44,12 +44,16 @@ public final class Everframe: @unchecked Sendable {
                   appleDiagnosticRuntime: AppleDiagnosticRuntime? = AppleDiagnosticPlatform.makeRuntime(),
                   releaseHealthRuntime: ReleaseHealthRuntime? = ReleaseHealthRuntime.makeRuntime(),
                   appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
-                  nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() }) {
+                  nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() },
+                  isDebugBuild: @escaping @Sendable () -> Bool = { DebugBuildDetector.current },
+                  releaseHealthNotice: @escaping @Sendable (String) -> Void = { InternalLogger.notice($0) }) {
         self.nativeCrashRuntime = nativeCrashRuntime
         self.appleDiagnosticRuntime = appleDiagnosticRuntime
         self.releaseHealthRuntime = releaseHealthRuntime
         self.appleDiagnosticSession = appleDiagnosticSession
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
+        self.isDebugBuild = isDebugBuild
+        self.releaseHealthNotice = releaseHealthNotice
         #if os(iOS)
         if releaseHealthRuntime != nil {
             releaseHealthLifecycleReady = Task { @MainActor [weak self] in
@@ -67,6 +71,15 @@ public final class Everframe: @unchecked Sendable {
     private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
     /// Delivers the first application state. Assigned once, by init on iOS.
     internal var releaseHealthLifecycleReady: Task<Void, Never>?
+    /// Release health skips debug builds. Injected so tests get one answer on the macOS host and
+    /// in the simulator, where the production check reads debug.
+    private let isDebugBuild: @Sendable () -> Bool
+    /// Writes SDK status lines, such as the debug-build skip, to the console.
+    private let releaseHealthNotice: @Sendable (String) -> Void
+    /// The deferred `config.releaseHealth` work of the latest `start(config:)`; nil when it had none.
+    private var _releaseHealthStartTask: Task<Bool, Never>?
+    /// Tests await this after `start`. Production never needs to.
+    internal var releaseHealthStartTask: Task<Bool, Never>? { stateLock.withLock { _releaseHealthStartTask } }
     private let appleDiagnosticSession: @Sendable () -> URLSession
     private let nativeCrashRuntime: NativeCrashRuntime?
     private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
@@ -147,25 +160,29 @@ public final class Everframe: @unchecked Sendable {
         }
     }
 
-    /// Opt in after start with explicit artifact identity and an optional opaque user ID. True means
-    /// this foreground session's start is durable. A launch-time call first waits for the SDK's first
-    /// application-state observation. Background returns false and waits for foreground
-    /// before recording; its configuration remains opted in. Every new start requires new opt-in; a new
-    /// configuration, such as another user ID after login or logout, ends the current foreground
+    /// Change release health after `start`: add a `userId` at login, clear it at logout, or pass nil
+    /// to turn it off. The setting lasts until the next `start`, which applies
+    /// `EverframeConfig.releaseHealth` again. True means this foreground session's start is durable.
+    /// A launch-time call first waits for the SDK's first application-state observation. Background
+    /// returns false and waits for foreground before recording; its configuration stays in force. A
+    /// new configuration, such as another user ID after login or logout, ends the current foreground
     /// session and, while foreground, opens a new one.
     /// Nil immediately revokes future health admission and attempts local erasure;
     /// false means cleanup must be retried. Already-admitted independent crash
     /// evidence is governed by crash retention; this is not server-side erasure.
-    /// Unsupported platforms return false. Replay/vitals/crash capture are independent.
+    /// A debug build is off unless the configuration sets `includeDebugBuilds`: it erases as nil
+    /// does and returns false. Unsupported platforms return false. Replay/vitals/crash capture are independent.
     @discardableResult public func setReleaseHealth(_ configuration: ReleaseHealthConfiguration?) async -> Bool {
         guard let perform = prepareReleaseHealth(configuration, expectedConfig: nil) else { return false }
         return await perform()
     }
 
     /// Configure a bridge owner and reserve its health intent before deferring durable work.
-    /// Identical SDK and health configuration retains the current foreground session and
-    /// leaves native crash capture armed. Always run the returned operation: it completes
-    /// erasure and, after a withdrawn session pointer, rearms native crash capture.
+    /// Health comes only from `health`; `config.releaseHealth` is not read here, so a changed user ID
+    /// leaves the installed configuration equal and the SDK running. Identical SDK and health
+    /// configuration retains the current foreground session and leaves native crash capture armed.
+    /// Always run the returned operation: it completes erasure and, after a withdrawn session
+    /// pointer, rearms native crash capture.
     public func configureAndPrepareReleaseHealth(config: EverframeConfig, health: ReleaseHealthConfiguration?, forceRestart: Bool = false) throws -> (@Sendable () async -> Bool)? {
         let unchanged: (epoch: Int, configGeneration: UInt64)? = stateLock.withLock {
             guard !forceRestart, Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, _config == config else { return nil }
@@ -181,7 +198,8 @@ public final class Everframe: @unchecked Sendable {
     /// Lets tests replace SDK ownership after an unchanged decision and before reservation.
     nonisolated(unsafe) internal static var __beforeReleaseHealthReservationForTesting: (() -> Void)?
 
-    /// Starts a bridge-owned configuration and reserves its optional health work.
+    /// Starts `config` and reserves `health`. Never reads `config.releaseHealth`: the public
+    /// `start(config:)` passes it as `health`, and the React Native bridge passes its own.
     internal func startAndPrepareReleaseHealth(config: EverframeConfig, health: ReleaseHealthConfiguration?) throws -> (@Sendable () async -> Bool)? {
         var published: (epoch: Int, configGeneration: UInt64)?
         try start(config: config, publication: { published = ($0, $1) })
@@ -197,14 +215,26 @@ public final class Everframe: @unchecked Sendable {
     }
 
     private var releaseHealthCommand: UInt64 = 0
-    private func prepareReleaseHealth(_ configuration: ReleaseHealthConfiguration?, expectedConfig: EverframeConfig?,
+    /// The start epoch whose debug-build skip has been logged. Guarded by stateLock.
+    private var releaseHealthDebugNoticeEpoch: Int?
+    private func prepareReleaseHealth(_ requested: ReleaseHealthConfiguration?, expectedConfig: EverframeConfig?,
                                       expectedOwner: (epoch: Int, configGeneration: UInt64)? = nil) -> (@Sendable () async -> Bool)? {
         guard let runtime = releaseHealthRuntime else { return nil }
+        // A debug build is off unless the configuration includes debug builds. The skip takes nil's
+        // path: revoke now and erase in the returned operation, so an earlier includeDebugBuilds run
+        // leaves nothing behind. The detector runs outside stateLock; its first call may read a file.
+        let skipped = requested.map { !$0.includeDebugBuilds && isDebugBuild() } ?? false
+        let configuration = skipped ? nil : requested
+        var notice = false
         let reserved: (command: UInt64, epoch: Int, configGeneration: UInt64, ticket: UInt64)? = stateLock.withLock {
             if let expectedOwner, (_startEpoch != expectedOwner.epoch || _configGeneration != expectedOwner.configGeneration) { return nil }
             if let expectedConfig, _config != expectedConfig { return nil }
             if configuration != nil {
                 guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, _config != nil else { return nil }
+            }
+            // One line per start: later skips under the same epoch stay quiet.
+            if skipped, releaseHealthDebugNoticeEpoch != _startEpoch {
+                releaseHealthDebugNoticeEpoch = _startEpoch; notice = true
             }
             releaseHealthCommand &+= 1
             let change: (UInt64, Bool)
@@ -217,11 +247,12 @@ public final class Everframe: @unchecked Sendable {
             if change.1 { nativeCrashTicket = nativeCrashRuntime?.retireExposure() ?? 0 }
             return (releaseHealthCommand, _startEpoch, _configGeneration, change.0)
         }
+        if notice { releaseHealthNotice("[everframe] Release health is off in debug builds.") }
         guard let reserved else { return nil }
         let isCurrent: @Sendable () -> Bool = { [self] in stateLock.withLock {
             releaseHealthCommand == reserved.command && _startEpoch == reserved.epoch && _configGeneration == reserved.configGeneration
         } }
-        return { [self] in
+        let operation: @Sendable () async -> Bool = { [self] in
             guard let configuration else {
                 // Explicit erasure remains an obligation even when another request overtakes its tail.
                 let erased = await runtime.finishRevocation(reserved.ticket)
@@ -256,6 +287,9 @@ public final class Everframe: @unchecked Sendable {
             if current.refresh { _ = await refreshNativeCrashContext() }
             return enabled && current.owned
         }
+        guard skipped else { return operation }
+        // A skipped debug build reports false once its erasure has run.
+        return { _ = await operation(); return false }
     }
 
     /// Opt in after start. Returns true only after the requested durable
@@ -901,8 +935,15 @@ public final class Everframe: @unchecked Sendable {
 
     /// Synchronous; returns in <5ms (RESEARCH Pitfall 5). Throws on bad config
     /// (HTTPS-only endpoint, missing/malformed sdkKey).
+    ///
+    /// Applies `config.releaseHealth`, which is on by default. The reservation is made before this
+    /// returns, and the durable work runs afterwards on a task, as the React Native bridge runs it,
+    /// so a `setReleaseHealth` call right after `start` supersedes it. Nil turns release health
+    /// off and erases undelivered local records.
     public func start(config: EverframeConfig) throws {
-        try start(config: config, publication: nil)
+        let applyHealth = try startAndPrepareReleaseHealth(config: config, health: config.releaseHealth)
+        let task = applyHealth.map { operation in Task { await operation() } }
+        stateLock.withLock { _releaseHealthStartTask = task }
     }
 
     private func start(config: EverframeConfig, publication: ((Int, UInt64) -> Void)?) throws {

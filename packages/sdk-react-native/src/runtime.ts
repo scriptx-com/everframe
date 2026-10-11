@@ -97,6 +97,7 @@ export interface RuntimeConfig
     | "releaseHealthEnabled"
     | "releaseHealthLoadedBuildId"
     | "releaseHealthUserId"
+    | "releaseHealthIncludeDebugBuilds"
   > {
   /**
    * Per-app SDK key (publishable, not secret). Required on the host-facing
@@ -109,15 +110,20 @@ export interface RuntimeConfig
   /** Exact loaded Hermes bundle identity, independent of the native app build. */
   jsBundle?: JsBundleConfig;
   /**
-   * Explicit opt-in to native foreground-session monitoring: `{ enabled: true }`.
-   * The native SDK reads the app version and build; the loaded build comes from
-   * validated Hermes jsBundle metadata. userId is an optional opaque identifier
-   * supplied for this purpose; null or omitted means anonymous, and setUser never
-   * supplies it implicitly.
+   * Native foreground-session monitoring (release health). On by default:
+   * leave this out, or leave `enabled` out, and it is on; `enabled: false`
+   * turns it off and erases undelivered records on the device. The native SDK
+   * reads the app version and build; the loaded build comes from validated
+   * Hermes jsBundle metadata, and without that identity release health stays
+   * off. userId is an optional opaque identifier supplied for this purpose;
+   * null or omitted means anonymous, and setUser never supplies it implicitly.
+   * The native SDKs skip debug builds; `includeDebugBuilds: true` counts them,
+   * for checking an integration.
    */
   releaseHealth?: {
-    enabled: boolean;
+    enabled?: boolean;
     userId?: string | null;
+    includeDebugBuilds?: boolean;
   };
   /**
    * Opt-in JS-side capture integrations (spec 2026-07-14 RN-iOS parity).
@@ -789,22 +795,31 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   if (config.vitals?.captureSourceQuery !== undefined) {
     bridge.vitalsCaptureSourceQuery = config.vitals.captureSourceQuery;
   }
+  // Release health is on unless `enabled` is explicitly false. Every off path below sends
+  // `releaseHealthEnabled: false`, because both bridges read a missing field as on. An untyped `null`
+  // option is off too, matching `releaseHealth = null` on the native SDKs.
   const health = config.releaseHealth;
-  if (health !== undefined) {
+  const healthSetExplicitly = health !== undefined;
+  if (health === null || health?.enabled === false) {
     bridge.releaseHealthEnabled = false;
-    if (health?.enabled === true) {
-      const bundle = captureJsBundleMetadata(config.jsBundle);
-      const rejected: string[] = [];
-      if (!bundle || !validReleaseHealthText(bundle.buildId, 200)) rejected.push("jsBundle (no valid Hermes bundle identity)");
-      // A null user ID is anonymous, as on the native SDKs.
-      if (health.userId != null && !validReleaseHealthText(health.userId, 128)) rejected.push("releaseHealth.userId");
-      if (bundle && rejected.length === 0) {
-        bridge.releaseHealthEnabled = true;
-        bridge.releaseHealthLoadedBuildId = bundle.buildId;
-        if (typeof health.userId === "string") bridge.releaseHealthUserId = health.userId;
-      } else {
-        // Not DEV-only: a rejected opt-in also revokes monitoring and erases queued records in
-        // release builds. Name the fields only; identifiers are never logged.
+  } else {
+    const bundle = captureJsBundleMetadata(config.jsBundle);
+    const rejected: string[] = [];
+    if (!bundle || !validReleaseHealthText(bundle.buildId, 200)) rejected.push("jsBundle (no valid Hermes bundle identity)");
+    // A null user ID is anonymous, as on the native SDKs.
+    if (health?.userId != null && !validReleaseHealthText(health.userId, 128)) rejected.push("releaseHealth.userId");
+    if (bundle && rejected.length === 0) {
+      bridge.releaseHealthEnabled = true;
+      bridge.releaseHealthLoadedBuildId = bundle.buildId;
+      if (typeof health?.userId === "string") bridge.releaseHealthUserId = health.userId;
+      if (typeof health?.includeDebugBuilds === "boolean") bridge.releaseHealthIncludeDebugBuilds = health.includeDebugBuilds;
+    } else {
+      bridge.releaseHealthEnabled = false;
+      // A rejected explicit option also revokes monitoring and erases queued records in release builds,
+      // so it warns in every build. An option the app never set only warns in development: a release
+      // app without the Metro build identity just has release health off. Name the fields only;
+      // identifiers are never logged.
+      if (healthSetExplicitly || (typeof __DEV__ !== "undefined" && __DEV__)) {
         console.warn(
           `[everframe] releaseHealth rejected: invalid ${rejected.join(", ")}. Foreground-session ` +
             "monitoring is off for this configuration; turning it off erases undelivered health records on this device.",

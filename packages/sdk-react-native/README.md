@@ -102,21 +102,24 @@ artifacts are not evidence of support.
 ## Release health
 
 Release health counts crash-free foreground sessions for each version of your
-app. Turn it on in the `EverframeProvider` config:
+app. It is on by default, and debug builds of the native app aren't counted.
+Turn it off in the `EverframeProvider` config:
 
 ```tsx
-releaseHealth: { enabled: true },
+releaseHealth: { enabled: false },
 ```
 
 Sessions come from the Android and iOS SDKs and count toward the native app
 version, which an over-the-air update doesn't change. Release health needs the
 Hermes bundle identity that `@everframe/metro` adds at build time (or the
-`jsBundle` option); without it, the SDK logs an `[everframe]` warning and leaves
-release health off. Add `userId: accountId` to count crash-free users. The
-configuration is read when the Provider mounts, so remount it with a changed
-`key` to change `enabled` or `userId`. A configure without `releaseHealth`, or
-with `enabled: false`, turns release health off and erases its queued records
-on the device. See [release health](../../docs/release-health.md).
+`jsBundle` option); without it, release health stays off and the SDK logs an
+`[everframe]` warning (in development builds only, unless you set
+`releaseHealth`). Add `userId: accountId` to count crash-free users, and
+`includeDebugBuilds: true` to count debug builds too. The configuration is read
+when the Provider mounts, so remount it with a changed `key` to change `enabled`
+or `userId`. A configure with `enabled: false` turns release health off and
+erases its queued records on the device. See
+[release health](../../docs/release-health.md).
 
 ## Promise rejection observation
 

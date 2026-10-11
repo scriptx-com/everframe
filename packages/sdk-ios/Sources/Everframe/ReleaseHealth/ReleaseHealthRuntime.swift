@@ -150,6 +150,16 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     }
     func finishRevocation(_ request: UInt64) async -> Bool {
         await onWorker {
+            // Nothing was ever stored: complete every requested erasure without creating the store's
+            // directory or reading the key. Debug launches and opted-out apps revoke at every start.
+            if self.store == nil {
+                let absent: Bool
+                do { absent = try NativeCrashContextFiles.info(self.root) == nil } catch { absent = false }
+                if absent {
+                    self.lock.withLock { self.completedErasure = self.requestedErasure }
+                    return true
+                }
+            }
             do { try self.prepareStore() } catch { return false }
             return self.finishErasure() && self.lock.withLock { self.completedErasure >= request }
         }

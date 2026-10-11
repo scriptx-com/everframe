@@ -28,6 +28,12 @@ class ReleaseHealthConfigureTest {
         putString("releaseHealthLoadedBuildId", "loaded-a")
         putString("releaseHealthUserId", "opaque-a")
     }
+    /** A loaded bundle and a user ID, but no enabled flag at all: release health is on by default. */
+    private fun withoutEnabledFlag() = JavaOnlyMap().apply {
+        putString("sdkKey", "rn-test-key")
+        putString("releaseHealthLoadedBuildId", "loaded-a")
+        putString("releaseHealthUserId", "opaque-a")
+    }
     @Test fun explicitConfigurationIsFrozenAndIdenticalConfigureKeepsOwner() {
         val opts = enabled()
         assertTrue(module.configureSync(opts))
@@ -37,23 +43,55 @@ class ReleaseHealthConfigureTest {
         assertEquals("loaded-a", health.loadedBuildId)
         assertEquals(ReleaseHealthBundleStatus.KNOWN, health.loadedBundleStatus)
         assertEquals("opaque-a", health.userId)
+        assertFalse(health.includeDebugBuilds)
         module.configure(enabled())
         assertSame(installed, Everframe.currentConfig)
         opts.putString("releaseHealthUserId", "changed")
         assertEquals("opaque-a", Everframe.currentConfig!!.releaseHealth!!.userId)
     }
-    @Test fun absentDisabledAndInvalidConfigurationsClearPreviousMonitoring() {
-        val invalid = listOf(
+    @Test fun missingOrNullEnabledFlagWithAValidLoadedBuildIsOn() {
+        listOf(withoutEnabledFlag(), enabled().apply { putNull("releaseHealthEnabled") }).forEach { opts ->
+            assertTrue(module.configureSync(opts))
+            val health = Everframe.currentConfig!!.releaseHealth!!
+            assertTrue(health.enabled)
+            assertEquals("loaded-a", health.loadedBuildId)
+            assertEquals(ReleaseHealthBundleStatus.KNOWN, health.loadedBundleStatus)
+            assertEquals("opaque-a", health.userId)
+            assertFalse(health.includeDebugBuilds)
+        }
+    }
+    @Test fun includeDebugBuildsReachesTheNativeConfigurationAndDefaultsToFalse() {
+        assertTrue(module.configureSync(enabled().apply { putBoolean("releaseHealthIncludeDebugBuilds", true) }))
+        val counting = Everframe.currentConfig!!
+        assertTrue(counting.releaseHealth!!.includeDebugBuilds)
+        listOf(
+            enabled().apply { putBoolean("releaseHealthIncludeDebugBuilds", false) },
+            enabled().apply { putNull("releaseHealthIncludeDebugBuilds") },
+            enabled(),
+        ).forEach { opts ->
+            assertTrue(module.configureSync(enabled().apply { putBoolean("releaseHealthIncludeDebugBuilds", true) }))
+            assertTrue(module.configureSync(opts))
+            val skipping = Everframe.currentConfig!!
+            assertFalse(skipping.releaseHealth!!.includeDebugBuilds)
+            assertNotEquals(counting, skipping)
+        }
+    }
+    @Test fun disabledAndInvalidConfigurationsClearPreviousMonitoring() {
+        val off = listOf(
+            // No loaded bundle: JS sends the flag without an ID when the Hermes identity is missing.
             JavaOnlyMap().apply { putString("sdkKey", "rn-test-key") },
             enabled().apply { putBoolean("releaseHealthEnabled", false) },
-            enabled().apply { putNull("releaseHealthEnabled") },
+            enabled().apply {
+                putBoolean("releaseHealthEnabled", false)
+                putBoolean("releaseHealthIncludeDebugBuilds", true)
+            },
             enabled().apply { putNull("releaseHealthLoadedBuildId") },
             enabled().apply { putString("releaseHealthUserId", "\uFEFF") },
             enabled().apply { putString("releaseHealthLoadedBuildId", "a\u0001") },
             enabled().apply { putString("releaseHealthLoadedBuildId", "\uD800") },
             enabled().apply { putString("releaseHealthUserId", "x".repeat(129)) },
         )
-        invalid.forEach { opts ->
+        off.forEach { opts ->
             assertTrue(module.configureSync(enabled()))
             assertNotNull(Everframe.currentConfig!!.releaseHealth)
             assertTrue(module.configureSync(opts))
