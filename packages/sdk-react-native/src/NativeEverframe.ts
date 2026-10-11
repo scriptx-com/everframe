@@ -348,6 +348,12 @@ export interface Spec extends TurboModule {
    * fatal, occurredAt }. Native builds/redacts/persists the envelope with
    * state it already owns (crumb ring, device metadata, outbox).
    * Returns true when the report was persisted.
+   *
+   * A non-fatal ErrorUtils error or unhandled promise rejection may carry a
+   * session replay of the seconds before it. A fatal error never carries one.
+   * Native decides replay eligibility; JavaScript sends no extra fields.
+   * Send `fatal` as a JSON boolean: only an absent flag or boolean false can
+   * request a replay on iOS.
    */
   reportCrash(crashJson: string): boolean;
 
@@ -398,7 +404,10 @@ export interface Spec extends TurboModule {
    * `token` resolves to a live player, else session-scoped.
    */
   trackVitals(name: string, dataJson?: string, token?: string): void;
-  /** Explicit handled capture; native enforces handled=true, fatal=false. */
+  /**
+   * Explicit handled capture; native enforces handled=true, fatal=false. Like a
+   * non-fatal `reportCrash`, it may carry a session replay.
+   */
   captureHandledException(crashJson: string): boolean;
 
   // ---------------- Phone-companion (Plan 06.2-11) ----------------
