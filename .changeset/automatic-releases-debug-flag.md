@@ -1,5 +1,6 @@
 ---
 "@everframe/protocol": minor
+"@everframe/web": minor
 ---
 
 <!-- SPDX-License-Identifier: MIT -->

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ReportEnvelope } from '@everframe/protocol';
 import { draftToEnvelope, type CaptureBundle } from '../../src/transport/draft-to-envelope.js';
 import type { ReportDraft } from '@everframe/sdk-core';
@@ -59,6 +59,30 @@ describe('draftToEnvelope', () => {
     );
     expect(ReportEnvelope.parse(envelope).context.app).toMatchObject({
       version: '1.0.0', build: 'web-abc123',
+    });
+  });
+
+  describe('app.debug', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('is true when the config says debugBuild', () => {
+      vi.stubGlobal('location', { hostname: 'example.com' });
+      const { envelope } = draftToEnvelope(
+        baseDraft, baseBundle(), { ...baseConfig(), debugBuild: true }, '0.1.0',
+      );
+      expect(ReportEnvelope.parse(envelope).context.app.debug).toBe(true);
+    });
+
+    it('is false by default on a non-local host', () => {
+      vi.stubGlobal('location', { hostname: 'example.com' });
+      const { envelope } = draftToEnvelope(baseDraft, baseBundle(), baseConfig(), '0.1.0');
+      expect(ReportEnvelope.parse(envelope).context.app.debug).toBe(false);
+    });
+
+    it('is true by default on localhost', () => {
+      vi.stubGlobal('location', { hostname: 'localhost' });
+      const { envelope } = draftToEnvelope(baseDraft, baseBundle(), baseConfig(), '0.1.0');
+      expect(ReportEnvelope.parse(envelope).context.app.debug).toBe(true);
     });
   });
 
