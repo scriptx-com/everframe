@@ -1,0 +1,29 @@
+packages/everframe_kmp/README.md
+  s_ce922b03c469a7::t_7f869c9ce26166 10
+packages/everframe_kmp/src/commonMain/kotlin/dev/everframe/kmp/EverframeKmp.kt
+  s_ce922b03c469a7::t_7f869c9ce26166 10-14
+packages/everframe_kmp/src/androidMain/kotlin/dev/everframe/kmp/AndroidEverframeDriver.kt
+  s_ce922b03c469a7::t_7f869c9ce26166 50
+packages/everframe_kmp/ios/EverframeSwiftDriver.swift
+  s_ce922b03c469a7::t_7f869c9ce26166 27-29
+packages/everframe_flutter/CHANGELOG.md
+  s_ce922b03c469a7::t_7f869c9ce26166 6
+packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift
+  s_ce922b03c469a7::t_7c4a2173ea6221 49-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6678ba79738a6a0ddaa3f7fc7262be7430e0770d",
+  "prompts": {},
+  "sessions": {
+    "s_ce922b03c469a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dcb771b6-aba6-44d8-8cd0-248bd018d734",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
