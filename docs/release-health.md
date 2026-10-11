@@ -11,47 +11,51 @@ version and a page for each version.
 
 ## Set up
 
-Release health is off until you turn it on. It takes one line, and the SDK
-reads the app version and build itself.
+Release health is on by default in the Android, iOS and React Native SDKs, and
+the SDK reads the app version and build itself. Ship a release build: sessions
+appear after the app has been in the foreground and the SDK has sent them.
 
-**Android**, in `EverframeConfig`:
+Debug builds aren't counted, so crashes during development never lower a
+version's rate. The SDK records nothing from a debug build and logs
+`[everframe] Release health is off in debug builds.` once per start:
 
-```kotlin
-releaseHealth = ReleaseHealthConfig(),
-```
+- **Android:** an app whose `debuggable` flag is set, as Android Studio's debug
+  build type sets it.
+- **iOS:** an app running in the simulator, or one signed with a development
+  profile (`get-task-allow`), as Xcode signs Debug builds run on a device.
+  TestFlight, App Store, ad hoc and enterprise builds all count.
 
-**iOS**, after `Everframe.shared.start`:
-
-```swift
-await Everframe.shared.setReleaseHealth(ReleaseHealthConfiguration())
-```
-
-**React Native**, in the `EverframeProvider` config:
-
-```tsx
-releaseHealth: { enabled: true },
-```
-
-Then ship a build. Sessions appear after the app has been in the foreground and
-the SDK has sent them.
-
-Turn release health on in release builds only. A debug build that reports the
-same version counts toward that version, so crashes during development would
-lower its rate:
+To count debug builds too, for example while you check your setup, set
+`includeDebugBuilds`:
 
 ```kotlin
-// BuildConfig.DEBUG needs `android { buildFeatures { buildConfig = true } }` in the app module (AGP 8 and later).
-releaseHealth = if (BuildConfig.DEBUG) null else ReleaseHealthConfig(),
+releaseHealth = ReleaseHealthConfig(includeDebugBuilds = true),
 ```
 
 ```swift
-#if !DEBUG
-await Everframe.shared.setReleaseHealth(ReleaseHealthConfiguration())
-#endif
+EverframeConfig(sdkKey: sdkKey, releaseHealth: ReleaseHealthConfiguration(includeDebugBuilds: true))
 ```
 
 ```tsx
-releaseHealth: { enabled: !__DEV__ },
+releaseHealth: { includeDebugBuilds: true },
+```
+
+`includeDebugBuilds` applies to the configuration it is set on. On iOS, a
+configuration you pass to `setReleaseHealth` needs `includeDebugBuilds: true`
+again, or a debug build is skipped.
+
+To turn release health off:
+
+```kotlin
+releaseHealth = null,
+```
+
+```swift
+EverframeConfig(sdkKey: sdkKey, releaseHealth: nil)
+```
+
+```tsx
+releaseHealth: { enabled: false },
 ```
 
 Per platform:
@@ -61,15 +65,16 @@ Per platform:
   from the manifest; without it no session opens and the SDK logs
   `process-lifecycle-unavailable`. `Everframe.isReleaseHealthReady()` is true
   while a foreground session is being recorded.
-- **iOS** needs the call again after every `Everframe.shared.start`. It returns
-  `true` once a foreground session has started. tvOS doesn't collect release
-  health.
+- **iOS:** `Everframe.shared.start` applies `EverframeConfig.releaseHealth`.
+  `setReleaseHealth(_:)` changes it while the app runs, until the next `start`,
+  and returns `true` once a foreground session has started. tvOS doesn't collect
+  release health.
 - **React Native** reports through the Android and iOS SDKs, so use the Provider
   option and not the native calls. It needs the Hermes bundle identity that
-  `@everframe/metro` adds at build time, or the `jsBundle` option; without one,
-  the SDK logs an `[everframe]` warning and release health stays off. Every
-  Provider configure applies its own setting: a config without `releaseHealth`,
-  or with `enabled: false`, turns it off.
+  `@everframe/metro` adds at build time, or the `jsBundle` option. Without one,
+  release health stays off and the SDK logs an `[everframe]` warning: in
+  development builds when you left `releaseHealth` out, and in every build when
+  you set it. Every Provider configure applies its own setting.
 
 ## What a crash-free session is
 
@@ -159,14 +164,13 @@ non-blank, at most 128 UTF-16 code units and free of control characters
   account switch, call `Everframe.start` again with the new value
   (`userId = null` on logout). An invalid ID keeps release health off; nothing
   is thrown.
-- **iOS:** `try ReleaseHealthConfiguration(userId: accountId)`, then
-  `setReleaseHealth` again whenever it changes (`ReleaseHealthConfiguration()`
-  on logout). An invalid ID throws
+- **iOS:** `releaseHealth: try ReleaseHealthConfiguration(userId: accountId)` in
+  `EverframeConfig`, then `setReleaseHealth` whenever the account changes
+  (`ReleaseHealthConfiguration()` on logout). An invalid ID throws
   `ReleaseHealthConfiguration.ValidationError.invalidUserIdentity`.
-- **React Native:** `releaseHealth: { enabled: true, userId: accountId }`.
-  Remount the Provider with a changed `key` when the ID changes; changing the
-  `config` prop alone does nothing. An invalid ID logs a warning and turns
-  release health off.
+- **React Native:** `releaseHealth: { userId: accountId }`. Remount the Provider
+  with a changed `key` when the ID changes; changing the `config` prop alone
+  does nothing. An invalid ID logs a warning and turns release health off.
 
 Changing the ID ends the current session and starts a new one. A session keeps
 the ID it started with.
@@ -187,10 +191,9 @@ A release is an app version. The SDK reads it, and you don't pass it:
 
 Crash and error reports carry the same version in `context.app.version`. That is
 how a version's "New errors" (error groups first seen in it) and "Top errors"
-match its sessions. Every build of a version counts toward the version, and the
-version page lists the builds it has seen. A debug build that reports the same
-version counts too, which is why the setup above turns release health on in
-release builds only.
+match its sessions. Every release build of a version counts toward the version,
+and the version page lists the builds it has seen. Debug builds aren't counted
+(see [Set up](#set-up)).
 
 On iOS, `EverframeConfig(release:)` overrides the version of native crash
 reports. If you set it, native crashes (Mach exceptions and signals) and the
@@ -206,7 +209,7 @@ A version can be any text up to 64 UTF-16 code units, such as `2.4.0`,
 "First seen" is the start of the earliest session of that version that
 Everframe has received. It is kept after the sessions themselves expire, so a
 version shipped months ago keeps its first-seen day. For a version already in use
-when you turned release health on, it is the first session Everframe received.
+before its sessions started arriving, it is the first session Everframe received.
 The latest release is the version first seen most recently, and the page
 compares it with the version first seen before it.
 
@@ -227,10 +230,10 @@ reports, which have their own queue.
 
 Turning release health off erases the records still waiting on the device:
 `releaseHealth = null` or `ReleaseHealthConfig(enabled = false)` on Android,
-`setReleaseHealth(nil)` on iOS, a config without `releaseHealth` or with
-`enabled: false` in React Native, and `kill()` on Android and iOS. Records
-Everframe has already received are not recalled; they expire after 30 days.
-Crash reports already captured keep their own delivery and retention.
+`releaseHealth: nil` or `setReleaseHealth(nil)` on iOS, `enabled: false` in
+React Native, a debug build that isn't counted, and `kill()` on Android and iOS.
+Records Everframe has already received are not recalled; they expire after 30
+days. Crash reports already captured keep their own delivery and retention.
 
 ## Alerts
 

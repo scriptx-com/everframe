@@ -93,8 +93,8 @@ imports them into the encrypted delivery queue on the next enabled launch.
 The recorder is bundled with the SDK; hosts do not install it separately.
 
 Capture starts asynchronously after an encrypted context is durable. There is a
-capture gap during startup and user/configuration changes, including release-health
-opt-in, opt-out and reconfiguration. With release health enabled, each foreground
+capture gap during startup and user/configuration changes, including turning release
+health on or off and reconfiguring it. With release health enabled, each foreground
 session start adds a brief gap once the start is durable, while the context carrying
 its pointer is admitted on the main thread. Entering background withdraws that
 pointer before the UIKit callback returns and normally rearms a durable context
@@ -173,20 +173,24 @@ qualification of jetsam and watchdog thresholds is pending.
 ## Release health (iOS)
 
 Release health counts crash-free foreground sessions for each version of your
-app. It is off by default; turn it on after `Everframe.shared.start`:
+app. It is on by default, and debug builds (the simulator, or a
+development-signed app) aren't counted. `Everframe.shared.start` applies
+`EverframeConfig.releaseHealth`; turn it off there:
 
 ```swift
-await Everframe.shared.setReleaseHealth(ReleaseHealthConfiguration())
+try Everframe.shared.start(config: EverframeConfig(sdkKey: sdkKey, releaseHealth: nil))
 ```
 
 The SDK reads the version from `CFBundleShortVersionString` (or
 `CFBundleVersion` when it is missing) and the build from `CFBundleVersion`, and
-crash reports carry the same version. Call it again after every `start`. Pass
-`try ReleaseHealthConfiguration(userId: accountId)` to count crash-free users,
-and call `setReleaseHealth` again when the account changes.
-`setReleaseHealth(nil)` or `kill()` turns release health off and erases its
-queued records. tvOS doesn't collect release health. In a React Native app, use
-the Provider's `releaseHealth` option instead. See
+crash reports carry the same version. Pass
+`releaseHealth: try ReleaseHealthConfiguration(userId: accountId)` to count
+crash-free users, and call `setReleaseHealth` when the account changes; that
+setting lasts until the next `start`.
+`ReleaseHealthConfiguration(includeDebugBuilds: true)` counts debug builds too.
+`releaseHealth: nil`, `setReleaseHealth(nil)` or `kill()` turns release health
+off and erases its queued records. tvOS doesn't collect release health. In a
+React Native app, use the Provider's `releaseHealth` option instead. See
 [release health](../../docs/release-health.md).
 
 ## Apple hang and exit diagnostics

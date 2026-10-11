@@ -48,9 +48,10 @@ OS delivery behavior does not establish that a report passes SDK ownership check
 each app version on Android, iOS and React Native, and
 [release health alerts](release-health-alerts.md) send a webhook when a version
 drops below a target. Sessions that end without a known outcome are left out of
-the rate and shown as a share. The rates cover apps that turned release health
-on, and only sessions the service still keeps; they are not population
-crash-free rates, statistical regressions or proof that a release recovered.
+the rate and shown as a share. The rates cover release builds of apps that
+haven't turned release health off, and only sessions the service still keeps;
+they are not population crash-free rates, statistical regressions or proof that
+a release recovered.
 
 ## Promotion criteria
 
