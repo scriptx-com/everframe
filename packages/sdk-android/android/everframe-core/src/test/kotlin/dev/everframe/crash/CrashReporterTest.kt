@@ -471,6 +471,32 @@ class CrashReporterTest {
         assertEquals("errorutils", crash["mechanism"]!!.jsonPrimitive.content)
     }
 
+    private fun formFactor(name: String) =
+        persistedEnvelope(name)["sdk"]!!.jsonObject["formFactor"]!!.jsonPrimitive.content
+
+    // Smoke round 2026-10: Android TV JVM and React Native reports said "phone";
+    // only the exit-info and ANR paths passed the detected form factor.
+    @Test
+    @Config(qualifiers = "television")
+    fun `JVM, React Native and handled reports on a television say tv`() {
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("jvm on tv"))
+        assertEquals("tv", formFactor("jvm"))
+        assertTrue(hermesFatal())
+        assertEquals("tv", formFactor("react-native"))
+        assertTrue(handled())
+        assertEquals("tv", formFactor("handled"))
+    }
+
+    @Test
+    fun `a leanback device is a tv even without the television UI mode`() {
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("phone"))
+        assertEquals("phone", formFactor("phone"))
+        org.robolectric.Shadows.shadowOf(context.packageManager)
+            .setSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK, true)
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("leanback"))
+        assertEquals("tv", formFactor("leanback"))
+    }
+
     @Test
     fun `different native crash remains after a persisted Hermes fatal`() {
         assertTrue(hermesFatal())

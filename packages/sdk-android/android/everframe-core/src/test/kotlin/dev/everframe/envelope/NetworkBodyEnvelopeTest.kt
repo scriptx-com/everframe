@@ -70,6 +70,7 @@ class NetworkBodyEnvelopeTest {
         val builder = EnvelopeBuilder()
         val crumbs = listOf(networkCrumb(reqId = 1, seq = 0), networkCrumb(reqId = 2, seq = 1))
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = "t", networkBodies = listOf(entry(1), entry(2)), breadcrumbs = crumbs,
         )
         val json = Json.parseToJsonElement(encoded.bytes.decodeToString()).jsonObject
@@ -84,7 +85,7 @@ class NetworkBodyEnvelopeTest {
     fun `no bodies - channel and marker absent`() {
         val builder = EnvelopeBuilder()
 
-        val encodedNull = builder.buildEncoded(sdkVersion = "t", networkBodies = null)
+        val encodedNull = builder.buildEncoded(formFactor = "phone", sdkVersion = "t", networkBodies = null)
         val jsonNull = Json.parseToJsonElement(encodedNull.bytes.decodeToString()).jsonObject
         assertNull("payload.networkBodies must be absent when null", jsonNull["payload"]!!.jsonObject["networkBodies"])
         assertTrue(
@@ -93,7 +94,7 @@ class NetworkBodyEnvelopeTest {
                 .map { it.jsonPrimitive.content }.contains("networkBodies")
         )
 
-        val encodedEmpty = builder.buildEncoded(sdkVersion = "t", networkBodies = emptyList())
+        val encodedEmpty = builder.buildEncoded(formFactor = "phone", sdkVersion = "t", networkBodies = emptyList())
         val jsonEmpty = Json.parseToJsonElement(encodedEmpty.bytes.decodeToString()).jsonObject
         assertNull("payload.networkBodies must be absent when empty", jsonEmpty["payload"]!!.jsonObject["networkBodies"])
         assertTrue(
@@ -109,6 +110,7 @@ class NetworkBodyEnvelopeTest {
     fun `no breadcrumbs - bodies present - networkBodies absent and no marker`() {
         val builder = EnvelopeBuilder()
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = "t", networkBodies = listOf(entry(1), entry(2)), breadcrumbs = null,
         )
         val json = Json.parseToJsonElement(encoded.bytes.decodeToString()).jsonObject
@@ -128,6 +130,7 @@ class NetworkBodyEnvelopeTest {
             message = "log line", seq = 0L, t = 1.0,
         )
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = "t", networkBodies = listOf(entry(1)), breadcrumbs = listOf(nonNetworkCrumb),
         )
         val json = Json.parseToJsonElement(encoded.bytes.decodeToString()).jsonObject
@@ -144,7 +147,7 @@ class NetworkBodyEnvelopeTest {
         val builder = EnvelopeBuilder()
         val entries = listOf(entry(1), entry(2), entry(3))
         val crumbs = listOf(networkCrumb(reqId = 1, seq = 0), networkCrumb(reqId = 2, seq = 1))
-        val encoded = builder.buildEncoded(sdkVersion = "t", networkBodies = entries, breadcrumbs = crumbs)
+        val encoded = builder.buildEncoded(formFactor = "phone", sdkVersion = "t", networkBodies = entries, breadcrumbs = crumbs)
         val json = Json.parseToJsonElement(encoded.bytes.decodeToString()).jsonObject
         val shippedBodies = json["payload"]!!.jsonObject["networkBodies"]!!.jsonArray
         assertEquals(2, shippedBodies.size)
@@ -163,7 +166,7 @@ class NetworkBodyEnvelopeTest {
         val crumbs = listOf(
             networkCrumb(reqId = 10, seq = 0), networkCrumb(reqId = 20, seq = 1), networkCrumb(reqId = 30, seq = 2),
         )
-        val encoded = builder.buildEncoded(sdkVersion = "t", networkBodies = entries, breadcrumbs = crumbs)
+        val encoded = builder.buildEncoded(formFactor = "phone", sdkVersion = "t", networkBodies = entries, breadcrumbs = crumbs)
         val shippedBodies = encoded.envelope.payload.networkBodies
         assertEquals(3, shippedBodies?.size)
         assertTrue(encoded.envelope.captureControl.included.contains("networkBodies"))
@@ -196,6 +199,7 @@ class NetworkBodyEnvelopeTest {
         val builder = EnvelopeBuilder()
         val crumbs = listOf(networkCrumb(reqId = 1, seq = 0))
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = "t",
             networkBodies = listOf(entry(1), entry(404)),
             breadcrumbs = crumbs,
@@ -220,7 +224,7 @@ class NetworkBodyEnvelopeTest {
     fun `dangling crumb reqId with no matching body encodes without error`() {
         val builder = EnvelopeBuilder()
         val crumbs = listOf(networkCrumb(reqId = 99, seq = 0))
-        val encoded = builder.buildEncoded(sdkVersion = "t", networkBodies = null, breadcrumbs = crumbs)
+        val encoded = builder.buildEncoded(formFactor = "phone", sdkVersion = "t", networkBodies = null, breadcrumbs = crumbs)
         val json = Json.parseToJsonElement(encoded.bytes.decodeToString()).jsonObject
         assertNull("payload.networkBodies must be absent — no bodies were shipped", json["payload"]!!.jsonObject["networkBodies"])
 

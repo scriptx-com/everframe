@@ -661,7 +661,7 @@ class EverframeTest {
         assertNull(dev.everframe.vitals.VitalsRuntime.currentStamp())
         val envelope = kotlinx.serialization.json.Json.parseToJsonElement(
             String(
-                dev.everframe.envelope.EnvelopeBuilder().buildEncoded(sdkVersion = "0.8.0").bytes,
+                dev.everframe.envelope.EnvelopeBuilder().buildEncoded(formFactor = "phone", sdkVersion = "0.8.0").bytes,
                 Charsets.UTF_8,
             ),
         ).jsonObject
