@@ -32,9 +32,9 @@ describe('explicit native foreground monitoring configuration', () => {
   it('accepts iOS Metro metadata and preserves valid opaque Unicode bytes', () => {
     vi.spyOn(Platform, 'OS', 'get').mockReturnValue('ios');
     vi.stubGlobal('__EVERFRAME_BUILD__', { buildId: 'loaded-ios', bundleName: 'main.jsbundle' });
-    const opts = extract({ sdkKey: 'key', releaseHealth: { enabled: true, userId: 'é' } });
+    const opts = extract({ sdkKey: 'key', releaseHealth: { enabled: true, userId: 'e\u0301' } });
     expect(opts).toMatchObject({ releaseHealthEnabled: true, releaseHealthLoadedBuildId: 'loaded-ios',
-      releaseHealthUserId: 'é' });
+      releaseHealthUserId: 'e\u0301' });
   });
   it('does not infer identity and keeps absent or disabled health off', () => {
     expect(extract({ sdkKey: 'key' }).releaseHealthEnabled).not.toBe(true);
@@ -55,7 +55,7 @@ describe('explicit native foreground monitoring configuration', () => {
     const opts = extract({ ...config(), jsBundle });
     expect(opts.releaseHealthEnabled).toBe(false); expect(opts.releaseHealthLoadedBuildId).toBeUndefined();
   });
-  it.each(['', ' ', 'x'.repeat(129), '﻿', 'a\u001f'])('disables invalid opaque identity %j', userId => {
+  it.each(['', ' ', 'x'.repeat(129), '\ufeff', 'a\u001f'])('disables invalid opaque identity %j', userId => {
     expect(extract({ ...config(), releaseHealth: { enabled: true, userId } }).releaseHealthEnabled).toBe(false);
   });
   it('names only releaseHealth.userId when the user ID is invalid', () => {

@@ -48,7 +48,7 @@ class ReleaseHealthConfigureTest {
             enabled().apply { putBoolean("releaseHealthEnabled", false) },
             enabled().apply { putNull("releaseHealthEnabled") },
             enabled().apply { putNull("releaseHealthLoadedBuildId") },
-            enabled().apply { putString("releaseHealthUserId", "﻿") },
+            enabled().apply { putString("releaseHealthUserId", "\uFEFF") },
             enabled().apply { putString("releaseHealthLoadedBuildId", "a\u0001") },
             enabled().apply { putString("releaseHealthLoadedBuildId", "\uD800") },
             enabled().apply { putString("releaseHealthUserId", "x".repeat(129)) },
@@ -63,10 +63,10 @@ class ReleaseHealthConfigureTest {
     @Test fun anonymousAndSupplementaryIdentifiersAreAcceptedWithoutInference() {
         val opts = enabled().apply {
             putNull("releaseHealthUserId")
-            putString("releaseHealthLoadedBuildId", "loaded-🚀")
+            putString("releaseHealthLoadedBuildId", "loaded-\uD83D\uDE80")
         }
         module.configure(opts)
         assertNull(Everframe.currentConfig!!.releaseHealth!!.userId)
-        assertEquals("loaded-🚀", Everframe.currentConfig!!.releaseHealth!!.loadedBuildId)
+        assertEquals("loaded-\uD83D\uDE80", Everframe.currentConfig!!.releaseHealth!!.loadedBuildId)
     }
 }

@@ -26,10 +26,10 @@ class AppReleaseTest {
         assertEquals(64, AppReleaseRule.MAX_LENGTH)
         assertEquals("a".repeat(64), AppReleaseRule.of("a".repeat(64), 7).version)
         // 32 emoji are 64 UTF-16 units; 33 are 66.
-        assertEquals("😀".repeat(32), AppReleaseRule.of("😀".repeat(32), 7).version)
-        assertEquals("7", AppReleaseRule.of("😀".repeat(33), 7).version)
+        assertEquals("\uD83D\uDE00".repeat(32), AppReleaseRule.of("\uD83D\uDE00".repeat(32), 7).version)
+        assertEquals("7", AppReleaseRule.of("\uD83D\uDE00".repeat(33), 7).version)
     }
     @Test fun `version strings that are not URL safe are kept as they are`() {
-        for (name in listOf("2.4.0+42", "1.0 (beta)/rc", "2.0-β")) assertEquals(name, AppReleaseRule.of(name, 7).version)
+        for (name in listOf("2.4.0+42", "1.0 (beta)/rc", "2.0-\u03B2")) assertEquals(name, AppReleaseRule.of(name, 7).version)
     }
 }
