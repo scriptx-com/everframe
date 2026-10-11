@@ -1,0 +1,35 @@
+.changeset/automatic-releases-debug-flag.md
+  s_ce922b03c469a7::t_6c2e055a8adfd2 3
+packages/sdk-core/src/crash/build.ts
+  s_ce922b03c469a7::t_16b48d9463dec0 48
+packages/sdk-core/src/envelope-builder.ts
+  s_ce922b03c469a7::t_a587ce3e6496dc 43
+packages/sdk-core/src/types/config.ts
+  s_ce922b03c469a7::t_33d0a856ae185c 58-59
+packages/sdk-web/__tests__/debug-build.test.ts
+  s_ce922b03c469a7::t_595161fddd847c 1-20
+packages/sdk-web/__tests__/transport/draft-to-envelope.spec.ts
+  s_ce922b03c469a7::t_5891a3c7c44c94 4,65-88
+packages/sdk-web/src/adapter.ts
+  s_ce922b03c469a7::t_c872df296eb041 129,1574
+packages/sdk-web/src/debug-build.ts
+  s_ce922b03c469a7::t_6405af445245a2 1-20
+packages/sdk-web/src/transport/draft-to-envelope.ts
+  s_ce922b03c469a7::t_a74d1dc955f098 27,403
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df7d0f5c7108fe6176718b36561996c55c21194f",
+  "prompts": {},
+  "sessions": {
+    "s_ce922b03c469a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dcb771b6-aba6-44d8-8cd0-248bd018d734",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
