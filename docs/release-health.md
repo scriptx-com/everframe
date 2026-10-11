@@ -141,7 +141,8 @@ but not people. With one, it also shows:
 
 - **Crash-free users**: of the users whose outcome is known, the share who
   didn't crash. A user crashed when any of their sessions crashed, and is
-  crash-free when all of their sessions completed.
+  crash-free when none of their sessions crashed and at least one completed.
+  A user whose sessions all ended with an unknown outcome isn't counted.
 - **Users affected**: how many users had at least one crashed session.
 
 Crash-free users needs at least 80% of a version's sessions to carry a user ID,
