@@ -1,0 +1,21 @@
+packages/sdk-roku/__tests__/hook.spec.ts
+  s_ce922b03c469a7::t_25b0d7f00d1bcb 6,41-80
+packages/sdk-roku/library/components/Everframe/lib/ef_util.brs
+  s_ce922b03c469a7::t_5a0d517bcfd856 163-172,175-182,189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "78375d0a771866bd6f327e5da151f0d6ea480d05",
+  "prompts": {},
+  "sessions": {
+    "s_ce922b03c469a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dcb771b6-aba6-44d8-8cd0-248bd018d734",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
