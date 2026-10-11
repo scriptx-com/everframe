@@ -77,7 +77,7 @@ internal class AndroidNativeRecovery(
     fun arm(template: OutboxEntry, pid: Int, processName: String, authorization: OutboxAuthorization,
             diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, nativeExposure: NativeExposurePointer? = null,
             exits: List<AndroidNativeExit> = emptyList(), onReclaimed: (unreportable: Int, oldest: Int) -> Unit = { _, _ -> },
-            appId: String? = null, register: (ByteArray) -> Unit) {
+            appId: String? = null, mappingId: String? = null, register: (ByteArray) -> Unit) {
         require(UUID.fromString(template.reportId).toString() == template.reportId)
         require(template.identitySubject == null && template.attachmentRefs.isEmpty())
         require(template.envelopeBytes.size <= MAX_CONTEXT_BYTES && pid > 0 && processName.length in 1..256)
@@ -95,6 +95,8 @@ internal class AndroidNativeRecovery(
             // Insertion order for a full journal: wall-clock createdAt cannot rank contexts when the clock jumps.
             put("sequence", (held.maxOfOrNull { it.sequence } ?: 0L).coerceAtLeast(0L) + 1)
             if (appId != null) put("appId", appId)
+            // The build this process runs: a later launch may already run an updated APK.
+            mappingId?.takeIf { R8_MAPPING_ID.matches(it) }?.let { put("mappingId", it) }
             if (enriched) {
                 require(apiLevel >= 30 && UUID.fromString(processLaunchId).toString() == processLaunchId)
                 put("processLaunchId", processLaunchId); put("apiLevel", apiLevel)
@@ -254,7 +256,8 @@ internal class AndroidNativeRecovery(
             val frozen = (state["nativeExposure"] as? JsonObject)?.let(NativeExposurePointer::parse)
                 ?.takeIf { it.processLaunchId == launchId }
             val diagnostic = if (diagnostics || frozen != null) {
-                val evidence = AndroidExitDiagnostic.evidence(context.reportId, launchId!!, apiLevel, exit, collectedMs, trace)
+                val mappingId = (state["mappingId"] as? JsonPrimitive)?.contentOrNull
+                val evidence = AndroidExitDiagnostic.evidence(context.reportId, launchId!!, apiLevel, exit, collectedMs, trace, mappingId)
                 if (frozen == null) evidence else JsonObject(evidence + ("nativeExposure" to frozen.toJson()))
             } else null
             val appId = state["appId"]?.jsonPrimitive?.contentOrNull

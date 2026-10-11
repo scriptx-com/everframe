@@ -101,8 +101,11 @@ internal object AndroidNativeCrashRuntime {
             try { outbox.store.enqueueSync(entry, gate); true } catch (_: Exception) { false }
         }
         val appId = captured.config.appId
-        return if (diagnostics) owner.enableDiagnostics(epoch, gate, System.currentTimeMillis(), template, appId, admit)
-            else owner.enable(epoch, gate, System.currentTimeMillis(), template, appId, admit)
+        // The same ID JVM crashes send as payload.crash.jvm.mappingId (packaged asset or explicit config).
+        val mappingId = captured.config.r8MappingId
+        return if (diagnostics) owner.enableDiagnostics(epoch, gate, System.currentTimeMillis(), template,
+                appId = appId, mappingId = mappingId, admit = admit)
+            else owner.enable(epoch, gate, System.currentTimeMillis(), template, appId = appId, mappingId = mappingId, admit = admit)
     }
 
     /** Outside SDK stateLock. Pending OS reads cannot block this transition. */

@@ -891,6 +891,10 @@ data class Android (
     val apiLevel: Long,
     val description: String? = null,
     val importance: Long? = null,
+
+    @SerialName("mappingId")
+    val mappingID: String? = null,
+
     val pid: Long,
 
     @SerialName("pssKb")

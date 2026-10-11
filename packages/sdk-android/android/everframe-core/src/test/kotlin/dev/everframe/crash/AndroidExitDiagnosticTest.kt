@@ -19,13 +19,14 @@ class AndroidExitDiagnosticTest {
     private val launch = "22222222-2222-4222-8222-222222222222"
     private fun store(name: String) = OutboxStore(File(folder.root, name), keys, JvmOutboxFileOps(), 8, 2 * 1024 * 1024)
     private fun engine() = AndroidNativeRecovery(store("contexts"), store("prepared"))
-    private fun arm(api: Int = 31, appId: String? = "app-a"): Pair<OutboxEntry, ByteArray> {
+    private fun arm(api: Int = 31, appId: String? = "app-a", mappingId: String? = null): Pair<OutboxEntry, ByteArray> {
         val id = UUID.randomUUID().toString()
         val entry = OutboxEntry(id, 1000,
             """{"reportId":"$id","context":{"app":{"version":"old","build":"17"}},"reporter":{"title":"","description":""},"payload":{}}""".toByteArray(),
             "template", emptyList(), "old-key", "https://old.example")
         var token = byteArrayOf()
-        engine().arm(entry, 99, "app", allowed, diagnostics = true, processLaunchId = launch, apiLevel = api, appId = appId) { token = it }
+        engine().arm(entry, 99, "app", allowed, diagnostics = true, processLaunchId = launch, apiLevel = api, appId = appId,
+            mappingId = mappingId) { token = it }
         return entry to token
     }
     private fun record(token: ByteArray, reason: Int, trace: () -> java.io.InputStream? = { null }) =
@@ -98,6 +99,24 @@ class AndroidExitDiagnosticTest {
             assertEquals("old", body(report)["context"]!!.jsonObject["app"]!!.jsonObject["version"]!!.jsonPrimitive.content)
         }
         assertEquals("one issue per app, not one per occurrence", setOf(AndroidNativeRecovery.lowMemoryFingerprint("app-a")), fingerprints)
+    }
+    // An ANR on a TV often arrives with no Java crash from the same build, so the evidence itself
+    // names the R8 mapping the server needs to retrace it (payload.diagnostic.android.mappingId).
+    @Test fun `ANR and low-memory evidence carry the R8 mapping ID of the build that exited`() {
+        val mappingId = "r8-map-id-a218cbe3a744e025b5841d1924f117233eac06243f3e328f4f83d2eecea499c5"
+        for (exitOf in listOf<(ByteArray) -> AndroidNativeExit>({ record(it, 6) }, { lowMemory(it, 100) })) {
+            // Frozen at arm time: recovery runs in a later launch, possibly of an updated build.
+            val (_, token) = arm(api = 30, mappingId = mappingId)
+            val reported = arrayListOf<OutboxEntry>()
+            assertEquals(1, engine().recover(listOf(exitOf(token)), 3000, allowed, allowDiagnostics = true) { reported.add(it); true })
+            assertEquals(mappingId, evidence(reported.single())["android"]!!.jsonObject["mappingId"]!!.jsonPrimitive.content)
+        }
+        for (absent in listOf(null, "", "has space", "-leading", "x".repeat(129))) {
+            val (_, token) = arm(api = 30, mappingId = absent)
+            val reported = arrayListOf<OutboxEntry>()
+            assertEquals(1, engine().recover(listOf(record(token, 6)), 3000, allowed, allowDiagnostics = true) { reported.add(it); true })
+            assertFalse(evidence(reported.single())["android"]!!.jsonObject.containsKey("mappingId"))
+        }
     }
     @Test fun `each app of a project gets its own low-memory kill issue`() {
         // Error groups are unique per project and fingerprint: a fixed fingerprint would merge every

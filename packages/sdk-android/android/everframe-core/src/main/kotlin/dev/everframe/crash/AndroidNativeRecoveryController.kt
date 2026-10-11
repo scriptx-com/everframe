@@ -34,7 +34,7 @@ internal class AndroidNativeRecoveryController(
     /** Called when arming had to free context slots: (records that can no longer be reported, oldest records). */
     private val onJournalFull: (Int, Int) -> Unit = ::warnJournalFull,
 ) {
-    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry, val nowMs: Long, val admit: (OutboxEntry) -> Boolean, val appId: String?) {
+    private class Active(val epoch: Int, val engine: AndroidNativeRecovery, val authorization: OutboxAuthorization, val diagnostics: Boolean, val template: () -> OutboxEntry, val nowMs: Long, val admit: (OutboxEntry) -> Boolean, val appId: String?, val mappingId: String?) {
         val operations = Any()
         // Volatile: readiness is read without the lock, which an arm holds across journal and Binder IO.
         @Volatile var ready = false
@@ -51,17 +51,21 @@ internal class AndroidNativeRecoveryController(
     /** The OS token as last written, or null once cleared; read without a lock by [markJvmFatal]. */
     @Volatile private var published: ByteArray? = null
 
-    /** [appId] keys the low-memory kill's issue to this app; it is frozen into each context. */
+    /**
+     * [appId] keys the low-memory kill's issue to this app; [mappingId] is this build's R8 mapping ID,
+     * so the server can retrace an ANR stack. Both are frozen into each context.
+     */
     fun enable(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, template: () -> OutboxEntry,
-               appId: String? = null, admit: (OutboxEntry) -> Boolean): Boolean =
-        enableMode(epoch, authorization, nowMs, false, template, admit, appId)
+               appId: String? = null, mappingId: String? = null, admit: (OutboxEntry) -> Boolean): Boolean =
+        enableMode(epoch, authorization, nowMs, false, template, admit, appId, mappingId)
 
     fun enableDiagnostics(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, template: () -> OutboxEntry,
-                          appId: String? = null, admit: (OutboxEntry) -> Boolean): Boolean =
-        enableMode(epoch, authorization, nowMs, true, template, admit, appId)
+                          appId: String? = null, mappingId: String? = null, admit: (OutboxEntry) -> Boolean): Boolean =
+        enableMode(epoch, authorization, nowMs, true, template, admit, appId, mappingId)
 
     private fun enableMode(epoch: Int, authorization: OutboxAuthorization, nowMs: Long, diagnostics: Boolean,
-                           template: () -> OutboxEntry, admit: (OutboxEntry) -> Boolean, appId: String?): Boolean {
+                           template: () -> OutboxEntry, admit: (OutboxEntry) -> Boolean, appId: String?,
+                           mappingId: String?): Boolean {
         if (platform.apiLevel < (if (diagnostics) 30 else 31) || !authorization.isAllowed()) return false
         val owner = synchronized(lock) {
             if (!authorization.isAllowed()) return false
@@ -76,7 +80,7 @@ internal class AndroidNativeRecoveryController(
                 // only the old registration and its own context go. Erasure belongs to kill().
                 replace(it)
             }
-            Active(epoch, factory(), authorization, diagnostics, template, nowMs, admit, appId).also { active = it }
+            Active(epoch, factory(), authorization, diagnostics, template, nowMs, admit, appId, mappingId).also { active = it }
         }
         return initialize(owner)
     }
@@ -101,7 +105,8 @@ internal class AndroidNativeRecoveryController(
             synchronized(lock) {
                 if (!gate.isAllowed()) return false
                 owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics, processLaunchId, platform.apiLevel,
-                    nativeExposure = exposure(owner.epoch), exits = exits, onReclaimed = ::journalFull, appId = owner.appId) {
+                    nativeExposure = exposure(owner.epoch), exits = exits, onReclaimed = ::journalFull, appId = owner.appId,
+                    mappingId = owner.mappingId) {
                     synchronized(publication) {
                         check(gate.isAllowed())
                         owner.claimed = true // An exception may follow a successful remote Binder write.
@@ -162,7 +167,7 @@ internal class AndroidNativeRecoveryController(
                     owner.engine.disarm()
                     owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics,
                         processLaunchId, platform.apiLevel, nativeExposure = exposure(epoch), exits = owner.exits,
-                        onReclaimed = ::journalFull, appId = owner.appId) { token ->
+                        onReclaimed = ::journalFull, appId = owner.appId, mappingId = owner.mappingId) { token ->
                         synchronized(publication) {
                             check(gate.isAllowed()); owner.claimed = true; publish(token)
                         }
