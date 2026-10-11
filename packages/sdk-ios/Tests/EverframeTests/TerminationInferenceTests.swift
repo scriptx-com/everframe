@@ -89,8 +89,8 @@ final class TerminationInferenceTests: XCTestCase {
     }
     func testEvidenceAttachesOnlyThisProcessExposure() throws {
         let value = record { $0.mainStallMs = 0; $0.thermalState = 2; $0.pressure = .warning }
-        let mine = EverframeNativeExposure(exposureID: UUID().uuidString.lowercased(), loadedBuildID: nil, loadedBundleStatus: .notApplicable,
-            nativeBuildID: "native-A", processLaunchID: value.launchID.uuidString.lowercased(), startedAt: base)
+        let mine = EverframeNativeExposure(app: EverframeNativeExposureApp(build: "412", version: "2.4.0"), exposureID: UUID().uuidString.lowercased(),
+            loadedBuildID: nil, loadedBundleStatus: .notApplicable, processLaunchID: value.launchID.uuidString.lowercased(), startedAt: base)
         let other = mine.with(processLaunchID: UUID().uuidString.lowercased())
         let seen = base.addingTimeInterval(60), collected = base.addingTimeInterval(120)
         let evidence = TerminationInference.evidence(record: value, cause: .unexplained, evidenceID: "id", lastSeen: seen, collectedAt: collected, exposure: mine)

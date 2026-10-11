@@ -39,8 +39,8 @@ final class CrashReporterTests: XCTestCase {
     }
 
     private func rnPointer(_ build: String? = "js-fixture", status: EverframeLoadedBundleStatus = .known) -> EverframeNativeExposure {
-        EverframeNativeExposure(exposureID: UUID().uuidString.lowercased(), loadedBuildID: build,
-            loadedBundleStatus: status, nativeBuildID: "native-fixture", processLaunchID: UUID().uuidString.lowercased(),
+        EverframeNativeExposure(app: EverframeNativeExposureApp(build: nil, version: "2.4.0"), exposureID: UUID().uuidString.lowercased(),
+            loadedBuildID: build, loadedBundleStatus: status, processLaunchID: UUID().uuidString.lowercased(),
             startedAt: ReleaseHealthDate.canonical(Date(timeIntervalSince1970: 1_791_539_200)))
     }
 
@@ -68,6 +68,8 @@ final class CrashReporterTests: XCTestCase {
         let entry = try XCTUnwrap(try outbox.hydrate().first)
         let expected = try JSONSerialization.jsonObject(with: ReleaseHealthDate.encoder().encode(original)) as! NSDictionary
         XCTAssertEqual(try decodedCrash(entry)["nativeExposure"] as? NSDictionary, expected)
+        let linkedApp = try XCTUnwrap((try decodedCrash(entry)["nativeExposure"] as? [String: Any])?["app"] as? [String: Any])
+        XCTAssertEqual(linkedApp["version"] as? String, "2.4.0"); XCTAssertTrue(linkedApp["build"] is NSNull)
         XCTAssertEqual(entry.sdkKey, config.sdkKey)
         XCTAssertEqual((try decode(entry)["sdk"] as? [String: Any])?["name"] as? String, "everframe-react-native")
         XCTAssertEqual(entry.idempotencyKey, SHA256.hash(data: entry.envelopeBytes).map { String(format: "%02x", $0) }.joined())
@@ -108,12 +110,12 @@ final class CrashReporterTests: XCTestCase {
     func testRNFatalPersistsTheDurableNativeProducerPointer() async throws {
         let healthRoot = tempDir.appendingPathComponent("health")
         let key = Data(repeating: 0x78, count: 32)
-        let runtime = ReleaseHealthRuntime(root: healthRoot, keyProvider: { key }, transport: { _, _ in .retry })
+        let runtime = ReleaseHealthRuntime(root: healthRoot, keyProvider: { key }, appRelease: { AppRelease(version: "2.4.0", build: nil) }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime)
         let config = EverframeConfig(sdkKey: "evf_live_" + String(repeating: "a", count: 32),
             capture: .init(screenshot: false, focus: false, logs: false, network: false, crash: true), vitals: .init(enabled: false))
         try sdk.start(config: config)
-        let health = try ReleaseHealthConfiguration(nativeBuildId: "native-fixture", loadedBuildId: "js-fixture", loadedBundleStatus: .known)
+        let health = try ReleaseHealthConfiguration(userId: nil, loadedBuildId: "js-fixture", loadedBundleStatus: .known)
         let enabled = await sdk.setReleaseHealth(health); XCTAssertTrue(enabled)
         let pointer = try XCTUnwrap(runtime.readyPointer)
         Everframe.__setConfigForTesting(config)
@@ -123,6 +125,8 @@ final class CrashReporterTests: XCTestCase {
         let entry = try XCTUnwrap(try outbox.hydrate().first)
         let expected = try JSONSerialization.jsonObject(with: ReleaseHealthDate.encoder().encode(pointer)) as! NSDictionary
         XCTAssertEqual(try decodedCrash(entry)["nativeExposure"] as? NSDictionary, expected)
+        let producedApp = try XCTUnwrap((try decodedCrash(entry)["nativeExposure"] as? [String: Any])?["app"] as? [String: Any])
+        XCTAssertEqual(producedApp["version"] as? String, "2.4.0"); XCTAssertTrue(producedApp["build"] is NSNull)
         await sdk.releaseHealthForegroundChanged(false).value; await runtime.barrier()
         let records = try ReleaseHealthStore(root: healthRoot, keyProvider: { key }).pending()
         XCTAssertEqual(records.count, 2)

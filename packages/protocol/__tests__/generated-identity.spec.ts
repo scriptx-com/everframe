@@ -69,4 +69,19 @@ describe('generated Everframe protocol identity', () => {
     // Spelled in two parts so the repository-wide check for the retired field stays clean.
     expect(source).not.toContain('native' + 'BuildId');
   });
+
+  it('generated Swift writes the pointer app build as an explicit null and keeps EverframeApp', () => {
+    const source = readFileSync(path.join(swiftRoot, 'Generated.swift'), 'utf8');
+    expect(source).toContain(
+      'public struct EverframeApp: Codable {\n    public let build: String?\n    public let name, version: String\n',
+    );
+    expect(source).toContain('public struct EverframeNativeExposureApp: Codable {');
+    expect(source).toContain(
+      '        try container.encode(build, forKey: .build)\n        try container.encode(version, forKey: .version)\n',
+    );
+    expect(source).toContain(
+      '        try container.encode(app, forKey: .app)\n        try container.encode(exposureID, forKey: .exposureID)\n',
+    );
+    expect(source).not.toContain('nativeBuildID');
+  });
 });

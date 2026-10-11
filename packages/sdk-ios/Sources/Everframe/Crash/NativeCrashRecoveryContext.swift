@@ -113,14 +113,16 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
               identitySubject.map({ !$0.isEmpty && $0.utf8.count <= 1024 && !$0.contains(where: { $0.isNewline }) }) ?? true
         else { throw Failure.invalidContext }
         guard envelopeTemplate.count <= 32 * 1024 else { throw Failure.oversized }
-        if let bytes = releaseHealthExposureBytes {
-            guard let exposure = releaseHealthExposure,
-                  [exposure.exposureID, exposure.processLaunchID].allSatisfy({ UUID(uuidString: $0)?.uuidString.lowercased() == $0 }),
+        // A pointer frozen before the app version existed no longer decodes. Its crash is still
+        // reported, without release-health evidence. A pointer that decodes must be exact.
+        if let bytes = releaseHealthExposureBytes, let exposure = releaseHealthExposure {
+            guard [exposure.exposureID, exposure.processLaunchID].allSatisfy({ UUID(uuidString: $0)?.uuidString.lowercased() == $0 }),
                   let wire = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
                   wire["startedAt"] as? String == ReleaseHealthDate.text(exposure.startedAt),
+                  (wire["app"] as? [String: Any])?.keys.contains("build") == true,
+                  AppRelease(version: exposure.app.version, build: exposure.app.build).isValid,
                   let status = ReleaseHealthConfiguration.LoadedBundleStatus(rawValue: exposure.loadedBundleStatus.rawValue) else { throw Failure.invalidContext }
-            _ = try ReleaseHealthConfiguration(nativeBuildId: exposure.nativeBuildID,
-                loadedBuildId: exposure.loadedBuildID, loadedBundleStatus: status)
+            _ = try ReleaseHealthConfiguration(userId: nil, loadedBuildId: exposure.loadedBuildID, loadedBundleStatus: status)
         }
         do {
             let template = try EverframeReportEnvelope(data: envelopeTemplate)

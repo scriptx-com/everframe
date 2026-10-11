@@ -120,21 +120,43 @@ ${nativeOldWith.join('\n')}
 
 `;
 source = source.replace(nativePattern, native);
-// Codable's synthesized optional encoder omits nil. The frozen pointer's
-// nullable build field is required, so preserve its explicit JSON null.
+// Codable's synthesized optional encoder omits nil. The frozen pointer's nullable
+// fields are required: the API matches a crash to its session by the exact
+// pointer, so preserve every explicit JSON null.
 const exposurePattern = /public struct EverframeNativeExposure: Codable \{[\s\S]*?\n\}/;
-if (!exposurePattern.test(source)) throw new Error('codegen-swift: NativeExposure block missing');
+const exposureBlock = source.match(exposurePattern)?.[0];
+if (!exposureBlock) throw new Error('codegen-swift: NativeExposure block missing');
+if (!exposureBlock.includes('    public let app: EverframeNativeExposureApp\n')) {
+  throw new Error('codegen-swift: NativeExposure.app missing; the schema must name it NativeExposureApp');
+}
 source = source.replace(exposurePattern, block => block.slice(0, -1) + `
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(app, forKey: .app)
         try container.encode(exposureID, forKey: .exposureID)
         try container.encode(loadedBuildID, forKey: .loadedBuildID)
         try container.encode(loadedBundleStatus, forKey: .loadedBundleStatus)
-        try container.encode(nativeBuildID, forKey: .nativeBuildID)
         try container.encode(processLaunchID, forKey: .processLaunchID)
         try container.encode(startedAt, forKey: .startedAt)
     }
 }`);
+const exposureAppPattern = /public struct EverframeNativeExposureApp: Codable \{[\s\S]*?\n\}/;
+const exposureAppBlock = source.match(exposureAppPattern)?.[0];
+if (!exposureAppBlock || !exposureAppBlock.includes('    public let build: String?\n')
+  || !exposureAppBlock.includes('    public let version: String\n')) {
+  throw new Error('codegen-swift: NativeExposureApp block missing or reshaped');
+}
+source = source.replace(exposureAppPattern, block => block.slice(0, -1) + `
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(build, forKey: .build)
+        try container.encode(version, forKey: .version)
+    }
+}`);
+// The pointer's app must not take the envelope app's published name.
+if (!source.includes('public struct EverframeApp: Codable {\n    public let build: String?\n    public let name, version: String\n')) {
+  throw new Error('codegen-swift: EverframeApp was renamed or reshaped');
+}
 source = source.replace(/recoveredStall: EverframeRecoveredStallEvidence\?,/g, 'recoveredStall: EverframeRecoveredStallEvidence? = nil,');
 for (const [generated, stable] of Object.entries({
   DiagnosticAndroid: 'Android', DiagnosticAttribution: 'Attribution',

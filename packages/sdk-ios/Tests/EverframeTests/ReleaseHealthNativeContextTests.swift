@@ -6,9 +6,10 @@ import EverframeProtocol
 @testable import EverframeKit
 
 final class ReleaseHealthNativeContextTests: XCTestCase {
-    private func pointer(build: String = "native-a") -> EverframeNativeExposure {
-        .init(exposureID: UUID().uuidString.lowercased(), loadedBuildID: nil, loadedBundleStatus: .notApplicable,
-            nativeBuildID: build, processLaunchID: UUID().uuidString.lowercased(), startedAt: Date(timeIntervalSince1970: 1791421323.456))
+    private func pointer(build: String? = nil) -> EverframeNativeExposure {
+        .init(app: EverframeNativeExposureApp(build: build, version: "2.4.0"), exposureID: UUID().uuidString.lowercased(),
+            loadedBuildID: nil, loadedBundleStatus: .notApplicable, processLaunchID: UUID().uuidString.lowercased(),
+            startedAt: Date(timeIntervalSince1970: 1791421323.456))
     }
     private func context(_ pointer: EverframeNativeExposure?) throws -> NativeCrashRecoveryContext {
         let old = try NativeRecoveryTestData.context()
@@ -23,19 +24,22 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
     }
     func testFrozenPointerSurvivesNewLaunchAndMaintainsExactWireIdentity() throws {
         let a = pointer(), original = try context(a), contextID = UUID()
-        _ = try context(pointer(build: "native-b"))
+        _ = try context(pointer(build: "413"))
         let restored = try NativeCrashRecoveryContext.decode(original.encoded())
         let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: contextID), redact: { $0 })
         let entry = try restored.entry(for: raw)
         let parsed = try ReleaseHealthDate.decoder().decode(EverframeReportEnvelope.self, from: entry.envelopeBytes)
         let evidence = try XCTUnwrap(parsed.payload.crash?.native?.releaseHealthEvidence)
         XCTAssertEqual(evidence.contextID, contextID.uuidString.lowercased()); XCTAssertEqual(evidence.exposure.exposureID, a.exposureID)
-        XCTAssertEqual(evidence.exposure.nativeBuildID, "native-a"); XCTAssertEqual(evidence.attribution, .immutableFatalContext)
+        XCTAssertEqual(evidence.exposure.app.version, "2.4.0"); XCTAssertNil(evidence.exposure.app.build)
+        XCTAssertEqual(evidence.attribution, .immutableFatalContext)
         let json = try JSONSerialization.jsonObject(with: entry.envelopeBytes) as! [String: Any]
         let payload = json["payload"] as! [String: Any], crash = payload["crash"] as! [String: Any]
         let native = crash["native"] as! [String: Any], wire = native["releaseHealthEvidence"] as! [String: Any]
         let exposure = wire["exposure"] as! [String: Any]
         XCTAssertEqual(exposure["startedAt"] as? String, "2026-10-08T01:02:03.456Z"); XCTAssertTrue(exposure["loadedBuildId"] is NSNull)
+        let app = try XCTUnwrap(exposure["app"] as? [String: Any])
+        XCTAssertEqual(app["version"] as? String, "2.4.0"); XCTAssertTrue(app["build"] is NSNull)
         XCTAssertEqual(try restored.entry(for: raw).envelopeBytes, entry.envelopeBytes)
     }
     func testFrozenPointerKeepsExactMillisecondStartWithoutLenientFoundationParsing() throws {
@@ -58,7 +62,25 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let a = pointer()
         XCTAssertThrowsError(try context(a.with(processLaunchID: "not-a-uuid")))
         XCTAssertThrowsError(try context(a.with(loadedBundleStatus: .known)))
-        XCTAssertThrowsError(try context(a.with(nativeBuildID: "")))
+        XCTAssertThrowsError(try context(a.with(app: EverframeNativeExposureApp(build: nil, version: String(repeating: "a", count: 65)))))
+        XCTAssertThrowsError(try context(a.with(app: EverframeNativeExposureApp(build: nil, version: " "))))
+        XCTAssertThrowsError(try context(a.with(app: EverframeNativeExposureApp(build: "", version: "2.4.0"))))
+        XCTAssertNoThrow(try context(a.with(app: EverframeNativeExposureApp(build: String(repeating: "9", count: 64),
+            version: String(repeating: "a", count: 64)))))
+    }
+    func testContextFrozenBeforeTheAppVersionKeepsItsCrashAndDropsThePointer() throws {
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: context(pointer()).encoded()) as? [String: Any])
+        // The pointer an SDK before the app version froze: a native build ID and no app.
+        let old: [String: Any] = ["exposureId": UUID().uuidString.lowercased(), "processLaunchId": UUID().uuidString.lowercased(),
+            "startedAt": "2026-10-08T01:02:03.456Z", "native" + "BuildId": "native-a", "loadedBuildId": NSNull(),
+            "loadedBundleStatus": "not_applicable"]
+        json["releaseHealthExposureBytes"] = try JSONSerialization.data(withJSONObject: old, options: [.sortedKeys]).base64EncodedString()
+        let restored = try NativeCrashRecoveryContext.decode(JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]))
+        XCTAssertNil(restored.releaseHealthExposure)
+        let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: UUID()), redact: { $0 })
+        let envelope = try ReleaseHealthDate.decoder().decode(EverframeReportEnvelope.self, from: restored.entry(for: raw).envelopeBytes)
+        XCTAssertNotNil(envelope.payload.crash)
+        XCTAssertNil(envelope.payload.crash?.native?.releaseHealthEvidence)
     }
     func testForegroundTransitionsRefreshActualFatalContextAndBackgroundCaptureStaysUnlinked() async throws {
         let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
@@ -69,12 +91,12 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         defer { release.signal() }
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, beforeCommit: {
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, beforeCommit: {
             if blocked.value { blocked.value = false; entered.fulfill(); _ = release.wait(timeout: .now() + 5) }
         }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
-        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        let enabled = await sdk.setReleaseHealth(ReleaseHealthConfiguration())
         XCTAssertTrue(enabled)
         let first = try XCTUnwrap(health.readyPointer)
         let initial = probe.snapshot(), oldContext = try XCTUnwrap(initial.context)
@@ -108,7 +130,7 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let key = Data(repeating: 0x66, count: 32), probe = HealthNativeRecorderProbe()
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         defer { sdk.kill() }
         try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
@@ -135,13 +157,13 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         defer { release.signal() }
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, beforeCommit: {
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, beforeCommit: {
             if blocked.value { blocked.value = false; entered.fulfill(); _ = release.wait(timeout: .now() + 5) }
         }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         defer { sdk.kill() }
         try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
-        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        let enabled = await sdk.setReleaseHealth(ReleaseHealthConfiguration())
         XCTAssertTrue(enabled)
         let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
         func armedExposure() throws -> EverframeNativeExposure? {
@@ -171,11 +193,11 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let key = Data(repeating: 0x68, count: 32), probe = HealthNativeRecorderProbe()
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         defer { sdk.kill() }
         try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
-        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        let enabled = await sdk.setReleaseHealth(ReleaseHealthConfiguration())
         XCTAssertTrue(enabled)
         let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
         let linked = probe.snapshot()
@@ -216,7 +238,7 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let key = Data(repeating: 0x69, count: 32), probe = HealthNativeRecorderProbe()
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         defer { sdk.kill() }
         let config = EverframeConfig(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
@@ -244,11 +266,11 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let key = Data(repeating: 0x6a, count: 32), probe = HealthNativeRecorderProbe()
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         defer { sdk.kill() }
         let config = EverframeConfig(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
-        let settings = try ReleaseHealthConfiguration(nativeBuildId: "native", loadedBuildId: "bundle", loadedBundleStatus: .known)
+        let settings = try ReleaseHealthConfiguration(userId: nil, loadedBuildId: "bundle", loadedBundleStatus: .known)
         let first = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: settings))
         let enabled = await first(); XCTAssertTrue(enabled)
         let pointer = try XCTUnwrap(health.readyPointer)
@@ -290,12 +312,12 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let key = Data(repeating: 0x6b, count: 32), probe = HealthNativeRecorderProbe()
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, _ in .retry })
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         defer { sdk.kill() }
         let config = EverframeConfig(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false))
         func settings(_ user: String) throws -> ReleaseHealthConfiguration {
-            try .init(nativeBuildId: "native", loadedBuildId: "bundle", loadedBundleStatus: .known, userId: user)
+            try .init(userId: user, loadedBuildId: "bundle", loadedBundleStatus: .known)
         }
         let first = try XCTUnwrap(sdk.configureAndPrepareReleaseHealth(config: config, health: settings("opaque-a")))
         let enabled = await first(); XCTAssertTrue(enabled)
@@ -334,13 +356,13 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let key = Data(repeating: 0x65, count: 32), probe = HealthNativeRecorderProbe()
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, transport: { _, admission in
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { .testRelease }, transport: { _, admission in
             admission({}) ? .settled : .retry
         })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         defer { sdk.kill() }
         try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
-        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        let enabled = await sdk.setReleaseHealth(ReleaseHealthConfiguration())
         XCTAssertTrue(enabled)
         let first = probe.snapshot(), oldContext = try XCTUnwrap(first.context), recorderPath = try XCTUnwrap(first.path)
         let runID = try XCTUnwrap(UUID(uuidString: recorderPath.deletingLastPathComponent().lastPathComponent))
@@ -382,19 +404,20 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         let native = NativeCrashRuntime(rootURL: root.appendingPathComponent("native"),
             outbox: JSONLOutbox(fileURL: root.appendingPathComponent("queue"), keyProvider: { key }), recorder: probe.adapter, keyProvider: { key })
         let entered = expectation(description: "health erasure blocked"), release = DispatchSemaphore(value: 0), blocked = HealthNativeFlag()
-        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, beforeCommit: {
+        let health = ReleaseHealthRuntime(root: root.appendingPathComponent("health"), keyProvider: { key }, appRelease: { AppRelease(version: "2.4.0", build: nil) }, beforeCommit: {
             if blocked.value { blocked.value = false; entered.fulfill(); _ = release.wait(timeout: .now() + 5) }
         }, transport: { _, _ in .retry })
         let sdk = Everframe(nativeCrashRuntime: native, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
         try sdk.start(config: .init(sdkKey: "evf_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", capture: .init(logs: false)))
-        let enabled = try await sdk.setReleaseHealth(.init(nativeBuildId: "native-a", loadedBuildId: nil, loadedBundleStatus: .notApplicable))
+        let enabled = await sdk.setReleaseHealth(ReleaseHealthConfiguration())
         XCTAssertTrue(enabled)
         let admitted = probe.snapshot(), contextID = try XCTUnwrap(admitted.context)
         let runID = try XCTUnwrap(UUID(uuidString: XCTUnwrap(admitted.path).deletingLastPathComponent().lastPathComponent))
         let contexts = try NativeCrashContextStore(rootURL: root.appendingPathComponent("native/contexts"), keyProvider: { key })
         let before = try contexts.readContext(runID: runID, contextID: contextID)
         let frozen = try NativeCrashRecoveryContext.decode(before)
-        XCTAssertEqual(frozen.releaseHealthExposure?.nativeBuildID, "native-a")
+        let frozenApp = try XCTUnwrap(frozen.releaseHealthExposure?.app)
+        XCTAssertEqual(frozenApp.version, "2.4.0"); XCTAssertNil(frozenApp.build)
         blocked.value = true
         let disable = Task { await sdk.setReleaseHealth(nil) }
         await fulfillment(of: [entered], timeout: 3)
@@ -412,7 +435,8 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         XCTAssertEqual(try contexts.readContext(runID: runID, contextID: contextID), before)
         let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: contextID), redact: { $0 })
         let envelope = try ReleaseHealthDate.decoder().decode(EverframeReportEnvelope.self, from: frozen.entry(for: raw).envelopeBytes)
-        XCTAssertEqual(envelope.payload.crash?.native?.releaseHealthEvidence?.exposure.nativeBuildID, "native-a")
+        let linkedApp = try XCTUnwrap(envelope.payload.crash?.native?.releaseHealthEvidence?.exposure.app)
+        XCTAssertEqual(linkedApp.version, "2.4.0"); XCTAssertNil(linkedApp.build)
         sdk.kill(); await health.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
 }

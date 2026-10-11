@@ -2345,37 +2345,37 @@ public enum EverframeNativeCrashHealthAttribution: String, Codable {
 
 // MARK: - EverframeNativeExposure
 public struct EverframeNativeExposure: Codable {
+    public let app: EverframeNativeExposureApp
     public let exposureID: String
     public let loadedBuildID: String?
     public let loadedBundleStatus: EverframeLoadedBundleStatus
-    public let nativeBuildID: String
     public let processLaunchID: String
     public let startedAt: Date
 
     public enum CodingKeys: String, CodingKey {
+        case app
         case exposureID = "exposureId"
         case loadedBuildID = "loadedBuildId"
         case loadedBundleStatus
-        case nativeBuildID = "nativeBuildId"
         case processLaunchID = "processLaunchId"
         case startedAt
     }
 
-    public init(exposureID: String, loadedBuildID: String?, loadedBundleStatus: EverframeLoadedBundleStatus, nativeBuildID: String, processLaunchID: String, startedAt: Date) {
+    public init(app: EverframeNativeExposureApp, exposureID: String, loadedBuildID: String?, loadedBundleStatus: EverframeLoadedBundleStatus, processLaunchID: String, startedAt: Date) {
+        self.app = app
         self.exposureID = exposureID
         self.loadedBuildID = loadedBuildID
         self.loadedBundleStatus = loadedBundleStatus
-        self.nativeBuildID = nativeBuildID
         self.processLaunchID = processLaunchID
         self.startedAt = startedAt
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(app, forKey: .app)
         try container.encode(exposureID, forKey: .exposureID)
         try container.encode(loadedBuildID, forKey: .loadedBuildID)
         try container.encode(loadedBundleStatus, forKey: .loadedBundleStatus)
-        try container.encode(nativeBuildID, forKey: .nativeBuildID)
         try container.encode(processLaunchID, forKey: .processLaunchID)
         try container.encode(startedAt, forKey: .startedAt)
     }
@@ -2400,20 +2400,74 @@ public extension EverframeNativeExposure {
     }
 
     func with(
+        app: EverframeNativeExposureApp? = nil,
         exposureID: String? = nil,
         loadedBuildID: String?? = nil,
         loadedBundleStatus: EverframeLoadedBundleStatus? = nil,
-        nativeBuildID: String? = nil,
         processLaunchID: String? = nil,
         startedAt: Date? = nil
     ) -> EverframeNativeExposure {
         return EverframeNativeExposure(
+            app: app ?? self.app,
             exposureID: exposureID ?? self.exposureID,
             loadedBuildID: loadedBuildID ?? self.loadedBuildID,
             loadedBundleStatus: loadedBundleStatus ?? self.loadedBundleStatus,
-            nativeBuildID: nativeBuildID ?? self.nativeBuildID,
             processLaunchID: processLaunchID ?? self.processLaunchID,
             startedAt: startedAt ?? self.startedAt
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - EverframeNativeExposureApp
+public struct EverframeNativeExposureApp: Codable {
+    public let build: String?
+    public let version: String
+
+    public init(build: String?, version: String) {
+        self.build = build
+        self.version = version
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(build, forKey: .build)
+        try container.encode(version, forKey: .version)
+    }
+}
+
+// MARK: EverframeNativeExposureApp convenience initializers and mutators
+
+public extension EverframeNativeExposureApp {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeNativeExposureApp.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        build: String?? = nil,
+        version: String? = nil
+    ) -> EverframeNativeExposureApp {
+        return EverframeNativeExposureApp(
+            build: build ?? self.build,
+            version: version ?? self.version
         )
     }
 
