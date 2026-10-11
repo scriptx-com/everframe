@@ -1,0 +1,41 @@
+.changeset/react-uncaught-render-errors.md
+  s_fbcdadc1064236::t_d90351004fd650 1-9
+docs/crash-reporting-support.md
+  s_fbcdadc1064236::t_d90351004fd650 14
+packages/sdk-core/__tests__/crash-build.spec.ts
+  s_fbcdadc1064236::t_f05c0f7d0064bd 174-200
+packages/sdk-core/src/crash/build.ts
+  s_fbcdadc1064236::t_6f9d7554771377 26-30,52-58,76-79,119,142-146
+packages/sdk-react/README.md
+  s_fbcdadc1064236::t_688e4bfd657d3e 91-117
+packages/sdk-react/__tests__/provider-uncaught-render-error.spec.tsx
+  s_fbcdadc1064236::t_30474cc2b3ba26 1-208
+packages/sdk-react/src/provider.tsx
+  s_fbcdadc1064236::t_a9bc8ef9d4c92a 4-13,173-177,857,894-946
+packages/sdk-react/tests/render-error-browser.mjs
+  s_fbcdadc1064236::t_697b8a2b57e230 1-247
+packages/sdk-react/tests/render-error-host.tsx
+  s_fbcdadc1064236::t_7a33c47deb38ba 1-70
+packages/sdk-web/__tests__/crash-reporting.spec.ts
+  s_fbcdadc1064236::t_a03654566f3261 313-357
+packages/sdk-web/__tests__/kill-switch-gates.spec.ts
+  s_fbcdadc1064236::t_1ef7a917060e6e 446-536
+packages/sdk-web/src/adapter.ts
+  s_fbcdadc1064236::t_2e8394106ef97f 175-193,596-599,601-606,1480,1501-1505,1551-1554,1556-1557,1653,1655,1667,1686,1688,1944-1950,2233,2246-2248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b167cd8643f8611710a29c40befe87e58be26372",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
