@@ -14,7 +14,8 @@ if let sdkPath = ProcessInfo.processInfo.environment["EVERFRAME_SDK_IOS_ROOT"],
     }
     nativeSDK = .package(name: "Everframe", path: sdkPath)
 } else {
-    // The plugin calls EverframeConfig(sdkKey:), which first ships in native 1.2.0.
+    // The plugin calls EverframeConfig(sdkKey:) and EverframeConfig(releaseHealth:),
+    // which first ship in native 1.2.0.
     nativeSDK = .package(url: "https://github.com/scriptx-com/everframe.git",
                          .upToNextMinor(from: "1.2.0"))
 }

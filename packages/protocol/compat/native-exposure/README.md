@@ -6,8 +6,9 @@
 Compile `OldDiagnosticCaller.kt`, `OldConfigCaller.kt` and
 `OldJavaConstructors.java` against the pre-exposure protocol and SDK config.
 Keep the resulting caller bytecode unchanged when running against a candidate.
-`ConfigMain.kt` passes a new opt-in configuration through the old copy call and
-checks that release health remains enabled. The diagnostic caller takes a JSON
+`ConfigMain.kt` checks three things: the old default-argument descriptor and the
+Java constructor get the release-health default, and an explicit `null`
+survives the old `copy` call. The diagnostic caller takes a JSON
 fixture with a native exposure pointer and prints the result of an old copy call;
 the entire pointer, including `loadedBuildId: null` and `app.build: null`, must survive.
 

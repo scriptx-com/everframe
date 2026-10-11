@@ -25,6 +25,10 @@ version's rate. The SDK records nothing from a debug build and logs
   profile (`get-task-allow`), as Xcode signs Debug builds run on a device.
   TestFlight, App Store, ad hoc and enterprise builds all count.
 
+Release builds that run outside the store count too, such as Android release
+builds on emulators or in CI end-to-end runs, and iOS ad hoc QA builds. To
+leave them out, turn release health off with your own CI or QA flag.
+
 To count debug builds too, for example while you check your setup, set
 `includeDebugBuilds`:
 
@@ -173,7 +177,13 @@ non-blank, at most 128 UTF-16 code units and free of control characters
   does nothing. An invalid ID logs a warning and turns release health off.
 
 Changing the ID ends the current session and starts a new one. A session keeps
-the ID it started with.
+the ID it started with. The part of a session before an ID change ends as a
+completed session, so an app that learns the ID after launch adds one
+crash-free session per launch. When the ID is known at start, pass it in the
+start configuration instead: `ReleaseHealthConfig(userId = …)` in
+`EverframeConfig` on Android, `releaseHealth: try ReleaseHealthConfiguration(userId: …)`
+in `EverframeConfig` on iOS, and `releaseHealth: { userId }` at first mount on
+React Native.
 
 ## Versions and builds
 
