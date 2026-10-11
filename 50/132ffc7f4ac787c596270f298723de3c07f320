@@ -1,0 +1,29 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_269319d6df67e5::t_1ba189d2928ac5 347,350-351,358,361,370-371
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_269319d6df67e5::t_015d7621961f7d 34,67-69,209,317,414,657-665,720
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/ErrorReplaySessionTest.kt
+  s_269319d6df67e5::t_c41bddb1657c5e 116-121,130-148
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/NativeVideoRecorderTest.kt
+  s_269319d6df67e5::t_e5c8b8b27198ad 92-195,352
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoCopyCompletionDispatchTest.kt
+  s_269319d6df67e5::t_2a75f633b5c48b 134-162
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/ErrorReplayCaptureTest.kt
+  s_269319d6df67e5::t_b2472a64bc8308 50,86-88,97-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50132ffc7f4ac787c596270f298723de3c07f320",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
