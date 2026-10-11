@@ -14,6 +14,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
     override func tearDownWithError() throws {
         Everframe.__bodyStateResetHookForTesting = nil
         Everframe.__beforeReleaseHealthReservationForTesting = nil
+        Everframe.__afterReleaseHealthDebugDecisionForTesting = nil
         try FileManager.default.removeItem(at: root)
     }
     private func runtime() -> ReleaseHealthRuntime {
@@ -257,6 +258,33 @@ final class ReleaseHealthSDKTests: XCTestCase {
         XCTAssertNil(runtime.readyPointer); XCTAssertEqual(notices.lines, ["[everframe] Release health is off in debug builds."])
         // The configured value also reaches the session's record.
         other.kill(); await runtime.barrier(); _ = await other.setReleaseHealth(nil)
+    }
+    /// The skip decision and the reservation must describe the same start. A start() that changes
+    /// debugBuild between them leaves the public call stale, so it is rejected rather than reserved
+    /// under the new configuration with the old decision.
+    func testSetReleaseHealthRejectedWhenStartChangesDebugBuildAfterTheSkipDecision() async throws {
+        let runtime = runtime(); let notices = NoticeLog()
+        let sdk = makeSDK(runtime, debug: false, notices: notices)
+        var release = config(); release.debugBuild = false
+        var debug = config(); debug.debugBuild = true
+        try sdk.start(config: release)
+        // The decision reads debugBuild: false (record), then start() switches to a debug build.
+        Everframe.__afterReleaseHealthDebugDecisionForTesting = {
+            Everframe.__afterReleaseHealthDebugDecisionForTesting = nil
+            try! sdk.start(config: debug)
+        }
+        let raced = try await sdk.setReleaseHealth(health())
+        XCTAssertFalse(raced, "a decision made for the previous configuration is stale")
+        XCTAssertNil(runtime.readyPointer, "release health must not be reserved for a debug build")
+        XCTAssertTrue(try rows().isEmpty)
+        // Not racing: the same call now decides and reserves against the current (debug) configuration.
+        let after = try await sdk.setReleaseHealth(health()); XCTAssertFalse(after)
+        XCTAssertNil(runtime.readyPointer); XCTAssertEqual(notices.lines, ["[everframe] Release health is off in debug builds."])
+        // And with release as the current configuration, nothing racing changes the answer.
+        try sdk.start(config: release)
+        let recorded = try await sdk.setReleaseHealth(health()); XCTAssertTrue(recorded)
+        XCTAssertNotNil(runtime.readyPointer)
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
     func testDebugBuildIsSkippedErasesAndLogsOncePerStart() async throws {
         XCTAssertNotEqual(ReleaseHealthConfiguration(), ReleaseHealthConfiguration(includeDebugBuilds: true))

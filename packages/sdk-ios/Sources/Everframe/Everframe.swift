@@ -196,6 +196,9 @@ public final class Everframe: @unchecked Sendable {
         return try startAndPrepareReleaseHealth(config: config, health: health)
     }
 
+    /// Lets tests start the SDK between the debug-build skip decision and the reservation.
+    nonisolated(unsafe) internal static var __afterReleaseHealthDebugDecisionForTesting: (() -> Void)?
+
     /// Lets tests replace SDK ownership after an unchanged decision and before reservation.
     nonisolated(unsafe) internal static var __beforeReleaseHealthReservationForTesting: (() -> Void)?
 
@@ -224,10 +227,20 @@ public final class Everframe: @unchecked Sendable {
         // A debug build is off unless the configuration includes debug builds. The skip takes nil's
         // path: revoke now and erase in the returned operation, so an earlier includeDebugBuilds run
         // leaves nothing behind. The detector runs outside stateLock; its first call may read a file.
-        let debugBuild = (expectedConfig ?? stateLock.withLock { _config })?.debugBuild
+        // The public path has no caller-supplied owner, so it takes the configuration and its owner
+        // in ONE critical section: the skip decision below and the reservation then describe the same
+        // start, and a start() between them makes the reservation reject this stale call.
+        var expectedOwner = expectedOwner
+        var decidedConfig = expectedConfig
+        if expectedConfig == nil, expectedOwner == nil {
+            let snapshot = stateLock.withLock { (config: _config, owner: (epoch: _startEpoch, configGeneration: _configGeneration)) }
+            decidedConfig = snapshot.config; expectedOwner = snapshot.owner
+        }
+        let debugBuild = decidedConfig?.debugBuild
         let skipped = requested.map { !$0.includeDebugBuilds && isDebugBuild(debugBuild) } ?? false
         let configuration = skipped ? nil : requested
         var notice = false
+        Self.__afterReleaseHealthDebugDecisionForTesting?()
         let reserved: (command: UInt64, epoch: Int, configGeneration: UInt64, ticket: UInt64)? = stateLock.withLock {
             if let expectedOwner, (_startEpoch != expectedOwner.epoch || _configGeneration != expectedOwner.configGeneration) { return nil }
             if let expectedConfig, _config != expectedConfig { return nil }
