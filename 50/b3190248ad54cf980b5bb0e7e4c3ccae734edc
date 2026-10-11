@@ -1,0 +1,51 @@
+.changeset/android-error-replays.md
+  s_269319d6df67e5::t_6ac759877f3fca 1-8
+packages/sdk-android/android/everframe-core/src/androidTest/kotlin/dev/everframe/capture/video/ErrorReplaySnapshotInstrumentedTest.kt
+  s_269319d6df67e5::t_33fa908914426b 1-69
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_269319d6df67e5::t_0113263200c27f 21,78-83,337-379
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/ErrorReplaySnapshot.kt
+  s_269319d6df67e5::t_bf2b48fbaa67ca 1-55
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/NativeVideoRecorder.kt
+  s_269319d6df67e5::t_5952eb6213ab1f 13,44-45,63-64,222-281,285-289,405-406
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoExporter.kt
+  s_269319d6df67e5::t_58f322cb46e4b9 95-104,107,167
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_269319d6df67e5::t_cee76f6b8cd349 25,54-66,202,205-206,229,235,282-299,312-335,389-401,410-411,430,432,487,506-508,560-561,647-656,709
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/ErrorReplayUpgrade.kt
+  s_269319d6df67e5::t_73e8d0d5af96e0 1-79
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/CrashSidecar.kt
+  s_269319d6df67e5::t_71ad982967bb3b 44-60
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_269319d6df67e5::t_b7ade95061f6fb 313-344
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_269319d6df67e5::t_e69e4056c4456f 354-356
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/ErrorReplaySessionTest.kt
+  s_269319d6df67e5::t_ce6af4cac3308a 1-137
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/NativeVideoRecorderTest.kt
+  s_269319d6df67e5::t_044a37639ea9ce 14-177
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoExporterTest.kt
+  s_269319d6df67e5::t_18b0df4a8b81e2 14-23
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/ErrorReplayCaptureTest.kt
+  s_269319d6df67e5::t_f4f11107ce4fa5 1-227
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/outbox/OutboxReplaceTest.kt
+  s_269319d6df67e5::t_5c1707e3392f05 1-46
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/ErrorReplayHoldDrainTest.kt
+  s_269319d6df67e5::t_5bf5a80b8d496f 1-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50b3190248ad54cf980b5bb0e7e4c3ccae734edc",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
