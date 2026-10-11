@@ -63,7 +63,9 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
 
     it.each([0, 1, 0.25])('forwards an in-range sampleRate (%s)', (rate) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      createRuntime({ sdkKey: 'k', vitals: { sampleRate: rate } }).mount();
+      // Release health is on by default and warns in development without a Hermes build identity; opt out so
+      // this test still asserts that nothing at all is warned.
+      createRuntime({ sdkKey: 'k', vitals: { sampleRate: rate }, releaseHealth: { enabled: false } }).mount();
       expect(native.configureSync.mock.calls[0][0].vitalsSampleRate).toBe(rate);
       expect(warn).not.toHaveBeenCalled();
       warn.mockRestore();

@@ -64,7 +64,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         vitalsCaptureSourceQuery: NSNumber?,
         releaseHealthEnabled: Bool,
         releaseHealthLoadedBuildId: NSString?,
-        releaseHealthUserId: NSString?
+        releaseHealthUserId: NSString?,
+        releaseHealthIncludeDebugBuilds: Bool
     ) throws {
         configureLock.lock()
         defer { configureLock.unlock() }
@@ -127,12 +128,19 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         let newAttachPinUi = Self.parseAttachPinUi(attachPinUi as String?)
         let health: ReleaseHealthConfiguration?
         if releaseHealthEnabled, let loaded = releaseHealthLoadedBuildId {
-            // The SDK reads the app version itself; the bridge carries the loaded bundle and user ID.
+            // The SDK reads the app version itself; the bridge carries the loaded bundle, the user ID and
+            // whether debug builds count. A nil value (disabled, no loaded bundle, or an invalid identity) is off.
             health = try? ReleaseHealthConfiguration(userId: releaseHealthUserId as String?,
-                loadedBuildId: loaded as String, loadedBundleStatus: .known)
+                loadedBuildId: loaded as String, loadedBundleStatus: .known,
+                includeDebugBuilds: releaseHealthIncludeDebugBuilds)
         } else {
             health = nil
         }
+        // The bridge owns release health through `health` alone: it needs the loaded Hermes bundle, and a new
+        // user ID must reconfigure health without restarting the SDK. The native default
+        // (`EverframeConfig.releaseHealth`, on) must not arm anonymous sessions at start or take part in
+        // the unchanged-configuration comparison.
+        cfg.releaseHealth = nil
         // Native code atomically checks installed config and reserves its exact owner.
         // An identical configure preserves the session; a changed attach-PIN mode still
         // requires the same full restart as the other native configuration changes.

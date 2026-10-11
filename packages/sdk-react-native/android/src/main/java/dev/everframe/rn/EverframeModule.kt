@@ -219,14 +219,17 @@ class EverframeModule(
 
     private fun parseReleaseHealth(opts: ReadableMap): ReleaseHealthConfig? {
         // Invalid bridge input revokes earlier monitoring instead of retaining an old subject.
-        // The SDK reads the app version itself; the bridge carries only the loaded bundle and user ID.
+        // The SDK reads the app version itself; the bridge carries the loaded bundle, the user ID and
+        // whether debug builds count. Release health is on by default: a missing or null flag is on, and
+        // only an explicit false is off. It still needs a valid loaded bundle, so no id means off.
         return runCatching {
-            if (opts.takeIfHasBoolean("releaseHealthEnabled") != true) return null
+            if (opts.takeIfHasBoolean("releaseHealthEnabled") == false) return null
             val loaded = opts.takeIfHasString("releaseHealthLoadedBuildId") ?: return null
             val user = opts.takeIfHasString("releaseHealthUserId")
             if (!validHealthText(loaded, 200) || (user != null && !validHealthText(user, 128))) return null
+            val includeDebugBuilds = opts.takeIfHasBoolean("releaseHealthIncludeDebugBuilds") ?: false
             ReleaseHealthConfig(enabled = true, userId = user, loadedBuildId = loaded,
-                loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN)
+                loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN, includeDebugBuilds = includeDebugBuilds)
         }.getOrNull()
     }
 

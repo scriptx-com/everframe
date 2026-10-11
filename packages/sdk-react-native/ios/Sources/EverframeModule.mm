@@ -181,6 +181,9 @@ RCT_EXPORT_MODULE(Everframe)
   NSNumber *vitalsEnabled = opts.vitalsEnabled().has_value() ? @(opts.vitalsEnabled().value()) : nil;
   NSNumber *vitalsSampleRate = opts.vitalsSampleRate().has_value() ? @(opts.vitalsSampleRate().value()) : nil;
   NSNumber *vitalsCaptureSourceQuery = opts.vitalsCaptureSourceQuery().has_value() ? @(opts.vitalsCaptureSourceQuery().value()) : nil;
+  // Release health is on by default: a missing `releaseHealthEnabled` is on and only an explicit NO is
+  // off. The JS facade always sends the flag, so a missing value can only come from another caller.
+  // `releaseHealthIncludeDebugBuilds` is false when missing, matching the native SDK default.
   NSError *err = nil;
   [EverframeBridge configureWithSdkKey:sdkKey
                             endpoint:@""
@@ -196,9 +199,10 @@ RCT_EXPORT_MODULE(Everframe)
                        vitalsEnabled:vitalsEnabled
                     vitalsSampleRate:vitalsSampleRate
             vitalsCaptureSourceQuery:vitalsCaptureSourceQuery
-                releaseHealthEnabled:opts.releaseHealthEnabled().value_or(false)
+                releaseHealthEnabled:opts.releaseHealthEnabled().value_or(true)
           releaseHealthLoadedBuildId:opts.releaseHealthLoadedBuildId()
                  releaseHealthUserId:opts.releaseHealthUserId()
+     releaseHealthIncludeDebugBuilds:opts.releaseHealthIncludeDebugBuilds().value_or(false)
                                error:&err];
   if (err != nil) {
     // Configure is void-typed at the spec; we can't reject a promise here.
