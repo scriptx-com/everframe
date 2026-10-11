@@ -1,0 +1,14 @@
+packages/sdk-web/e2e/error-replay.spec.ts
+  h_af305fd8f2c5c5 1-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7bbe5f3f76c5b3a84cb5b68f463ee86ee3ef28b",
+  "prompts": {},
+  "humans": {
+    "h_af305fd8f2c5c5": {
+      "author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
