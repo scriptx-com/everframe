@@ -1,0 +1,27 @@
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoRecorder.swift
+  s_269319d6df67e5::t_75be4637538db0 16-17,23-24,26-33,41-45,47,52-56,60,71,73,77,96-98,100,102,104-108,119,157-178,187-248
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoSession.swift
+  s_269319d6df67e5::t_b915e3000d7c87 55-57,64-65,92-93,96,100,152-166,183
+packages/sdk-ios/Tests/EverframeTests/NativeVideoRecorderTests.swift
+  s_269319d6df67e5::t_357327afcb6401 5,9-22,114-209
+packages/sdk-ios/Tests/EverframeTests/NativeVideoSessionTests.swift
+  s_269319d6df67e5::t_4211bdaf4740ed 17-42,215-318
+packages/sdk-ios/Tests/EverframeTests/NativeVideoWriterTests.swift
+  s_269319d6df67e5::t_84f72742688359 28-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0eab00c317c76be78058259ff0c6b4fbc106409",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
