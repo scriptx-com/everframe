@@ -31,6 +31,7 @@ import {
 } from './buffer.js';
 import { buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
 import { scrubReplayEvents } from './scrub.js';
+import { SENSITIVE_ATTR } from '../../sensitive/registry.js';
 
 // NOTE — no per-checkout serialization budget. A previous revision measured
 // "serialization cost" as (checkout emit − previous emit) and self-disabled
@@ -342,6 +343,10 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
     const options = buildRecordOptions({
       durationSec,
       emit: handleEmit,
+      // rrweb evaluates this per node on every snapshot and mutation, so an
+      // element marked sensitive AFTER recording started is blocked too (the
+      // rr-block class above is applied once, at start).
+      blockSelector: `[${SENSITIVE_ATTR}]`,
       errorHandler: () => true,
     });
     const myGeneration = ++startGeneration;

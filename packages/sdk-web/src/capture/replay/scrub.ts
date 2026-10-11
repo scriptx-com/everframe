@@ -3,24 +3,20 @@
 //
 // REPLAY-04 — post-serialization scrub. The PRIVACY POLICY gets the LAST WORD.
 //
-// rrweb's masking is the transport floor; this pass walks the emitted rrweb JSON
-// and applies SELECTIVE redaction (owner decision 2026-06-16 — a watchable replay
-// cannot also mask all free text):
-//   (a) the sdk-core Luhn/JWT/SSN/email scrubber over EVERY string leaf, including
-//       `textContent`/`text`. Pattern PII (credit cards, JWTs, SSNs, emails) is
-//       masked; ordinary UI text stays VISIBLE. The aggressive masking lives at
-//       CAPTURE instead: rrweb `maskAllInputs` masks every input value, and
-//       `markSensitive` / sensitive-rect map to rrweb `rr-block` (those subtrees
-//       are OMITTED). Free-text non-pattern PII (names in non-inputs) is the
-//       customer's responsibility via markSensitive — standard replay posture.
-//   (c) an attribute ALLOWLIST that strips the attributes rrweb is known
-//       to leak (#1581: no attribute masking by default; #1385/#1609/#456/#1596:
-//       values escape via full-snapshot/hidden-input/select/textarea paths), with
-//       `style`/`_cssText` URL-stripped via a CSS url() extractor (CR-03) so
-//       `url(...?token=SECRET)` exfil query strings cannot survive in inline CSS.
-//
-// Closes the documented rrweb leakage gaps regardless of the rrweb config, so the
-// golden-file zero-leak suite holds even on the populated-field checkout path.
+// Spec 2026-10-11, "Web masking". rrweb masks inputs and blocks sensitive
+// elements at capture; this pass walks the emitted rrweb JSON and enforces,
+// whatever rrweb did:
+//   (a) pattern PII removed from EVERY string leaf, `textContent`/`text`
+//       included: the sdk-core Luhn/JWT/SSN/email scrubber (email forced on)
+//       plus RFC 6750 bearer tokens. Ordinary UI text stays VISIBLE.
+//   (b) every Input event's value is the mask placeholder and never carries a
+//       checked state (maskAllInputs, enforced after the fact).
+//   (c) an attribute ALLOWLIST that strips what rrweb is known to leak (#1581:
+//       no attribute masking by default; #1385/#1609/#456/#1596: values escape
+//       via full-snapshot/hidden-input/select/textarea paths) and form state
+//       (checked/selected), with `style`/`_cssText` (strings, and style diff
+//       objects on mutations) URL-stripped via a CSS url() extractor (CR-03).
+// Free-text non-pattern PII outside inputs is the customer's to mark sensitive.
 import { redactStringContent, type RedactionEngineConfig } from '@everframe/sdk-core';
 
 import { MASK_PLACEHOLDER } from './mask-mapping.js';
@@ -31,7 +27,9 @@ import { MASK_PLACEHOLDER } from './mask-mapping.js';
  * keep only layout/identity attributes that cannot carry user content.
  *
  * Everything else — `value`, `placeholder`, `title`, `alt`, `aria-label`, every
- * `data-*` — is removed. `href`/`src` are kept but query strings are stripped.
+ * `data-*`, and form state (`checked`, `selected`: what the user chose is an
+ * input value, spec 2026-10-11) — is removed. `href`/`src` are kept but query
+ * strings are stripped.
  */
 const ALLOWED_ATTRS = new Set<string>([
   'id',
@@ -44,8 +42,6 @@ const ALLOWED_ATTRS = new Set<string>([
   'height',
   'colspan',
   'rowspan',
-  'checked',
-  'selected',
   'disabled',
   'readonly',
   'hidden',
@@ -58,6 +54,20 @@ const ALLOWED_ATTRS = new Set<string>([
   'href',
   'src',
 ]);
+
+/** rrweb EventType.IncrementalSnapshot / IncrementalSource.Input. Literals: no rrweb import (REPLAY-05). */
+const INCREMENTAL_SNAPSHOT = 3;
+const INPUT_SOURCE = 5;
+
+/**
+ * RFC 6750 bearer credentials: the `bearer` pattern of
+ * packages/protocol/data/redaction-patterns.json without its `(?i)` prefix
+ * (JS spells it as the `i` flag). mask-zero-leak.spec.ts pins the parity.
+ * Replay-only: sdk-core's shared `redactStringContent` is unchanged.
+ */
+export const BEARER_PATTERN_SOURCE = String.raw`Bearer\s+[A-Za-z0-9._~+/-]+=*`;
+const BEARER = new RegExp(BEARER_PATTERN_SOURCE, 'gi');
+const BEARER_REPLACEMENT = '[REDACTED]';
 
 /** Attributes that hold URLs — kept, but query strings stripped (#1581). */
 const URL_ATTRS = new Set<string>(['href', 'src']);
@@ -86,13 +96,27 @@ function stripCssUrls(value: string): string {
 }
 
 /**
- * Scrub a single string value: run the sdk-core default-deny Luhn/JWT/SSN scrubber
- * (with email masking forced ON — replay must never carry an email even though the
- * SDK-wide default leaves email opt-in). Any leftover masked text already arrives
- * as the placeholder from rrweb; this pass guarantees a value never survives.
+ * Scrub a single string value: the sdk-core default-deny Luhn/JWT/SSN scrubber
+ * (with email masking forced ON — replay must never carry an email even though
+ * the SDK-wide default leaves email opt-in), then bearer tokens.
  */
 function scrubText(value: string, config: RedactionEngineConfig): string {
-  return redactStringContent(value, config);
+  return redactStringContent(value, config).replace(BEARER, BEARER_REPLACEMENT);
+}
+
+/**
+ * A `style` value: a string on a serialized node, or — on an attribute
+ * MUTATION — an object of property → value (or [value, priority]). Every
+ * string inside is pattern-scrubbed and URL-stripped (CR-03).
+ */
+function scrubStyle(value: unknown, config: RedactionEngineConfig): unknown {
+  if (typeof value === 'string') return stripCssUrls(scrubText(value, config));
+  if (Array.isArray(value)) return value.map((item) => scrubStyle(item, config));
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    for (const key of Object.keys(record)) record[key] = scrubStyle(record[key], config);
+  }
+  return value;
 }
 
 /** The redaction config the replay scrub runs with: email ON (replay is high-liability). */
@@ -121,14 +145,11 @@ function scrubAttributes(
     }
     if (lower === 'style' || lower === '_csstext') {
       // CR-03 — `style`/`_cssText` carry layout the player needs, but can also
-      // carry `url(...?token=SECRET)` exfil. Run the pattern scrub THEN strip the
-      // query string from every CSS url() token (the attribute is not dropped).
+      // carry `url(...?token=SECRET)` exfil. Pattern-scrub THEN strip the query
+      // string from every CSS url() token, in strings and in style diff objects.
       // Handled BEFORE the allowlist check because `_cssText` lowercases to
       // `_csstext`, which the mixed-case ALLOWED_ATTRS membership would not match.
-      const v = attributes[key];
-      if (typeof v === 'string') {
-        attributes[key] = stripCssUrls(scrubText(v, config));
-      }
+      attributes[key] = scrubStyle(attributes[key], config);
       continue;
     }
     if (!ALLOWED_ATTRS.has(lower)) {
@@ -166,7 +187,7 @@ function scrubNode(node: unknown, config: RedactionEngineConfig): void {
     }
     if (typeof val === 'string') {
       // SELECTIVE redaction (owner decision 2026-06-16): run the pattern scrubber
-      // (Luhn/JWT/SSN/email) over every string leaf — including `textContent`/`text`
+      // (Luhn/JWT/SSN/email/bearer) over every string leaf — including `textContent`/`text`
       // — so credit cards / JWTs / SSNs / emails are masked, but ordinary UI text
       // stays VISIBLE and the replay is watchable. The aggressive bits are already
       // handled at CAPTURE: rrweb `maskAllInputs` masks every input value, and
@@ -184,6 +205,21 @@ function scrubNode(node: unknown, config: RedactionEngineConfig): void {
 }
 
 /**
+ * maskAllInputs masks every typed value at capture; this enforces it after the
+ * fact, so an rrweb gap or an input the masking missed can never ship a value:
+ * an Input event carries the placeholder and never a checked state.
+ */
+function maskInputEvent(event: unknown): void {
+  if (event === null || typeof event !== 'object') return;
+  const { type, data } = event as { type?: unknown; data?: unknown };
+  if (type !== INCREMENTAL_SNAPSHOT || data === null || typeof data !== 'object') return;
+  const input = data as Record<string, unknown>;
+  if (input['source'] !== INPUT_SOURCE) return;
+  if (typeof input['text'] === 'string') input['text'] = MASK_PLACEHOLDER;
+  if (input['isChecked'] === true) input['isChecked'] = false;
+}
+
+/**
  * Post-serialization scrub over an array of emitted rrweb events. Mutates a deep
  * clone and returns it — the input is never mutated. The scrub is the policy's
  * LAST WORD over the transport-floor output.
@@ -196,6 +232,7 @@ export function scrubReplayEvents<T>(events: readonly T[], baseConfig?: Redactio
   // Deep clone so the retained buffer is untouched (it may still be live).
   const cloned: T[] = JSON.parse(JSON.stringify(events));
   for (const event of cloned) {
+    maskInputEvent(event);
     scrubNode(event, config);
   }
   return cloned;

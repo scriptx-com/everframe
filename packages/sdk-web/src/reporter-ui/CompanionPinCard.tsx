@@ -49,11 +49,11 @@ export function CompanionPinCard(): React.ReactElement | null {
       // swept into that one-shot pass. rrweb's own `blockClass` check,
       // unlike our one-shot mapping, is evaluated dynamically per node on
       // every mutation/snapshot — so a static `rr-block` class on the root
-      // is honored no matter when the node appears. This also matters
-      // because REDACTION_DISABLED currently skips the post-serialization
-      // scrub entirely (mask-mapping.ts), so rrweb's live blockClass is the
-      // ONLY thing standing between a late-mounted card and a raw code in
-      // the replay stream.
+      // is honored no matter when the node appears. The post-serialization
+      // scrub (scrub.ts) removes pattern PII only, and a pin code is not a
+      // pattern, so the live block (this class, and the
+      // [data-everframe-sensitive] blockSelector) is what keeps a late-mounted
+      // card's code out of the replay stream.
       className="rr-block"
       data-everframe-skip-capture="true"
       data-everframe-sensitive=""
