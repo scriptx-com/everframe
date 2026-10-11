@@ -1,0 +1,53 @@
+packages/sdk-react-native/src/errors.ts
+  s_dbd309ddf8ec5b::t_e823157f5f7395 68,70-73,75,77
+  s_dbd309ddf8ec5b::t_a997d870386029 18,27,32-35,40-41,44-49
+  s_dbd309ddf8ec5b::t_5b3113fb3ccdf8 141-142,144,156,161-165,168,174-175
+  s_dbd309ddf8ec5b::t_b159301ec0319e 187,193
+  s_dbd309ddf8ec5b::t_e3a27044fe4e05 217,219-228
+  s_dbd309ddf8ec5b::t_3e23633843ba50 246-280,290-299,304-314
+  s_dbd309ddf8ec5b::t_6a3b6d39876fbe 315-316
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AcceptedHermesFatal.kt
+  s_dbd309ddf8ec5b::t_949f72297e61d9 11-21,36,38-54,68-77,84-91
+packages/sdk-react-native/src/react-native-internals.d.ts
+  s_dbd309ddf8ec5b::t_a76b97323222d3 1-7
+packages/sdk-react-native/__tests__/react-uncaught-errors.test.tsx
+  s_dbd309ddf8ec5b::t_f60c2d255edb7d 1-10,12-106,116-208,211-227,230-235
+  s_dbd309ddf8ec5b::t_24864baa0b975c 107-115
+  s_dbd309ddf8ec5b::t_d62754553261ce 11,209-210,228-229
+packages/sdk-react-native/src/exceptions-manager.ts
+  s_dbd309ddf8ec5b::t_e10b3bd6fd85b4 1-26
+packages/sdk-react-native/src/runtime.ts
+  s_dbd309ddf8ec5b::t_1302d18b53bafa 133-135
+  s_dbd309ddf8ec5b::t_a1616331434e26 622
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AcceptedHermesFatalTest.kt
+  s_dbd309ddf8ec5b::t_7d72f3bff90961 51,56-95
+packages/sdk-react-native/__tests__/stubs/react-native-exceptions-manager.ts
+  s_dbd309ddf8ec5b::t_e89db60042a049 1-15
+packages/sdk-react-native/vitest.config.ts
+  s_dbd309ddf8ec5b::t_3711b19d97b8d1 30-33
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_dbd309ddf8ec5b::t_932704d32fac02 459-473
+  s_dbd309ddf8ec5b::t_ce03b764313123 458
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_341be5de1334a2 299
+  s_dbd309ddf8ec5b::t_a75d079ac52d64 362
+  s_dbd309ddf8ec5b::t_7dbdb328ea29b9 285-298,300-301
+.changeset/react-native-uncaught-render-errors.md
+  s_dbd309ddf8ec5b::t_bb5437063731a0 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c6ecb058e5e6efe77ae05aee0c5f84086d79a724",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
