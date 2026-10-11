@@ -310,6 +310,51 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   // (`CrashReporter.swift`) and Android (`CrashReporter.kt`) both attributed
   // theirs. The web report and companion paths were wired; only the crash sink
   // was not — which is exactly the gap a per-path test could not see.
+  it('an error no React boundary caught → fatal crash with the component stack, reported once', async () => {
+    const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+    const err = new Error('smoke js-render: ExplodingRow');
+    err.stack = 'Error: smoke js-render: ExplodingRow\n    at ExplodingRow (index.js:1:20)';
+
+    adapter.__captureUncaughtReactError(err, '\n    at ExplodingRow (index.js:1:20)\n    at CrashHost (index.js:1:90)');
+    // React then reports the same object to the page.
+    window.onerror?.(err.message, 'index.js', 1, 20, err);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+    const envelopeJson = JSON.parse(await (body.get('envelope') as Blob).text());
+    expect(envelopeJson.source).toBe('crash');
+    expect(envelopeJson.reporter.title).toBe('Error: smoke js-render: ExplodingRow');
+    expect(envelopeJson.payload.crash).toMatchObject({
+      exceptionType: 'Error',
+      message: 'smoke js-render: ExplodingRow\n\nThis error is located at:'
+        + '\n    at ExplodingRow (index.js:1:20)\n    at CrashHost (index.js:1:90)',
+      frames: [{ raw: 'at ExplodingRow (index.js:1:20)' }],
+      mechanism: 'onerror',
+      handled: false,
+      fatal: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('an uncaught React error without a component stack is still a fatal crash', async () => {
+    const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
+    adapter.__captureUncaughtReactError(new TypeError('no stack info'));
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+    const envelopeJson = JSON.parse(await (body.get('envelope') as Blob).text());
+    expect(envelopeJson.source).toBe('crash');
+    expect(envelopeJson.payload.crash).toMatchObject({ message: 'no stack info', fatal: true, handled: false });
+  });
+
+  it('crashReporting.disabled vetoes uncaught React errors too', async () => {
+    const adapter = mk({ sdkKey: 'pk_test', crashReporting: { disabled: true } });
+    adapter.__captureUncaughtReactError(new Error('vetoed'), '\n    at Row');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   describe('setUser on the crash path', () => {
     /** Extract the enqueued crash envelope from the immediate drain's POST. */
     const drainedEnvelope = async (): Promise<{ reporter: { user?: unknown } }> => {

@@ -171,4 +171,31 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
     const parsed = ReportEnvelope.parse(envelope);
     expect(parsed.payload.crash?.message.length).toBeLessThanOrEqual(4096);
   });
+
+  it('appends a redacted React component stack to the message, not the title or the fingerprint', () => {
+    const input = { ...base(), source: 'crash' as const, fatal: true };
+    input.facts.message = 'smoke js-render: ExplodingRow';
+    const { envelope, fingerprint } = buildCrashEnvelope({
+      ...input,
+      componentStack: '\n    at ExplodingRow (https://app.example/index.js:1:20)\n    at Card 123-45-6789',
+    });
+
+    expect(envelope.payload.crash?.message).toBe(
+      'smoke js-render: ExplodingRow\n\nThis error is located at:'
+        + '\n    at ExplodingRow (https://app.example/index.js:1:20)\n    at Card [REDACTED:SSN]',
+    );
+    expect(envelope.reporter.title).toBe('TypeError: smoke js-render: ExplodingRow');
+    expect(envelope.source).toBe('crash');
+    expect(envelope.payload.crash?.fatal).toBe(true);
+    expect(fingerprint).toBe(buildCrashEnvelope(input).fingerprint);
+    expect(() => ReportEnvelope.parse(envelope)).not.toThrow();
+  });
+
+  it('keeps a message with a component stack within the 4096-char protocol limit', () => {
+    const input = base();
+    input.facts.message = 'm'.repeat(4000);
+    const { envelope } = buildCrashEnvelope({ ...input, componentStack: '\n    at Row'.repeat(100) });
+    expect(envelope.payload.crash?.message.length).toBe(4096);
+    expect(envelope.payload.crash?.message.startsWith(`${'m'.repeat(4000)}\n\nThis error is located at:\n    at Row`)).toBe(true);
+  });
 });
