@@ -1,0 +1,52 @@
+packages/sdk-react/tests/render-error-host.tsx
+  s_dbd309ddf8ec5b::t_de901988218104 1-70
+packages/sdk-react/__tests__/provider-uncaught-render-error.spec.tsx
+  s_dbd309ddf8ec5b::t_3b060a6368776c 1-201
+  s_dbd309ddf8ec5b::t_9e4b7c717c9540 202-208
+packages/sdk-web/src/adapter.ts
+  s_dbd309ddf8ec5b::t_1690a1f4d7b43e 596-599
+  s_5d076b9006e491::t_6cdfc78e845372 175-193,601-606,1480,1501-1505,1551-1554,1556-1557,1653,1655,1667,1686,1688,1944-1950,2233,2246-2248
+packages/sdk-react/tests/render-error-browser.mjs
+  s_dbd309ddf8ec5b::t_f4e71286c84a7b 1-227
+  s_dbd309ddf8ec5b::t_69dd040e0692a0 228-247
+.changeset/react-uncaught-render-errors.md
+  s_dbd309ddf8ec5b::t_98ec3866328c51 1-9
+docs/crash-reporting-support.md
+  s_dbd309ddf8ec5b::t_b2f120dfc45587 14
+packages/sdk-core/__tests__/crash-build.spec.ts
+  s_dbd309ddf8ec5b::t_645f628a095bd3 174-200
+packages/sdk-core/src/crash/build.ts
+  s_dbd309ddf8ec5b::t_20b8bc1c9ff553 26-30,52-58,76-79,119,142-146
+packages/sdk-react/README.md
+  s_dbd309ddf8ec5b::t_2b35b43e968482 91-117
+packages/sdk-react/src/provider.tsx
+  s_dbd309ddf8ec5b::t_1931fce1b70ddd 4-13,172-176,858,895-947
+packages/sdk-web/__tests__/crash-reporting.spec.ts
+  s_dbd309ddf8ec5b::t_4f23b7c5f60b54 313-357
+packages/sdk-web/__tests__/kill-switch-gates.spec.ts
+  s_dbd309ddf8ec5b::t_9ccc276bde9a0a 446-536
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3cfc8999d998b96a05d6974752ae2903e5efef22",
+  "prompts": {},
+  "sessions": {
+    "s_5d076b9006e491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-adeabb050baf6464b",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
