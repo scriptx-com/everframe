@@ -38,3 +38,5 @@ added during recording also apply.
 
 See [session replay](../docs/session-replay.md) for settings and privacy
 boundaries.
+
+Recording cost is unmeasured on physical devices: the numbers so far come from an Android emulator and the tvOS simulator, at 5 and 10 frames per second.
