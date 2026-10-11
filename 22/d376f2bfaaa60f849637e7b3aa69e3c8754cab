@@ -1,0 +1,21 @@
+packages/everframe_flutter/android/src/main/kotlin/dev/everframe/flutter/EverframeFlutterPlugin.kt
+  s_fbcdadc1064236::t_1168a57333f5c8 81-82
+packages/everframe_kmp/src/androidMain/kotlin/dev/everframe/kmp/AndroidEverframeDriver.kt
+  s_fbcdadc1064236::t_1168a57333f5c8 58-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "22d376f2bfaaa60f849637e7b3aa69e3c8754cab",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
