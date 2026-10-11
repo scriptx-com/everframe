@@ -1,0 +1,31 @@
+packages/sdk-react-native/__tests__/error-replay-bridge-wiring.spec.ts
+  s_269319d6df67e5::t_6b550646c7ff1d 1-92
+packages/sdk-react-native/__tests__/error-replay-flags.test.ts
+  s_269319d6df67e5::t_ccd72f9449b1e9 1-119
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_269319d6df67e5::t_e686a8bb0e0504 687,691,718-721,724-728
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnErrorReplayBridgeTest.kt
+  s_269319d6df67e5::t_8ca3d31158eeb0 1-125
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_269319d6df67e5::t_cbfde73f5f488b 29,602-608,611-612,614-626
+packages/sdk-react-native/ios/Tests/RnReplayBridgeTests.swift
+  s_269319d6df67e5::t_af470b4e644fcf 146-163
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_269319d6df67e5::t_4ed09b17e7cd4e 351-356,407-410
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7dba8ad6819a96d3c03d5ae820be98afdc03713",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
