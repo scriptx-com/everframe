@@ -110,6 +110,11 @@ export interface RuntimeConfig
   /** Exact loaded Hermes bundle identity, independent of the native app build. */
   jsBundle?: JsBundleConfig;
   /**
+   * Whether this is a debug build. Everframe never makes a release out of a debug build, and release
+   * health skips it. Defaults to React Native's `__DEV__`; set it only to override that.
+   */
+  debugBuild?: boolean;
+  /**
    * Native foreground-session monitoring (release health). On by default:
    * leave this out, or leave `enabled` out, and it is on; `enabled: false`
    * turns it off and erases undelivered records on the device. The native SDK
@@ -795,6 +800,9 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   if (config.vitals?.captureSourceQuery !== undefined) {
     bridge.vitalsCaptureSourceQuery = config.vitals.captureSourceQuery;
   }
+  // Always sent, so the native SDK uses React Native's answer rather than its own guess. A Metro
+  // development bundle can run inside a release-signed native app, and `__DEV__` is the truth.
+  bridge.debugBuild = typeof config.debugBuild === "boolean" ? config.debugBuild : typeof __DEV__ !== "undefined" && __DEV__;
   // Release health is on unless `enabled` is explicitly false. Every off path below sends
   // `releaseHealthEnabled: false`, because both bridges read a missing field as on. An untyped `null`
   // option is off too, matching `releaseHealth = null` on the native SDKs.

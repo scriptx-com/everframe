@@ -219,6 +219,11 @@ export type ConfigOpts = {
   vitalsSampleRate?: number;
   vitalsCaptureSourceQuery?: boolean;
   /**
+   * Whether this is a debug build, which Everframe never makes a release out of. The JS facade always
+   * sends it (the config's `debugBuild`, else `__DEV__`). Absent means the native SDK decides for itself.
+   */
+  debugBuild?: boolean;
+  /**
    * Native foreground monitoring (release health). The JS facade always sends this flag: `true` with a
    * validated loaded bundle, or `false` to revoke monitoring. A bridge that finds it missing treats it as
    * on, and only an explicit `false` as off. The native SDK reads the app version.

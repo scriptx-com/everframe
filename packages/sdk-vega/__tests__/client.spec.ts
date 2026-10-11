@@ -105,6 +105,22 @@ describe('fatal JavaScript errors', () => {
     expect(stored(storage)).toEqual([]);
   });
 
+  it("marks the report as a debug build from React Native's __DEV__, unless the config says otherwise", async () => {
+    const sentDebug = async (dev: boolean, config: Record<string, unknown> = {}) => {
+      const { client, errorUtils, fetch } = start({ dev }, config);
+      errorUtils.handler!(vegaError('boom'), true);
+      await client.flush();
+      await vi.waitFor(() => expect(fetch.requests).toHaveLength(1));
+      const { envelope } = fetch.requests[0]!;
+      expectValidEnvelope(envelope);
+      return envelope.context.app.debug;
+    };
+    expect(await sentDebug(true)).toBe(true);
+    expect(await sentDebug(false)).toBe(false);
+    expect(await sentDebug(true, { debugBuild: false })).toBe(false);
+    expect(await sentDebug(false, { debugBuild: true })).toBe(true);
+  });
+
   it('hands off after the cap when storage hangs, and the report is lost only if nothing was written', async () => {
     vi.useFakeTimers();
     const { errorUtils, storage } = start();
