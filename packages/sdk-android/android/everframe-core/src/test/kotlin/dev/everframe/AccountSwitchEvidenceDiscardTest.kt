@@ -145,6 +145,7 @@ class AccountSwitchEvidenceDiscardTest {
             EnvelopeBuilder.LogRow(timestamp = it.timestamp, level = it.level, tag = it.tag, message = it.message)
         }
         return EnvelopeBuilder().buildEncoded(
+            formFactor = "phone",
             sdkVersion = "test",
             logs = logRows,
             breadcrumbs = sharedBreadcrumbBuffer.snapshotForCrash(),

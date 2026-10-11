@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { z } from 'zod';
 import { NativeExposurePointerSchema } from './release-health.js';
+import { JvmMappingId } from './crash.js';
 
 /** The OS reason is authoritative; traces and SIGKILL alone cannot establish ANR/OOM. */
 // OS reason categories: reason10 before API34 can also mean a package/component change.
@@ -48,6 +49,11 @@ export const DiagnosticEvidence = z.object({
     rssKb: z.number().int().min(0).max(1_000_000_000).optional(),
     /** The OS exit description, bounded printable ASCII. */
     description: z.string().min(1).max(128).regex(/^[\x20-\x7e]+$/).optional(),
+    /**
+     * R8 mapping ID of the build the exited process ran, frozen when that process
+     * armed capture; same value and format as payload.crash.jvm.mappingId.
+     */
+    mappingId: JvmMappingId.optional(),
   }).strict(),
   trace: z.object({
     status: z.enum(['available', 'unavailable', 'malformed', 'unsupported', 'not_requested']).meta({ title: 'DiagnosticTraceStatus' }),

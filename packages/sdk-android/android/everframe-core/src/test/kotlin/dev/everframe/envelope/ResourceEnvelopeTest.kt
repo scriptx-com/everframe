@@ -25,6 +25,7 @@ class ResourceEnvelopeTest {
 
     private fun buildMinimalEnvelopeJson(resources: List<ResourceRingBuffer.Entry>): JsonObject {
         val encoded = EnvelopeBuilder().buildEncoded(
+            formFactor = "phone",
             sdkVersion = "t",
             resources = resources,
         )

@@ -15,7 +15,7 @@ import org.junit.Test
 
 class EnvelopeVitalsStampTest {
     private fun envelopeJson(stamp: VitalsStamp?) =
-        Json.parseToJsonElement(String(EnvelopeBuilder(vitalsStamp = { stamp }).buildEncoded(sdkVersion = "0.8.0").bytes, Charsets.UTF_8)).jsonObject
+        Json.parseToJsonElement(String(EnvelopeBuilder(vitalsStamp = { stamp }).buildEncoded(formFactor = "phone", sdkVersion = "0.8.0").bytes, Charsets.UTF_8)).jsonObject
 
     @Test
     fun `stamps sessionId and payload vitals when a collector is running`() {
@@ -34,7 +34,7 @@ class EnvelopeVitalsStampTest {
 
     @Test
     fun `a throwing stamp provider degrades to no vitals, never a lost report`() {
-        val j = Json.parseToJsonElement(String(EnvelopeBuilder(vitalsStamp = { error("x") }).buildEncoded(sdkVersion = "0.8.0").bytes, Charsets.UTF_8)).jsonObject
+        val j = Json.parseToJsonElement(String(EnvelopeBuilder(vitalsStamp = { error("x") }).buildEncoded(formFactor = "phone", sdkVersion = "0.8.0").bytes, Charsets.UTF_8)).jsonObject
         assertFalse(j.containsKey("sessionId"))
     }
 

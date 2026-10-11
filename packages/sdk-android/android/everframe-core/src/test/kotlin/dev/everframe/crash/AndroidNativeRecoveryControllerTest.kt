@@ -498,4 +498,12 @@ class AndroidNativeRecoveryControllerTest {
         val context = contexts().let { store -> store.readIfPresent(store.snapshotTokens().single())!!.entry }
         assertEquals("app-a", Json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["appId"]!!.jsonPrimitive.content)
     }
+    @Test fun `the R8 mapping ID is frozen into the context the next launch recovers`() {
+        val platform = Platform(apiLevel = 30)
+        assertTrue(AndroidNativeRecoveryController(::engine, platform)
+            .enableDiagnostics(1, allowed, 3000, ::template, appId = "app-a", mappingId = "r8-map-id-0123abcd") { true })
+        val context = contexts().let { store -> store.readIfPresent(store.snapshotTokens().single())!!.entry }
+        assertEquals("r8-map-id-0123abcd",
+            Json.parseToJsonElement(context.envelopeBytes.toString(Charsets.UTF_8)).jsonObject["mappingId"]!!.jsonPrimitive.content)
+    }
 }

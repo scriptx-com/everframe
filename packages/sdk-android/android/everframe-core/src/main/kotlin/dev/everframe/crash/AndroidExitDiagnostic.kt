@@ -90,9 +90,13 @@ internal object AndroidExitDiagnostic {
     fun description(raw: String?): String? =
         raw?.filter { it in ' '..'~' }?.trim()?.take(128)?.takeIf { it.isNotEmpty() }
 
-    /** [collectedMs] is never before the exit's own timestamp: the caller takes the later of the two. */
+    /**
+     * [collectedMs] is never before the exit's own timestamp: the caller takes the later of the two.
+     * [mappingId] is the R8 mapping ID frozen when the exited process armed capture, so an update
+     * installed before this launch cannot retrace its stack against the wrong mapping.
+     */
     fun evidence(reportId: String, processLaunchId: String, apiLevel: Int, exit: AndroidNativeExit,
-                 collectedMs: Long, trace: JsonObject) = buildJsonObject {
+                 collectedMs: Long, trace: JsonObject, mappingId: String? = null) = buildJsonObject {
         put("version", 1); put("evidenceId", reportId); put("processLaunchId", processLaunchId)
         put("kind", "process_exit"); put("provenance", "android_application_exit_info"); put("scope", "os_process")
         put("outcome", "terminated"); put("cause", cause(exit.reason))
@@ -109,6 +113,7 @@ internal object AndroidExitDiagnostic {
                 if (exit.rss > 0) put("rssKb", exit.rss.coerceAtMost(1_000_000_000))
                 description(exit.description)?.let { put("description", it) }
             }
+            mappingId?.takeIf { R8_MAPPING_ID.matches(it) }?.let { put("mappingId", it) }
         })
         put("trace", trace)
     }

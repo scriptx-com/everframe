@@ -2565,22 +2565,26 @@ public struct EverframeAndroid: Codable {
     public let apiLevel: Int
     public let description: String?
     public let importance: Int?
+    public let mappingID: String?
     public let pid: Int
     public let pssKB: Int?
     public let reason: Int
     public let rssKB: Int?
 
     public enum CodingKeys: String, CodingKey {
-        case apiLevel, description, importance, pid
+        case apiLevel, description, importance
+        case mappingID = "mappingId"
+        case pid
         case pssKB = "pssKb"
         case reason
         case rssKB = "rssKb"
     }
 
-    public init(apiLevel: Int, description: String?, importance: Int?, pid: Int, pssKB: Int?, reason: Int, rssKB: Int?) {
+    public init(apiLevel: Int, description: String?, importance: Int?, mappingID: String?, pid: Int, pssKB: Int?, reason: Int, rssKB: Int?) {
         self.apiLevel = apiLevel
         self.description = description
         self.importance = importance
+        self.mappingID = mappingID
         self.pid = pid
         self.pssKB = pssKB
         self.reason = reason
@@ -2610,6 +2614,7 @@ public extension EverframeAndroid {
         apiLevel: Int? = nil,
         description: String?? = nil,
         importance: Int?? = nil,
+        mappingID: String?? = nil,
         pid: Int? = nil,
         pssKB: Int?? = nil,
         reason: Int? = nil,
@@ -2619,6 +2624,7 @@ public extension EverframeAndroid {
             apiLevel: apiLevel ?? self.apiLevel,
             description: description ?? self.description,
             importance: importance ?? self.importance,
+            mappingID: mappingID ?? self.mappingID,
             pid: pid ?? self.pid,
             pssKB: pssKB ?? self.pssKB,
             reason: reason ?? self.reason,

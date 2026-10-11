@@ -77,6 +77,17 @@ describe('process-exit evidence', () => {
     const value = lowMemory(); mutate(value);
     expect(ReportEnvelope.safeParse(value).success).toBe(false);
   });
+  it('carries the exited build R8 mapping ID on ANR and low-memory evidence, in the JVM crash format', () => {
+    const jvmMappingId = 'r8-map-id-a218cbe3a744e025b5841d1924f117233eac06243f3e328f4f83d2eecea499c5';
+    const anr = envelope(); anr.payload.diagnostic.android.mappingId = jvmMappingId;
+    expect(ReportEnvelope.parse(anr).payload.diagnostic?.android.mappingId).toBe(jvmMappingId);
+    const killed = lowMemory(); killed.payload.diagnostic.android.mappingId = jvmMappingId;
+    expect(ReportEnvelope.parse(killed).payload.diagnostic?.android.mappingId).toBe(jvmMappingId);
+    for (const invalid of ['', '-leading', 'has space', 'x'.repeat(129), 'trailing\n', 42]) {
+      const value = envelope(); value.payload.diagnostic.android.mappingId = invalid;
+      expect(ReportEnvelope.safeParse(value).success).toBe(false);
+    }
+  });
   it.each([
     (v: any) => { delete v.payload.diagnostic; },
     (v: any) => { v.source = 'manual'; },

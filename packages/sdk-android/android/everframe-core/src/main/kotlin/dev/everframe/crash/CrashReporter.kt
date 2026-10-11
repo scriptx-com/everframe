@@ -478,6 +478,9 @@ object CrashReporter {
                 reportId = reportId,
                 sdkVersion = dev.everframe.Everframe.SDK_VERSION,
                 sdkName = sdkName,
+                // JVM uncaught, handled and React Native bridge captures all
+                // land here; same snapshot as the device context below.
+                formFactor = DeviceMetadata.formFactor(device),
                 title = redactAndCap("$exceptionType: $redactedMessage", 50),
                 description = "",
                 appName = (device["bundleIdentifier"] as? String) ?: "unknown",

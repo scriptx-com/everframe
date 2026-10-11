@@ -244,4 +244,23 @@ describe('native exposure pointer JSON schema', () => {
     value.payload.diagnostic.nativeExposure.nativeBuildId = '';
     expect(validate(value)).toBe(false);
   });
+
+  it('accepts the exit evidence R8 mapping ID exactly as Zod does', () => {
+    const value = structuredClone(minimal) as any;
+    value.source = 'diagnostic'; value.sdk.platform = 'android';
+    value.payload = { diagnostic: {
+      version: 1, evidenceId: value.reportId, processLaunchId: '22222222-2222-4222-8222-222222222222',
+      kind: 'process_exit', provenance: 'android_application_exit_info', scope: 'os_process',
+      outcome: 'terminated', cause: 'anr', occurredAt: '2026-10-07T10:00:00.000Z', collectedAt: '2026-10-07T10:01:00.000Z',
+      attribution: { process: 'exact_os_token', release: 'frozen', session: 'unavailable', webExposure: 'unavailable' },
+      android: { apiLevel: 35, reason: 6, pid: 100, mappingId: 'r8-map-id-0123abcd' },
+      trace: { status: 'unavailable', format: 'none', truncated: false, frames: [] },
+    } };
+    for (const mappingId of ['r8-map-id-0123abcd', 'a', 'x'.repeat(128), '', '-x', 'a b', 'x'.repeat(129), 'a\n']) {
+      value.payload.diagnostic.android.mappingId = mappingId;
+      const expected = ReportEnvelope.safeParse({ ...value, submittedAt: value.payload.diagnostic.collectedAt }).success;
+      expect(validate(value)).toBe(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$(?![\s\S])/.test(mappingId));
+      expect(expected).toBe(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$(?![\s\S])/.test(mappingId));
+    }
+  });
 });

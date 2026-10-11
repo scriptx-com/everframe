@@ -47,6 +47,7 @@ class EnvelopeBuilderTest {
     fun `buildEncoded produces JSON that round-trips through ReportEnvelope_parse`() {
         val builder = EnvelopeBuilder()
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             reportId = UUID.randomUUID(),
             sdkVersion = Everframe.SDK_VERSION,
             title = "Test report",
@@ -93,6 +94,7 @@ class EnvelopeBuilderTest {
     fun `buildEncoded redacts logs through RedactionEngine when DefaultRedactor is used`() {
         val builder = EnvelopeBuilder(redactor = EnvelopeBuilder.DefaultRedactor)
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             logs = listOf(
                 EnvelopeBuilder.LogRow(timestamp = 0L, level = "default", tag = null, message = "Authorization: Bearer abc123def456ghi789"),
@@ -111,6 +113,7 @@ class EnvelopeBuilderTest {
     fun `Captures flags reflect input shape`() {
         val builder = EnvelopeBuilder()
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             logs = listOf(EnvelopeBuilder.LogRow(timestamp = 0L, level = "default", tag = null, message = "hello")),
         )
@@ -133,6 +136,7 @@ class EnvelopeBuilderTest {
     fun `per-entry log timestamps survive into envelope JSON`() {
         val builder = EnvelopeBuilder()
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             logs = listOf(
                 EnvelopeBuilder.LogRow(timestamp = 1_700_000_000_000L, level = "info", tag = "A", message = "first"),
@@ -153,8 +157,8 @@ class EnvelopeBuilderTest {
         // the same UUID and assert SHA differs only when bytes differ.
         val builder = EnvelopeBuilder()
         val id = UUID.randomUUID()
-        val a = builder.buildEncoded(reportId = id, sdkVersion = "1.2.0", title = "A")
-        val b = builder.buildEncoded(reportId = id, sdkVersion = "1.2.0", title = "B")
+        val a = builder.buildEncoded(formFactor = "phone", reportId = id, sdkVersion = "1.2.0", title = "A")
+        val b = builder.buildEncoded(formFactor = "phone", reportId = id, sdkVersion = "1.2.0", title = "B")
         // submittedAt drifts → different bytes → different hash. Just assert
         // that hashing is wired (both keys are hex-64).
         assertEquals(64, a.idempotencyKey.length)
@@ -208,6 +212,7 @@ class EnvelopeBuilderTest {
             add(EnvelopeBuilder.LogRow(timestamp = 999L, level = "error", tag = null, message = "token=SECRET"))
         }
         val encoded = EnvelopeBuilder(redactor = redactor).buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             logs = rows,
         )
@@ -234,6 +239,7 @@ class EnvelopeBuilderTest {
             )
         }
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             breadcrumbs = crumbs,
             breadcrumbByteBudget = 500,
@@ -265,6 +271,7 @@ class EnvelopeBuilderTest {
     fun `buildEncoded keeps the no-crumbs path unchanged beyond captures_breadcrumbs`() {
         val builder = EnvelopeBuilder()
         val encodedNull = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             logs = listOf(EnvelopeBuilder.LogRow(timestamp = 0L, level = "default", tag = null, message = "hello")),
         )
@@ -278,6 +285,7 @@ class EnvelopeBuilderTest {
 
         // Explicit empty list is equivalent to null (isNullOrEmpty semantics).
         val encodedEmpty = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             breadcrumbs = emptyList(),
         )
@@ -301,6 +309,7 @@ class EnvelopeBuilderTest {
         assertNull(buf.takeFrozen())
 
         val encoded = EnvelopeBuilder().buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             breadcrumbs = frozen,
         )
@@ -331,6 +340,7 @@ class EnvelopeBuilderTest {
             })
         }
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             annotations = annotations,
             redactions = redactions,
@@ -366,6 +376,7 @@ class EnvelopeBuilderTest {
         val builder = EnvelopeBuilder()
         // Pass empty arrays for annotations and redactions.
         val encoded = builder.buildEncoded(
+            formFactor = "phone",
             sdkVersion = Everframe.SDK_VERSION,
             annotations = buildJsonArray { },
             redactions = buildJsonArray { },
@@ -398,6 +409,7 @@ class EnvelopeBuilderTest {
             fingerprint = "0123456789abcdef",
         )
         val encoded = EnvelopeBuilder().buildEncoded(
+            formFactor = "phone",
             sdkVersion = "1.0.0",
             title = "java.lang.IllegalStateException: boom",
             source = ReportEnvelopeSource.Crash,

@@ -335,6 +335,25 @@ class RnReplayBridgeTest {
         } finally { sidecar.delete() }
     }
 
+    // Smoke round 2026-10: JS crashes from an Android TV said formFactor "phone".
+    @Test
+    @org.robolectric.annotation.Config(qualifiers = "television")
+    fun reportCrash_onTelevision_reportsTvFormFactor() = withIsolatedCrashState {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        configureCrashCore()
+        val sidecar = java.io.File(java.io.File(context.cacheDir, "dev.everframe"), "crash-outbox.jsonl")
+        sidecar.delete()
+        module.__drainRequester = {}
+        try {
+            assertTrue(module.reportCrash("""{"exceptionType":"Error","fatal":true,"framesRaw":["at f (address at index.bundle:1:0)"]}"""))
+            val outbox = crashStorage.outbox()
+            val entry = kotlinx.coroutines.runBlocking { outbox.hydrate() }.single()
+            kotlinx.coroutines.runBlocking { outbox.drain { true } }
+            val sdk = org.json.JSONObject(String(entry.envelopeBytes)).getJSONObject("sdk")
+            assertEquals("tv", sdk.getString("formFactor"))
+        } finally { sidecar.delete() }
+    }
+
     @Test
     fun reportCrash_beforeNativeStart_returnsFalse_andDoesNotDrain() = withIsolatedCrashState {
         val json = """

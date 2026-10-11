@@ -11,7 +11,8 @@ import java.util.IdentityHashMap
 
 private const val MAX_CAUSES = 8
 private const val MAX_CAUSE_FRAMES = 32
-private val R8_MAPPING_ID = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+/** The protocol JvmMappingId format, shared by JVM crashes and OS exit evidence. */
+internal val R8_MAPPING_ID = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 
 internal data class CapturedThrowableContext(
     val jvm: JVMCrashMetadata,

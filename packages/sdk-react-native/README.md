@@ -282,6 +282,23 @@ browser SDK's own error handling.
 
 Crash reporting also turns on the native SDKs' automatic crash capture. On Android that covers JVM exceptions, native crashes (OS exit records on API 30+, with tombstone frames on API 31+) and ANRs on API 30+; see the [Android SDK guide](../sdk-android/README.md#crash-capture-on-by-default). On iOS it is the native crash recorder. `crashReporting: { disabled: true }` turns all of it off on both platforms.
 
+### Errors no boundary catches
+
+Since React Native 0.78, React reports an error that no error boundary catches
+(thrown while rendering, in an effect or in a lifecycle method) through the
+root's `onUncaughtError`. That calls React Native's `ExceptionsManager`, never
+the `ErrorUtils` handler. Crash reporting hooks
+`ExceptionsManager.handleException` too, so such an error is reported as a fatal
+JavaScript crash (`mechanism: "errorutils"`) with its Hermes stack, and React's
+component stack follows the message after `This error is located at:`, as in
+React Native's own report. React unmounts the whole tree, `EverframeProvider`
+included, before it reports the error; the hook stays until the end of that
+task, so the error is still captured. The native fatal React Native raises for
+the same error (`RCTFatalException` on iOS and tvOS, `JavascriptException` on
+Android) is not reported a second time. An error in the render that first
+mounts the provider comes before this capture is installed. Errors a boundary
+catches are not reported automatically; use the callback below.
+
 ### React error boundary callback
 
 An existing React class boundary can opt into handled capture. Render the
@@ -342,7 +359,7 @@ const { attempted, accepted, duplicateSuppressed } = status.counters.handled;
 
 Snapshots are detached, contain no captured content, reset on remount, and perform
 no native query or upload. Paths are `handled` (including the boundary callback),
-`errorUtils`, and `rejection` (submission only). Each active attempt has one outcome:
+`errorUtils` (including errors no boundary catches), and `rejection` (submission only). Each active attempt has one outcome:
 `accepted`, `duplicateSuppressed`, `allowanceSuppressed`, `bridgeUnavailable`,
 `nativeRefused`, `captureFailed`, `reentrantSuppressed`, `inactiveAborted`, or
 `legacyAttempted`. Counters saturate at 2,147,483,647. Existing limits are ten
