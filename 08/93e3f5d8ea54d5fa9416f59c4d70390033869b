@@ -1,0 +1,55 @@
+packages/protocol/scripts/codegen-swift.sh
+  s_fbcdadc1064236::t_6f1482e587c259 123-125,127-131,135,143-159
+packages/sdk-ios/Tests/EverframeTests/DiagnosticExposureProtocolTests.swift
+  s_fbcdadc1064236::t_f9a336dc85748c 7-15,17-33
+packages/protocol/__tests__/generated-identity.spec.ts
+  s_fbcdadc1064236::t_4f279d5d051248 72-86
+packages/sdk-ios/Sources/Everframe/Capture/AppRelease.swift
+  s_fbcdadc1064236::t_adbf7d7b762a72 1-38
+packages/sdk-ios/Sources/Everframe/Capture/DeviceMetadata.swift
+  s_fbcdadc1064236::t_f92ed6e10e9cca 87-88,95-96
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryContext.swift
+  s_fbcdadc1064236::t_061a7261ba667f 116-119,122-123,125
+packages/sdk-ios/Sources/Everframe/Envelope/EnvelopeBuilder.swift
+  s_fbcdadc1064236::t_9d06f764f90bb6 460-463
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthConfiguration.swift
+  s_fbcdadc1064236::t_659258ea506f89 5-7,13,17-24,27,29,31,46
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthModels.swift
+  s_fbcdadc1064236::t_c3fe09e35772c0 48,53,55,57-58,60,64-65,68,72
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthRuntime.swift
+  s_fbcdadc1064236::t_3efd9a4ab39638 33,44-45,47,53,127-128,135
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_fbcdadc1064236::t_3d90d43d4c1ddb 2348,2356,2364-2365,2375,2403,2411,2429-2482
+packages/sdk-ios/Tests/EverframeTests/AppReleaseTests.swift
+  s_fbcdadc1064236::t_1c858da8818446 1-48
+packages/sdk-ios/Tests/EverframeTests/CrashReporterTests.swift
+  s_fbcdadc1064236::t_00fd8f827d39c7 42-43,71-72,113,118,128-129
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthForegroundTests.swift
+  s_fbcdadc1064236::t_33c5887de99dc8 18,22,78
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_fbcdadc1064236::t_771e58a13a3e94 9-12,27,34-35,41-42,65-83,94,99,133,160,166,196,200,241,269,273,315,320,359,365,407,412,419-420,438-439
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_fbcdadc1064236::t_d23c2190e35b3b 17-19,21,23,26-27,32,35,40,44-47,57,61,76,79,86-88,90,95,97,99,101-102,105-120,127,142-143,151-152,155,158-166,178,181,183,185,195,201-220,238,271,277-278,287
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthSDKTests.swift
+  s_fbcdadc1064236::t_4d05d2d4d8766b 20,26-34,46,48,126,136,146-147,162,185
+packages/sdk-ios/Tests/EverframeTests/TerminationInferenceTests.swift
+  s_fbcdadc1064236::t_9e9a23daf33879 92-93
+packages/sdk-ios/Tests/ReleaseHealthProof/App.swift
+  s_fbcdadc1064236::t_20331c5f51eacf 39-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0893e3f5d8ea54d5fa9416f59c4d70390033869b",
+  "prompts": {},
+  "sessions": {
+    "s_fbcdadc1064236": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e10c40df-235f-49af-b604-9ca86d588396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
