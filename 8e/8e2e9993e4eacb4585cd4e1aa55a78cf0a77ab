@@ -1,0 +1,21 @@
+packages/everframe_flutter/test/web_sdk_web_test.dart
+  s_ce922b03c469a7::t_8bff56ea283565 1-45
+packages/everframe_flutter/lib/src/web_sdk_web.dart
+  s_ce922b03c469a7::t_f48c809aeb9c42 17-19,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e8e2e9993e4eacb4585cd4e1aa55a78cf0a77ab",
+  "prompts": {},
+  "sessions": {
+    "s_ce922b03c469a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dcb771b6-aba6-44d8-8cd0-248bd018d734",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
