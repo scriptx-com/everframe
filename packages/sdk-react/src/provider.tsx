@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Component,
+  createContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react';
 import {
   createClient,
   __internalClientState,
@@ -160,8 +169,11 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     const releaseHealth = createProviderReleaseHealth(config, PKG_VERSION);
     let normalCleanupCall = false;
     const originalOnKill = adapter.onKill?.bind(adapter);
-    adapter.onKill = () => {
-      try { originalOnKill?.(); }
+    adapter.onKill = (reason) => {
+      // The unmount releases the adapter; only the host's kill() withdraws
+      // consent. A crash accepted before the unmount (an error no boundary
+      // caught unmounts this provider in the same commit) is still delivered.
+      try { originalOnKill?.(normalCleanupCall ? 'release' : reason); }
       finally { if (!normalCleanupCall) releaseHealth.revoke(); }
     };
     const stopClient = () => {
@@ -843,7 +855,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
 
   return (
     <EverframeContext.Provider value={ctxValue}>
-      {children}
+      <UncaughtErrorRelay adapter={ctxValue.adapter}>{children}</UncaughtErrorRelay>
       <ReporterDialog
         open={modalOpen}
         adapter={ctxValue.adapter}
@@ -880,3 +892,56 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     </EverframeContext.Provider>
   );
 };
+
+interface UncaughtErrorRelayProps {
+  adapter: WebPlatformAdapter;
+  children: ReactNode;
+}
+
+interface UncaughtErrorRelayState {
+  caught: boolean;
+  error: unknown;
+  rethrow: boolean;
+}
+
+/**
+ * Reports an error that no error boundary inside the provider caught, then
+ * hands it on unchanged.
+ *
+ * Without a boundary of the host's, React (createRoot, 18 and 19) unmounts the
+ * whole root, this provider included, and reports the error to the page in
+ * the same commit, without the component stack. This boundary sees it first, with the
+ * component stack, while the provider is still mounted, and sends it as a
+ * fatal crash. It then throws the same error again from its next render, so
+ * React carries on exactly as it would have: an outer boundary of the host's
+ * still catches it, and otherwise React unmounts the root and reports the
+ * error to `window.onerror`, where the SDK recognises the object and does not
+ * report it twice. Boundaries inside the provider are untouched: the errors
+ * they catch never reach this one.
+ */
+class UncaughtErrorRelay extends Component<UncaughtErrorRelayProps, UncaughtErrorRelayState> {
+  static displayName = 'EverframeUncaughtErrorRelay';
+
+  override state: UncaughtErrorRelayState = { caught: false, error: undefined, rethrow: false };
+
+  static getDerivedStateFromError(error: unknown): Partial<UncaughtErrorRelayState> {
+    return { caught: true, error };
+  }
+
+  override componentDidCatch(error: unknown, info: ErrorInfo): void {
+    try {
+      this.props.adapter.__captureUncaughtReactError(error, info.componentStack ?? undefined);
+    } catch {
+      /* swallow — DEFE-02; reporting must never change what React does next */
+    }
+    // Rethrow from the next render, not this one: a boundary that throws
+    // while rendering its error state never gets componentDidCatch, and so
+    // never sees the component stack.
+    this.setState({ rethrow: true });
+  }
+
+  override render(): ReactNode {
+    if (this.state.rethrow) throw this.state.error;
+    return this.state.caught ? null : this.props.children;
+  }
+}
