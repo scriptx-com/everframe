@@ -1,0 +1,27 @@
+packages/sdk-react/__tests__/sensitive/registry.spec.tsx
+  s_269319d6df67e5::t_cb084252e302b2 142,145,150
+packages/sdk-web/__tests__/capture/replay/mask-zero-leak.spec.ts
+  s_269319d6df67e5::t_fe2d9ac14f1ded 32,291,385-430
+packages/sdk-web/__tests__/capture/sensitive-registry.spec.ts
+  s_269319d6df67e5::t_ee48a0e81e64bf 1-62
+packages/sdk-web/src/capture/replay/recorder.ts
+  s_269319d6df67e5::t_9af64a26ba475f 32,323-326
+packages/sdk-web/src/sensitive/registry.ts
+  s_269319d6df67e5::t_190f7b5c12b868 205-213,218-223,227,304
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4cde84e363ca790ab3d97e636e3883a06d8c5090",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
