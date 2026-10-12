@@ -1,0 +1,28 @@
+packages/cli/__tests__/xcode-build-phase.spec.ts
+  s_dbd309ddf8ec5b::t_2ede2c7991ca5a 27-29,34-39,44-45
+  s_dbd309ddf8ec5b::t_931ae6e8d1d17c 1-26,30-33,40-43,46-173
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_01c6be5fc5274c 21,61,103,106,121-125
+packages/cli/src/native-setup/script.ts
+  s_dbd309ddf8ec5b::t_8531970342033b 32-34,36
+packages/cli/src/native-setup/index.ts
+  s_dbd309ddf8ec5b::t_8531970342033b 4
+packages/cli/src/xcode-build-phase.ts
+  s_dbd309ddf8ec5b::t_0fca511cf4b670 1-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d53c873a6f8e0c7f271efcd02aea7d0a5e56d52d",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
