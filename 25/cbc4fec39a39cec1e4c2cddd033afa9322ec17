@@ -1,0 +1,21 @@
+packages/sdk-web/__tests__/capture/replay/snapshot.spec.ts
+  s_269319d6df67e5::t_1c71f964f59a73 29,35,38,110-140
+packages/sdk-web/src/capture/replay/privacy-filter.ts
+  s_269319d6df67e5::t_d81ed1755f7452 43-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25cbc4fec39a39cec1e4c2cddd033afa9322ec17",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
