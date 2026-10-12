@@ -1,6 +1,12 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## Unreleased
+
+- The plugin ships on the same version as every other Everframe SDK. Its Android and iOS bridges resolve the native SDK of that exact version and any later patch on the same minor line.
+- The native and web SDKs take the SDK key only as `sdkKey`: `EverframeConfig(appId:)` on iOS and the `apiKey` config field on the web are gone. The bridges already pass `sdkKey`, so the Dart API (`appId`, `sdkKey`) is unchanged.
+- Errors captured with `captureException` from Flutter don't carry a session replay; the error-replay support in the native and web SDKs doesn't apply to Flutter apps.
+
 ## 1.2.0
 
 - The Android bridge resolves native Everframe 1.2.x (`[1.2.0,1.3.0)`, was `[1.0.0,1.1.0)`) and, like the iOS bridge, turns release health off: native 1.2 enables it by default and this plugin has no option for it yet.
