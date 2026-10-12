@@ -52,17 +52,17 @@ describe('xcodePhaseScript', () => {
     return { root, node, srcroot: join(root, 'ios') };
   };
 
-  it('is four lines that hand the work to `everframe xcode build-phase`', () => {
-    expect(script.split('\n')).toHaveLength(4);
-    expect(script).toContain(`exec "\${NODE_BINARY:-node}" "$EVERFRAME_CLI_JS" xcode build-phase --app-id "${APP}"`);
+  it('is six lines that hand the work to `everframe xcode build-phase`', () => {
+    expect(script.split('\n')).toHaveLength(6);
+    expect(script).toContain(`"\${NODE_BINARY:-node}" "$EVERFRAME_CLI_JS" xcode build-phase --app-id "${APP}"`);
+    expect(script).not.toContain('exec ');
     expect(script).not.toContain('EVERFRAME_API_TOKEN');
     expect(script).not.toContain('upload-hermes');
   });
 
-  it('resolves the CLI with Node from the app root and passes its exit status through', () => {
+  it('resolves the CLI with Node from the app root and runs it', () => {
     const { root, node, srcroot } = app(true);
-    const result = run({ SRCROOT: srcroot, NODE_BINARY: node });
-    expect(result.status).toBe(7);
+    expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(7);
     expect(readFileSync(join(root, 'args'), 'utf8').trim()).toBe(`/fake/cli.js xcode build-phase --app-id ${APP}`);
     expect(readFileSync(join(root, 'cwd'), 'utf8').trim()).toBe(realpathSync(root));
   });
@@ -71,7 +71,7 @@ describe('xcodePhaseScript', () => {
     const { root, node, srcroot } = app(true);
     writeFileSync(join(srcroot, '.xcode.env'), 'export NODE_BINARY=/nonexistent/node\n');
     writeFileSync(join(srcroot, '.xcode.env.local'), `export NODE_BINARY="${node}"\n`);
-    expect(run({ SRCROOT: srcroot }).status).toBe(7);
+    expect(run({ SRCROOT: srcroot, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(7);
     expect(readFileSync(join(root, 'args'), 'utf8')).toContain('xcode build-phase');
   });
 
@@ -80,11 +80,37 @@ describe('xcodePhaseScript', () => {
     for (const env of [{ NODE_BINARY: node }, { NODE_BINARY: '/nonexistent/node' }]) {
       const lenient = run({ SRCROOT: srcroot, ...env });
       expect(lenient.status).toBe(0);
-      expect(lenient.stdout).toContain('warning: everframe: could not run Node with @everframe/cli');
+      expect(lenient.stdout).toContain('warning: everframe: could not run @everframe/cli with Node');
       expect(lenient.stderr).not.toContain('Cannot find module');
     }
     expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(1);
     expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: 'true' }).status).toBe(1);
+  });
+
+  it('warns and continues when an incomplete install makes the CLI fail before it runs, and fails when strict', () => {
+    // A real Node and an installed @everframe/cli whose own dependency is missing.
+    const root = mkdtempSync(join(tmpdir(), 'everframe-broken-cli-'));
+    mkdirSync(join(root, 'ios'));
+    const cli = join(root, 'node_modules/@everframe/cli');
+    mkdirSync(join(cli, 'dist'), { recursive: true });
+    writeFileSync(join(cli, 'package.json'), JSON.stringify({ name: '@everframe/cli', main: 'dist/index.js' }));
+    writeFileSync(join(cli, 'dist/index.js'), "require('everframe-missing-dependency');\n");
+    const env = { SRCROOT: join(root, 'ios'), NODE_BINARY: process.execPath, CONFIGURATION: 'Release' };
+    const lenient = run(env);
+    expect(lenient.status).toBe(0);
+    expect(lenient.stderr).toContain('everframe-missing-dependency');
+    expect(lenient.stdout).toContain('warning: everframe: could not run @everframe/cli with Node from');
+    expect(lenient.stdout).toContain('(exit status 1); build artifacts were not uploaded and the build continues.');
+    const strict = run({ ...env, EVERFRAME_SYMBOLS_STRICT: '1' });
+    expect(strict.status).toBe(1);
+    expect(strict.stdout).not.toContain('warning:');
+  });
+
+  it.each([{ CONFIGURATION: 'Debug' }, { SKIP_BUNDLING: '1' }])('skips %o before Node, even when strict and Node is missing', (env) => {
+    const result = run({ ...env, SRCROOT: '/nonexistent/ios', NODE_BINARY: '/nonexistent/node', EVERFRAME_SYMBOLS_STRICT: '1' });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('everframe: Debug build, skipping artifact upload');
+    expect(result.stderr).not.toContain('nonexistent');
   });
 
   it('rejects a non-uuid app id', () => {

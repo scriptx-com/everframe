@@ -237,7 +237,8 @@ The plugin uploads R8 mappings and native libraries. It also uploads the Hermes
 bundle and its source map after React Native bundles each release variant.
 
 The Xcode app target gets an "Upload Everframe Build Artifacts" Run Script
-phase. It finds the CLI with Node and runs:
+phase. Debug and `SKIP_BUNDLING` builds skip before Node starts. Other builds
+find the CLI with Node and run:
 
 ```sh
 everframe xcode build-phase --app-id "00000000-0000-4000-8000-000000000001"
@@ -256,9 +257,9 @@ does. A failed Hermes upload does not stop the dSYM upload. Metro stages each
 bundle in `.everframe` beside `ios/`; pass `--staging <dir>` if yours is
 elsewhere.
 
-On both platforms, a missing `EVERFRAME_API_TOKEN`, a missing Node or CLI, or a
-failed upload prints a `warning:` line and the build continues. Set
-`EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
+On both platforms, a missing `EVERFRAME_API_TOKEN`, a missing Node or CLI, a
+CLI that fails to start, or a failed upload prints a `warning:` line and the
+build continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
 `EVERFRAME_UPLOAD_TIMEOUT_SECONDS`, 600 by default.
 
 Setup from earlier versions wrote a long Gradle block and a long Xcode script.
