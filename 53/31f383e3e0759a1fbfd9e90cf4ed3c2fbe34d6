@@ -1,0 +1,31 @@
+examples/android-views/app/src/main/java/com/example/viewssample/MainActivity.java
+  s_dbd309ddf8ec5b::t_104f8412239b91 18,48-51
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_3a6344b0749a56 1888,1897,1923-1926,1928,1932
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_dbd309ddf8ec5b::t_b6f9212ee46ded 123
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/ExtraResolverHookTest.kt
+  s_dbd309ddf8ec5b::t_91d842c6eeb1be 53,68,80,96,109-110,182-183,214-215,244
+packages/sdk-android/android/everframe-reporter-ui/build.gradle.kts
+  s_dbd309ddf8ec5b::t_732485d89d58aa 56-57
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_dbd309ddf8ec5b::t_c7c46c99f08e08 106-107
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_dbd309ddf8ec5b::t_9914df04a90711 180-183,516,1174,1497
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5331f383e3e0759a1fbfd9e90cf4ed3c2fbe34d6",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
