@@ -1,0 +1,25 @@
+docs/session-replay.md
+  s_dbd309ddf8ec5b::t_1ffe5c45fe66d9 19-20,102-139
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_3a9f4390d7a9ea 384-411
+packages/sdk-react/README.md
+  s_dbd309ddf8ec5b::t_0e09725819ea77 130-137
+packages/sdk-web/README.md
+  s_dbd309ddf8ec5b::t_1c0ea880abcfe7 232,290-297
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "41c582c6bcc18be05dc216b75b2b02065267fbb7",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
