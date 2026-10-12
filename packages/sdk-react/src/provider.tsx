@@ -29,6 +29,7 @@ import {
   __setCompanionHost,
   __setCompanionDefaults,
   __setInlineReporterTheme,
+  __watchCompanionBond,
   setupVitals,
   INGEST_URL,
   createScreenRecorder,
@@ -211,6 +212,10 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // freezes at the same instant for the same reason (reporter taps must not
     // pollute the shipped chain).
     const openModal = (): void => {
+      // Crash-only session (spec 2026-10-12): no on-device reporter at all.
+      // The adapter already refuses open() and hands out no hotkey; this
+      // covers the inbox and any other direct caller.
+      if (config.reporter?.disabled === true) return;
       try {
         adapter.__replayLifecycle?.freeze();
       } catch {
@@ -319,6 +324,15 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
       getExtra: () => resolveClientExtra(ctxValue.client),
     });
     return () => __setCompanionHost(null);
+  }, [ctxValue]);
+
+  // Crash-only sessions (spec 2026-10-12): a companion bond upgrades replay
+  // and network-body coverage for the rest of the session. Keyed on ctxValue
+  // and seeded from the current companion state, because StrictMode rebuilds
+  // the adapter after the bond may already have happened.
+  useEffect(() => {
+    if (ctxValue.config.reporter?.disabled !== true) return;
+    return __watchCompanionBond(ctxValue.adapter);
   }, [ctxValue]);
 
   // Default companion.start() options from the provider's own config, so
@@ -877,10 +891,16 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
         open={inboxOpen}
         onClose={() => setInboxOpen(false)}
         threads={ctxValue.client.threads}
-        onNewReport={() => {
-          setInboxOpen(false);
-          ctxValue.openModal();
-        }}
+        // Left out in a crash-only session, which hides the inbox's
+        // "New report" and follow-up buttons.
+        onNewReport={
+          ctxValue.config.reporter?.disabled === true
+            ? undefined
+            : () => {
+                setInboxOpen(false);
+                ctxValue.openModal();
+              }
+        }
       />
       <Toast
         open={toast.open}
