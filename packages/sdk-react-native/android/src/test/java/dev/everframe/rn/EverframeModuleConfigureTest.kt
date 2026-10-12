@@ -30,6 +30,7 @@ package dev.everframe.rn
 
 import com.facebook.react.bridge.BridgeReactContext
 import com.facebook.react.bridge.JavaOnlyMap
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
@@ -168,6 +169,67 @@ class EverframeModuleConfigureTest {
         opts.putBoolean("crashReportingDisabled", false)
         module.configure(opts)
         assertTrue(Everframe.currentConfig!!.capture.crash)
+    }
+
+    /** Crash-only sessions (spec 2026-10-12): `reporterDisabled: true` lands as `reporterEnabled = false`. */
+    @Test
+    fun reporterDisabledTrueTurnsTheReporterOff() {
+        val opts = JavaOnlyMap()
+        opts.putString("sdkKey", "k")
+        opts.putBoolean("reporterDisabled", true)
+        module.configure(opts)
+        assertFalse(Everframe.currentConfig!!.reporterEnabled)
+    }
+
+    @Test
+    fun reporterDefaultsToOnWhenTheFlagIsAbsent() {
+        val opts = JavaOnlyMap()
+        opts.putString("sdkKey", "k")
+        module.configure(opts)
+        assertTrue(Everframe.currentConfig!!.reporterEnabled)
+    }
+
+    @Test
+    fun reporterDisabledFalseLeavesTheReporterOn() {
+        val opts = JavaOnlyMap()
+        opts.putString("sdkKey", "k")
+        opts.putBoolean("reporterDisabled", false)
+        module.configure(opts)
+        assertTrue(Everframe.currentConfig!!.reporterEnabled)
+    }
+
+    /** The switch is part of the installed config, so changing it restarts rather than being skipped as a remount. */
+    @Test
+    fun turningTheReporterOffRestartsARunningSdk() {
+        module.configure(JavaOnlyMap.of("sdkKey", "k"))
+        assertTrue(Everframe.currentConfig!!.reporterEnabled)
+        module.configure(JavaOnlyMap.of("sdkKey", "k", "reporterDisabled", true))
+        assertFalse(Everframe.currentConfig!!.reporterEnabled)
+    }
+
+    /**
+     * `openReporter` rejects with the exact code the JS facade maps to `EverframeReporterDisabledError`,
+     * before the reporter bridge, which would reduce the core exception to a generic failure.
+     */
+    @Test
+    fun openReporterRejectsWithTheReporterDisabledCodeInACrashOnlySession() {
+        module.configure(JavaOnlyMap.of("sdkKey", "k", "reporterDisabled", true))
+        var opened = 0
+        val previousResolver = Everframe.report.__resolver
+        Everframe.report.__resolver = { opened++; dev.everframe.config.ReportResult.Cancelled("user") }
+        try {
+            val calls = mutableListOf<Pair<String, List<Any?>>>()
+            val promise = java.lang.reflect.Proxy.newProxyInstance(
+                Promise::class.java.classLoader, arrayOf(Promise::class.java),
+            ) { _, method, arguments -> calls += method.name to arguments.orEmpty().toList(); null } as Promise
+            module.openReporter(promise)
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+            assertEquals(1, calls.size)
+            assertEquals("reject", calls.single().first)
+            assertEquals("EVERFRAME_REPORTER_DISABLED", calls.single().second.first())
+            assertEquals(0, opened)
+        } finally { Everframe.report.__resolver = previousResolver }
     }
 
     @Test
