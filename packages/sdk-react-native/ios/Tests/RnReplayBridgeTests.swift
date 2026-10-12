@@ -115,6 +115,29 @@ final class RnReplayBridgeTests: XCTestCase {
         wait(for: [exp], timeout: 5.0)
     }
 
+    // MARK: - Crash-only sessions (spec 2026-10-12)
+
+    /// A crash-only session rejects `openReporter` with the code the JS facade
+    /// maps to `EverframeReporterDisabledError`; other failures keep the generic code.
+    func testOpenReporterInACrashOnlySessionRejectsWithTheReporterDisabledCode() throws {
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false),
+            releaseHealth: nil, reporterEnabled: false))
+        defer { Everframe.shared.kill() }
+
+        let exp = expectation(description: "openReporter completion")
+        EverframeBridge.openReporter { dict, err in
+            XCTAssertNil(dict)
+            let nsErr = err as NSError?
+            XCTAssertEqual(nsErr?.code, 1101)
+            XCTAssertEqual(nsErr.map { EverframeBridge.openReporterRejectCode(for: $0) }, "EVERFRAME_REPORTER_DISABLED")
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 5.0)
+        XCTAssertEqual(EverframeBridge.openReporterRejectCode(for: NSError(domain: "EverframeBridge", code: 1100)),
+                       "open_reporter_failed")
+    }
+
     // MARK: - Test E: addBreadcrumb forwards to the native singleton (Task 14)
 
     /// The bridge does NO coercion — it forwards straight to

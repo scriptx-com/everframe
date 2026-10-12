@@ -228,6 +228,59 @@ private actor LateSnapshotRecorder: NativeVideoRecording {
         session.apply(settings: NativeVideoSettings(), samplingRate: 0.5)
         #expect(draws == 1); #expect(allocations == 0); #expect(scheduler.fps == nil)
     }
+    // Crash-only sessions (spec 2026-10-12): one draw per session, one decision per coverage.
+    private func countingSession(draw: Double, draws: @escaping @MainActor () -> Void,
+                                 allocations: @escaping @MainActor () -> Void) -> (NativeVideoSession, VideoTestScheduler) {
+        let scheduler = VideoTestScheduler()
+        let session = NativeVideoSession(scheduler: scheduler, capture: { _ in nil }, clearCapture: {},
+            makeRecorder: { _, _ in allocations(); return StalledSnapshotRecorder() },
+            random: { draws(); return draw })
+        return (session, scheduler)
+    }
+    @Test func crashOnlyAndReportCoverageCompareTheSameDraw() {
+        var draws = 0, allocations = 0
+        let (session, scheduler) = countingSession(draw: 0.3, draws: { draws += 1 }, allocations: { allocations += 1 })
+        defer { session.stop() }
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0, coverage: .crashOnly)
+        #expect(session.state == .idle); #expect(allocations == 0)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.5, coverage: .report)
+        #expect(session.state == .buffering); #expect(scheduler.fps == 5)
+        #expect(draws == 1); #expect(allocations == 1)
+    }
+    @Test func upgradingKeepsTheRecordingTheCrashOnlyRateStarted() {
+        var draws = 0, allocations = 0
+        let (session, _) = countingSession(draw: 0.03, draws: { draws += 1 }, allocations: { allocations += 1 })
+        defer { session.stop() }
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.05, coverage: .crashOnly)
+        #expect(session.state == .buffering)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .report)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .report)
+        #expect(session.state == .buffering)
+        #expect(draws == 1); #expect(allocations == 1) // never restarted, so the buffer survives
+    }
+    @Test func eachCoverageDecidesOnceSoALaterRateChangeNeverFlipsIt() {
+        var draws = 0, allocations = 0
+        let (session, _) = countingSession(draw: 0.3, draws: { draws += 1 }, allocations: { allocations += 1 })
+        defer { session.stop() }
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.1, coverage: .crashOnly)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .crashOnly)
+        #expect(session.state == .idle)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.2, coverage: .report)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .report)
+        #expect(session.state == .idle)
+        #expect(draws == 1); #expect(allocations == 0)
+    }
+    @Test func aCoverageThatDoesNotAdmitTheDrawStopsTheRecording() {
+        var allocations = 0
+        let (session, scheduler) = countingSession(draw: 0.3, draws: {}, allocations: { allocations += 1 })
+        defer { session.stop() }
+        // Only reachable when the crash-only rate is set above the report rate.
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.5, coverage: .crashOnly)
+        #expect(session.state == .buffering)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.1, coverage: .report)
+        #expect(session.state == .idle); #expect(scheduler.fps == nil)
+        #expect(allocations == 1)
+    }
     @Test func snapshotAlreadyExportingSurvivesConcurrentReporterFreeze() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

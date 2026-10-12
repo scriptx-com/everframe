@@ -1094,6 +1094,10 @@ public final class RelayWSClient: NSObject, URLSessionWebSocketDelegate, @unchec
             // server-side so a retained URL is harmless; hosts drive QR teardown
             // off `state == .paired`.
             companion?.__setState(.paired)
+            // Crash-only sessions (spec 2026-10-12): any bond, a phone's QR scan or a
+            // dashboard member attaching, upgrades a crash-only session's replay and
+            // network bodies. A later detach leaves the upgrade in place.
+            Everframe.shared.__companionMemberAttached()
         case .pairExpired:
             stateLock.lock()
             deviceToken = nil

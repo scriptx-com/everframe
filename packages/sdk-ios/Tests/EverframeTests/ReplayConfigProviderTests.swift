@@ -705,8 +705,39 @@ final class ReplayConfigProviderTests: XCTestCase {
         // these blocks arrive, and widening it should have to be deliberate.
         XCTAssertEqual(
             req?.value(forHTTPHeaderField: "X-Everframe-SDK-Features"),
-            "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport"
+            "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly"
         )
+    }
+
+    // MARK: - crashOnlySamplingRate (crash-only sessions spec 2026-10-12)
+    // Sent only to a caller that declares `crashonly`. Lenient: a missing,
+    // wrong-typed or out-of-range value reads as nil (the crash-only rate is
+    // then 0) and never sinks the rest of the config.
+
+    func testDecodesCrashOnlySamplingRate() async {
+        let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"crashOnlySamplingRate":0.05}"#)
+        XCTAssertEqual(c.crashOnlySamplingRate, 0.05)
+        XCTAssertEqual(c.samplingRate, 1)
+        let zero = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"crashOnlySamplingRate":0}"#)
+        XCTAssertEqual(zero.crashOnlySamplingRate, 0)
+        let one = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"crashOnlySamplingRate":1}"#)
+        XCTAssertEqual(one.crashOnlySamplingRate, 1)
+    }
+
+    func testAbsentCrashOnlySamplingRateDecodesToNil() async {
+        let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1}"#)
+        XCTAssertTrue(c.replayEnabled)
+        XCTAssertNil(c.crashOnlySamplingRate)
+        XCTAssertNil(ReplayConfig.off.crashOnlySamplingRate)
+    }
+
+    func testInvalidCrashOnlySamplingRateDegradesToNilNotWholeParse() async {
+        for raw in ["1.5", "-0.1", #""half""#, "true", "null"] {
+            let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":0.5,"crashOnlySamplingRate":"# + raw + "}")
+            XCTAssertTrue(c.replayEnabled, "crashOnlySamplingRate \(raw) must not sink the config")
+            XCTAssertEqual(c.samplingRate, 0.5)
+            XCTAssertNil(c.crashOnlySamplingRate, "crashOnlySamplingRate \(raw)")
+        }
     }
 
     // MARK: - branding block (iOS spec 2026-08-26)

@@ -65,6 +65,10 @@ public enum EFReporterPresenter {
     public static func openWithMaskedPng(
         _ pngData: Data, replayVTree: Data? = nil, sdkName: String = "everframe-ios"
     ) async throws -> ReportResult {
+        // Same answer as `openAndAwait` below, whatever the bytes are.
+        if Everframe.shared.currentConfig?.reporterEnabled == false {
+            throw EverframeReporterError.reporterDisabled
+        }
         guard pngData.count >= 8, pngData.count <= 10_000_000,
               pngData.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]),
               let image = UIImage(data: pngData),
@@ -87,9 +91,15 @@ public enum EFReporterPresenter {
     /// Opens the reporter and resolves when the user submits or cancels.
     /// Idempotency: if a reporter is already open, the second call resolves
     /// immediately with .cancelled (we never stack reporter windows).
+    /// Throws `EverframeReporterError.reporterDisabled` in a crash-only session
+    /// (`EverframeConfig.reporterEnabled == false`), as `report.open()` does:
+    /// the SwiftUI modifiers call this directly.
     public static func openAndAwait(captureOverride: ScreenshotCapture.Result? = nil,
                                     hostReplayVTree: Data? = nil,
                                     sdkName: String = "everframe-ios") async throws -> ReportResult {
+        if Everframe.shared.currentConfig?.reporterEnabled == false {
+            throw EverframeReporterError.reporterDisabled
+        }
         guard ["everframe-ios", "everframe-flutter", "everframe-kmp"].contains(sdkName) else {
             return .cancelled
         }
