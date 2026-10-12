@@ -29,7 +29,7 @@ final class ShakeToReportTests: XCTestCase {
     /// A crash-only session has no on-device reporter, so `start` never arms shake for it,
     /// whatever `shakeToReportEnabled` says.
     func testACrashOnlySessionNeverArmsShake() throws {
-        defer { Everframe.shared.kill() }
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
         let sdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
         try Everframe.shared.start(config: EverframeConfig(
             sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil, reporterEnabled: false))
