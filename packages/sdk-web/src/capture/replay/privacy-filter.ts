@@ -40,6 +40,10 @@ export function filterReplayEvent(event: BufferEvent, mirror: ReplayNodeMirror):
     } };
   }
   if (typeof data.id === 'number' && !safeId(data.id)) return undefined;
-  if (data.positions) return { ...event, data: { ...data, positions: data.positions.filter(position => safeId(position.id)) } };
+  if (data.positions) {
+    const positions = data.positions.filter(position => safeId(position.id));
+    // rrweb seek requires a last position; an empty batch is not replayable.
+    return positions.length ? { ...event, data: { ...data, positions } } : undefined;
+  }
   return event;
 }

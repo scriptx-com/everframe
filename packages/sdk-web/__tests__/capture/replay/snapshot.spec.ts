@@ -26,15 +26,16 @@ function harness(opts: {
   now?: number;
   gzip?: (input: Uint8Array) => Promise<Uint8Array>;
   yieldToHost?: () => Promise<void>;
+  mirror?: { getNode(id: number): Node | null };
 } = {}) {
   let emit: ((e: unknown, isCheckout?: boolean) => void) | undefined;
   let clock = opts.now ?? 100_000;
   const rec = createReplayRecorder({
     importRrweb: async () => ({
-      record: (o: Record<string, unknown>) => {
+      record: Object.assign((o: Record<string, unknown>) => {
         emit = o['emit'] as typeof emit;
         return () => undefined;
-      },
+      }, opts.mirror ? { mirror: opts.mirror } : {}),
     }),
     now: () => 0,
     freezeNow: () => clock,
@@ -104,6 +105,37 @@ describe('replay snapshot (non-destructive)', () => {
     } finally { player.destroy(); later.destroy(); h.rec.kill();
       if (sandbox) Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', sandbox);
       else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox'); }
+  });
+
+  it('exports seekable movement after removing sensitive-only batches and preserving mixed timing', async () => {
+    document.body.innerHTML = '<p id="safe">Public</p><div data-everframe-sensitive><span id="private">Private</span></div>';
+    const h = harness({ mirror: { getNode: id => id === 5 ? document.querySelector('#safe') : id === 6 ? document.querySelector('#private') : null } });
+    await started(h);
+    h.emit(META, 80_000, { href: 'https://example.test', width: 800, height: 600 });
+    h.emit(FULL, 80_000, { node: { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: 'html', attributes: {}, childNodes: [{ type: 2, id: 3, tagName: 'head', attributes: {}, childNodes: [] }, { type: 2, id: 4, tagName: 'body', attributes: {}, childNodes: [{ type: 2, id: 5, tagName: 'p', attributes: { id: 'safe' }, childNodes: [] }] }] }] }, initialOffset: { top: 0, left: 0 } });
+    h.emit(INCR, 90_000, { source: 1, positions: [{ id: 6, x: 12, y: 20, timeOffset: -100 }] });
+    const publicPosition = { id: 5, x: 25, y: 30, timeOffset: -50 };
+    h.emit(INCR, 95_000, { source: 1, positions: [{ id: 6, x: 13, y: 20, timeOffset: -100 }, publicPosition] });
+    const capture = (await h.rec.snapshot())!;
+    const events = decode(capture.bytes);
+    const sandbox = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'sandbox');
+    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', { configurable: true,
+      get() { return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean); } });
+    const player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], { root: document.body });
+    try {
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(() => player.pause(20_000)).not.toThrow();
+      // Replayer mutates its input with internal delay bookkeeping; inspect
+      // the original encoded bytes for the exact surviving timestamp/offset.
+      expect(decode(capture.bytes).filter(event => event.type === INCR)).toEqual([
+        { type: INCR, timestamp: 95_000, data: { source: 1, positions: [publicPosition] } },
+      ]);
+      expect(player.getCurrentTime()).toBe(20_000);
+    } finally {
+      player.destroy(); h.rec.kill(); document.body.innerHTML = '';
+      if (sandbox) Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', sandbox);
+      else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox');
+    }
   });
 
   it('plays only the configured window after a long idle, with the held DOM at its start', async () => {
