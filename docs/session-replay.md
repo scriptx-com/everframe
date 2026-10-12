@@ -121,9 +121,12 @@ session.
   compares it with the rate for its kind. Once a rate has picked a session, a
   later change to that rate doesn't stop it.
 - **Companion upgrade.** When a phone scans the companion QR code or a
-  dashboard member attaches, the session uses the report rate for the rest of
-  the session. Recording starts at that moment, so a report filed through the
-  companion has a replay from then on. Detaching doesn't undo the upgrade.
+  dashboard member attaches, the session uses the higher of the two rates for
+  the rest of the session, so an upgrade never stops a recording. Recording
+  starts at that moment, so a report filed through the companion has a replay
+  from then on. Detaching doesn't undo the upgrade. A crash-only session that
+  starts while a companion is still attached, for example after a restart or
+  a React Native reconfigure, starts upgraded.
 - **No reporter.** The hotkey, shake-to-report, the inbox's "New report"
   button and `open()` stay off for the whole session, also after an upgrade.
   Reports from an upgraded session come through the companion. On the web
