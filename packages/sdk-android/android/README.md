@@ -127,6 +127,23 @@ requests no permission, declares no required sensor feature, and safely no-ops
 when the device has no accelerometer. Android TV and Leanback devices are
 excluded.
 
+### Crash-only sessions
+
+`EverframeConfig(..., reporterEnabled = false)` reports crashes and errors
+without offering the reporter, for example in production builds. Shake never
+installs and `Everframe.report.open()` throws `ReporterDisabledException`
+(`openAsync` passes it to `onError`). Network bodies stay off, and replay
+records only the share of these sessions set by the dashboard's crash-only
+coverage, none by default, so errors from the other sessions carry no replay.
+Crash and error capture, breadcrumbs, vitals, release health and companion
+work as usual.
+
+When a companion bonds (a phone scans the QR code or a dashboard member
+attaches), the rest of that session gets normal replay coverage and server
+body rules, so a report filed through companion has a replay from the bond
+on. A detach keeps it; the next `start` or `kill` ends it. The on-device
+entry points stay off.
+
 All other trigger detection stays in the host app. Below are the canonical
 recipes the sample apps demonstrate and that real hosts can copy-paste.
 
@@ -391,6 +408,9 @@ Everframe.report.openAsync(new Everframe.Callback<ReportResult>() {
     @Override public void onError(Throwable error) { /* SDK error */ }
 });
 ```
+
+In a [crash-only session](#crash-only-sessions) both forms fail with
+`ReporterDisabledException` instead of opening the reporter.
 
 ### Android TV
 
