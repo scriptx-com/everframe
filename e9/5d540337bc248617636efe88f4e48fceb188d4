@@ -1,0 +1,20 @@
+scripts/release-readiness.test.mjs
+  s_dbd309ddf8ec5b::t_fe47b2b561a601 17,20-22
+  s_dbd309ddf8ec5b::t_2833ab57e7b48b 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e95d540337bc248617636efe88f4e48fceb188d4",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
