@@ -172,6 +172,13 @@ export type ConfigOpts = {
   /** Local veto for native mobile shake-to-report. Absent defaults to enabled. */
   shakeToReportEnabled?: boolean;
   /**
+   * Crash-only session switch. `true` turns off every on-device way to open the reporter, keeps
+   * network bodies off and samples replay with the server's crash-only rate until a companion
+   * bond upgrades the session. Flattened by `extractBridgeConfig` from `reporter: { disabled }`.
+   * Absent means a normal report session.
+   */
+  reporterDisabled?: boolean;
+  /**
    * Companion on-screen name-badge corner (naming spec 2026-08-24,
    * controller ruling / Task 6b). Flat optional STRING, not a literal
    * union — same codegen ceiling as `attachPinUi` above (RN codegen cannot

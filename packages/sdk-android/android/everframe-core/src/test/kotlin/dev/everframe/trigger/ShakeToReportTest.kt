@@ -13,6 +13,15 @@ class ShakeToReportTest {
     @Test
     fun `local option defaults enabled`() {
         assertTrue(EverframeConfig(appId = "app", sdkKey = "key").shakeToReportEnabled)
+        assertTrue(ShakeToReportTrigger.localEnabled(EverframeConfig(appId = "app", sdkKey = "key")))
+    }
+
+    @Test
+    fun `a crash-only session turns shake off whatever its own switch says`() {
+        val crashOnly = EverframeConfig(appId = "app", sdkKey = "key", reporterEnabled = false)
+        assertFalse(ShakeToReportTrigger.localEnabled(crashOnly))
+        assertFalse(ShakeToReportTrigger.localEnabled(crashOnly.copy(shakeToReportEnabled = true)))
+        assertFalse(ShakeToReportTrigger.localEnabled(EverframeConfig(appId = "app", sdkKey = "key", shakeToReportEnabled = false)))
     }
 
     @Test

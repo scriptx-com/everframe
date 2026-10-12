@@ -486,6 +486,14 @@ public final class Everframe: @unchecked Sendable {
     /// (`Companion/RelayWSClient.swift`'s `.invalidate()` call) — reusing it
     /// would discard crashes on an unrelated event.
     private var _killGeneration: UInt64 = 0
+    /// Crash-only sessions (spec 2026-10-12): set when a companion bond (a phone scanning the QR
+    /// code, or a dashboard member attaching) upgrades a crash-only session, so its replay and
+    /// network bodies follow the normal server rules. Sticky until the next `start()` or
+    /// `kill()`, which clear it in their epoch sections; a detach does not clear it. A
+    /// crash-only `start()` that publishes while `companion` is still bonded seeds it, since no
+    /// new `pair.bonded` comes for a bond that already exists. Shake and `report.open()` read
+    /// `reporterEnabled` alone, so they stay off after an upgrade.
+    private var _companionUpgraded = false
     /// The in-flight start() heavy-init Task, retained so `kill()` can
     /// cancel it directly — belt-and-suspenders alongside the epoch guard
     /// above (cancellation alone isn't sufficient because `drainOutbox()`
@@ -799,6 +807,39 @@ public final class Everframe: @unchecked Sendable {
         return await MainActor.run { self._replaySession?.currentConfig ?? .off }
         #else
         return .off
+        #endif
+    }
+
+    /// Crash-only sessions (spec 2026-10-12): the installed config and whether a companion bond
+    /// upgraded this session, read in one `stateLock` section so a config apply decides replay
+    /// coverage and the body gate from the same answer.
+    internal var crashOnlyCoverageState: (config: EverframeConfig?, upgraded: Bool) {
+        stateLock.withLock { (_config, _companionUpgraded) }
+    }
+
+    /// Crash-only sessions (spec 2026-10-12): `RelayWSClient` calls this on every `pair.bonded`,
+    /// off the main thread. A bond upgrades the CURRENT crash-only session only, once `start()`
+    /// has published its config (`nativeCrashPublishedEpoch == _startEpoch`, the guard the
+    /// release-health and native-crash paths use); before `start()`, after `kill()` or between
+    /// `start()`'s two sections it upgrades nothing. Not `CompanionAuthEpoch`: that one also
+    /// moves when a companion session ends. The replay session then re-applies its config at
+    /// once, so replay and network bodies start at the bond; a session installed later reads
+    /// the flag on its first apply.
+    internal func __companionMemberAttached() {
+        let epoch: Int? = stateLock.withLock {
+            guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch,
+                  _config?.reporterEnabled == false, !_companionUpgraded else { return nil }
+            _companionUpgraded = true
+            return _startEpoch
+        }
+        #if canImport(UIKit)
+        guard let epoch else { return }
+        Task { @MainActor in
+            guard Everframe.shared.currentStartEpoch == epoch else { return }
+            await Everframe.shared._replaySession?.applyCompanionUpgrade()
+        }
+        #else
+        _ = epoch
         #endif
     }
 
@@ -1119,6 +1160,7 @@ public final class Everframe: @unchecked Sendable {
         nativeCrashPublishedEpoch = nil
         let epoch = bumpStartEpoch()
         _user = nil
+        _companionUpgraded = false
         _identityHolder.set(nil)
         // Independent review, round 4 (Serious 3) — a fresh session has not
         // fetched its own config yet, so "identity was enabled" from the
@@ -1158,8 +1200,10 @@ public final class Everframe: @unchecked Sendable {
         let vitalsStillNewest: () -> Bool = { Everframe.shared.currentStartEpoch == epoch }
         VitalsRuntime.shared.shutdown(dropPending: false, ifCurrent: vitalsStillNewest)
         VitalsServerConfigBox.shared.publish(nil, ifCurrent: vitalsStillNewest)
+        // A crash-only session (`reporterEnabled: false`) has no on-device reporter, so shake
+        // stays off for the whole session, including after a companion upgrade.
         ShakeToReportTrigger.shared.beginSession(
-            localEnabled: config.shakeToReportEnabled,
+            localEnabled: config.shakeToReportEnabled && config.reporterEnabled,
             ifCurrent: vitalsStillNewest
         )
 
@@ -1184,6 +1228,13 @@ public final class Everframe: @unchecked Sendable {
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
         nativeCrashPublishedEpoch = epoch
+        // Crash-only sessions (spec 2026-10-12): a crash-only session that starts while the
+        // companion is still bonded (a re-start, or a React Native reconfigure with the phone
+        // attached) starts upgraded. Read here, in the publication section, rather than in the
+        // epoch section: `__companionMemberAttached()` ignores a bond until this line publishes
+        // the epoch, so a bond landing between the two sections is caught by this read, and one
+        // landing after it by that call. `__isBonded` takes only its own lock.
+        _companionUpgraded = !config.reporterEnabled && companion.__isBonded
         // Follow-ups item 9, fourth round — bumped HERE, with the assignment
         // it describes, never in the epoch section above. That is the whole
         // point of it being a separate counter.
@@ -2247,6 +2298,7 @@ public final class Everframe: @unchecked Sendable {
         // (Everframe.kt), and with web (sdk-core `client.ts` kill(), which
         // now clears `state.user` next to `state.identityToken.set(null)`).
         _user = nil
+        _companionUpgraded = false
         // Native identity Task 4 — clear the verified-identity token in the
         // SAME critical section as `_user = nil` immediately above, same
         // GDPR/kill-switch posture as the ring-buffer zeroization below
@@ -2488,7 +2540,14 @@ public final class ReportAPI: ObservableObject, @unchecked Sendable {
     /// Wired in plan 04-06 to EFReporterPresenter.openAndAwait() via the
     /// runtime-injected resolver below — this keeps Everframe.swift independent
     /// of the EverframeReporterUI module (which depends on Everframe).
+    ///
+    /// Throws `EverframeReporterError.reporterDisabled` in a crash-only session
+    /// (`EverframeConfig.reporterEnabled == false`), before any capture, including after a
+    /// companion upgrade: that session's reports come through companion.
     public func open() async throws -> ReportResult {
+        if Everframe.shared.currentConfig?.reporterEnabled == false {
+            throw EverframeReporterError.reporterDisabled
+        }
         if let resolver = ReportAPI.__resolver {
             return try await resolver()
         }

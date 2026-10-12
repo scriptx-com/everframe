@@ -35,6 +35,7 @@ import dev.everframe.capture.BreadcrumbTapNavAdapters
 import dev.everframe.capture.LogCapture
 import dev.everframe.capture.NavigationBreadcrumbAdapter
 import dev.everframe.capture.NetworkBodyCaptureState
+import dev.everframe.capture.replay.ReplayCoverage
 import dev.everframe.capture.replay.ReplaySession
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.capture.video.OwnedVideoClip
@@ -155,6 +156,10 @@ object Everframe {
     // The crash capture this published start armed or is arming. Null with capture.crash off,
     // where no OS or native mechanism exists, and after kill(). Written under stateLock.
     @Volatile private var _crashCapture: dev.everframe.crash.CrashCaptureStart? = null
+    // Crash-only sessions (spec 2026-10-12): a companion bond upgraded this crash-only session to report
+    // coverage. Sticky for the session: a detach never clears it, only start()'s publication and kill() do.
+    // start()'s publication seeds it from a companion that is still bonded. Guarded by stateLock.
+    private var _crashOnlyUpgraded = false
 
     /**
      * Lock-free mirror of [_startEpoch] — see [currentStartEpochVolatile] for
@@ -959,6 +964,12 @@ object Everframe {
 
             _config = config
             _publishedStartEpoch = epoch
+            // Crash-only sessions: a bond upgrades one session only. The next one starts at its own kind,
+            // except that a crash-only session starting while companion is still bonded (a re-start, or a
+            // React Native reconfigure with the phone attached) starts upgraded: no new `pair.bonded` will
+            // come for a bond that already exists. Read inside this epoch-checked publication, so a
+            // superseded start seeds nothing.
+            _crashOnlyUpgraded = !config.reporterEnabled && dev.everframe.companion.Companion.__isBonded()
             // External review, finding 2 (Serious) — clear the self-declared
             // user (`setUser`, spec 2026-08-12) in the SAME `stateLock`
             // critical section that installs the new configuration, so no
@@ -1055,7 +1066,7 @@ object Everframe {
         dev.everframe.companion.CompanionActivityTracker.installIfNeeded(context)
         dev.everframe.trigger.ShakeToReportTrigger.install(
             context = context,
-            localEnabled = config.shakeToReportEnabled,
+            localEnabled = dev.everframe.trigger.ShakeToReportTrigger.localEnabled(config),
             currentActivity = currentActivity,
             isCurrent = { currentStartEpochVolatile() == epoch },
         )
@@ -1436,6 +1447,7 @@ object Everframe {
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
                 _config = null
+                _crashOnlyUpgraded = false
                 _user = null
                 // Native identity Task 8 (Kotlin twin of iOS Task 4) — clear
                 // the verified-identity token in the SAME `stateLock`
@@ -2690,6 +2702,47 @@ object Everframe {
         _companionClient = null
     }
 
+    // ---------------- Crash-only sessions (spec 2026-10-12) ----------------
+
+    /**
+     * True while the current session was started with `reporterEnabled = false` and no companion has
+     * bonded since: replay samples at the server's `crashOnlySamplingRate` (none when absent) and network
+     * bodies stay off. [ReplaySession] reads it on every config refresh, and an upgrade re-applies one.
+     */
+    internal fun crashOnlyCoverage(): Boolean = replayCoverage() == ReplayCoverage.CrashOnly
+
+    /**
+     * The current session's replay coverage kind: [ReplayCoverage.Report] unless the session was started
+     * with `reporterEnabled = false`, then [ReplayCoverage.CrashOnly] until a companion bond makes it
+     * [ReplayCoverage.Upgraded]. [ReplaySession] samples against [ReplayCoverage.samplingRate].
+     */
+    internal fun replayCoverage(): ReplayCoverage = stateLock.withLock {
+        when {
+            _config?.reporterEnabled != false -> ReplayCoverage.Report
+            _crashOnlyUpgraded -> ReplayCoverage.Upgraded
+            else -> ReplayCoverage.CrashOnly
+        }
+    }
+
+    /**
+     * A companion bonded: a phone scanned the QR code, or a dashboard member attached. In a crash-only
+     * session this gives the rest of the session report coverage, so a report filed through companion has
+     * a replay from the bond on. A detach does not undo it, and the on-device entry points stay off.
+     *
+     * Called from `RelayWSClient`'s `pair.bonded` handler only, never from a `Paired` state change:
+     * finishing a companion report also returns the state to `Paired`.
+     */
+    internal fun __onCompanionMemberAttached() {
+        val session = stateLock.withLock {
+            if (!captureGate || _config?.reporterEnabled != false || _crashOnlyUpgraded) return
+            _crashOnlyUpgraded = true
+            _replaySession
+        } ?: return // A session installed later reads the upgrade on its first refresh.
+        // Re-applies the last confirmed config, fetching only when there is none, so a server that is
+        // unreachable at the bond never revokes a recording.
+        sdkScope.launch { txGuardSuspend("companion.crashOnlyUpgrade") { session.applyCompanionUpgrade() } }
+    }
+
     // ---------------- Report API (resolver-backed) ----------------
 
     object report {
@@ -2720,13 +2773,17 @@ object Everframe {
          * `:everframe-reporter-ui` module-load (androidx.startup `Initializer`)
          * to `{ TXReporterPresenter().openReporter(activeActivity) }`.
          * Throws IllegalStateException if `:everframe-reporter-ui` is not on
-         * the classpath.
+         * the classpath, and [dev.everframe.config.ReporterDisabledException]
+         * in a crash-only session (`reporterEnabled = false`), including
+         * after a companion bond upgraded it.
          */
-        suspend fun open(): ReportResult =
-            __resolver?.invoke()
+        suspend fun open(): ReportResult {
+            if (Everframe.currentConfig?.reporterEnabled == false) throw dev.everframe.config.ReporterDisabledException()
+            return __resolver?.invoke()
                 ?: throw IllegalStateException(
                     "Reporter UI module not on classpath. Add dev.everframe:reporter-ui dependency."
                 )
+        }
 
         /** Plan 05-06 sets this at module-load via ReporterResolverInstaller (renamed in 05.1-02). */
         @JvmStatic

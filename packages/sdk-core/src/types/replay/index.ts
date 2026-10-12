@@ -35,5 +35,10 @@ export type {
   ConfigProviderDeps,
   NetworkBodiesConfig,
 } from './config-provider.js';
-export { createReplayLifecycle } from './lifecycle.js';
-export type { ReplayState, ReplayLifecycle, ReplayLifecycleDeps } from './lifecycle.js';
+export { createReplayLifecycle, replaySamplingRate } from './lifecycle.js';
+export type {
+  ReplayState,
+  ReplayLifecycle,
+  ReplayLifecycleDeps,
+  ReplaySessionKind,
+} from './lifecycle.js';

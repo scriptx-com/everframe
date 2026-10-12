@@ -67,7 +67,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         releaseHealthEnabled: Bool,
         releaseHealthLoadedBuildId: NSString?,
         releaseHealthUserId: NSString?,
-        releaseHealthIncludeDebugBuilds: Bool
+        releaseHealthIncludeDebugBuilds: Bool,
+        reporterDisabled: Bool = false
     ) throws {
         configureLock.lock()
         defer { configureLock.unlock() }
@@ -102,6 +103,9 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // badge) exist, mirroring `companionAttachPinUi` below.
         cfg.companionBadgeEnabled = companionBadgeEnabled
         cfg.shakeToReportEnabled = shakeToReportEnabled
+        // Polarity flips exactly once, here: JS sends the crash-only switch
+        // (`reporterDisabled`), native stores the permission.
+        cfg.reporterEnabled = !reporterDisabled
         cfg.companionBadgePosition = companionBadgePosition as String?
         // Inline reporter theme (reporter branding spec 2026-08-25, RN
         // slice). The .mm collapses the 8 flat ConfigOpts `theme*` wire
@@ -560,10 +564,27 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
                     dict = ["status": "cancelled"]
                 }
                 completion(dict, nil)
+            } catch EverframeReporterError.reporterDisabled {
+                completion(nil, NSError(
+                    domain: "EverframeBridge", code: reporterDisabledErrorCode,
+                    userInfo: [NSLocalizedDescriptionKey: EverframeReporterError.reporterDisabled.localizedDescription]
+                ))
             } catch {
                 completion(nil, error as NSError)
             }
         }
+    }
+
+    /// `openReporter`'s error for a crash-only session (`reporterDisabled: true`).
+    static let reporterDisabledErrorCode = 1101
+
+    /// The promise rejection code for an `openReporter` failure. A crash-only session gets
+    /// `EVERFRAME_REPORTER_DISABLED`, which the JS facade maps to
+    /// `EverframeReporterDisabledError`; anything else keeps `open_reporter_failed`.
+    @objc(openReporterRejectCodeFor:)
+    public static func openReporterRejectCode(for error: NSError) -> String {
+        error.domain == "EverframeBridge" && error.code == reporterDisabledErrorCode
+            ? "EVERFRAME_REPORTER_DISABLED" : "open_reporter_failed"
     }
 
     // MARK: - registerSensitiveRect

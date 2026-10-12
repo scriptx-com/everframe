@@ -148,6 +148,8 @@ class EverframeModule(
         internal const val REJECT_CAPTURE_DISABLED: String = "capture_disabled"
         internal const val REJECT_NO_ACTIVITY: String = "no_activity"
         internal const val REJECT_OPEN_REPORTER_FAILED: String = "open_reporter_failed"
+        /** Crash-only sessions (spec 2026-10-12). The JS facade maps this exact code to `EverframeReporterDisabledError`. */
+        internal const val REJECT_REPORTER_DISABLED: String = "EVERFRAME_REPORTER_DISABLED"
 
         // Plan 06.2-11 — JS-side event names. Keep in lock-step with
         // `packages/sdk-react-native/src/companion.ts` and the iOS
@@ -271,6 +273,10 @@ class EverframeModule(
             // Polarity flips exactly once, here: JS sends the veto
             // (`crashReportingDisabled`), native stores the permission.
             val crashReportingDisabled = opts.takeIfHasBoolean("crashReportingDisabled") ?: false
+            // Polarity flips exactly once, here: JS sends the crash-only switch
+            // (`reporterDisabled`, flattened from `reporter: { disabled }`),
+            // native stores the permission.
+            val reporterDisabled = opts.takeIfHasBoolean("reporterDisabled") ?: false
             // Attach-PIN UI mode (spec 2026-08-19) — a flat optional STRING
             // field (codegen cannot express a string-literal union), parsed
             // here and stashed for `startCompanion()` to read (the flag is a
@@ -314,6 +320,7 @@ class EverframeModule(
                 // `startCompanion()` time, mirroring `attachPinUi`.
                 companionBadgeEnabled = opts.takeIfHasBoolean("companionBadgeEnabled") ?: true,
                 shakeToReportEnabled = opts.takeIfHasBoolean("shakeToReportEnabled") ?: true,
+                reporterEnabled = !reporterDisabled,
                 companionBadgePosition = opts.takeIfHasString("companionBadgePosition"),
                 // Inline reporter theme (reporter branding spec 2026-08-25,
                 // RN slice) — 8 flat optional STRING fields on ConfigOpts
@@ -423,11 +430,20 @@ class EverframeModule(
      *   { status: "submitted", reportId: "<uuid>" }
      *   { status: "queued",    reportId: "<uuid>" }
      *   { status: "cancelled" }
+     *
+     * Rejects with [REJECT_REPORTER_DISABLED] in a crash-only session
+     * (`reporterDisabled`), including after a companion bond upgraded it.
      */
     @ReactMethod
     override fun openReporter(promise: Promise) {
         if (!Everframe.captureGate) {
             promise.reject(REJECT_CAPTURE_DISABLED, "Everframe not started (captureGate=false). Call configure() first.")
+            return
+        }
+        // Crash-only session: rejected here because ReporterBridge reduces every core failure to one
+        // generic message, which would hide `ReporterDisabledException` from JS.
+        if (Everframe.currentConfig?.reporterEnabled == false) {
+            promise.reject(REJECT_REPORTER_DISABLED, "The reporter is turned off for this session (reporter.disabled).")
             return
         }
         MainScope().launch {

@@ -23,6 +23,11 @@ final class ShakeToReportGate: @unchecked Sendable {
         remoteEnabled = enabled
     }
 
+    var isLocallyEnabled: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return localEnabled
+    }
+
     func tryBegin(presenting: Bool, applicationActive: Bool) -> Bool {
         lock.lock(); defer { lock.unlock() }
         guard localEnabled, remoteEnabled == true, applicationActive, !presenting, !inFlight else {
@@ -61,6 +66,12 @@ final class ShakeToReportTrigger: @unchecked Sendable {
         stateLock.lock(); defer { stateLock.unlock() }
         guard ifCurrent() else { return }
         gate = ShakeToReportGate(localEnabled: false)
+    }
+
+    /// Test seam: the local switch the latest `beginSession` armed.
+    var __localEnabledForTesting: Bool {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return gate.isLocallyEnabled
     }
 
     #if os(iOS) && !targetEnvironment(macCatalyst)

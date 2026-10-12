@@ -16,6 +16,8 @@ Replay is off until you turn it on for an app in the dashboard, under the app's
   `start` on mobile (normally an app launch) and one page load on the web.
   Each session is picked at random. The dashboard suggests 10% when you first
   turn replay on. Sessions that aren't picked don't record replay.
+- **Crash-only sessions:** a second sampling rate, for sessions where the app
+  turned the bug reporter off. See [Crash-only sessions](#crash-only-sessions).
 - **Length:** the last 15, 30 or 60 seconds.
 - **Frame rate** (native video): 1, 2, 5 or 10 frames per second. The server
   default is 2 for SDKs that support these rates; older SDKs receive 5. The
@@ -97,3 +99,44 @@ replay that led up to it, so the error page can play it.
 
 Error replays record users who didn't choose to send a report. If you turn
 replay on, say so in your app's privacy policy.
+
+## Crash-only sessions
+
+An app can turn the bug reporter off and keep crash and error reporting, for
+example in production builds. A session started that way is a crash-only
+session.
+
+| SDK | Setting |
+| --- | --- |
+| Web, React, React Native | `reporter: { disabled: true }` |
+| iOS | `reporterEnabled: false` on `EverframeConfig` |
+| Android | `reporterEnabled = false` on `EverframeConfig` |
+
+- **Two coverage rates.** The app's Session replay settings have one sampling
+  rate for sessions that can file a report and one for crash-only sessions.
+  The crash-only rate defaults to 0, so crash-only sessions don't record
+  unless you raise it. An SDK whose server doesn't send the crash-only rate
+  treats it as 0.
+- **One draw per session.** Each session draws one random number and
+  compares it with the rate for its kind. Once a rate has picked a session, a
+  later change to that rate doesn't stop it.
+- **Companion upgrade.** When a phone scans the companion QR code or a
+  dashboard member attaches, the session uses the higher of the two rates for
+  the rest of the session, so an upgrade never stops a recording. Recording
+  starts at that moment, so a report filed through the companion has a replay
+  from then on. Detaching doesn't undo the upgrade. A crash-only session that
+  starts while a companion is still attached, for example after a restart or
+  a React Native reconfigure, starts upgraded.
+- **No reporter.** The hotkey, shake-to-report, the inbox's "New report"
+  button and `open()` stay off for the whole session, also after an upgrade.
+  Reports from an upgraded session come through the companion. On the web
+  and React Native, `open()` rejects with `EverframeReporterDisabledError`.
+- **Network bodies** aren't captured in a crash-only session. After an
+  upgrade they follow the app's settings.
+- **Error replays follow recording.** An error carries a replay only while
+  its session records. At the default crash-only rate of 0, errors from
+  crash-only sessions carry no replay. At 5%, errors from about 5% of
+  crash-only sessions can.
+
+Crash and error capture, breadcrumbs, console logs, vitals, release health,
+identity and the companion work the same in every session.

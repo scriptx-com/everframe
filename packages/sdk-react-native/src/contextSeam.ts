@@ -12,12 +12,16 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // Single-instance enforcement (T-06-05-04): a second mount throws — two
 // providers in one process would race on this slot and silently spoof the
 // `open()` destination.
-import { type ReporterResult, EverframeNotMountedError } from './reporter/types.js';
+import {
+  type ReporterResult,
+  EverframeNotMountedError,
+  EverframeReporterDisabledError,
+} from './reporter/types.js';
 import type { CaptureExceptionOptions, ExtraResolver } from '@everframe/sdk-core';
 import type { EverframeUserSpec } from './NativeEverframe.js';
 import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
 
-export { EverframeNotMountedError };
+export { EverframeNotMountedError, EverframeReporterDisabledError };
 
 /** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
 export interface EverframeContextValue {
@@ -33,7 +37,8 @@ export interface EverframeContextValue {
    * Open the native reporter modal. Resolves with the user-facing outcome
    * (`submitted` / `queued` / `cancelled`). Replaces the pre-0.3 nested
    * `report.open()` — the `.report` namespace held only `.open` so flattening
-   * matches sdk-react.
+   * matches sdk-react. Rejects with `EverframeReporterDisabledError` when the
+   * config sets `reporter: { disabled: true }`.
    */
   open(): Promise<ReporterResult>;
   sensitive: {

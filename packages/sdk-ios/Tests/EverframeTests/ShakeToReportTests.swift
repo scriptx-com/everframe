@@ -26,6 +26,19 @@ final class ShakeToReportTests: XCTestCase {
         XCTAssertFalse(gate.tryBegin(presenting: false, applicationActive: true))
     }
 
+    /// A crash-only session has no on-device reporter, so `start` never arms shake for it,
+    /// whatever `shakeToReportEnabled` says.
+    func testACrashOnlySessionNeverArmsShake() throws {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        let sdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil, reporterEnabled: false))
+        XCTAssertFalse(ShakeToReportTrigger.shared.__localEnabledForTesting)
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil))
+        XCTAssertTrue(ShakeToReportTrigger.shared.__localEnabledForTesting)
+    }
+
     func testRemoteBlockIsLenientAndCapabilityIsDeclared() throws {
         let valid = Data(#"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"shakeToReport":{"enabled":true,"future":"ignored"}}"#.utf8)
         XCTAssertEqual(try ReplayConfigProvider.__decodeForTesting(valid).shakeToReport?.enabled, true)

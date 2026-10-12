@@ -55,6 +55,14 @@ class ReplaySession(
     private var refreshLoopJob: Job? = null
     private val sessionId = UUID.randomUUID().toString()
     private val samplingDraw = Math.random()
+    /**
+     * Coverage kinds whose rate has admitted this session (crash-only sessions, spec 2026-10-12). An
+     * admission is kept for the session, so a later rate cut never stops a recording; a refusal is
+     * compared against the live rate again on each refresh. Guarded by the report authorization lock.
+     */
+    private val admittedKinds = mutableSetOf<ReplayCoverage>()
+    /** The config of the last refresh that succeeded; null after a failed one. Guarded by [refreshMutex]. */
+    private var lastConfirmedConfig: ReplayConfig? = null
     private var generation = 0L
     private var authorized = false
     private var settings: NativeVideoSettings? = null
@@ -157,11 +165,20 @@ class ReplaySession(
         }
     }
 
-    internal suspend fun refreshConfigNow(): Unit = refreshMutex.withLock {
+    /**
+     * A companion bond upgraded this crash-only session (spec 2026-10-12). Re-applies the last confirmed
+     * config under the new coverage without a fetch, so an unreachable server at the bond cannot revoke a
+     * recording; fetches only when no refresh has succeeded yet.
+     */
+    internal suspend fun applyCompanionUpgrade() = refreshConfigNow(reusingConfirmedConfig = true)
+
+    internal suspend fun refreshConfigNow(reusingConfirmedConfig: Boolean = false): Unit = refreshMutex.withLock {
         val capturedEpoch = epoch.get()
-        val succeeded = provider.refresh(force = true)
-        val latest = provider.current
+        val confirmed = lastConfirmedConfig?.takeIf { reusingConfirmedConfig }
+        val succeeded = confirmed != null || provider.refresh(force = true)
+        val latest = confirmed ?: provider.current
         if (!currentGenerationValid(capturedEpoch)) return
+        lastConfirmedConfig = if (succeeded) latest else null
         val wasIdentityEnabled = isIdentityEnabled(configBox)
         configBox = latest
         // Signals retain their existing independent effects; never publish from a superseded generation.
@@ -192,21 +209,37 @@ class ReplaySession(
         } else {
             resourceSampler.stop()
         }
+        // Crash-only sessions (spec 2026-10-12): read once, so bodies and video agree for this refresh. A
+        // companion bond flips it and then re-applies the confirmed config (applyCompanionUpgrade).
+        val coverage = Everframe.replayCoverage()
+        val crashOnly = coverage == ReplayCoverage.CrashOnly
         NetworkBodyCaptureState.applyConfig(if (succeeded) latest.networkBodies else null,
             samplingRate = latest.samplingRate,
-            locallyDisabled = NetworkBodyCaptureState.locallyDisabled(Everframe.currentConfig) ||
+            locallyDisabled = crashOnly || NetworkBodyCaptureState.locallyDisabled(Everframe.currentConfig) ||
                 NetworkBodyCaptureState.breadcrumbsExcludeNetwork(latest.breadcrumbs),
             guard = { currentGenerationValid(capturedEpoch) })
         sharedNetworkBodyBuffer.setTotalBudget(latest.networkBodies?.bodyTotalBudget ?: 262144) { currentGenerationValid(capturedEpoch) }
         Everframe.withReportAuthorizationLock {
             if (!currentGenerationValid(capturedEpoch)) return@withReportAuthorizationLock
+            // One draw for every kind, and an admission is kept for the session: a refresh that lowers a
+            // rate, or an upgrade that sees lower rates, never stops a recording.
             val effective = effectiveNativeVideo(latest, succeeded, locallyDisabled)
-                ?.takeIf { samplingDraw < latest.samplingRate }
+                ?.takeIf { admitsLocked(coverage, latest) }
             val decision = VideoPolicy(effective, latest.replayDurationSec)
             if (authorized && videoPolicy != decision) revokeReplayLocked()
             videoPolicy = decision
             reconcileVideoLocked()
         }
+    }
+
+    /** Sampled only against a confirmed config: the fail-closed OFF default carries a rate of 1. */
+    private fun admitsLocked(kind: ReplayCoverage, config: ReplayConfig): Boolean {
+        // An upgrade never stops a recording: it inherits the crash-only admission, even after both rates drop.
+        if (kind == ReplayCoverage.Upgraded && ReplayCoverage.CrashOnly in admittedKinds) admittedKinds += kind
+        if (kind in admittedKinds) return true
+        if (samplingDraw >= kind.samplingRate(config.samplingRate, config.crashOnlySamplingRate)) return false
+        admittedKinds += kind
+        return true
     }
 
     private fun observePrivacyLocked() {

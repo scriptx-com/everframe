@@ -30,7 +30,7 @@ export type { WebEverframeConfig } from './internal/types.js';
 export type { ResolvedWebEverframeConfig } from './internal/types.js';
 /** @internal Shared with `@everframe/react`, which normalises its provider config the same way. */
 export { resolveSdkKey } from '@everframe/sdk-core';
-export { EverframeNotMountedError } from './reporter-types.js';
+export { EverframeNotMountedError, EverframeReporterDisabledError } from './reporter-types.js';
 export type { ReporterResult } from './reporter-types.js';
 
 // ── Version + SDK identity ──────────────────────────────────────────────
@@ -168,6 +168,9 @@ export {
   __getCompanionRunning,
   __onCompanionRunning,
 } from './companion/singleton.js';
+// Crash-only sessions (spec 2026-10-12): both hosts upgrade a crash-only
+// session on a companion bond through this one watcher.
+export { __watchCompanionBond } from './companion/bond-upgrade.js';
 export {
   __setCompanionHost,
   __getCompanionHost,

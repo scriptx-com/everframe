@@ -522,6 +522,28 @@ let result: ReportResult = try await Everframe.shared.report.open()
 SDK never throws from inside `start()` — only from `open()` when the host
 explicitly awaits the result.
 
+### Crash-only sessions
+
+Turn the on-device reporter off to report crashes without recording every
+session, for example in production builds:
+
+```swift
+try Everframe.shared.start(config: EverframeConfig(sdkKey: "…", reporterEnabled: false))
+```
+
+Shake stays off and `report.open()` throws
+`EverframeReporterError.reporterDisabled`. Network bodies are not captured.
+Session replay records only in the share of sessions set by the dashboard's
+crash-only coverage, none by default, so errors from the other sessions carry
+no replay. Crash and error capture, breadcrumbs, vitals, release health and
+companion work as usual.
+
+A companion bond, a phone scanning the QR code or a dashboard member
+attaching, upgrades the session until the next `start` or `kill`: replay and
+network bodies then follow the normal dashboard settings, so a report filed
+through companion has a replay from the bond on. A detach does not undo the
+upgrade. Shake and `open()` stay off.
+
 ---
 
 ## R8 / minification

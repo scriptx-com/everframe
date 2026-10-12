@@ -42,6 +42,27 @@ import UIKit
     deinit { task?.cancel() }
 }
 
+/// Which replay coverage a session samples against (crash-only sessions spec 2026-10-12).
+enum ReplayCoverage: Hashable, Sendable {
+    /// A session that can file a report: `samplingRate`.
+    case report
+    /// A crash-only session before any companion bond: `crashOnlySamplingRate`, 0 when absent.
+    case crashOnly
+    /// A crash-only session after a companion bond: the higher of the two rates. It also
+    /// inherits an admission the crash-only coverage already made, so an upgrade never stops
+    /// a recording.
+    case upgraded
+
+    /// The rate this coverage samples against.
+    func samplingRate(report: Double, crashOnly: Double?) -> Double {
+        switch self {
+        case .report: return report
+        case .crashOnly: return crashOnly ?? 0
+        case .upgraded: return max(report, crashOnly ?? 0)
+        }
+    }
+}
+
 /// Policy and reporter ownership around the capture/recording workers. Freeze
 /// is synchronous; finalization never blocks mounting or dismissing reporter UI.
 @MainActor final class NativeVideoSession {
@@ -60,7 +81,15 @@ import UIKit
     private let onRecordingChange: @MainActor (Bool) -> Void
     private var settings: NativeVideoSettings?
     private var durationSec = 30
-    private var sampledIn: Bool?
+    /// The session's one random draw, taken the first time settings apply. Every
+    /// coverage compares this same value. An upgraded session samples at the higher
+    /// of the two rates and inherits the crash-only admission, so an upgrade never
+    /// stops a recording.
+    private var draw: Double?
+    /// One decision per coverage, made the first time that coverage applies
+    /// settings and kept for the session: a later rate change never flips it.
+    private var sampledIn: [ReplayCoverage: Bool] = [:]
+    private var coverage = ReplayCoverage.report
     private var suspended = false
     private var reporterOpen = false
     private var generation = 0
@@ -106,15 +135,27 @@ import UIKit
         self.onRecordingChange = onRecordingChange
     }
 
-    func apply(settings: NativeVideoSettings?, durationSec: Int = 30, samplingRate: Double = 1) {
+    /// `samplingRate` is the rate for `coverage`; it only matters the first time
+    /// that coverage applies settings.
+    func apply(settings: NativeVideoSettings?, durationSec: Int = 30, samplingRate: Double = 1,
+               coverage: ReplayCoverage = .report) {
         if settings == nil { consentGeneration += 1 }
         let duration = min(NativeVideoLimits.maxDurationSec, max(1, durationSec))
-        if settings != nil, sampledIn == nil {
-            sampledIn = samplingRate.isFinite && random() < max(0, min(1, samplingRate))
+        self.coverage = coverage
+        if settings != nil, sampledIn[coverage] == nil {
+            let draw = self.draw ?? random()
+            self.draw = draw
+            sampledIn[coverage] = (coverage == .upgraded && sampledIn[.crashOnly] == true)
+                || (samplingRate.isFinite && draw < max(0, min(1, samplingRate)))
         }
         if self.settings != settings || self.durationSec != duration {
             invalidate()
             self.settings = settings; self.durationSec = duration
+        } else if sampledIn[coverage] != true, recorder != nil {
+            // The new coverage does not admit this draw. An upgrade never lands
+            // here (it inherits the crash-only admission); kept so no coverage
+            // can record past its own decision.
+            invalidate()
         }
         startIfEligible()
     }
@@ -194,7 +235,7 @@ import UIKit
     func stop() { settings = nil; consentGeneration += 1; invalidate() }
 
     private func startIfEligible() {
-        guard let settings, sampledIn == true, !suspended, !reporterOpen, recorder == nil else { return }
+        guard let settings, sampledIn[coverage] == true, !suspended, !reporterOpen, recorder == nil else { return }
         do {
             anchorNanos = now(); anchorEpochMs = epochMs()
             recorder = try makeRecorder(settings.framesPerSecond, UInt64(durationSec) * 1_000_000_000)

@@ -221,6 +221,31 @@ public final class CompanionAPI: ObservableObject, @unchecked Sendable {
     private let reportLock = NSLock()
     private var reportInProgressCorrelationId: String?
 
+    /// Crash-only sessions (spec 2026-10-12): whether a phone or dashboard member is bonded.
+    /// Set by `.paired` and `.reportInProgress`, cleared by `.unpaired`, and kept across
+    /// `.phoneDisconnected`: the relay's `phone.disconnected` frame enters that state only from
+    /// a bond, but `RelayWSClient.handleDidEnterBackground()` enters it on every backgrounding,
+    /// bonded or not. Written before the state it describes, under its own lock (never held
+    /// with another), so `Everframe.start()` can read it from any thread inside `stateLock`.
+    private let bondLock = NSLock()
+    private var bonded = false
+
+    /// Whether a phone or dashboard member is bonded right now: `.paired`, `.reportInProgress`,
+    /// or `.phoneDisconnected` after a bond (the phone is away inside the relay's grace window).
+    internal var __isBonded: Bool {
+        bondLock.lock(); defer { bondLock.unlock() }
+        return bonded
+    }
+
+    private func noteBond(_ s: CompanionState) {
+        bondLock.lock(); defer { bondLock.unlock() }
+        switch s {
+        case .paired, .reportInProgress: bonded = true
+        case .unpaired: bonded = false
+        case .phoneDisconnected: break
+        }
+    }
+
     public init() {}
 
     /// Hops a `@Published`-property write onto the main thread — external
@@ -280,6 +305,7 @@ public final class CompanionAPI: ObservableObject, @unchecked Sendable {
             reportInProgressCorrelationId = nil
             reportLock.unlock()
         }
+        noteBond(s)
         onMain { self.state = s }
     }
 
@@ -303,6 +329,7 @@ public final class CompanionAPI: ObservableObject, @unchecked Sendable {
         reportLock.lock()
         reportInProgressCorrelationId = correlationId
         reportLock.unlock()
+        noteBond(.reportInProgress)
         onMain { self.state = .reportInProgress }
     }
 

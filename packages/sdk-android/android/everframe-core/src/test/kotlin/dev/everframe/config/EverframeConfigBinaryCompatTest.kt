@@ -3,14 +3,16 @@
 package dev.everframe.config
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Callers compiled against earlier releases bind to JVM descriptors, so adding `debugBuild` must not remove
- * or change any constructor or `copy` they were compiled against. A removed descriptor fails at run time with
- * NoSuchMethodError, which no source-level test would show.
+ * Callers compiled against earlier releases bind to JVM descriptors, so adding `debugBuild` and then
+ * `reporterEnabled` must not remove or change any constructor or `copy` they were compiled against. A removed
+ * descriptor fails at run time with NoSuchMethodError, which no source-level test would show.
  */
 class EverframeConfigBinaryCompatTest {
     private val firstFifteen: List<Class<*>> = listOf(
@@ -21,6 +23,7 @@ class EverframeConfigBinaryCompatTest {
         VitalsConfig::class.java, String::class.java,
     )
     private val releaseHealth = ReleaseHealthConfig::class.java
+    private val boxedBoolean = java.lang.Boolean::class.java
     private val marker = Class.forName("kotlin.jvm.internal.DefaultConstructorMarker")
     private val int = Int::class.javaPrimitiveType!!
 
@@ -97,15 +100,49 @@ class EverframeConfigBinaryCompatTest {
         assertNotNull(copyDefault(releaseHealth))
     }
 
-    @Test fun `the new constructor and copy take debugBuild alongside`() {
+    @Test fun `the 17-argument constructor with debugBuild and its default-argument variant still exist`() {
+        val explicit = ctor(releaseHealth, boxedBoolean).newInstance(*args(null, true)) as EverframeConfig
+        assertNull(explicit.releaseHealth)
+        assertEquals(true, explicit.debugBuild)
+        assertTrue("an earlier caller never turned the reporter off", explicit.reporterEnabled)
+
+        val defaulted = EverframeConfig::class.java.getDeclaredConstructor(
+            *(firstFifteen + listOf(releaseHealth, boxedBoolean, int, marker)).toTypedArray())
+        val viaDefaults = defaulted.newInstance(*defaultedArgs(firstFifteen + releaseHealth + boxedBoolean)) as EverframeConfig
+        assertEquals(ReleaseHealthConfig(), viaDefaults.releaseHealth)
+        assertNull(viaDefaults.debugBuild)
+        assertTrue(viaDefaults.reporterEnabled)
+    }
+
+    @Test fun `the earlier copy overloads keep reporterEnabled`() {
+        val source = EverframeConfig(appId = "app", sdkKey = "txx_live_test1234567890", reporterEnabled = false)
+
+        assertFalse((copy().invoke(source, *args()) as EverframeConfig).reporterEnabled)
+        assertFalse((copy(releaseHealth).invoke(source, *args(null)) as EverframeConfig).reporterEnabled)
+        val copy17 = copy(releaseHealth, boxedBoolean).invoke(source, *args(null, true)) as EverframeConfig
+        assertEquals(true, copy17.debugBuild)
+        assertFalse(copy17.reporterEnabled)
+        assertNotNull(copyDefault(releaseHealth, boxedBoolean))
+
+        // Source callers that name only older parameters resolve to these overloads too.
+        assertFalse(source.copy(sdkKey = "other").reporterEnabled)
+        assertFalse(source.copy(releaseHealth = null).reporterEnabled)
+        assertFalse(source.copy(debugBuild = true).reporterEnabled)
+        assertFalse(source.copy(r8MappingId = "mapping").reporterEnabled)
+    }
+
+    @Test fun `the new constructor and copy take debugBuild and reporterEnabled alongside`() {
         val config = EverframeConfig(appId = "app", sdkKey = "key", debugBuild = false)
         assertEquals(false, config.debugBuild)
+        assertTrue("the reporter is on unless a host turns it off", config.reporterEnabled)
         assertEquals(true, config.copy(debugBuild = true).debugBuild)
         assertEquals(false, config.copy(sdkKey = "other").debugBuild)
         assertEquals(false, config.copy(releaseHealth = null).debugBuild)
+        assertFalse(config.copy(reporterEnabled = false).reporterEnabled)
+        assertEquals(false, config.copy(reporterEnabled = false).debugBuild)
         val primary = EverframeConfig::class.java.getDeclaredConstructor(
-            *(firstFifteen + listOf(releaseHealth, java.lang.Boolean::class.java)).toTypedArray())
+            *(firstFifteen + listOf(releaseHealth, boxedBoolean, Boolean::class.javaPrimitiveType!!)).toTypedArray())
         assertNotNull(primary)
-        assertNotNull(copy(releaseHealth, java.lang.Boolean::class.java))
+        assertNotNull(copy(releaseHealth, boxedBoolean, Boolean::class.javaPrimitiveType!!))
     }
 }

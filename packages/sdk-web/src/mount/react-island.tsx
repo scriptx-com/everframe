@@ -65,9 +65,10 @@ export interface IslandHandlers {
    * "New report" from inside the inbox. Routed back to init.ts's `openModal()`
    * rather than handled locally, because that is where REPLAY-02's
    * freeze-before-any-UI-mounts lives — exactly as provider.tsx's InboxDialog
-   * calls `ctxValue.openModal()` instead of `setModalOpen(true)`.
+   * calls `ctxValue.openModal()` instead of `setModalOpen(true)`. Absent in a
+   * crash-only session, which hides the inbox's "New report" buttons.
    */
-  onNewReport(): void;
+  onNewReport?: (() => void) | undefined;
 }
 
 /**
@@ -97,6 +98,8 @@ export function mountIsland(
     if (dispatch) dispatch(c);
     else pending.push(c);
   };
+
+  const newReport = handlers.onNewReport;
 
   function Island(): JSX.Element {
     const [open, setOpen] = useState(false);
@@ -138,10 +141,14 @@ export function mountIsland(
           open={inboxOpen}
           onClose={() => setInboxOpen(false)}
           threads={handlers.threads}
-          onNewReport={() => {
-            setInboxOpen(false);
-            handlers.onNewReport();
-          }}
+          onNewReport={
+            newReport
+              ? () => {
+                  setInboxOpen(false);
+                  newReport();
+                }
+              : undefined
+          }
         />
         <Toast
           open={toast.open}
