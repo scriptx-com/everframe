@@ -143,10 +143,8 @@ struct CompanionAnnounce: Sendable {
     }
 
     /// `{"label":"…","supportsAttachPin":true,"device":{…}}` with each field
-    /// omitted when absent/false/nil — a false `supportsAttachPin` and a nil
-    /// `device` both keep the body byte-identical to old SDKs, which is what
-    /// lets an old server (that doesn't know either key) ignore them
-    /// harmlessly rather than rejecting an unrecognized field.
+    /// omitted when absent/false/nil, so the body carries only the
+    /// capabilities this device actually has.
     static func body(label: String?, supportsAttachPin: Bool = false, device: AnnounceDevice? = nil) -> Data {
         struct BodyWire: Encodable {
             struct Device: Encodable {

@@ -50,14 +50,13 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("dev.everframe:core:1.1.0")
-    implementation("dev.everframe:reporter-ui:1.1.0")
+    implementation("dev.everframe:core:1.2.0")
+    implementation("dev.everframe:reporter-ui:1.2.0")
 }
 ```
 
 `core` declares `android.permission.INTERNET`, and the manifest merger adds it to
-your app. SDK 1.1.0 and earlier do not: with those, declare it in your app's
-`AndroidManifest.xml`, or the SDK sends nothing.
+your app.
 
 ### 3. Initialize at startup
 
@@ -479,7 +478,7 @@ everframe { appId = "00000000-0000-4000-8000-000000000000" }
 
 The root `android/build.gradle` adds
 `classpath("dev.everframe:gradle-plugin:<everframe version>")` to its
-`buildscript` dependencies. The Hermes upload needs 1.3.0 or newer.
+`buildscript` dependencies, the same version as `@everframe/cli`.
 
 Set `EVERFRAME_API_TOKEN` (a token with `artifacts:write`) in CI. **Symbols
 never fail the build by default**: without the token, without an app ID, or

@@ -271,11 +271,8 @@ export function createSummaryAccumulator(init: {
         memPeak,
         memAvg,
         playerCount: players.size,
-        // Codex round-4 finding 4 — always present (never omitted when
-        // false), unlike the phase-3-compat optionality on `playerCount`
-        // itself: this accumulator always KNOWS whether it saturated, so
-        // there is no "predates this field" case to preserve here the way
-        // there is for `playerCount` on an old SDK.
+        // Always present (never omitted when false): this accumulator always
+        // KNOWS whether it saturated.
         playerCountSaturated,
         dims,
       };

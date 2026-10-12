@@ -16,7 +16,7 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
     /// THIS key, never the currently-configured one — otherwise
     /// `start(projectA) → offline submit → start(projectB)` ships A's whole
     /// report (screenshot, network bodies, reporter identity) into B.
-    /// Non-optional on purpose: a legacy line without it fails to decode and
+    /// Non-optional on purpose: a line without it fails to decode and
     /// is dropped by `readAll`'s skip-malformed path. Never give it a default.
     public let sdkKey: String
     /// The ingest URL this entry was queued against. Stored alongside the key
@@ -32,13 +32,11 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
     /// attributed on drain, however the holder is configured by then.
     ///
     /// Deliberately UNLIKE `sdkKey`/`endpoint` above: those have no default,
-    /// so a legacy line missing either one fails `Decodable` and `readAll`'s
+    /// so a line missing either one fails `Decodable` and `readAll`'s
     /// skip-malformed path drops the whole entry (PR #63) — correct there,
     /// because a report with no known destination can't be routed at all.
-    /// Here, absence means "anonymous", which is the fail-closed direction,
-    /// so a `= nil` default lets a report queued by an Everframe SDK built before this
-    /// field existed keep decoding and keep submitting, just without a
-    /// header, rather than being silently discarded.
+    /// Here, absence means "anonymous", which is the fail-closed direction:
+    /// the entry still submits, just without an identity header.
     public let identitySubject: String?
 
     /// Set only on a handled error whose capture is still waiting for its
