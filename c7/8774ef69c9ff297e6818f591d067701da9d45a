@@ -1,0 +1,29 @@
+packages/sdk-ios/Tests/EverframeTests/CompanionSubmitBridgeTests.swift
+  s_dbd309ddf8ec5b::t_9b2f20d9ee5811 266-268,289,293
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_dbd309ddf8ec5b::t_65b01ebf6cb5ff 171
+packages/sdk-ios/Sources/Everframe/Companion/CompanionCaptureBridge.swift
+  s_dbd309ddf8ec5b::t_b3817e280c3d75 383-384,848-850,888
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_dbd309ddf8ec5b::t_8f563e76a7713e 2061,2067,2104,2108
+packages/sdk-ios/Tests/EverframeTests/ExtraResolverHookTests.swift
+  s_dbd309ddf8ec5b::t_f2e3c5de1a4e68 100,114,133,153,166-167,237-238,269-270
+packages/sdk-react-native/ios/Sources/EverframeEventEmitter.swift
+  s_dbd309ddf8ec5b::t_2a3484f0df6376 73-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c78774ef69c9ff297e6818f591d067701da9d45a",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
