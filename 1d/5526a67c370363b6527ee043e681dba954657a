@@ -1,0 +1,49 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDeliveryStatus.kt
+  s_dbd309ddf8ec5b::t_3d443a3ccf4a7e 69
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/diagnostics/ReportDiagnostics.kt
+  s_dbd309ddf8ec5b::t_35c21f463492ab 56,58
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/JSONLOutbox.kt
+  s_dbd309ddf8ec5b::t_e8f003a89b7e77 19,100,109,116,127,139,145,158
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxStore.kt
+  s_dbd309ddf8ec5b::t_954f84cd8ab4be 79,102,105
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EnvelopeUserTest.kt
+  s_dbd309ddf8ec5b::t_bc3dfd5cf06331 128-131,135-136
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/CrashReporterTest.kt
+  s_dbd309ddf8ec5b::t_68ce878dbd0279 765
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/diagnostics/ReportDiagnosticsTest.kt
+  s_dbd309ddf8ec5b::t_a5b65864695ac1 62,66
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/identity/IdentitySubjectGateTest.kt
+  s_dbd309ddf8ec5b::t_35d75a54204ad8 9
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/outbox/CrashSidecarApiTest.kt
+  s_dbd309ddf8ec5b::t_f1c3810e7ec8cb 24,34
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/outbox/CrashSidecarTest.kt
+  s_dbd309ddf8ec5b::t_0bfaa9416ad01d 38,41,53,62,71,88,91,110
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/outbox/JSONLOutboxTest.kt
+  s_dbd309ddf8ec5b::t_63e03f6952ecbe 88,94
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/outbox/OutboxKeyBindingTest.kt
+  s_dbd309ddf8ec5b::t_68e5ea32c4d1c5 193,195,197-199,201
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/crash/CrashDeliveryTest.kt
+  s_dbd309ddf8ec5b::t_b8742a7bd09577 136,205
+packages/sdk-ios/Sources/Everframe/Diagnostics/ReportDiagnostics.swift
+  s_dbd309ddf8ec5b::t_33c5fee448a356 79
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_dbd309ddf8ec5b::t_89a1403fe0c53d 259,375,388,392,395,410,460
+packages/sdk-ios/Tests/EverframeTests/ReportDiagnosticsPipelineTests.swift
+  s_dbd309ddf8ec5b::t_e04ad767f29229 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d5526a67c370363b6527ee043e681dba954657a",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
