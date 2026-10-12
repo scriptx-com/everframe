@@ -1,0 +1,81 @@
+packages/sdk-react-native/__tests__/EverframeProvider.spec.tsx
+  s_dbd309ddf8ec5b::t_7307d3e8f91403 75
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_dbd309ddf8ec5b::t_81695cd684d446 25,33,647
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_dbd309ddf8ec5b::t_c8932c47c0cb9a 9,188,197,201,203,208
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnReplayBridgeTest.kt
+  s_dbd309ddf8ec5b::t_0d274c8093237b 134,164,186,227,231,513
+packages/sdk-react-native/__tests__/fixtures/report-delivery-status-v1.json
+  s_dbd309ddf8ec5b::t_ecc82dfae4f437 85
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_dbd309ddf8ec5b::t_6049102f3b8426 75,107
+packages/sdk-react-native/__tests__/capture-exception.test.tsx
+  s_dbd309ddf8ec5b::t_5d3cabd712adec 150,168
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnErrorReplayBridgeTest.kt
+  s_dbd309ddf8ec5b::t_285071910d70f8 50
+packages/sdk-react-native/src/report-delivery-status.ts
+  s_dbd309ddf8ec5b::t_30e2802a67b5bc 16,75,140
+packages/sdk-react-native/src/runtime.ts
+  s_dbd309ddf8ec5b::t_bc9f11724f596f 372-373,535-536,622-624,696
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleVitalsTest.kt
+  s_dbd309ddf8ec5b::t_8aeaf8d58c2e29 100,116,194,199,203,216,223,244,253,265,270,274
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleConfigureTest.kt
+  s_dbd309ddf8ec5b::t_5e520d05b7d876 75,87,100,118,130,143,153,161,170,180,188,197,204,206,216,236,245
+packages/sdk-react-native/src/errors.ts
+  s_dbd309ddf8ec5b::t_668e150c7c9832 125,149-150,152,154,184-185
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReleaseHealthConfigureTest.kt
+  s_dbd309ddf8ec5b::t_ab11282fde85c7 47,116
+packages/sdk-react-native/__tests__/error-capture-runtime.test.ts
+  s_dbd309ddf8ec5b::t_ac0c45f6356a98 11,13-14,24
+packages/sdk-react-native/src/error-capture-status.ts
+  s_dbd309ddf8ec5b::t_299e2e11db9d6c 27
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnErrorDetailsBridgeTest.kt
+  s_dbd309ddf8ec5b::t_2c3cc2992f9e1e 40
+packages/sdk-react-native/__tests__/report-delivery-status.test.ts
+  s_dbd309ddf8ec5b::t_4015ac29f89ecc 39,45,63,102
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/ReporterBridge.kt
+  s_dbd309ddf8ec5b::t_9c62b995af2e1a 21,48-50
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterResolverInstaller.kt
+  s_dbd309ddf8ec5b::t_23f04205fa1e23 14,18
+packages/sdk-react-native/__tests__/companion-bridge-wiring.spec.ts
+  s_dbd309ddf8ec5b::t_86caa635b38794 850,853
+packages/sdk-react-native/__tests__/error-capture-status.test.ts
+  s_dbd309ddf8ec5b::t_ba4e55a016fb43 71-72,75-78
+packages/sdk-react-native/__tests__/spec-shape.test.ts
+  s_dbd309ddf8ec5b::t_8185900ff05c49 23,55
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeCompanionOwnershipTest.kt
+  s_dbd309ddf8ec5b::t_81ac86a91d1e13 146
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_dbd309ddf8ec5b::t_fb6255c22f73c0 9,78,82,109,112-114,125,217,407
+packages/sdk-react-native/src/contextSeam.ts
+  s_dbd309ddf8ec5b::t_6299e00519d23e 28-32,123,211,219
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_dbd309ddf8ec5b::t_297a688e2a7e5e 283,300,405,790
+packages/sdk-react-native/__tests__/rejection-capture.test.ts
+  s_dbd309ddf8ec5b::t_f0102057b8b5dd 110,112-113,115
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_dbd309ddf8ec5b::t_8192a47050052f 46,66,265-267
+packages/sdk-react-native/src/companion.ts
+  s_dbd309ddf8ec5b::t_7847e33729ff8f 204-205
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterBridgeTest.kt
+  s_dbd309ddf8ec5b::t_b8ef6ceaed8c4c 30-31,34,64-70,72,127,150
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_3acddeef1f1854 307-308,311-312,362,825,827-830
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a55da24a4cf285c8bd9685055b54fe6076369e28",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
