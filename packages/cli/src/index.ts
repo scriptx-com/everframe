@@ -165,12 +165,11 @@ export async function main(
       }
       const appId = parsed.values["app-id"];
       if (!appId) throw new Error("missing_required_option");
-      const { changed, metroHint } = await setupReactNative({
+      const { files, metroHint } = await setupReactNative({
         projectRoot: resolve(parsed.values.project),
         appId,
       });
-      if (changed.length === 0) console.log("Already set up; no changes.");
-      for (const path of changed) console.log(`Updated ${path}`);
+      for (const file of files) console.log(file.changed ? `Updated ${file.path}` : `No changes: ${file.path}`);
       console.log("Add to metro.config.js:");
       console.log(metroHint);
       return 0;

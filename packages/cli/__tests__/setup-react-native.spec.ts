@@ -3,7 +3,8 @@
 import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { main } from '../src/index.js';
 import { setupReactNative } from '../src/setup-react-native.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
@@ -108,5 +109,29 @@ describe('setupReactNative', () => {
     const result = await setupReactNative({ projectRoot: root, appId: APP });
     expect(result.changed).toContain('android/build.gradle');
     expect(await readFile(join(root, 'android/build.gradle'), 'utf8')).toContain('dev.everframe:gradle-plugin:');
+  });
+
+  it('reports every file it patched, changed or not', async () => {
+    const root = await bareProject();
+    await writeFile(join(root, 'android', 'build.gradle'), "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n");
+    const first = await setupReactNative({ projectRoot: root, appId: APP });
+    expect(first.files).toEqual([
+      { path: 'android/app/build.gradle', changed: true },
+      { path: 'android/build.gradle', changed: true },
+      { path: 'ios/App.xcodeproj/project.pbxproj', changed: true },
+    ]);
+    // Only the app file differs when the app id changes; the root file is still listed.
+    const lines: string[] = [];
+    const log = vi.spyOn(console, 'log').mockImplementation((line: string) => void lines.push(line));
+    try {
+      expect(await main(['setup', 'react-native', '--project', root, '--app-id', '11111111-1111-4111-8111-111111111111'], {})).toBe(0);
+    } finally {
+      log.mockRestore();
+    }
+    expect(lines.slice(0, 3)).toEqual([
+      'Updated android/app/build.gradle',
+      'No changes: android/build.gradle',
+      'Updated ios/App.xcodeproj/project.pbxproj',
+    ]);
   });
 });
