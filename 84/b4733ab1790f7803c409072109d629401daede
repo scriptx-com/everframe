@@ -1,0 +1,31 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/RelayWSClient.kt
+  s_dbd309ddf8ec5b::t_7592b69871ef9e 936-939
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/RelayWSClientTest.kt
+  s_dbd309ddf8ec5b::t_4c8ab7ca2ec3f0 133-159
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_ae164ca1f69cc2 1445
+  s_dbd309ddf8ec5b::t_ceba5bd0f729f4 2700-2728
+  s_dbd309ddf8ec5b::t_0ea03913aebb22 966-967
+  s_dbd309ddf8ec5b::t_6d19adf84da535 158-161
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/CrashOnlyReplaySessionTest.kt
+  s_dbd309ddf8ec5b::t_3eeda92f3631ca 1-214
+  s_dbd309ddf8ec5b::t_dc99c763437be1 215-224
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_dbd309ddf8ec5b::t_8a1fb842e01b04 195-197,200,206-208,210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "84b4733ab1790f7803c409072109d629401daede",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
