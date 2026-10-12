@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import dev.everframe.Everframe
+import dev.everframe.config.EverframeConfig
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -119,6 +120,13 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
     private var resumedActivity: Activity? = null
     private var gate = ShakeToReportGate(localEnabled = false)
     private var detector = ShakeGestureDetector()
+
+    /**
+     * The host's local switches. A crash-only session (`reporterEnabled = false`, spec 2026-10-12) turns
+     * every on-device entry point off, shake included, whatever `shakeToReportEnabled` says.
+     */
+    internal fun localEnabled(config: EverframeConfig): Boolean =
+        config.shakeToReportEnabled && config.reporterEnabled
 
     fun install(
         context: Context,

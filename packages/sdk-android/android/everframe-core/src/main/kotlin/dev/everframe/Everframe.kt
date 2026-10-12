@@ -1061,7 +1061,7 @@ object Everframe {
         dev.everframe.companion.CompanionActivityTracker.installIfNeeded(context)
         dev.everframe.trigger.ShakeToReportTrigger.install(
             context = context,
-            localEnabled = config.shakeToReportEnabled,
+            localEnabled = dev.everframe.trigger.ShakeToReportTrigger.localEnabled(config),
             currentActivity = currentActivity,
             isCurrent = { currentStartEpochVolatile() == epoch },
         )
@@ -2756,13 +2756,17 @@ object Everframe {
          * `:everframe-reporter-ui` module-load (androidx.startup `Initializer`)
          * to `{ TXReporterPresenter().openReporter(activeActivity) }`.
          * Throws IllegalStateException if `:everframe-reporter-ui` is not on
-         * the classpath.
+         * the classpath, and [dev.everframe.config.ReporterDisabledException]
+         * in a crash-only session (`reporterEnabled = false`), including
+         * after a companion bond upgraded it.
          */
-        suspend fun open(): ReportResult =
-            __resolver?.invoke()
+        suspend fun open(): ReportResult {
+            if (Everframe.currentConfig?.reporterEnabled == false) throw dev.everframe.config.ReporterDisabledException()
+            return __resolver?.invoke()
                 ?: throw IllegalStateException(
                     "Reporter UI module not on classpath. Add dev.everframe:reporter-ui dependency."
                 )
+        }
 
         /** Plan 05-06 sets this at module-load via ReporterResolverInstaller (renamed in 05.1-02). */
         @JvmStatic
