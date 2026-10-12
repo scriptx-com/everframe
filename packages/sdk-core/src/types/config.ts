@@ -55,6 +55,8 @@ export interface ResolvedEverframeConfig {
   appVersion?: string;
   /** Exact deployed build identifier (for example a CI build ID or commit SHA). */
   appBuild?: string;
+  /** Marks this as a debug build, so Everframe never creates a release from it. Detected when unset. */
+  debugBuild?: boolean;
   /** Disable everything (DEFE-03). */
   disabled?: boolean;
   /** Surface SDK-internal errors to host app. */

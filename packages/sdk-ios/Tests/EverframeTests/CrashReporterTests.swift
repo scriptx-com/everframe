@@ -39,7 +39,7 @@ final class CrashReporterTests: XCTestCase {
     }
 
     private func rnPointer(_ build: String? = "js-fixture", status: EverframeLoadedBundleStatus = .known) -> EverframeNativeExposure {
-        EverframeNativeExposure(app: EverframeNativeExposureApp(build: nil, version: "2.4.0"), exposureID: UUID().uuidString.lowercased(),
+        EverframeNativeExposure(app: EverframeNativeExposureApp(build: nil, debug: false, version: "2.4.0"), exposureID: UUID().uuidString.lowercased(),
             loadedBuildID: build, loadedBundleStatus: status, processLaunchID: UUID().uuidString.lowercased(),
             startedAt: ReleaseHealthDate.canonical(Date(timeIntervalSince1970: 1_791_539_200)))
     }
@@ -110,8 +110,8 @@ final class CrashReporterTests: XCTestCase {
     func testRNFatalPersistsTheDurableNativeProducerPointer() async throws {
         let healthRoot = tempDir.appendingPathComponent("health")
         let key = Data(repeating: 0x78, count: 32)
-        let runtime = ReleaseHealthRuntime(root: healthRoot, keyProvider: { key }, appRelease: { AppRelease(version: "2.4.0", build: nil) }, transport: { _, _ in .retry })
-        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime, isDebugBuild: { false })
+        let runtime = ReleaseHealthRuntime(root: healthRoot, keyProvider: { key }, appRelease: { _ in AppRelease(version: "2.4.0", build: nil, debug: false) }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime, isDebugBuild: { _ in false })
         let health = try ReleaseHealthConfiguration(userId: nil, loadedBuildId: "js-fixture", loadedBundleStatus: .known)
         let config = EverframeConfig(sdkKey: "evf_live_" + String(repeating: "a", count: 32),
             capture: .init(screenshot: false, focus: false, logs: false, network: false, crash: true), vitals: .init(enabled: false),
@@ -207,6 +207,19 @@ final class CrashReporterTests: XCTestCase {
         let disk = try Data(contentsOf: outbox.resolvedFileURL)
         XCTAssertEqual(String(decoding: disk.prefix(8), as: UTF8.self), "EVRBOX01")
         XCTAssertNil(disk.range(of: Data("private handled message".utf8)))
+    }
+
+    /// The captured config's `debugBuild` decides `context.app.debug`, whatever the test host's signing says.
+    func testHandledCaptureReportsTheConfiguredDebugBuild() throws {
+        let json = #"{"exceptionType":"HandledError","message":"m","framesRaw":["at f (index.bundle:1:0)"]}"#
+        for configured in [true, false] {
+            let outbox = JSONLOutbox(testFileURL: tempDir.appendingPathComponent("outbox-\(configured).jsonl"))
+            XCTAssertTrue(CrashReporter.captureHandledFacts(json: json, sdkName: "everframe-react-native", outbox: outbox,
+                config: EverframeConfig(sdkKey: "app", debugBuild: configured)))
+            let entry = try XCTUnwrap(try outbox.hydrate().first)
+            let app = ((try JSONSerialization.jsonObject(with: entry.envelopeBytes) as! [String: Any])["context"] as! [String: Any])["app"] as! [String: Any]
+            XCTAssertEqual(app["debug"] as? Bool, configured)
+        }
     }
 
     func testCauseChainPersistsEncryptedAndDoesNotChangeOuterFingerprint() throws {

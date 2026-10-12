@@ -25,7 +25,7 @@ class EverframeBrowserDriver(
         require(sdkVersion.isNotBlank()) { "KMP SDK version is required" }
     }
 
-    override fun start(appId: String, sdkKey: String, environment: String): Boolean {
+    override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean {
         // @everframe/web fixes its ingest endpoint when the browser bundle is built.
         // Never silently send a staging/development request to a production bundle.
         if (environment != "production") return false
@@ -36,6 +36,8 @@ class EverframeBrowserDriver(
         config.sdkName = "everframe-kmp"
         config.sdkVersion = sdkVersion
         config.visualCapture = visualCapture
+        // Left out, @everframe/web detects a debug build itself.
+        if (debugBuild != null) config.debugBuild = debugBuild
         return try {
             handle = initWeb(config)
             true

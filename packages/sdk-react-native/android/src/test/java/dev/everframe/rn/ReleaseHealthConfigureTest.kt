@@ -76,6 +76,16 @@ class ReleaseHealthConfigureTest {
             assertNotEquals(counting, skipping)
         }
     }
+    @Test fun debugBuildReachesTheNativeConfigurationAndStaysNullWhenMissing() {
+        assertTrue(module.configureSync(enabled().apply { putBoolean("debugBuild", true) }))
+        assertEquals(true, Everframe.currentConfig!!.debugBuild)
+        assertTrue(module.configureSync(enabled().apply { putBoolean("debugBuild", false) }))
+        assertEquals(false, Everframe.currentConfig!!.debugBuild)
+        listOf(enabled(), enabled().apply { putNull("debugBuild") }).forEach { opts ->
+            assertTrue(module.configureSync(opts))
+            assertNull(Everframe.currentConfig!!.debugBuild)
+        }
+    }
     @Test fun disabledAndInvalidConfigurationsClearPreviousMonitoring() {
         val off = listOf(
             // No loaded bundle: JS sends the flag without an ID when the Hermes identity is missing.

@@ -53,7 +53,7 @@ class AndroidNativeRecordImportTest {
     @Test fun `handler report carries its durable frozen exposure only`() {
         val launch = UUID.randomUUID().toString()
         val pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
-            "1970-01-01T00:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+            "1970-01-01T00:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         val value = template(); var key = byteArrayOf(); var epoch = ""
         importer().arm(value, launch, allowed, nativeExposure = pointer) { e, k -> epoch = e; key = k.copyOf(); true }
         val a = Armed(value, epoch, key)

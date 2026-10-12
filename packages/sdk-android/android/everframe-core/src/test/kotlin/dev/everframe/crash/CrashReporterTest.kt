@@ -128,7 +128,7 @@ class CrashReporterTest {
     @Test fun `automatic JVM fatal freezes its entry foreground pointer and background has none`() {
         val launch = java.util.UUID.randomUUID().toString()
         var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
-            java.util.UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null,
+            java.util.UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null,
             dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         val first = pointer!!
         CrashReporter.__exposureForTesting = { pointer }
@@ -139,14 +139,14 @@ class CrashReporterTest {
         CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("background"))
         assertFalse(persistedEnvelope("background")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
         pointer = dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), launch,
-            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("reentry"))
         assertEquals(pointer!!.toJson(), persistedEnvelope("reentry")["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
     }
 
     private fun rnPointer(build: String? = "test-android", status: dev.everframe.config.ReleaseHealthBundleStatus = dev.everframe.config.ReleaseHealthBundleStatus.KNOWN) =
         dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), java.util.UUID.randomUUID().toString(),
-            "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", "412"), build, status)
+            "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", "412", debug = false), build, status)
 
     private fun rnBundle(build: String = "test-android", platform: dev.everframe.protocol.generated.JSBundlePlatform = dev.everframe.protocol.generated.JSBundlePlatform.Android) =
         dev.everframe.protocol.generated.JSBundle(buildID = build, bundleName = "index.android.bundle",
@@ -210,7 +210,7 @@ class CrashReporterTest {
         val producer = dev.everframe.health.ReleaseHealthProducer(queue,
             dev.everframe.config.ReleaseHealthConfig(loadedBuildId = "test-android",
                 loadedBundleStatus = dev.everframe.config.ReleaseHealthBundleStatus.KNOWN),
-            dev.everframe.capture.AppRelease("2.4.0", null),
+            dev.everframe.capture.AppRelease("2.4.0", null, debug = false),
             Everframe.SDK_VERSION, config.sdkKey, "http://127.0.0.1:9/api/ingest/release-health", authorized, authorized)
         assertTrue(producer.start())
         val pointer = requireNotNull(producer.readyPointer())
@@ -234,7 +234,7 @@ class CrashReporterTest {
         org.robolectric.Shadows.shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName).apply {
             versionName = null; longVersionCode = 42
         }
-        assertEquals(dev.everframe.capture.AppReleaseRule.of(null, 42).version,
+        assertEquals(dev.everframe.capture.AppReleaseRule.of(null, 42, debug = false).version,
             dev.everframe.capture.DeviceMetadata.collect(context)["appVersion"])
         CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("no version name"))
         val app = persistedEnvelope("versionless")["context"]!!.jsonObject["app"]!!.jsonObject

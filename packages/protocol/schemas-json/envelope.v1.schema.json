@@ -1088,6 +1088,9 @@
             },
             "build": {
               "type": "string"
+            },
+            "debug": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -2381,11 +2384,15 @@
               "type": "null"
             }
           ]
+        },
+        "debug": {
+          "type": "boolean"
         }
       },
       "required": [
         "version",
-        "build"
+        "build",
+        "debug"
       ],
       "additionalProperties": false,
       "title": "NativeExposureApp"

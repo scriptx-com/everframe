@@ -42,9 +42,10 @@ internal data class NativeExposurePointer(
             fun text(source: JsonObject, key: String): String =
                 source.getValue(key).jsonPrimitive.also { require(it.isString) }.content
             val app = value.getValue("app").jsonObject
-            require(app.keys == setOf("version", "build"))
+            require(app.keys == setOf("version", "build", "debug"))
             val pointer = NativeExposurePointer(text(value, "exposureId"), text(value, "processLaunchId"), text(value, "startedAt"),
-                AppRelease(text(app, "version"), if (app["build"] == JsonNull) null else text(app, "build")),
+                AppRelease(text(app, "version"), if (app["build"] == JsonNull) null else text(app, "build"),
+                    app.getValue("debug").jsonPrimitive.also { require(!it.isString) }.boolean),
                 if (value["loadedBuildId"] == JsonNull) null else text(value, "loadedBuildId"),
                 ReleaseHealthBundleStatus.entries.single { it.wireValue == text(value, "loadedBundleStatus") })
             pointer.takeIf { it.valid() }
@@ -52,9 +53,9 @@ internal data class NativeExposurePointer(
         private fun canonicalUuid(value: String): Boolean = runCatching { UUID.fromString(value).toString() == value }.getOrDefault(false)
     }
 }
-/** `{"version", "build"}` with `"build": null` written explicitly, as the pointer comparison needs. */
+/** `{"version", "build", "debug"}` with `"build": null` written explicitly, as the pointer comparison needs. */
 internal fun AppRelease.toJson(): JsonObject = buildJsonObject {
-    put("version", version); put("build", build?.let(::JsonPrimitive) ?: JsonNull)
+    put("version", version); put("build", build?.let(::JsonPrimitive) ?: JsonNull); put("debug", debug)
 }
 internal fun validHealthText(value: String, maximum: Int): Boolean {
     if (value.isBlank() || value.length > maximum) return false

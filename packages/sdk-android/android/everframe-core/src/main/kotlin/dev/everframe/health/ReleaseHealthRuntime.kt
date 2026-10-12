@@ -87,7 +87,7 @@ internal object ReleaseHealthRuntime {
         val health = config.releaseHealth ?: return
         if (!request.enabled) return
         // Read once per start: every session this start opens carries the same release.
-        val app = DeviceMetadata.appRelease(application)
+        val app = DeviceMetadata.appRelease(application, config.debugBuild)
         val current = object : OutboxAuthorization {
             override fun isAllowed() = Everframe.captureGate && Everframe.currentStartEpochVolatile() == epoch &&
                 !Everframe.killGenerationChangedVolatile(captured.killGeneration)

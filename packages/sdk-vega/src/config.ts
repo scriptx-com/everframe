@@ -57,6 +57,11 @@ export interface VegaConfig {
   appVersion?: string;
   /** Optional build number or CI build id. */
   appBuild?: string;
+  /**
+   * Whether this is a debug build. Everframe never makes a release out of one.
+   * Defaults to React Native's `__DEV__`; set it only to override that.
+   */
+  debugBuild?: boolean;
   /** Ingest host. Defaults to `https://everframe.dev`. For self-testing only. */
   endpoint?: string;
   /** `false` turns the SDK off: no hooks, no storage, no network. Default `true`. */
@@ -77,7 +82,7 @@ export const DEFAULT_APP_VERSION = '0.0.0';
 export interface ResolvedConfig {
   sdkKey: string;
   storage: AsyncStorageLike | undefined;
-  app: { name: string; version: string; build?: string };
+  app: { name: string; version: string; build?: string; debug: boolean };
   ingestUrl: string;
   captureUnhandledRejections: boolean;
   device: { model?: string; osVersion?: string };
@@ -86,8 +91,11 @@ export interface ResolvedConfig {
 const text = (value: unknown, max: number): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value.slice(0, max) : undefined;
 
-/** Returns null when the config cannot run (no SDK key). Never throws. */
-export function resolveConfig(config: VegaConfig): ResolvedConfig | null {
+/**
+ * Returns null when the config cannot run (no SDK key). Never throws. `dev` is
+ * React Native's `__DEV__`, which `debugBuild` overrides.
+ */
+export function resolveConfig(config: VegaConfig, dev: boolean): ResolvedConfig | null {
   const sdkKey = text(config?.sdkKey, 512);
   if (!sdkKey) return null;
   const endpoint = (text(config.endpoint, 2048) ?? DEFAULT_ENDPOINT).replace(/\/+$/, '');
@@ -105,6 +113,7 @@ export function resolveConfig(config: VegaConfig): ResolvedConfig | null {
       name: text(config.appName, 256) ?? DEFAULT_APP_NAME,
       version: text(config.appVersion, 128) ?? DEFAULT_APP_VERSION,
       ...(build ? { build } : {}),
+      debug: typeof config.debugBuild === 'boolean' ? config.debugBuild : dev,
     },
     ingestUrl: `${endpoint}/api/ingest`,
     captureUnhandledRejections: config.captureUnhandledRejections !== false,

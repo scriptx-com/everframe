@@ -84,12 +84,12 @@ internal object AndroidNativeCrashRuntime {
         val erase = synchronized(lock) { eraseWhenContextAvailable.also { eraseWhenContextAvailable = false } }
         if (erase) owner.retire(epoch, true) { gate.isAllowed() }
         val template = {
-            val device = DeviceMetadata.collect(context)
+            val device = DeviceMetadata.collect(context, captured.config?.debugBuild)
             val encoded = EnvelopeBuilder(vitalsStamp = { null }).buildEncoded(
                 reportId = UUID.randomUUID(), sdkVersion = Everframe.SDK_VERSION,
                 formFactor = DeviceMetadata.formFactor(device), appName = context.packageName,
                 appVersion = device["appVersion"] as? String ?: "0.0.0",
-                appBuild = device["appBuild"]?.toString(), deviceModel = device["model"] as? String,
+                appBuild = device["appBuild"]?.toString(), appDebug = device["appDebug"] == "true", deviceModel = device["model"] as? String,
                 deviceOsVersion = device["osVersion"] as? String ?: "unknown",
                 deviceScreenWidth = (device["screenWidthDp"] as? Int)?.toDouble() ?: 0.0,
                 deviceScreenHeight = (device["screenHeightDp"] as? Int)?.toDouble() ?: 0.0,

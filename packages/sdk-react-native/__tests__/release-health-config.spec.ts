@@ -17,6 +17,29 @@ beforeEach(() => { vi.stubGlobal('HermesInternal', {}); vi.spyOn(Platform, 'OS',
 afterEach(() => { __setCurrentContext(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const healthWarnings = () => warn.mock.calls.map(call => String(call[0])).filter(text => text.includes('releaseHealth'));
 
+describe('debug build flag', () => {
+  const setDev = (value: boolean) => { (globalThis as { __DEV__?: boolean }).__DEV__ = value; };
+  const original = (globalThis as { __DEV__?: boolean }).__DEV__;
+  afterEach(() => { setDev(original as boolean); });
+  it('sends __DEV__ as debugBuild unless the config sets it', () => {
+    setDev(true);
+    expect(extract(config()).debugBuild).toBe(true);
+    expect(extract({ ...config(), debugBuild: false }).debugBuild).toBe(false);
+    setDev(false);
+    expect(extract(config()).debugBuild).toBe(false);
+    expect(extract({ ...config(), debugBuild: true }).debugBuild).toBe(true);
+  });
+  it('sends false when __DEV__ is not defined at all', () => {
+    delete (globalThis as { __DEV__?: boolean }).__DEV__;
+    expect(extract(config()).debugBuild).toBe(false);
+  });
+  it('sends debugBuild even when release health is off', () => {
+    setDev(true);
+    expect(extract({ ...config(), releaseHealth: { enabled: false } })).toMatchObject({
+      releaseHealthEnabled: false, debugBuild: true });
+  });
+});
+
 describe('explicit native foreground monitoring configuration', () => {
   it('turns on with one line and takes the loaded build from the Hermes bundle', () => {
     const opts = extract({ ...config(), releaseHealth: { enabled: true } });

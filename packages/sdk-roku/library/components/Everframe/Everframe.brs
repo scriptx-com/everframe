@@ -52,6 +52,12 @@ function start(config as object) as boolean
         ' attaches "prevCrumbs" to the previous session's exit-info record.
         EfC_Rotate(sec)
         EfS_Rotate(sec)
+        ' Records stamp this at capture, so it is settled before any is made.
+        if EfU_IsBool(config.debugBuild) then
+            m["efDebugBuild"] = config.debugBuild
+        else
+            m["efDebugBuild"] = CreateObject("roAppInfo").IsDev()
+        end if
         EfU_RotateVersion(sec)
         m.sec = sec
         if m.crumbs.Count() > 0 then
@@ -63,7 +69,7 @@ function start(config as object) as boolean
         endpoint = "https://everframe.dev"
         if config.endpoint <> invalid and config.endpoint <> "" then endpoint = config.endpoint
         m.reporter = CreateObject("roSGNode", "EverframeReporter")
-        m.reporter.config = { "sdkKey": config.sdkKey, endpoint: endpoint }
+        m.reporter.config = { "sdkKey": config.sdkKey, endpoint: endpoint, "debugBuild": m["efDebugBuild"] }
         m.reporter.control = "RUN"
         if m.global.hasField("everframe") then
             m.global.everframe = m.top

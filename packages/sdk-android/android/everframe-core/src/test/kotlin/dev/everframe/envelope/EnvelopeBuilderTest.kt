@@ -54,6 +54,7 @@ class EnvelopeBuilderTest {
             description = "EnvelopeBuilder round-trip",
             appName = "test-app",
             appVersion = "1.0.0",
+            appDebug = true,
             deviceOs = "Android",
             deviceOsVersion = "14",
             deviceScreenWidth = 1080.0,
@@ -81,6 +82,7 @@ class EnvelopeBuilderTest {
         assertEquals("Test report", decoded.reporter.title)
         assertEquals("test-app", decoded.context.app.name)
         assertEquals("1.0.0", decoded.context.app.version)
+        assertEquals(true, decoded.context.app.debug)
 
         // Idempotency key is hex SHA-256 → 64 chars.
         assertEquals(64, encoded.idempotencyKey.length)

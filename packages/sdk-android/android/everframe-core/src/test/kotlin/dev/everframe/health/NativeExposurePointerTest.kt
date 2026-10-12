@@ -12,7 +12,7 @@ import java.util.TimeZone
 import java.util.UUID
 
 class NativeExposurePointerTest {
-    private fun pointer(time: String = "2026-10-09T10:00:00.000Z", app: AppRelease = AppRelease("2.4.0", null)) =
+    private fun pointer(time: String = "2026-10-09T10:00:00.000Z", app: AppRelease = AppRelease("2.4.0", null, debug = false)) =
         NativeExposurePointer(UUID.randomUUID().toString(), UUID.randomUUID().toString(), time, app, null,
             ReleaseHealthBundleStatus.NOT_APPLICABLE)
     // The field a pointer carried before the app version, spelled in two parts so the
@@ -35,12 +35,26 @@ class NativeExposurePointerTest {
     }
     @Test fun `a missing build is written as an explicit null and round trips`() {
         val value = pointer()
-        assertTrue(value.toJson().toString().contains("\"app\":{\"version\":\"2.4.0\",\"build\":null}"))
+        assertTrue(value.toJson().toString().contains("\"app\":{\"version\":\"2.4.0\",\"build\":null,\"debug\":false}"))
         assertEquals(listOf("exposureId", "processLaunchId", "startedAt", "app", "loadedBuildId", "loadedBundleStatus"),
             value.toJson().keys.toList())
         assertEquals(value, NativeExposurePointer.parse(value.toJson()))
-        val built = pointer(app = AppRelease("2.4.0", "412"))
+        val built = pointer(app = AppRelease("2.4.0", "412", debug = false))
         assertEquals(built, NativeExposurePointer.parse(built.toJson()))
+    }
+    @Test fun `a v5 pointer with debug parses and a v4 pointer without it is dropped`() {
+        val withDebug = JsonObject(pointer().toJson() + ("app" to buildJsonObject {
+            put("version", "1.0"); put("build", "7"); put("debug", false)
+        }))
+        assertEquals(AppRelease("1.0", "7", debug = false), NativeExposurePointer.parse(withDebug)!!.app)
+        val debugApp = pointer(app = AppRelease("1.0", "7", debug = true))
+        assertEquals(true, NativeExposurePointer.parse(debugApp.toJson())!!.app.debug)
+        assertNull(NativeExposurePointer.parse(JsonObject(pointer().toJson() + ("app" to buildJsonObject {
+            put("version", "1.0"); put("build", "7")
+        }))))
+        assertNull(NativeExposurePointer.parse(JsonObject(pointer().toJson() + ("app" to buildJsonObject {
+            put("version", "1.0"); put("build", "7"); put("debug", "false")
+        }))))
     }
     @Test fun `parse drops the old native build shape and an app without its build key`() {
         val json = pointer().toJson()
@@ -48,15 +62,15 @@ class NativeExposurePointerTest {
         assertNull(NativeExposurePointer.parse(JsonObject(json + (retiredBuildKey to JsonPrimitive("native-A")))))
         assertNull(NativeExposurePointer.parse(JsonObject(json + ("app" to buildJsonObject { put("version", "2.4.0") }))))
         assertNull(NativeExposurePointer.parse(JsonObject(json + ("app" to buildJsonObject {
-            put("version", "2.4.0"); put("build", JsonNull); put("name", "extra")
+            put("version", "2.4.0"); put("build", JsonNull); put("debug", false); put("name", "extra")
         }))))
         assertNull(NativeExposurePointer.parse(JsonObject(json + ("app" to JsonPrimitive("2.4.0")))))
     }
     @Test fun `app text follows the wire limits`() {
-        assertFalse(pointer(app = AppRelease("a".repeat(65), null)).valid())
-        assertTrue(pointer(app = AppRelease("a".repeat(64), "9".repeat(64))).valid())
-        for (bad in listOf(AppRelease("", null), AppRelease(" ", null), AppRelease("bad\u0000", null),
-            AppRelease("2.4.0", ""), AppRelease("2.4.0", "b".repeat(65)))) {
+        assertFalse(pointer(app = AppRelease("a".repeat(65), null, debug = false)).valid())
+        assertTrue(pointer(app = AppRelease("a".repeat(64), "9".repeat(64), debug = false)).valid())
+        for (bad in listOf(AppRelease("", null, debug = false), AppRelease(" ", null, debug = false), AppRelease("bad\u0000", null, debug = false),
+            AppRelease("2.4.0", "", debug = false), AppRelease("2.4.0", "b".repeat(65), debug = false))) {
             assertFalse(bad.toString(), pointer(app = bad).valid())
         }
     }

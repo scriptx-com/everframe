@@ -45,7 +45,7 @@ public final class Everframe: @unchecked Sendable {
                   releaseHealthRuntime: ReleaseHealthRuntime? = ReleaseHealthRuntime.makeRuntime(),
                   appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
                   nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() },
-                  isDebugBuild: @escaping @Sendable () -> Bool = { DebugBuildDetector.current },
+                  isDebugBuild: @escaping @Sendable (_ configured: Bool?) -> Bool = { DebugBuild.current(configured: $0) },
                   releaseHealthNotice: @escaping @Sendable (String) -> Void = { InternalLogger.notice($0) }) {
         self.nativeCrashRuntime = nativeCrashRuntime
         self.appleDiagnosticRuntime = appleDiagnosticRuntime
@@ -71,9 +71,10 @@ public final class Everframe: @unchecked Sendable {
     private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
     /// Delivers the first application state. Assigned once, by init on iOS.
     internal var releaseHealthLifecycleReady: Task<Void, Never>?
-    /// Release health skips debug builds. Injected so tests get one answer on the macOS host and
-    /// in the simulator, where the production check reads debug.
-    private let isDebugBuild: @Sendable () -> Bool
+    /// Release health skips debug builds. Takes `EverframeConfig.debugBuild`, which wins when set.
+    /// Injected so tests get one answer on the macOS host and in the simulator, where the
+    /// production check reads debug.
+    private let isDebugBuild: @Sendable (_ configured: Bool?) -> Bool
     /// Writes SDK status lines, such as the debug-build skip, to the console.
     private let releaseHealthNotice: @Sendable (String) -> Void
     /// The deferred `config.releaseHealth` work of the latest `start(config:)`; nil when it had none.
@@ -195,6 +196,9 @@ public final class Everframe: @unchecked Sendable {
         return try startAndPrepareReleaseHealth(config: config, health: health)
     }
 
+    /// Lets tests start the SDK between the debug-build skip decision and the reservation.
+    nonisolated(unsafe) internal static var __afterReleaseHealthDebugDecisionForTesting: (() -> Void)?
+
     /// Lets tests replace SDK ownership after an unchanged decision and before reservation.
     nonisolated(unsafe) internal static var __beforeReleaseHealthReservationForTesting: (() -> Void)?
 
@@ -223,9 +227,20 @@ public final class Everframe: @unchecked Sendable {
         // A debug build is off unless the configuration includes debug builds. The skip takes nil's
         // path: revoke now and erase in the returned operation, so an earlier includeDebugBuilds run
         // leaves nothing behind. The detector runs outside stateLock; its first call may read a file.
-        let skipped = requested.map { !$0.includeDebugBuilds && isDebugBuild() } ?? false
+        // The public path has no caller-supplied owner, so it takes the configuration and its owner
+        // in ONE critical section: the skip decision below and the reservation then describe the same
+        // start, and a start() between them makes the reservation reject this stale call.
+        var expectedOwner = expectedOwner
+        var decidedConfig = expectedConfig
+        if expectedConfig == nil, expectedOwner == nil {
+            let snapshot = stateLock.withLock { (config: _config, owner: (epoch: _startEpoch, configGeneration: _configGeneration)) }
+            decidedConfig = snapshot.config; expectedOwner = snapshot.owner
+        }
+        let debugBuild = decidedConfig?.debugBuild
+        let skipped = requested.map { !$0.includeDebugBuilds && isDebugBuild(debugBuild) } ?? false
         let configuration = skipped ? nil : requested
         var notice = false
+        Self.__afterReleaseHealthDebugDecisionForTesting?()
         let reserved: (command: UInt64, epoch: Int, configGeneration: UInt64, ticket: UInt64)? = stateLock.withLock {
             if let expectedOwner, (_startEpoch != expectedOwner.epoch || _configGeneration != expectedOwner.configGeneration) { return nil }
             if let expectedConfig, _config != expectedConfig { return nil }
@@ -240,7 +255,8 @@ public final class Everframe: @unchecked Sendable {
             let change: (UInt64, Bool)
             if let configuration, let config = _config {
                 change = runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
-                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString)
+                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString,
+                    debugBuild: config.debugBuild)
             } else { change = runtime.revoke() }
             // Only a withdrawn pointer can be carried by an armed or pending native context. An
             // unchanged owner, or one that was never ready, leaves native capture untouched.
@@ -274,7 +290,8 @@ public final class Everframe: @unchecked Sendable {
                       _configGeneration == reserved.configGeneration, Self.captureGate,
                       nativeCrashPublishedEpoch == _startEpoch, let config = _config else { return nil }
                 return runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
-                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString).ticket
+                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString,
+                    debugBuild: config.debugBuild).ticket
             }
             guard let ticket else { return false }
             let enabled = await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION)

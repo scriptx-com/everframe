@@ -14,6 +14,8 @@ sub EfRep_Run()
     port = CreateObject("roMessagePort")
     m.top.observeField("flush", port)
     m.sec = EfU_Section()
+    ' The reporter's own scope: records and the context it builds use the host's choice.
+    if EfU_IsBool(m.top.config.debugBuild) then m["efDebugBuild"] = m.top.config.debugBuild
     m.state = { seen: {}, allowed: {} }
     backoff = 0
     m.ctx = invalid

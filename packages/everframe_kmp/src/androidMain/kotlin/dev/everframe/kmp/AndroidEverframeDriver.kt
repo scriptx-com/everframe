@@ -47,7 +47,8 @@ class AndroidEverframeDriver(
         if (activity != null && started && Everframe.captureGate) beginCapture()
     }
 
-    override fun start(appId: String, sdkKey: String, environment: String): Boolean {
+    // debugBuild is not forwarded: the pinned native SDK detects debug builds itself (FLAG_DEBUGGABLE).
+    override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean {
         return try {
             val nativeEnvironment = Environment.entries.firstOrNull { it.name == environment } ?: return false
             Everframe.start(context, EverframeConfig(

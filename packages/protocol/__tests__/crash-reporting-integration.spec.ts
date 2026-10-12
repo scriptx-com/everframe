@@ -22,10 +22,10 @@ const crash = () => {
   delete value.sessionId; delete value.reporter.user;
   return value;
 };
-const health = () => ({ schemaVersion: 4, recordId: '33333333-3333-4333-8333-333333333333', phase: 'start', sequence: 0,
+const health = () => ({ schemaVersion: 5, recordId: '33333333-3333-4333-8333-333333333333', phase: 'start', sequence: 0,
   capturedAt: '2026-10-07T12:00:00.000Z', elapsedMs: 0,
   exposure: { exposureId: id, processLaunchId: '22222222-2222-4222-8222-222222222222',
-    startedAt: '2026-10-07T12:00:00.000Z', platform: 'android', sdkVersion: '1.0.0', app: { version: '2.4.0', build: '412' },
+    startedAt: '2026-10-07T12:00:00.000Z', platform: 'android', sdkVersion: '1.0.0', app: { version: '2.4.0', build: '412', debug: false },
     loadedBuildId: null, loadedBundleStatus: 'not_applicable', subject: { kind: 'anonymous' }, sessionPolicy: 'foreground-v1',
     coverage: { policy: 'android-sdk-segment-v1', sampleRate: 1, priorQueueLosses: null, queueLossAccounting: 'unavailable' } },
 });

@@ -19,7 +19,11 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
         return nil
         #endif
     }
-    private struct Owner: Equatable, Sendable { let configuration: ReleaseHealthConfiguration; let sdkKey: String; let endpoint: String }
+    private struct Owner: Equatable, Sendable {
+        let configuration: ReleaseHealthConfiguration; let sdkKey: String; let endpoint: String
+        /// `EverframeConfig.debugBuild` of the start that owns this session.
+        let debugBuild: Bool?
+    }
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var desired: Owner?
@@ -30,7 +34,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     private let worker = DispatchQueue(label: "dev.everframe.release-health", qos: .utility)
     private let root: URL
     private let keyProvider: () throws -> Data
-    private let appRelease: @Sendable () -> AppRelease
+    private let appRelease: @Sendable (_ debugBuild: Bool?) -> AppRelease
     private let now: @Sendable () -> Date
     private let uptime: @Sendable () -> TimeInterval
     private let beforeCommit: () throws -> Void
@@ -41,10 +45,11 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     private var drainTask: Task<Void, Never>?
     private var timer: DispatchSourceTimer?
 
-    /// `appRelease` reads the app's version and build when a session opens. Tests inject it:
-    /// `swift test` runs under the xctest bundle's Info.plist.
+    /// `appRelease` reads the app's version and build when a session opens, and takes
+    /// `EverframeConfig.debugBuild` for its `debug`. Tests inject it: `swift test` runs under the
+    /// xctest bundle's Info.plist.
     init(root: URL, keyProvider: @escaping () throws -> Data = { try OutboxEncryptionKey.getOrCreate() },
-         appRelease: @escaping @Sendable () -> AppRelease = { AppRelease.current() },
+         appRelease: @escaping @Sendable (_ debugBuild: Bool?) -> AppRelease = { AppRelease.current(debugBuild: $0) },
          processLaunchID: UUID = ReleaseHealthProcessIdentity.id, now: @escaping @Sendable () -> Date = { Date() },
          uptime: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
          beforeCommit: @escaping () throws -> Void = {},
@@ -60,10 +65,11 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     /// Called only with the SDK's published configuration ownership captured. `retiredPointer`
     /// reports, atomically with the change, whether a ready pointer was withdrawn: an unchanged
     /// owner keeps its pointer, so native capture needs no change.
-    func requestEnable(configuration: ReleaseHealthConfiguration, sdkKey: String, endpoint: String) -> (ticket: UInt64, retiredPointer: Bool) {
+    func requestEnable(configuration: ReleaseHealthConfiguration, sdkKey: String, endpoint: String,
+                       debugBuild: Bool? = nil) -> (ticket: UInt64, retiredPointer: Bool) {
         let capturedAt = now(), capturedUptime = uptime()
         let transition: (UInt64, Bool, Bool) = lock.withLock {
-            let next = Owner(configuration: configuration, sdkKey: sdkKey, endpoint: endpoint)
+            let next = Owner(configuration: configuration, sdkKey: sdkKey, endpoint: endpoint, debugBuild: debugBuild)
             let changed = desired != next, retired = changed && ready != nil
             if changed { generation &+= 1; desired = next; ready = nil }
             return (generation, changed, retired)
@@ -124,7 +130,7 @@ final class ReleaseHealthRuntime: @unchecked Sendable {
     func enable(ticket: UInt64, sdkVersion: String) async -> Bool {
         await onWorker {
             guard self.lock.withLock({ self.foreground }), let owner = self.owner(ticket), ReleaseHealthConfiguration.validText(sdkVersion, maximum: 64) else { return false }
-            let app = self.appRelease()
+            let app = self.appRelease(owner.debugBuild)
             guard app.isValid else { return false }
             do {
                 try self.prepareStore()

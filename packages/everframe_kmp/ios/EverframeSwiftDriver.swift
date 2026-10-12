@@ -8,7 +8,7 @@ import EverframeReporterUI
 /// Objective-C-visible Kotlin protocol implemented by Swift, then passed to shared Kotlin logic.
 /// This avoids trying to cinterop a Swift-only SDK into Kotlin/Native.
 public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
-    public func start(appId: String, sdkKey: String, environment environmentName: String) -> Bool {
+    public func start(appId: String, sdkKey: String, environment environmentName: String, debugBuild: KotlinBoolean?) -> Bool {
         let environment: EverframeConfig.Environment
         switch environmentName {
         case "development": environment = .development
@@ -24,6 +24,7 @@ public final class EverframeSwiftDriver: NSObject, EverframeNativeDriver {
         do {
             // The Swift SDK takes only the SDK key; the App ID is unused here.
             // The plugin has no release-health option yet, so release health stays off.
+            // debugBuild is not forwarded: the pinned Swift SDK detects debug builds itself.
             try Everframe.shared.start(config: EverframeConfig(
                 sdkKey: sdkKey, environment: environment, capture: capture, releaseHealth: nil))
             return Everframe.shared.captureGate

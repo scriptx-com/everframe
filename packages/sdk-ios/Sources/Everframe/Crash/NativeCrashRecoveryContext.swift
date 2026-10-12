@@ -120,7 +120,7 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
                   let wire = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
                   wire["startedAt"] as? String == ReleaseHealthDate.text(exposure.startedAt),
                   (wire["app"] as? [String: Any])?.keys.contains("build") == true,
-                  AppRelease(version: exposure.app.version, build: exposure.app.build).isValid,
+                  AppRelease(version: exposure.app.version, build: exposure.app.build, debug: exposure.app.debug).isValid,
                   let status = ReleaseHealthConfiguration.LoadedBundleStatus(rawValue: exposure.loadedBundleStatus.rawValue) else { throw Failure.invalidContext }
             _ = try ReleaseHealthConfiguration(userId: nil, loadedBuildId: exposure.loadedBuildID, loadedBundleStatus: status)
         }

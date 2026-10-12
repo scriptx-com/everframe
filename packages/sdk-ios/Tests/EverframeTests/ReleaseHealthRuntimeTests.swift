@@ -20,7 +20,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
     }
     private func runtime(app: AppRelease = .testRelease, beforeCommit: @escaping () throws -> Void = {}) -> ReleaseHealthRuntime {
         let key = key, now = now
-        return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { app }, now: { now },
+        return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { _ in app }, now: { now },
             beforeCommit: beforeCommit, transport: { _, _ in .retry })
     }
     private func enable(_ runtime: ReleaseHealthRuntime, user: String? = nil, key: String = "key-a") async throws -> Bool {
@@ -43,7 +43,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertEqual(a.processLaunchID, runtime.readyPointer?.processLaunchID)
         let bodies = try records()
         XCTAssertEqual(bodies.count, 3)
-        for body in bodies { XCTAssertEqual(body["schemaVersion"] as? Int, 4) }
+        for body in bodies { XCTAssertEqual(body["schemaVersion"] as? Int, 5) }
         let exposures = bodies.map { $0["exposure"] as! [String: Any] }
         XCTAssertEqual(exposures[0]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-a"])
         XCTAssertEqual(exposures[1]["subject"] as? [String: String], ["kind": "provided", "id": "opaque-a"])
@@ -55,7 +55,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
     func testRevocationWithNothingStoredCreatesNothing() async throws {
         let missing = root.appendingPathComponent("release-health")
         let reads = KeyReads(key), now = now
-        let runtime = ReleaseHealthRuntime(root: missing, keyProvider: { reads.read() }, appRelease: { .testRelease },
+        let runtime = ReleaseHealthRuntime(root: missing, keyProvider: { reads.read() }, appRelease: { _ in .testRelease },
             now: { now }, transport: { _, _ in .retry })
         let erased = await runtime.finishRevocation(runtime.revoke().request); XCTAssertTrue(erased)
         XCTAssertNil(try NativeCrashContextFiles.info(missing), "erasing an absent store created its directory")
@@ -91,7 +91,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         let segment = ReleaseHealthSegment(configuration: try configuration(), app: .testRelease, sdkVersion: "test", sdkKey: "key",
             endpoint: "https://example.test", processLaunchID: UUID(), now: now, uptime: 10)
         let body = try JSONSerialization.jsonObject(with: segment.entry(end: true, now: now.addingTimeInterval(-30), uptime: 12).body) as! [String: Any]
-        XCTAssertEqual(body["schemaVersion"] as? Int, 4)
+        XCTAssertEqual(body["schemaVersion"] as? Int, 5)
         XCTAssertEqual(body["outcome"] as? String, "completed")
         XCTAssertEqual(body["capturedAt"] as? String, "2026-10-08T01:02:03.456Z")
         XCTAssertEqual(body["elapsedMs"] as? Int, 2000)
@@ -176,7 +176,9 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertEqual(exposures.map { $0["exposureId"] as? String }, [a.exposureID, a.exposureID, b.exposureID])
         XCTAssertEqual(exposures.map { ($0["subject"] as? [String: String])?["id"] }, ["user-a", "user-a", "user-b"])
         for exposure in exposures {
-            XCTAssertEqual(exposure["app"] as? [String: String], ["version": "2.4.0", "build": "412"])
+            let app = exposure["app"] as? [String: Any]
+            XCTAssertEqual(app?["version"] as? String, "2.4.0"); XCTAssertEqual(app?["build"] as? String, "412")
+            XCTAssertEqual(app?["debug"] as? Bool, false)
             XCTAssertNil(exposure["native" + "Release"]) // the retired field, spelled in two parts for the repository check
         }
         runtime.boundary(); await runtime.barrier()
@@ -207,18 +209,47 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         XCTAssertEqual(exposure["startedAt"] as? String, "2026-10-08T01:02:03.456Z")
         XCTAssertTrue(exposure["loadedBuildId"] is NSNull)
         XCTAssertEqual(exposure["subject"] as? [String: String], ["kind": "anonymous"])
-        XCTAssertEqual(body["schemaVersion"] as? Int, 4)
+        XCTAssertEqual(body["schemaVersion"] as? Int, 5)
+        XCTAssertEqual((exposure["app"] as? [String: Any])?["debug"] as? Bool, false)
         XCTAssertEqual(body["capturedAt"] as? String, exposure["startedAt"] as? String)
         let pointer = try XCTUnwrap(runtime.readyPointer)
         XCTAssertEqual(Int64((pointer.startedAt.timeIntervalSince1970 * 1000).rounded()), Int64((now.timeIntervalSince1970 * 1000).rounded()))
         runtime.boundary(); await runtime.barrier()
     }
+    /// `debugBuild` of the owning start reaches the record and the frozen pointer.
+    func testTheOwnersDebugBuildIsWrittenToTheRecordAndThePointer() async throws {
+        let key = key, now = now
+        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key },
+            appRelease: { AppRelease(version: "2.4.0", build: "412", debug: $0 ?? false) }, now: { now }, transport: { _, _ in .retry })
+        for configured in [true, false] {
+            let ticket = runtime.requestEnable(configuration: try configuration(), sdkKey: "key-a",
+                endpoint: "https://a.example/api/ingest/release-health", debugBuild: configured).ticket
+            let accepted = await runtime.enable(ticket: ticket, sdkVersion: "1.0.0"); XCTAssertTrue(accepted)
+            XCTAssertEqual(runtime.readyPointer?.app.debug, configured)
+            let wire = try XCTUnwrap(JSONSerialization.jsonObject(with: ReleaseHealthDate.encoder().encode(XCTUnwrap(runtime.readyPointer))) as? [String: Any])
+            XCTAssertEqual((wire["app"] as? [String: Any])?["debug"] as? Bool, configured)
+            runtime.boundary(); await runtime.barrier()
+        }
+        let apps = try records().map { try XCTUnwrap(($0["exposure"] as? [String: Any])?["app"] as? [String: Any]) }
+        XCTAssertEqual(apps.map { $0["debug"] as? Bool }, [true, true, false, false])
+        XCTAssertEqual(Set(apps.map { Set($0.keys) }), [["version", "build", "debug"]])
+    }
+    func testChangingDebugBuildIsANewOwner() async throws {
+        let runtime = runtime(), endpoint = "https://a.example/api/ingest/release-health"
+        let first = runtime.requestEnable(configuration: try configuration(), sdkKey: "key-a", endpoint: endpoint, debugBuild: false)
+        let accepted = await runtime.enable(ticket: first.ticket, sdkVersion: "1.0.0"); XCTAssertTrue(accepted)
+        let same = runtime.requestEnable(configuration: try configuration(), sdkKey: "key-a", endpoint: endpoint, debugBuild: false)
+        XCTAssertEqual(same.ticket, first.ticket); XCTAssertFalse(same.retiredPointer)
+        let changed = runtime.requestEnable(configuration: try configuration(), sdkKey: "key-a", endpoint: endpoint, debugBuild: true)
+        XCTAssertNotEqual(changed.ticket, first.ticket); XCTAssertTrue(changed.retiredPointer)
+        runtime.boundary(); await runtime.barrier()
+    }
     // Review Focus 1: a build-less app's start record and frozen pointer both write "build": null.
     func testAMissingBuildIsWrittenAsAnExplicitNull() async throws {
-        let runtime = runtime(app: AppRelease(version: "2.4.0", build: nil))
+        let runtime = runtime(app: AppRelease(version: "2.4.0", build: nil, debug: false))
         let accepted = try await enable(runtime); XCTAssertTrue(accepted)
         let body = try XCTUnwrap(records().first)
-        XCTAssertEqual(body["schemaVersion"] as? Int, 4)
+        XCTAssertEqual(body["schemaVersion"] as? Int, 5)
         let app = try XCTUnwrap((body["exposure"] as? [String: Any])?["app"] as? [String: Any])
         XCTAssertEqual(app["version"] as? String, "2.4.0"); XCTAssertTrue(app["build"] is NSNull)
         let pointer = try XCTUnwrap(runtime.readyPointer)
@@ -229,7 +260,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
         runtime.boundary(); await runtime.barrier()
     }
     func testAnInvalidAppReleaseNeverOpensASession() async throws {
-        let runtime = runtime(app: AppRelease(version: String(repeating: "a", count: 65), build: nil))
+        let runtime = runtime(app: AppRelease(version: String(repeating: "a", count: 65), build: nil, debug: false))
         let accepted = try await enable(runtime); XCTAssertFalse(accepted)
         XCTAssertNil(runtime.readyPointer); XCTAssertTrue(try rows().isEmpty)
     }
@@ -250,7 +281,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
     func testPreparedTransportCannotStartAfterRevocation() async throws {
         let prepared = expectation(description: "transport prepared")
         let gate = HealthAsyncGate(); let sent = FailureFlag(); let key = key, now = now
-        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, now: { now }, transport: { _, admission in
+        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { _ in .testRelease }, now: { now }, transport: { _, admission in
             prepared.fulfill(); await gate.wait()
             _ = admission { sent.value = true }
             return .retry
@@ -299,7 +330,7 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
             endpoint: "https://a.example/api/ingest/release-health", body: Data("{}".utf8))
         try ReleaseHealthStore(root: root, keyProvider: { self.key }).append(foreign)
         let sent = HealthValues<String>(), key = key, now = now
-        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, now: { now }, transport: { entry, admission in
+        let runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { _ in .testRelease }, now: { now }, transport: { entry, admission in
             _ = admission { sent.append(entry.sdkKey) }; return .settled
         })
         let accepted = try await enable(runtime, key: "key-b"); XCTAssertTrue(accepted)

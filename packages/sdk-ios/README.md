@@ -188,6 +188,9 @@ crash reports carry the same version. Pass
 crash-free users, and call `setReleaseHealth` when the account changes; that
 setting lasts until the next `start`.
 `ReleaseHealthConfiguration(includeDebugBuilds: true)` counts debug builds too.
+Set `EverframeConfig.debugBuild` to force the answer, for example `false` for a
+development-signed build that should count as a release; it also marks reports'
+`context.app.debug`.
 `releaseHealth: nil`, `setReleaseHealth(nil)` or `kill()` turns release health
 off and erases its queued records. tvOS doesn't collect release health. In a
 React Native app, use the Provider's `releaseHealth` option instead. See

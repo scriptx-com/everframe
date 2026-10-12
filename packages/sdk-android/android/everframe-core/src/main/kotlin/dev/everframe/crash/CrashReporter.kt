@@ -472,7 +472,7 @@ object CrashReporter {
                     ownsCauseCapture(captured)
                 },
             )
-            val device = DeviceMetadata.collect(context)
+            val device = DeviceMetadata.collect(context, cfg.debugBuild)
             val reportId = UUID.randomUUID()
             val encoded = EnvelopeBuilder(EnvelopeBuilder.DefaultRedactor).buildEncoded(
                 reportId = reportId,
@@ -486,6 +486,7 @@ object CrashReporter {
                 appName = (device["bundleIdentifier"] as? String) ?: "unknown",
                 appVersion = (device["appVersion"] as? String) ?: "0.0.0",
                 appBuild = (device["appBuild"] as? Number)?.toString(),
+                appDebug = device["appDebug"] == "true",
                 deviceOs = (device["os"] as? String) ?: "Android",
                 deviceOsVersion = (device["osVersion"] as? String) ?: "0.0",
                 deviceModel = device["model"] as? String,

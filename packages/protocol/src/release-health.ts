@@ -5,8 +5,8 @@ import { z } from 'zod';
 export const RELEASE_HEALTH_MAX_AGE_MS = 30 * 86_400_000;
 export const RELEASE_HEALTH_CLOCK_SKEW_MS = 5 * 60_000;
 export const RELEASE_HEALTH_BODY_LIMIT = 8 * 1024;
-/** The only record version a receiver accepts. Versions 1–3 and web records are retired. */
-export const RELEASE_HEALTH_SCHEMA_VERSION = 4;
+/** The only record version a receiver accepts. Versions 1–4 and web records are retired. */
+export const RELEASE_HEALTH_SCHEMA_VERSION = 5;
 /** UTF-16 units allowed in an app version or build. */
 export const RELEASE_HEALTH_APP_TEXT_MAX = 64;
 const text = (maximum: number) => z.string().min(1).max(maximum)
@@ -31,6 +31,8 @@ const bundleMessage = { message: 'Loaded bundle identity must match its status' 
 export const ReleaseHealthAppSchema = z.object({
   version: text(RELEASE_HEALTH_APP_TEXT_MAX),
   build: text(RELEASE_HEALTH_APP_TEXT_MAX).nullable(),
+  /** True for a debug or development build. Part of the digest, so it is always present. */
+  debug: z.boolean(),
 }).strict().meta({ id: 'NativeExposureApp', title: 'NativeExposureApp' });
 
 /** Exact segment identity admitted before the OS context was armed. Never inferred on recovery. */
