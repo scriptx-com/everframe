@@ -43,6 +43,14 @@ describe('React Native browser entry', () => {
     expect(webEntry.useEverframeSensitiveRef).toBe(reactSdk.useEverframeSensitiveRef);
   });
 
+  it('exports EverframeReporterDisabledError on native and web', () => {
+    expect(typeof webEntry.EverframeReporterDisabledError).toBe('function');
+    expect(webEntry.EverframeReporterDisabledError).toBe(reactSdk.EverframeReporterDisabledError);
+    expect(typeof nativeEntry.EverframeReporterDisabledError).toBe('function');
+    expect(new nativeEntry.EverframeReporterDisabledError().name)
+      .toBe(new webEntry.EverframeReporterDisabledError().name);
+  });
+
   it('keeps the sensitive wrapper import name on native and web', () => {
     expect(nativeEntry.Sensitive).toBe(nativeEntry.EverframeSensitive);
     expect(webEntry.EverframeSensitive).toBe(webEntry.Sensitive);

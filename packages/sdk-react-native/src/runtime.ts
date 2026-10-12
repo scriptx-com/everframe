@@ -34,7 +34,11 @@ import {
   EverframeNotMountedError,
   type EverframeContextValue,
 } from "./contextSeam.js";
-import type { ReporterResult } from "./reporter/types.js";
+import {
+  EverframeReporterDisabledError,
+  REPORTER_DISABLED_CODE,
+  type ReporterResult,
+} from "./reporter/types.js";
 import { projectUserSpec } from "./user-projection.js";
 import type { EverframeIntegration } from "./integrations/types.js";
 
@@ -77,6 +81,9 @@ export interface RuntimeConfig
     | "companionBadgeEnabled"
     | "companionBadgePosition"
     | "shakeToReportEnabled"
+    // Crash-only sessions (spec 2026-10-12) — same NN4 rationale: the nested
+    // `reporter` below is the ONLY public surface.
+    | "reporterDisabled"
     // The 8 flat theme wire fields (reporter branding spec 2026-08-25, RN
     // slice) — same NN4 rationale as the companionBadge pair above: the
     // nested `theme` below is the ONLY public surface; without these Omits a
@@ -213,6 +220,21 @@ export interface RuntimeConfig
    */
   shakeToReport?: {
     enabled?: boolean;
+  };
+  /**
+   * Crash-only session switch (spec 2026-10-12). CLIENT VETO only.
+   * `disabled: true` turns off every on-device way to open the reporter
+   * (shake, `open()`, which then rejects with
+   * `EverframeReporterDisabledError`), keeps network bodies off and samples
+   * session replay with the server's crash-only rate (default 0) instead of
+   * the normal one. A companion bond upgrades the session: replay and bodies
+   * then follow the normal server rules for the rest of the session, and
+   * reports come through the companion. Crash and error capture are
+   * unaffected. Flattened onto `ConfigOpts.reporterDisabled` by
+   * `extractBridgeConfig`.
+   */
+  reporter?: {
+    disabled?: boolean;
   };
   /**
    * Inline reporter theme (reporter branding spec 2026-08-25, RN slice) —
@@ -417,7 +439,16 @@ export function createRuntime(input: EverframeProviderConfig): Runtime {
     // Native promise returns NSDictionary / WritableMap with the discriminated
     // status field. The TurboModule spec types it `UnsafeObject`; the cast
     // here is the documented codegen-recursion-shape escape hatch.
-    return NativeEverframe.openReporter() as unknown as Promise<ReporterResult>;
+    return (NativeEverframe.openReporter() as unknown as Promise<ReporterResult>).catch(
+      (error: unknown) => {
+        // Crash-only session (spec 2026-10-12): both bridges reject with
+        // this code. Surface the same named error as the web SDK.
+        if ((error as { code?: unknown } | null)?.code === REPORTER_DISABLED_CODE) {
+          throw new EverframeReporterDisabledError();
+        }
+        throw error;
+      },
+    );
   }
 
   const runtime: Runtime = {
@@ -753,6 +784,11 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   }
   if (config.shakeToReport?.enabled !== undefined) {
     bridge.shakeToReportEnabled = config.shakeToReport.enabled;
+  }
+  // Crash-only sessions (spec 2026-10-12). Sent only when the reporter is
+  // off: absent means a normal report session on both bridges.
+  if (config.reporter?.disabled === true) {
+    bridge.reporterDisabled = true;
   }
   // Inline reporter theme (reporter branding spec 2026-08-25, RN slice).
   // Flatten the nested host-facing shape onto the 8 flat wire fields, same
