@@ -32,6 +32,7 @@ import {
 } from './buffer.js';
 import { applyReplayMaskClasses, buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
 import { checkpointWindow } from './checkpoint.js';
+import { filterReplayEvent, type ReplayNodeMirror } from './privacy-filter.js';
 import { scrubReplayEvents } from './scrub.js';
 import { SENSITIVE_ATTR } from '../../sensitive/registry.js';
 
@@ -54,6 +55,7 @@ export const MAX_OVERFLOW_RESETS = 20;
 interface RrwebModule {
   record: ((options: Record<string, unknown>) => (() => void) | undefined) & {
     takeFullSnapshot?: (isCheckout?: boolean) => void;
+    mirror?: ReplayNodeMirror;
   };
 }
 
@@ -470,13 +472,15 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       restoreMasks = applyReplayMaskClasses(els.filter((el) => el.closest(`[${SENSITIVE_ATTR}]`) === null));
     }
     const myGeneration = ++startGeneration;
+    let mirror: ReplayNodeMirror | undefined;
     const options = buildRecordOptions({
       durationSec,
       emit: (event, isCheckout) => {
         // A stopped rrweb instance may emit late, after a new visible window
         // has opened. Those events must never anchor or enter its fresh history.
         if (myGeneration !== startGeneration) return;
-        handleEmit(event, isCheckout);
+        const safe = !REDACTION_DISABLED && mirror ? filterReplayEvent(event as BufferEvent, mirror) : event;
+        if (safe) handleEmit(safe, isCheckout);
       },
       // rrweb evaluates this per node on every snapshot and mutation, so an
       // element marked sensitive AFTER recording started is blocked too (the
@@ -506,6 +510,13 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
           return;
         }
         try {
+          mirror = typeof mod.record.mirror?.getNode === 'function' ? mod.record.mirror : undefined;
+          // Installed rrweb must provide ancestry lookup before any events
+          // enter the buffer. Explicit test importers can emit synthetic data.
+          if (!REDACTION_DISABLED && !mirror && !deps.importRrweb) {
+            selfDisable('privacy_mirror_unavailable');
+            return;
+          }
           const handle = mod.record(options as unknown as Record<string, unknown>);
           stopFn = typeof handle === 'function' ? handle : null;
           takeFullSnapshotFn =

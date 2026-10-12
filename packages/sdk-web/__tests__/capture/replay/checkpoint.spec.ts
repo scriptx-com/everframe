@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
+import { gzipSync, gunzipSync } from 'node:zlib';
+import { scrubReplayEvents } from '../../../src/capture/replay/scrub.js';
 import { checkpointWindow, ReplayCheckpointOmitted } from '../../../src/capture/replay/checkpoint.js';
 import { beginErrorReplay } from '../../../src/capture/replay/error-replay.js';
 const full = () => ({ type: 2, timestamp: 1, data: { node: { id: 1, type: 0, childNodes: [
@@ -36,6 +38,20 @@ describe('exported start checkpoint', () => {
       expect(JSON.stringify(result)).toContain('cutoff');
     }
   });
+  it('keeps toggled form choice masked through checkpoint, scrub and gzip', () => {
+    const anchor = full();
+    anchor.data.node.childNodes[0]!.attributes = { type: 'checkbox', checked: true };
+    const events = checkpointWindow([anchor,
+      { type: 3, timestamp: 2, data: { source: 5, id: 2, text: 'private-choice', isChecked: false } },
+      { type: 3, timestamp: 3, data: { source: 5, id: 2, text: 'private-choice', isChecked: true } },
+      { type: 3, timestamp: 11, data: { source: 5, id: 2, text: 'private-choice', isChecked: true } },
+    ], 10);
+    const exported = gunzipSync(gzipSync(JSON.stringify(scrubReplayEvents(events)))).toString();
+    expect(exported).not.toContain('private-choice');
+    expect(exported).not.toContain('"checked"');
+    expect(exported).not.toContain('"isChecked":true');
+    expect(exported).toContain('"isChecked":false');
+  });
   it('folds masked inputs and held element scroll positions', () => {
     const result = checkpointWindow([full(),
       { type: 3, timestamp: 2, data: { source: 5, id: 2, text: 'must never leak' } },
@@ -52,6 +68,13 @@ describe('exported start checkpoint', () => {
       mutation({ adds: [{ parentId: 2, nextId: null, node: { id: 8, type: 2, isShadow: true } }] }),
       mutation({ isAttachIframe: true, adds: [] }),
     ]) expect(() => checkpointWindow([full(), change], 10)).toThrow(ReplayCheckpointOmitted);
+  });
+  it('allows only finite numeric held scroll state through export scrubbing', () => {
+    for (const unsafe of ['private-scroll-token', Infinity, NaN, { secret: 'private' }]) {
+      const event = { data: { node: { attributes: { rr_scrollTop: unsafe, rr_scrollLeft: 12 } } } };
+      const scrubbed = scrubReplayEvents([event]);
+      expect(scrubbed[0]!.data.node.attributes).toEqual({ rr_scrollLeft: 12 });
+    }
   });
   it('sizes the initial viewport from the most recent pre-cutoff resize', () => {
     const result = checkpointWindow([{ type: 4, timestamp: 1, data: { width: 100, height: 200, href: '/' } }, full(),

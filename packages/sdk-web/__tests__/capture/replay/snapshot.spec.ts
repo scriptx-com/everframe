@@ -110,7 +110,7 @@ describe('replay snapshot (non-destructive)', () => {
     let now = 1_000_000;
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(now);
-    document.body.innerHTML = '<p id="held">Initial</p>';
+    document.body.innerHTML = '<p id="held">Initial</p><div id="scrolled" style="overflow:scroll;height:20px"><div style="height:1000px">Visible lower content</div></div>';
     window.eval(readFileSync(new NodeURL('../../../../../node_modules/rrweb/umd/rrweb.js', import.meta.url), 'utf8'));
     const rec = createReplayRecorder({ importRrweb: async () => (window as any).rrweb, gzip: testGzip });
     const sandbox = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'sandbox');
@@ -123,6 +123,9 @@ describe('replay snapshot (non-destructive)', () => {
       now += 1_000;
       vi.setSystemTime(now);
       document.querySelector('#held')!.firstChild!.textContent = 'Held before cutoff';
+      const scrolled = document.querySelector('#scrolled')!;
+      scrolled.scrollTop = 240; scrolled.scrollLeft = 12;
+      scrolled.dispatchEvent(new Event('scroll'));
       await new Promise(resolve => setTimeout(resolve, 0));
       now += 3_600_000;
       vi.setSystemTime(now);
@@ -145,6 +148,8 @@ describe('replay snapshot (non-destructive)', () => {
       player.pause(0);
       expect(player.getMetaData().totalTime).toBe(30_000);
       expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe('Held before cutoff');
+      expect(player.iframe.contentDocument!.querySelector('#scrolled')!.scrollTop).toBe(240);
+      expect(player.iframe.contentDocument!.querySelector('#scrolled')!.scrollLeft).toBe(12);
       player.pause(30_000);
       expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe('Held before cutoff');
     } finally {

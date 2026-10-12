@@ -136,6 +136,12 @@ function scrubAttributes(
 ): void {
   for (const key of Object.keys(attributes)) {
     const lower = key.toLowerCase();
+    if (lower === 'rr_scrollleft' || lower === 'rr_scrolltop') {
+      // rrweb rebuild consumes numeric held-scroll state from full snapshots.
+      // These internal layout fields must never become a string payload path.
+      if (typeof attributes[key] !== 'number' || !Number.isFinite(attributes[key])) delete attributes[key];
+      continue;
+    }
     if (URL_ATTRS.has(lower)) {
       const v = attributes[key];
       if (typeof v === 'string') {
