@@ -1,0 +1,23 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/CrashOnlyReplaySessionTest.kt
+  s_dbd309ddf8ec5b::t_2d7d875f56cb2d 226-275
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/Companion.kt
+  s_dbd309ddf8ec5b::t_2d7d875f56cb2d 158-162,166-189,225
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_2d7d875f56cb2d 161,967-972
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a4ecdd2b18d668f3acb445c5dd19f3e0ca28555f",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
