@@ -1,0 +1,32 @@
+packages/sdk-react-native/__tests__/reporter-disabled-android-wiring.spec.ts
+  s_dbd309ddf8ec5b::t_65cf4a51efc38f 1-25
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_dbd309ddf8ec5b::t_2e8fc0eee00018 433-435
+  s_e4dd557fa01077::t_c6cddd9de04236 151-152,276-279,323,443-448
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleConfigureTest.kt
+  s_dbd309ddf8ec5b::t_947ed1030e400a 33,174-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c58aa09f38b2424a71b8c4c989552410f9082340",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_e4dd557fa01077": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ae67fb746213f94bd",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
