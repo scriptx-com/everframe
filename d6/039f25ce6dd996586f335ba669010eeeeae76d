@@ -1,0 +1,53 @@
+packages/sdk-core/src/client.ts
+  s_dbd309ddf8ec5b::t_c9a2dc88a5be13 5,136,266
+packages/sdk-core/src/types/config.ts
+  s_dbd309ddf8ec5b::t_ad19d66a232959 17-18
+packages/sdk-react-native/__tests__/EverframeProvider.spec.tsx
+  s_dbd309ddf8ec5b::t_5d34bfba51b4ae 135-140
+packages/sdk-react-native/src/runtime.ts
+  s_dbd309ddf8ec5b::t_991291ab8533a4 24-25,420-421,423
+packages/sdk-react/src/provider.tsx
+  s_dbd309ddf8ec5b::t_08d0836df88776 62,115
+packages/sdk-web/__tests__/release-health-removed.spec.ts
+  s_dbd309ddf8ec5b::t_f1601ab3a73a63 11,45
+packages/sdk-web/__tests__/transport/draft-to-envelope.spec.ts
+  s_dbd309ddf8ec5b::t_d2b1b2b938fdb3 8,11
+packages/sdk-web/__tests__/transport/submit-device-token.spec.ts
+  s_dbd309ddf8ec5b::t_588ca16f269a8a 9,11,347,420
+packages/sdk-web/__tests__/transport/submit-user.spec.ts
+  s_dbd309ddf8ec5b::t_5c2631d3ecb1ac 7,12
+packages/sdk-web/__tests__/vitals/wiring.spec.ts
+  s_dbd309ddf8ec5b::t_3781ca2c78ff44 23,87,91,843
+packages/sdk-web/__tests__/wire/sdk-key-wire-shape.spec.ts
+  s_dbd309ddf8ec5b::t_93005a6aa242e0 5,12
+packages/sdk-web/src/adapter.ts
+  s_dbd309ddf8ec5b::t_5e5b99158e3bc3 65,537
+packages/sdk-web/src/companion/host-seam.ts
+  s_dbd309ddf8ec5b::t_4981f9c8558637 21,25
+packages/sdk-web/src/init.ts
+  s_dbd309ddf8ec5b::t_caa1e8810fb382 61,131,170
+packages/sdk-web/src/internal/types.ts
+  s_dbd309ddf8ec5b::t_3015f562cbd570 3,7-8
+packages/sdk-web/src/transport/draft-to-envelope.ts
+  s_dbd309ddf8ec5b::t_f8d4892865437f 22,186
+packages/sdk-web/src/transport/submit.ts
+  s_dbd309ddf8ec5b::t_24fad04201983d 22,215,502
+packages/sdk-web/src/vitals/index.ts
+  s_dbd309ddf8ec5b::t_be19f6c18409fc 45,48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d6039f25ce6dd996586f335ba669010eeeeae76d",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
