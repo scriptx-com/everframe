@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const read = (file) => readFileSync(file, 'utf8');
@@ -10,13 +10,51 @@ const manifest = (dir) => JSON.parse(read(`packages/${dir}/package.json`));
 const releaseVersion = manifest('sdk-web').version;
 const [major, minor] = releaseVersion.split('.').map(Number);
 const nativeRange = `[${releaseVersion},${major}.${minor + 1}.0)`;
-const fixedPackages = ['@everframe/web', '@everframe/react', '@everframe/react-native'];
+// Every published npm package ships on one version line, which the native SDKs share.
+const published = {
+  '@everframe/web': 'sdk-web',
+  '@everframe/react': 'sdk-react',
+  '@everframe/react-native': 'sdk-react-native',
+  '@everframe/identity': 'identity',
+  '@everframe/roku': 'sdk-roku',
+  '@everframe/vega': 'sdk-vega',
+  '@everframe/cli': 'cli',
+  '@everframe/metro': 'metro',
+  '@everframe/bundler-plugin': 'bundler-plugin',
+  '@everframe/expo': 'expo',
+};
 
-test('published npm SDK versions are aligned for the coordinated release', () => {
-  assert.deepEqual(JSON.parse(read('.changeset/config.json')).fixed, [fixedPackages]);
-  for (const dir of ['sdk-web', 'sdk-react', 'sdk-react-native', 'identity', 'sdk-roku']) {
-    assert.equal(manifest(dir).version, releaseVersion, dir);
-    assert.notEqual(manifest(dir).private, true, dir);
+test('every published npm package is in the one fixed changeset group', () => {
+  const { fixed } = JSON.parse(read('.changeset/config.json'));
+  assert.equal(fixed.length, 1);
+  assert.deepEqual([...fixed[0]].sort(), Object.keys(published).sort());
+});
+
+test('every published npm package is publishable at the release version', () => {
+  for (const [name, dir] of Object.entries(published)) {
+    const pkg = manifest(dir);
+    assert.equal(pkg.name, name, dir);
+    assert.equal(pkg.version, releaseVersion, dir);
+    assert.notEqual(pkg.private, true, dir);
+    assert.equal(pkg.publishConfig?.access, 'public', dir);
+  }
+});
+
+test('no other workspace package is published', () => {
+  const dirs = readdirSync('packages', { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  for (const dir of dirs) {
+    if (!existsSync(`packages/${dir}/package.json`)) continue;
+    const pkg = manifest(dir);
+    if (pkg.private !== true) assert.ok(pkg.name in published, `${pkg.name} is publishable but not on the release line`);
+  }
+});
+
+test('internal dependencies between published packages follow the workspace version', () => {
+  for (const dir of Object.values(published)) {
+    const pkg = manifest(dir);
+    for (const [name, range] of Object.entries({ ...pkg.dependencies, ...pkg.peerDependencies })) {
+      if (name in published) assert.equal(range, 'workspace:^', `${dir} -> ${name}`);
+    }
   }
 });
 
@@ -25,6 +63,12 @@ test('committed source versions match the release, so a build leaves the checkou
   // dirty the tree, which blocks the next production deploy's fast-forward of the SDK checkout.
   for (const dir of ['sdk-web', 'sdk-react']) {
     assert.ok(read(`packages/${dir}/src/internal/version.ts`).includes(`PKG_VERSION = '${releaseVersion}';`), dir);
+  }
+  assert.ok(read('packages/sdk-roku/library/components/Everframe/lib/ef_version.brs').includes(`return "${releaseVersion}"`));
+  const [rokuMajor, rokuMinor, rokuBuild] = releaseVersion.split('.');
+  const rokuManifest = read('packages/sdk-roku/library/manifest');
+  for (const line of [`major_version=${rokuMajor}`, `minor_version=${rokuMinor}`, `build_version=${rokuBuild}`]) {
+    assert.match(rokuManifest, new RegExp(`^${line}$`, 'm'));
   }
 });
 
@@ -49,50 +93,4 @@ test('mobile versions and consumer dependency ranges match the release', () => {
   assert.match(read('packages/everframe_kmp/build.gradle.kts'), /\.orElse\(mobileReleaseVersion\)/);
   assert.match(read('packages/everframe_kmp/settings.gradle.kts'), /^rootProject\.name = "kmp"$/m);
   assert.match(read('packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts'), /artifactId = "gradle-plugin"/);
-});
-
-// The iOS bridges call EverframeConfig(sdkKey:), which first ships in native
-// 1.2.0. A pin below that resolves a published SDK without the initializer, and
-// the bridge stops compiling at the customer's `pod install` or package resolve.
-test('iOS bridges that call EverframeConfig(sdkKey:) require native 1.2.0 or newer', () => {
-  const firstWithSdkKey = [1, 2, 0];
-  const atLeast = (version, floor) => {
-    for (let i = 0; i < floor.length; i += 1) {
-      if (version[i] !== floor[i]) return version[i] > floor[i];
-    }
-    return true;
-  };
-  const pins = [
-    ['packages/sdk-react-native/EverframeRN.podspec', /native_version_override\.empty\? \? '~> (\d+)\.(\d+)\.(\d+)'/],
-    ['packages/everframe_flutter/ios/everframe_flutter.podspec', /'Everframe\/Core', '~> (\d+)\.(\d+)\.(\d+)'/],
-    ['packages/everframe_flutter/ios/everframe_flutter.podspec', /'Everframe\/ReporterUI', '~> (\d+)\.(\d+)\.(\d+)'/],
-    ['packages/everframe_flutter/ios/everframe_flutter/Package.swift', /\.upToNextMinor\(from: "(\d+)\.(\d+)\.(\d+)"\)/],
-  ];
-  for (const [file, pattern] of pins) {
-    const match = read(file).match(pattern);
-    assert.ok(match, `${file}: native pin not found`);
-    const version = match.slice(1).map(Number);
-    assert.ok(atLeast(version, firstWithSdkKey), `${file} pins native ${version.join('.')}`);
-  }
-  for (const file of [
-    'packages/sdk-react-native/ios/Sources/EverframeBridge.swift',
-    'packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift',
-    'packages/everframe_kmp/ios/EverframeSwiftDriver.swift',
-  ]) {
-    assert.match(read(file), /EverframeConfig\(\s*sdkKey:/, file);
-  }
-});
-
-// The short Gradle block that `@everframe/expo` and `everframe setup react-native` write
-// relies on the dev.everframe plugin's Hermes upload, first published in 1.3.0. The CLI
-// pins the plugin to everframeVersion when it is built, and CLI 0.2.0 was the last to write
-// the long block. A later CLI release must therefore ship with Android 1.3.0 or newer, or
-// React Native apps would silently stop uploading Hermes source maps.
-test('a CLI that writes the short Gradle block pins a Gradle plugin with the Hermes upload', () => {
-  const cli = manifest('cli').version;
-  if (cli === '0.2.0') return;
-  const android = read('packages/sdk-android/android/gradle.properties').match(/^everframeVersion=(\d+)\.(\d+)\.(\d+)$/m);
-  assert.ok(android, 'everframeVersion missing');
-  const [major, minor] = android.slice(1).map(Number);
-  assert.ok(major > 1 || (major === 1 && minor >= 3), `CLI ${cli} would pin dev.everframe:gradle-plugin:${android.slice(1).join('.')}, before the Hermes upload`);
 });

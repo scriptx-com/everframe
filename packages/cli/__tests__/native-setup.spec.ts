@@ -262,9 +262,11 @@ describe('patchRootBuildGradle', () => {
     expect(out.indexOf('react-native-gradle-plugin')).toBeLessThan(out.indexOf('dev.everframe:gradle-plugin'));
     expect(patchRootBuildGradle(out)).toBe(out);
   });
-  it('pins the Android SDK version this repository publishes', () => {
+  it('pins the Gradle plugin released with this CLI, on the shared version line', () => {
+    const { version } = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as { version: string };
     const properties = readFileSync(join(__dirname, '../../sdk-android/android/gradle.properties'), 'utf8');
-    expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()}`);
+    expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${version}`);
+    expect(/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()).toBe(version);
   });
   it('keeps the classpath block of an earlier version in place and moves it to this version', () => {
     const legacy = readFileSync(join(LEGACY, 'build.gradle'), 'utf8');
