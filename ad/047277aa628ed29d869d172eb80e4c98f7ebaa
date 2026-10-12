@@ -1,0 +1,36 @@
+packages/bundler-plugin/__tests__/core.spec.ts
+  s_dbd309ddf8ec5b::t_407845b1d0b945 37-42
+packages/bundler-plugin/README.md
+  s_dbd309ddf8ec5b::t_4c00374f1bb482 1-57
+  s_dbd309ddf8ec5b::t_9a284d6ead1454 58-59
+packages/bundler-plugin/src/core.ts
+  s_dbd309ddf8ec5b::t_031859ada35787 44
+packages/cli/README.md
+  s_dbd309ddf8ec5b::t_7bf5ad2fec45a7 6-10
+packages/cli/__tests__/apple-command.spec.ts
+  s_dbd309ddf8ec5b::t_aa43c4d385bf2d 95
+packages/cli/__tests__/command.spec.ts
+  s_dbd309ddf8ec5b::t_6b322b0dcf0218 5,10,80-113
+packages/cli/src/defaults.ts
+  s_dbd309ddf8ec5b::t_dcca05d23d4a8f 3-4
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_33cacb06c8973d 12,52,70,84-87,197,299,336,370,405,463,493,534
+packages/sdk-vega/CHANGELOG.md
+  s_dbd309ddf8ec5b::t_c2d4c970073949 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad047277aa628ed29d869d172eb80e4c98f7ebaa",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
