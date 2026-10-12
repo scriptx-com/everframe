@@ -1,0 +1,33 @@
+public-boundary.json
+  s_dbd309ddf8ec5b::t_bcac0c1021e8e4 252
+packages/expo/src/withEverframe.ts
+  s_dbd309ddf8ec5b::t_cdebaf4c73a661 38
+packages/cli/__tests__/native-setup.spec.ts
+  s_dbd309ddf8ec5b::t_ff2da2d1ade3c2 230-234
+packages/cli/src/native-setup/gradle.ts
+  s_dbd309ddf8ec5b::t_c275efd2588042 50
+.changeset/thin-native-upload-setup.md
+  s_dbd309ddf8ec5b::t_ef071145b29868 9,11
+packages/expo/README.md
+  s_dbd309ddf8ec5b::t_89ad868336859d 86
+packages/cli/src/native-setup/xcode.ts
+  s_dbd309ddf8ec5b::t_2d032b9d8ce275 45
+packages/cli/src/setup-react-native.ts
+  s_dbd309ddf8ec5b::t_61baa2e1129123 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "827df37321d5b78374b46e980b2b662f814f952a",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
