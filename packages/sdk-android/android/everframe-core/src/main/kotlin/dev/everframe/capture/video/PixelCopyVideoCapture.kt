@@ -263,6 +263,13 @@ internal object AndroidVideoCaptureScheduler : VideoCaptureScheduler {
     override fun nowNanos() = SystemClock.elapsedRealtimeNanos()
 }
 
+/** One process-lifetime lane for remux/read work. A quarantined lane is never replaced. */
+internal object AndroidVideoExportScheduler : VideoCaptureScheduler by AndroidVideoCaptureScheduler {
+    private val handler by lazy { Handler(HandlerThread("EverframeVideoExport").apply { start() }.looper) }
+    override fun worker(block: () -> Unit) { handler.post(block) }
+    override fun isWorkerThread() = Looper.myLooper() == handler.looper
+}
+
 internal class AndroidVideoCapturePlatform(
     private val activity: () -> Activity?,
     private val privacy: VideoPrivacyGate = VideoPrivacyGate(activity),

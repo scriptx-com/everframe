@@ -4,6 +4,9 @@ import CryptoKit
 import EverframeProtocol
 import Foundation
 import XCTest
+#if canImport(UIKit)
+@preconcurrency import AVFoundation
+#endif
 @testable import EverframeKit
 
 private final class ScheduledWork: @unchecked Sendable {
@@ -178,11 +181,25 @@ final class ErrorReplayTests: XCTestCase {
         XCTAssertEqual(try box.hydrate().map(\.reportId), [held.reportId])
     }
 
+    func testCaptureClaimCannotReserveOrOwnAResumedRecording() throws {
+        let gate = ErrorReplayGate()
+        gate.publish(recording: true, epoch: 1)
+        let capture = try XCTUnwrap(gate.capture(epoch: 1))
+        gate.publish(recording: false, epoch: 1)
+        XCTAssertFalse(gate.reserve(capture: capture))
+        gate.publish(recording: true, epoch: 1)
+        XCTAssertFalse(gate.owns(capture))
+        XCTAssertFalse(gate.reserve(capture: capture))
+        let resumed = try XCTUnwrap(gate.capture(epoch: 1))
+        XCTAssertTrue(gate.reserve(capture: resumed))
+        XCTAssertTrue(gate.reserve(capture: resumed)) // rejected old claim consumed no quota
+    }
+
     func testQualifyingHandledErrorWaitsForItsReplayThenDrainsWithIt() async throws {
         ErrorReplayGate.shared.publish(recording: true, epoch: epoch)
         let requested = EpochProbe()
         CrashReporter.__errorReplayProviderForTesting = { startEpoch in
-            requested.record(startEpoch)
+            requested.record(startEpoch.startEpoch)
             return ErrorReplayTests.attachedOutcome()
         }
         let box = outbox()
@@ -208,6 +225,73 @@ final class ErrorReplayTests: XCTestCase {
         XCTAssertEqual(final.idempotencyKey, Self.sha(final.envelopeBytes))
         XCTAssertEqual((try envelope(final)["captureControl"] as? [String: Any])?["degradedReason"] as? String, "crash-capture")
     }
+
+    #if canImport(UIKit)
+    func testCaptureBoundaryCutoffSurvivesDelayedReplayEntryAndKeepsLaterBlueFrameForReport() async throws {
+        let dir = tempDir.appendingPathComponent("video")
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 2)
+        let anchor = DispatchTime.now().uptimeNanoseconds - 600_000_000
+        let first = try await recorder.append(Self.coloredFrame(anchor, blue: false)); XCTAssertTrue(first)
+        let second = try await recorder.append(Self.coloredFrame(anchor + 200_000_000, blue: false)); XCTAssertTrue(second)
+        ErrorReplayGate.shared.publish(recording: true, epoch: epoch)
+        let beforeCapture = DispatchTime.now().uptimeNanoseconds
+        CrashReporter.__errorReplayProviderForTesting = { capture in
+            do {
+                XCTAssertGreaterThanOrEqual(capture.cutoffNanos, beforeCapture)
+                let snapshot = try await recorder.snapshot(anchorNanos: anchor, anchorEpochMs: 0, endNanos: capture.cutoffNanos)
+                let movie = try XCTUnwrap(snapshot)
+                defer { movie.removeOwnedFile() }
+                XCTAssertEqual(movie.durationMs, Double(capture.cutoffNanos - anchor) / 1_000_000, accuracy: 2)
+                XCTAssertEqual(try Self.colors(movie.url), [false, false])
+                let built = await ReporterSubmission.buildReplayAttachment(artifact: movie, byteBudget: ErrorReplayPolicy.maxReplayBytes)
+                let part = try XCTUnwrap(built)
+                let reference = try EnvelopeBuilder.makeJSONEncoder().encode(part.envelope)
+                return .attached(reference: reference, part: .init(name: part.multipart.name,
+                    filename: part.multipart.filename, contentType: part.multipart.contentType,
+                    dataBase64: part.multipart.data.base64EncodedString(), sha256Hex: part.multipart.sha256Hex),
+                    byteCount: part.multipart.data.count)
+            } catch { XCTFail("Delayed real replay failed: \(error)"); return .omitted("replay_unavailable") }
+        }
+        let box = outbox()
+        XCTAssertTrue(CrashReporter.captureHandledError(NSError(domain: "DelayedReplay", code: 1), outbox: box))
+        // Work has been captured but deliberately not entered; later pixels reach the real writer.
+        let later = DispatchTime.now().uptimeNanoseconds + 400_000_000
+        let postError = try await recorder.append(Self.coloredFrame(later, blue: true)); XCTAssertTrue(postError)
+        let work = scheduled.takeWork()
+        XCTAssertEqual(work.count, 1)
+        for task in work { await task() }
+        XCTAssertEqual(try box.hydrate().first?.attachmentRefs.count, 1)
+        let frozen = try await recorder.finish(anchorNanos: anchor, anchorEpochMs: 0, endNanos: later + 500_000_000)
+        let report = try XCTUnwrap(frozen)
+        defer { report.removeOwnedFile() }
+        XCTAssertEqual(try Self.colors(report.url), [false, false, true])
+    }
+
+    private static func coloredFrame(_ time: UInt64, blue: Bool) -> NativeVideoFrame {
+        var bytes = Data(repeating: 0, count: 64 * 64 * 4)
+        for i in stride(from: 0, to: bytes.count, by: 4) { bytes[i + (blue ? 0 : 2)] = 255; bytes[i + 3] = 255 }
+        return .init(width: 64, height: 64, bytesPerRow: 256, bgraBytes: bytes, timestampNanos: time)
+    }
+
+    private static func colors(_ url: URL) throws -> [Bool] {
+        let asset = AVURLAsset(url: url)
+        let track = try XCTUnwrap(asset.tracks(withMediaType: .video).first)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track,
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        reader.add(output); XCTAssertTrue(reader.startReading())
+        var blue: [Bool] = []
+        while let sample = output.copyNextSampleBuffer() {
+            guard let buffer = CMSampleBufferGetImageBuffer(sample) else { continue }
+            CVPixelBufferLockBaseAddress(buffer, .readOnly)
+            let bytes = try XCTUnwrap(CVPixelBufferGetBaseAddress(buffer)).assumingMemoryBound(to: UInt8.self)
+            blue.append(bytes[0] > bytes[2])
+            CVPixelBufferUnlockBaseAddress(buffer, .readOnly)
+        }
+        XCTAssertEqual(reader.status, .completed)
+        return blue
+    }
+    #endif
 
     func testOnlyTwoErrorsPerSessionWaitAndTheThirdDrainsAtOnce() throws {
         ErrorReplayGate.shared.publish(recording: true, epoch: epoch)
@@ -289,7 +373,7 @@ final class ErrorReplayTests: XCTestCase {
             heldUntil: Date().addingTimeInterval(-1))
         try box.enqueue(expired)
         let storedExpired = try outbox().hydrate()
-        await ErrorReplayCompletion.run(entry: queued, startEpoch: epoch, stillOwned: { true },
+        await ErrorReplayCompletion.run(entry: queued, capture: .init(startEpoch: epoch, cutoffNanos: DispatchTime.now().uptimeNanoseconds, recordingGeneration: 0), stillOwned: { true },
             outbox: outbox(), provider: { _ in Self.attachedOutcome() })
         XCTAssertEqual(try outbox().hydrate(), storedExpired)
         RecordingURLProtocol.reset()

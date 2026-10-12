@@ -102,7 +102,7 @@ describe('hidden-tab pause', () => {
     h.state.emit!({ type: INCR, timestamp: 99_000 });
     const capture = await h.rec.snapshot();
     expect(JSON.parse(new TextDecoder().decode(capture!.bytes)).map((e: { timestamp: number }) => e.timestamp))
-      .toEqual([96_000, 96_000, 99_000]);
+      .toEqual([96_000, 96_000, 99_000, 100_000]);
   });
 
   it('rejects old rrweb emissions even after recording resumes', async () => {
@@ -122,7 +122,7 @@ describe('hidden-tab pause', () => {
     h.state.emit!({ type: INCR, timestamp: 99_000 });
     const capture = await h.rec.snapshot();
     expect(JSON.parse(new TextDecoder().decode(capture!.bytes)).map((e: { timestamp: number }) => e.timestamp))
-      .toEqual([96_000, 99_000]);
+      .toEqual([96_000, 99_000, 100_000]);
   });
 
   it('cancels a pending rrweb import while hidden and starts only the visible generation', async () => {

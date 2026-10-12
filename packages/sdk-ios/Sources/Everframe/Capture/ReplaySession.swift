@@ -630,10 +630,10 @@ public final class ReplaySession: NSObject {
 
     /// A handled error's own copy of the window, for the session it was
     /// captured in. Waits at most the snapshot deadline (3 s).
-    internal func errorSnapshot(epoch: Int) async -> ErrorReplaySnapshot {
-        guard !isTornDown, epoch == startEpochAtCreation,
+    internal func errorSnapshot(capture: ErrorReplayCapture) async -> ErrorReplaySnapshot {
+        guard !isTornDown, capture.startEpoch == startEpochAtCreation, ErrorReplayGate.shared.owns(capture),
               Everframe.shared.currentStartEpoch == startEpochAtCreation,
-              let claim = await video.snapshotClaim() else { return .omitted("replay_unavailable") }
+              let claim = await video.snapshotClaim(endNanos: capture.cutoffNanos) else { return .omitted("replay_unavailable") }
         guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation, claim.isValid else {
             claim.artifact?.removeOwnedFile()
             return .omitted("replay_revoked")

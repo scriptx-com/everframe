@@ -163,9 +163,10 @@ import UIKit
     /// the reporter's freeze, finalization and claims are untouched; nothing
     /// here changes `generation`, `recorder` or `reporterOpen`. The claim is
     /// revoked only when replay consent ends. nil while nothing records.
-    func snapshotClaim() async -> NativeVideoClaim? {
+    func snapshotClaim(endNanos: UInt64? = nil) async -> NativeVideoClaim? {
         guard settings != nil, state == .buffering, !reporterOpen, !suspended, let recorder else { return nil }
-        let anchor = anchorNanos, epoch = anchorEpochMs, end = now(), consent = consentGeneration
+        let anchor = anchorNanos, epoch = anchorEpochMs, end = endNanos ?? now(), consent = consentGeneration
+        guard end >= anchor else { return nil }
         let job = NativeVideoFinalization(operation: {
             try await recorder.snapshot(anchorNanos: anchor, anchorEpochMs: epoch, endNanos: end)
         }, cancelOperation: {}, deadline: snapshotDeadline)

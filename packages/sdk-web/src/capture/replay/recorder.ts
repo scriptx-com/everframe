@@ -630,11 +630,15 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       }
       // Copy at the call: later emits, freezing or teardown cannot change it.
       const all = buffer.frames();
-      const events = windowFromAnchor(all, freezeNow() - durationSec * 1000);
+      const capturedEnd = freezeNow();
+      const events = windowFromAnchor(all.filter((event) => event.timestamp <= capturedEnd), capturedEnd - durationSec * 1000);
       if (events.length === 0) {
         __traceReplay('recorder.snapshot', { result: 'no_anchor', frames: all.length });
         return Promise.resolve(null);
       }
+      // rrweb Custom events are non-mutating but extend the real Replayer timeline.
+      // Append only to this independent window; later reports keep the original events.
+      events.push({ type: 5, timestamp: capturedEnd, data: { tag: 'everframe-error-end', payload: {} } });
       return yieldToHost().then(() => encodeWindow(events, { op: 'snapshot', frames: all.length }));
     },
 

@@ -20,7 +20,7 @@ class NativeVideoRecorderTest {
             val recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(first, second))),
                 snapshotExporter = { segments, allowed ->
                     if (!freezeDuringBuild) { entered.complete(Unit); release.await() }
-                    h.exporter.exportBorrowed(h.owner, segments, allowed)
+                    h.exporter.export(h.owner, segments, allowed)
                 })
             try {
                 recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()
@@ -45,6 +45,61 @@ class NativeVideoRecorderTest {
             } finally { release.complete(Unit); recorder.close() }
             assertEquals(0, h.budget.usedBytes)
         }
+    }
+
+    @Test fun recordingContinuesWhileSnapshotExportOrAttachmentIsBlocked() = runBlocking {
+        for (duringBuild in listOf(false, true)) {
+            val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+            val before = h.segment(2_000_000); val later = h.segment(4_000_000)
+            val encoders = java.util.concurrent.atomic.AtomicInteger()
+            val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(before), listOf(later))),
+                encoders = encoders, snapshotExporter = { segments, allowed ->
+                    if (!duringBuild) { entered.complete(Unit); release.await() }
+                    h.exporter.export(h.owner, segments, allowed)
+                })
+            fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
+            try {
+                recorder.start(NativeVideoSettings(2), 30); drainMain()
+                val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                    recorder.snapshot(h.owner) {
+                        if (duringBuild) { entered.complete(Unit); release.await() }
+                        NativeVideoAttachment(h.scheduler).build(it)
+                    }
+                }
+                entered.await(); drainMain()
+                assertEquals("new encoder must acquire frames before export/build completes", 2, encoders.get())
+                scheduler.now += 500_000_000
+                scheduler.timers.removeAt(0).invoke(); drainMain()
+                val report = recorder.freeze(h.owner)
+                release.complete(Unit)
+                assertNotNull(pending.await())
+                report()!!.close()
+                assertEquals(listOf(listOf(2_000_000L), listOf(2_000_000L, 4_000_000L)), h.inputs)
+            } finally { release.complete(Unit); recorder.close() }
+            assertEquals(0, h.budget.usedBytes)
+        }
+    }
+
+    @Test fun snapshotResumesExactlyOneCaptureTimerWhileBuilderIsBlocked() = runBlocking {
+        val h = VideoExporterTest.Harness(); val scheduler = RecorderScheduler()
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>(); val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(h.segment()))))
+        fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
+        try {
+            recorder.start(NativeVideoSettings(2), 30); drainMain()
+            assertEquals(1, scheduler.timers.size)
+            // A display tick may already be queued when capture rotates the encoder.
+            scheduler.timers.removeAt(0).invoke()
+            val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                recorder.snapshot(h.owner) { entered.complete(Unit); release.await(); NativeVideoAttachment(h.scheduler).build(it) }
+            }
+            entered.await(); drainMain()
+            assertEquals("snapshot rotation must replace the prior capture timer", 1, scheduler.timers.size)
+            release.complete(Unit); assertNotNull(pending.await()); drainMain()
+            assertEquals("finishing the builder must not create another capture loop", 1, scheduler.timers.size)
+        } finally { release.complete(Unit); recorder.close() }
     }
 
     @Test fun freezeRacingARefusedSnapshotControlTaskKeepsTheWritingEncoder() = runBlocking {
@@ -107,7 +162,7 @@ class NativeVideoRecorderTest {
                     }
                 }, { segments, allowed -> h.exporter.export(h.owner, segments, allowed) },
                 devicePause = { devicePaused },
-                snapshotExporter = { segments, allowed -> h.exporter.exportBorrowed(h.owner, segments, allowed) })
+                snapshotExporter = { segments, allowed -> h.exporter.export(h.owner, segments, allowed) })
             fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
             try {
                 recorder.start(NativeVideoSettings(2), 30); drainMain()
@@ -137,7 +192,7 @@ class NativeVideoRecorderTest {
                 control = { block -> if (queueControl) { controls.addLast(block); entered.complete(Unit) } else block(); true },
                 snapshotExporter = { segments, allowed ->
                     if (phase == "export") { entered.complete(Unit); release.await() }
-                    h.exporter.exportBorrowed(h.owner, segments, allowed)
+                    h.exporter.export(h.owner, segments, allowed)
                 })
             fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
             try {
@@ -177,7 +232,7 @@ class NativeVideoRecorderTest {
                 override val isTerminal = false
                 override fun close() = Unit
             } }, { segments, allowed -> h.exporter.export(h.owner, segments, allowed) },
-            snapshotExporter = { segments, allowed -> h.exporter.exportBorrowed(h.owner, segments, allowed) })
+            snapshotExporter = { segments, allowed -> h.exporter.export(h.owner, segments, allowed) })
         fun drainMain() { while (scheduler.mainTasks.isNotEmpty()) scheduler.mainTasks.removeAt(0).invoke() }
         try {
             recorder.start(NativeVideoSettings(2), 30); drainMain()
@@ -198,7 +253,7 @@ class NativeVideoRecorderTest {
         control: (() -> Unit) -> Boolean = { block -> block(); true },
         encoders: java.util.concurrent.atomic.AtomicInteger = java.util.concurrent.atomic.AtomicInteger(),
         snapshotExporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip? =
-            { segments, allowed -> h.exporter.exportBorrowed(h.owner, segments, allowed) },
+            { segments, allowed -> h.exporter.export(h.owner, segments, allowed) },
     ) = NativeVideoRecorder(h.owner, scheduler, control, { VideoSize(4, 4) }, { null }, { _, _, _ ->
         encoders.incrementAndGet()
         object : RecordingVideoEncoder {
@@ -250,7 +305,7 @@ class NativeVideoRecorderTest {
         val segment = h.segment()
         lateinit var recorder: NativeVideoRecorder
         recorder = snapshotRecorder(h, scheduler, ArrayDeque(listOf(listOf(segment))), snapshotExporter = { segments, allowed ->
-            recorder.revoke(); h.exporter.exportBorrowed(h.owner, segments, allowed)
+            recorder.revoke(); h.exporter.export(h.owner, segments, allowed)
         })
         try {
             recorder.start(NativeVideoSettings(2), 30); scheduler.mainTasks.removeAt(0).invoke()

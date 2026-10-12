@@ -17,7 +17,7 @@ internal object ErrorReplayWork {
     const val MAX_PER_SESSION = 2
     /**
      * Never cancelled, kill() included: cancelling an export or attachment read quarantines the
-     * shared video worker for the rest of the process. Abandoned work finishes, fails its own
+     * optional export lane for the rest of the process; recording has its own lane. Abandoned work finishes, fails its own
      * allowed() checks, and its result is dropped.
      */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

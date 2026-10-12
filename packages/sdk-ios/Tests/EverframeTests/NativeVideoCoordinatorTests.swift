@@ -33,9 +33,10 @@ private actor VideoConfigFetcher: URLSessionFetching {
             await session.refreshConfigNow()
             #expect(ErrorReplayGate.shared.reserve(epoch: epoch))
             ErrorReplayGate.shared.release(epoch: epoch)
+            let captured = ErrorReplayGate.shared.capture(epoch: epoch)!
             session.freezeForReporter()
             #expect(!ErrorReplayGate.shared.reserve(epoch: epoch))
-            guard case .omitted(let frozenReason) = await session.errorSnapshot(epoch: epoch) else {
+            guard case .omitted(let frozenReason) = await session.errorSnapshot(capture: captured) else {
                 Issue.record("a frozen buffer served an error snapshot"); return
             }
             #expect(frozenReason == "replay_unavailable")
@@ -53,11 +54,11 @@ private actor VideoConfigFetcher: URLSessionFetching {
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             defer { session.teardown() }
             await session.refreshConfigNow()
-            guard case .omitted(let foreign) = await session.errorSnapshot(epoch: epoch + 1) else {
+            guard case .omitted(let foreign) = await session.errorSnapshot(capture: .init(startEpoch: epoch + 1, cutoffNanos: DispatchTime.now().uptimeNanoseconds, recordingGeneration: 0)) else {
                 Issue.record("another session's error took this recording"); return
             }
             #expect(foreign == "replay_unavailable")
-            switch await session.errorSnapshot(epoch: epoch) {
+            switch await session.errorSnapshot(capture: ErrorReplayGate.shared.capture(epoch: epoch)!) {
             case .movie(let artifact): artifact.removeOwnedFile()
             case .omitted(let reason): #expect(reason == "empty_recording")
             }

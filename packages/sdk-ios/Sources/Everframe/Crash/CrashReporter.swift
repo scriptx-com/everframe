@@ -205,6 +205,7 @@ public enum CrashReporter {
         // Snapshot and eligibility checks happen before NSError bridging,
         // localizedDescription or stack extraction can invoke host behavior.
         let captured = Everframe.shared.captureSessionSnapshot()
+        let replayCapture = ErrorReplayGate.shared.capture(epoch: captured.user.startEpoch)
         guard Everframe.captureGate,
               let config = captured.config,
               config.capture.crash else { return diagnostic.reject(.disabled) }
@@ -249,6 +250,7 @@ public enum CrashReporter {
             requireCurrentSession: true,
             details: details,
             causeChain: causeChain,
+            replayCapture: replayCapture,
             replayEligible: sdkName != "everframe-flutter",
             diagnostic: diagnostic
         )
@@ -292,6 +294,7 @@ public enum CrashReporter {
         // disk below.
         let snapshot = Everframe.shared.captureSessionWithNativeExposure(exposure: __exposureForTesting)
         let captured = snapshot.session
+        let replayCapture = ErrorReplayGate.shared.capture(epoch: captured.user.startEpoch)
         __afterUserSnapshotHookForTesting?()
 
         // Read AFTER the snapshot, so a still-matching epoch at `resolve()`
@@ -330,6 +333,7 @@ public enum CrashReporter {
             device: device,
             requireCurrentSession: false,
             nativeExposure: snapshot.exposure,
+            replayCapture: replayCapture,
             replayEligible: attachReplay && sdkName != "everframe-flutter",
             diagnostic: diagnostic
         )
@@ -347,6 +351,7 @@ public enum CrashReporter {
         nativeExposure: EverframeNativeExposure? = nil,
         details: EverframeCrashDetails? = nil,
         causeChain: EverframeCrashCauseChain? = nil,
+        replayCapture: ErrorReplayCapture? = nil,
         replayEligible: Bool = false,
         diagnostic: CaptureObservation
     ) -> Bool {
@@ -558,7 +563,7 @@ public enum CrashReporter {
             // is queued now but held while its replay is taken. Reserved after
             // the revocation check above, so a refused capture holds no slot.
             heldForReplay = replayEligible && !fatal
-                && ErrorReplayGate.shared.reserve(epoch: capturedUser.startEpoch)
+                && (replayCapture.map { ErrorReplayGate.shared.reserve(capture: $0) } ?? false)
             var queuedBytes = bytes
             if heldForReplay {
                 if let flagged = ErrorReplayEnvelope.flagging("replay_unavailable", in: bytes) {
@@ -633,7 +638,7 @@ public enum CrashReporter {
                         currentEpoch: { Everframe.shared.currentStartEpoch }
                     )
                 }
-                if heldForReplay {
+                if heldForReplay, let replayCapture {
                     // Swap first, then drain; other drains skip the held entry.
                     let startEpoch = capturedUser.startEpoch
                     let killGeneration = captured.killGeneration
@@ -642,7 +647,7 @@ public enum CrashReporter {
                     let heldEntry = entry
                     let work: @Sendable () async -> Void = {
                         await ErrorReplayCompletion.run(
-                            entry: heldEntry, startEpoch: startEpoch,
+                            entry: heldEntry, capture: replayCapture,
                             stillOwned: {
                                 !Everframe.killGenerationChanged(since: killGeneration)
                                     && !Everframe.configGenerationChanged(since: configGeneration)

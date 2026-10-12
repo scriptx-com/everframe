@@ -79,6 +79,7 @@ class ReplaySession(
     private var errorReplaysSent = 0
     private var errorReplaysPending = 0
     /** Internal construction boundary: builds the attachment inside the recorder's snapshot gap. */
+    internal var errorReplayScope = ErrorReplayWork.scope
     internal var errorReplayAttachment: suspend (OwnedVideoClip) -> VideoAttachmentPair? = { NativeVideoAttachment().build(it) }
 
 
@@ -355,13 +356,14 @@ class ReplaySession(
                 errorReplaysSent + errorReplaysPending >= ErrorReplayWork.MAX_PER_SESSION
             ) return@withReportAuthorizationLock null
             errorReplaysPending++
-            Triple(bound, generation, bound.bufferGeneration)
+            Triple(bound, generation, bound.bufferGeneration) to bound.captureCutoffNanos()
         } ?: return null
         val startedNanos = System.nanoTime()
-        val (bound, capturedGeneration, capturedBufferGeneration) = claim
+        val (binding, cutoffNanos) = claim
+        val (bound, capturedGeneration, capturedBufferGeneration) = binding
         val build = errorReplayAttachment
-        val result = ErrorReplayWork.scope.async {
-            try { bound.snapshot(bound.owner, build) } catch (_: Throwable) { null }
+        val result = errorReplayScope.async {
+            try { bound.snapshot(bound.owner, cutoffNanos, capturedBufferGeneration, build) } catch (_: Throwable) { null }
         }
         return ErrorReplaySnapshot(result, startedNanos,
             allowed = {

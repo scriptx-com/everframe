@@ -29,7 +29,10 @@ actor NativeVideoRecorder: NativeVideoRecording {
         let directory: URL
     }
 
-    typealias SnapshotExport = @Sendable (URL, [NativeVideoSegment], NativeVideoDimensions, UInt64, Double) async throws -> NativeVideoArtifact?
+    typealias SnapshotExport = @Sendable (URL, [NativeVideoSegment], NativeVideoDimensions, UInt64, Double, UInt64) async throws -> NativeVideoArtifact?
+    typealias FinishWriter = @Sendable (NativeVideoSegmentWriter, UInt64) async throws -> NativeVideoSegment?
+    private let finishSnapshotWriter: FinishWriter
+    private let makeExporter: @Sendable (URL) -> NativeVideoExporter
     private let snapshotExport: SnapshotExport
     private let directory: URL
     private let framesPerSecond: Int
@@ -45,19 +48,23 @@ actor NativeVideoRecorder: NativeVideoRecording {
     private var resumeNanos: UInt64?
     private var busy = false
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
-    private enum State { case active, freezing, closed }
-    private var state = State.active
+    enum State { case active, freezing, closed }
+    private(set) var state = State.active
 
     init(directory: URL, framesPerSecond: Int, durationNanos: UInt64 = 30_000_000_000,
          byteLimit: Int = 8 * 1024 * 1024,
-         snapshotExport: @escaping SnapshotExport = { directory, segments, dimensions, anchor, epoch in
-             try await NativeVideoExporter(directory: directory).export(segments: segments,
-                 dimensions: dimensions, anchorNanos: anchor, anchorEpochMs: epoch)
-         }) throws {
+         finishSnapshotWriter: @escaping FinishWriter = { writer, end in try await writer.finish(endNanos: end) },
+         makeExporter: @escaping @Sendable (URL) -> NativeVideoExporter = { NativeVideoExporter(directory: $0) },
+         snapshotExport: SnapshotExport? = nil) throws {
         guard NativeVideoSettings.allowedFramesPerSecond.contains(framesPerSecond) else {
             throw NativeVideoWriterError.invalidFrame
         }
-        self.snapshotExport = snapshotExport
+        self.makeExporter = makeExporter
+        self.snapshotExport = snapshotExport ?? { directory, segments, dimensions, anchor, epoch, cutoff in
+            try await makeExporter(directory).export(segments: segments, dimensions: dimensions,
+                anchorNanos: anchor, anchorEpochMs: epoch, endNanos: cutoff)
+        }
+        self.finishSnapshotWriter = finishSnapshotWriter
         self.directory = directory
         self.framesPerSecond = framesPerSecond
         ring = NativeVideoRing(directory: directory, durationNanos: min(NativeVideoLimits.maxDurationNanos, durationNanos),
@@ -136,7 +143,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
                 await cancel()
                 return nil
             }
-            let export = NativeVideoExporter(directory: directory)
+            let export = makeExporter(directory)
             exporter = export
             let artifact = try await export.export(segments: ring.drain(), dimensions: dimensions,
                 anchorNanos: anchorNanos, anchorEpochMs: anchorEpochMs)
@@ -173,7 +180,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
         guard let staged else { return nil }
         // Runs after `busy` is released: frames, rollovers and a freeze proceed
         // against the originals while the independent copies export.
-        return try await snapshotExport(staged.directory, staged.segments, staged.dimensions, anchorNanos, anchorEpochMs)
+        return try await snapshotExport(staged.directory, staged.segments, staged.dimensions, anchorNanos, anchorEpochMs, endNanos)
     }
 
     func cancel() async {
@@ -189,10 +196,13 @@ actor NativeVideoRecorder: NativeVideoRecording {
         if let current = writer {
             writer = nil; segmentStart = nil
             if let last = lastAppendedNanos {
-                let end = max(endNanos, last + 1)
+                // A delayed error may have newer frames. Preserve a full final
+                // sample for the report; only the independent export is trimmed.
+                let end = endNanos > last ? endNanos : last + 1_000_000_000 / UInt64(framesPerSecond)
                 // The snapshot's deadline cancels this task. It must never cancel
                 // the recording's own segment, so the close runs in its own task.
-                let closed = try await Task { try await current.finish(endNanos: end) }.value
+                let finish = finishSnapshotWriter
+                let closed = try await Task { try await finish(current, end) }.value
                 if let closed {
                     guard state != .closed else {
                         try? FileManager.default.removeItem(at: closed.url)

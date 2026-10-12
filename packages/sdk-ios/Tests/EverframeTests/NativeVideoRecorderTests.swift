@@ -20,6 +20,16 @@ actor SnapshotTestGate {
     }
 }
 
+private final class SegmentRemovalProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var counts: [URL: Int] = [:]
+    func remove(_ url: URL) {
+        lock.lock(); counts[url, default: 0] += 1; lock.unlock()
+        try? FileManager.default.removeItem(at: url)
+    }
+    var removals: [URL: Int] { lock.lock(); defer { lock.unlock() }; return counts }
+}
+
 struct NativeVideoRecorderTests {
     @Test(arguments: [1, 2, 5, 10])
     func everyConfiguredRateStartsARecorder(fps: Int) throws {
@@ -136,6 +146,21 @@ struct NativeVideoRecorderTests {
         // no gap between segments, so no decoded black frame.
         #expect(try await frameTimes(frozen.url) == [0, 400, 800, 1200, 1600, 2000, 2400, 2500, 3100])
     }
+    @Test func delayedSnapshotTrimsPostErrorFramesButReportRetainsThem() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5)
+        for timestamp: UInt64 in [0, 200_000_000, 400_000_000, 800_000_000] {
+            #expect(try await recorder.append(frame(timestamp)))
+        }
+        let copy = try #require(await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 500_000_000))
+        defer { copy.removeOwnedFile() }
+        #expect(abs(copy.durationMs - 500) < 2)
+        #expect(try await frameTimes(copy.url) == [0, 200, 400])
+        let report = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 0, endNanos: 1_000_000_000))
+        defer { report.removeOwnedFile() }
+        #expect(try await frameTimes(report.url) == [0, 200, 400, 800])
+    }
+
     @Test func freezeRacingASnapshotStillExportsTheWholeWindow() async throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 10)
@@ -162,11 +187,11 @@ struct NativeVideoRecorderTests {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let exporting = SnapshotTestGate(), releaseExport = SnapshotTestGate()
         let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5,
-            snapshotExport: { directory, segments, dimensions, anchor, epoch in
+            snapshotExport: { directory, segments, dimensions, anchor, epoch, cutoff in
                 await exporting.release()
                 await releaseExport.wait()
                 return try await NativeVideoExporter(directory: directory).export(segments: segments,
-                    dimensions: dimensions, anchorNanos: anchor, anchorEpochMs: epoch)
+                    dimensions: dimensions, anchorNanos: anchor, anchorEpochMs: epoch, endNanos: cutoff)
             })
         for timestamp: UInt64 in [0, 400_000_000, 2_000_000_000, 2_400_000_000] {
             #expect(try await recorder.append(frame(timestamp)))
@@ -186,6 +211,43 @@ struct NativeVideoRecorderTests {
         let copyDirectory = try #require(copy.ownedDirectory)
         copy.removeOwnedFile()
         #expect(!FileManager.default.fileExists(atPath: copyDirectory.path))
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func freezeDuringSuspendedWriterFinishPreservesBothOwnedExports() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let cleanup = SegmentRemovalProbe()
+        let finishing = SnapshotTestGate(), releaseFinish = SnapshotTestGate()
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5,
+            finishSnapshotWriter: { writer, end in
+                await finishing.release()
+                await releaseFinish.wait()
+                return try await writer.finish(endNanos: end)
+            }, makeExporter: { NativeVideoExporter(directory: $0, removeSegment: cleanup.remove) })
+        for timestamp: UInt64 in [0, 200_000_000, 400_000_000] {
+            #expect(try await recorder.append(frame(timestamp)))
+        }
+        let copy = Task { try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 500_000_000) }
+        await finishing.wait()
+        let report = Task { try await recorder.finish(anchorNanos: 0, anchorEpochMs: 0, endNanos: 500_000_000) }
+        while await recorder.state != .freezing { await Task.yield() }
+        await releaseFinish.release()
+        let error = try #require(await copy.value)
+        let frozen = try #require(await report.value)
+        #expect(error.url != frozen.url)
+        #expect(cleanup.removals.count == 2) // original closed segment and its independent copy
+        #expect(cleanup.removals.values.allSatisfy { $0 == 1 })
+        #expect(cleanup.removals.keys.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+        #expect(try await frameTimes(error.url) == [0, 200, 400])
+        #expect(try await frameTimes(frozen.url) == [0, 200, 400])
+        let copyDirectory = try #require(error.ownedDirectory)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path) == [frozen.url.lastPathComponent])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: copyDirectory.path) == [error.url.lastPathComponent])
+        error.removeOwnedFile()
+        #expect(!FileManager.default.fileExists(atPath: copyDirectory.path))
+        #expect(FileManager.default.fileExists(atPath: frozen.url.path))
+        frozen.removeOwnedFile()
+        #expect(!FileManager.default.fileExists(atPath: dir.path))
     }
 
     private func frameTimes(_ url: URL) async throws -> [Int] {

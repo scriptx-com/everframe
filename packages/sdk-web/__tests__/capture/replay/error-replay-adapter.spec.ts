@@ -145,7 +145,7 @@ describe('replays on web errors', () => {
     const part = await bytesOf(body.get('session-replay') as Blob);
     expect(envelope.attachments[0].byteLength).toBe(part.byteLength);
     const events = JSON.parse(gunzipSync(Buffer.from(part)).toString('utf8')) as Array<{ type: number }>;
-    expect(events.map((e) => e.type)).toEqual([2, 3]);
+    expect(events.map((e) => e.type)).toEqual([2, 3, 5]);
     // Non-destructive: same window, still recording, lifecycle untouched.
     expect((recorders[recorders.length - 1] as ReplayRecorder).__diagnostics())
       .toMatchObject({ recording: true, frozen: false, frames: 2 });

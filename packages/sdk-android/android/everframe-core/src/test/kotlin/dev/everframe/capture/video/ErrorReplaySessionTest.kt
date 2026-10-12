@@ -31,12 +31,13 @@ class ErrorReplaySessionTest {
     private val h = VideoExporterTest.Harness()
     private val mainTasks = ConcurrentLinkedDeque<() -> Unit>()
     private val pts = AtomicLong()
+    private var captureNow = 0L
     private val scheduler = object : VideoCaptureScheduler {
         override fun main(block: () -> Unit) { mainTasks.add(block) }
         override fun worker(block: () -> Unit) = block()
         override fun later(delayMs: Long, block: () -> Unit): () -> Unit = {}
         override fun isWorkerThread() = false
-        override fun nowNanos() = 0L
+        override fun nowNanos() = captureNow
     }
     private lateinit var session: ReplaySession
 
@@ -65,10 +66,11 @@ class ErrorReplaySessionTest {
                     override fun close() = Unit
                 }
             }, { segments, allowed -> h.exporter.export(owner, segments, allowed) },
-                snapshotExporter = { segments, allowed -> h.exporter.exportBorrowed(owner, segments, allowed) })
+                snapshotExporter = { segments, allowed -> h.exporter.export(owner, segments, allowed) })
         }
         runBlocking { session.refreshConfigNow() }
         drainMain()
+        captureNow = 20_000_000_000L
     }
 
     @After fun tearDown() { session.teardown(); drainMain(); Everframe.captureGate = false; h.root.deleteRecursively() }
@@ -117,6 +119,25 @@ class ErrorReplaySessionTest {
         assertNull(session.beginErrorReplay(Everframe.currentStartEpochVolatile() - 1))
         assertTrue("a foreign start cannot export this recorder", h.inputs.isEmpty())
         assertNotNull(attach())
+    }
+
+    @Test fun freezeOrResumeBeforeAsyncEntryCannotTakeAReplacementWindow() = runBlocking {
+        for (freeze in listOf(true, false)) {
+            val tasks = java.util.ArrayDeque<Runnable>()
+            session.errorReplayScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() +
+                object : kotlinx.coroutines.CoroutineDispatcher() {
+                    override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { tasks.add(block) }
+                })
+            val snapshot = checkNotNull(session.beginErrorReplay())
+            val report = if (freeze) session.freezeOwnedCapture() else null
+            if (!freeze) { session.pause(); session.resume(); drainMain() }
+            val before = h.inputs.size
+            tasks.removeFirst().run()
+            assertNull(snapshot.await())
+            assertEquals("the stale claim cannot export another window", before, h.inputs.size)
+            snapshot.settle(false)
+            report?.cancel(); drainMain()
+        }
     }
 
     @Test fun anOpenBugReportBlocksErrorReplays() = runBlocking {

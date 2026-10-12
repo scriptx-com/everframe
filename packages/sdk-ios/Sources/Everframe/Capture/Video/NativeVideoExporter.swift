@@ -25,11 +25,13 @@ enum NativeVideoExportError: Error { case closed, invalidSegments, exportFailed,
 /// are removed on success or failure; a returned artifact belongs to the caller.
 actor NativeVideoExporter {
     private let directory: URL
+    private let removeSegment: @Sendable (URL) -> Void
     private var session: AVAssetExportSession?
     private var closed = false
     private var cancelled = false
 
-    init(directory: URL) {
+    init(directory: URL, removeSegment: @escaping @Sendable (URL) -> Void = { try? FileManager.default.removeItem(at: $0) }) {
+        self.removeSegment = removeSegment
         self.directory = directory.appendingPathComponent("", isDirectory: true).standardizedFileURL
     }
 
@@ -39,7 +41,7 @@ actor NativeVideoExporter {
     }
 
     func export(segments: [NativeVideoSegment], dimensions: NativeVideoDimensions,
-                anchorNanos: UInt64, anchorEpochMs: Double) async throws -> NativeVideoArtifact? {
+                anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64? = nil) async throws -> NativeVideoArtifact? {
         guard !closed else { throw NativeVideoExportError.closed }
         closed = true
         // Only accept files inside this recording's private directory. Refuse
@@ -49,7 +51,7 @@ actor NativeVideoExporter {
               Set(segments.map { $0.url.standardizedFileURL }).count == segments.count
         else { throw NativeVideoExportError.invalidSegments }
         defer {
-            for segment in segments { try? FileManager.default.removeItem(at: segment.url) }
+            for segment in segments { removeSegment(segment.url) }
             NativeVideoStorage.removeIfEmpty(directory)
         }
         guard !cancelled, !Task.isCancelled else { throw CancellationError() }
@@ -57,6 +59,8 @@ actor NativeVideoExporter {
         guard first.startNanos >= anchorNanos, last.endNanos > first.startNanos,
               last.endNanos - first.startNanos <= NativeVideoLimits.maxDurationNanos,
               anchorEpochMs.isFinite, anchorEpochMs >= 0 else { throw NativeVideoExportError.invalidSegments }
+        let cutoff = min(endNanos ?? last.endNanos, last.endNanos)
+        guard cutoff > first.startNanos else { return nil }
         let epoch = anchorEpochMs + Double(first.startNanos - anchorNanos) / 1_000_000
         guard epoch.isFinite else { throw NativeVideoExportError.invalidSegments }
         let composition = AVMutableComposition()
@@ -79,8 +83,10 @@ actor NativeVideoExporter {
             let duration = CMTime(value: Int64(segment.endNanos - segment.startNanos), timescale: 1_000_000_000)
             guard asset.duration.seconds.isFinite, abs(asset.duration.seconds - duration.seconds) < 0.002
             else { throw NativeVideoExportError.invalidSegments }
+            if segment.startNanos >= cutoff { continue }
+            let included = CMTime(value: Int64(min(segment.endNanos, cutoff) - segment.startNanos), timescale: 1_000_000_000)
             let offset = CMTime(value: Int64(segment.startNanos - first.startNanos), timescale: 1_000_000_000)
-            try destination.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: track, at: offset)
+            try destination.insertTimeRange(CMTimeRange(start: .zero, duration: included), of: track, at: offset)
         }
         guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough)
         else { throw NativeVideoExportError.exportFailed }

@@ -41,8 +41,8 @@ internal class NativeVideoRecorder(
     private val exporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip?,
     /** Battery Saver or MODERATE heat (spec 2026-10-11). True pauses exactly like a lost window. */
     private val devicePause: () -> Boolean = { false },
-    /** Error replays: export retained segments without taking ownership of them. */
-    private val snapshotExporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip? = { _, _ -> null },
+    /** Consumes independently staged error inputs, including cancellation and failure. */
+    private val snapshotExporter: suspend (List<VideoSegment>, () -> Boolean) -> OwnedVideoClip? = { segments, _ -> segments.forEach { it.close() }; null },
 ) : AutoCloseable {
     enum class State { DISABLED, BUFFERING, SUSPENDED, FROZEN, CLOSED }
     private val lock = Any()
@@ -62,7 +62,7 @@ internal class NativeVideoRecorder(
     private var size: VideoSize? = null
     private var requestedSize: VideoSize? = null
     private var preparing = false
-    // Freeze may claim immediately, but cannot consume borrowed history or codec admission.
+    // Freeze may claim immediately; report export waits for the optional export lane.
     private var snapshotFinished: CompletableDeferred<Unit>? = null
     private var manuallyPaused = false
     private var cancelTick: (() -> Unit)? = null
@@ -239,27 +239,26 @@ internal class NativeVideoRecorder(
         cancelTick?.invoke(); capture?.cancel()
         return { exportFrozen() }
     }
-    /**
-     * Error replays (spec 2026-10-11): a non-destructive copy of the retained window. The writing
-     * encoder finishes early, so its open segment closes, and its segments join [history] exactly as
-     * a size-change replacement's do. The retained segments are exported as borrowed inputs, and
-     * [build] turns the clip into an attachment, both while no encoder holds the process worker
-     * admission. Then [tick] prepares a new encoder. [state] never changes, so a later error or
-     * bug-report freeze still sees the whole history.
-     */
-    suspend fun snapshot(owner: VideoOwner, build: suspend (OwnedVideoClip) -> VideoAttachmentPair?): VideoAttachmentPair? {
+    /** Independently stage retained inputs, then resume capture before export and attachment reads. */
+    suspend fun snapshot(owner: VideoOwner, cutoffNanos: Long? = null, expectedBufferGeneration: Long? = null, build: suspend (OwnedVideoClip) -> VideoAttachmentPair?): VideoAttachmentPair? {
         require(owner == this.owner)
         val completed = CompletableDeferred<Unit>()
         val (current, capturedBufferGeneration) = synchronized(lock) {
             // A freeze (open bug report), pause, revocation or in-flight replacement refuses with no codec work.
-            if (revoked || state != State.BUFFERING || preparing) return null
+            if (revoked || state != State.BUFFERING || preparing || snapshotFinished != null ||
+                (expectedBufferGeneration != null && expectedBufferGeneration != bufferGeneration)) return null
+            generation++ // Fence main-thread ticks already queued for the old encoder.
             preparing = true; controlTasks++
             snapshotFinished = completed
             encoder.also { encoder = null } to bufferGeneration
         }
-        capture?.cancel()
+        cancelTick?.invoke(); capture?.cancel()
+        var staged: List<VideoSegment> = emptyList()
+        var resumed = false
+        var transferred = false
+        val claimed = java.util.concurrent.atomic.AtomicBoolean()
+        val retained = CompletableDeferred<List<VideoSegment>>()
         try {
-            val retained = CompletableDeferred<List<VideoSegment>>()
             val submitted = submitControl {
                 val segments = try { current?.finish(scheduler.nowNanos() / 1_000_000 + 3_000).orEmpty() }
                     catch (_: Throwable) { current?.close(); emptyList() }
@@ -269,7 +268,14 @@ internal class NativeVideoRecorder(
                     } else {
                         history.addAll(segments)
                         trimHistory(anchor!!.ptsUs(retentionTimeNanos()), 0, 0); observeRing(0, 0)
-                        retained.complete(history.toList())
+                        val copies = mutableListOf<VideoSegment>()
+                        try {
+                            val cutoff = cutoffNanos?.let { anchor!!.ptsUs(it) }
+                            history.filter { cutoff == null || it.firstPtsUs < cutoff }.forEach {
+                                copies += it.independentCopy(cutoff)
+                            }
+                            retained.complete(copies)
+                        } catch (_: Throwable) { copies.forEach { it.close() }; retained.complete(emptyList()) }
                     }
                 }
             }
@@ -284,26 +290,40 @@ internal class NativeVideoRecorder(
                 return null
             }
             // finish() is bounded at 3 s and the worker hop is immediate. The bound only keeps a lost
-            // completion from parking `preparing`; the segments stay recorder-owned either way.
-            val borrowed = withTimeoutOrNull(6_000) { retained.await() } ?: return null
-            if (borrowed.isEmpty() || !ownsBuffer(capturedBufferGeneration)) return null
-            val clip = snapshotExporter(borrowed) { ownsBuffer(capturedBufferGeneration) } ?: return null
+            // completion from parking `preparing`; late independent copies retain cleanup ownership.
+            staged = withTimeoutOrNull(6_000) { retained.await() } ?: return null
+            claimed.set(true)
+            synchronized(lock) { preparing = false }
+            resumed = true
+            tick()
+            if (staged.isEmpty() || !ownsBuffer(capturedBufferGeneration)) return null
+            transferred = true
+            val clip = snapshotExporter(staged) { ownsBuffer(capturedBufferGeneration) } ?: return null
             return try { build(clip)?.takeIf { ownsBuffer(capturedBufferGeneration) } } finally { clip.close() }
         } finally {
+            if (claimed.get()) { if (!transferred) staged.forEach { it.close() } }
+            else retained.invokeOnCompletion { ownedWorker {
+                if (claimed.compareAndSet(false, true)) {
+                    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+                    retained.getCompleted().forEach { it.close() }
+                }
+            } }
             synchronized(lock) {
-                preparing = false
+                if (!resumed) preparing = false
                 if (snapshotFinished === completed) snapshotFinished = null
             }
             completed.complete(Unit)
-            tick()
+            if (!resumed) tick()
         }
     }
+
+    internal fun captureCutoffNanos(): Long = scheduler.nowNanos()
 
     private fun retentionTimeNanos(): Long = frozenAtNanos ?: scheduler.nowNanos()
 
     private suspend fun exportFrozen(): OwnedVideoClip? {
         // Wait outside the lock and the control/capture workers. This only bounds the report's
-        // wait; cancelling the snapshot itself could quarantine the shared native worker.
+        // wait; cancelling the snapshot itself could quarantine the export lane.
         // Finish/worker handoff is bounded at 6 s; export and attachment read at 3 s each.
         val snapshot = synchronized(lock) { snapshotFinished }
         if (snapshot != null && withTimeoutOrNull(12_000) { snapshot.await(); true } != true) return null
@@ -423,7 +443,7 @@ internal class NativeVideoRecorder(
                 }
             }, { segments, allowed -> VideoExporter(context).export(owner, segments, allowed) },
                 devicePause = conditions::pauseRecording,
-                snapshotExporter = { segments, allowed -> VideoExporter(context).exportBorrowed(owner, segments, allowed) })
+                snapshotExporter = { segments, allowed -> VideoExporter(context).export(owner, segments, allowed) })
             return recorder
         }
     }

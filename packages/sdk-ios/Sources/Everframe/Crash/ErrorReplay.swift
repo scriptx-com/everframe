@@ -30,13 +30,36 @@ final class ErrorReplayGate: @unchecked Sendable {
     private var epoch: Int?
     private var recording = false
     private var used = 0
+    private var recordingGeneration = 0
 
     func publish(recording: Bool, epoch: Int) {
         lock.lock(); defer { lock.unlock() }
         // Start epochs only increase: a torn-down predecessor never wins.
         if let current = self.epoch, epoch < current { return }
         if self.epoch != epoch { self.epoch = epoch; used = 0 }
+        if recording && !self.recording { recordingGeneration += 1 }
         self.recording = recording
+    }
+
+    /// Capture identity and the recorder clock before host callbacks or async dispatch.
+    func capture(epoch: Int) -> ErrorReplayCapture? {
+        lock.lock(); defer { lock.unlock() }
+        guard self.epoch == epoch, recording else { return nil }
+        return .init(startEpoch: epoch, cutoffNanos: DispatchTime.now().uptimeNanoseconds,
+                     recordingGeneration: recordingGeneration)
+    }
+
+    func owns(_ capture: ErrorReplayCapture) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return epoch == capture.startEpoch && recordingGeneration == capture.recordingGeneration
+    }
+
+    func reserve(capture: ErrorReplayCapture) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard epoch == capture.startEpoch, recording,
+              recordingGeneration == capture.recordingGeneration, used < ErrorReplayPolicy.maxPerSession else { return false }
+        used += 1
+        return true
     }
 
     /// Takes one replay. `release` returns it when none was attached after all.
@@ -66,7 +89,13 @@ enum ErrorReplayOutcome: Sendable {
     case omitted(String)
 }
 
-typealias ErrorReplayProvider = @Sendable (_ startEpoch: Int) async -> ErrorReplayOutcome
+struct ErrorReplayCapture: Sendable {
+    let startEpoch: Int
+    let cutoffNanos: UInt64
+    let recordingGeneration: Int
+}
+
+typealias ErrorReplayProvider = @Sendable (_ capture: ErrorReplayCapture) async -> ErrorReplayOutcome
 
 /// Edits to an error envelope built at capture time.
 enum ErrorReplayEnvelope {
@@ -114,9 +143,10 @@ enum ErrorReplayEnvelope {
 /// Finishes one held error before its own drain: waits for the replay, then
 /// swaps the queued entry for its final form.
 enum ErrorReplayCompletion {
-    static func run(entry: OutboxEntry, startEpoch: Int, stillOwned: @Sendable () -> Bool,
+    static func run(entry: OutboxEntry, capture: ErrorReplayCapture, stillOwned: @Sendable () -> Bool,
                     outbox: JSONLOutbox, provider: ErrorReplayProvider) async {
-        let outcome = await provider(startEpoch)
+        let startEpoch = capture.startEpoch
+        let outcome = await provider(capture)
         var kept = false
         defer { if !kept { ErrorReplayGate.shared.release(epoch: startEpoch) } }
         // The capture's own rule: no write begins after kill() or a new start().
@@ -171,8 +201,8 @@ enum ErrorReplayLive {
     #if canImport(UIKit)
     /// Snapshot through the session (MainActor bookkeeping only), then read,
     /// hash and encode the movie away from the main thread.
-    static let provider: ErrorReplayProvider = { startEpoch in
-        switch await Everframe.shared.__replayErrorSnapshot(epoch: startEpoch) {
+    static let provider: ErrorReplayProvider = { capture in
+        switch await Everframe.shared.__replayErrorSnapshot(capture: capture) {
         case let .omitted(reason):
             return .omitted(reason)
         case let .movie(artifact):

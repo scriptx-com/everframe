@@ -7,6 +7,7 @@
 // clears or rotates the recorder, so a later error or bug report keeps its
 // full history.
 import { describe, it, expect, vi } from 'vitest';
+import { Replayer } from 'rrweb';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { createReplayRecorder, windowFromAnchor } from '../../../src/capture/replay/recorder.js';
 
@@ -61,14 +62,46 @@ describe('replay snapshot (non-destructive)', () => {
     h.emit(FULL, 80_000);
     h.emit(INCR, 90_000);
     const capture = await h.rec.snapshot();
-    expect(capture).toMatchObject({ format: 'rrweb', durationMs: 10_000, contentType: 'application/octet-stream' });
-    expect(decode(capture!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000]);
+    expect(capture).toMatchObject({ format: 'rrweb', durationMs: 20_000, contentType: 'application/octet-stream' });
+    expect(decode(capture!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 100_000]);
     expect(h.rec.__diagnostics()).toMatchObject({ recording: true, frozen: false, frames: 3 });
     h.emit(INCR, 95_000);
     expect(h.rec.__size).toBe(4);
     // A later bug report still gets everything, the snapshot's frames included.
     h.rec.freeze();
     expect(decode((await h.rec.takeFrozen())!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 95_000]);
+  });
+
+  it('real Replayer retains a full-snapshot-only idle tail and isolates a later report', async () => {
+    const h = harness();
+    await started(h);
+    h.emit(META, 80_000, { href: 'https://example.test', width: 800, height: 600 });
+    h.emit(FULL, 80_000, { node: { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: 'html', attributes: {}, childNodes: [{ type: 2, id: 3, tagName: 'head', attributes: {}, childNodes: [] }, { type: 2, id: 4, tagName: 'body', attributes: {}, childNodes: [] }] }] }, initialOffset: { top: 0, left: 0 } });
+    const pending = h.rec.snapshot();
+    h.setNow(110_000);
+    h.emit(5, 110_000, { tag: 'later-report', payload: {} });
+    h.rec.freeze();
+    const error = await pending;
+    const report = await h.rec.takeFrozen();
+    const events = decode(error!.bytes);
+    expect(events.at(-1)).toMatchObject({ type: 5, timestamp: 100_000 });
+    // jsdom omits iframe.sandbox; model its reflected token list without
+    // bypassing rrweb's protected-document checks.
+    const sandbox = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'sandbox');
+    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', { configurable: true,
+      get() { return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean); } });
+    const player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], { root: document.body });
+    const later = new Replayer(decode(report!.bytes) as ConstructorParameters<typeof Replayer>[0], { root: document.body });
+    try {
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(player.getMetaData()).toMatchObject({ startTime: 80_000, endTime: 100_000, totalTime: 20_000 });
+      player.pause(20_000);
+      expect(player.getCurrentTime()).toBe(20_000);
+      expect(later.getMetaData()).toMatchObject({ endTime: 110_000, totalTime: 30_000 });
+      expect(decode(report!.bytes).filter(e => e.timestamp === 100_000)).toEqual([]);
+    } finally { player.destroy(); later.destroy(); h.rec.kill();
+      if (sandbox) Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', sandbox);
+      else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox'); }
   });
 
   it('starts at the newest full snapshot that still covers the window', async () => {
@@ -82,10 +115,10 @@ describe('replay snapshot (non-destructive)', () => {
     h.emit(INCR, 95_000);
     // 30 s ending at 100 000 starts at 70 000: the snapshot at 50 000 covers it.
     expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp))
-      .toEqual([50_000, 50_000, 60_000, 72_000, 72_000, 95_000]);
+      .toEqual([50_000, 50_000, 60_000, 72_000, 72_000, 95_000, 100_000]);
     // 30 s ending at 110 000 starts at 80 000: the snapshot at 72 000 covers it.
     h.setNow(110_000);
-    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp)).toEqual([72_000, 72_000, 95_000]);
+    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp)).toEqual([72_000, 72_000, 95_000, 110_000]);
     expect(h.rec.__size).toBe(6); // the buffer itself was not pruned
   });
 
@@ -100,7 +133,7 @@ describe('replay snapshot (non-destructive)', () => {
     const pending = h.rec.snapshot();
     h.emit(INCR, 99_000);
     release();
-    expect(decode((await pending)!.bytes).map((e) => e.timestamp)).toEqual([90_000]);
+    expect(decode((await pending)!.bytes).map((e) => e.timestamp)).toEqual([90_000, 100_000]);
   });
 
   it('keeps an independent copy while a bug report freezes and exports the full history', async () => {
@@ -128,7 +161,7 @@ describe('replay snapshot (non-destructive)', () => {
     expect(decode(report!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 95_000]);
     expect(h.rec.__diagnostics()).toMatchObject({ frozen: true, frames: 4 });
     release();
-    expect(decode((await pending)!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000]);
+    expect(decode((await pending)!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 100_000]);
     expect(h.rec.__diagnostics()).toMatchObject({ frozen: true, frames: 4 });
   });
 

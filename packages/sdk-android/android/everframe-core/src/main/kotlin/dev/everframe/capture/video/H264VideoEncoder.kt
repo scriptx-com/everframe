@@ -31,7 +31,11 @@ internal class VideoEncoderWorkerAdmission {
         fun quarantine() = synchronized(this@VideoEncoderWorkerAdmission) { if(occupied === this) quarantined=true }
         override fun close() = synchronized(this@VideoEncoderWorkerAdmission) { if(occupied === this) occupied=null }
     }
-    companion object { val process=VideoEncoderWorkerAdmission() }
+    companion object {
+        val process=VideoEncoderWorkerAdmission()
+        // Remux and attachment reads share one slot, independently of the sole recording codec.
+        val export=VideoEncoderWorkerAdmission()
+    }
 }
 
 internal interface VideoEncoderBackend : AutoCloseable {
