@@ -28,7 +28,8 @@ final class EverframeConfigEquatableTests: XCTestCase {
             companionBadgePosition: "top-left",
             theme: ReporterThemeOptions(background: "#101014", accent: "#f0b429"),
             installIdentifierEnabled: false,
-            vitals: VitalsConfig(enabled: true, sampleRate: 0.25, captureSourceQuery: true)
+            vitals: VitalsConfig(enabled: true, sampleRate: 0.25, captureSourceQuery: true),
+            reporterEnabled: false
         )
         cfg.capture.network = true
         cfg.redaction.allowlistedHeaders = ["Content-Type", "X-Trace-ID"]
@@ -97,13 +98,22 @@ final class EverframeConfigEquatableTests: XCTestCase {
         XCTAssertNotEqual(makeConfig(), debug)
     }
 
+    /// A crash-only switch flip must restart the SDK, never read as "already installed".
+    func test_the_reporter_is_on_by_default_and_participates_in_the_comparison() {
+        XCTAssertTrue(EverframeConfig(sdkKey: sdkKey).reporterEnabled)
+        XCTAssertFalse(makeConfig().reporterEnabled)
+        var on = makeConfig(); on.reporterEnabled = true
+        XCTAssertNotEqual(makeConfig(), on)
+    }
+
     /// SDK 1.1 named the key `appId`. The deprecated spelling still compiles and
     /// builds the same config, so a 1.1 call site keeps working in a minor release.
     @available(*, deprecated)
     func test_deprecated_appId_spelling_builds_the_same_config() {
-        let legacy = EverframeConfig(appId: sdkKey, release: "1.2.3", installIdentifierEnabled: false)
-        let current = EverframeConfig(sdkKey: sdkKey, release: "1.2.3", installIdentifierEnabled: false)
+        let legacy = EverframeConfig(appId: sdkKey, release: "1.2.3", installIdentifierEnabled: false, reporterEnabled: false)
+        let current = EverframeConfig(sdkKey: sdkKey, release: "1.2.3", installIdentifierEnabled: false, reporterEnabled: false)
         XCTAssertEqual(legacy, current)
+        XCTAssertFalse(legacy.reporterEnabled)
         XCTAssertEqual(legacy.sdkKey, sdkKey)
         XCTAssertEqual(legacy.appId, sdkKey)
     }

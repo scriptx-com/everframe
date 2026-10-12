@@ -1158,8 +1158,10 @@ public final class Everframe: @unchecked Sendable {
         let vitalsStillNewest: () -> Bool = { Everframe.shared.currentStartEpoch == epoch }
         VitalsRuntime.shared.shutdown(dropPending: false, ifCurrent: vitalsStillNewest)
         VitalsServerConfigBox.shared.publish(nil, ifCurrent: vitalsStillNewest)
+        // A crash-only session (`reporterEnabled: false`) has no on-device reporter, so shake
+        // stays off for the whole session, including after a companion upgrade.
         ShakeToReportTrigger.shared.beginSession(
-            localEnabled: config.shakeToReportEnabled,
+            localEnabled: config.shakeToReportEnabled && config.reporterEnabled,
             ifCurrent: vitalsStillNewest
         )
 
@@ -2488,7 +2490,14 @@ public final class ReportAPI: ObservableObject, @unchecked Sendable {
     /// Wired in plan 04-06 to EFReporterPresenter.openAndAwait() via the
     /// runtime-injected resolver below — this keeps Everframe.swift independent
     /// of the EverframeReporterUI module (which depends on Everframe).
+    ///
+    /// Throws `EverframeReporterError.reporterDisabled` in a crash-only session
+    /// (`EverframeConfig.reporterEnabled == false`), before any capture, including after a
+    /// companion upgrade: that session's reports come through companion.
     public func open() async throws -> ReportResult {
+        if Everframe.shared.currentConfig?.reporterEnabled == false {
+            throw EverframeReporterError.reporterDisabled
+        }
         if let resolver = ReportAPI.__resolver {
             return try await resolver()
         }
