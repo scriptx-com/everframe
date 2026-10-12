@@ -14,8 +14,12 @@ const fixedPackages = ['@everframe/web', '@everframe/react', '@everframe/react-n
 
 test('published npm SDK versions are aligned for the coordinated release', () => {
   assert.deepEqual(JSON.parse(read('.changeset/config.json')).fixed, [fixedPackages]);
-  for (const dir of ['sdk-web', 'sdk-react', 'sdk-react-native', 'identity', 'sdk-roku']) {
+  for (const dir of ['sdk-web', 'sdk-react', 'sdk-react-native']) {
     assert.equal(manifest(dir).version, releaseVersion, dir);
+    assert.notEqual(manifest(dir).private, true, dir);
+  }
+  // Versioned on their own since 1.2.0 (identity 1.0.x, roku 1.1.x): published, not locked to the release.
+  for (const dir of ['identity', 'sdk-roku']) {
     assert.notEqual(manifest(dir).private, true, dir);
   }
 });
