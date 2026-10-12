@@ -1,0 +1,25 @@
+packages/bundler-plugin/package.json
+  s_dbd309ddf8ec5b::t_8de170a9dcb280 8-21
+packages/cli/package.json
+  s_dbd309ddf8ec5b::t_7b8cebd3edc523 8-20
+packages/expo/package.json
+  s_dbd309ddf8ec5b::t_e6872f5032fb22 8-19
+packages/metro/package.json
+  s_dbd309ddf8ec5b::t_6290403f1ab374 8-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "04b9b2f5eaa97fce57f9ab3df0b153c47c317fac",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
