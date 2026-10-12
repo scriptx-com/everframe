@@ -59,7 +59,6 @@ import dev.everframe.envelope.txGuardVoid
 import dev.everframe.identity.IdentityTokenHolder
 import dev.everframe.identity.IdentityTokenSource
 import dev.everframe.identity.decodeIdentityClaims
-import dev.everframe.outbox.CrashSidecar
 import dev.everframe.outbox.JSONLOutbox
 import dev.everframe.shared.SharedData
 import dev.everframe.transport.ReportSubmitter
@@ -1143,7 +1142,6 @@ object Everframe {
                 // per-instance, so a second instance over the same file
                 // would provide no mutual exclusion.
                 val outbox = sharedOutboxFor(context)
-                CrashSidecar(context.applicationContext).hydrateInto(outbox)
                 // Native identity Task 8b — the real singleton holder + the
                 // live ReplayConfig, not drainOutbox's old inert defaults.
                 //
@@ -1663,7 +1661,6 @@ object Everframe {
         launchCapturedWork(captured) {
             txGuardSuspend("requestOutboxDrain") {
                 val outbox = sharedOutboxFor(ctx)
-                CrashSidecar(ctx).hydrateInto(outbox)
                 // Native identity Task 8b — this is the RN non-fatal path's
                 // immediate drain (mirrors iOS CrashReporter.swift's `Task {
                 // await submitter.drainOutbox(...) }`): the entry a

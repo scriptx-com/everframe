@@ -256,7 +256,7 @@ public final class JSONLOutbox: @unchecked Sendable {
                 try writeAll(entries)
                 diagnostics?.queueOperation(.enqueueCommitted)
                 diagnostics?.queueOperation(.capacityEvicted, amount: beforeCapacity - entries.count)
-                diagnostics?.queueObserved(count: entries.count, quality: .complete, migration: "clear")
+                diagnostics?.queueObserved(count: entries.count, quality: .complete)
             } catch {
                 diagnostics?.queueOperation(.enqueueFailed, failure: Self.failure(error))
                 throw error
@@ -372,7 +372,7 @@ public final class JSONLOutbox: @unchecked Sendable {
                 entries.removeAll(where: predicate)
                 try writeAll(entries)
                 if let reason { diagnostics?.queueOperation(reason, amount: before - entries.count) }
-                diagnostics?.queueObserved(count: entries.count, quality: .complete, migration: "clear")
+                diagnostics?.queueObserved(count: entries.count, quality: .complete)
             } catch {
                 diagnostics?.queueOperation(.removalFailed, failure: Self.failure(error))
                 throw error
@@ -385,14 +385,14 @@ public final class JSONLOutbox: @unchecked Sendable {
     private func readAll(diagnostics: ReportDiagnostics.Handle? = nil, strict: Bool = false) throws -> [OutboxEntry] {
         do {
             guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                diagnostics?.queueObserved(count: 0, quality: .complete, migration: "clear")
+                diagnostics?.queueObserved(count: 0, quality: .complete)
                 return []
             }
             let stored = try Data(contentsOf: fileURL)
-            // Preserve legacy handling, but do not claim an empty readable queue.
+            // A file without the header is unreadable: do not claim an empty queue.
             guard stored.starts(with: Self.magic) else {
                 if strict { throw RecoveryFailure.unreadable }
-                diagnostics?.queueObserved(count: nil, quality: .unknown, migration: "blocked")
+                diagnostics?.queueObserved(count: nil, quality: .unknown)
                 return []
             }
             let sealed = try AES.GCM.SealedBox(combined: stored.dropFirst(Self.magic.count))
@@ -407,7 +407,7 @@ public final class JSONLOutbox: @unchecked Sendable {
                 }
             }
             if strict, Set(out.map(\.reportId)).count != out.count { throw RecoveryFailure.conflict }
-            diagnostics?.queueObserved(count: out.count, quality: partial ? .partial : .complete, migration: "clear")
+            diagnostics?.queueObserved(count: out.count, quality: partial ? .partial : .complete)
             return out
         } catch {
             diagnostics?.queueOperation(.readFailed, failure: Self.failure(error))
@@ -457,7 +457,7 @@ public final class JSONLOutbox: @unchecked Sendable {
         if recovery { try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tempURL.path) }
         if FileManager.default.fileExists(atPath: fileURL.path) {
             // Adopt the new ciphertext's protection instead of retaining a
-            // legacy queue's complete protection when replacing it while unlocked.
+            // previous file's complete protection when replacing it while unlocked.
             _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: tempURL, options: .usingNewMetadataOnly)
         } else {
             try FileManager.default.moveItem(at: tempURL, to: fileURL)

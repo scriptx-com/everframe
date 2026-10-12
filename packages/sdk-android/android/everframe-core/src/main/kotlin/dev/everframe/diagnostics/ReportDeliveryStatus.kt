@@ -47,7 +47,6 @@ data class QueueStatus(
     val terminalHttpPolicy: String = "retain",
     val operations: Map<String, Int> = QueueOperation.entries.associate { it.code to 0 },
     val lastFailure: String? = null,
-    val migration: String = "not-observed",
 )
 
 @Serializable
@@ -67,7 +66,7 @@ internal enum class CaptureOutcome(val code: String) {
     REENTRANT("reentrant"), INVALID_INPUT("invalid-input"), OWNERSHIP_LOST("ownership-lost"),
     STORAGE_UNAVAILABLE("storage-unavailable"), FAILED("failed")
 }
-internal enum class QueueQuality(val code: String) { COMPLETE("complete"), PARTIAL("partial"), UNKNOWN("unknown") }
+internal enum class QueueQuality(val code: String) { COMPLETE("complete"), UNKNOWN("unknown") }
 internal enum class QueueOperation(val code: String) {
     ENQUEUE_COMMITTED("enqueue-committed"), ENQUEUE_FAILED("enqueue-failed"), CAPACITY_EVICTED("capacity-evicted"),
     REMOVED_AFTER_ACCEPTANCE("removed-after-acceptance"), REMOVED_AFTER_TERMINAL("removed-after-terminal"),

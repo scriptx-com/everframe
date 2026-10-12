@@ -16,7 +16,7 @@ import java.io.File
  * retransmit it without re-running capture. Mirrors iOS `OutboxEntry`.
  *
  * The encrypted outbox codec writes envelope and attachment bytes directly as
- * bounded binary fields. Serializable remains for legacy sidecar compatibility.
+ * bounded binary fields.
  */
 @Serializable
 data class OutboxEntry(
@@ -30,9 +30,6 @@ data class OutboxEntry(
      * THIS key, never the currently-configured one — otherwise
      * `start(projectA)` → offline submit → `start(projectB)` ships A's whole
      * report (screenshot, network bodies, reporter identity) into B.
-     *
-     * Required in legacy migration. A missing captured route blocks migration and
-     * preserves the original source; it is never filled from live configuration.
      */
     val sdkKey: String,
     /**
@@ -48,9 +45,6 @@ data class OutboxEntry(
      * means the report was captured anonymously (no cached token, or
      * identity disabled for the project) and must never be retroactively
      * attributed on drain, however the holder is configured by then.
-     *
-     * Unlike required routing fields, absence in legacy input means anonymous.
-     * Bounded migration preserves that null rather than using the live identity.
      */
     val identitySubject: String? = null,
 ) {
@@ -103,7 +97,7 @@ data class OutboxEntry(
     }
 }
 
-/** Source-compatible facade over immutable encrypted entries. File arguments are legacy locators. */
+/** Facade over immutable encrypted entries. A File argument names the queue; entries live in its `.encrypted` sibling. */
 class JSONLOutbox private constructor(
     internal val store: OutboxStore,
     private val gate: () -> Boolean = { dev.everframe.Everframe.captureGate },
@@ -112,15 +106,14 @@ class JSONLOutbox private constructor(
         file: File,
         maxEntries: Int = DEFAULT_MAX_ENTRIES,
         maxTotalBytes: Long = DEFAULT_MAX_TOTAL_BYTES,
-    ) : this(OutboxStore(encryptedRoot(file), AndroidOutboxKeyProvider(), AndroidOutboxFileOps(), maxEntries, maxTotalBytes, legacyFiles(file)))
+    ) : this(OutboxStore(encryptedRoot(file), AndroidOutboxKeyProvider(), AndroidOutboxFileOps(), maxEntries, maxTotalBytes))
 
     constructor(
         context: Context,
         maxEntries: Int = DEFAULT_MAX_ENTRIES,
         maxTotalBytes: Long = DEFAULT_MAX_TOTAL_BYTES,
     ) : this(OutboxStore(File(context.noBackupFilesDir, "dev.everframe/outbox-v1"),
-        AndroidOutboxKeyProvider(), AndroidOutboxFileOps(), maxEntries, maxTotalBytes,
-        legacyFiles(File(context.cacheDir, "dev.everframe/outbox.jsonl")))) {
+        AndroidOutboxKeyProvider(), AndroidOutboxFileOps(), maxEntries, maxTotalBytes)) {
         dev.everframe.Everframe.registerOutboxForPendingRevocation(this)
     }
 
@@ -131,7 +124,7 @@ class JSONLOutbox private constructor(
         maxEntries: Int = DEFAULT_MAX_ENTRIES,
         maxTotalBytes: Long = DEFAULT_MAX_TOTAL_BYTES,
         gate: () -> Boolean = { true },
-    ) : this(OutboxStore(encryptedRoot(file), keys, ops, maxEntries, maxTotalBytes, legacyFiles(file)), gate)
+    ) : this(OutboxStore(encryptedRoot(file), keys, ops, maxEntries, maxTotalBytes), gate)
 
     internal fun tryEnqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization? = null, diagnostics: ReportDiagnostics.Handle? = null): OutboxToken? =
         store.tryEnqueueSync(entry, authorization ?: object : OutboxAuthorization {
@@ -143,17 +136,15 @@ class JSONLOutbox private constructor(
     })
 
     internal suspend fun enqueue(entry: OutboxEntry, authorization: OutboxAuthorization, diagnostics: ReportDiagnostics.Handle? = null): Unit =
-        withContext(Dispatchers.IO) { LegacyOutboxMigration.migrate(this@JSONLOutbox); store.enqueueSync(entry, authorization, diagnostics); Unit }
+        withContext(Dispatchers.IO) { store.enqueueSync(entry, authorization, diagnostics); Unit }
 
     suspend fun hydrate(): List<OutboxEntry> = withContext(Dispatchers.IO) {
-        LegacyOutboxMigration.migrate(this@JSONLOutbox)
         store.snapshotTokens().mapNotNull { store.readIfPresent(it)?.entry }
     }
 
-    suspend fun count(): Int = withContext(Dispatchers.IO) { LegacyOutboxMigration.migrate(this@JSONLOutbox); store.snapshotTokens().size }
+    suspend fun count(): Int = withContext(Dispatchers.IO) { store.snapshotTokens().size }
 
     suspend fun removeWhere(predicate: (OutboxEntry) -> Boolean): Unit = withContext(Dispatchers.IO) {
-        LegacyOutboxMigration.migrate(this@JSONLOutbox)
         for (token in store.snapshotTokens()) {
             val pending = store.readIfPresent(token) ?: continue
             if (predicate(pending.entry)) store.removeIfPresent(token)
@@ -164,7 +155,7 @@ class JSONLOutbox private constructor(
 
     internal suspend fun drainOwned(diagnostics: ReportDiagnostics.Handle? = null, predicate: suspend (PendingEntry) -> Boolean) {
         store.drainMutex.withLock {
-            val tokens = withContext(Dispatchers.IO) { LegacyOutboxMigration.migrate(this@JSONLOutbox); store.snapshotTokens(diagnostics) }
+            val tokens = withContext(Dispatchers.IO) { store.snapshotTokens(diagnostics) }
             for (token in tokens) {
                 val pending = withContext(Dispatchers.IO) { store.readIfPresent(token, diagnostics) } ?: continue
                 val consumed = try { predicate(pending) }
@@ -178,8 +169,6 @@ class JSONLOutbox private constructor(
     companion object {
         const val DEFAULT_MAX_ENTRIES = 50
         const val DEFAULT_MAX_TOTAL_BYTES = 64L * 1024 * 1024
-        private fun legacyFiles(file: File) = listOf(file, File(file.absoluteFile.parentFile, "crash-outbox.jsonl"),
-            File(file.absoluteFile.parentFile, "crash-outbox.jsonl.processing")).distinctBy { it.canonicalPath }
         private fun encryptedRoot(file: File) = File(file.absoluteFile.parentFile, "${file.name}.encrypted")
     }
 }

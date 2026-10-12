@@ -137,17 +137,4 @@ final class IdentitySubjectGateTests: XCTestCase {
         let decoded = try JSONDecoder().decode(OutboxEntry.self, from: encoded)
         XCTAssertEqual(decoded.identitySubject, "alice")
     }
-
-    func testALegacyEntryWithoutTheFieldStillDecodes() throws {
-        // Deliberately UNLIKE sdkKey/endpoint, whose absence drops the entry
-        // (PR #63): here a missing subject means "anonymous", which is the
-        // fail-closed direction, so an older queued report keeps submitting
-        // instead of being discarded.
-        let legacy = """
-        {"reportId":"\(UUID().uuidString)","createdAt":0,"envelopeBytes":"e30=","idempotencyKey":"k",\
-        "attachmentRefs":[],"sdkKey":"sdk_test","endpoint":"https://example.test"}
-        """
-        let decoded = try JSONDecoder().decode(OutboxEntry.self, from: Data(legacy.utf8))
-        XCTAssertNil(decoded.identitySubject)
-    }
 }

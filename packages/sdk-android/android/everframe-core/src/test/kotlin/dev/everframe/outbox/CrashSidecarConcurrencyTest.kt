@@ -41,19 +41,4 @@ class CrashSidecarConcurrencyTest {
             assertEquals(listOf("first"), runBlocking { JSONLOutbox(File(tmp.root, "outbox.jsonl"), keys, JvmOutboxFileOps()).hydrate() }.map { it.reportId })
         } finally { release.countDown(); t1.join(5000); t2.join(5000) }
     }
-
-    @Test fun `blocked legacy processing survives repeated hydration alongside accepted encrypted capture`() = runBlocking {
-        val file = File(tmp.root, "crash-outbox.jsonl")
-        val processing = File(tmp.root, "crash-outbox.jsonl.processing")
-        processing.writeText("{blocked legacy batch\n")
-        val original = processing.readBytes()
-        val sidecar = CrashSidecar(file, keys, JvmOutboxFileOps())
-        assertTrue(sidecar.appendSyncAccepted(entry("accepted")))
-        repeat(2) {
-            val reopened = JSONLOutbox(File(tmp.root, "outbox.jsonl"), keys, JvmOutboxFileOps())
-            assertEquals(0, sidecar.hydrateInto(reopened))
-            assertEquals(listOf("accepted"), reopened.hydrate().map { it.reportId })
-            assertArrayEquals(original, processing.readBytes())
-        }
-    }
 }

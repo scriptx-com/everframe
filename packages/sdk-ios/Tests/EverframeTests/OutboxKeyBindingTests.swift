@@ -123,52 +123,6 @@ final class OutboxKeyBindingTests: XCTestCase {
         XCTAssertEqual(out[0].endpoint, "https://a.example.com")
     }
 
-    /// The entire migration story, isolated per field. A pre-fix line has no
-    /// `sdkKey`/`endpoint`, so `JSONDecoder` throws `keyNotFound` and
-    /// `readAll`'s existing `catch { continue }` drops it. Each case omits
-    /// exactly ONE of the two keys (leaving the other present with a real
-    /// value) so a future regression on either field alone is caught —
-    /// `keyNotFound` fires for ANY missing required key, so a line missing
-    /// both fields could not tell "both regressed" apart from "only one
-    /// regressed"; these two cases can. If someone gives `sdkKey` OR
-    /// `endpoint` a default value, the corresponding case below fails and
-    /// the leak is back for every legacy entry missing that field.
-    func test_legacy_line_missing_only_sdkKey_is_dropped() throws {
-        let url = tempDir.appendingPathComponent("outbox.jsonl")
-        let legacy = """
-        {"reportId":"\(UUID().uuidString)","createdAt":"2026-08-12T00:00:00Z",\
-        "envelopeBytes":"eA==","idempotencyKey":"idem-legacy","attachmentRefs":[],\
-        "endpoint":"https://a.example.com"}
-        """
-        XCTAssertFalse(legacy.contains("sdkKey"), "sdkKey must be absent from this line")
-        XCTAssertTrue(legacy.contains("\"endpoint\":\"https://a.example.com\""),
-                      "endpoint must survive present in this line")
-        try (legacy + "\n").write(to: url, atomically: true, encoding: .utf8)
-
-        let box = JSONLOutbox(testFileURL: url)
-        XCTAssertEqual(
-            try box.hydrate().count, 0,
-            "an entry missing only sdkKey cannot be routed and must not hydrate")
-    }
-
-    func test_legacy_line_missing_only_endpoint_is_dropped() throws {
-        let url = tempDir.appendingPathComponent("outbox.jsonl")
-        let legacy = """
-        {"reportId":"\(UUID().uuidString)","createdAt":"2026-08-12T00:00:00Z",\
-        "envelopeBytes":"eA==","idempotencyKey":"idem-legacy","attachmentRefs":[],\
-        "sdkKey":"key-A"}
-        """
-        XCTAssertFalse(legacy.contains("endpoint"), "endpoint must be absent from this line")
-        XCTAssertTrue(legacy.contains("\"sdkKey\":\"key-A\""),
-                      "sdkKey must survive present in this line")
-        try (legacy + "\n").write(to: url, atomically: true, encoding: .utf8)
-
-        let box = JSONLOutbox(testFileURL: url)
-        XCTAssertEqual(
-            try box.hydrate().count, 0,
-            "an entry missing only endpoint cannot be routed and must not hydrate")
-    }
-
     private func entry(key: String, endpoint: String, idem: String) -> OutboxEntry {
         OutboxEntry(
             reportId: UUID(),
