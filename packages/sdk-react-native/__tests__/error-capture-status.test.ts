@@ -68,20 +68,14 @@ it('previousHandlerExceptionSurvives', () => {
   expect(() => send(error())).toThrow(sentinel);
   expect(controller.getErrorCaptureStatus().counters.errorUtils.accepted).toBe(1);
 });
-it('legacyTrueIsOnlyAttempted', () => {
-  bridgeGetter('captureHandledException', () => undefined);
-  const { controller, send } = owner(); send(error());
-  expect(controller.getErrorCaptureStatus().counters.errorUtils).toMatchObject({ attempted: 1, accepted: 0, legacyAttempted: 1 });
-});
-it('legacyMissingAndThrowingMethods', () => {
-  bridgeGetter('captureHandledException', () => { throw new Error('optional lookup'); });
-  const { controller, send } = owner(); send(error('legacy'));
+it('missingAndThrowingMethods', () => {
+  const { controller, send } = owner();
   automatic.mockImplementationOnce(() => { throw new Error('chosen call'); }); send(error('throws'));
   bridgeGetter('reportCrash', () => undefined); send(error('missing'));
-  send(error('throws'));
-  expect(controller.getErrorCaptureStatus().counters.errorUtils).toMatchObject({ attempted: 4, legacyAttempted: 1, captureFailed: 1, bridgeUnavailable: 1, duplicateSuppressed: 1 });
-  controller.captureException(error());
-  expect(controller.getErrorCaptureStatus().counters.handled.captureFailed).toBe(1);
+  bridgeGetter('reportCrash', () => { throw new Error('lookup'); }); send(error('lookup'));
+  expect(controller.getErrorCaptureStatus().counters.errorUtils).toMatchObject({ attempted: 3, captureFailed: 2, bridgeUnavailable: 1 });
+  bridgeGetter('captureHandledException', () => undefined); controller.captureException(error());
+  expect(controller.getErrorCaptureStatus().counters.handled.bridgeUnavailable).toBe(1);
 });
 it('fatalEscalationStillReports', () => {
   const { controller, send } = owner(), e = error(); controller.captureException(e); send(e); send(e, true);

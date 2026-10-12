@@ -43,7 +43,7 @@
 //   `setUser(user?: UnsafeObject)` generates
 //   `- (void)setUser:(NSDictionary *)user;` (nullable, matching
 //   `addBreadcrumb`'s `data?: UnsafeObject` above). This was harmless for
-//   `configure(opts: ConfigOpts)` only because that parameter is REQUIRED,
+//   `configureSync(opts: ConfigOpts)` only because that parameter is REQUIRED,
 //   never optional, so the alias-vs-UnsafeObject distinction never mattered
 //   there. `EverframeUserSpec` stays exported as the JS-FACING type (runtime.ts /
 //   contextSeam.ts / index.ts) — only the bridge parameter itself widens to
@@ -63,7 +63,7 @@
 //   `AttachPinUi` enum (`enum AttachPinUi: String` on iOS, `enum class
 //   AttachPinUi` on Android) and coerces anything unrecognised — including
 //   an absent field, which decodes as `undefined` and never reaches native
-//   at all — to `.builtin`/`BUILTIN`. This rides `configure()`, not a new
+//   at all — to `.builtin`/`BUILTIN`. This rides `configureSync()`, not a new
 //   bridge method: the flag is a startup-time preference, not a per-call
 //   argument, so it belongs beside `sdkKey`/`networkBodiesDisabled` on
 //   `ConfigOpts` — see `companion.ts`'s `everframe.companion.attachChallenge`
@@ -261,11 +261,10 @@ export type EverframeUserSpec = {
 };
 
 export interface Spec extends TurboModule {
-  configure(opts: ConfigOpts): void;
   /**
-   * Synchronous startup entry used by the current JS runtime. The legacy
-   * void configure method remains for already-compiled native callers, but
-   * React Native dispatches void TurboModule methods asynchronously.
+   * Synchronous startup entry. It is blocking rather than void because React
+   * Native dispatches void TurboModule methods asynchronously, and the first
+   * capture after mount must not overtake configuration.
    */
   configureSync(opts: ConfigOpts): boolean;
   /**

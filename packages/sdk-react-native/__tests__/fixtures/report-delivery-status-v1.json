@@ -82,8 +82,7 @@
       "removed-after-terminal": 0,
       "removal-failed": 0,
       "read-failed": 0
-    },
-    "migration": "clear"
+    }
   },
   "transport": {
     "live-submit": {

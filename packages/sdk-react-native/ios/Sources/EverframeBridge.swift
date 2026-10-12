@@ -280,7 +280,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// every `configure()` is cheap, harmless churn, same as Android already
     /// accepts on every module construction.
     ///
-    /// Returns the fresh generation so `EverframeModule.mm`'s `-configure:`
+    /// Returns the fresh generation so `EverframeModule.mm`'s `-configureSync:`
     /// can capture it (via `currentExtraResolveHookGeneration()` below) and
     /// hand it back to `resetExtraResolverForTeardown(_:)` at `-invalidate`
     /// time. `@discardableResult` because `configure()` itself has no use
@@ -297,7 +297,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
 
     /// ObjC-visible read of whichever generation is live RIGHT NOW — i.e.
     /// whatever the most recent `installExtraResolveHook()` call minted.
-    /// `EverframeModule.mm`'s `-configure:` calls this immediately after
+    /// `EverframeModule.mm`'s `-configureSync:` calls this immediately after
     /// `configureWithSdkKey:...:error:` (which, on success or on the
     /// already-running-unchanged skip path, calls `installExtraResolveHook()`
     /// internally) and stashes the result on its own instance ivar for
@@ -402,7 +402,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// `RemoteVitalsBridge.reset()`'s own lifetime doc comment.
     ///
     /// IDENTITY GUARD (D1 fix — stale-teardown race). `generation` is the
-    /// value `EverframeModule.mm`'s `-configure:` captured via
+    /// value `EverframeModule.mm`'s `-configureSync:` captured via
     /// `currentExtraResolveHookGeneration()` right after ITS OWN
     /// `configure()` call, stashed on that ObjC instance and handed back
     /// here at `-invalidate` time. RN dispatches `-invalidate` on a
@@ -787,9 +787,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     nonisolated(unsafe) private static var companionClient: RelayWSClient?
     /// The host's configured attach-PIN UI mode (spec 2026-08-19), parsed
     /// from `ConfigOpts.attachPinUi` at `configure()` time. Defaults to
-    /// `.builtin` — the pre-existing-behaviour default for a host that never
-    /// set the flag (including every host on an older RN SDK version whose
-    /// `configure()` call carries no such field at all).
+    /// `.builtin` for a host that never sets the flag.
     nonisolated(unsafe) private static var companionAttachPinUi: AttachPinUi = .builtin
     // `CompanionCaptureBridge` subscribes to the report.request notification
     // posted by RelayWSClient and runs the capture+send dance. Without an

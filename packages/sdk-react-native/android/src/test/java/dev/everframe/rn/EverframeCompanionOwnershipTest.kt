@@ -143,7 +143,7 @@ class EverframeCompanionOwnershipTest {
         val screenshot = dev.everframe.capture.ScreenshotCapture.CaptureResult(bitmap, 2, 2, bytes)
         val stashType = EverframeModule::class.java.declaredClasses.single { it.simpleName == "CompanionCapture" }
         val stash = stashType.declaredConstructors.single().apply { isAccessible = true }
-            .newInstance(screenshot, capture, "original-extra", null)
+            .newInstance(screenshot, capture, "original-extra")
         @Suppress("UNCHECKED_CAST")
         val stashes = EverframeModule::class.java.getDeclaredField("companionCaptureStash").apply { isAccessible = true }.get(module) as MutableMap<String, Any>
         stashes["original"] = stash

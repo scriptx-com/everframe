@@ -304,15 +304,12 @@ Snapshots are detached, contain no captured content, reset on remount, and perfo
 no native query or upload. Paths are `handled` (including the boundary callback),
 `errorUtils` (including errors no boundary catches), and `rejection` (submission only). Each active attempt has one outcome:
 `accepted`, `duplicateSuppressed`, `allowanceSuppressed`, `bridgeUnavailable`,
-`nativeRefused`, `captureFailed`, `reentrantSuppressed`, `inactiveAborted`, or
-`legacyAttempted`. Counters saturate at 2,147,483,647. Existing limits are ten
+`nativeRefused`, `captureFailed`, `reentrantSuppressed`, or `inactiveAborted`.
+Counters saturate at 2,147,483,647. Existing limits are ten
 handled and ten automatic distinct keys; fatal capture bypasses them.
 
-`accepted` requires exactly true from a current native capture method. It does
-not mean upload success, server processing or outbox removal. An automatic call
-to an older native fallback is only `legacyAttempted`, regardless of its return.
-Old-binary unavailable/throwing methods are covered by unit controls, not an
-installed old-binary qualification. This snapshot excludes native queue and
+`accepted` requires exactly true from the native capture method. It does
+not mean upload success, server processing or outbox removal. This snapshot excludes native queue and
 delivery observations; read those with `getReportDeliveryStatus()`. Status is
 neutral `not-mounted` without a provider, `disabled` under the crash-reporting
 veto, and `unsupported` on the browser root entry.
@@ -362,8 +359,7 @@ bridges. iOS marks `jvm-uncaught` unsupported and implies no automatic iOS nativ
 crash collector.
 
 Without a mounted provider the result is `not-mounted/no-mount`; the browser
-export is `unsupported/platform`. Older native SDKs without the getter return
-`unsupported/native-method-missing`. A throwing native call returns
+export is `unsupported/platform`. A missing or throwing native call returns
 `unavailable/native-call-failed`, and malformed native responses return
 `unavailable/invalid-native-snapshot`. These fallbacks have an unobserved queue
 and `unknown` platform policies. This API does not provide a per-report delivery
@@ -826,28 +822,12 @@ recipes above.
 ## Android reporter initialization
 
 The Android reporter can be opened after the host activity has resumed, including
-apps that disable AndroidX Startup. Use matching updated React Native bridge and
-`dev.everframe:reporter-ui` artifacts: the bridge supplies the current resumed
+apps that disable AndroidX Startup. The bridge supplies the current resumed
 activity, and installation and presentation run on the main thread. Repeated
-configuration with matching updated artifacts does not register another lifecycle observer. Capture configuration
-remains synchronous without waiting for reporter UI initialization.
-
-The existing `ReporterResolverInstaller.create(Context)` entry point is retained
-for compiled callers. A new bridge with an older reporter uses its legacy entry
-point when the activity-aware method is absent; that combination retains the old
-late-initialization limitation. A failure from an available method is reported,
-not retried through the legacy path. Background or unavailable activities return
-a cancelled result with reason `no_active_activity`.
-
-Legacy off-main `create(Context)` schedules installation and returns before it is
-ready; use the awaited activity-aware bridge to open immediately after configure.
-With a new bridge and an older reporter, each configure, companion start, and
-open invokes legacy installation again. This can add duplicate lifecycle
-callbacks and overwrite that older reporter's resolver and activity supplier;
-the previous bridge limited installation to once per module. Conversely, an old
-compiled bridge with the new reporter can announce companion PIN capability
-before asynchronous reporter installation finishes, temporarily advertising no
-PIN support. Use the matching updated pair for the qualified behavior.
+configuration does not register another lifecycle observer. Capture configuration
+remains synchronous without waiting for reporter UI initialization. A failure
+while opening is reported to JavaScript. Background or unavailable activities
+return a cancelled result with reason `no_active_activity`.
 
 Activity destruction while a reporter is open resolves the pending call with
 `{ status: "cancelled", reason: "activity_destroyed" }`, releases that report's

@@ -107,12 +107,12 @@ it('an accepted rejection does not suppress a later fatal crash of the same erro
   expect(automatic).toHaveBeenCalledTimes(2);
   expect(JSON.parse(automatic.mock.calls[1][0])).toMatchObject({ fatal: true, source: 'crash', mechanism: 'errorutils' });
 });
-it('refuses rejection capture on a bridge without handled-exception support', () => {
+it('refuses rejection capture on a bridge without reportCrash', () => {
   const owner = controller(), pending = owner.prepareRejection(error(), occurredAt)!;
-  const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
-  Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
+  const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'reportCrash')!;
+  Object.defineProperty(NativeEverframe, 'reportCrash', { configurable: true, value: undefined });
   try { expect(owner.submitRejection(pending)).toBe('native-refused'); }
-  finally { Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor); }
+  finally { Object.defineProperty(NativeEverframe, 'reportCrash', descriptor); }
   expect(automatic).not.toHaveBeenCalled();
 });
 it('refusal does not spend an automatic key', () => {

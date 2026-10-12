@@ -11,11 +11,11 @@ import dev.everframe.config.ReportResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Startup and legacy bridges retain this constructor and create(Context) ABI. */
+/** AndroidX Startup calls create(Context); the React Native bridge opens through openForActivity. */
 class ReporterResolverInstaller : Initializer<Unit> {
     override fun create(context: Context) = ReporterInstallation.schedule(context)
 
-    /** Additive bridge entry: select the already-resumed host before opening. */
+    /** Bridge entry: select the already-resumed host before opening. */
     suspend fun openForActivity(context: Context, activity: Activity?): ReportResult =
         withContext(Dispatchers.Main.immediate) {
             val app = context.applicationContext as? Application

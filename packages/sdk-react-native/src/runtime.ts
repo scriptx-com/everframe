@@ -369,8 +369,8 @@ async function handleExtraResolveRequested(correlationId: string): Promise<void>
     try {
       NativeEverframe.signalExtraResolverReady(correlationId);
     } catch {
-      // Older native SDK without this method — its own bounded wait times
-      // out on its own; no harm, the report still ships.
+      // Bridge unavailable — native's bounded wait times out on its own;
+      // no harm, the report still ships.
     }
   }
 }
@@ -455,7 +455,6 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       try {
         const method = NativeEverframe.getReportDeliveryStatusJson;
         if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
-        if (typeof method !== 'function') return emptyReportDeliveryStatus('unsupported', 'native-method-missing');
         const json: unknown = applyDeliveryMethod(method, NativeEverframe, []);
         if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
         const snapshot = parseReportDeliveryStatus(json);
@@ -533,9 +532,8 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
         try {
           NativeEverframe.setExtraResolverActive(true);
         } catch {
-          // Older native SDK without this method — the round trip simply
-          // never fires; setExtra(resolver) behaves like a no-op until the
-          // host upgrades native, same fail-open posture as elsewhere here.
+          // Bridge unavailable — the round trip simply never fires;
+          // setExtra(resolver) fails open, as elsewhere here.
         }
         return;
       }
@@ -621,21 +619,9 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
         );
       }
       try {
-        const bridgeConfig = extractBridgeConfig(config);
-        const configureSync = NativeEverframe.configureSync;
-        if (typeof configureSync === "function") {
-          // Current bridges acknowledge configuration synchronously before the
-          // mounted facade becomes visible. A false result or thrown failure
-          // stays on this path: falling back would configure the same native
-          // runtime twice and would falsely turn a refusal into readiness.
-          Reflect.apply(configureSync, NativeEverframe, [bridgeConfig]);
-        } else {
-          // Older handled-capable bridges predate configureSync. Their retained
-          // void configure entry is asynchronous best-effort admission. Mount
-          // ownership can be published after this call, but an early handled
-          // capture may still be refused until native processes configuration.
-          NativeEverframe.configure(bridgeConfig);
-        }
+        // The bridge acknowledges configuration synchronously, before the
+        // mounted facade becomes visible, so the first capture cannot overtake it.
+        NativeEverframe.configureSync(extractBridgeConfig(config));
       } catch (e) {
         // configureSync is a sequencing boundary. Native keeps its existing
         // guarded configuration error handling; bridge marshaling or a missing
@@ -707,7 +693,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
         try {
           NativeEverframe.setExtraResolverActive(false);
         } catch {
-          // Older native SDK without this method — harmless.
+          // Bridge unavailable — harmless.
         }
       }
       owner.rejections?.dispose();

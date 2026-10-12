@@ -22,7 +22,7 @@
 //   signalCompanionReportRequestReady(id) → void           (Plan 06.2-13)
 //   trackPlayer/detachPlayer/recordPlayerEvent/updatePlayerStats/
 //   trackVitals                           → void           (spec 2026-09-06)
-//   configure(opts.vitals*)               → void           (spec 2026-09-06)
+//   configureSync(opts.vitals*)           → boolean        (spec 2026-09-06)
 //   addListener(name)/removeListeners(n)  → void (RN event-emitter no-ops)
 //
 // The native TXReporterPresenter owns the entire report UX (capture, annotate,
@@ -30,8 +30,7 @@
 // and the sensitive-rect bridge. Native mobile shake stays below this bridge.
 //
 // THREADING:
-//   • configureSync runs on the JS thread (blocking synchronous); legacy
-//     void configure retains React Native's queued native dispatch.
+//   • configureSync runs on the JS thread (blocking synchronous).
 //   • openReporter dispatches presenter.openReporter onto the activity from
 //     MainScope (presenter manages its own UI thread hops internally).
 //   • registerSensitiveRect runs on the UI thread (UIManager view resolution).
@@ -207,11 +206,6 @@ class EverframeModule(
     // getName() is inherited from NativeEverframeSpec (returns "Everframe").
 
     // ---------------- configure ----------------
-
-    @ReactMethod
-    override fun configure(opts: ReadableMap) {
-        configureInternal(opts)
-    }
 
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun configureSync(opts: ReadableMap): Boolean = configureInternal(opts)
@@ -650,7 +644,7 @@ class EverframeModule(
      *
      * The primary fix is the JS projection in `src/user-projection.ts`, applied
      * before the value ever crosses the bridge. This is the second layer, for a
-     * hand-wired native caller (or a host on an older JS bundle) that reaches
+     * hand-wired native caller that reaches
      * this method directly: bad fields degrade to `null` — a partial user, or
      * anonymous — and `Everframe.setUser` is ALWAYS reached, so the call always
      * replaces what was installed before.

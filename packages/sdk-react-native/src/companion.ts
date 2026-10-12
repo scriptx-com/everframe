@@ -201,8 +201,8 @@ function installReportRequestedHandler(): void {
       try {
         NativeEverframe.signalCompanionReportRequestReady(correlationId);
       } catch {
-        // Older native SDK without the signal method — bridge will time
-        // out on its own. No harm; the report still ships.
+        // Bridge unavailable — native times out on its own. No harm; the
+        // report still ships.
       }
     },
   );

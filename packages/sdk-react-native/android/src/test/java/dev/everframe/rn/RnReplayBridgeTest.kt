@@ -131,7 +131,7 @@ class RnReplayBridgeTest {
         // sdkKey — but that throw is caught by the bridge's txGuardSurface and
         // surfaces only for the IllegalArgument case. We assert the EFFECT:
         // captureGate stays false because start() was never reached.
-        runCatching { module.configure(opts) }
+        runCatching { module.configureSync(opts) }
         assertFalse(
             "configure with replay-config keys but NO sdkKey must NOT arm the SDK (criterion #2)",
             Everframe.captureGate,
@@ -161,7 +161,7 @@ class RnReplayBridgeTest {
         // (Arguments.createMap()'s WritableNativeMap needs native SoLoader
         // init, unavailable under Robolectric).
         val opts = JavaOnlyMap().apply { putString("sdkKey", sdkKey) }
-        module.configure(opts)
+        module.configureSync(opts)
 
         assertTrue(
             "configure(sdkKey) must arm the SDK (captureGate=true) — the openReporter " +
@@ -183,7 +183,7 @@ class RnReplayBridgeTest {
         Everframe.kill()
         // JavaOnlyMap — see configure_reads_only_apiKey_not_replay_config_keys().
         val opts = JavaOnlyMap().apply { putString("sdkKey", sdkKey) }
-        module.configure(opts)
+        module.configureSync(opts)
         sharedBreadcrumbBuffer.clear()
 
         // Numeric timestamps can match credit-card redaction; keep this forwarding fixture non-sensitive.
@@ -224,11 +224,11 @@ class RnReplayBridgeTest {
         // is NOT assignable from this separate Gradle module. Open/close the
         // gate the same way addBreadcrumb_forwards_to_native_singleton_with
         // _kind_coercion (Test B.1, above) does: `Everframe.kill()` to force a
-        // known-closed baseline, then the real `module.configure()` bridge
+        // known-closed baseline, then the real `module.configureSync()` bridge
         // path (which calls `Everframe.start()`) to flip it open.
         Everframe.kill()
         val opts = JavaOnlyMap().apply { putString("sdkKey", sdkKey) }
-        module.configure(opts)
+        module.configureSync(opts)
         sharedBreadcrumbBuffer.applyConfig(null)
         sharedBreadcrumbBuffer.clear()
         try {
@@ -510,7 +510,7 @@ class RnReplayBridgeTest {
         val opts = com.facebook.react.bridge.JavaOnlyMap()
         opts.putString("sdkKey", "txx_live_handled_test")
         crashSidecar().delete()
-        module.configure(opts)
+        module.configureSync(opts)
         // start's last replay-session assignment follows sidecar hydration.
         // Await it so startup cannot steal the report this test will inspect.
         val field = Everframe::class.java.getDeclaredField("_replaySession").apply { isAccessible = true }

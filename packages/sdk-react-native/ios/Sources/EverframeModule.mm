@@ -6,7 +6,7 @@
 // to the Swift glue layer (`EverframeBridge` in `EverframeBridge.swift`).
 //
 // Threading (RESEARCH §2.5):
-//   • configure              — JS thread (synchronous; <5ms per sdk-ios contract)
+//   • configureSync          — JS thread (synchronous; <5ms per sdk-ios contract)
 //   • captureNow             — main queue (UIKit reads, capture, accessibility walk)
 //   • registerSensitiveRect  — main queue (RCTUIManager view lookup)
 //   • submit                 — background OK (no UIKit reads); bridge runs it
@@ -75,11 +75,11 @@
   RemoteVitalsBridge *_vitals;
   // D1 fix (stale-teardown identity guard, spec 2026-09-17 setExtra-resolver).
   // Snapshot of `[EverframeBridge currentExtraResolveHookGeneration]` taken
-  // right after THIS instance's most recent `-configure:` call — see
+  // right after THIS instance's most recent `-configureSync:` call — see
   // `EverframeBridge.resetExtraResolverForTeardown(_:)`'s doc comment for why
   // `-invalidate` must hand this back rather than tearing down unconditionally.
   // Zero-initialized by ObjC, matching `resetExtraResolverForTeardown(_:)`'s
-  // "0 = never installed" no-op case for an instance whose `-configure:` was
+  // "0 = never installed" no-op case for an instance whose `-configureSync:` was
   // never called (or never reached the install site) before `-invalidate`.
   NSInteger _extraResolveHookGeneration;
 }
@@ -106,10 +106,12 @@ RCT_EXPORT_MODULE(Everframe)
   _bridge = bridge;
 }
 
-// MARK: - configure(opts)
+// MARK: - configureSync(opts)
 
 // Signature MUST match the codegen-emitted protocol in EverframeSpec.h:
-//   - (void)configure:(JS::NativeEverframe::ConfigOpts &)opts;
+//   - (NSNumber *)configureSync:(JS::NativeEverframe::ConfigOpts &)opts;
+// Blocking rather than void: React Native dispatches void TurboModule methods
+// asynchronously, and JS's first capture after mount must not overtake it.
 // Field accessors (.sdkKey(), .sdkVersion(), .captureScreenshot(),
 // .networkBodiesDisabled()) are inline methods on the JS::NativeEverframe::
 // ConfigOpts struct, generated from the TS spec in src/NativeEverframe.ts.
@@ -120,7 +122,7 @@ RCT_EXPORT_MODULE(Everframe)
 // into ConfigOpts by extractBridgeConfig() but is never read below, so it is
 // silently dropped on iOS today. Task 9 (spec 2026-08-12) only wires
 // `networkBodiesDisabled` through; see task-9-report.md.
-- (void)configure:(JS::NativeEverframe::ConfigOpts &)opts {
+- (NSNumber *)configureSync:(JS::NativeEverframe::ConfigOpts &)opts {
   NSString *sdkKey = opts.sdkKey() ?: @"";
   BOOL networkBodiesDisabled = opts.networkBodiesDisabled().value_or(false);
   // `installIdentifierDisabled` (MAI meter spec 2026-08-27) — `std::optional
@@ -212,7 +214,7 @@ RCT_EXPORT_MODULE(Everframe)
                     reporterDisabled:reporterDisabled
                                error:&err];
   if (err != nil) {
-    // Configure is void-typed at the spec; we can't reject a promise here.
+    // A refused configuration is logged; JS keeps its mount either way.
     RCTLogWarn(@"[everframe] configure failed: %@", err.localizedDescription);
   }
   // D1 fix (stale-teardown identity guard, spec 2026-09-17 setExtra-resolver).
@@ -228,13 +230,6 @@ RCT_EXPORT_MODULE(Everframe)
   // the effective options are unchanged and the SDK is already started, and when it does
   // restart, the JS `configureEpoch` bump re-runs every vitals hook effect — each one
   // detaching its old token and tracking a fresh one against the SDK that is now current.
-}
-
-// Additive synchronous startup entry. The legacy void selector above stays
-// ABI-compatible for already-compiled callers; current JS uses this boolean
-// method so its first synchronous capture cannot overtake configure dispatch.
-- (NSNumber *)configureSync:(JS::NativeEverframe::ConfigOpts &)opts {
-  [self configure:opts];
   return @YES;
 }
 
@@ -409,7 +404,7 @@ RCT_EXPORT_MODULE(Everframe)
   // full 250ms ask-and-wait for an ack nobody will ever send.
   //
   // D1 fix: `_extraResolveHookGeneration` (captured at the end of
-  // `-configure:`) travels with this instance so the Swift side can tell a
+  // `-configureSync:`) travels with this instance so the Swift side can tell a
   // STALE instance's `-invalidate` — delivered late, on this module's
   // method queue, after a reloaded bundle's fresh instance already
   // reconfigured — from the CURRENT one, and no-op the former. See

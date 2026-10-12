@@ -16,7 +16,6 @@ import {
 } from "../src/contextSeam.js";
 
 interface MockedNative {
-  configure: ReturnType<typeof vi.fn>;
   configureSync: ReturnType<typeof vi.fn>;
   captureHandledException: ReturnType<typeof vi.fn>;
   openReporter: ReturnType<typeof vi.fn>;
@@ -27,7 +26,6 @@ const nativeMock = NativeEverframe as unknown as MockedNative;
 
 describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
   beforeEach(() => {
-    nativeMock.configure.mockReset();
     nativeMock.configureSync.mockReset();
     nativeMock.captureHandledException.mockReset().mockReturnValue(true);
     nativeMock.openReporter.mockReset();
@@ -55,7 +53,6 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       appName: "host",
     });
     rt.mount();
-    expect(nativeMock.configure).not.toHaveBeenCalled();
     expect(nativeMock.configureSync).toHaveBeenCalledTimes(1);
     const opts = nativeMock.configureSync.mock.calls[0]![0] as Record<
       string,
@@ -74,49 +71,8 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
     rt.unmount();
   });
 
-  it("uses legacy asynchronous configuration only when configureSync is absent", () => {
-    const descriptor = Object.getOwnPropertyDescriptor(
-      NativeEverframe,
-      "configureSync",
-    )!;
-    let admitLegacyConfiguration: (() => void) | undefined;
-    let legacyReady = false;
-    nativeMock.configure.mockImplementation(() => {
-      admitLegacyConfiguration = () => {
-        legacyReady = true;
-      };
-    });
-    nativeMock.captureHandledException.mockImplementation(() => legacyReady);
-    Object.defineProperty(NativeEverframe, "configureSync", {
-      configurable: true,
-      value: undefined,
-    });
-    try {
-      const rt = createRuntime({ sdkKey: "legacy-key" });
-      const thrown = new Error("legacy admission");
-      rt.mount();
-
-      // No Hermes build identity under vitest, so the on-by-default release health is sent explicitly off.
-      expect(nativeMock.configure).toHaveBeenCalledExactlyOnceWith({
-        sdkKey: "legacy-key",
-        debugBuild: false,
-        releaseHealthEnabled: false,
-      });
-      topLevelCaptureException(thrown);
-      expect(nativeMock.captureHandledException).toHaveBeenCalledTimes(1);
-
-      admitLegacyConfiguration?.();
-      topLevelCaptureException(thrown);
-      topLevelCaptureException(thrown);
-      expect(nativeMock.captureHandledException).toHaveBeenCalledTimes(2);
-      rt.unmount();
-    } finally {
-      Object.defineProperty(NativeEverframe, "configureSync", descriptor);
-    }
-  });
-
   it.each(["false", "throw"])(
-    "never falls back to legacy configure after configureSync %s",
+    "calls configureSync once when it returns %s",
     (outcome) => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       nativeMock.configureSync.mockImplementation(() => {
@@ -126,7 +82,6 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       const rt = createRuntime({ sdkKey: "current-key" });
       rt.mount();
       expect(nativeMock.configureSync).toHaveBeenCalledTimes(1);
-      expect(nativeMock.configure).not.toHaveBeenCalled();
       rt.unmount();
       warn.mockRestore();
     },

@@ -6,7 +6,7 @@ import NativeEverframe from '../src/NativeEverframe.js';
 import { __extractBridgeConfigForTesting as extract, createRuntime, type RuntimeConfig } from '../src/runtime.js';
 import { __setCurrentContext } from '../src/contextSeam.js';
 
-const native = NativeEverframe as unknown as { configure: ReturnType<typeof vi.fn>; configureSync?: ReturnType<typeof vi.fn> };
+const native = NativeEverframe as unknown as { configureSync: ReturnType<typeof vi.fn> };
 const config = (): RuntimeConfig => ({ sdkKey: 'key', jsBundle: { buildId: 'ota-build-42', bundleName: 'index.android.bundle' },
   releaseHealth: { enabled: true, userId: 'opaque-a' } });
 const warning = (fields: string) => `[everframe] releaseHealth rejected: invalid ${fields}. Foreground-session ` +
@@ -185,7 +185,7 @@ describe('explicit native foreground monitoring configuration', () => {
     expect(extract({ sdkKey: 'key', releaseHealthEnabled: true, releaseHealthLoadedBuildId: 'forged' } as any).releaseHealthEnabled).not.toBe(true);
   });
   it('sends the on-by-default flag and includeDebugBuilds through configure', () => {
-    const configure = native.configureSync ?? native.configure; configure.mockClear();
+    const configure = native.configureSync; configure.mockClear();
     const runtime = createRuntime({ sdkKey: 'key', jsBundle: { buildId: 'ota-build-42', bundleName: 'index.android.bundle' },
       releaseHealth: { includeDebugBuilds: true } });
     try {
@@ -194,19 +194,18 @@ describe('explicit native foreground monitoring configuration', () => {
         releaseHealthLoadedBuildId: 'ota-build-42', releaseHealthIncludeDebugBuilds: true }));
     } finally { runtime.unmount(); }
   });
-  it('preserves the legacy configure fallback and snapshots the bridged subject', () => {
-    const sync = native.configureSync; native.configureSync = undefined; native.configure.mockClear();
+  it('snapshots the bridged subject at mount', () => {
     const input = config(); const runtime = createRuntime(input);
     try {
       runtime.mount(); input.releaseHealth!.userId = 'changed'; input.jsBundle!.buildId = 'changed';
-      expect(native.configure).toHaveBeenCalledWith(expect.objectContaining({ releaseHealthEnabled: true,
+      expect(native.configureSync).toHaveBeenCalledWith(expect.objectContaining({ releaseHealthEnabled: true,
         releaseHealthLoadedBuildId: 'ota-build-42', releaseHealthUserId: 'opaque-a' }));
-    } finally { runtime.unmount(); native.configureSync = sync; }
+    } finally { runtime.unmount(); }
   });
   it('does not let an older runtime teardown reconfigure the new native owner', () => {
     const first = createRuntime(config());
     const second = createRuntime({ sdkKey: 'key', releaseHealth: { enabled: false } });
-    const configure = native.configureSync ?? native.configure;
+    const configure = native.configureSync;
     configure.mockClear();
     try {
       first.mount(); first.unmount(); second.mount();
