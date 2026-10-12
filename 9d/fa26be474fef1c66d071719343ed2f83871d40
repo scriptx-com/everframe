@@ -1,0 +1,30 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_dbd309ddf8ec5b::t_ba4cb6fc9cd43a 353-361
+  s_c9f1520150bc5b::t_0a6767faa9b07b 114-122,126,147,169,171-194,213-214,216,236-261
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/EverframeConfigBinaryCompatTest.kt
+  s_dbd309ddf8ec5b::t_769d693ea16138 6,9,13-15,26,103-134,137,141-142,144,146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9dfa26be474fef1c66d071719343ed2f83871d40",
+  "prompts": {},
+  "sessions": {
+    "s_c9f1520150bc5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac447ad426f558803",
+        "model": "unknown"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
