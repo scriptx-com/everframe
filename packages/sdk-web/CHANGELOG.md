@@ -1,5 +1,82 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.2.1
+
+### Minor Changes
+
+- ceb86ab: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  New `reporter: { disabled: true }` config option for crash-only sessions. Such a session reports crashes and errors but has no on-device way to file a report: no hotkey, no "New report" button in the inbox, and `open()` rejects with the new `EverframeReporterDisabledError`. Session replay samples against the app's crash-only rate, which is 0 unless the dashboard raises it, and network bodies are not captured. A companion bond upgrades the session to the normal replay and network-body settings for the rest of the session, and recording starts at the bond. Errors carry a replay only while the session records. On React Native, the option is passed to the native SDKs, and `open()` maps their refusal to `EverframeReporterDisabledError`.
+
+- 56a3a9f: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Errors can carry a session replay.
+
+  When replay is on, a handled error, and on React Native and the web an error
+  the app survives, can carry the last seconds of replay from a recording
+  session. There are at most 2 per session, including exports in progress. An
+  open bug report that owns the buffer prevents an error replay. A replay that
+  isn't ready within 3 seconds or is over 8 MB (8,000,000 bytes) is left off.
+  Replay failure doesn't discard the original error: Android and iOS save it
+  first with a hold of up to 5 seconds; the web queues it first and waits up to
+  3 seconds before sending. Android and iOS take an independent snapshot while
+  recording continues, so a later error or bug report still has the history.
+  Fatal native and React Native errors and Flutter apps don't attach error
+  replays. Web error replays require `CompressionStream`.
+
+  Native video replay adds 1 and 2 frames per second, with 2 as the server
+  default for SDKs that support it. The iOS fallback remains 5 fps when the
+  server omits the native-video setting; Android requires that setting to record
+  native video. The bitrate scales down below 5 fps. Recording now also pauses
+  in iOS Low Power Mode, in Android Battery
+  Saver and at Android's `MODERATE` thermal status or higher (Android 10+), and
+  never starts on Android low-RAM devices. Web recording pauses while the tab
+  is hidden.
+
+  Web replay masks form input values again, leaves out elements marked
+  sensitive, and removes recognized card-number, JWT, bearer-token and
+  email-address patterns, while other text stays readable. Sensitive markers
+  added during recording also apply.
+
+  See [session replay](../docs/session-replay.md) for settings and privacy
+  boundaries.
+
+  Recording cost is unmeasured on physical devices: the numbers so far come from an Android emulator and the tvOS simulator, at 5 and 10 frames per second.
+
+- 01c173d: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Every Everframe package now ships on one version line. The web, React, React Native, identity, Roku and Vega SDKs, the CLI, the Metro, bundler and Expo plugins, and the Android, iOS, Flutter and KMP SDKs all release with the same version number. The CLI and the Expo plugin pin the `dev.everframe` Gradle plugin of their own version.
+
+  The SDK key is `sdkKey` everywhere. The `apiKey` config field is gone from `@everframe/web`, `@everframe/react` and `@everframe/react-native`, along with `resolveSdkKey`. On iOS, `EverframeConfig(appId:)`, its `appId` property and the `ReplaySession` initializers that took `apiKey` are gone; use `EverframeConfig(sdkKey:)`.
+
+  `EverframeConfig` on Android has only its primary constructor and generated `copy`. The extra constructors and `copy` overloads that kept the signatures of earlier releases are removed, so Java callers pass every constructor argument. The generated protocol models on Android and iOS likewise keep only their current constructors and initializers.
+
+  `attachReactTree` and `detachReactTree` are removed from the Android and iOS SDKs; nothing in a report used the tree. `@everframe/web` removes `handleReportSubmit`, `bakeBlurRegions` and `REPORTER_TOKEN_STORAGE_KEY`, and its reporter token is read only from the key scoped to the SDK key.
+
+  `everframe setup react-native` and the Expo plugin write the short native setup and rewrite their own generated lines on a re-run.
+
+  React Native configures native only through the blocking `configureSync`; the void `configure` method is gone from the TurboModule spec and both bridges. Error capture always uses the bridge's current methods, so `getErrorCaptureStatus()` no longer has a `legacyAttempted` counter, and `getReportDeliveryStatus()` reports a missing native getter as `unavailable/native-call-failed`. The Android bridge opens the reporter only through `ReporterResolverInstaller.openForActivity`.
+
+  Android no longer imports the plaintext outbox files that earlier builds wrote. `CrashSidecar.hydrateInto` and the `Unit`-returning `CrashSidecar.appendSync` are removed; use `appendSyncAccepted`. The report delivery status drops the queue's `migration` field on Android, iOS and React Native.
+
+- 08f1b47: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Errors now carry a session replay when the page is recording one. This covers `window.onerror`, unhandled rejections, `captureException` and React render errors that no error boundary caught. The replay covers the app's replay duration up to the error and is the same rrweb attachment bug reports use. Taking it does not stop or reset recording. At most 2 errors per page load get a replay. None is taken while the bug reporter is open, or in browsers without `CompressionStream`, and the error waits at most 3 seconds for it. A replay over 8,000,000 bytes, or one not ready in time, is left out and the error is flagged `replayOmitted`. Replay stays off unless the app turns it on, and the existing sampling rate applies.
+
+- 5ee0f0f: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Web session replay no longer records while the tab is hidden. Hiding the tab stops recording and drops the rolling window. Showing it again starts a fresh recording with a full snapshot.
+
+- 78bf1a5: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Web session replay now masks before anything leaves the browser, for bug reports and error replays alike. Every form input value is masked, and checkbox, radio and select state is not recorded. Elements marked sensitive (`data-everframe-sensitive`, `<Sensitive>` or `sensitiveRegistry`) are blocked, including ones that appear after recording starts. Card numbers, JWTs, bearer tokens, US SSNs and email addresses are removed from all recorded text and attributes. Other page text stays readable. Until now web replay recorded text and input values raw.
+
 ## 1.2.0
 
 ### Minor Changes

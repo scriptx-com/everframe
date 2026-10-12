@@ -1,5 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies [ceb86ab]
+- Updated dependencies [01c173d]
+  - @everframe/react@1.3.0
+
 ## 0.0.9
 
 ### Patch Changes
