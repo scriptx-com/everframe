@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_f5620aa60f0f22 2708-2720
+  s_dbd309ddf8ec5b::t_d53907bdc90ea9 38
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/CrashOnlyReplaySessionTest.kt
+  s_dbd309ddf8ec5b::t_fdd97a311d728c 76-80,104
+  s_dbd309ddf8ec5b::t_fe6e08bb8e1f42 15,59-60,66,73,202-225
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplayCoverage.kt
+  s_dbd309ddf8ec5b::t_f5620aa60f0f22 1-28
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_dbd309ddf8ec5b::t_d53907bdc90ea9 197-198,207-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d1be9191a006cb910516d5ae29c881bfcbcf2ffa",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
