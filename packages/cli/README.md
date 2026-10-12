@@ -207,6 +207,65 @@ targets:
         EVERFRAME_APP_ID: 00000000-0000-4000-8000-000000000002 # the TV app's App ID
 ```
 
+## React Native and Expo
+
+`@everframe/expo` sets this up during `expo prebuild`. For a bare React Native
+app, run once from the app's root:
+
+```sh
+npx @everframe/cli setup react-native --app-id "$EVERFRAME_APP_ID"
+```
+
+It lists each file it patched, as `Updated <path>` or `No changes: <path>`.
+Running it again is safe. Install `@everframe/cli` in the app, because the
+build finds it in `node_modules`.
+
+`android/build.gradle` gets one classpath line:
+
+```groovy
+classpath("dev.everframe:gradle-plugin:<version>")
+```
+
+`android/app/build.gradle` gets the plugin and the App ID:
+
+```groovy
+apply plugin: "dev.everframe"
+everframe { appId = "00000000-0000-4000-8000-000000000001" }
+```
+
+The plugin uploads R8 mappings and native libraries. It also uploads the Hermes
+bundle and its source map after React Native bundles each release variant.
+
+The Xcode app target gets an "Upload Everframe Build Artifacts" Run Script
+phase. Debug and `SKIP_BUNDLING` builds skip before Node starts. Other builds
+find the CLI with Node and run:
+
+```sh
+everframe xcode build-phase --app-id "00000000-0000-4000-8000-000000000001"
+```
+
+The installer also sets `SOURCEMAP_FILE` to
+`$(DERIVED_FILE_DIR)/main.jsbundle.map` if the target does not set it, and
+writes the same `ENABLE_USER_SCRIPT_SANDBOXING` and `EVERFRAME_DSYM_INPUT*`
+settings as `setup xcode`.
+
+`everframe xcode build-phase` reads Xcode's build settings. Debug builds and
+builds with `SKIP_BUNDLING` skip. Release builds upload the Hermes bundle from
+`$CONFIGURATION_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/main.jsbundle`
+with the `SOURCEMAP_FILE` map, then the dSYMs, as `dsym upload-build --xcode`
+does. A failed Hermes upload does not stop the dSYM upload. Metro stages each
+bundle in `.everframe` beside `ios/`; pass `--staging <dir>` if yours is
+elsewhere.
+
+On both platforms, a missing `EVERFRAME_API_TOKEN`, a missing Node or CLI, a
+CLI that fails to start, or a failed upload prints a `warning:` line and the
+build continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
+`EVERFRAME_UPLOAD_TIMEOUT_SECONDS`, 600 by default.
+
+Setup from earlier versions wrote a long Gradle block and a long Xcode script.
+Run `expo prebuild` or `setup react-native` again to replace them with the
+lines above. Upload fixes then arrive with package updates.
+
 ## Android ELF upload
 
 Keep the unstripped shared library produced by each Android build and ABI:

@@ -70,10 +70,21 @@ class EverframeUploadPolicyTest {
     }
 
     @Test fun `a failed or missing CLI is a warning`() {
-        runCli(listOf("/bin/sh", "-c", "exit 3"), temporaryFolder.root, logger, "R8 mapping", emptyMap()) {}
-        runCli(listOf(File(temporaryFolder.root, "missing-cli").absolutePath), temporaryFolder.root, logger, "R8 mapping", emptyMap()) {}
+        assertTrue(runCli(listOf("/bin/sh", "-c", "exit 0"), temporaryFolder.root, logger, "R8 mapping", emptyMap()) {})
+        assertFalse(runCli(listOf("/bin/sh", "-c", "exit 3"), temporaryFolder.root, logger, "R8 mapping", emptyMap()) {})
+        assertFalse(runCli(listOf(File(temporaryFolder.root, "missing-cli").absolutePath), temporaryFolder.root, logger, "R8 mapping", emptyMap()) {})
         assertEquals(2, warnings.size)
         assertTrue(warnings[0].startsWith("warning: everframe: R8 mapping upload failed (exit 3)"), warnings[0])
         assertTrue(warnings[1].startsWith("warning: everframe: could not run the Everframe CLI for the R8 mapping upload"), warnings[1])
+    }
+
+    @Test fun `the installed CLI is found from the app root up, as Node resolves it`() {
+        val monorepo = temporaryFolder.newFolder("monorepo")
+        val android = File(monorepo, "apps/tv/android").apply { mkdirs() }
+        assertEquals(null, installedCli(android))
+        val hoisted = File(monorepo, "node_modules/@everframe/cli/dist/index.js").apply { parentFile.mkdirs(); writeText("") }
+        assertEquals(hoisted.canonicalPath, installedCli(android)?.canonicalPath)
+        val local = File(monorepo, "apps/tv/node_modules/@everframe/cli/dist/index.js").apply { parentFile.mkdirs(); writeText("") }
+        assertEquals(local.canonicalPath, installedCli(android)?.canonicalPath)
     }
 }

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import xcode from 'xcode';
 import {
-  buildPhaseScript,
   EVERFRAME_GRADLE_PLUGIN,
   patchAppBuildGradle,
   patchRootBuildGradle,
@@ -16,6 +15,7 @@ import {
   SYMBOLS_BUILD_SETTINGS,
   SYMBOLS_PHASE_INPUTS,
   XCODE_PHASE_NAME,
+  xcodePhaseScript,
 } from '../src/native-setup/index.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
@@ -26,124 +26,101 @@ const loadProject = () => {
   return project;
 };
 
-describe('buildPhaseScript', () => {
-  const ios = buildPhaseScript({ platform: 'ios', appId: APP, stagingDir: '$SRCROOT/../.everframe', projectRoot: '$SRCROOT/..' });
-  const android = buildPhaseScript({ platform: 'android', appId: APP, stagingDir: '$EVERFRAME_STAGING', projectRoot: '..' });
+const LEGACY = join(__dirname, 'fixtures/legacy-build-artifacts');
+const LEGACY_APP = '00000000-0000-4000-8000-0000000000aa';
+const THIN_GRADLE = [
+  '// @generated begin everframe-build-artifacts',
+  'apply plugin: "dev.everframe"',
+  `everframe { appId = "${APP}" }`,
+  '// @generated end everframe-build-artifacts',
+].join('\n');
 
-  it('resolves the cli through node from the project root, never from PATH', () => {
-    expect(ios).toContain(`require.resolve('@everframe/cli')`);
-    expect(ios).not.toMatch(/^everframe /m);
-    expect(ios).toContain('"$EVERFRAME_NODE" "$EVERFRAME_CLI" build collect');
-  });
-
-  it('loads the xcode node environment on ios only', () => {
-    expect(ios).toContain('.xcode.env');
-    expect(android).not.toContain('.xcode.env');
-  });
-
-  it('keeps collect, verify, upload order and fail-fast', () => {
-    expect(ios).toContain('set -euo pipefail');
-    expect(ios.indexOf('build collect')).toBeLessThan(ios.indexOf('build verify'));
-    expect(ios.indexOf('build verify')).toBeLessThan(ios.indexOf('upload-hermes'));
-  });
-
-  it('keeps every everframe call on one line', () => {
-    expect(ios).not.toMatch(/\\\n/);
-  });
-
-  it('reads the ios map from SOURCEMAP_FILE with a default', () => {
-    expect(ios).toContain('"${SOURCEMAP_FILE:-}"');
-  });
-
-  it('skips iOS Debug builds before it looks at the token', () => {
-    expect(ios.indexOf('"${CONFIGURATION:-}" = "Debug"')).toBeLessThan(ios.indexOf('EVERFRAME_API_TOKEN'));
-    expect(ios).toContain('[ -n "${SKIP_BUNDLING:-}" ]');
-  });
-
-  const run = (script: string, env: Record<string, string>) =>
-    spawnSync('bash', ['-c', script], { env: { PATH: process.env.PATH!, CONFIGURATION: 'Release', ...env }, encoding: 'utf8' });
-
-  it.each(['ios', 'android'] as const)('%s warns without a token, locally and in CI, and fails only when strict', (platform) => {
-    const script = platform === 'ios' ? ios : android;
-    for (const env of [{}, { CI: '1' }, { CI: 'true' }]) {
-      const result = run(script, env);
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain('warning: everframe: no EVERFRAME_API_TOKEN, skipping artifact upload');
-    }
-    const strict = run(script, { EVERFRAME_SYMBOLS_STRICT: '1' });
-    expect(strict.status).toBe(1);
-    expect(strict.stderr).toContain('missing_api_token');
-  });
-
-  it.each(['ios', 'android'] as const)('%s turns a failed upload step into a warning unless strict', (platform) => {
-    const script = platform === 'ios' ? ios : android;
-    const env = { EVERFRAME_API_TOKEN: 't', NODE_BINARY: '/nonexistent/node', SRCROOT: '/nonexistent' };
-    const lenient = run(script, env);
-    expect(lenient.status).toBe(0);
-    expect(lenient.stdout).toContain('warning: everframe: artifact upload failed');
-    expect(run(script, { ...env, EVERFRAME_SYMBOLS_STRICT: '1' }).status).not.toBe(0);
-  });
-
-  it('warns about a sandboxed iOS phase before starting Node, and fails when strict', () => {
-    const lenient = run(ios, { EVERFRAME_API_TOKEN: 't', ENABLE_USER_SCRIPT_SANDBOXING: 'YES', NODE_BINARY: '/nonexistent/node' });
-    expect(lenient.status).toBe(0);
-    expect(lenient.stdout).toContain('warning: everframe: xcode_script_sandboxed: ');
-    expect(lenient.stdout).not.toContain('artifact upload failed');
-    const strict = run(ios, { EVERFRAME_API_TOKEN: 't', ENABLE_USER_SCRIPT_SANDBOXING: 'YES', EVERFRAME_SYMBOLS_STRICT: '1' });
-    expect(strict.status).toBe(1);
-  });
-
-  it("tolerates unset variables in the project's .xcode.env", () => {
-    const srcroot = mkdtempSync(join(tmpdir(), 'everframe-rn-env-'));
-    writeFileSync(join(srcroot, '.xcode.env'), 'export EVERFRAME_TEST_FROM_ENV="$EVERFRAME_TEST_NEVER_SET"\n');
-    const result = run(ios, { EVERFRAME_API_TOKEN: 't', SRCROOT: srcroot, NODE_BINARY: '/nonexistent/node' });
-    expect(result.stderr).not.toContain('unbound variable');
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('warning: everframe: artifact upload failed');
-  });
-
-  it('still uploads iOS dSYMs when the Hermes upload fails', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'everframe-rn-steps-'));
-    const record = join(dir, 'steps.txt'), node = join(dir, 'node');
-    // A fake Node: resolves the CLI, records each command and fails the Hermes steps.
-    writeFileSync(node, `#!/bin/bash\nif [ "$1" = "-p" ]; then echo /fake/cli.js; exit 0; fi\necho "$2 $3" >> "${record}"\nif [ "$2" = "build" ]; then exit 4; fi\nexit 0\n`);
+describe('xcodePhaseScript', () => {
+  const script = xcodePhaseScript(APP);
+  const run = (env: Record<string, string>) =>
+    spawnSync('bash', ['-c', script], { env: { PATH: process.env.PATH!, ...env }, encoding: 'utf8' });
+  /** An app root with ios/ and a fake Node that resolves the CLI and records how it was run. */
+  const app = (resolves: boolean) => {
+    const root = mkdtempSync(join(tmpdir(), 'everframe-phase-'));
+    mkdirSync(join(root, 'ios'));
+    const node = join(root, 'node');
+    writeFileSync(
+      node,
+      `#!/bin/bash\nif [ "$1" = "--print" ]; then ${resolves ? `pwd -P > "${root}/cwd"; echo /fake/cli.js; exit 0` : 'echo "Error: Cannot find module" >&2; exit 1'}; fi\necho "$@" > "${root}/args"\nexit 7\n`,
+    );
     chmodSync(node, 0o755);
-    const lenient = run(ios, { EVERFRAME_API_TOKEN: 't', SRCROOT: dir, NODE_BINARY: node });
+    return { root, node, srcroot: join(root, 'ios') };
+  };
+
+  it('is six lines that hand the work to `everframe xcode build-phase`', () => {
+    expect(script.split('\n')).toHaveLength(6);
+    expect(script).toContain(`"\${NODE_BINARY:-node}" "$EVERFRAME_CLI_JS" xcode build-phase --app-id "${APP}"`);
+    expect(script).not.toContain('exec ');
+    expect(script).not.toContain('EVERFRAME_API_TOKEN');
+    expect(script).not.toContain('upload-hermes');
+  });
+
+  it('resolves the CLI with Node from the app root and runs it', () => {
+    const { root, node, srcroot } = app(true);
+    expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(7);
+    expect(readFileSync(join(root, 'args'), 'utf8').trim()).toBe(`/fake/cli.js xcode build-phase --app-id ${APP}`);
+    expect(readFileSync(join(root, 'cwd'), 'utf8').trim()).toBe(realpathSync(root));
+  });
+
+  it("takes NODE_BINARY from the project's .xcode.env files", () => {
+    const { root, node, srcroot } = app(true);
+    writeFileSync(join(srcroot, '.xcode.env'), 'export NODE_BINARY=/nonexistent/node\n');
+    writeFileSync(join(srcroot, '.xcode.env.local'), `export NODE_BINARY="${node}"\n`);
+    expect(run({ SRCROOT: srcroot, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(7);
+    expect(readFileSync(join(root, 'args'), 'utf8')).toContain('xcode build-phase');
+  });
+
+  it('warns and continues when Node or the CLI is missing, and fails when strict', () => {
+    const { node, srcroot } = app(false);
+    for (const env of [{ NODE_BINARY: node }, { NODE_BINARY: '/nonexistent/node' }]) {
+      const lenient = run({ SRCROOT: srcroot, ...env });
+      expect(lenient.status).toBe(0);
+      expect(lenient.stdout).toContain('warning: everframe: could not run @everframe/cli with Node');
+      expect(lenient.stderr).not.toContain('Cannot find module');
+    }
+    expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(1);
+    expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: 'true' }).status).toBe(1);
+  });
+
+  it('warns and continues when an incomplete install makes the CLI fail before it runs, and fails when strict', () => {
+    // A real Node and an installed @everframe/cli whose own dependency is missing.
+    const root = mkdtempSync(join(tmpdir(), 'everframe-broken-cli-'));
+    mkdirSync(join(root, 'ios'));
+    const cli = join(root, 'node_modules/@everframe/cli');
+    mkdirSync(join(cli, 'dist'), { recursive: true });
+    writeFileSync(join(cli, 'package.json'), JSON.stringify({ name: '@everframe/cli', main: 'dist/index.js' }));
+    writeFileSync(join(cli, 'dist/index.js'), "require('everframe-missing-dependency');\n");
+    const env = { SRCROOT: join(root, 'ios'), NODE_BINARY: process.execPath, CONFIGURATION: 'Release' };
+    const lenient = run(env);
     expect(lenient.status).toBe(0);
-    expect(lenient.stdout).toContain('warning: everframe: artifact upload failed (exit status 4)');
-    expect(readFileSync(record, 'utf8').trim().split('\n')).toEqual(['build collect', 'dsym upload-build']);
-    expect(run(ios, { EVERFRAME_API_TOKEN: 't', SRCROOT: dir, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(4);
+    expect(lenient.stderr).toContain('everframe-missing-dependency');
+    expect(lenient.stdout).toContain('warning: everframe: could not run @everframe/cli with Node from');
+    expect(lenient.stdout).toContain('(exit status 1); build artifacts were not uploaded and the build continues.');
+    const strict = run({ ...env, EVERFRAME_SYMBOLS_STRICT: '1' });
+    expect(strict.status).toBe(1);
+    expect(strict.stdout).not.toContain('warning:');
   });
 
-  it('gives the uploads a time budget the build can override', () => {
-    for (const script of [ios, android])
-      expect(script).toContain('export EVERFRAME_UPLOAD_TIMEOUT_SECONDS="${EVERFRAME_UPLOAD_TIMEOUT_SECONDS:-600}"');
-  });
-
-  it('uploads dSYMs after the Hermes map on iOS only', () => {
-    expect(ios).toContain(`"$EVERFRAME_NODE" "$EVERFRAME_CLI" dsym upload-build --xcode --app-id "${APP}"`);
-    expect(ios.indexOf('upload-hermes')).toBeLessThan(ios.indexOf('dsym upload-build'));
-    expect(android).not.toContain('dsym upload-build');
-  });
-
-  it('reads Android artifacts from the variant the bundle task built', () => {
-    expect(android).toContain('"app/build/generated/assets/react/${EVERFRAME_VARIANT:-release}/index.android.bundle"');
-    expect(android).toContain('"app/build/generated/sourcemaps/react/${EVERFRAME_VARIANT:-release}/index.android.bundle.map"');
+  it.each([{ CONFIGURATION: 'Debug' }, { SKIP_BUNDLING: '1' }])('skips %o before Node, even when strict and Node is missing', (env) => {
+    const result = run({ ...env, SRCROOT: '/nonexistent/ios', NODE_BINARY: '/nonexistent/node', EVERFRAME_SYMBOLS_STRICT: '1' });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('everframe: Debug build, skipping artifact upload');
+    expect(result.stderr).not.toContain('nonexistent');
   });
 
   it('rejects a non-uuid app id', () => {
-    expect(() => buildPhaseScript({ platform: 'ios', appId: 'x; rm -rf /', stagingDir: 's', projectRoot: '.' })).toThrow(
-      /must be an Everframe application UUID/,
-    );
+    expect(() => xcodePhaseScript('x"; rm -rf /')).toThrow(/must be an Everframe application UUID/);
   });
 });
 
 describe('patchAppBuildGradle', () => {
-  it('inserts one tagged block after the application plugin', () => {
-    const out = patchAppBuildGradle(GRADLE, APP);
-    expect(out).toContain('// @generated begin everframe-build-artifacts');
-    expect(out.indexOf('com.android.application')).toBeLessThan(out.indexOf('@generated begin'));
-    expect(out).toContain("new ProcessBuilder('bash', '-c', '''");
+  it('inserts the plugin and app id after the application plugin, nothing else', () => {
+    expect(patchAppBuildGradle(GRADLE, APP)).toBe(`apply plugin: "com.android.application"\n${THIN_GRADLE}\n\nandroid {\n}\n`);
   });
 
   it('is idempotent', () => {
@@ -159,14 +136,18 @@ describe('patchAppBuildGradle', () => {
     expect(out.match(/@generated begin/g)).toHaveLength(1);
   });
 
-  it('passes the bundle task variant to the script', () => {
-    const out = patchAppBuildGradle(GRADLE, APP);
-    expect(out).toContain('def everframeVariantName = bundleTask.name - "createBundle" - "JsAndAssets"');
-    expect(out).toContain("everframeProcess.environment().put('EVERFRAME_VARIANT', everframeVariant)");
-  });
-
-  it('reports warning lines as Gradle warnings', () => {
-    expect(patchAppBuildGradle(GRADLE, APP)).toContain("if (line.startsWith('warning:')) logger.warn(line) else logger.lifecycle(line)");
+  it('replaces the long block earlier versions generated, and leaves the rest of the file alone', () => {
+    const legacy = readFileSync(join(LEGACY, 'app.build.gradle'), 'utf8');
+    const begin = legacy.indexOf('// @generated begin everframe-build-artifacts');
+    const endMarker = '// @generated end everframe-build-artifacts';
+    const end = legacy.indexOf(endMarker) + endMarker.length;
+    expect(legacy.slice(begin, end).split('\n')).toHaveLength(47);
+    const out = patchAppBuildGradle(legacy, APP);
+    expect(out).toBe(legacy.slice(0, begin) + THIN_GRADLE + legacy.slice(end));
+    expect(out).not.toContain('ProcessBuilder');
+    expect(out).not.toContain('afterEvaluate {\n  def everframe');
+    for (const token of ['{{CLIENT_ID}}', '{{VERSION_CODE}}', '{{VERSION_NAME}}']) expect(out).toContain(token);
+    expect(patchAppBuildGradle(out, APP)).toBe(out);
   });
 
   it('fails clearly without the application plugin line', () => {
@@ -220,6 +201,37 @@ describe('patchXcodeProject', () => {
     }
   });
 
+  it('writes the short script', () => {
+    const project = loadProject();
+    patchXcodeProject(project, APP);
+    expect(phaseScripts(project)).toEqual([`"${xcodePhaseScript(APP).replace(/"/g, '\\"')}"`]);
+  });
+
+  it('replaces the long phase earlier versions generated, keeping placeholders and settings', () => {
+    const path = join(LEGACY, 'project.pbxproj');
+    const legacy = readFileSync(path, 'utf8');
+    expect(legacy).toContain('build collect --staging');
+    const project = xcode.project(path);
+    project.parseSync();
+    patchXcodeProject(project, LEGACY_APP);
+    const out: string = project.writeSync();
+    expect(phaseScripts(project)).toEqual([`"${xcodePhaseScript(LEGACY_APP).replace(/"/g, '\\"')}"`]);
+    expect(out).not.toContain('build collect');
+    expect(out).not.toContain('dsym upload-build');
+    expect(out.match(/Upload Everframe Build Artifacts \*\/,/g)).toHaveLength(1);
+    for (const token of ['{{TITLE}}', '{{CLIENT_ID}}', '{{DEVELOPMENT_TEAM}}']) expect(out.split(token).length).toBe(legacy.split(token).length);
+    // Only the phase script changed: the settings the old version wrote are already right.
+    const script = `\t\t\tshellScript = "${xcodePhaseScript(LEGACY_APP).replace(/"/g, '\\"')}";\n`;
+    const expected = legacy.replace(/\t\t\tshellScript = "set -euo pipefail\n[\s\S]*?\nexit 0";\n/, () => script);
+    expect(expected).not.toBe(legacy);
+    expect(out).toBe(expected);
+    const again = xcode.project(path);
+    again.parseSync();
+    patchXcodeProject(again, LEGACY_APP);
+    patchXcodeProject(again, LEGACY_APP);
+    expect(again.writeSync()).toBe(expected);
+  });
+
   it('keeps a SOURCEMAP_FILE the app already defines', () => {
     const project = loadProject();
     for (const s of appBuildSettings(project)) s.SOURCEMAP_FILE = '"custom.map"';
@@ -227,6 +239,13 @@ describe('patchXcodeProject', () => {
     for (const s of appBuildSettings(project)) expect(s.SOURCEMAP_FILE).toBe('"custom.map"');
   });
 });
+
+function phaseScripts(project: ReturnType<typeof loadProject>): string[] {
+  const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
+  return Object.keys(section)
+    .filter((key) => section[`${key}_comment`] === XCODE_PHASE_NAME)
+    .map((key) => (section[key] as { shellScript: string }).shellScript);
+}
 
 function appBuildSettings(project: ReturnType<typeof loadProject>): Array<Record<string, string>> {
   const target = project.getFirstTarget().firstTarget as { buildConfigurationList: string };
@@ -247,18 +266,15 @@ describe('patchRootBuildGradle', () => {
     const properties = readFileSync(join(__dirname, '../../sdk-android/android/gradle.properties'), 'utf8');
     expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()}`);
   });
+  it('keeps the classpath block of an earlier version in place and moves it to this version', () => {
+    const legacy = readFileSync(join(LEGACY, 'build.gradle'), 'utf8');
+    expect(legacy).toContain('classpath("dev.everframe:gradle-plugin:1.2.0")');
+    const out = patchRootBuildGradle(legacy);
+    expect(out).toBe(legacy.replace('dev.everframe:gradle-plugin:1.2.0', EVERFRAME_GRADLE_PLUGIN.replace('$', '$$$$')));
+    expect(out).toContain('{{ENV INJECTION}}');
+    expect(patchRootBuildGradle(out)).toBe(out);
+  });
   it('fails clearly without the React Native classpath line', () => {
     expect(() => patchRootBuildGradle('buildscript {}\n')).toThrow(/react-native-gradle-plugin/);
-  });
-});
-
-describe('patchAppBuildGradle plugin', () => {
-  it('applies the Everframe Gradle plugin with the app id, without breaking builds that lack it', () => {
-    const out = patchAppBuildGradle(GRADLE, APP);
-    expect(out).toContain('apply plugin: "dev.everframe"');
-    expect(out).toContain(`everframeExtension.appId.set("${APP}")`);
-    // A missing classpath or an older plugin without the everframe block must only warn.
-    expect(out).toMatch(/try \{ apply plugin: "dev\.everframe" \} catch \(Exception everframeError\)/);
-    expect(out).toContain('everframeExtension?.hasProperty("appId")');
   });
 });

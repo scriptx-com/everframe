@@ -19,11 +19,12 @@ const exists = (path: string) =>
 /**
  * One-time setup for bare React Native: same native steps the Expo plugin adds.
  * Patches whichever of android/ and ios/ exist; everything is read and patched before any write.
+ * Re-running it replaces the long blocks earlier versions generated with the short ones.
  */
 export async function setupReactNative(options: {
   projectRoot: string;
   appId: string;
-}): Promise<{ changed: string[]; metroHint: string }> {
+}): Promise<{ files: Array<{ path: string; changed: boolean }>; changed: string[]; metroHint: string }> {
   checkedAppId(options.appId);
   const writes: Array<{ relative: string; before: string; after: string }> = [];
 
@@ -59,11 +60,11 @@ export async function setupReactNative(options: {
   }
 
   if (writes.length === 0) throw new Error('no_native_project');
-  const changed: string[] = [];
+  // Every file it patched is reported, changed or not, in the order above.
+  const files: Array<{ path: string; changed: boolean }> = [];
   for (const { relative, before, after } of writes) {
-    if (after === before) continue;
-    await writeFile(join(options.projectRoot, relative), after);
-    changed.push(relative);
+    if (after !== before) await writeFile(join(options.projectRoot, relative), after);
+    files.push({ path: relative, changed: after !== before });
   }
-  return { changed, metroHint: METRO_HINT };
+  return { files, changed: files.filter((file) => file.changed).map((file) => file.path), metroHint: METRO_HINT };
 }

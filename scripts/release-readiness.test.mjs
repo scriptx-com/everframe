@@ -82,3 +82,17 @@ test('iOS bridges that call EverframeConfig(sdkKey:) require native 1.2.0 or new
     assert.match(read(file), /EverframeConfig\(\s*sdkKey:/, file);
   }
 });
+
+// The short Gradle block that `@everframe/expo` and `everframe setup react-native` write
+// relies on the dev.everframe plugin's Hermes upload, first published in 1.3.0. The CLI
+// pins the plugin to everframeVersion when it is built, and CLI 0.2.0 was the last to write
+// the long block. A later CLI release must therefore ship with Android 1.3.0 or newer, or
+// React Native apps would silently stop uploading Hermes source maps.
+test('a CLI that writes the short Gradle block pins a Gradle plugin with the Hermes upload', () => {
+  const cli = manifest('cli').version;
+  if (cli === '0.2.0') return;
+  const android = read('packages/sdk-android/android/gradle.properties').match(/^everframeVersion=(\d+)\.(\d+)\.(\d+)$/m);
+  assert.ok(android, 'everframeVersion missing');
+  const [major, minor] = android.slice(1).map(Number);
+  assert.ok(major > 1 || (major === 1 && minor >= 3), `CLI ${cli} would pin dev.everframe:gradle-plugin:${android.slice(1).join('.')}, before the Hermes upload`);
+});

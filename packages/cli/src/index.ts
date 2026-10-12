@@ -18,6 +18,7 @@ import { collectR8Build } from "./r8.js";
 import { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
 import { setupReactNative } from "./setup-react-native.js";
 import { setupXcode } from "./setup-xcode.js";
+import { xcodeBuildPhaseCommand } from "./xcode-build-phase.js";
 import { symbolsPhaseScript } from "./native-setup/index.js";
 import { CLI_VERSION } from "./version.js";
 import { uploadStagedHermes } from "./staged-upload.js";
@@ -57,6 +58,7 @@ const HELP = `Usage:
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe setup react-native --app-id <uuid> [--project <dir>]
   everframe setup xcode --project <App.xcodeproj> [--target <name>]... [--app-id <uuid>] [--print-script]
+  everframe xcode build-phase --app-id <uuid> [--staging <dir>]   (React Native and Expo Run Script phase)
   everframe dsym upload-build (--xcode | --archive <x.xcarchive> | --app <App.app> --dsym-dir <dir>... | --binary <file>... --dsym-dir <dir>...) [--app-id <uuid>] [--strict]
   everframe dsym upload --app-id <uuid> --dwarf <raw-file>
   everframe elf upload-build (--binaries-dir <dir> [--abi <abi>]... | --binary <file>...) --symbols-dir <dir> [--project-native-dir <dir>]... [--app-id <uuid>] [--summary] [--strict]
@@ -98,8 +100,10 @@ export async function main(
   const isExpoExportCommand = argv[0] === "upload-expo-export";
   const isSetupCommand = argv[0] === "setup" && argv[1] === "react-native";
   const isSetupXcodeCommand = argv[0] === "setup" && argv[1] === "xcode";
+  const isXcodeBuildPhaseCommand = argv[0] === "xcode" && argv[1] === "build-phase";
   if (
     !isSetupCommand &&
+    !isXcodeBuildPhaseCommand &&
     !isSetupXcodeCommand &&
     !isSourceMapCommand &&
     !isR8Command &&
@@ -114,6 +118,11 @@ export async function main(
     return 1;
   }
   try {
+    if (isXcodeBuildPhaseCommand) {
+      if (argv.slice(2).some((arg) => arg === "--help" || arg === "-h")) { console.log(HELP); return 0; }
+      return await xcodeBuildPhaseCommand(argv.slice(2), env);
+    }
+
     if (isSetupXcodeCommand) {
       const { values } = parseArgs({
         args: argv.slice(2), allowPositionals: false, strict: true,
@@ -156,12 +165,11 @@ export async function main(
       }
       const appId = parsed.values["app-id"];
       if (!appId) throw new Error("missing_required_option");
-      const { changed, metroHint } = await setupReactNative({
+      const { files, metroHint } = await setupReactNative({
         projectRoot: resolve(parsed.values.project),
         appId,
       });
-      if (changed.length === 0) console.log("Already set up; no changes.");
-      for (const path of changed) console.log(`Updated ${path}`);
+      for (const file of files) console.log(file.changed ? `Updated ${file.path}` : `No changes: ${file.path}`);
       console.log("Add to metro.config.js:");
       console.log(metroHint);
       return 0;

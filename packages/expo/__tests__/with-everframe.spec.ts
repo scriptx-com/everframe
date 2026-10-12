@@ -1,15 +1,43 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { SOURCEMAP_FILE_VALUE } from '@everframe/cli/native-setup';
+import { SOURCEMAP_FILE_VALUE, xcodePhaseScript } from '@everframe/cli/native-setup';
 import { describe, expect, it } from 'vitest';
 import { applyAndroid, applyAndroidProject, applyIos } from '../src/withEverframe.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
 
 describe('@everframe/expo', () => {
-  it('patches groovy build.gradle through the shared cli patcher', () => {
+  it('adds only the Gradle plugin and the app id to the app build.gradle', () => {
     const out = applyAndroid({ language: 'groovy', contents: 'apply plugin: "com.android.application"\n' }, APP);
-    expect(out.contents).toContain('@generated begin everframe-build-artifacts');
+    expect(out.contents).toBe(
+      [
+        'apply plugin: "com.android.application"',
+        '// @generated begin everframe-build-artifacts',
+        'apply plugin: "dev.everframe"',
+        `everframe { appId = "${APP}" }`,
+        '// @generated end everframe-build-artifacts',
+        '',
+      ].join('\n'),
+    );
+    expect(applyAndroid(out, APP)).toEqual(out);
+  });
+
+  it('replaces the block an earlier version generated', () => {
+    const legacy = [
+      'apply plugin: "com.android.application"',
+      '// @generated begin everframe-build-artifacts',
+      'try { apply plugin: "dev.everframe" } catch (Exception everframeError) {',
+      '}',
+      'afterEvaluate {',
+      "  def everframeProcess = new ProcessBuilder('bash', '-c', '''set -euo pipefail''')",
+      '}',
+      '// @generated end everframe-build-artifacts',
+      'android {}',
+      '',
+    ].join('\n');
+    const out = applyAndroid({ language: 'groovy', contents: legacy }, APP).contents;
+    expect(out).not.toContain('ProcessBuilder');
+    expect(out).toContain(`everframe { appId = "${APP}" }\n// @generated end everframe-build-artifacts\nandroid {}`);
   });
 
   it('rejects kotlin build scripts', () => {
@@ -18,16 +46,21 @@ describe('@everframe/expo', () => {
 
   it('passes the xcode project to the shared patcher', () => {
     const calls: string[] = [];
+    const scripts: string[] = [];
     const settings: Record<string, string> = {};
     const project = {
       pbxItemByComment: () => undefined,
       getFirstTarget: () => ({ uuid: 'T', firstTarget: { buildConfigurationList: 'L' } }),
-      addBuildPhase: (_f: string[], _t: string, name: string) => calls.push(name),
+      addBuildPhase: (_f: string[], _t: string, name: string, _target: string, options: { shellScript: string }) => {
+        calls.push(name);
+        scripts.push(options.shellScript);
+      },
       pbxXCConfigurationList: () => ({ L: { buildConfigurations: [{ value: 'C' }] } }),
       pbxXCBuildConfigurationSection: () => ({ C: { buildSettings: settings } }),
     };
     applyIos(project, APP);
     expect(calls).toEqual(['Upload Everframe Build Artifacts']);
+    expect(scripts).toEqual([xcodePhaseScript(APP)]);
     expect(settings.SOURCEMAP_FILE).toBe(SOURCEMAP_FILE_VALUE);
   });
 

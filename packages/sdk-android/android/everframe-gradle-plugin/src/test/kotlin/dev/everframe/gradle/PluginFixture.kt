@@ -31,6 +31,24 @@ internal class PluginFixture private constructor(val root: File) {
          * relative to the app project's directory, as a checked-in script would be named.
          */
         val relativeCliInSubproject: Boolean = false,
+        /**
+         * A stand-in for React Native's Gradle plugin (`com.facebook.react`, from buildSrc): its
+         * `createBundleReleaseJsAndAssets` writes a bundle and map where React Native writes them.
+         */
+        val reactNative: Boolean = false,
+        /**
+         * Groovy `build.gradle` in the form `everframe setup react-native` generates: React Native's
+         * plugin applied after dev.everframe, and `everframe { appId = "..." }`. Supports [reactNative] only.
+         */
+        val groovyAppId: String? = null,
+        /** `everframe { hermesStagingDir }`, relative to the project directory. */
+        val hermesStagingDir: String? = null,
+        /**
+         * Leave `cliCommand` at its default: the build finds `node_modules/@everframe/cli/dist/index.js`
+         * in the root folder and runs it with Node. [stubNode] is a Node stand-in for NODE_BINARY that
+         * records itself and hands its arguments (the CLI path first) to the recorder.
+         */
+        val defaultCli: Boolean = false,
     )
 
     fun run(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
@@ -38,7 +56,7 @@ internal class PluginFixture private constructor(val root: File) {
     fun runAndFail(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
         runner(environment).withArguments(*args, "--stacktrace", "--console=plain").buildAndFail()
 
-    /** Each invocation: the EVERFRAME_API_TOKEN it saw, then its arguments. */
+    /** Each invocation: the EVERFRAME_API_TOKEN it saw, then its arguments. Each is appended with one write (sh's printf flushes per line), so parallel uploads do not interleave. */
     fun recordedInvocations(): List<List<String>> {
         val record = File(root, "cli-record.txt")
         if (!record.exists()) return emptyList()
@@ -56,6 +74,12 @@ internal class PluginFixture private constructor(val root: File) {
     fun recordedNpmLimits(): String = File(root, "cli-npm.txt").readText().trim()
     /** The fake CLI's sleeping child, when it was asked to stall. */
     fun recordedSleeper(): Long = File(root, "cli-sleep.pid").readText().trim().toLong()
+    /** A Node stand-in for NODE_BINARY ([Options.defaultCli]); its path has a space in it. */
+    fun stubNode(): File = File(root, "stub node")
+    /** The installed CLI entry point the default command finds ([Options.defaultCli]). */
+    fun installedCli(): File = File(root, "node_modules/@everframe/cli/dist/index.js")
+    /** Each run of [stubNode]: its own path. */
+    fun recordedNodes(): List<String> = File(root, "cli-node.txt").takeIf { it.exists() }?.readLines() ?: emptyList()
     /** The fake CLI's working directory, physical path. */
     fun recordedWorkingDirectory(): String = File(root, "cli-cwd.txt").readText().trim()
     fun apkAsset(variantDir: String, entry: String): String {
@@ -100,7 +124,7 @@ internal class PluginFixture private constructor(val root: File) {
                 writeText(
                     """
                     #!/bin/sh
-                    { printf '%s\n' "${d}EVERFRAME_API_TOKEN"; printf '%s\n' "${d}@"; printf '%s\n' '---'; } >> '$record'
+                    entry="${d}(mktemp)"; printf '%s\n' "${d}EVERFRAME_API_TOKEN" "${d}@" '---' > "${d}entry"; cat "${d}entry" >> '$record'; rm -f "${d}entry"
                     pwd -P > '$cwd'
                     printf '%s\n' "${d}{EVERFRAME_UPLOAD_TIMEOUT_SECONDS:-}" > '$budget'
                     printf '%s|%s|%s\n' "${d}{npm_config_fetch_timeout:-}" "${d}{npm_config_fetch_retries:-}" "${d}{npm_config_fetch_retry_maxtimeout:-}" > '$npm'
@@ -128,11 +152,38 @@ internal class PluginFixture private constructor(val root: File) {
             val cmake = if (options.cmakeFlags == null) "" else
                 "externalNativeBuild { cmake { path = file(\"src/main/cpp/CMakeLists.txt\") } }"
             val cliCommand = if (options.relativeCliInSubproject) "./record cli.sh" else recorder.absolutePath
-            File(app, "build.gradle.kts").writeText(
+            if (options.reactNative) writeFakeReactNativePlugin(directory)
+            if (options.defaultCli) {
+                File(directory, "node_modules/@everframe/cli/dist").mkdirs()
+                File(directory, "node_modules/@everframe/cli/dist/index.js").writeText("// stand-in\n")
+                File(directory, "stub node").apply {
+                    writeText("#!/bin/sh\nprintf '%s\\n' \"${d}0\" >> '${File(directory, "cli-node.txt").absolutePath}'\nexec '${recorder.absolutePath}' \"${d}@\"\n")
+                    setExecutable(true)
+                }
+            }
+            if (options.groovyAppId != null) File(app, "build.gradle").writeText(
+                """
+                plugins {
+                    id 'com.android.application' version '8.7.2'
+                    id 'dev.everframe'
+                }
+                ${if (options.reactNative) "apply plugin: 'com.facebook.react'" else ""}
+                android {
+                    namespace 'test.fixture'
+                    compileSdk 35
+                    defaultConfig { applicationId 'test.fixture'; minSdk 24; versionCode 1; versionName '1.0' }
+                }
+                everframe {
+                    appId = ${quote(options.groovyAppId)}
+                    ${if (options.defaultCli) "" else "cliCommand = [${quote(cliCommand)}]"}
+                }
+                """.trimIndent(),
+            ) else File(app, "build.gradle.kts").writeText(
                 """
                 plugins {
                     id("com.android.application") version "8.7.2"
                     id("dev.everframe")
+                    ${if (options.reactNative) "id(\"com.facebook.react\")" else ""}
                 }
                 android {
                     namespace = "test.fixture"
@@ -147,7 +198,8 @@ internal class PluginFixture private constructor(val root: File) {
                 }
                 everframe {
                     uploadEnabled.set(${options.uploadEnabled})
-                    cliCommand.set(listOf(${quote(cliCommand)}))
+                    ${if (options.defaultCli) "" else "cliCommand.set(listOf(${quote(cliCommand)}))"}
+                    ${options.hermesStagingDir?.let { "hermesStagingDir.set(layout.projectDirectory.dir(${quote(it)}))" } ?: ""}
                 }
                 """.trimIndent(),
             )
@@ -165,6 +217,51 @@ internal class PluginFixture private constructor(val root: File) {
                 cpp.resolve("native.c").writeText("int everframe_fixture(int value) { return value * 2; }\n")
             }
             return PluginFixture(directory)
+        }
+
+        /** buildSrc plugin `com.facebook.react` with React Native's release bundling task name and output paths. */
+        private fun writeFakeReactNativePlugin(directory: File) {
+            val buildSrc = File(directory, "buildSrc")
+            File(buildSrc, "src/main/groovy").mkdirs()
+            File(buildSrc, "build.gradle").writeText(
+                """
+                plugins { id 'groovy'; id 'java-gradle-plugin' }
+                gradlePlugin { plugins { react { id = 'com.facebook.react'; implementationClass = 'FakeReactPlugin' } } }
+                """.trimIndent(),
+            )
+            File(buildSrc, "src/main/groovy/FakeBundleTask.groovy").writeText(
+                """
+                import org.gradle.api.DefaultTask
+                import org.gradle.api.file.DirectoryProperty
+                import org.gradle.api.tasks.OutputDirectory
+                import org.gradle.api.tasks.TaskAction
+
+                abstract class FakeBundleTask extends DefaultTask {
+                    @OutputDirectory abstract DirectoryProperty getJsBundleDir()
+                    @OutputDirectory abstract DirectoryProperty getJsSourceMapsDir()
+                    @TaskAction void bundle() {
+                        new File(jsBundleDir.get().asFile, 'index.android.bundle').text = 'hermes bytecode'
+                        new File(jsSourceMapsDir.get().asFile, 'index.android.bundle.map').text = '{}'
+                    }
+                }
+                """.trimIndent(),
+            )
+            File(buildSrc, "src/main/groovy/FakeReactPlugin.groovy").writeText(
+                """
+                import org.gradle.api.Plugin
+                import org.gradle.api.Project
+
+                class FakeReactPlugin implements Plugin<Project> {
+                    void apply(Project project) {
+                        def bundle = project.tasks.register('createBundleReleaseJsAndAssets', FakeBundleTask) { task ->
+                            task.jsBundleDir.set(project.layout.buildDirectory.dir('generated/assets/react/release'))
+                            task.jsSourceMapsDir.set(project.layout.buildDirectory.dir('generated/sourcemaps/react/release'))
+                        }
+                        project.tasks.matching { it.name == 'preReleaseBuild' }.configureEach { it.dependsOn(bundle) }
+                    }
+                }
+                """.trimIndent(),
+            )
         }
 
         private fun quote(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

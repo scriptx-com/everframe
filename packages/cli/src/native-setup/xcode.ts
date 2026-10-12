@@ -1,10 +1,30 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { buildPhaseScript } from './script.js';
+import { checkedAppId } from './script.js';
 import { SYMBOLS_BUILD_SETTINGS, SYMBOLS_PHASE_INPUTS } from './xcode-symbols.js';
 
 export const XCODE_PHASE_NAME = 'Upload Everframe Build Artifacts';
 export const SOURCEMAP_FILE_VALUE = '"$(DERIVED_FILE_DIR)/main.jsbundle.map"';
+
+/**
+ * The Run Script body: it finds the installed `@everframe/cli` the way Node would from the app
+ * root and runs `everframe xcode build-phase`, which owns the upload logic (token, strict mode,
+ * time budget, Hermes map, dSYMs). Debug and SKIP_BUNDLING builds skip before Node starts, as
+ * the CLI itself does, so they never depend on Node. `.xcode.env` supplies NODE_BINARY, as in
+ * React Native's own phases. When Node or the CLI is missing, or the CLI fails before it can
+ * apply its own policy (an incomplete install), the build warns and continues, unless
+ * EVERFRAME_SYMBOLS_STRICT=1, which keeps the failing status.
+ */
+export function xcodePhaseScript(appId: string): string {
+  return [
+    'if [ "${CONFIGURATION:-}" = "Debug" ] || [ -n "${SKIP_BUNDLING:-}" ]; then echo "everframe: Debug build, skipping artifact upload"; exit 0; fi',
+    'if [ -f "$SRCROOT/.xcode.env" ]; then . "$SRCROOT/.xcode.env"; fi',
+    'if [ -f "$SRCROOT/.xcode.env.local" ]; then . "$SRCROOT/.xcode.env.local"; fi',
+    `EVERFRAME_CLI_JS="$(cd "$SRCROOT/.." && "\${NODE_BINARY:-node}" --print "require.resolve('@everframe/cli')" 2>/dev/null)" && "\${NODE_BINARY:-node}" "$EVERFRAME_CLI_JS" xcode build-phase --app-id "${checkedAppId(appId)}"`,
+    'EVERFRAME_STATUS=$?; if [ "$EVERFRAME_STATUS" = 0 ]; then exit 0; fi; case "${EVERFRAME_SYMBOLS_STRICT:-}" in 1|true) exit "$EVERFRAME_STATUS";; esac',
+    'echo "warning: everframe: could not run @everframe/cli with Node from $SRCROOT/.. (exit status $EVERFRAME_STATUS); build artifacts were not uploaded and the build continues. Install @everframe/cli in the app, or set NODE_BINARY in ios/.xcode.env.local. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."',
+  ].join('\n');
+}
 
 /** The subset of the `xcode` package's project object this module uses. */
 export interface XcodeProjectLike {
@@ -22,12 +42,13 @@ export interface XcodeProjectLike {
 }
 
 /**
- * Appends the upload as the last Run Script phase, or rewrites an existing phase's script
- * so a new app id or script fix lands; defines `SOURCEMAP_FILE` if unset.
+ * Appends the upload as the last Run Script phase, or rewrites an existing phase's script, which
+ * also turns the long script earlier versions generated into the short one; defines
+ * `SOURCEMAP_FILE` only where the app has not set it.
  */
 export function patchXcodeProject(project: XcodeProjectLike, appId: string): void {
   const target = project.getFirstTarget();
-  const script = buildPhaseScript({ platform: 'ios', appId, stagingDir: '$SRCROOT/../.everframe', projectRoot: '$SRCROOT/..' });
+  const script = xcodePhaseScript(appId);
   const existing = project.pbxItemByComment(XCODE_PHASE_NAME, 'PBXShellScriptBuildPhase') as
     | { shellScript?: string; inputPaths?: string[]; alwaysOutOfDate?: number }
     | null;
