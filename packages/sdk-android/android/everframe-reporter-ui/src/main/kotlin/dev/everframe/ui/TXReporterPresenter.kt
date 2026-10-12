@@ -95,6 +95,11 @@ internal class TXReporterPresenter(
         val result: ReportResult? = txGuardSuspend("presenter") {
             // DEFE-03 kill-switch
             if (!Everframe.captureGate) return@txGuardSuspend ReportResult.Cancelled("kill_switch")
+            // Crash-only session (spec 2026-10-12). `report.open()` already throws before reaching here;
+            // this covers callers that build a presenter directly, such as EFReporterFromImage.
+            if (Everframe.currentConfig?.reporterEnabled == false) {
+                return@txGuardSuspend ReportResult.Cancelled("reporter_disabled")
+            }
 
             // Consume host-attached payload exactly once — matches iOS
             // TXReporterPresenter.swift:72. `hostExtra` is threaded through to

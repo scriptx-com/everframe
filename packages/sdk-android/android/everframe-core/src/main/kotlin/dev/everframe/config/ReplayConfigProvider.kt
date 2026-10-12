@@ -531,6 +531,12 @@ data class ReplayConfig(
     val vitalsEnabled: Boolean? = null,
     val vitalsSampleRate: Double? = null,
     val nativeVideo: NativeVideoSettings? = null,
+    /**
+     * Replay coverage for crash-only sessions (spec 2026-10-12), negotiated via the `crashonly` feature token.
+     * Null when the server did not send it (an older server) or sent a value outside 0..1; a crash-only
+     * session then records nothing.
+     */
+    val crashOnlySamplingRate: Double? = null,
 ) {
     companion object {
         /**
@@ -568,6 +574,7 @@ private data class ReplayConfigWire(
     @Serializable(with = LenientBooleanSerializer::class) val vitalsEnabled: Boolean? = null,
     @Serializable(with = LenientDoubleSerializer::class) val vitalsSampleRate: Double? = null,
     val nativeVideo: NativeVideoSettings? = null,
+    @Serializable(with = LenientDoubleSerializer::class) val crashOnlySamplingRate: Double? = null,
 )
 
 /**
@@ -763,6 +770,9 @@ class ReplayConfigProvider(
                     vitalsEnabled = wire.vitalsEnabled,
                     vitalsSampleRate = wire.vitalsSampleRate,
                     nativeVideo = wire.nativeVideo,
+                    // Unlike samplingRate, a bad crash-only rate degrades this field alone: it only ever
+                    // lowers coverage, and null already means "record no crash-only session".
+                    crashOnlySamplingRate = wire.crashOnlySamplingRate?.takeIf { it in 0.0..1.0 },
                 )
                 __beforeCommitHookForTesting()
                 // F43: commit succeeds ONLY if [state] still shows `mySeq`
@@ -825,10 +835,11 @@ class ReplayConfigProvider(
          * prerequisite for receiving it, not a formality. Mirrors iOS's
          * `ReplayConfigProvider.sdkFeaturesHeaderValue`. `nativevideolowfps`
          * (spec 2026-10-11, C1) lets the server send 1 or 2 fps; callers
-         * without it get 5.
+         * without it get 5. `crashonly` (spec 2026-10-12) asks for `crashOnlySamplingRate`, which this
+         * strict decoder would otherwise reject as an unknown key.
          */
         val SDK_FEATURES_HEADER_VALUE: String
-            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport" +
+            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly" +
                 if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**

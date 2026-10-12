@@ -192,16 +192,22 @@ class ReplaySession(
         } else {
             resourceSampler.stop()
         }
+        // Crash-only sessions (spec 2026-10-12): read once, so bodies and video agree for this refresh. A
+        // companion bond flips it and then forces another refresh, which re-applies both decisions.
+        val crashOnly = Everframe.crashOnlyCoverage()
         NetworkBodyCaptureState.applyConfig(if (succeeded) latest.networkBodies else null,
             samplingRate = latest.samplingRate,
-            locallyDisabled = NetworkBodyCaptureState.locallyDisabled(Everframe.currentConfig) ||
+            locallyDisabled = crashOnly || NetworkBodyCaptureState.locallyDisabled(Everframe.currentConfig) ||
                 NetworkBodyCaptureState.breadcrumbsExcludeNetwork(latest.breadcrumbs),
             guard = { currentGenerationValid(capturedEpoch) })
         sharedNetworkBodyBuffer.setTotalBudget(latest.networkBodies?.bodyTotalBudget ?: 262144) { currentGenerationValid(capturedEpoch) }
         Everframe.withReportAuthorizationLock {
             if (!currentGenerationValid(capturedEpoch)) return@withReportAuthorizationLock
+            // One draw for both kinds: with the crash-only rate at or below the report rate, crash-only
+            // coverage is a subset of report coverage, so an upgrade never stops a session that records.
+            val rate = if (crashOnly) latest.crashOnlySamplingRate ?: 0.0 else latest.samplingRate
             val effective = effectiveNativeVideo(latest, succeeded, locallyDisabled)
-                ?.takeIf { samplingDraw < latest.samplingRate }
+                ?.takeIf { samplingDraw < rate }
             val decision = VideoPolicy(effective, latest.replayDurationSec)
             if (authorized && videoPolicy != decision) revokeReplayLocked()
             videoPolicy = decision
