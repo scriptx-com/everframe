@@ -381,6 +381,34 @@ capturing network traffic in the first place:
 Do not enable this option expecting RN's own network calls to show up in
 reports — that capability doesn't exist yet.
 
+## Crash-only sessions
+
+```tsx
+<EverframeProvider config={{ sdkKey: '…', reporter: { disabled: true } }}>
+```
+
+`reporter.disabled: true` turns the bug reporter off for the session and
+keeps crash and error reporting, for example in production builds. It is a
+**client veto**: the dashboard can't turn the reporter back on for this
+session.
+
+In a crash-only session:
+
+- Shake-to-report is off, and `open()` rejects with
+  `EverframeReporterDisabledError`.
+- Session replay uses the app's crash-only sampling rate, which is 0 by
+  default. An error carries a replay only while the session records.
+- Network bodies aren't captured.
+- Crash and error capture, breadcrumbs, vitals, release health and the
+  companion work as usual.
+
+A companion bond (a phone scanning the QR code, or a dashboard member
+attaching) upgrades the session. Replay and network bodies then follow the
+app's normal settings for the rest of the session, and recording starts at
+the bond. The reporter stays off: reports from an upgraded session come
+through the companion. See
+[crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
+
 ## Navigation breadcrumbs
 
 Mark screens with one line; the native SDK derives `from → to` from a global
