@@ -250,6 +250,91 @@ struct NativeVideoRecorderTests {
         #expect(!FileManager.default.fileExists(atPath: dir.path))
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func cancelledSnapshotCloseDoesNotBlockAppendAndStopOwnsClosingWriter() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let finishing = SnapshotTestGate(), releaseFinish = SnapshotTestGate()
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5,
+            finishSnapshotWriter: { writer, end in
+                await finishing.release()
+                await releaseFinish.wait()
+                return try await writer.finish(endNanos: end)
+            })
+        #expect(try await recorder.append(frame(0)))
+        let snapshot = Task { try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 500_000_000) }
+        await finishing.wait()
+        snapshot.cancel()
+        #expect(try await snapshot.value == nil) // returns before the injected close is released
+        #expect(try await recorder.append(frame(600_000_000)))
+        // No unbounded replacement close tasks; another optional snapshot declines.
+        await recorder.cancel()
+        #expect(!FileManager.default.fileExists(atPath: dir.path))
+        await releaseFinish.release()
+        _ = try? await snapshot.value
+        #expect(!FileManager.default.fileExists(atPath: dir.path))
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func delayedCancelledCloseRetainsOriginalAcrossLaterRollovers() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let finishing = SnapshotTestGate(), releaseFinish = SnapshotTestGate()
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5,
+            finishSnapshotWriter: { writer, end in
+                await finishing.release(); await releaseFinish.wait()
+                return try await writer.finish(endNanos: end)
+            })
+        #expect(try await recorder.append(frame(0)))
+        let snapshot = Task { try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 500_000_000) }
+        await finishing.wait(); snapshot.cancel()
+        #expect(try await snapshot.value == nil)
+        #expect(try await recorder.append(frame(600_000_000)))
+        #expect(try await recorder.append(frame(2_600_000_000)))
+        #expect(try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 3_000_000_000) == nil)
+        await releaseFinish.release()
+        let report = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 0, endNanos: 3_000_000_000))
+        defer { report.removeOwnedFile() }
+        #expect(try await frameTimes(report.url) == [0, 600, 2600])
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func dimensionChangeInvalidatesAnOutstandingSnapshotClose() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let finishing = SnapshotTestGate(), releaseFinish = SnapshotTestGate()
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 5,
+            finishSnapshotWriter: { writer, end in
+                await finishing.release(); await releaseFinish.wait()
+                return try await writer.finish(endNanos: end)
+            })
+        #expect(try await recorder.append(frame(0)))
+        let snapshot = Task { try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 500_000_000) }
+        await finishing.wait()
+        #expect(try await recorder.append(frame(600_000_000, width: 32)))
+        #expect(try await snapshot.value == nil)
+        await releaseFinish.release()
+        let report = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 0, endNanos: 1_000_000_000))
+        defer { report.removeOwnedFile() }
+        #expect(report.width == 32)
+        #expect(report.startEpochMs == 600)
+        #expect(try await frameTimes(report.url) == [0])
+    }
+
+    @Test func firstSnapshotAfterLongFrameGapPreservesHeldFrameAndLaterReport() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 2, durationNanos: 30_000_000_000)
+        #expect(try await recorder.append(frame(0)))
+        let copy = try #require(await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 35_000_000_000))
+        defer { copy.removeOwnedFile() }
+        #expect(copy.startEpochMs == 15_000)
+        #expect(abs(copy.durationMs - 30_000) < 2)
+        #expect(try await frameTimes(copy.url) == [0])
+        #expect(try await recorder.append(frame(35_500_000_000)))
+        let report = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 36_000_000_000))
+        defer { report.removeOwnedFile() }
+        #expect(report.startEpochMs == 16_000)
+        #expect(abs(report.durationMs - 30_000) < 2)
+        #expect(try await frameTimes(report.url) == [0, 29_500])
+    }
+
     private func frameTimes(_ url: URL) async throws -> [Int] {
         let asset = AVURLAsset(url: url)
         let track = try #require(await asset.loadTracks(withMediaType: .video).first)

@@ -113,6 +113,27 @@ struct NativeVideoRingTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
     }
 
+    @Test func lateCloseValidatesBothNeighboursAndKeepsBudgets() throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        var ring = NativeVideoRing(directory: dir, durationNanos: 10, byteLimit: 30)
+        let first = try segment(dir, start: 0, end: 2)
+        let last = try segment(dir, start: 6, end: 8)
+        #expect(try ring.insert(first)); #expect(try ring.insert(last))
+        let overlapsPrevious = try segment(dir, start: 1, end: 5)
+        let overlapsNext = try segment(dir, start: 3, end: 7)
+        #expect(try ring.insert(overlapsPrevious) == false)
+        #expect(try ring.insert(overlapsNext) == false)
+        let middle = try segment(dir, start: 3, end: 5)
+        #expect(try ring.insert(middle))
+        #expect(ring.segments.map(\.startNanos) == [0, 3, 6])
+        #expect(ring.byteCount == 30)
+        #expect(try ring.insert(segment(dir, start: 8, end: 10)))
+        #expect(ring.segments.map(\.startNanos) == [3, 6, 8])
+        #expect(ring.byteCount == 30)
+        #expect(!FileManager.default.fileExists(atPath: first.url.path))
+        try ring.clear()
+    }
+
     @Test func invalidOrOverlappingMetadataCannotEnterRing() throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         var ring = NativeVideoRing(directory: dir, durationNanos: 10, byteLimit: 100)

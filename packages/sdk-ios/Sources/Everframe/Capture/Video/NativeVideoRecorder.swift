@@ -20,8 +20,8 @@ protocol NativeVideoRecording: Sendable {
 
 /// One recording epoch: bounded complete segments plus one active encoder.
 /// Capture/session scheduling remains outside this actor. Concurrent appends are
-/// dropped while a frame, rollover or snapshot close is in flight; they never
-/// build a raw-frame queue.
+/// dropped while a frame or normal rollover is in flight; snapshot closes
+/// have a separate bounded slot. Appends never build a raw-frame queue.
 actor NativeVideoRecorder: NativeVideoRecording {
     private struct StagedSnapshot {
         let segments: [NativeVideoSegment]
@@ -39,6 +39,12 @@ actor NativeVideoRecorder: NativeVideoRecording {
     private let durationNanos: UInt64
     private var ring: NativeVideoRing
     private var writer: NativeVideoSegmentWriter?
+    private var closingWriter: NativeVideoSegmentWriter?
+    private var closingTask: Task<Void, Never>?
+    private var closingGeneration = 0
+    private var snapshotWaiting = false
+    private var stagedAfterClose: StagedSnapshot?
+    private var closingWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
     private var exporter: NativeVideoExporter?
     private var dimensions: NativeVideoDimensions?
     private var segmentStart: UInt64?
@@ -79,6 +85,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
         defer { releaseBusy() }
         do {
             if let dimensions, dimensions.width != frame.width || dimensions.height != frame.height {
+                await invalidateClosingWriter()
                 await writer?.cancel()
                 writer = nil; segmentStart = nil
                 try ring.clear()
@@ -122,9 +129,14 @@ actor NativeVideoRecorder: NativeVideoRecording {
         state = .freezing
         if busy { await withCheckedContinuation { idleWaiters.append($0) } }
         guard state == .freezing, !Task.isCancelled else { await cancel(); return nil }
+        // An invalidated old-dimensions snapshot can finish unsuccessfully while
+        // the current writer still contains a valid report. Only this report
+        // task cancellation or recorder stop should abandon that new history.
+        if closingTask != nil { _ = await waitForClosingWriter() }
+        guard state == .freezing, !Task.isCancelled else { await cancel(); return nil }
         do {
             if let current = writer {
-                let closed = try await current.finish(endNanos: endNanos)
+                let closed = try await current.finish(endNanos: lastAppendedNanos.map { $0 + 1_000_000_000 / UInt64(framesPerSecond) })
                 writer = nil; segmentStart = nil
                 if let closed {
                     guard state == .freezing, !Task.isCancelled else {
@@ -143,7 +155,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
             let export = makeExporter(directory)
             exporter = export
             let artifact = try await export.export(segments: ring.drain(), dimensions: dimensions,
-                anchorNanos: anchorNanos, anchorEpochMs: anchorEpochMs, durationNanos: durationNanos)
+                anchorNanos: anchorNanos, anchorEpochMs: anchorEpochMs, endNanos: endNanos, durationNanos: durationNanos)
             exporter = nil
             guard state == .freezing, !Task.isCancelled else {
                 artifact?.removeOwnedFile()
@@ -163,25 +175,47 @@ actor NativeVideoRecorder: NativeVideoRecording {
     /// segments into an independently owned sibling directory and exports the
     /// copies. A later snapshot or `finish` still sees the whole window.
     func snapshot(anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64) async throws -> NativeVideoArtifact? {
+        guard let staged = try await stageSnapshotForCapture() else { return nil }
+        return try await snapshotExport(staged.directory, staged.segments, staged.dimensions, anchorNanos, anchorEpochMs, endNanos)
+    }
+
+    private func stageSnapshotForCapture() async throws -> StagedSnapshot? {
         while busy && state == .active { await withCheckedContinuation { idleWaiters.append($0) } }
         guard state == .active, !Task.isCancelled else { return nil }
+        // A single owned closing slot bounds encoders/tasks even if the
+        // optional snapshot times out. Subsequent snapshots decline until it closes.
+        guard closingTask == nil, !snapshotWaiting else { return nil }
+        snapshotWaiting = true
+        defer {
+            snapshotWaiting = false
+            if let abandoned = stagedAfterClose { try? FileManager.default.removeItem(at: abandoned.directory) }
+            stagedAfterClose = nil
+        }
+        if let current = writer, let last = lastAppendedNanos {
+            writer = nil; segmentStart = nil
+            closingWriter = current
+            let generation = closingGeneration
+            let finish = finishSnapshotWriter
+            let end = last + 1_000_000_000 / UInt64(framesPerSecond)
+            closingTask = Task {
+                let closed = try? await finish(current, end)
+                self.completedClosingWriter(closed, generation: generation)
+            }
+            guard await waitForClosingWriter() else { return nil }
+        }
+        while busy && state != .closed { await withCheckedContinuation { idleWaiters.append($0) } }
+        guard state != .closed, !Task.isCancelled else { return nil }
         busy = true
         let staged: StagedSnapshot?
-        do {
-            staged = try await stageSnapshot(endNanos: endNanos)
-        } catch {
-            releaseBusy()
-            throw error
-        }
+        do { staged = try stagedAfterClose ?? stageSnapshot(); stagedAfterClose = nil }
+        catch { releaseBusy(); throw error }
         releaseBusy()
-        guard let staged else { return nil }
-        // Runs after `busy` is released: frames, rollovers and a freeze proceed
-        // against the originals while the independent copies export.
-        return try await snapshotExport(staged.directory, staged.segments, staged.dimensions, anchorNanos, anchorEpochMs, endNanos)
+        return staged
     }
 
     func cancel() async {
         state = .closed
+        await invalidateClosingWriter()
         await writer?.cancel()
         writer = nil; segmentStart = nil
         await exporter?.cancel()
@@ -189,30 +223,45 @@ actor NativeVideoRecorder: NativeVideoRecording {
         NativeVideoStorage.removeIfEmpty(directory)
     }
 
-    private func stageSnapshot(endNanos: UInt64) async throws -> StagedSnapshot? {
-        if let current = writer {
-            writer = nil; segmentStart = nil
-            if let last = lastAppendedNanos {
-                // A delayed error may have newer frames. Preserve a full final
-                // sample for the report; only the independent export is trimmed.
-                let end = endNanos > last ? endNanos : last + 1_000_000_000 / UInt64(framesPerSecond)
-                // The snapshot's deadline cancels this task. It must never cancel
-                // the recording's own segment, so the close runs in its own task.
-                let finish = finishSnapshotWriter
-                let closed = try await Task { try await finish(current, end) }.value
-                if let closed {
-                    guard state != .closed else {
-                        try? FileManager.default.removeItem(at: closed.url)
-                        return nil
-                    }
-                    // Inserted even while a freeze waits: the report keeps it.
-                    do { try ring.insert(closed) }
-                    catch { try? FileManager.default.removeItem(at: closed.url); throw error }
-                }
-            } else {
-                await current.cancel()
-            }
+    private func waitForClosingWriter() async -> Bool {
+        let id = UUID()
+        return await withTaskCancellationHandler {
+            if Task.isCancelled { return false }
+            if closingTask == nil { return state != .closed }
+            return await withCheckedContinuation { closingWaiters[id] = $0 }
+        } onCancel: { Task { await self.cancelClosingWaiter(id) } }
+    }
+
+    private func cancelClosingWaiter(_ id: UUID) { closingWaiters.removeValue(forKey: id)?.resume(returning: false) }
+
+    private func invalidateClosingWriter() async {
+        closingGeneration += 1
+        closingTask?.cancel()
+        await closingWriter?.cancel()
+        // Keep the task's slot until it exits: no replacement hung closures.
+        let waiters = Array(closingWaiters.values); closingWaiters.removeAll()
+        for waiter in waiters { waiter.resume(returning: false) }
+    }
+
+    private func completedClosingWriter(_ closed: NativeVideoSegment?, generation: Int) {
+        closingWriter = nil; closingTask = nil
+        if let closed {
+            if state != .closed && generation == closingGeneration {
+                do { try ring.insert(closed) }
+                catch { try? FileManager.default.removeItem(at: closed.url) }
+            } else { try? FileManager.default.removeItem(at: closed.url) }
         }
+        // Stage the accepted snapshot before waking a waiting freeze, which
+        // may immediately transfer/drain the original ring.
+        if snapshotWaiting && state != .closed && generation == closingGeneration {
+            stagedAfterClose = try? stageSnapshot()
+        }
+        let waiters = Array(closingWaiters.values); closingWaiters.removeAll()
+        for waiter in waiters { waiter.resume(returning: state != .closed && generation == closingGeneration) }
+        if state == .closed { NativeVideoStorage.removeIfEmpty(directory) }
+    }
+
+    private func stageSnapshot() throws -> StagedSnapshot? {
         // A freeze waiting on this close owns the originals; this already-started
         // snapshot must retain its independent copy before releasing the lease.
         guard state != .closed, !Task.isCancelled, let dimensions, !ring.segments.isEmpty else { return nil }
