@@ -1,0 +1,67 @@
+packages/sdk-android/android/everframe-core/src/androidTest/kotlin/dev/everframe/capture/video/ErrorReplayCutoffInstrumentedTest.kt
+  s_269319d6df67e5::t_c20abbec109cad 1-187
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/ErrorReplaySnapshot.kt
+  s_269319d6df67e5::t_945cecd3fb7cf4 20
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/H264VideoEncoder.kt
+  s_269319d6df67e5::t_c6fa0c3c570873 34-38
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/NativeVideoAttachment.kt
+  s_269319d6df67e5::t_8b6a203d7d0d53 16,18,21-22,24,26,28,30,35
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/NativeVideoRecorder.kt
+  s_269319d6df67e5::t_fde24596e75336 44-45,65,242-243,248-250,255-260,271-278,293-301,304-310,312,316,320-321,326,446
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/PixelCopyVideoCapture.kt
+  s_269319d6df67e5::t_5c31b3c1c7086a 266-272
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoExporter.kt
+  s_269319d6df67e5::t_00507d3a559d61 87,89,106-111,113,119,121,124,126,132,218,229-237
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/VideoSegmentStore.kt
+  s_269319d6df67e5::t_18d7d9011de012 79-83,100,102-106
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/ErrorReplaySessionTest.kt
+  s_269319d6df67e5::t_58a0a2ed3ac763 34,40,69,73,124-142
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/NativeVideoRecorderTest.kt
+  s_269319d6df67e5::t_add1055f8d4ebc 23,50-104,165,195,235,256,308
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/VideoExporterTest.kt
+  s_269319d6df67e5::t_d743faf658d410 14-32
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_269319d6df67e5::t_40c092587ff942 633-634,636
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoExporter.swift
+  s_269319d6df67e5::t_bf6e52c9d0083d 28,33-34,44,54,62-63,86-87,89
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoRecorder.swift
+  s_269319d6df67e5::t_5cc9845800afc1 32-35,51-52,56-58,62-67,146,183,199-201,204-205
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoSession.swift
+  s_269319d6df67e5::t_7017a56949facc 166,168-169
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_269319d6df67e5::t_a7d47872469abb 208,253,297,336,354,566,641,650
+packages/sdk-ios/Sources/Everframe/Crash/ErrorReplay.swift
+  s_269319d6df67e5::t_774f203dd561ec 33,40,44-64,92-98,146,148-149,204-205
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_269319d6df67e5::t_8dc4e2143608e1 2122,2125
+packages/sdk-ios/Tests/EverframeTests/ErrorReplayTests.swift
+  s_269319d6df67e5::t_8bd2d7c65c565d 7-9,184-197,202,229-295,376
+packages/sdk-ios/Tests/EverframeTests/NativeVideoCoordinatorTests.swift
+  s_269319d6df67e5::t_e4a65e9bb242c2 36,39,57,61
+packages/sdk-ios/Tests/EverframeTests/NativeVideoRecorderTests.swift
+  s_269319d6df67e5::t_be21ae06f3947d 23-32,149-163,190,194,216-252
+packages/sdk-web/__tests__/capture/replay/error-replay-adapter.spec.ts
+  s_269319d6df67e5::t_fdb87d1d1d09a4 148
+packages/sdk-web/__tests__/capture/replay/hidden-tab-pause.spec.ts
+  s_269319d6df67e5::t_b907d9879f9291 105,125
+packages/sdk-web/__tests__/capture/replay/snapshot.spec.ts
+  s_269319d6df67e5::t_8bbc7fbe1c7668 10,65-66,75-106,118,121,136,164
+packages/sdk-web/src/capture/replay/recorder.ts
+  s_269319d6df67e5::t_ce574e2ffca304 633-634,639-641
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "072d90b97d4ebbc65c60aabc7c984588aa15707d",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
