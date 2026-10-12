@@ -59,16 +59,35 @@ Do not share `.everframe` between concurrent builds or run another Metro
 configuration between collection and upload. Collection promotes its completed
 identity to the platform pointer; a subsequent configuration can replace it.
 
-For a native build, `@everframe/expo` supplies native build-phase setup: release
-builds upload their Hermes maps and iOS dSYMs (the app's, and those of pod
-frameworks that build or ship one, the Everframe SDK's included), and the plugin applies the
-`dev.everframe` Gradle plugin, which uploads Android R8 mappings and native
-libraries after `assembleRelease` and `bundleRelease`. A missing
-`EVERFRAME_API_TOKEN` or a failed upload warns and the build continues, unless
-`EVERFRAME_SYMBOLS_STRICT=1`. For an OTA export, use `upload-expo-export` after
-export and before promotion. Artifact upload
-and OTA publication are separate operations. Upload readiness confirms artifact
-processing, not that a device installed the update.
+For a native build, apply the config plugin with your App ID and install
+`@everframe/cli` in the app:
+
+```js
+// app.config.js
+const { withEverframe } = require('@everframe/expo');
+
+module.exports = ({ config }) => withEverframe(config, { appId: '00000000-0000-4000-8000-000000000001' });
+```
+
+`expo prebuild` then adds a few lines and no upload logic:
+
+- `android/build.gradle`: `classpath("dev.everframe:gradle-plugin:<version>")`.
+- `android/app/build.gradle`: `apply plugin: "dev.everframe"` and
+  `everframe { appId = "…" }`. The Gradle plugin uploads the Hermes map after
+  each release bundle, and R8 mappings and native libraries after
+  `assembleRelease` and `bundleRelease`.
+- Xcode: an "Upload Everframe Build Artifacts" Run Script phase that runs
+  `everframe xcode build-phase --app-id …`, plus `SOURCEMAP_FILE` when the
+  target does not set it. Release builds upload the Hermes map and the iOS
+  dSYMs: the app's, and those of pod frameworks that build or ship one,
+  including the Everframe SDK's.
+
+A missing `EVERFRAME_API_TOKEN` or a failed upload warns and the build
+continues, unless `EVERFRAME_SYMBOLS_STRICT=1`. Prebuild replaces the longer
+Gradle block and Xcode script that earlier versions generated. For an OTA
+export, use `upload-expo-export` after export and before promotion. Artifact
+upload and OTA publication are separate operations. Upload readiness confirms
+artifact processing, not that a device installed the update.
 
 When troubleshooting, compare the bundle's injected identity, its collected
 manifest, and the event's JavaScript bundle metadata. Also record Expo's

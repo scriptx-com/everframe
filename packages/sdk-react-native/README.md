@@ -29,6 +29,25 @@ Then install pods (iOS) / sync Gradle (Android) as usual:
 cd ios && pod install
 ```
 
+### Source maps and symbols
+
+Release builds can upload their Hermes source maps, dSYMs, R8 mappings and
+native libraries, so crashes show your code. Wrap Metro with
+`withEverframe` from `@everframe/metro`, add `@everframe/cli`, and set up the
+native projects once. In Expo, apply `withEverframe` from `@everframe/expo`
+with your App ID in `app.config.js`. In a bare app, run:
+
+```bash
+npx @everframe/cli setup react-native --app-id "$EVERFRAME_APP_ID"
+```
+
+Either way, Android gets `apply plugin: "dev.everframe"` and
+`everframe { appId = "…" }` plus one classpath line, and Xcode gets a Run
+Script phase that runs `everframe xcode build-phase`. The upload logic lives in
+the Gradle plugin and the CLI. Set `EVERFRAME_API_TOKEN` in release builds;
+without it the build warns and continues. See the
+[CLI guide](../cli/README.md#react-native-and-expo).
+
 ## React Native Web
 
 `@everframe/react-native` has a browser entry and an explicit

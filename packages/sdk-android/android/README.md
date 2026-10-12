@@ -435,6 +435,7 @@ everframe {
     appId.set("00000000-0000-4000-8000-000000000000") // defaults to EVERFRAME_APP_ID
     // uploadEnabled.set(true)              // default
     // buildTypes.set(setOf("release"))     // default
+    // hermesStagingDir.set(file("../.everframe")) // React Native: default is .everframe beside the Gradle root
 }
 ```
 
@@ -459,6 +460,26 @@ CLI:
   `-g` (CMake `RelWithDebInfo`, AGP's release default) and leave stripping to
   AGP. Other libraries without symbols produce one warning with their count,
   and `--info` lists them. A variant without native code does nothing.
+- **React Native Hermes source map** (`uploadEverframe<Variant>HermesSourceMap`,
+  only in apps that apply React Native's `com.facebook.react` plugin). It runs
+  after `createBundle<Variant>JsAndAssets` and uploads
+  `build/generated/assets/react/<variant>/index.android.bundle` with its
+  composed map from `build/generated/sourcemaps/react/<variant>/`. It matches
+  them to the build `@everframe/metro` staged in `.everframe` beside `android/`;
+  set `everframe { hermesStagingDir }` if Metro stages elsewhere.
+
+In a React Native app, `@everframe/expo` or `everframe setup react-native`
+writes the setup. The app module needs only:
+
+```groovy
+// android/app/build.gradle
+apply plugin: "dev.everframe"
+everframe { appId = "00000000-0000-4000-8000-000000000000" }
+```
+
+The root `android/build.gradle` adds
+`classpath("dev.everframe:gradle-plugin:<everframe version>")` to its
+`buildscript` dependencies. The Hermes upload needs 1.3.0 or newer.
 
 Set `EVERFRAME_API_TOKEN` (a token with `artifacts:write`) in CI. **Symbols
 never fail the build by default**: without the token, without an app ID, or
@@ -469,7 +490,8 @@ the CLI process itself once it has run that long plus up to a minute (no more
 than the budget again) for `npx` to fetch it, and warns.
 
 The plugin runs the CLI from `EVERFRAME_CLI_JS` (a built `dist/index.js`), then
-`node_modules/@everframe/cli`, then `npx --yes --prefer-offline @everframe/cli@<version>`,
+`node_modules/@everframe/cli` in the folder that holds the Gradle root or any
+folder above it, then `npx --yes --prefer-offline @everframe/cli@<version>`,
 which needs the published CLI and Node. npm gets a 20-second fetch timeout and
 one retry unless your environment sets `npm_config_fetch_timeout`,
 `npm_config_fetch_retries` or `npm_config_fetch_retry_maxtimeout`. Override the
