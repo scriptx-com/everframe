@@ -1,0 +1,27 @@
+.changeset/gradle-plugin-hermes-upload.md
+  s_dbd309ddf8ec5b::t_6b72db4a8fdee0 10
+packages/sdk-android/android/README.md
+  s_dbd309ddf8ec5b::t_e80553d408b318 497-498
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeCli.kt
+  s_dbd309ddf8ec5b::t_4528e666419c2b 21-22,26-27,29,34-39
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/HermesPluginFunctionalTest.kt
+  s_dbd309ddf8ec5b::t_1a1580dabe11de 74-99
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/PluginFixture.kt
+  s_dbd309ddf8ec5b::t_6dab6af2efb19b 46-51,59,77-82,127,156-163,178,201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0ef1836f0fc56a533033f306ce6afd58f4c7be3",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
