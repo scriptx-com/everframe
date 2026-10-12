@@ -47,10 +47,7 @@ function gradleBlock(appId: string): string {
   return [BEGIN, 'apply plugin: "dev.everframe"', `everframe { appId = "${checkedAppId(appId)}" }`, END].join('\n');
 }
 
-/**
- * Inserts the tagged block after the application plugin line, or replaces an existing one. The
- * long block earlier versions generated has the same tags, so it is replaced by the short one.
- */
+/** Inserts the tagged block after the application plugin line, or replaces an existing one. */
 export function patchAppBuildGradle(contents: string, appId: string): string {
   const block = gradleBlock(appId);
   const start = contents.indexOf(BEGIN);

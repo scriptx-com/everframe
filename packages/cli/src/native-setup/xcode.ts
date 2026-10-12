@@ -42,8 +42,7 @@ export interface XcodeProjectLike {
 }
 
 /**
- * Appends the upload as the last Run Script phase, or rewrites an existing phase's script, which
- * also turns the long script earlier versions generated into the short one; defines
+ * Appends the upload as the last Run Script phase, or rewrites an existing phase's script; defines
  * `SOURCEMAP_FILE` only where the app has not set it.
  */
 export function patchXcodeProject(project: XcodeProjectLike, appId: string): void {

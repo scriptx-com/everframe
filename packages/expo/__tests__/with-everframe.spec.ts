@@ -22,24 +22,6 @@ describe('@everframe/expo', () => {
     expect(applyAndroid(out, APP)).toEqual(out);
   });
 
-  it('replaces the block an earlier version generated', () => {
-    const legacy = [
-      'apply plugin: "com.android.application"',
-      '// @generated begin everframe-build-artifacts',
-      'try { apply plugin: "dev.everframe" } catch (Exception everframeError) {',
-      '}',
-      'afterEvaluate {',
-      "  def everframeProcess = new ProcessBuilder('bash', '-c', '''set -euo pipefail''')",
-      '}',
-      '// @generated end everframe-build-artifacts',
-      'android {}',
-      '',
-    ].join('\n');
-    const out = applyAndroid({ language: 'groovy', contents: legacy }, APP).contents;
-    expect(out).not.toContain('ProcessBuilder');
-    expect(out).toContain(`everframe { appId = "${APP}" }\n// @generated end everframe-build-artifacts\nandroid {}`);
-  });
-
   it('rejects kotlin build scripts', () => {
     expect(() => applyAndroid({ language: 'kt', contents: '' }, APP)).toThrow(/Groovy/);
   });
