@@ -39,7 +39,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act, fireEvent, within, waitFor } from '@testing-library/react';
 import { StrictMode, useContext, useEffect } from 'react';
 import { EverframeProvider, EverframeContext } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
+import { scopedReporterTokenStorageKey } from '@everframe/web';
 import type { ThreadClient } from '@everframe/sdk-core';
 import type { WebEverframeConfig } from '@everframe/web';
 
@@ -202,7 +202,7 @@ const oneOpenThread = [
 
 describe('FAB stays reachable when the replies kill switch latches read-only', () => {
   it('(a) gate ON -> OFF with a retained thread: FAB renders, and opening it shows the read-only inbox with the retained thread', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     const state = { enabled: true, threads: oneOpenThread };
     stubFetch(state);
 
@@ -248,7 +248,7 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(b) regression guard: replies enabled with threads still renders the FAB', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     stubFetch({ enabled: true, threads: oneOpenThread });
 
     const { getByTestId } = render(<EverframeProvider config={baseConfig}><div /></EverframeProvider>);
@@ -258,7 +258,7 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(c) count === 0 renders nothing, whether enabled or read-only-latched', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     const state = { enabled: true, threads: [] as unknown[] };
     stubFetch(state);
 
@@ -275,7 +275,7 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(d) the local veto (replies.disabled) renders nothing even with retained rows', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     stubFetch({ enabled: true, threads: oneOpenThread });
     const vetoConfig: WebEverframeConfig = { ...baseConfig, replies: { disabled: true } };
 
@@ -293,7 +293,7 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(d) headless mode renders nothing even with replies enabled and retained rows', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     stubFetch({ enabled: true, threads: oneOpenThread });
     const headlessConfig: WebEverframeConfig = { ...baseConfig, replies: { ui: 'headless' } };
 
@@ -304,7 +304,7 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(e) pins the flicker fix: the FAB stays mounted through wake()\'s optimistic readOnly clear, before the forced config refetch resolves', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     const state: { enabled: boolean; threads: unknown[]; configDeferred: Deferred<Response> | null } = {
       enabled: true,
       threads: oneOpenThread,
@@ -370,7 +370,7 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
     // which shuts the thread client down irreversibly, so the remount's
     // startPolling() was a no-op: no /api/reporter/threads request, no FAB,
     // and replies silently never reached the reporter in development.
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     const { calls } = stubFetch({ enabled: true, threads: oneOpenThread });
 
     const { getByTestId } = render(
@@ -385,7 +385,7 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
   });
 
   it('(g) a real unmount still kills the client and shuts the thread client down', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     stubFetch({ enabled: true, threads: oneOpenThread });
     let threads: ThreadClient | undefined;
 

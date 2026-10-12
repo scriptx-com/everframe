@@ -30,7 +30,7 @@ export type {
   ReportSubmit,
 } from './ws-client.js';
 
-export { handleReportRequest, handleReportSubmit } from './capture-bridge.js';
+export { handleReportRequest } from './capture-bridge.js';
 export type { ReportCounts } from './capture-bridge.js';
 
 // Singleton surface — mirrors the RN SDK (companion.start / stop). Hosts

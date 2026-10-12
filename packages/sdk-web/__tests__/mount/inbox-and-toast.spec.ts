@@ -24,7 +24,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { __internalClientState } from '@everframe/sdk-core';
 import type { ReporterCompletePayload } from '../../src/reporter-ui/ReporterDialog.js';
 import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '../../src/reporter/credential-store.js';
+import { scopedReporterTokenStorageKey } from '../../src/reporter/credential-store.js';
 
 interface IslandOpts {
   onComplete(payload: ReporterCompletePayload): void;
@@ -176,7 +176,7 @@ function shadow(): ShadowRoot {
 }
 
 async function fabWithThread(): Promise<HTMLButtonElement> {
-  localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
+  localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), `evr_${'0'.repeat(36)}`);
   stubFetch({ threads: oneOpenThread });
   handle = init({ sdkKey: 'txx_live_test' });
   return await vi.waitFor(

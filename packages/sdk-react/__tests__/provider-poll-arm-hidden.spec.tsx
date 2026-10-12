@@ -24,7 +24,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act, waitFor } from '@testing-library/react';
 import { EverframeProvider } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
+import { scopedReporterTokenStorageKey } from '@everframe/web';
 
 afterEach(() => {
   cleanup();
@@ -83,7 +83,7 @@ async function flush(ms = 20): Promise<void> {
 
 describe('finding 5: a Provider mounted while the document is hidden does not start background polling', () => {
   it('mounted with visibilityState=hidden: no poll fires after config settles; a later visible transition starts it', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     const { calls } = stubFetch();
 
@@ -123,7 +123,7 @@ describe('finding 5: a Provider mounted while the document is hidden does not st
   });
 
   it('unchanged: mounted with the default (visible) state still polls after config settles', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     // jsdom's default visibilityState is 'visible' — no explicit stub here,
     // proving the fix doesn't regress the ordinary foreground-mount path.
     const { calls } = stubFetch();

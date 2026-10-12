@@ -35,7 +35,6 @@ import { draftToEnvelope } from '../../src/transport/draft-to-envelope.js';
 import { createCompanion } from '../../src/companion/state.js';
 import {
   handleReportRequest,
-  handleReportSubmit,
   handleCompanionReportRequest,
   handleCompanionReportCancelled,
   handleCompanionSubmitText,
@@ -175,24 +174,6 @@ describe('companion/capture-bridge', () => {
     expect(order).toEqual(['text', 'binary']);
   });
 
-  it('handleReportSubmit returns resolved Promise (passive observer slot)', async () => {
-    await expect(
-      handleReportSubmit({
-        type: 'report.submit',
-        correlation_id: 'c-1',
-        title: 't',
-        description: { text: 'd', redactions: [] },
-        annotations: [],
-        includes: {
-          logs: true,
-          network: true,
-          uiTree: true,
-          metadata: true,
-          screenshot: true,
-        },
-      }),
-    ).resolves.toBeUndefined();
-  });
 
   it('freezes breadcrumbs and replay at report.request (discard-then-freeze)', async () => {
     const ws = fakeWs();

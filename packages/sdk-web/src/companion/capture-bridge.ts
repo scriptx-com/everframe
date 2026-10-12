@@ -867,17 +867,6 @@ export function handleCompanionReportCancelled(
   }
 }
 
-/**
- * @deprecated Passive no-op kept for back-compat with hosts that wired
- * `onReportSubmit: (msg) => handleReportSubmit(msg)`. The real submit flow is
- * `handleCompanionSubmitText` + `handleCompanionSubmitBinary` (wired by the
- * `companion.start()` singleton). A passive observer can never complete the
- * report — the phone will hang. Migrate to `companion.start()`.
- */
-export function handleReportSubmit(_msg: ReportSubmit): Promise<void> {
-  return Promise.resolve();
-}
-
 async function reencodeToWebP(pngBlob: Blob): Promise<Blob | null> {
   if (typeof document === 'undefined') return null;
   const url = URL.createObjectURL(pngBlob);

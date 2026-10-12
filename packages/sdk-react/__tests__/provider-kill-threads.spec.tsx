@@ -20,7 +20,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act, waitFor } from '@testing-library/react';
 import { useContext, useEffect } from 'react';
 import { EverframeProvider, EverframeContext } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
+import { scopedReporterTokenStorageKey } from '@everframe/web';
 import type { EverframeClient } from '@everframe/sdk-core';
 
 afterEach(() => {
@@ -90,7 +90,7 @@ async function flush(ms = 20): Promise<void> {
 
 describe('finding 6: client.kill() terminally shuts down thread polling through the Provider', () => {
   it('kill() makes the FAB disappear, and a subsequent visibilitychange to visible does not resurrect polling', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
     const { calls } = stubFetch();
 
     let client: EverframeClient | undefined;

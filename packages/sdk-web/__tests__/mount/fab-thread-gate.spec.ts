@@ -9,7 +9,7 @@
 // for why the gate is `count > 0` and NOT `enabled`.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { init, type Everframe } from '../../src/init.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '../../src/reporter/credential-store.js';
+import { scopedReporterTokenStorageKey } from '../../src/reporter/credential-store.js';
 
 let handle: Everframe | null = null;
 
@@ -76,7 +76,7 @@ describe('ambient FAB thread gate', () => {
   });
 
   it('appears once a thread exists, carrying the unread count in its label', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), `evr_${'0'.repeat(36)}`);
     stubFetch({ enabled: true, threads: oneOpenThread });
     handle = init({ sdkKey: 'txx_live_test' });
     await vi.waitFor(() => expect(fab()).not.toBeNull(), { timeout: 3000 });
@@ -84,7 +84,7 @@ describe('ambient FAB thread gate', () => {
   });
 
   it("never appears under replies.ui: 'headless' — the host owns the UI", async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), `evr_${'0'.repeat(36)}`);
     stubFetch({ enabled: true, threads: oneOpenThread });
     handle = init({
       sdkKey: 'txx_live_test',
@@ -95,7 +95,7 @@ describe('ambient FAB thread gate', () => {
   });
 
   it('destroy() takes the FAB down with the host', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), `evr_${'0'.repeat(36)}`);
     stubFetch({ enabled: true, threads: oneOpenThread });
     handle = init({ sdkKey: 'txx_live_test' });
     await vi.waitFor(() => expect(fab()).not.toBeNull(), { timeout: 3000 });

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bakeAnnotations, bakeBlurRegions } from '../../src/reporter-ui/BlurBakery.js';
+import { bakeAnnotations } from '../../src/reporter-ui/BlurBakery.js';
 
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52, 0, 0, 0,
@@ -11,24 +11,11 @@ const PNG_BYTES = new Uint8Array([
   0x44, 0xae, 0x42, 0x60, 0x82,
 ]);
 
-describe('bakeBlurRegions', () => {
-  it('returns input blob unchanged when regions[] is empty (zero-allocation fast path)', async () => {
+describe('bakeAnnotations', () => {
+  it('returns input blob unchanged when there are no annotations (zero-allocation fast path)', async () => {
     const blob = new Blob([PNG_BYTES as BlobPart], { type: 'image/png' });
-    const out = await bakeBlurRegions(blob, []);
+    const out = await bakeAnnotations(blob, []);
     expect(out).toBe(blob);
-  });
-
-  it('returns a Blob when regions[] non-empty (jsdom path falls back gracefully on missing decoder)', async () => {
-    if (typeof globalThis.createImageBitmap !== 'function') {
-      (globalThis as { createImageBitmap?: typeof createImageBitmap }).createImageBitmap = (async () => ({
-        width: 1,
-        height: 1,
-        close: () => undefined,
-      })) as typeof createImageBitmap;
-    }
-    const blob = new Blob([PNG_BYTES as BlobPart], { type: 'image/png' });
-    const out = await bakeBlurRegions(blob, [{ x: 0, y: 0, width: 1, height: 1 }]);
-    expect(out).toBeInstanceOf(Blob);
   });
 });
 

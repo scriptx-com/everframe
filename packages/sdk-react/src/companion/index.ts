@@ -47,7 +47,7 @@ export type RelayWSClientOpts = web.RelayWSClientOpts;
 export type RelayMessage = web.RelayMessage;
 export type ReportSubmit = web.ReportSubmit;
 
-export { handleReportRequest, handleReportSubmit } from '@everframe/web';
+export { handleReportRequest } from '@everframe/web';
 export type ReportCounts = web.ReportCounts;
 
 // Singleton surface — mirrors the RN SDK (companion.start / stop /
