@@ -20,6 +20,14 @@ test('published npm SDK versions are aligned for the coordinated release', () =>
   }
 });
 
+test('committed source versions match the release, so a build leaves the checkout clean', () => {
+  // `prebuild` rewrites these from package.json. A stale committed literal makes every build
+  // dirty the tree, which blocks the next production deploy's fast-forward of the SDK checkout.
+  for (const dir of ['sdk-web', 'sdk-react']) {
+    assert.ok(read(`packages/${dir}/src/internal/version.ts`).includes(`PKG_VERSION = '${releaseVersion}';`), dir);
+  }
+});
+
 test('mobile versions and consumer dependency ranges match the release', () => {
   assert.ok(read('packages/everframe_flutter/pubspec.yaml').includes(`version: ${releaseVersion}\n`));
   assert.ok(read('packages/everframe_flutter/lib/src/web_sdk_web.dart').includes(`sdkVersion: '${releaseVersion}'.toJS`));
