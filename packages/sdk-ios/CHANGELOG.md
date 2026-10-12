@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: MIT -->
 
-## 0.2.0
+## 1.2.0
 
 ### Minor Changes
 
@@ -75,7 +75,7 @@
 
   `EFReporterPresenter.installResolver()` now exists on tvOS, where it does nothing, so the same launch code compiles in an iOS and a tvOS target. tvOS still has no on-device reporter: `report.open()` throws there and reports are filed through the companion.
 
-## 0.1.0
+## 1.1.0
 
 ### Minor Changes
 

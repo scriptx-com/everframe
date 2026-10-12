@@ -35,7 +35,7 @@ function versionAlignmentProblems(version, readFile) {
     const ok = needle instanceof RegExp ? needle.test(text) : text.includes(needle);
     if (!ok) problems.push(`${file}: expected ${needle}`);
   };
-  for (const dir of Object.values(published)) {
+  for (const dir of [...Object.values(published), ...Object.values(nativeMarkers)]) {
     const pkg = JSON.parse(readFile(`packages/${dir}/package.json`));
     if (pkg.version !== version) problems.push(`packages/${dir}/package.json: version ${pkg.version}`);
   }
@@ -83,10 +83,22 @@ function bumpedReader(from, to) {
   };
 }
 
-test('every published npm package is in the one fixed changeset group', () => {
+// Private workspace markers whose CHANGELOGs record the native Android and iOS releases.
+const nativeMarkers = { '@everframe/sdk-android': 'sdk-android', '@everframe/sdk-ios-marker': 'sdk-ios' };
+
+test('every published npm package and native marker is in the one fixed changeset group', () => {
   const { fixed } = JSON.parse(read('.changeset/config.json'));
   assert.equal(fixed.length, 1);
-  assert.deepEqual([...fixed[0]].sort(), Object.keys(published).sort());
+  assert.deepEqual([...fixed[0]].sort(), [...Object.keys(published), ...Object.keys(nativeMarkers)].sort());
+});
+
+test('the native markers carry the release version, so their CHANGELOGs share its heading', () => {
+  for (const [name, dir] of Object.entries(nativeMarkers)) {
+    const pkg = manifest(dir);
+    assert.equal(pkg.name, name, dir);
+    assert.equal(pkg.version, releaseVersion, dir);
+    assert.equal(pkg.private, true, dir);
+  }
 });
 
 test('every published npm package is publishable at the release version', () => {

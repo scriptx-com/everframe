@@ -13,7 +13,9 @@
       "@everframe/cli",
       "@everframe/metro",
       "@everframe/bundler-plugin",
-      "@everframe/expo"
+      "@everframe/expo",
+      "@everframe/sdk-android",
+      "@everframe/sdk-ios-marker"
     ]
   ],
   "linked": [],
