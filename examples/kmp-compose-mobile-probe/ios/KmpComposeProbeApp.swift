@@ -21,7 +21,7 @@ struct KmpComposeProbeHostView: View {
                 started = client.start(config: EverframeKmpConfig(
                     appId: ProcessInfo.processInfo.environment["EVERFRAME_APP_ID"] ?? "kmp-compose-probe",
                     sdkKey: ProcessInfo.processInfo.environment["EVERFRAME_SDK_KEY"] ?? "txx_live_" + String(repeating: "0", count: 32),
-                    environment: "development"))
+                    environment: "development", debugBuild: nil))
                 status = started ? "started" : "start blocked"
             }
             ComposeControllerHost { name in

@@ -12,8 +12,7 @@ Pod::Spec.new do |s|
   s.source = { :path => '.' }
   s.source_files = 'everframe_flutter/Sources/everframe_flutter/**/*.swift'
   s.dependency 'Flutter'
-  # The plugin calls EverframeConfig(sdkKey:) and EverframeConfig(releaseHealth:),
-  # which first ship in native 1.2.0.
+  # The plugin resolves the native SDK of its own version and later patches.
   s.dependency 'Everframe/Core', '~> 1.2.0'
   s.dependency 'Everframe/ReporterUI', '~> 1.2.0'
   s.platform = :ios, '15.0'
