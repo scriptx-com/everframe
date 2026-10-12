@@ -34,6 +34,12 @@ describe('resolveSettings', () => {
   it('rejects a missing or non-uuid app id', () => {
     expect(() => resolveSettings({ appId: '' }, {})).toThrow(/appId/);
   });
+
+  it('uploads to the production API unless told otherwise', () => {
+    expect(resolveSettings({ appId: APP }, {}).apiUrl).toBe('https://everframe.dev/api/v1');
+    expect(resolveSettings({ appId: APP }, { EVERFRAME_API_URL: 'https://env.test/api/v1' }).apiUrl).toBe('https://env.test/api/v1');
+    expect(resolveSettings({ appId: APP, apiUrl: 'https://opt.test/api/v1' }, { EVERFRAME_API_URL: 'https://env.test/api/v1' }).apiUrl).toBe('https://opt.test/api/v1');
+  });
 });
 
 describe('resolvePluginSettings', () => {

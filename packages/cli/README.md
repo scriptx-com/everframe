@@ -3,7 +3,11 @@
 
 # Everframe build artifact CLI
 
-Run `everframe --help` for source-map, Hermes, R8, native symbols and build-staging commands.
+Run `everframe --help` for source-map, Hermes, R8, native symbols and build-staging commands,
+and `everframe --version` for the installed version.
+
+Uploads go to the production API, `https://everframe.dev/api/v1`. Set
+`EVERFRAME_API_URL` only to target another Everframe server.
 
 ## Apple dSYM upload
 
