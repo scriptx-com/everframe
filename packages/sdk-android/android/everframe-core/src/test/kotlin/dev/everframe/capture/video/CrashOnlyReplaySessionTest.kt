@@ -223,6 +223,56 @@ class CrashOnlyReplaySessionTest {
         assertEquals(0.4, ReplayCoverage.Upgraded.samplingRate(0.4, null), 0.0)
     }
 
+    @Test fun aCrashOnlySessionThatStartsWhileCompanionIsBondedStartsUpgraded() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        Companion.__setState(CompanionState.Paired)
+        Everframe.start(context, config(reporterEnabled = false))
+        assertEquals("no new pair.bonded comes for a bond that already exists",
+            ReplayCoverage.Upgraded, Everframe.replayCoverage())
+
+        Companion.__beginReport("c1")
+        Everframe.start(context, config(reporterEnabled = false))
+        assertEquals("a companion report in progress is a bond", ReplayCoverage.Upgraded, Everframe.replayCoverage())
+
+        Companion.__setState(CompanionState.PhoneDisconnected)
+        Everframe.start(context, config(reporterEnabled = false))
+        assertEquals("a phone away inside the grace window is still bonded",
+            ReplayCoverage.Upgraded, Everframe.replayCoverage())
+    }
+
+    @Test fun theStartUpgradeNeedsABondAndACrashOnlySession() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        Everframe.start(context, config(reporterEnabled = false))
+        assertEquals("unpaired: crash-only", ReplayCoverage.CrashOnly, Everframe.replayCoverage())
+
+        // Backgrounding enters PhoneDisconnected without any bond (RelayWSClient.onStop).
+        Companion.__setState(CompanionState.PhoneDisconnected)
+        Everframe.start(context, config(reporterEnabled = false))
+        assertEquals("a backgrounded, never-bonded companion is no bond",
+            ReplayCoverage.CrashOnly, Everframe.replayCoverage())
+
+        Companion.__setState(CompanionState.Paired)
+        Everframe.start(context, config(reporterEnabled = true))
+        assertEquals("a report session is never upgraded", ReplayCoverage.Report, Everframe.replayCoverage())
+
+        // A detach ends the bond: the next start is crash-only again.
+        Companion.__setState(CompanionState.Unpaired)
+        Everframe.start(context, config(reporterEnabled = false))
+        assertEquals(ReplayCoverage.CrashOnly, Everframe.replayCoverage())
+    }
+
+    @Test fun aStartWhileBondedRecordsFromItsFirstRefresh() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        Companion.__setState(CompanionState.Paired)
+        Everframe.start(context, config(reporterEnabled = false))
+        // A session belongs to the start that built it: build one for this start.
+        session.teardown(); drainMain()
+        session = buildSession()
+        refresh()
+        assertEquals("the upgraded session records at samplingRate", 1, recorders.get())
+        assertTrue(NetworkBodyCaptureState.isActive)
+    }
+
     @Test fun killEndsTheUpgrade() {
         Everframe.__onCompanionMemberAttached()
         assertFalse(Everframe.crashOnlyCoverage())

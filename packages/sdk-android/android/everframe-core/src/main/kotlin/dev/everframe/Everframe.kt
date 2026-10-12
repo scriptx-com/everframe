@@ -158,7 +158,7 @@ object Everframe {
     @Volatile private var _crashCapture: dev.everframe.crash.CrashCaptureStart? = null
     // Crash-only sessions (spec 2026-10-12): a companion bond upgraded this crash-only session to report
     // coverage. Sticky for the session: a detach never clears it, only start()'s publication and kill() do.
-    // Guarded by stateLock.
+    // start()'s publication seeds it from a companion that is still bonded. Guarded by stateLock.
     private var _crashOnlyUpgraded = false
 
     /**
@@ -964,8 +964,12 @@ object Everframe {
 
             _config = config
             _publishedStartEpoch = epoch
-            // Crash-only sessions: a bond upgrades one session only. The next one starts at its own kind.
-            _crashOnlyUpgraded = false
+            // Crash-only sessions: a bond upgrades one session only. The next one starts at its own kind,
+            // except that a crash-only session starting while companion is still bonded (a re-start, or a
+            // React Native reconfigure with the phone attached) starts upgraded: no new `pair.bonded` will
+            // come for a bond that already exists. Read inside this epoch-checked publication, so a
+            // superseded start seeds nothing.
+            _crashOnlyUpgraded = !config.reporterEnabled && dev.everframe.companion.Companion.__isBonded()
             // External review, finding 2 (Serious) — clear the self-declared
             // user (`setUser`, spec 2026-08-12) in the SAME `stateLock`
             // critical section that installs the new configuration, so no
