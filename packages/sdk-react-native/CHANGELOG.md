@@ -1,5 +1,65 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.2.0
+
+### Minor Changes
+
+- e0c884b: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Android crash capture is now on by default with `capture.crash`. `Everframe.start` captures JVM exceptions, native crashes (OS exit records on API 30+, with tombstone frames on API 31+) and ANRs on API 30+, without any other call. From OS exit records it reports native crashes, ANRs, and low-memory kills while the user could see or hear the app (foreground, foreground service or visible), the last as one fatal "Low memory kill" crash per app with importance, PSS/RSS and the exit description, and not when the JVM handler already reported that process's crash; background reclaims, user stops, JVM crash exits and other reasons are not sent. The protocol lets a crash envelope carry low-memory exit evidence. The optional `dev.everframe:native-crash` module (not yet on Maven Central) adds a fault frame for native faults on API 26–30. Native and OS exit capture run in the default app process. `setProcessExitDiagnosticsEnabled`, `setNativeCrashRecoveryEnabled`, `setNativeSignalCaptureEnabled` and their three readiness getters are removed; `Everframe.isNativeCrashCaptureReady()` replaces the getters. Start with `CaptureConfig(crash = false)` to turn capture off, or call `kill()`. The SDK now owns `ActivityManager.setProcessStateSummary` while capture is on and logs `process-state-summary-conflict` when another writer replaced it; a writer that runs before the SDK is overwritten. Flutter gains `start(crash:)` (default on), which reaches the native `capture.crash` on Android and iOS. In React Native, `crashReporting: { disabled: true }` now also turns off native crash and ANR capture on Android and iOS. A full OS exit journal no longer stops capture: arming frees only the slots it needs, records that can no longer be reported first, oldest first by arming order, never the newest, and logs a warning. Crash matching and expiry no longer depend on the wall clock: a matched crash is reported however far the clock jumped (and is never collected before its own exit time), and an unmatched record expires once the clock is more than 14 days from its creation in either direction.
+
+- 0fd1ce9: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Release health is keyed by app version. It is on by default; see the release health on-by-default changeset for how to configure or turn it off.
+
+  Release-health records are schema version 4 only, for Android and iOS foreground sessions. Each record carries `app: { version, build }`, which the SDK reads itself: Android's `versionName` (or `versionCode` as text when there is no usable `versionName`) and `versionCode`, and iOS's `CFBundleShortVersionString` (or `CFBundleVersion`) and `CFBundleVersion`. `nativeRelease`, the version 1–3 records and the web records are removed, so a receiver accepts version 4 only. Crash and error reports' `context.app.version` follows the same rule: an Android app without a usable `versionName` now reports its `versionCode` there, and an iOS app without `CFBundleShortVersionString` its `CFBundleVersion`, instead of `0.0.0`.
+
+  The crash pointer, `NativeExposurePointerSchema`, carries the same `app` in place of `nativeBuildId`. `build` is always present and is `null` when there is none. The generated Kotlin `NativeExposureApp` and Swift `EverframeNativeExposureApp` write that null explicitly, and the generated `App` and `EverframeApp` keep their names.
+
+  The `release_health.threshold_reached` webhook moves to event schema 2.0. One project rule sends one event per app version that drops below its crash-free target, with the version's platforms, the target, the last 7 days' session counts and `crashFreeSessions`. `RELEASE_HEALTH_ALERT_SCHEMA_VERSION` and `ReleaseHealthAlertTargetSchema` are new. The cohort schema and the `release_health.rate_threshold_reached` event are removed, and every other webhook event stays at 1.2.
+
+  `nativeBuildId` is removed from every SDK. In React Native, the unused `appVersion` and `appBuild` options are removed too.
+
+- afb5433: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Release health is on by default on Android, iOS and React Native, and debug builds aren't counted.
+
+  Android's `EverframeConfig.releaseHealth` defaults to `ReleaseHealthConfig()`, including through the 15-argument constructor; `releaseHealth = null` turns it off. iOS's `EverframeConfig` gains `releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration()`, which `Everframe.shared.start` applies, so the separate `setReleaseHealth` call after every `start` is no longer needed; `setReleaseHealth(_:)` still changes it until the next `start`, and `releaseHealth: nil` turns it off. In React Native a configuration without `releaseHealth` is on, and `releaseHealth: { enabled: false }` turns it off.
+
+  The SDK records nothing from a debug build (Android: a debuggable app; iOS: the simulator, or a `get-task-allow` development profile) and logs `[everframe] Release health is off in debug builds.` once per start. `includeDebugBuilds` on `ReleaseHealthConfig`, `ReleaseHealthConfiguration` or the React Native option counts them. Turning release health off, or skipping a debug build, erases undelivered local records.
+
+- 5ec828c: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  The SDK key is renamed to `sdkKey` in every SDK; `apiKey` and `appId` are still accepted but deprecated. `appId` now means only the App ID, the UUID that symbol and source-map uploads take.
+
+  - Web, React and React Native: the config field is `sdkKey`, for example `init({ sdkKey: 'evf_live_…' })` and `<EverframeProvider config={{ sdkKey: 'evf_live_…' }}>`. A config that still passes `apiKey` keeps working: the SDK reads it as `sdkKey` and logs one deprecation warning. When both are set, `sdkKey` wins.
+  - iOS and tvOS: `EverframeConfig(sdkKey:)` and `.sdkKey` replace `EverframeConfig(appId:)` and `.appId`, which still compile with a deprecation warning. `EverframeConfigError.missingAppId` is now `EverframeConfigError.missingSdkKey`. `ReplaySession(baseURL:sdkKey:locallyDisabled:)` replaces the deprecated `apiKey:` spelling.
+  - Android: `EverframeConfig(appId, sdkKey)` already used these names and is unchanged. Internal `ReplaySession`, `ReplayConfigProvider` and `VitalsTransport` parameters named `apiKey` are now `sdkKey`.
+  - React Native requires native Everframe 1.2 on iOS and Android, the release that adds `EverframeConfig(sdkKey:)`. The Flutter iOS plugin requires native 1.2 through CocoaPods and SwiftPM, and the KMP Swift driver needs it too. These bridges, and their web counterparts, pass the key under the new name.
+
+  Nothing on the wire changed. Requests still carry the key as `Authorization: Bearer <key>`, and the web vitals beacon still sends it in the `apiKey` body field, so clients on 1.1.0 and earlier keep working against the same server.
+
+### Patch Changes
+
+- 1ea29ae: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Android: JVM crashes, handled exceptions and React Native JavaScript crashes now report the device's `sdk.formFactor` (`tv` on Android TV and Fire TV, from the television UI mode or the leanback feature) instead of always `phone`. OS exit, ANR and reporter envelopes already did. `EnvelopeBuilder.buildEncoded` now requires `formFactor`, so no envelope path can fall back to a default.
+
+- c6ecb05: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  React Native: an error that no error boundary catches (thrown while rendering, in an effect or in a lifecycle method) is now reported as a fatal JavaScript crash with its Hermes stack, and React's component stack follows the message after `This error is located at:`. Since React Native 0.78, React reports these through the root's `onUncaughtError` and React Native's `ExceptionsManager`, never the `ErrorUtils` handler, so they arrived only as React Native's native fatal (`RCTFatalException` on iOS and tvOS, `JavascriptException` on Android) with no JavaScript frames. Crash reporting now also hooks `ExceptionsManager.handleException`, and keeps the hook until the end of the task in which React unmounted `EverframeProvider`, because React reports the error after that unmount. The native fatal that follows is not reported again; on Android that match now also recognises React Native's wrapper when the title carries a component stack, when the message was cut at 4,096 characters, when the JavaScript stack contains native or internal frames, and when the message already starts with the error name. Errors a boundary catches are unchanged: report them with `captureReactError`.
+
+- Updated dependencies [3cfc899]
+- Updated dependencies [5ec828c]
+- Updated dependencies [a6880a2]
+  - @everframe/react@1.2.0
+
 ## 1.1.0
 
 ### Minor Changes

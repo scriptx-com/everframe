@@ -1,0 +1,15 @@
+# @everframe/vega
+
+## 0.2.0
+
+### Minor Changes
+
+- b90da7c: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Envelopes carry `context.app.debug` when the SDK detects a debug build, and release-health records move to schema version 5 with a required `app.debug`. Everframe never creates a release from a debug build.
+
+- f5e6411: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  New package (preview): JavaScript crash and error reporting for Amazon Vega OS apps (React Native for Vega 0.72, Hermes 0.12) with no native module. Reports uncaught errors, unhandled promise rejections and `captureException`, stores each report in AsyncStorage before sending it as JSON, and names the bundle so uploaded source maps symbolicate the frames. Stored reports are only ever sent to the endpoint and under the SDK key they were captured with, and credential-named `captureException` metadata keys are masked before storage.
