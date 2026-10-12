@@ -63,7 +63,7 @@ import {
   SCREENSHOT_RENDER_SDK_FEATURE,
 } from '@everframe/protocol';
 import type { ResolvedWebEverframeConfig } from './internal/types.js';
-import type { ReporterResult } from './reporter-types.js';
+import { EverframeReporterDisabledError, type ReporterResult } from './reporter-types.js';
 import { sensitiveRegistry } from './sensitive/registry.js';
 import { createReplayRecorder, type ReplayRecorder } from './capture/replay/index.js';
 import {
@@ -237,6 +237,16 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * remote-config refresh changes the binding.
    */
   __subscribeReportHotkey(listener: (binding: string) => void): () => void;
+  /**
+   * Crash-only sessions (spec 2026-10-12): a companion bond was seen. In a
+   * session whose host set `reporter.disabled`, this upgrades the session for
+   * the rest of its life: replay samples against `samplingRate` instead of
+   * `crashOnlySamplingRate`, and network bodies follow the server rules. A
+   * detach never downgrades it. Starts the replay window at once when the
+   * upgraded rate admits the session. The on-device reporter stays off.
+   * A no-op in a report session. Never throws.
+   */
+  __setCompanionAttached(): void;
   /**
    * DegradedReason of the most recent capture. DIAGNOSTIC ONLY (tests, perf
    * harness): it is shared and reset at the start of every capture, so an
@@ -950,6 +960,16 @@ export function createWebPlatformAdapter(
     applyLiveConfig();
   };
 
+  // Crash-only sessions (spec 2026-10-12). `reporter.disabled` turns off every
+  // on-device way to open the reporter for the whole session, keeps network
+  // bodies off, and samples replay against the server's crashOnlySamplingRate.
+  // A companion bond sets `upgradedByCompanion` (never reset): replay and
+  // bodies then follow the normal server rules, while the reporter stays off,
+  // because reports from an upgraded session come through the companion.
+  const crashOnly = _config.reporter?.disabled === true;
+  let upgradedByCompanion = false;
+  const crashOnlyCoverage = (): boolean => crashOnly && !upgradedByCompanion;
+
   /**
    * Re-attempt the replay start against the CURRENT config cache. A guarded
    * no-op once buffering, so every path that resolves config can call it
@@ -1015,8 +1035,9 @@ export function createWebPlatformAdapter(
       // companion badge override, plan 2026-08-25; reporter branding, spec
       // 2026-08-25; session vitals, spec 2026-09-01; report resource window,
       // spec 2026-09-05; dashboard report hotkey; smart-TV server render, spec
-      // 2026-09-29): declare ALL NINE tokens so the server emits every
-      // feature-gated config block on this one shared /api/config fetch.
+      // 2026-09-29; crash-only replay coverage, spec 2026-10-12): declare ALL
+      // TEN tokens so the server emits every feature-gated config block on
+      // this one shared /api/config fetch.
       // Omitting 'identity' here means the server never sends the `identity`
       // block at all — `identity.enabled` stays undefined forever with
       // nothing in the logs to explain why; the same is true of
@@ -1037,6 +1058,9 @@ export function createWebPlatformAdapter(
         // Without it the server never sends `screenshotRender`, and the
         // smart-TV snapshot path stays off (this config schema is .strict()).
         SCREENSHOT_RENDER_SDK_FEATURE,
+        // Without it the server never sends `crashOnlySamplingRate`, and a
+        // crash-only session samples replay at 0.
+        'crashonly',
       ],
     });
     const provider = configProvider;
@@ -1057,6 +1081,8 @@ export function createWebPlatformAdapter(
       adapter: { replay: recorder },
       getConfig: (): ReplayConfig => provider.get(),
       locallyDisabled: _config.sessionReplay?.disabled === true,
+      // `sessionReplay.disabled` above still wins in every kind.
+      sessionKind: () => (crashOnlyCoverage() ? 'crashOnly' : 'report'),
     });
     replayLifecycle = lifecycle;
     replayRecorder = _config.visualCapture ? undefined : recorder as ReplayRecorder;
@@ -1395,7 +1421,9 @@ export function createWebPlatformAdapter(
     const crumbsExcludeNetwork = !crumbs.enabled || !crumbs.kinds.includes('network');
     return computeBodyCaptureEnabled(
       serverEnabled,
-      _config.networkBodies?.disabled === true,
+      // A crash-only session captures no bodies until a companion bond
+      // upgrades it (spec 2026-10-12).
+      _config.networkBodies?.disabled === true || crashOnlyCoverage(),
       sampledIn,
       crumbsExcludeNetwork,
     );
@@ -1936,6 +1964,9 @@ export function createWebPlatformAdapter(
    * answers cannot keep the reporter shut.
    */
   const openModal = (): void => {
+    // Crash-only sessions have no on-device reporter (spec 2026-10-12). The
+    // entry points below refuse first; this keeps any future caller honest.
+    if (crashOnly) return;
     if (!tvSnapshotPathActive()) {
       try {
         showModal();
@@ -2055,6 +2086,11 @@ export function createWebPlatformAdapter(
     registerTrigger: (_handler: () => void) => () => undefined,
     showReporterUI: (_draft: ReportDraft) =>
       new Promise<ReportDraft | null>((resolve) => {
+        // Crash-only session: nothing to show. Null is the "discarded" answer.
+        if (crashOnly) {
+          resolve(null);
+          return;
+        }
         pendingResolve = resolve;
         // Trigger the modal directly — don't reuse __openReporter() here because
         // that path creates the public-facing Promise<ReporterResult> for
@@ -2078,6 +2114,13 @@ export function createWebPlatformAdapter(
     __peekIdentityToken: peekIdentityToken,
     __identityTokenPending: identityTokenPending,
     __openReporter: (): Promise<ReporterResult> => {
+      // Crash-only sessions (spec 2026-10-12): REJECTS, unlike the kill
+      // switch below. The host asked for something its own configuration
+      // turned off, which is a host bug to surface, not a user's cancel. Stays
+      // off after a companion upgrade: those reports come through the phone.
+      if (crashOnly) {
+        return Promise.reject(new EverframeReporterDisabledError());
+      }
       // Codex round-1 finding 1 (P1, kill switch) — a killed adapter must not
       // open the reporter. Every other capture path here is gated on `killed`
       // (bodyCapture.enabled, the periodic config refresh, the 'online' drain
@@ -2123,6 +2166,9 @@ export function createWebPlatformAdapter(
       showModal = cb;
     },
     __subscribeReportHotkey: (listener: (binding: string) => void): (() => void) => {
+      // Crash-only session: no hotkey at all. The listener is never called,
+      // so neither host binds a key.
+      if (crashOnly) return () => undefined;
       reportHotkeyListeners.add(listener);
       try {
         listener(reportHotkeyBinding);
@@ -2130,6 +2176,14 @@ export function createWebPlatformAdapter(
         /* swallow — DEFE-02 */
       }
       return () => reportHotkeyListeners.delete(listener);
+    },
+    __setCompanionAttached: (): void => {
+      if (!crashOnly || upgradedByCompanion) return;
+      upgradedByCompanion = true;
+      // Replay starts at the bond, so a report filed through the companion
+      // carries a replay from this moment on. A guarded no-op until config
+      // has resolved; the next resolution retries with the upgraded rate.
+      attemptReplayStart();
     },
     __registerOutboxDrainTrigger: (cb: () => void | Promise<void>): void => {
       drainCallback = cb;

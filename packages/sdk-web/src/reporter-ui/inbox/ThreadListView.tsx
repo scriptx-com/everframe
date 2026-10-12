@@ -7,7 +7,8 @@ import type { EverframeClient } from '@everframe/sdk-core';
 export interface ThreadListViewProps {
   threads: EverframeClient['threads'];
   onOpenThread: (threadId: string) => void;
-  onNewReport: () => void;
+  /** Opens the capture flow. Absent in a crash-only session: no "New report" button. */
+  onNewReport?: (() => void) | undefined;
 }
 
 /**
@@ -26,9 +27,11 @@ export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadLis
     return (
       <div className="everframe-inbox-empty">
         <p>No reports yet.</p>
-        <button type="button" className="everframe-btn everframe-btn-primary" onClick={onNewReport}>
-          New report
-        </button>
+        {onNewReport ? (
+          <button type="button" className="everframe-btn everframe-btn-primary" onClick={onNewReport}>
+            New report
+          </button>
+        ) : null}
       </div>
     );
   }

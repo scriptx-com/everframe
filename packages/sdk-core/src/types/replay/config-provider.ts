@@ -301,6 +301,13 @@ export const ReplayConfigResponse = z.object({
   // the `screenshotrender` feature token, because this schema is .strict() and
   // an unknown key would fail every older SDK's whole config parse.
   screenshotRender: z.boolean().optional().catch(undefined),
+  // Crash-only sessions (spec 2026-10-12): the replay coverage for a session
+  // whose host turned the reporter off. Sent only to SDKs that declare the
+  // `crashonly` feature token, for the same .strict() reason as above. Absent
+  // means 0 (see `replaySamplingRate` in lifecycle.ts). A malformed value
+  // degrades to absent, like `vitalsSampleRate`, rather than failing the
+  // whole parse.
+  crashOnlySamplingRate: z.number().min(0).max(1).optional().catch(undefined),
 }).strict();
 
 export type ReplayConfig = z.infer<typeof ReplayConfigResponse>;

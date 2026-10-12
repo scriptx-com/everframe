@@ -21,7 +21,16 @@ export type { WebEverframeConfig, ReporterTheme } from '@everframe/web';
 // Top-level imperative `open()` for non-component call sites (global error
 // handlers, route handlers, etc.). Mirrors the RN SDK surface; throws if no
 // <EverframeProvider> is mounted.
-export { open, addBreadcrumb, captureException, recordScreen, setUser, setExtra, EverframeNotMountedError } from './contextSeam.js';
+export {
+  open,
+  addBreadcrumb,
+  captureException,
+  recordScreen,
+  setUser,
+  setExtra,
+  EverframeNotMountedError,
+  EverframeReporterDisabledError,
+} from './contextSeam.js';
 export type { ReporterResult } from '@everframe/web';
 export { useEverframeScreen, EverframeScreen } from './EverframeScreen.js';
 export type { EverframeScreenProps } from './EverframeScreen.js';

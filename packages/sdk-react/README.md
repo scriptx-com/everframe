@@ -127,6 +127,14 @@ By default the SDK installs:
 
 A visible trigger (bubble, menu item, etc.) is the host app's responsibility — call `useEverframe().open()` from your own button to bring up the reporter.
 
+To report crashes and errors without letting users file reports, set
+`reporter: { disabled: true }` in the provider config. That session has no
+hotkey, the inbox has no "New report" button, and `open()` rejects with
+`EverframeReporterDisabledError`. Session replay uses the app's crash-only
+sampling rate (0 by default) and network bodies stay off, until a phone or
+dashboard member bonds through the companion. See
+[crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
+
 ## Strict-CSP environments
 
 If your app sets a strict CSP (`script-src 'self' 'nonce-...'`), thread the nonce into the SDK so screenshot capture's dynamically-injected styles are accepted:
