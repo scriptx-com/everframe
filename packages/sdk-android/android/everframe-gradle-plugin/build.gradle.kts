@@ -73,7 +73,7 @@ gradlePlugin {
         register("everframe") {
             id = "dev.everframe"
             displayName = "Everframe Android Gradle plugin"
-            description = "Uploads R8 mappings and native symbols after release builds, and applies Everframe consumer-rules.pro and Compose displayName preservation."
+            description = "Uploads R8 mappings, native symbols and React Native Hermes source maps after release builds, and applies Everframe consumer-rules.pro and Compose displayName preservation."
             implementationClass = "dev.everframe.gradle.EverframePlugin"
         }
     }
@@ -96,7 +96,7 @@ afterEvaluate {
             groupId = "dev.everframe"
             pom {
                 name.set("Everframe Android — everframe-gradle-plugin")
-                description.set("Gradle plugin: uploads R8 mappings and native symbols after release builds, and applies Everframe consumer-rules.pro and Compose displayName preservation.")
+                description.set("Gradle plugin: uploads R8 mappings, native symbols and React Native Hermes source maps after release builds, and applies Everframe consumer-rules.pro and Compose displayName preservation.")
                 url.set("https://github.com/scriptx-com/everframe")
                 licenses {
                     license {

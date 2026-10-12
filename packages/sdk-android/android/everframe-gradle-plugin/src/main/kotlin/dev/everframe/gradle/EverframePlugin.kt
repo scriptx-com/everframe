@@ -18,6 +18,10 @@
 //      for the SDK) and `uploadEverframe<Variant>NativeSymbols`. A missing token or a
 //      failed upload warns and the build continues unless EVERFRAME_SYMBOLS_STRICT=1.
 //
+//   4. React Native apps: `createBundle<Variant>JsAndAssets` of each uploading variant is
+//      finalized by `uploadEverframe<Variant>HermesSourceMap`, which collects, verifies and
+//      uploads the Hermes bundle and its composed source map through the CLI.
+//
 // The plugin is optional; `:everframe-core`'s consumer-rules.pro already auto-merges
 // via the AAR.
 //
@@ -43,6 +47,7 @@ public class EverframePlugin : Plugin<Project> {
             uploadEnabled.convention(true)
             buildTypes.convention(setOf("release"))
             cliCommand.convention(defaultCliCommand(target))
+            hermesStagingDir.convention(target.layout.projectDirectory.dir(defaultHermesStagingDir(target).path))
         }
         target.pluginManager.withPlugin("com.android.application") {
             wireVariants(target, extension)

@@ -31,6 +31,18 @@ internal class PluginFixture private constructor(val root: File) {
          * relative to the app project's directory, as a checked-in script would be named.
          */
         val relativeCliInSubproject: Boolean = false,
+        /**
+         * A stand-in for React Native's Gradle plugin (`com.facebook.react`, from buildSrc): its
+         * `createBundleReleaseJsAndAssets` writes a bundle and map where React Native writes them.
+         */
+        val reactNative: Boolean = false,
+        /**
+         * Groovy `build.gradle` in the form `everframe setup react-native` generates: React Native's
+         * plugin applied after dev.everframe, and `everframe { appId = "..." }`. Supports [reactNative] only.
+         */
+        val groovyAppId: String? = null,
+        /** `everframe { hermesStagingDir }`, relative to the project directory. */
+        val hermesStagingDir: String? = null,
     )
 
     fun run(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
@@ -128,11 +140,30 @@ internal class PluginFixture private constructor(val root: File) {
             val cmake = if (options.cmakeFlags == null) "" else
                 "externalNativeBuild { cmake { path = file(\"src/main/cpp/CMakeLists.txt\") } }"
             val cliCommand = if (options.relativeCliInSubproject) "./record cli.sh" else recorder.absolutePath
-            File(app, "build.gradle.kts").writeText(
+            if (options.reactNative) writeFakeReactNativePlugin(directory)
+            if (options.groovyAppId != null) File(app, "build.gradle").writeText(
+                """
+                plugins {
+                    id 'com.android.application' version '8.7.2'
+                    id 'dev.everframe'
+                }
+                ${if (options.reactNative) "apply plugin: 'com.facebook.react'" else ""}
+                android {
+                    namespace 'test.fixture'
+                    compileSdk 35
+                    defaultConfig { applicationId 'test.fixture'; minSdk 24; versionCode 1; versionName '1.0' }
+                }
+                everframe {
+                    appId = ${quote(options.groovyAppId)}
+                    cliCommand = [${quote(cliCommand)}]
+                }
+                """.trimIndent(),
+            ) else File(app, "build.gradle.kts").writeText(
                 """
                 plugins {
                     id("com.android.application") version "8.7.2"
                     id("dev.everframe")
+                    ${if (options.reactNative) "id(\"com.facebook.react\")" else ""}
                 }
                 android {
                     namespace = "test.fixture"
@@ -148,6 +179,7 @@ internal class PluginFixture private constructor(val root: File) {
                 everframe {
                     uploadEnabled.set(${options.uploadEnabled})
                     cliCommand.set(listOf(${quote(cliCommand)}))
+                    ${options.hermesStagingDir?.let { "hermesStagingDir.set(layout.projectDirectory.dir(${quote(it)}))" } ?: ""}
                 }
                 """.trimIndent(),
             )
@@ -165,6 +197,51 @@ internal class PluginFixture private constructor(val root: File) {
                 cpp.resolve("native.c").writeText("int everframe_fixture(int value) { return value * 2; }\n")
             }
             return PluginFixture(directory)
+        }
+
+        /** buildSrc plugin `com.facebook.react` with React Native's release bundling task name and output paths. */
+        private fun writeFakeReactNativePlugin(directory: File) {
+            val buildSrc = File(directory, "buildSrc")
+            File(buildSrc, "src/main/groovy").mkdirs()
+            File(buildSrc, "build.gradle").writeText(
+                """
+                plugins { id 'groovy'; id 'java-gradle-plugin' }
+                gradlePlugin { plugins { react { id = 'com.facebook.react'; implementationClass = 'FakeReactPlugin' } } }
+                """.trimIndent(),
+            )
+            File(buildSrc, "src/main/groovy/FakeBundleTask.groovy").writeText(
+                """
+                import org.gradle.api.DefaultTask
+                import org.gradle.api.file.DirectoryProperty
+                import org.gradle.api.tasks.OutputDirectory
+                import org.gradle.api.tasks.TaskAction
+
+                abstract class FakeBundleTask extends DefaultTask {
+                    @OutputDirectory abstract DirectoryProperty getJsBundleDir()
+                    @OutputDirectory abstract DirectoryProperty getJsSourceMapsDir()
+                    @TaskAction void bundle() {
+                        new File(jsBundleDir.get().asFile, 'index.android.bundle').text = 'hermes bytecode'
+                        new File(jsSourceMapsDir.get().asFile, 'index.android.bundle.map').text = '{}'
+                    }
+                }
+                """.trimIndent(),
+            )
+            File(buildSrc, "src/main/groovy/FakeReactPlugin.groovy").writeText(
+                """
+                import org.gradle.api.Plugin
+                import org.gradle.api.Project
+
+                class FakeReactPlugin implements Plugin<Project> {
+                    void apply(Project project) {
+                        def bundle = project.tasks.register('createBundleReleaseJsAndAssets', FakeBundleTask) { task ->
+                            task.jsBundleDir.set(project.layout.buildDirectory.dir('generated/assets/react/release'))
+                            task.jsSourceMapsDir.set(project.layout.buildDirectory.dir('generated/sourcemaps/react/release'))
+                        }
+                        project.tasks.matching { it.name == 'preReleaseBuild' }.configureEach { it.dependsOn(bundle) }
+                    }
+                }
+                """.trimIndent(),
+            )
         }
 
         private fun quote(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

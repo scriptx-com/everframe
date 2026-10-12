@@ -8,7 +8,11 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
 
-/** Finalizes `assemble<V>` and `bundle<V>` of each selected variant with its symbol uploads. */
+/**
+ * Finalizes `assemble<V>` and `bundle<V>` of each selected variant with its symbol uploads, and
+ * React Native's release JS bundling with the Hermes upload. Variant callbacks run after the build
+ * script, so React Native's plugin is applied by then whichever order the script applies them in.
+ */
 internal fun wireVariants(project: Project, extension: EverframeExtension) {
     val components = project.extensions.getByType(ApplicationAndroidComponentsExtension::class.java)
     components.onVariants(components.selector().all()) { variant ->
@@ -31,6 +35,7 @@ internal fun wireVariants(project: Project, extension: EverframeExtension) {
             }
         }
         uploads += registerNativeSymbolsUpload(project, variant, extension)
+        if (project.pluginManager.hasPlugin(REACT_NATIVE_PLUGIN_ID)) registerHermesUpload(project, variant, extension)
         project.tasks.matching { it.name == "assemble$name" || it.name == "bundle$name" }.configureEach { it.finalizedBy(uploads) }
     }
 }

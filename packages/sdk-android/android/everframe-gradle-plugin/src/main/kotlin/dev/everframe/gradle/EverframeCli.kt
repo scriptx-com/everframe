@@ -14,14 +14,23 @@ internal val EVERFRAME_CLI_VERSION: String by lazy {
     properties.getProperty("version") ?: error("everframe-gradle-plugin: cli-version.properties missing from the plugin JAR")
 }
 
-/** `EVERFRAME_CLI_JS`, then the project's node_modules, then `npx` pinned to [EVERFRAME_CLI_VERSION]. */
+/**
+ * `EVERFRAME_CLI_JS`, then `@everframe/cli` in node_modules, then `npx` pinned to [EVERFRAME_CLI_VERSION].
+ * node_modules is searched as Node resolves a package from the app's root (the folder holding
+ * `android`): there, then each parent folder, so hoisted monorepo installs are found too.
+ */
 internal fun defaultCliCommand(project: Project): Provider<List<String>> {
     val rootDir = project.rootDir
     return project.providers.environmentVariable("EVERFRAME_CLI_JS").map { listOf("node", it) }
         .orElse(project.providers.provider {
-            listOf(File(rootDir, "../node_modules/@everframe/cli/dist/index.js"), File(rootDir, "node_modules/@everframe/cli/dist/index.js"))
-                .firstOrNull(File::isFile)
-                ?.let { listOf("node", it.canonicalPath) }
+            installedCli(rootDir)?.let { listOf("node", it.canonicalPath) }
                 ?: listOf("npx", "--yes", "--prefer-offline", "@everframe/cli@$EVERFRAME_CLI_VERSION")
         })
+}
+
+/** The installed CLI entry point for a Gradle root folder, or null. */
+internal fun installedCli(rootDir: File): File? {
+    val appRoot = rootDir.absoluteFile.parentFile ?: return null
+    val folders = sequenceOf(appRoot, rootDir.absoluteFile) + generateSequence(appRoot.parentFile) { it.parentFile }
+    return folders.map { File(it, "node_modules/@everframe/cli/dist/index.js") }.firstOrNull(File::isFile)
 }

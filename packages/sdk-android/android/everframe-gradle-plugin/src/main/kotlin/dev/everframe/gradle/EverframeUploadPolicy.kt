@@ -73,6 +73,7 @@ internal fun logCliLine(logger: Logger, line: String) {
  * outlives [cliTimeoutSeconds] is stopped with everything it started. It runs in
  * [workingDirectory], the owning project's directory, so a relative command or
  * `EVERFRAME_CLI_JS` resolves against the project wherever Gradle was started.
+ * Returns true when the CLI exited with status 0.
  */
 internal fun runCli(
     command: List<String>,
@@ -81,7 +82,7 @@ internal fun runCli(
     what: String,
     environment: Map<String, String> = System.getenv(),
     output: (String) -> Unit = { logCliLine(logger, it) },
-) {
+): Boolean {
     val budget = uploadBudgetSeconds(environment["EVERFRAME_UPLOAD_TIMEOUT_SECONDS"])
     val limit = cliTimeoutSeconds(budget)
     // Files, not pipes: nothing has to drain them while the child runs, and a killed child's
@@ -98,7 +99,7 @@ internal fun runCli(
             }.start()
         } catch (error: Exception) {
             problem(logger, "could not run the Everframe CLI for the $what upload (${error.message?.substringBefore('\n')})")
-            return
+            return false
         }
         process.outputStream.close()
         val finished = try { process.waitFor(limit, TimeUnit.SECONDS) } catch (error: InterruptedException) {
@@ -112,7 +113,9 @@ internal fun runCli(
             !finished -> problem(logger, "the $what upload did not finish within $limit seconds and was stopped " +
                 "(EVERFRAME_UPLOAD_TIMEOUT_SECONDS=$budget, plus time for npx to fetch the CLI)")
             process.exitValue() != 0 -> problem(logger, "$what upload failed (exit ${process.exitValue()})")
+            else -> return true
         }
+        return false
     } finally {
         stdout.delete()
         stderr.delete()
