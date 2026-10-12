@@ -1,0 +1,29 @@
+docs/session-replay.md
+  s_dbd309ddf8ec5b::t_250f7c0ba3c6dd 23-24
+packages/protocol/src/crash.ts
+  s_dbd309ddf8ec5b::t_43a97ea516b972 73
+packages/sdk-android/android/README.md
+  s_dbd309ddf8ec5b::t_64091c95b39996 53-54,59,481
+packages/sdk-core/src/vitals/summary.ts
+  s_dbd309ddf8ec5b::t_be49a5fd5af56b 274-275
+packages/sdk-ios/Sources/Everframe/Companion/CompanionAnnounce.swift
+  s_dbd309ddf8ec5b::t_9bfe5c9dc3a232 146-147
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_dbd309ddf8ec5b::t_bf3be483db2588 19,35,38-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74fea6ed6c53d12d74c703df566cf99fe8b74755",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
