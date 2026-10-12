@@ -71,6 +71,32 @@ class HermesPluginFunctionalTest {
         assertContains(strict.output, "everframe: Hermes source map upload failed (exit 2)")
     }
 
+    @Test fun `the default CLI command runs with NODE_BINARY for every upload`() {
+        // No cliCommand: the build finds node_modules/@everframe/cli and runs it with NODE_BINARY,
+        // as the removed generated Gradle block did with ${NODE_BINARY:-node}.
+        val fixture = PluginFixture.create(
+            temporaryFolder.newFolder("node binary"),
+            PluginFixture.Options(minified = true, nativeLibrary = true, reactNative = true, defaultCli = true),
+        )
+        val stub = fixture.stubNode().absolutePath
+        val environment = mapOf("EVERFRAME_APP_ID" to appId, "EVERFRAME_API_TOKEN" to "secret", "NODE_BINARY" to stub)
+        fixture.run("assembleRelease", "--configuration-cache", environment = environment)
+        val cli = fixture.installedCli().canonicalPath
+        val first = fixture.recordedInvocations()
+        assertEquals(setOf("r8", "elf", "build", "sourcemaps"), first.map { it.getOrNull(2) }.toSet(), first.toString())
+        assertTrue(first.all { it[1] == cli }, first.toString())
+        assertEquals(List(first.size) { stub }, fixture.recordedNodes())
+        // The configuration cache keeps it, and EVERFRAME_CLI_JS runs with NODE_BINARY too.
+        val reused = fixture.run("assembleRelease", "--configuration-cache", environment = environment)
+        assertContains(reused.output, "Reusing configuration cache")
+        assertEquals(2 * first.size, fixture.recordedNodes().size)
+        fixture.run("assembleRelease", environment = environment + ("EVERFRAME_CLI_JS" to "/custom/cli.js"))
+        val custom = fixture.recordedInvocations().drop(2 * first.size)
+        assertEquals(first.size, custom.size)
+        assertTrue(custom.all { it[1] == "/custom/cli.js" }, custom.toString())
+        assertEquals(List(3 * first.size) { stub }, fixture.recordedNodes())
+    }
+
     @Test fun `an app without React Native gets no Hermes task and no Hermes warnings`() {
         val fixture = PluginFixture.create(temporaryFolder.newFolder("native"), PluginFixture.Options(minified = false))
         assertFalse(fixture.run("tasks", "--all").output.contains("HermesSourceMap"))

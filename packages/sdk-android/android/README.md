@@ -494,7 +494,8 @@ The plugin runs the CLI from `EVERFRAME_CLI_JS` (a built `dist/index.js`), then
 folder above it, then `npx --yes --prefer-offline @everframe/cli@<version>`,
 which needs the published CLI and Node. npm gets a 20-second fetch timeout and
 one retry unless your environment sets `npm_config_fetch_timeout`,
-`npm_config_fetch_retries` or `npm_config_fetch_retry_maxtimeout`. Override the
+`npm_config_fetch_retries` or `npm_config_fetch_retry_maxtimeout`. The CLI runs
+with `NODE_BINARY` when it is set, else `node` from `PATH`. Override the
 command with `everframe { cliCommand }`. The CLI runs in the module's directory,
 so relative paths in `cliCommand` and `EVERFRAME_CLI_JS` resolve against it.
 

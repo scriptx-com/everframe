@@ -43,6 +43,12 @@ internal class PluginFixture private constructor(val root: File) {
         val groovyAppId: String? = null,
         /** `everframe { hermesStagingDir }`, relative to the project directory. */
         val hermesStagingDir: String? = null,
+        /**
+         * Leave `cliCommand` at its default: the build finds `node_modules/@everframe/cli/dist/index.js`
+         * in the root folder and runs it with Node. [stubNode] is a Node stand-in for NODE_BINARY that
+         * records itself and hands its arguments (the CLI path first) to the recorder.
+         */
+        val defaultCli: Boolean = false,
     )
 
     fun run(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
@@ -50,7 +56,7 @@ internal class PluginFixture private constructor(val root: File) {
     fun runAndFail(vararg args: String, environment: Map<String, String> = emptyMap()): BuildResult =
         runner(environment).withArguments(*args, "--stacktrace", "--console=plain").buildAndFail()
 
-    /** Each invocation: the EVERFRAME_API_TOKEN it saw, then its arguments. */
+    /** Each invocation: the EVERFRAME_API_TOKEN it saw, then its arguments. Each is appended with one write (sh's printf flushes per line), so parallel uploads do not interleave. */
     fun recordedInvocations(): List<List<String>> {
         val record = File(root, "cli-record.txt")
         if (!record.exists()) return emptyList()
@@ -68,6 +74,12 @@ internal class PluginFixture private constructor(val root: File) {
     fun recordedNpmLimits(): String = File(root, "cli-npm.txt").readText().trim()
     /** The fake CLI's sleeping child, when it was asked to stall. */
     fun recordedSleeper(): Long = File(root, "cli-sleep.pid").readText().trim().toLong()
+    /** A Node stand-in for NODE_BINARY ([Options.defaultCli]); its path has a space in it. */
+    fun stubNode(): File = File(root, "stub node")
+    /** The installed CLI entry point the default command finds ([Options.defaultCli]). */
+    fun installedCli(): File = File(root, "node_modules/@everframe/cli/dist/index.js")
+    /** Each run of [stubNode]: its own path. */
+    fun recordedNodes(): List<String> = File(root, "cli-node.txt").takeIf { it.exists() }?.readLines() ?: emptyList()
     /** The fake CLI's working directory, physical path. */
     fun recordedWorkingDirectory(): String = File(root, "cli-cwd.txt").readText().trim()
     fun apkAsset(variantDir: String, entry: String): String {
@@ -112,7 +124,7 @@ internal class PluginFixture private constructor(val root: File) {
                 writeText(
                     """
                     #!/bin/sh
-                    { printf '%s\n' "${d}EVERFRAME_API_TOKEN"; printf '%s\n' "${d}@"; printf '%s\n' '---'; } >> '$record'
+                    entry="${d}(mktemp)"; printf '%s\n' "${d}EVERFRAME_API_TOKEN" "${d}@" '---' > "${d}entry"; cat "${d}entry" >> '$record'; rm -f "${d}entry"
                     pwd -P > '$cwd'
                     printf '%s\n' "${d}{EVERFRAME_UPLOAD_TIMEOUT_SECONDS:-}" > '$budget'
                     printf '%s|%s|%s\n' "${d}{npm_config_fetch_timeout:-}" "${d}{npm_config_fetch_retries:-}" "${d}{npm_config_fetch_retry_maxtimeout:-}" > '$npm'
@@ -141,6 +153,14 @@ internal class PluginFixture private constructor(val root: File) {
                 "externalNativeBuild { cmake { path = file(\"src/main/cpp/CMakeLists.txt\") } }"
             val cliCommand = if (options.relativeCliInSubproject) "./record cli.sh" else recorder.absolutePath
             if (options.reactNative) writeFakeReactNativePlugin(directory)
+            if (options.defaultCli) {
+                File(directory, "node_modules/@everframe/cli/dist").mkdirs()
+                File(directory, "node_modules/@everframe/cli/dist/index.js").writeText("// stand-in\n")
+                File(directory, "stub node").apply {
+                    writeText("#!/bin/sh\nprintf '%s\\n' \"${d}0\" >> '${File(directory, "cli-node.txt").absolutePath}'\nexec '${recorder.absolutePath}' \"${d}@\"\n")
+                    setExecutable(true)
+                }
+            }
             if (options.groovyAppId != null) File(app, "build.gradle").writeText(
                 """
                 plugins {
@@ -155,7 +175,7 @@ internal class PluginFixture private constructor(val root: File) {
                 }
                 everframe {
                     appId = ${quote(options.groovyAppId)}
-                    cliCommand = [${quote(cliCommand)}]
+                    ${if (options.defaultCli) "" else "cliCommand = [${quote(cliCommand)}]"}
                 }
                 """.trimIndent(),
             ) else File(app, "build.gradle.kts").writeText(
@@ -178,7 +198,7 @@ internal class PluginFixture private constructor(val root: File) {
                 }
                 everframe {
                     uploadEnabled.set(${options.uploadEnabled})
-                    cliCommand.set(listOf(${quote(cliCommand)}))
+                    ${if (options.defaultCli) "" else "cliCommand.set(listOf(${quote(cliCommand)}))"}
                     ${options.hermesStagingDir?.let { "hermesStagingDir.set(layout.projectDirectory.dir(${quote(it)}))" } ?: ""}
                 }
                 """.trimIndent(),
