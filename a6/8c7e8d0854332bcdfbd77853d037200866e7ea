@@ -1,0 +1,14 @@
+packages/sdk-ios/Package.binary.swift
+  h_af305fd8f2c5c5 70,75,80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a68c7e8d0854332bcdfbd77853d037200866e7ea",
+  "prompts": {},
+  "humans": {
+    "h_af305fd8f2c5c5": {
+      "author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
