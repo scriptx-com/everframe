@@ -85,7 +85,7 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
             // A wall clock that moved backwards is clamped so last seen never follows collection.
             let lastSeen = min(ReleaseHealthDate.canonical(record.lastSeenAt), collected)
             let id = reportID.uuidString.lowercased()
-            let crash = EverframeCrash(causeChain: nil, details: nil, exceptionType: cause.exceptionType, fatal: true,
+            let crash = EverframeCrash(androidNative: nil, causeChain: nil, details: nil, exceptionType: cause.exceptionType, fatal: true,
                 fingerprint: cause.fingerprint, frames: [], handled: false, jsBundle: nil, jvm: nil,
                 mechanism: TerminationInference.mechanism, message: TerminationInference.message(cause, record),
                 native: nil, occurredAt: lastSeen, threadName: nil)

@@ -52,12 +52,7 @@ struct CrashReportCrossSDKTests {
         let encoded = sidecar(try JSONSerialization.jsonObject(with: Self.canonicalEncoder().encode(crash)))
         #expect(original != nil && original == encoded)
 
-        // Pre-native initializers omit the sidecar; generated copies keep it.
-        let legacy = EverframeCrash(causeChain: crash.causeChain, details: crash.details, exceptionType: crash.exceptionType,
-            fatal: crash.fatal, fingerprint: crash.fingerprint, frames: crash.frames, handled: crash.handled,
-            jsBundle: crash.jsBundle, jvm: crash.jvm, mechanism: crash.mechanism, message: crash.message,
-            occurredAt: crash.occurredAt, threadName: crash.threadName)
-        #expect(legacy.native == nil)
+        // Generated copies keep the sidecar.
         #expect(crash.with(message: "copied").native?.timestampMicros == native.timestampMicros)
     }
 
@@ -203,50 +198,10 @@ struct CrashReportCrossSDKTests {
         #expect(try Self.canonicalEncoder().encode(decoded) == encoded)
     }
 
-    @Test func androidNativeEvidenceSurvivesLegacyHelpers() throws {
+    @Test func androidNativeEvidenceSurvivesWith() throws {
         let data = Data(#"{"androidNative":{"source":"android-exit-info","abi":"arm64-v8a","crashedThreadId":42,"framesIncomplete":false,"frames":[{"pc":"0xffffffffffffffff","relativePc":"0x1","module":"libfault.so","buildId":"aabb"}]},"exceptionType":"Native signal 11","fingerprint":"0123456789abcdef","frames":[{"raw":"libfault.so 0x1"}],"handled":false,"fatal":true,"mechanism":"android-exit-info","message":"native crash","occurredAt":"2026-10-07T18:00:00.000Z"}"#.utf8)
         let crash = try Self.canonicalDecoder().decode(EverframeCrash.self, from: data)
         #expect(crash.with(message: "changed").androidNative?.frames.first?.pc == "0xffffffffffffffff")
-        let old = EverframeCrash(causeChain: nil, details: nil, exceptionType: "old", fatal: true,
-            fingerprint: "0123456789abcdef", frames: [], handled: false, jsBundle: nil, jvm: nil,
-            mechanism: "old", message: "old", native: nil, occurredAt: Date(timeIntervalSince1970: 0), threadName: nil)
-        #expect(old.androidNative == nil)
-    }
-
-    @Test func preJvmCrashInitializerRemainsSourceCompatible() {
-        let crash = EverframeCrash(
-            exceptionType: "TypeError",
-            fatal: false,
-            fingerprint: "0123456789abcdef",
-            frames: [EverframeFrame(col: 2, file: "index.js", function: "run", line: 1, raw: "at run")],
-            handled: true,
-            jsBundle: nil,
-            mechanism: "captureException",
-            message: "boom",
-            occurredAt: Date(timeIntervalSince1970: 0),
-            threadName: "main"
-        )
-        #expect(crash.jvm == nil)
-        #expect(crash.details == nil)
-    }
-
-    @Test func preDetailsCrashInitializerPreservesJvmMetadata() {
-        let jvm = EverframeJVMCrashMetadata(causes: [], causesTruncated: false, mappingID: "release-7")
-        let crash = EverframeCrash(
-            exceptionType: "TypeError",
-            fatal: false,
-            fingerprint: "0123456789abcdef",
-            frames: [],
-            handled: true,
-            jsBundle: nil,
-            jvm: jvm,
-            mechanism: "captureException",
-            message: "boom",
-            occurredAt: Date(timeIntervalSince1970: 0),
-            threadName: "main"
-        )
-        #expect(crash.jvm?.mappingID == "release-7")
-        #expect(crash.details == nil)
     }
 
     @Test func generatedCrashDetailsDecodeStructuredMetadata() throws {

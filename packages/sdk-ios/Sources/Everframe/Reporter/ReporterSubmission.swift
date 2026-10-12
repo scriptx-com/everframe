@@ -461,6 +461,7 @@ public enum ReporterSubmission {
                 height: nil,
                 kind: part.kind,
                 partName: part.partName,
+                replayStartEpochMS: nil,
                 sha256: sha,
                 width: nil
             ))

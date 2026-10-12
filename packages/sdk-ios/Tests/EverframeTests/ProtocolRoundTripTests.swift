@@ -49,12 +49,6 @@ struct ProtocolRoundTripTests {
         encoder.outputFormatting = [.sortedKeys]
 
         let env = try decoder.decode(EverframeReportEnvelope.self, from: data)
-        let legacy = EverframeReportEnvelope(attachments: env.attachments,
-            captureControl: env.captureControl, captures: env.captures, context: env.context,
-            payload: env.payload, protocolVersion: env.protocolVersion, reporter: env.reporter,
-            reportID: env.reportID, sdk: env.sdk, source: env.source, submittedAt: env.submittedAt)
-        #expect(legacy.sessionID == nil)
-        #expect(legacy.reportID == env.reportID)
         let session = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
         let anchored = env.with(sessionID: session)
         let restored = try decoder.decode(EverframeReportEnvelope.self, from: encoder.encode(anchored))

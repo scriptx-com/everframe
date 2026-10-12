@@ -31,12 +31,10 @@ npx --yes quicktype@23 \
   --out "$OUT_PATH"
 
 # quicktype alphabetizes Kotlin properties, which would insert new optional
-# fields into Crash's positional primary constructor. Keep every pre-details
-# position stable, including the previously appended JVM and details fields, and
-# append causeChain, native and androidNative last. The visible legacy constructor and copy overload retain
-# source/JVM compatibility; construction maps an old value to no generic cause,
-# while copy keeps the receiver's cause. Locate Crash by its own declaration boundary because generated
-# supporting declarations can appear between Crash and Frame.
+# fields into Crash's positional primary constructor. Keep the required fields
+# first and append jvm, details, causeChain, native and androidNative last.
+# Locate Crash by its own declaration boundary because generated supporting
+# declarations can appear between Crash and Frame.
 node --input-type=module - "$OUT_PATH" <<'NODE'
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -81,90 +79,12 @@ if (!properties[lastIndex].startsWith('    val threadName:')) {
 properties[lastIndex] = `${properties[lastIndex]},`;
 properties.push(`${jvmProperty},`, `${detailsProperty},`, `${causeChainProperty},`, `${nativeProperty},`, androidNativeProperty);
 
-const compatibilityBody = ` {
-    constructor(
-        exceptionType: String, fatal: Boolean? = null, fingerprint: String,
-        frames: List<Frame>, handled: Boolean, jsBundle: JSBundle? = null,
-        mechanism: String, message: String, occurredAt: String, threadName: String? = null,
-        jvm: JVMCrashMetadata? = null, details: CrashDetails? = null,
-        causeChain: CrashCauseChain? = null, native: NativeCrashMetadata? = null,
-    ) : this(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-             message, occurredAt, threadName, jvm, details, causeChain, native, null)
-
-    fun copy(
-        exceptionType: String = this.exceptionType, fatal: Boolean? = this.fatal,
-        fingerprint: String = this.fingerprint, frames: List<Frame> = this.frames,
-        handled: Boolean = this.handled, jsBundle: JSBundle? = this.jsBundle,
-        mechanism: String = this.mechanism, message: String = this.message,
-        occurredAt: String = this.occurredAt, threadName: String? = this.threadName,
-        jvm: JVMCrashMetadata? = this.jvm, details: CrashDetails? = this.details,
-        causeChain: CrashCauseChain? = this.causeChain, native: NativeCrashMetadata? = this.native,
-    ): Crash = Crash(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-                     message, occurredAt, threadName, jvm, details, causeChain, native, androidNative)
-
-    constructor(
-        exceptionType: String, fatal: Boolean? = null, fingerprint: String,
-        frames: List<Frame>, handled: Boolean, jsBundle: JSBundle? = null,
-        mechanism: String, message: String, occurredAt: String, threadName: String? = null,
-        jvm: JVMCrashMetadata? = null, details: CrashDetails? = null, causeChain: CrashCauseChain? = null,
-    ) : this(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-             message, occurredAt, threadName, jvm, details, causeChain, null, null)
-
-    fun copy(
-        exceptionType: String = this.exceptionType, fatal: Boolean? = this.fatal,
-        fingerprint: String = this.fingerprint, frames: List<Frame> = this.frames,
-        handled: Boolean = this.handled, jsBundle: JSBundle? = this.jsBundle,
-        mechanism: String = this.mechanism, message: String = this.message,
-        occurredAt: String = this.occurredAt, threadName: String? = this.threadName,
-        jvm: JVMCrashMetadata? = this.jvm, details: CrashDetails? = this.details,
-        causeChain: CrashCauseChain? = this.causeChain,
-    ): Crash = Crash(exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-                     message, occurredAt, threadName, jvm, details, causeChain, native, androidNative)
-
-    constructor(
-        exceptionType: String,
-        fatal: Boolean? = null,
-        fingerprint: String,
-        frames: List<Frame>,
-        handled: Boolean,
-        jsBundle: JSBundle? = null,
-        mechanism: String,
-        message: String,
-        occurredAt: String,
-        threadName: String? = null,
-        jvm: JVMCrashMetadata? = null,
-        details: CrashDetails? = null,
-    ) : this(
-        exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, null, null, null,
-    )
-
-    fun copy(
-        exceptionType: String = this.exceptionType,
-        fatal: Boolean? = this.fatal,
-        fingerprint: String = this.fingerprint,
-        frames: List<Frame> = this.frames,
-        handled: Boolean = this.handled,
-        jsBundle: JSBundle? = this.jsBundle,
-        mechanism: String = this.mechanism,
-        message: String = this.message,
-        occurredAt: String = this.occurredAt,
-        threadName: String? = this.threadName,
-        jvm: JVMCrashMetadata? = this.jvm,
-        details: CrashDetails? = this.details,
-    ): Crash = Crash(
-        exceptionType, fatal, fingerprint, frames, handled, jsBundle, mechanism,
-        message, occurredAt, threadName, jvm, details, causeChain, native, androidNative,
-    )
-}`;
 
 let rewritten = source.replace(
   blockPattern,
-  `data class Crash (\n${properties.join('\n')}\n)${compatibilityBody}`
+  `data class Crash (\n${properties.join('\n')}\n)`
 );
-// Preserve Payload's old positional constructor, copy descriptor/default masks,
-// and component order when adding optional diagnostic evidence. The full
-// pre-inferred-termination layout stays as a secondary constructor and copy.
+// Keep Payload's positional order stable: the optional diagnostic evidence comes last.
 const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const payloadMatch = rewritten.match(payloadPattern);
 if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
@@ -175,35 +95,14 @@ for (const name of additions) {
   if (index < 0) throw new Error(`codegen-kotlin: Payload.${name} missing`);
   payloadProperties.splice(index, 1);
 }
-const oldParameters = payloadProperties.map(line => line.replace('val ', '').replace(/,$/, ''));
-const oldNames = oldParameters.map(line => line.trim().split(':')[0]);
-const overload = (extra) => {
-  const parameters = [...oldParameters, ...extra.map(([name, type]) => `    ${name}: ${type}? = null`)];
-  const names = [...oldNames, ...extra.map(([name]) => name)];
-  const tail = ['diagnostic', 'appleDiagnostic', 'recoveredStall', 'inferredTermination'];
-  return `    constructor(\n${parameters.join(',\n')}\n    ) : this(${oldNames.join(', ')}, ${tail.map(name => names.includes(name) ? name : 'null').join(', ')})
-
-    fun copy(\n${parameters.map((line, i) => line.replace(/ = null$/, ` = this.${names[i]}`)).join(',\n')}\n    ): Payload = Payload(${[...oldNames, ...tail].join(', ')})`;
-};
 const propertiesWithAdditions = [...payloadProperties.map(line => line.replace(/,$/, '')),
   '    val diagnostic: DiagnosticEvidence? = null', '    val appleDiagnostic: AppleDiagnosticEvidence? = null',
   '    val recoveredStall: RecoveredStallEvidence? = null', '    val inferredTermination: InferredTerminationEvidence? = null'];
-const diagnosticArg = ['diagnostic', 'DiagnosticEvidence'];
-rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertiesWithAdditions.join(',\n')}\n) {
-${overload([])}
-${overload([diagnosticArg])}
-${overload([diagnosticArg, ['appleDiagnostic', 'AppleDiagnosticEvidence']])}
-${overload([diagnosticArg, ['recoveredStall', 'RecoveredStallEvidence']])}
-${overload([diagnosticArg, ['appleDiagnostic', 'AppleDiagnosticEvidence'], ['recoveredStall', 'RecoveredStallEvidence']])}
-    // The two predecessor layouts had different component13 return descriptors.
-    // Keep the observer binary entry point while new source uses the appended field.
-    @kotlin.jvm.JvmName("component13")
-    fun recoveredStallComponent13(): RecoveredStallEvidence? = recoveredStall
-}`);
+rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertiesWithAdditions.join(',\n')}\n)`);
 for (const [generated, stable] of Object.entries({ DiagnosticAndroid: 'Android',
   TraceClass: 'Trace', TraceEnum: 'RecoveredStallTrace', Clock: 'RecoveredStallClock', Eligibility: 'RecoveredStallEligibility',
 })) rewritten = rewritten.replace(new RegExp(`\\b${generated}\\b`, 'g'), stable);
-// Keep existing diagnostic positional arguments stable; append the optional exposure.
+// Keep the diagnostic's positional order stable; append the optional exposure.
 const evidencePattern = /data class DiagnosticEvidence \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const evidenceMatch = rewritten.match(evidencePattern);
 if (!evidenceMatch) throw new Error('codegen-kotlin: DiagnosticEvidence block shape changed');
@@ -212,22 +111,10 @@ const evidenceProperties = evidenceMatch[1].split('\n');
 const exposureIndex = evidenceProperties.indexOf(exposureProperty);
 if (exposureIndex < 0) throw new Error('codegen-kotlin: DiagnosticEvidence.nativeExposure missing');
 evidenceProperties.splice(exposureIndex, 1);
-const evidenceParameters = evidenceProperties.filter(line => line.trim().startsWith('val '))
-  .map(line => line.replace('val ', '').replace(/,$/, ''));
-const evidenceNames = evidenceParameters.map(line => line.trim().split(':')[0]);
-const evidenceCopy = evidenceParameters.map((line, index) => `${line} = this.${evidenceNames[index]}`);
 evidenceProperties[evidenceProperties.length - 1] += ',';
 evidenceProperties.push('    val nativeExposure: NativeExposure? = null');
-rewritten = rewritten.replace(evidencePattern, `data class DiagnosticEvidence (\n${evidenceProperties.join('\n')}\n) {
-    constructor(
-${evidenceParameters.join(',\n')}
-    ) : this(${evidenceNames.join(', ')}, null)
-
-    fun copy(
-${evidenceCopy.join(',\n')}
-    ): DiagnosticEvidence = DiagnosticEvidence(${evidenceNames.join(', ')}, nativeExposure)
-}`);
-// Append Apple linkage without changing the old positional/copy JVM boundary.
+rewritten = rewritten.replace(evidencePattern, `data class DiagnosticEvidence (\n${evidenceProperties.join('\n')}\n)`);
+// Keep the native metadata's positional order stable; append the release-health evidence.
 const nativePattern = /data class NativeCrashMetadata \(\n([\s\S]*?)\n\)(?=\n\n@Serializable)/;
 const nativeMatch = rewritten.match(nativePattern);
 if (!nativeMatch) throw new Error('codegen-kotlin: NativeCrashMetadata block missing');
@@ -235,20 +122,9 @@ const nativeProperties = nativeMatch[1].split('\n');
 const healthIndex = nativeProperties.findIndex(p => p.trim().startsWith('val releaseHealthEvidence:'));
 if (healthIndex < 0) throw new Error('codegen-kotlin: native health evidence missing');
 nativeProperties.splice(healthIndex, 1);
-const nativeParams = nativeProperties.filter(p => p.trim().startsWith('val '))
-  .map(p => p.replace('val ', '').replace(/,$/, ''));
-const nativeNames = nativeParams.map(p => p.trim().split(':')[0]);
 nativeProperties[nativeProperties.length - 1] += ',';
 nativeProperties.push('    val releaseHealthEvidence: NativeCrashReleaseHealthEvidence? = null');
-rewritten = rewritten.replace(nativePattern, `data class NativeCrashMetadata (\n${nativeProperties.join('\n')}\n) {
-    constructor(
-${nativeParams.join(',\n')}
-    ) : this(${nativeNames.join(', ')}, null)
-
-    fun copy(
-${nativeParams.map((p, i) => `${p} = this.${nativeNames[i]}`).join(',\n')}
-    ): NativeCrashMetadata = NativeCrashMetadata(${nativeNames.join(', ')}, releaseHealthEvidence)
-}`);
+rewritten = rewritten.replace(nativePattern, `data class NativeCrashMetadata (\n${nativeProperties.join('\n')}\n)`);
 // These nullable fields are required on the wire: the API matches a crash to its
 // session by the exact frozen pointer, so a null must be written, never omitted
 // by the default encoder configuration.

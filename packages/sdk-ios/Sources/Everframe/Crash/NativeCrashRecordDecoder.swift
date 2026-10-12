@@ -110,7 +110,7 @@ enum NativeCrashRecordDecoder {
             frames: nativeFrames, framesIncomplete: backtrace == nil || originLost || handlerCapped
                 || backtrace?.contents.incomplete == true || (backtrace?.skipped ?? 0) != 0,
             images: images, imagesIncomplete: imagesIncomplete, platform: .apple,
-            timestampMicros: String(header.timestamp))
+            releaseHealthEvidence: nil, timestampMicros: String(header.timestamp))
         // Key app frames: OS images hold terminate/abort machinery and change with every OS update.
         // When the entry point holds every app frame and the crashing frame is outside it, the fault is in
         // OS code and main alone would merge distinct faults, so the leading frames key the group, as they
@@ -125,7 +125,7 @@ enum NativeCrashRecordDecoder {
             .prefix(8).map { String(format: "%02x", $0) }.joined()
         let occurredAt = Date(timeIntervalSince1970: min(Double(header.timestamp) / 1_000_000, 253402300800.0.nextDown))
         return NativeCrashRecord(reportID: reportID, vendorRunID: runID, contextID: contextID,
-            crash: EverframeCrash(causeChain: nil, details: nil, exceptionType: type, fatal: true,
+            crash: EverframeCrash(androidNative: nil, causeChain: nil, details: nil, exceptionType: type, fatal: true,
                 fingerprint: fingerprint, frames: frames, handled: false, jsBundle: nil, jvm: nil,
                 mechanism: "native-\(fault.type)", message: message, native: native, occurredAt: occurredAt, threadName: nil))
     }

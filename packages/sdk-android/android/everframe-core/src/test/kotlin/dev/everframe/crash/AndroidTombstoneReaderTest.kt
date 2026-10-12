@@ -99,16 +99,12 @@ class AndroidTombstoneReaderTest {
         assertEquals(-6L, value.signalCode)
         assertTrue(value.framesIncomplete)
     }
-    @Test fun `legacy generated copy preserves new Android evidence and legacy constructor descriptors`() {
+    @Test fun `generated copy preserves Android native evidence`() {
         val metadata = requireNotNull(read(trace()))
         val crash = dev.everframe.protocol.generated.Crash(exceptionType = "SIGSEGV", fingerprint = "0123456789abcdef",
             frames = emptyList(), handled = false, fatal = true, mechanism = "android-exit-info", message = "native crash",
             occurredAt = "2026-10-07T18:00:00Z", androidNative = metadata)
         assertEquals(metadata, crash.copy(message = "changed").androidNative)
-        val types = dev.everframe.protocol.generated.Crash::class.java.constructors.map { it.parameterTypes.size }.toSet()
-        for (count in listOf(12, 13, 14, 15)) assertTrue("Constructor $count missing", count in types)
-        val copies = dev.everframe.protocol.generated.Crash::class.java.methods.filter { it.name == "copy" }.map { it.parameterTypes.size }
-        for (count in listOf(12, 13, 14, 15)) assertTrue("Copy $count missing", count in copies)
     }
     @Test fun `only app-packaged libraries are grouping code`() {
         val paths = linkedMapOf(

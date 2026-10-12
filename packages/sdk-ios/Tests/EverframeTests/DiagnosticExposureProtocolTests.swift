@@ -32,7 +32,7 @@ final class DiagnosticExposureProtocolTests: XCTestCase {
         let app: EverframeApp = EverframeApp(build: "412", debug: false, name: "dev.example", version: "2.4.0")
         XCTAssertEqual(app.version, "2.4.0")
     }
-    func testLegacyInitializerDoesNotRequireAnExposure() throws {
+    func testTheInitializerDefaultsTheExposureToNil() throws {
         let source = try Self.canonicalDecoder().decode(EverframeDiagnosticEvidence.self, from: Data("""
         {"version":1,"evidenceId":"11111111-1111-4111-8111-111111111111","processLaunchId":"22222222-2222-4222-8222-222222222222","kind":"process_exit","provenance":"android_application_exit_info","scope":"os_process","outcome":"terminated","cause":"anr","occurredAt":"2026-10-07T10:00:00.000Z","collectedAt":"2026-10-07T10:01:00.000Z","attribution":{"process":"exact_os_token","release":"frozen","session":"unavailable","webExposure":"unavailable"},"android":{"apiLevel":35,"reason":6,"pid":100},"trace":{"status":"unavailable","format":"none","truncated":false,"frames":[]}}
         """.utf8))
