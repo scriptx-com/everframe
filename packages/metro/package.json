@@ -1,10 +1,21 @@
 {
   "name": "@everframe/metro",
-  "version": "0.1.0",
+  "version": "1.2.0",
   "private": false,
   "description": "Metro serializer integration that stamps a build identity into React Native bundles for Everframe symbolication.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://everframe.dev",
+  "bugs": {
+    "url": "https://github.com/scriptx-com/everframe/issues"
+  },
+  "keywords": [
+    "everframe",
+    "metro",
+    "react-native",
+    "source-maps",
+    "crash-reporting"
+  ],
   "engines": {
     "node": ">=22"
   },

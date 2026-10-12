@@ -23,11 +23,9 @@ internal class OutboxStore(
     private val ops: OutboxFileOps,
     private val maxEntries: Int = JSONLOutbox.DEFAULT_MAX_ENTRIES,
     private val maxTotalBytes: Long = JSONLOutbox.DEFAULT_MAX_TOTAL_BYTES,
-    legacyFiles: List<File> = emptyList(),
     private val maintenanceReserveBytes: Long = MAINTENANCE_RESERVE,
 ) {
     private val root = root.canonicalFile
-    private val legacyFiles = legacyFiles.map { it.canonicalFile }.distinct()
     private val coordinator = coordinators.computeIfAbsent(this.root.path) { Coordinator() }
     private val lease = coordinator.epoch.get()
     private var generation: String? = null
@@ -78,7 +76,7 @@ internal class OutboxStore(
                 // Duplicate reconciliation returns early by design. Remaining files
                 // have not been decoded, so their readability is still unknown.
                 if (readableFiles == observedFiles.size) observeQueueSize(diagnostics, readableFiles)
-                else diagnostics?.queueObserved(null, QueueQuality.UNKNOWN, migrationDiagnostic())
+                else diagnostics?.queueObserved(null, QueueQuality.UNKNOWN)
                 return token
             }
         }
@@ -100,181 +98,11 @@ internal class OutboxStore(
         return token
     }
 
-    /** Bounded, nonsensitive upgrade-debt diagnostic. Originals remain plaintext until imported.
-     * Held per canonical root: every capture builds a fresh facade, which must report the debt
-     * that the drain's migration observed. */
-    internal val migrationBlocked: String? get() = coordinator.migrationBlocked
-
-    private fun migrationDiagnostic() =
-        if (!coordinator.migrationObserved) "not-observed" else if (migrationBlocked == null) "clear" else "blocked"
-
     private fun observeQueueSize(diagnostics: ReportDiagnostics.Handle?, count: Int) {
-        diagnostics?.queueObserved(count,
-            if (migrationBlocked == null) QueueQuality.COMPLETE else QueueQuality.PARTIAL,
-            migrationDiagnostic())
+        diagnostics?.queueObserved(count, QueueQuality.COMPLETE)
     }
 
-
-    // The root lock also spans the catch, so no facade reads the reset state between a
-    // failed pass releasing the store lock and recording why it stopped.
-    fun migrateLegacy(): Int = coordinator.lock.withLock {
-        var imported = 0
-        try { locked {
-            coordinator.migrationObserved = true
-            coordinator.migrationBlocked = null
-            if (File(root, "kill.history").exists() || File(root, "kill.pending").exists()) return@locked 0
-            checkAllowed(MIGRATION_ALLOWED)
-            for ((index, source) in legacyFiles.withIndex()) {
-                val parent = source.parentFile ?: throw IOException("Missing legacy source parent")
-                if (!source.exists()) {
-                    // Reconcile a source unlink that may have preceded a failed parent sync.
-                    if (parent.isDirectory) ops.syncDirectory(parent)
-                    continue
-                }
-                if (!source.isFile) throw IOException("Unsupported legacy source")
-                val fingerprint = fingerprint(source)
-                source.inputStream().use { input ->
-                    val reader = LegacyEntryReader(input)
-                    while (true) {
-                        when (val next = reader.next()) {
-                            LegacyEntryResult.End -> break
-                            is LegacyEntryResult.Blocked -> {
-                                coordinator.migrationBlocked = next.reason.name
-                                return@locked imported
-                            }
-                            is LegacyEntryResult.Record -> {
-                                if (importLegacyRecord(index, fingerprint, next)) imported++
-                            }
-                        }
-                    }
-                }
-                checkAllowed(MIGRATION_ALLOWED)
-                // Detect source changes observed while parsing before considering removal.
-                if (fingerprint(source) != fingerprint) throw IOException("Legacy source changed")
-                if (!source.delete()) throw IOException("Cannot remove migrated source")
-                ops.syncDirectory(parent)
-            }
-            // Keep cross-source dedup receipts until every known source removal is synced.
-            legacyFiles.indices.forEach { removeReceiptsForSource(it) }
-            imported
-        } } catch (failure: OutboxWriteException) {
-            coordinator.migrationBlocked = failure.failure.name
-            imported
-        }
-    }
-
-    private fun fingerprint(source: File): String {
-        val digest = java.security.MessageDigest.getInstance("SHA-256")
-        val buffer = ByteArray(65536)
-        source.inputStream().use { input ->
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
-
-    private fun receiptFiles(extension: String = "receipt") = active.listFiles()?.filter { it.isFile && it.extension == extension }
-        ?: if (active.exists()) throw IOException("Cannot enumerate migration receipts") else emptyList()
-
-    private fun receiptEntry(current: String, receipt: File) = decode(token(current, receipt), receipt)
-    private fun receiptParts(entry: OutboxEntry): List<String> {
-        if (entry.envelopeBytes.size > 256) throw OutboxWriteException(OutboxFailure.CORRUPT)
-        return entry.envelopeBytes.toString(Charsets.US_ASCII).split('|').also {
-            if (it.size != 4) throw OutboxWriteException(OutboxFailure.CORRUPT)
-        }
-    }
-    private fun importLegacyRecord(source: Int, fingerprint: String, record: LegacyEntryResult.Record): Boolean {
-        val current = currentGeneration(true) ?: throw OutboxWriteException(OutboxFailure.REVOKED)
-        val receiptId = UUID.nameUUIDFromBytes("$source:$fingerprint:${record.offset}".toByteArray()).toString()
-        val receiptToken = OutboxToken(current, receiptId)
-        val receipt = File(active, "$receiptId.receipt")
-        if (receipt.exists()) {
-            val prior = receiptEntry(current, receipt)
-            if (prior.reportId != record.entry.reportId || prior.idempotencyKey != record.entry.idempotencyKey) {
-                throw OutboxWriteException(OutboxFailure.CORRUPT)
-            }
-            ops.syncFile(receipt); ops.syncDirectory(active)
-            return false
-        }
-        var alreadyDelivered = false
-        for (prior in receiptFiles()) {
-            val entry = receiptEntry(current, prior)
-            if (entry.reportId == record.entry.reportId) {
-                if (entry.idempotencyKey != record.entry.idempotencyKey) throw OutboxWriteException(OutboxFailure.INVALID_ENTRY)
-                alreadyDelivered = true
-            }
-        }
-        var existing: OutboxToken? = null
-        for (committed in committedFiles()) {
-            val decoded = decode(token(current, committed), committed)
-            if (decoded.reportId == record.entry.reportId) {
-                if (decoded != record.entry) throw OutboxWriteException(OutboxFailure.INVALID_ENTRY)
-                existing = token(current, committed)
-                break
-            }
-        }
-        val candidate = existing ?: OutboxToken(current, UUID.randomUUID().toString())
-        val metadata = record.entry.copy(envelopeBytes = "$source|$fingerprint|${record.offset}|${candidate.fileId}".toByteArray(), attachmentRefs = emptyList())
-        val receiptBytes = cipher.encryptedSize(metadata)
-        val candidateBytes = if (existing != null || alreadyDelivered) 0L else cipher.encryptedSize(record.entry)
-        if ((!alreadyDelivered && existing == null && committedFiles().size >= maxEntries) ||
-            physicalUsage() > maxTotalBytes - maintenanceReserveBytes - receiptBytes - candidateBytes) {
-            throw OutboxWriteException(OutboxFailure.CAPACITY)
-        }
-        checkAllowed(MIGRATION_ALLOWED)
-        // An encrypted intent retains the exact candidate token across commit-before-receipt death.
-        // Recovery finalizes it before any snapshot can expose that candidate to a drain.
-        val intent = File(active, "$receiptId.intent")
-        intent.outputStream().use { cipher.write(metadata, receiptToken, it) }
-        ops.syncFile(intent); ops.syncDirectory(active)
-        if (!alreadyDelivered) enqueueLocked(record.entry, MIGRATION_ALLOWED, candidate)
-        checkAllowed(MIGRATION_ALLOWED)
-        ops.renameAtomic(intent, receipt); ops.syncFile(receipt); ops.syncDirectory(active)
-        return existing == null && !alreadyDelivered
-    }
-
-    private fun recoverReceiptIntents() {
-        val intents = receiptFiles("intent")
-        if (intents.isEmpty()) return
-        val current = currentGeneration(false) ?: throw OutboxWriteException(OutboxFailure.REVOKED)
-        for (intent in intents) {
-            val metadata = receiptEntry(current, intent)
-            val candidate = OutboxToken(current, receiptParts(metadata)[3])
-            if (file(candidate).isFile) {
-                // Admission's rename might have reached disk before its own directory sync.
-                ops.syncFile(file(candidate)); ops.syncDirectory(active)
-                ops.renameAtomic(intent, File(active, "${intent.nameWithoutExtension}.receipt"))
-                ops.syncDirectory(active)
-            } else {
-                if (!intent.delete()) throw IOException("Cannot remove uncommitted migration intent")
-                ops.syncDirectory(active)
-            }
-        }
-    }
-    private fun removeReceiptsForSource(source: Int) {
-        val receipts = receiptFiles()
-        if (receipts.isEmpty()) return
-        val current = currentGeneration(false) ?: throw OutboxWriteException(OutboxFailure.REVOKED)
-        for (receipt in receipts) {
-            if (receiptParts(receiptEntry(current, receipt))[0] == source.toString()) {
-                if (!receipt.delete()) throw IOException("Cannot remove completed migration receipt")
-                ops.syncDirectory(active)
-            }
-        }
-    }
-    private fun physicalUsage(): Long {
-        var total = physicalBytes(root)
-        for (source in legacyFiles) {
-            // Locators are external to the encrypted root; never omit inherited upgrade debt.
-            val size = if (source.isDirectory) physicalBytes(source) else source.length()
-            if (total > Long.MAX_VALUE - size) throw OutboxWriteException(OutboxFailure.CAPACITY)
-            total += size
-        }
-        return total
-    }
+    private fun physicalUsage(): Long = physicalBytes(root)
 
     fun snapshotTokens(diagnostics: ReportDiagnostics.Handle? = null): List<OutboxToken> =
         observingFailure(diagnostics, QueueOperation.READ_FAILED) { locked {
@@ -349,9 +177,6 @@ internal class OutboxStore(
     /** No root was ever created and no revocation is pending, so erasure has nothing to remove. */
     fun isAbsent(): Boolean = !isRevocationPending() && !root.exists()
 
-    /** A permanent nonsensitive kill history for O5's legacy migration suppression. */
-    fun hasRevocationHistory(): Boolean = locked { File(root, "kill.history").exists() || File(root, "kill.pending").exists() }
-
     fun revokeSync() {
         invalidateSync()
         val revokingEpoch = coordinator.epoch.get()
@@ -394,13 +219,6 @@ internal class OutboxStore(
     }
 
     private fun retireRevokedGeneration() {
-        val history = File(root, "kill.history")
-        if (!history.exists() && !history.createNewFile()) throw IOException("Cannot record kill history")
-        ops.syncFile(history)
-        ops.syncDirectory(root)
-        // Kill history permanently suppresses legacy import; earlier debt is no longer current.
-        coordinator.migrationObserved = false
-        coordinator.migrationBlocked = null
         val old = diskGeneration()
         if (old != null) keyOperation { keys.deleteGeneration(old) }
         if (active.exists()) ops.renameAtomic(active, File(root, "${UUID.randomUUID()}.revoked"))
@@ -525,7 +343,6 @@ internal class OutboxStore(
                         retireRevokedGeneration()
                     }
                     cleanup(root)
-                    if (recoverIntent) recoverReceiptIntents()
                     action()
                 }
             }
@@ -566,12 +383,8 @@ internal class OutboxStore(
         val drain = Mutex()
         val epoch = AtomicLong(0)
         val completedEpoch = AtomicLong(0)
-        // Last legacy migration outcome for this root; written only while holding [lock].
-        @Volatile var migrationObserved = false
-        @Volatile var migrationBlocked: String? = null
     }
     private companion object {
-        val MIGRATION_ALLOWED = object : OutboxAuthorization { override fun isAllowed() = true }
         const val MAINTENANCE_RESERVE = 1024L * 1024
         val coordinators = ConcurrentHashMap<String, Coordinator>()
     }

@@ -27,7 +27,7 @@ struct KmpNativeProbeView: View {
                 started = client.start(config: EverframeKmpConfig(
                     appId: ProcessInfo.processInfo.environment["EVERFRAME_APP_ID"] ?? "kmp-native-probe",
                     sdkKey: ProcessInfo.processInfo.environment["EVERFRAME_SDK_KEY"] ?? "txx_live_" + String(repeating: "0", count: 32),
-                    environment: "development"))
+                    environment: "development", debugBuild: nil))
                 reporterStatus = started ? "started" : "start blocked"
             }
             Button("Next screen") {

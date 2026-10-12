@@ -404,6 +404,7 @@ public enum CrashReporter {
             return nativeExposure
         }()
         let crash = EverframeCrash(
+            androidNative: nil,
             causeChain: resolvedCauses,
             details: resolvedDetails,
             exceptionType: cappedExceptionType,
@@ -415,6 +416,7 @@ public enum CrashReporter {
             jvm: nil,
             mechanism: mechanism,
             message: message,
+            native: nil,
             occurredAt: parseOccurredAt(occurredAt),
             threadName: nil
         )

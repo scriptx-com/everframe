@@ -13,7 +13,7 @@ export type ReportQueueOperation = typeof queueOperations[number];
 export type ReportStorageFailure = typeof storageFailures[number];
 export type ReportTransportOrigin = typeof transportOrigins[number];
 export type ReportTransportOutcome = typeof transportOutcomes[number];
-export type ReportDeliveryReason = 'none' | 'no-start' | 'capture-disabled' | 'no-mount' | 'platform' | 'native-method-missing' | 'native-call-failed' | 'invalid-native-snapshot' | 'snapshot-busy';
+export type ReportDeliveryReason = 'none' | 'no-start' | 'capture-disabled' | 'no-mount' | 'platform' | 'native-call-failed' | 'invalid-native-snapshot' | 'snapshot-busy';
 export interface ReportCapturePathStatus {
   supported: boolean;
   settledAttempts: number;
@@ -29,7 +29,6 @@ export interface ReportQueueStatus {
   terminalHttpPolicy: 'retain' | 'attempt-remove' | 'unknown';
   operations: Record<ReportQueueOperation, number>;
   lastFailure?: ReportStorageFailure;
-  migration: 'not-observed' | 'clear' | 'blocked' | 'unknown';
 }
 export interface ReportTransportStatus {
   settledAttempts: number;
@@ -73,7 +72,7 @@ export function emptyReportDeliveryStatus(status: ReportDeliveryStatus['status']
   return {
     schemaVersion: 1, status, reason, scope: 'native-runtime-observations', coverage: 'best-effort', revision: 0,
     capture: { enabled: false, paths: mapKeys(capturePaths, () => ({ supported: false, settledAttempts: 0, outcomes: mapKeys(captureOutcomes, () => 0) })) },
-    queue: { scope: 'sdk-report-outbox', observation: 'not-observed', quality: 'unknown', capacityPolicy: 'unknown', terminalHttpPolicy: 'unknown', operations: mapKeys(queueOperations, () => 0), migration: 'not-observed' },
+    queue: { scope: 'sdk-report-outbox', observation: 'not-observed', quality: 'unknown', capacityPolicy: 'unknown', terminalHttpPolicy: 'unknown', operations: mapKeys(queueOperations, () => 0) },
     transport: mapKeys(transportOrigins, () => ({ settledAttempts: 0, outcomes: mapKeys(transportOutcomes, () => 0) })),
   };
 }
@@ -138,7 +137,7 @@ export function parseReportDeliveryStatus(json: unknown): ReportDeliveryStatus |
       if (!result.supported && result.settledAttempts !== 0) throw new Error();
       return result;
     });
-    const rawQueue = record(input.queue, ['scope', 'observation', 'quality', 'capacityPolicy', 'terminalHttpPolicy', 'operations', 'migration'], ['pendingCount', 'lastFailure']);
+    const rawQueue = record(input.queue, ['scope', 'observation', 'quality', 'capacityPolicy', 'terminalHttpPolicy', 'operations'], ['pendingCount', 'lastFailure']);
     if (rawQueue.scope !== 'sdk-report-outbox') return null;
     const queue: ReportQueueStatus = {
       scope: 'sdk-report-outbox', observation: enumeration(rawQueue.observation, ['not-observed', 'observed', 'failed']),
@@ -146,7 +145,6 @@ export function parseReportDeliveryStatus(json: unknown): ReportDeliveryStatus |
       capacityPolicy: enumeration(rawQueue.capacityPolicy, ['reject-new', 'evict-oldest']),
       terminalHttpPolicy: enumeration(rawQueue.terminalHttpPolicy, ['retain', 'attempt-remove']),
       operations: counters(rawQueue.operations, queueOperations),
-      migration: enumeration(rawQueue.migration, ['not-observed', 'clear', 'blocked', 'unknown']),
       ...(hasOwn(rawQueue, 'pendingCount') ? { pendingCount: counter(rawQueue.pendingCount) } : {}),
       ...(hasOwn(rawQueue, 'lastFailure') ? { lastFailure: enumeration(rawQueue.lastFailure, storageFailures) } : {}),
     };

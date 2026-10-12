@@ -83,8 +83,7 @@ module.exports = ({ config }) => withEverframe(config, { appId: '00000000-0000-4
   including the Everframe SDK's.
 
 A missing `EVERFRAME_API_TOKEN` or a failed upload warns and the build
-continues, unless `EVERFRAME_SYMBOLS_STRICT=1`. Prebuild replaces the longer
-Gradle block and Xcode script that earlier versions generated. For an OTA
+continues, unless `EVERFRAME_SYMBOLS_STRICT=1`. For an OTA
 export, use `upload-expo-export` after export and before promotion. Artifact
 upload and OTA publication are separate operations. Upload readiness confirms
 artifact processing, not that a device installed the update.

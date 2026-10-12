@@ -36,11 +36,4 @@ final class DebugBuildTests: XCTestCase {
         XCTAssertNil(EverframeConfig(sdkKey: "evf_live_" + String(repeating: "a", count: 32)).debugBuild)
         XCTAssertEqual(EverframeConfig(sdkKey: "evf_live_" + String(repeating: "a", count: 32), debugBuild: false).debugBuild, false)
     }
-    /// The deprecated spelling forwards it too.
-    @available(*, deprecated)
-    func testDeprecatedInitializerForwardsDebugBuild() {
-        let key = "evf_live_" + String(repeating: "a", count: 32)
-        XCTAssertNil(EverframeConfig(appId: key).debugBuild)
-        XCTAssertEqual(EverframeConfig(appId: key, debugBuild: true).debugBuild, true)
-    }
 }

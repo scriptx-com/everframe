@@ -168,14 +168,7 @@ public enum EFReporterPresenter {
         // section include-switches. The sticky state is consumed once per
         // open — same auto-clear semantics as before; what changes is where
         // in the flow the drain happens.
-        //
-        // The second element (a host-attached React fiber tree) is drained and
-        // DISCARDED: tap-to-identify is gone (spec 2026-08-29) and nothing
-        // consumes `payload.reactTree` any more. `Everframe.attachReactTree`
-        // stays on the native public surface for pure-native hosts (the RN
-        // TurboModule method is gone); draining keeps its consume-once
-        // contract honest.
-        let (hostExtra, _) = await Everframe.shared.__consumePendingAttachments()
+        let hostExtra = await Everframe.shared.__consumePendingAttachments()
         let hostExtraNormalized = (hostExtra?.isEmpty == true) ? nil : hostExtra
 
         // Flip presenting=true now that capture is done and we are about to

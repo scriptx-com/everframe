@@ -72,7 +72,7 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("networkBodiesDisabled", true)
-        module.configure(opts)
+        module.configureSync(opts)
         assertFalse(Everframe.currentConfig!!.capture.networkBodies)
     }
 
@@ -84,7 +84,7 @@ class EverframeModuleConfigureTest {
     fun networkBodiesDefaultsToEnabledWhenTheFlagIsAbsent() {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.capture.networkBodies)
     }
 
@@ -97,7 +97,7 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("networkBodiesDisabled", false)
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.capture.networkBodies)
     }
 
@@ -115,7 +115,7 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("installIdentifierDisabled", true)
-        module.configure(opts)
+        module.configureSync(opts)
         assertFalse(Everframe.currentConfig!!.installIdentifierEnabled)
     }
 
@@ -127,7 +127,7 @@ class EverframeModuleConfigureTest {
     fun installIdentifierDefaultsToEnabledWhenTheFlagIsAbsent() {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.installIdentifierEnabled)
     }
 
@@ -140,7 +140,7 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("installIdentifierDisabled", false)
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.installIdentifierEnabled)
     }
 
@@ -150,7 +150,7 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("crashReportingDisabled", true)
-        module.configure(opts)
+        module.configureSync(opts)
         assertFalse(Everframe.currentConfig!!.capture.crash)
     }
 
@@ -158,7 +158,7 @@ class EverframeModuleConfigureTest {
     fun crashCaptureDefaultsToOnWhenTheFlagIsAbsent() {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.capture.crash)
     }
 
@@ -167,7 +167,7 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("crashReportingDisabled", false)
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.capture.crash)
     }
 
@@ -177,7 +177,7 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("reporterDisabled", true)
-        module.configure(opts)
+        module.configureSync(opts)
         assertFalse(Everframe.currentConfig!!.reporterEnabled)
     }
 
@@ -185,7 +185,7 @@ class EverframeModuleConfigureTest {
     fun reporterDefaultsToOnWhenTheFlagIsAbsent() {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.reporterEnabled)
     }
 
@@ -194,16 +194,16 @@ class EverframeModuleConfigureTest {
         val opts = JavaOnlyMap()
         opts.putString("sdkKey", "k")
         opts.putBoolean("reporterDisabled", false)
-        module.configure(opts)
+        module.configureSync(opts)
         assertTrue(Everframe.currentConfig!!.reporterEnabled)
     }
 
     /** The switch is part of the installed config, so changing it restarts rather than being skipped as a remount. */
     @Test
     fun turningTheReporterOffRestartsARunningSdk() {
-        module.configure(JavaOnlyMap.of("sdkKey", "k"))
+        module.configureSync(JavaOnlyMap.of("sdkKey", "k"))
         assertTrue(Everframe.currentConfig!!.reporterEnabled)
-        module.configure(JavaOnlyMap.of("sdkKey", "k", "reporterDisabled", true))
+        module.configureSync(JavaOnlyMap.of("sdkKey", "k", "reporterDisabled", true))
         assertFalse(Everframe.currentConfig!!.reporterEnabled)
     }
 
@@ -213,7 +213,7 @@ class EverframeModuleConfigureTest {
      */
     @Test
     fun openReporterRejectsWithTheReporterDisabledCodeInACrashOnlySession() {
-        module.configure(JavaOnlyMap.of("sdkKey", "k", "reporterDisabled", true))
+        module.configureSync(JavaOnlyMap.of("sdkKey", "k", "reporterDisabled", true))
         var opened = 0
         val previousResolver = Everframe.report.__resolver
         Everframe.report.__resolver = { opened++; dev.everframe.config.ReportResult.Cancelled("user") }
@@ -233,7 +233,7 @@ class EverframeModuleConfigureTest {
     }
 
     @Test
-    fun additiveConfigureSyncAcknowledgesCompletedStartupAndPreservesLegacyDescriptor() {
+    fun configureSyncAcknowledgesCompletedStartup() {
         val opts = JavaOnlyMap.of("sdkKey", "k")
         assertTrue(module.configureSync(opts))
         assertTrue(Everframe.captureGate)
@@ -242,10 +242,6 @@ class EverframeModuleConfigureTest {
         assertEquals(Boolean::class.javaPrimitiveType, sync.returnType)
         val syncAnnotation = requireNotNull(sync.getAnnotation(ReactMethod::class.java))
         assertTrue(syncAnnotation.isBlockingSynchronousMethod)
-
-        val legacy = EverframeModule::class.java.getMethod("configure", ReadableMap::class.java)
-        assertEquals(Void.TYPE, legacy.returnType)
-        val legacyAnnotation = requireNotNull(legacy.getAnnotation(ReactMethod::class.java))
-        assertFalse(legacyAnnotation.isBlockingSynchronousMethod)
+        assertTrue(EverframeModule::class.java.methods.none { it.name == "configure" })
     }
 }

@@ -190,61 +190,15 @@ class OutboxKeyBindingTest {
         assertEquals("https://a.example.com", out[0].endpoint)
     }
 
-    /** Missing captured routes must block migration without deleting the legacy evidence. */
+    /** A crash written through the sidecar carries its key into the shared outbox. */
     @Test
-    fun `legacy line missing only sdkKey is blocked and preserved`() = runTest {
-        val json = Json.encodeToString(OutboxEntry.serializer(), entry())
-        val legacy = json.replace(Regex(""","sdkKey":"[^"]*""""), "")
-        assertEquals("sdkKey must be stripped", false, legacy.contains("sdkKey"))
-        assertEquals("endpoint must survive untouched", true, legacy.contains("\"endpoint\":\"https://a.example.com\""))
-
-        val f = File(tmp.newFolder(), "outbox.jsonl")
-        f.parentFile?.mkdirs()
-        f.writeText(legacy + "\n")
-
-        assertEquals(
-            "an entry missing only sdkKey cannot be routed and must not hydrate",
-            0,
-            JSONLOutbox(f, keys = JceTestOutboxKeyProvider(), ops = JvmOutboxFileOps()).hydrate().size,
-        )
-        org.junit.Assert.assertEquals(legacy + "\n", f.readText())
-    }
-
-    @Test
-    fun `legacy line missing only endpoint is blocked and preserved`() = runTest {
-        val json = Json.encodeToString(OutboxEntry.serializer(), entry())
-        val legacy = json.replace(Regex(""","endpoint":"[^"]*""""), "")
-        assertEquals("endpoint must be stripped", false, legacy.contains("endpoint"))
-        assertEquals("sdkKey must survive untouched", true, legacy.contains("\"sdkKey\":\"key-A\""))
-
-        val f = File(tmp.newFolder(), "outbox.jsonl")
-        f.parentFile?.mkdirs()
-        f.writeText(legacy + "\n")
-
-        assertEquals(
-            "an entry missing only endpoint cannot be routed and must not hydrate",
-            0,
-            JSONLOutbox(f, keys = JceTestOutboxKeyProvider(), ops = JvmOutboxFileOps()).hydrate().size,
-        )
-        org.junit.Assert.assertEquals(legacy + "\n", f.readText())
-    }
-
-    /**
-     * Crash reports leak by exactly the same route as reporter submissions:
-     * `CrashSidecar` writes the same `OutboxEntry` type and `hydrateInto`
-     * feeds those entries into the main outbox on next launch. So the key has
-     * to survive that hop, not just the direct enqueue path.
-     */
-    @Test
-    fun `sidecar entries carry the key through hydrateInto`() = runTest {
+    fun `sidecar entries carry the key`() = runTest {
         val dir = tmp.newFolder()
-        val sidecar = CrashSidecar(File(dir, "crash-outbox.jsonl"))
-        File(dir, "crash-outbox.jsonl").writeText(Json.encodeToString(OutboxEntry.serializer(),
-            entry(sdkKey = "key-crash", reportId = "r-crash")) + "\n")
+        val keys = JceTestOutboxKeyProvider()
+        val sidecar = CrashSidecar(File(dir, "crash-outbox.jsonl"), keys, JvmOutboxFileOps())
+        assertEquals(true, sidecar.appendSyncAccepted(entry(sdkKey = "key-crash", reportId = "r-crash")))
 
-        val box = JSONLOutbox(File(dir, "outbox.jsonl"), keys = JceTestOutboxKeyProvider(), ops = JvmOutboxFileOps())
-        assertEquals(1, sidecar.hydrateInto(box))
-
+        val box = JSONLOutbox(File(dir, "outbox.jsonl"), keys = keys, ops = JvmOutboxFileOps())
         val out = box.hydrate()
         assertEquals(1, out.size)
         assertEquals("key-crash", out[0].sdkKey)

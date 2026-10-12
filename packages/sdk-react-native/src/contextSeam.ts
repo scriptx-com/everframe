@@ -25,12 +25,11 @@ export { EverframeNotMountedError, EverframeReporterDisabledError };
 
 /** Shape exposed via `useEverframe()` and the top-level `open` re-export. */
 export interface EverframeContextValue {
-  /** Cached native delivery observations, independent of JS admission; optional for older context implementations. */
-  getReportDeliveryStatus?(): ReportDeliveryStatus;
-  /** Local admission only; optional for older context implementations. */
-  getErrorCaptureStatus?(): ErrorCaptureStatus;
-  /** Optional for compatibility with existing context implementations. */
-  getPromiseRejectionStatus?(): PromiseRejectionStatus;
+  /** Cached native delivery observations, independent of JS admission. */
+  getReportDeliveryStatus(): ReportDeliveryStatus;
+  /** Local admission only. */
+  getErrorCaptureStatus(): ErrorCaptureStatus;
+  getPromiseRejectionStatus(): PromiseRejectionStatus;
   /** Capture a handled exception without opening the reporter. No-op outside the owning mount. */
   captureException(error: unknown, options?: CaptureExceptionOptions): void;
   /**
@@ -121,7 +120,7 @@ export function __getContextEpoch(): object { return __contextEpoch; }
 /** Bounded coverage status only; does not install an observer or report delivery. */
 export function getPromiseRejectionStatus(): PromiseRejectionStatus {
   try {
-    return __currentContext?.getPromiseRejectionStatus?.() ?? emptyPromiseRejectionStatus('not-mounted', 'no-mount');
+    return __currentContext?.getPromiseRejectionStatus() ?? emptyPromiseRejectionStatus('not-mounted', 'no-mount');
   } catch {
     return emptyPromiseRejectionStatus('install-failed', 'hook-install');
   }
@@ -209,7 +208,7 @@ export function captureException(error: unknown, options?: CaptureExceptionOptio
 
 /** Detached local admission snapshot. Does not query native delivery or install hooks. */
 export function getErrorCaptureStatus(): ErrorCaptureStatus {
-  try { return __currentContext?.getErrorCaptureStatus?.() ?? emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
+  try { return __currentContext?.getErrorCaptureStatus() ?? emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
   catch { return emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
 }
 
@@ -217,7 +216,7 @@ export function getErrorCaptureStatus(): ErrorCaptureStatus {
 export function getReportDeliveryStatus(): ReportDeliveryStatus {
   const owner = __currentContext;
   try {
-    const status = owner?.getReportDeliveryStatus?.();
+    const status = owner?.getReportDeliveryStatus();
     return owner === __currentContext && status ? status : emptyReportDeliveryStatus('not-mounted', 'no-mount');
   } catch { return emptyReportDeliveryStatus('unavailable', 'native-call-failed'); }
 }

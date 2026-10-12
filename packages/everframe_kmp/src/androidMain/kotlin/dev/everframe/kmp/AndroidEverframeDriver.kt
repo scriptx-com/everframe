@@ -47,7 +47,6 @@ class AndroidEverframeDriver(
         if (activity != null && started && Everframe.captureGate) beginCapture()
     }
 
-    // debugBuild is not forwarded: the pinned native SDK detects debug builds itself (FLAG_DEBUGGABLE).
     override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean {
         return try {
             val nativeEnvironment = Environment.entries.firstOrNull { it.name == environment } ?: return false
@@ -56,8 +55,9 @@ class AndroidEverframeDriver(
                 sdkKey = sdkKey,
                 environment = nativeEnvironment,
                 capture = CaptureConfig(screenshot = false, crash = true, network = true, networkBodies = false),
-                // When this plugin moves to native 1.2.0 or later, pass `releaseHealth = null`: release health
-                // is on by default from 1.2.0 and the plugin has no option for it yet.
+                // The plugin has no release-health option yet, so release health stays off.
+                releaseHealth = null,
+                debugBuild = debugBuild,
             ), hostActivity())
             Everframe.captureGate.also {
                 started = it

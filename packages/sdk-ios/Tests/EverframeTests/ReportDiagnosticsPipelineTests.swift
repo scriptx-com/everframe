@@ -51,11 +51,10 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
 
     func testUnsupportedPartialAndCorruptReadsDoNotInventEmptyQueues() throws {
         let queue = box()
-        try Data("legacy private content".utf8).write(to: queue.resolvedFileURL)
+        try Data("unreadable private content".utf8).write(to: queue.resolvedFileURL)
         XCTAssertEqual(try queue.hydrate(diagnostics: owner).count, 0)
         XCTAssertNil(ledger.snapshot().queue.pendingCount)
         XCTAssertEqual(ledger.snapshot().queue.quality, "unknown")
-        XCTAssertEqual(ledger.snapshot().queue.migration, "blocked")
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         let lines = try encoder.encode(entry()) + Data("\nmalformed private line\n".utf8)
         let sealed = try AES.GCM.seal(lines, using: SymmetricKey(data: Data(repeating: 0xA7, count: 32)), authenticating: Data("EVRBOX01".utf8))

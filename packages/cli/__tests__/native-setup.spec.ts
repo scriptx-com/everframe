@@ -26,8 +26,6 @@ const loadProject = () => {
   return project;
 };
 
-const LEGACY = join(__dirname, 'fixtures/legacy-build-artifacts');
-const LEGACY_APP = '00000000-0000-4000-8000-0000000000aa';
 const THIN_GRADLE = [
   '// @generated begin everframe-build-artifacts',
   'apply plugin: "dev.everframe"',
@@ -136,20 +134,6 @@ describe('patchAppBuildGradle', () => {
     expect(out.match(/@generated begin/g)).toHaveLength(1);
   });
 
-  it('replaces the long block earlier versions generated, and leaves the rest of the file alone', () => {
-    const legacy = readFileSync(join(LEGACY, 'app.build.gradle'), 'utf8');
-    const begin = legacy.indexOf('// @generated begin everframe-build-artifacts');
-    const endMarker = '// @generated end everframe-build-artifacts';
-    const end = legacy.indexOf(endMarker) + endMarker.length;
-    expect(legacy.slice(begin, end).split('\n')).toHaveLength(47);
-    const out = patchAppBuildGradle(legacy, APP);
-    expect(out).toBe(legacy.slice(0, begin) + THIN_GRADLE + legacy.slice(end));
-    expect(out).not.toContain('ProcessBuilder');
-    expect(out).not.toContain('afterEvaluate {\n  def everframe');
-    for (const token of ['{{CLIENT_ID}}', '{{VERSION_CODE}}', '{{VERSION_NAME}}']) expect(out).toContain(token);
-    expect(patchAppBuildGradle(out, APP)).toBe(out);
-  });
-
   it('fails clearly without the application plugin line', () => {
     expect(() => patchAppBuildGradle('android {}\n', APP)).toThrow(/com\.android\.application/);
   });
@@ -207,31 +191,6 @@ describe('patchXcodeProject', () => {
     expect(phaseScripts(project)).toEqual([`"${xcodePhaseScript(APP).replace(/"/g, '\\"')}"`]);
   });
 
-  it('replaces the long phase earlier versions generated, keeping placeholders and settings', () => {
-    const path = join(LEGACY, 'project.pbxproj');
-    const legacy = readFileSync(path, 'utf8');
-    expect(legacy).toContain('build collect --staging');
-    const project = xcode.project(path);
-    project.parseSync();
-    patchXcodeProject(project, LEGACY_APP);
-    const out: string = project.writeSync();
-    expect(phaseScripts(project)).toEqual([`"${xcodePhaseScript(LEGACY_APP).replace(/"/g, '\\"')}"`]);
-    expect(out).not.toContain('build collect');
-    expect(out).not.toContain('dsym upload-build');
-    expect(out.match(/Upload Everframe Build Artifacts \*\/,/g)).toHaveLength(1);
-    for (const token of ['{{TITLE}}', '{{CLIENT_ID}}', '{{DEVELOPMENT_TEAM}}']) expect(out.split(token).length).toBe(legacy.split(token).length);
-    // Only the phase script changed: the settings the old version wrote are already right.
-    const script = `\t\t\tshellScript = "${xcodePhaseScript(LEGACY_APP).replace(/"/g, '\\"')}";\n`;
-    const expected = legacy.replace(/\t\t\tshellScript = "set -euo pipefail\n[\s\S]*?\nexit 0";\n/, () => script);
-    expect(expected).not.toBe(legacy);
-    expect(out).toBe(expected);
-    const again = xcode.project(path);
-    again.parseSync();
-    patchXcodeProject(again, LEGACY_APP);
-    patchXcodeProject(again, LEGACY_APP);
-    expect(again.writeSync()).toBe(expected);
-  });
-
   it('keeps a SOURCEMAP_FILE the app already defines', () => {
     const project = loadProject();
     for (const s of appBuildSettings(project)) s.SOURCEMAP_FILE = '"custom.map"';
@@ -262,17 +221,17 @@ describe('patchRootBuildGradle', () => {
     expect(out.indexOf('react-native-gradle-plugin')).toBeLessThan(out.indexOf('dev.everframe:gradle-plugin'));
     expect(patchRootBuildGradle(out)).toBe(out);
   });
-  it('pins the Android SDK version this repository publishes', () => {
+  it('pins the Gradle plugin released with this CLI, on the shared version line', () => {
+    const { version } = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as { version: string };
     const properties = readFileSync(join(__dirname, '../../sdk-android/android/gradle.properties'), 'utf8');
-    expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()}`);
+    expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${version}`);
+    expect(/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()).toBe(version);
   });
-  it('keeps the classpath block of an earlier version in place and moves it to this version', () => {
-    const legacy = readFileSync(join(LEGACY, 'build.gradle'), 'utf8');
-    expect(legacy).toContain('classpath("dev.everframe:gradle-plugin:1.2.0")');
-    const out = patchRootBuildGradle(legacy);
-    expect(out).toBe(legacy.replace('dev.everframe:gradle-plugin:1.2.0', EVERFRAME_GRADLE_PLUGIN.replace('$', '$$$$')));
-    expect(out).toContain('{{ENV INJECTION}}');
-    expect(patchRootBuildGradle(out)).toBe(out);
+  it('moves an existing classpath block to this version in place', () => {
+    const current = patchRootBuildGradle(ROOT);
+    const older = current.replace(EVERFRAME_GRADLE_PLUGIN, 'dev.everframe:gradle-plugin:0.0.1');
+    expect(older).not.toBe(current);
+    expect(patchRootBuildGradle(older)).toBe(current);
   });
   it('fails clearly without the React Native classpath line', () => {
     expect(() => patchRootBuildGradle('buildscript {}\n')).toThrow(/react-native-gradle-plugin/);

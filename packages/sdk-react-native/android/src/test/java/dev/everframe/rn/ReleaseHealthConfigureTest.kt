@@ -44,7 +44,7 @@ class ReleaseHealthConfigureTest {
         assertEquals(ReleaseHealthBundleStatus.KNOWN, health.loadedBundleStatus)
         assertEquals("opaque-a", health.userId)
         assertFalse(health.includeDebugBuilds)
-        module.configure(enabled())
+        module.configureSync(enabled())
         assertSame(installed, Everframe.currentConfig)
         opts.putString("releaseHealthUserId", "changed")
         assertEquals("opaque-a", Everframe.currentConfig!!.releaseHealth!!.userId)
@@ -113,7 +113,7 @@ class ReleaseHealthConfigureTest {
             putNull("releaseHealthUserId")
             putString("releaseHealthLoadedBuildId", "loaded-\uD83D\uDE80")
         }
-        module.configure(opts)
+        module.configureSync(opts)
         assertNull(Everframe.currentConfig!!.releaseHealth!!.userId)
         assertEquals("loaded-\uD83D\uDE80", Everframe.currentConfig!!.releaseHealth!!.loadedBuildId)
     }

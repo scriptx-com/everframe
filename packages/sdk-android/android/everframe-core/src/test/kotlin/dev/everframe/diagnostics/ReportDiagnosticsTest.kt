@@ -59,11 +59,11 @@ class ReportDiagnosticsTest {
     @Test fun oldQueueSnapshotAndNestedMapsStayDetached() {
         val ledger = ReportDiagnostics()
         val owner = ledger.beginGeneration(1, true)
-        owner.queueObserved(3, QueueQuality.PARTIAL)
+        owner.queueObserved(3, QueueQuality.UNKNOWN)
         val before = ledger.snapshot()
         owner.queueObserved(0, QueueQuality.COMPLETE)
         assertEquals(3, before.queue.pendingCount)
-        assertEquals("partial", before.queue.quality)
+        assertEquals("unknown", before.queue.quality)
         assertEquals(0, ledger.snapshot().queue.pendingCount)
         runCatching { (before.capture.paths as MutableMap).clear() }
         runCatching { (before.queue.operations as MutableMap)["enqueue-failed"] = 99 }

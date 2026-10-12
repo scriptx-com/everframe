@@ -45,7 +45,7 @@ vi.mock('../src/mount/react-island.js', () => ({
 
 import { init, type Everframe, type InternalHandle } from '../src/init.js';
 import { __internalClientState } from '@everframe/sdk-core';
-import { REPORTER_TOKEN_STORAGE_KEY } from '../src/reporter/credential-store.js';
+import { scopedReporterTokenStorageKey } from '../src/reporter/credential-store.js';
 
 let handles: Everframe[] = [];
 function mount(): InternalHandle {
@@ -134,7 +134,7 @@ function shadow(): ShadowRoot {
  * the click a user actually performs.
  */
 async function fabWithThread(): Promise<HTMLButtonElement> {
-  localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
+  localStorage.setItem(scopedReporterTokenStorageKey('txx_live_island_failure'), `evr_${'0'.repeat(36)}`);
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {

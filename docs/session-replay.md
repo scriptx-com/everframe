@@ -20,8 +20,8 @@ Replay is off until you turn it on for an app in the dashboard, under the app's
   turned the bug reporter off. See [Crash-only sessions](#crash-only-sessions).
 - **Length:** the last 15, 30 or 60 seconds.
 - **Frame rate** (native video): 1, 2, 5 or 10 frames per second. The server
-  default is 2 for SDKs that support these rates; older SDKs receive 5. The
-  iOS SDK's local fallback is still 5 if the server omits the native-video
+  default is 2 for SDKs that declare the low rates (`nativevideolowfps`) and 5
+  for those that do not. The iOS SDK's local fallback is still 5 if the server omits the native-video
   setting; Android requires that setting to record native video.
   Lower rates capture fewer frames and use a lower encoding bitrate below
   5 fps; 5 or 10 capture more of quick taps and scrolling.

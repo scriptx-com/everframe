@@ -2045,7 +2045,7 @@ public extension EverframeNativeCrashMetadata {
         images: [EverframeNativeCrashImage]? = nil,
         imagesIncomplete: Bool? = nil,
         platform: EverframeNativeCrashPlatform? = nil,
-        releaseHealthEvidence: EverframeNativeCrashReleaseHealthEvidence??,
+        releaseHealthEvidence: EverframeNativeCrashReleaseHealthEvidence?? = nil,
         timestampMicros: String? = nil
     ) -> EverframeNativeCrashMetadata {
         return EverframeNativeCrashMetadata(
@@ -2068,20 +2068,6 @@ public extension EverframeNativeCrashMetadata {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
-}
-
-public extension EverframeNativeCrashMetadata {
-    init(crashedThreadIndex: Int, error: EverframeNativeCrashError, frames: [EverframeNativeCrashFrame], framesIncomplete: Bool, images: [EverframeNativeCrashImage], imagesIncomplete: Bool, platform: EverframeNativeCrashPlatform, timestampMicros: String) { self.init(crashedThreadIndex: crashedThreadIndex, error: error, frames: frames, framesIncomplete: framesIncomplete, images: images, imagesIncomplete: imagesIncomplete, platform: platform, releaseHealthEvidence: nil, timestampMicros: timestampMicros) }
-    func with(
-        crashedThreadIndex: Int? = nil,
-        error: EverframeNativeCrashError? = nil,
-        frames: [EverframeNativeCrashFrame]? = nil,
-        framesIncomplete: Bool? = nil,
-        images: [EverframeNativeCrashImage]? = nil,
-        imagesIncomplete: Bool? = nil,
-        platform: EverframeNativeCrashPlatform? = nil,
-        timestampMicros: String? = nil
-    ) -> EverframeNativeCrashMetadata { return self.with(crashedThreadIndex: crashedThreadIndex, error: error, frames: frames, framesIncomplete: framesIncomplete, images: images, imagesIncomplete: imagesIncomplete, platform: platform, releaseHealthEvidence: .some(self.releaseHealthEvidence), timestampMicros: timestampMicros) }
 }
 
 // MARK: - EverframeNativeCrashError
@@ -2520,7 +2506,7 @@ public struct EverframeDiagnosticEvidence: Codable {
         case provenance, scope, trace, version
     }
 
-    public init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, nativeExposure: EverframeNativeExposure?, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
+    public init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, nativeExposure: EverframeNativeExposure? = nil, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
         self.android = android
         self.attribution = attribution
         self.cause = cause
@@ -2563,7 +2549,7 @@ public extension EverframeDiagnosticEvidence {
         collectedAt: Date? = nil,
         evidenceID: String? = nil,
         kind: EverframeDiagnosticKind? = nil,
-        nativeExposure: EverframeNativeExposure??,
+        nativeExposure: EverframeNativeExposure?? = nil,
         occurredAt: Date? = nil,
         outcome: EverframeOutcome? = nil,
         processLaunchID: String? = nil,
@@ -2596,30 +2582,6 @@ public extension EverframeDiagnosticEvidence {
 
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
-    }
-}
-
-public extension EverframeDiagnosticEvidence {
-    init(android: EverframeAndroid, attribution: EverframeAttribution, cause: EverframeDiagnosticCause, collectedAt: Date, evidenceID: String, kind: EverframeDiagnosticKind, occurredAt: Date, outcome: EverframeOutcome, processLaunchID: String, provenance: EverframeProvenance, scope: EverframeScope, trace: EverframeTrace, version: Double) {
-        self.init(android: android, attribution: attribution, cause: cause, collectedAt: collectedAt, evidenceID: evidenceID, kind: kind, nativeExposure: nil, occurredAt: occurredAt, outcome: outcome, processLaunchID: processLaunchID, provenance: provenance, scope: scope, trace: trace, version: version)
-    }
-
-    func with(
-        android: EverframeAndroid? = nil,
-        attribution: EverframeAttribution? = nil,
-        cause: EverframeDiagnosticCause? = nil,
-        collectedAt: Date? = nil,
-        evidenceID: String? = nil,
-        kind: EverframeDiagnosticKind? = nil,
-        occurredAt: Date? = nil,
-        outcome: EverframeOutcome? = nil,
-        processLaunchID: String? = nil,
-        provenance: EverframeProvenance? = nil,
-        scope: EverframeScope? = nil,
-        trace: EverframeTrace? = nil,
-        version: Double? = nil
-    ) -> EverframeDiagnosticEvidence {
-        return self.with(android: android, attribution: attribution, cause: cause, collectedAt: collectedAt, evidenceID: evidenceID, kind: kind, nativeExposure: .some(self.nativeExposure), occurredAt: occurredAt, outcome: outcome, processLaunchID: processLaunchID, provenance: provenance, scope: scope, trace: trace, version: version)
     }
 }
 

@@ -5,7 +5,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   createLocalStorageCredentialStore,
   scopedReporterTokenStorageKey,
-  LEGACY_REPORTER_TOKEN_STORAGE_KEY,
   getOrCreateInstallSeed,
   deriveWebInstallId,
   scopedInstallSeedStorageKey,
@@ -106,30 +105,6 @@ describe('createLocalStorageCredentialStore', () => {
       expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_B))).toBe(tokenB);
     });
 
-    it('migrates a legacy unscoped token into the scoped key exactly once, then removes the legacy key', async () => {
-      const legacyToken = 'evr_' + 'e'.repeat(43);
-      localStorage.setItem(LEGACY_REPORTER_TOKEN_STORAGE_KEY, legacyToken);
-
-      const store = createLocalStorageCredentialStore(SCOPE_A)!;
-      expect(await store.load()).toBe(legacyToken);
-      expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_A))).toBe(legacyToken);
-      expect(localStorage.getItem(LEGACY_REPORTER_TOKEN_STORAGE_KEY)).toBeNull();
-
-      // A second app scope must NOT also adopt the (already-migrated-away) legacy
-      // token — it's gone, so a fresh store for a different scope starts empty.
-      const otherStore = createLocalStorageCredentialStore(SCOPE_B)!;
-      expect(await otherStore.load()).toBeNull();
-    });
-
-    it('does not overwrite an existing scoped token with a stale legacy token', async () => {
-      const scopedToken = 'evr_' + 'f'.repeat(43);
-      const legacyToken = 'evr_' + 'g'.repeat(43);
-      localStorage.setItem(scopedReporterTokenStorageKey(SCOPE_A), scopedToken);
-      localStorage.setItem(LEGACY_REPORTER_TOKEN_STORAGE_KEY, legacyToken);
-
-      const store = createLocalStorageCredentialStore(SCOPE_A)!;
-      expect(await store.load()).toBe(scopedToken);
-    });
   });
 
   // PR review Finding (round 5): on an opaque/sandboxed origin, the

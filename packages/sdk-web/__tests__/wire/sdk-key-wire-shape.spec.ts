@@ -2,16 +2,14 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 //
-// The config field is `sdkKey`, but the wire did not change with it. Published
-// clients (SDK 1.1.0 and earlier) and this one must look identical to the
-// server: the key travels as `Authorization: Bearer <key>`, and on the vitals
+// The SDK key travels as `Authorization: Bearer <key>`, and on the vitals
 // beacon, which cannot set headers, as the body field `apiKey` beside
 // `payload`. Nothing sends a field called `sdkKey`. These tests pin that from
 // the public config down to the request.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VitalsIngestRequest, type SessionSummary } from '@everframe/protocol';
 import { init } from '../../src/init.js';
-import type { Everframe, InternalHandle } from '../../src/init.js';
+import type { Everframe } from '../../src/init.js';
 import { createVitalsTransport } from '../../src/vitals/transport.js';
 
 const KEY = 'evf_live_' + 'k'.repeat(32);
@@ -68,19 +66,6 @@ describe('sdkKey on the wire', () => {
       expect(call.headers.has('sdkKey')).toBe(false);
       if (typeof call.body === 'string') expect(call.body).not.toContain('sdkKey');
     }
-  });
-
-  it('the deprecated apiKey alias authorizes the same way as sdkKey', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    handles.push(init({ apiKey: KEY, appVersion: '1.0.0' }));
-    await vi.waitFor(() => expect(calls.some((c) => c.url.includes('/api/config'))).toBe(true));
-    const config = calls.find((c) => c.url.includes('/api/config'))!;
-    expect(config.headers.get('Authorization')).toBe(`Bearer ${KEY}`);
-    const resolved = (handles[0] as InternalHandle).__config;
-    expect(resolved.sdkKey).toBe(KEY);
-    expect('apiKey' in resolved).toBe(false);
-    expect(warn.mock.calls.some(([message]) => String(message).includes('rename it to `sdkKey`'))).toBe(true);
-    warn.mockRestore();
   });
 
   it('the vitals beacon body is exactly { apiKey, payload } and the server schema accepts it', async () => {

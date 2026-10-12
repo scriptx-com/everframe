@@ -85,13 +85,13 @@ class JSONLOutboxTest {
     }
 
     @Test
-    fun `malformed legacy locator cannot corrupt encrypted entries`() = runBlocking {
+    fun `a malformed file at the queue path cannot corrupt encrypted entries`() = runBlocking {
         outbox.enqueue(makeEntry("good-1"))
         // Append a bad line directly to the file.
         outboxFile.appendText("THIS IS NOT JSON\n")
         outbox.enqueue(makeEntry("good-2"))
         val all = outbox.hydrate()
-        // The legacy locator is isolated from the encrypted store.
+        // The queue path is isolated from the encrypted store.
         val ids = all.map { it.reportId }
         assertTrue("expected good-1 in $ids", ids.contains("good-1"))
         assertTrue("expected good-2 in $ids", ids.contains("good-2"))

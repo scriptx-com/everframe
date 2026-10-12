@@ -21,10 +21,9 @@ class CrashSidecarApiTest {
     private val keys = JceTestOutboxKeyProvider()
     private fun entry(id: String) = OutboxEntry(id, 1L, "{}".toByteArray(), "k-$id", emptyList(), "key", "https://test.example.com")
 
-    @Test fun `public descriptors retain Unit append and separate acceptance`() {
+    @Test fun `public constructors and acceptance`() {
         assertNotNull(CrashSidecar::class.java.getConstructor(File::class.java))
         assertNotNull(CrashSidecar::class.java.getConstructor(Context::class.java))
-        assertEquals(Void.TYPE, CrashSidecar::class.java.getMethod("appendSync", OutboxEntry::class.java).returnType)
         assertEquals(Boolean::class.javaPrimitiveType, CrashSidecar::class.java.getMethod("appendSyncAccepted", OutboxEntry::class.java).returnType)
     }
 
@@ -32,9 +31,8 @@ class CrashSidecarApiTest {
         val file = File(tmp.root, "crash-outbox.jsonl")
         val sidecar = CrashSidecar(file, keys, JvmOutboxFileOps())
         assertTrue(sidecar.appendSyncAccepted(entry("first")))
-        sidecar.appendSync(entry("second"))
+        assertTrue(sidecar.appendSyncAccepted(entry("second")))
         val reopened = JSONLOutbox(File(tmp.root, "outbox.jsonl"), keys, JvmOutboxFileOps())
-        assertEquals(0, sidecar.hydrateInto(reopened))
         assertEquals(setOf("first", "second"), reopened.hydrate().map { it.reportId }.toSet())
         assertFalse(file.exists())
     }

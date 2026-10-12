@@ -72,9 +72,8 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
       });
     }
 
-    it("declares exactly the 18 locked report methods and no other non-companion report method", () => {
+    it("declares exactly the 17 locked report methods and no other non-companion report method", () => {
       const REPORT_METHODS = [
-        "configure",
         "openReporter",
         "registerSensitiveRect",
         "setExtra",
@@ -105,9 +104,7 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
         "captureHandledException",
         // Additive content-free diagnostics; no replay or transport control.
         "getReportDeliveryStatusJson",
-        // Additive sync startup path. The legacy void configure stays for
-        // already-compiled callers, while the runtime uses configureSync so
-        // an immediate blocking capture cannot overtake native startup.
+        // Blocking startup, so an immediate capture cannot overtake native startup.
         "configureSync",
         // Spec 2026-08-12 — the 9th report method and Task 10's own
         // D-decision: the self-declared identity surface. Bridge parameter

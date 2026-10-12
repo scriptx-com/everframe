@@ -35,9 +35,6 @@ Apple TV).
 .product(name: "EverframeReporterUI", package: "everframe"),
 ```
 
-`EverframeConfig(sdkKey:)` arrives in 1.2.0; 1.1.0 and earlier spell it
-`EverframeConfig(appId:)`, which 1.2.0 still accepts as deprecated.
-
 The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
 
 ---

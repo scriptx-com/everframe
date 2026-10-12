@@ -11,48 +11,15 @@ import type { ReporterCredentialStore } from '@everframe/sdk-core';
 import { deriveInstallId } from '@everframe/sdk-core';
 
 /**
- * Legacy (pre-scoping) storage key. localStorage is origin-scoped, not
- * app-scoped: multiple Everframe-integrated apps on the same origin (or
- * multiple environments served off one domain) used to share this single
- * key, so app B's mint would silently overwrite app A's token and orphan
- * A's threads (PR review Finding 4). Kept around ONLY as the source for the
- * one-time migration below and as the legacy fallback name in tests.
- */
-export const LEGACY_REPORTER_TOKEN_STORAGE_KEY = 'everframe.reporterDeviceToken';
-
-/** @deprecated Use {@link scopedReporterTokenStorageKey}. Kept for callers that referenced the old unscoped constant. */
-export const REPORTER_TOKEN_STORAGE_KEY = LEGACY_REPORTER_TOKEN_STORAGE_KEY;
-
-/**
- * Namespace the storage key by app identity. The publishable `sdkKey` is
- * already present on the page (it's how every other call is scoped), so it's
- * the natural, non-secret scope — no hashing needed.
+ * Namespace the storage key by app identity. localStorage is origin-scoped,
+ * not app-scoped, so several Everframe-integrated apps (or environments) on
+ * one origin would otherwise overwrite each other's token and orphan their
+ * threads. The publishable `sdkKey` is already present on the page (it's how
+ * every other call is scoped), so it's the natural, non-secret scope — no
+ * hashing needed.
  */
 export function scopedReporterTokenStorageKey(scope: string): string {
-  return `${LEGACY_REPORTER_TOKEN_STORAGE_KEY}.${scope}`;
-}
-
-/**
- * One-time migration: a single-app origin that was already storing a token
- * under the legacy unscoped key keeps its identity (no forced re-mint) by
- * adopting that token into the new scoped key and removing the legacy entry.
- * A no-op if the scoped key already holds a value (already migrated, or a
- * fresh store) or if there's nothing legacy to adopt. Best-effort: any
- * localStorage failure here just means the next mint starts fresh under the
- * scoped key, same as any other private-mode/quota failure.
- */
-function migrateLegacyToken(scopedKey: string): void {
-  if (scopedKey === LEGACY_REPORTER_TOKEN_STORAGE_KEY) return;
-  try {
-    if (localStorage.getItem(scopedKey) !== null) return;
-    const legacy = localStorage.getItem(LEGACY_REPORTER_TOKEN_STORAGE_KEY);
-    if (legacy !== null) {
-      localStorage.setItem(scopedKey, legacy);
-      localStorage.removeItem(LEGACY_REPORTER_TOKEN_STORAGE_KEY);
-    }
-  } catch {
-    /* best-effort only — fall through to a fresh scoped mint */
-  }
+  return `everframe.reporterDeviceToken.${scope}`;
 }
 
 /**
@@ -103,7 +70,6 @@ export function createLocalStorageCredentialStore(scope: string): ReporterCreden
   return {
     randomBytes: (byteLength: number) => crypto.getRandomValues(new Uint8Array(byteLength)),
     load: async () => {
-      migrateLegacyToken(storageKey);
       try {
         const stored = localStorage.getItem(storageKey);
         if (stored !== null) return stored;

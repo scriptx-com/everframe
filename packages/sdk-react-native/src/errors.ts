@@ -120,10 +120,9 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     try {
       if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) { outcome = 'duplicateSuppressed'; return 'duplicate'; }
       if (automaticKeys.size >= 10 || exceedsValueShare(automaticKeys, snapshot.key)) { outcome = 'allowanceSuppressed'; return 'allowance'; }
-      const handledMethod = NativeEverframe.captureHandledException;
       const method = NativeEverframe.reportCrash;
       if (!ownsCapture()) { outcome = 'inactiveAborted'; return 'inactive'; }
-      if (typeof handledMethod !== 'function' || typeof method !== 'function') { outcome = 'bridgeUnavailable'; return 'native-refused'; }
+      if (typeof method !== 'function') { outcome = 'bridgeUnavailable'; return 'native-refused'; }
       if (applyFunction(method, NativeEverframe, [snapshot.payload]) !== true) { outcome = 'nativeRefused'; return 'native-refused'; }
       automaticKeys.add(snapshot.key);
       if (snapshot.identity) snapshot.identity.accepted = true;
@@ -147,16 +146,12 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     capturing = true;
     let outcome: ErrorCaptureOutcome = 'captureFailed';
     try {
-      // Older native binaries may omit the distinct method or throw on lookup.
-      let handledMethod: typeof NativeEverframe.captureHandledException | undefined;
-      try {
-        const method = NativeEverframe.captureHandledException;
-        if (typeof method === 'function') handledMethod = method;
-      } catch (error) { if (explicit) throw error; /* automatic capture keeps its legacy path */ }
+      const method = explicit ? NativeEverframe.captureHandledException : NativeEverframe.reportCrash;
+      // Bridge property reads may themselves reenter teardown.
       if (!owns()) { outcome = 'inactiveAborted'; return; }
-      if (explicit && !handledMethod) { outcome = 'bridgeUnavailable'; return; }
+      if (typeof method !== 'function') { outcome = 'bridgeUnavailable'; return; }
       const identity = identityFor(error);
-      if (!fatal && handledMethod && identity?.accepted) { outcome = 'duplicateSuppressed'; return; }
+      if (!fatal && identity?.accepted) { outcome = 'duplicateSuppressed'; return; }
       const facts = extractFacts(error);
       // Exactly how RN titles a component error, so the native layer can match
       // RN's fatal wrapper and the dashboard can fold the component stack.
@@ -185,16 +180,9 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         occurredAt: new Date().toISOString(),
       });
       if (!owns()) { outcome = 'inactiveAborted'; return; }
-      const legacyAttempt = !explicit && !handledMethod;
-      // Preserve old-binary attempt accounting, including a failed lookup.
-      if (!fatal && legacyAttempt) keys.add(key);
-      const method = explicit ? handledMethod : NativeEverframe.reportCrash;
-      // Bridge property reads may themselves reenter teardown.
-      if (!owns()) { outcome = 'inactiveAborted'; return; }
-      if (typeof method !== 'function') { outcome = 'bridgeUnavailable'; return; }
       const accepted = applyFunction(method, NativeEverframe, [payload]) === true;
-      outcome = legacyAttempt ? 'legacyAttempted' : accepted ? 'accepted' : 'nativeRefused';
-      if (!fatal && !legacyAttempt && accepted) {
+      outcome = accepted ? 'accepted' : 'nativeRefused';
+      if (!fatal && accepted) {
         keys.add(key);
         if (identity) identity.accepted = true;
       }

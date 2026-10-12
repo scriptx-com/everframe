@@ -53,9 +53,8 @@ android {
 
 dependencies {
     implementation(project(":everframe-core"))
-    // ReporterDialog JSON-decodes the host-attached React tree (Phase 6
-    // attachReactTree). :everframe-core has serialization.json as
-    // `implementation` (not api) so it does not propagate — declare it
+    // The reporter UI encodes JSON itself. :everframe-core has serialization.json
+    // as `implementation` (not api) so it does not propagate — declare it
     // directly here.
     implementation(libs.serialization.json)
     implementation(platform(libs.compose.bom))

@@ -41,7 +41,6 @@ vi.mock('react-native', () => {
     }
   }
   const nativeMock = {
-    configure: vi.fn(),
     configureSync: vi.fn(() => true),
     openReporter: vi.fn().mockResolvedValue({ status: 'cancelled' }),
     registerSensitiveRect: vi.fn(),

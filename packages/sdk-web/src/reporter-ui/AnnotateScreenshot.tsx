@@ -71,7 +71,7 @@ export function AnnotateScreenshot({
     } else if (sig !== bakedSigRef.current || thumbUrl === null) {
       void (async () => {
         try {
-          const baked = await bakeAnnotations(imageBlob, annotations, 12);
+          const baked = await bakeAnnotations(imageBlob, annotations);
           if (cancelled) return;
           const url = URL.createObjectURL(baked);
           createdUrl = url;

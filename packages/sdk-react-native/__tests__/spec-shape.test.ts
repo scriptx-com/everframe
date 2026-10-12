@@ -20,11 +20,10 @@ import {
 import type { Spec, ConfigOpts } from "../src/NativeEverframe.js";
 
 describe("NativeEverframe TurboModule spec (post D-05/D-07 flip)", () => {
-  it("exposes exactly the 17 locked methods — no more, no fewer", () => {
+  it("exposes exactly the 16 locked methods — no more, no fewer", () => {
     expect(Object.keys(NativeEverframe).sort()).toEqual([
       "addBreadcrumb",
       "captureHandledException",
-      "configure",
       "configureSync",
       "detachPlayer",
       "openReporter",
@@ -53,11 +52,7 @@ describe("NativeEverframe TurboModule spec (post D-05/D-07 flip)", () => {
     expectTypeOf<EverframeContextValue["captureException"]>().returns.toBeVoid();
   });
 
-  it("retains configure void compatibility and adds a synchronous configure acknowledgement", () => {
-    expectTypeOf<Spec["configure"]>().parameters.toMatchTypeOf<
-      [Record<string, unknown>]
-    >();
-    expectTypeOf<Spec["configure"]>().returns.toBeVoid();
+  it("configures synchronously and acknowledges with a boolean", () => {
     expectTypeOf<Spec["configureSync"]>().parameters.toMatchTypeOf<
       [Record<string, unknown>]
     >();

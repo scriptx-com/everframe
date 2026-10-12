@@ -76,12 +76,11 @@ final class ReportDiagnostics: @unchecked Sendable {
             }
         }
 
-        func queueObserved(count: Int?, quality: ReportQueueQuality, migration: String? = nil) {
+        func queueObserved(count: Int?, quality: ReportQueueQuality) {
             ledger?.observe(self) { state in
                 state.queue.observation = "observed"; state.queue.quality = quality.rawValue
                 state.queue.pendingCount = count.flatMap { $0 >= 0 ? min($0, 2_147_483_647) : nil }
                 state.queue.lastFailure = nil
-                if let migration, ["not-observed", "clear", "blocked", "unknown"].contains(migration) { state.queue.migration = migration }
             }
         }
 

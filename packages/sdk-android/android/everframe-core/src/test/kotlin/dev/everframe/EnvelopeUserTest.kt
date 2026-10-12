@@ -125,17 +125,15 @@ class EnvelopeUserTest {
      *
      * MANDATORY after every `start()` in this suite, including inside a
      * `__afterUserSnapshotHookForTesting` body. That tail runs on
-     * `Dispatchers.IO` and one of its steps is
-     * `CrashSidecar.hydrateInto(sharedOutbox)`, which MOVES the crash sidecar
-     * into the outbox — the very file this suite writes its crashes to and
-     * reads straight back. Left unawaited, that hydrate lands at an arbitrary
-     * moment: fall between `captureThrowable` and the read and the entry is
-     * simply gone, which fails the key cases for a reason unrelated to what
+     * `Dispatchers.IO` and one of its steps drains the shared outbox — the
+     * very queue this suite writes its crashes to and reads straight back.
+     * Left unawaited, that drain lands at an arbitrary moment: fall between
+     * `captureThrowable` and the read and the entry is simply gone, which fails the key cases for a reason unrelated to what
      * they test and — worse — makes the two `kill` cases pass VACUOUSLY, since
      * a stolen report is indistinguishable from a suppressed one.
      *
-     * Awaiting inside the window puts the hydrate strictly BEFORE the crash is
-     * appended, where it finds an empty sidecar and is a no-op. `_replaySession`
+     * Awaiting inside the window puts the drain strictly BEFORE the crash is
+     * appended, where it finds an empty queue and is a no-op. `_replaySession`
      * is assigned by the LAST statement of that coroutine's sequential body and
      * `start()` nulls it synchronously first, so non-null is a sound
      * "everything upstream, drain included, already ran" signal — the same

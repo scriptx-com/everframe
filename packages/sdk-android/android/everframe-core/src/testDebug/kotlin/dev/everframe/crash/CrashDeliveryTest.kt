@@ -133,13 +133,12 @@ class CrashDeliveryTest {
         CrashReporter.captureThrowable(Thread.currentThread(), RuntimeException("fatal boom"))
         assertEquals(1, kotlinx.coroutines.runBlocking { crashOutbox.count() })
 
-        // 2. "Relaunch": hydrate into the real outbox path, then drain. No
+        // 2. "Relaunch": open the real outbox path, then drain. No
         // identity token was ever set on this run, so a fresh holder + OFF is
         // the honest fixture here — see the identity-attributed case below
         // for the header assertion.
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         val outbox = JSONLOutbox(File(crashDir, "outbox.jsonl"), crashKeys, crashOps)
-        CrashSidecar(context).hydrateInto(outbox)
         dev.everframe.transport.ReportSubmitter(config, outbox).drainOutbox(
             identityHolder = IdentityTokenHolder(),
             currentReplayConfig = { ReplayConfig.OFF },
@@ -203,8 +202,7 @@ class CrashDeliveryTest {
             // that test's header comment for why.
             server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
             val outbox = JSONLOutbox(File(crashDir, "outbox.jsonl"), crashKeys, crashOps)
-            CrashSidecar(context).hydrateInto(outbox)
-            val holder = IdentityTokenHolder()
+                val holder = IdentityTokenHolder()
             holder.set(IdentityTokenSource.Token(token))
             dev.everframe.transport.ReportSubmitter(config, outbox).drainOutbox(
                 identityHolder = holder,

@@ -53,10 +53,9 @@ internal class ReportDiagnostics(private val lock: ReentrantLock = ReentrantLock
             state.copy(capture = state.capture.copy(paths = state.capture.paths + (path.code to next)))
         }
 
-        fun queueObserved(count: Int?, quality: QueueQuality, migration: String? = null) = ledger.observe(this) { state ->
+        fun queueObserved(count: Int?, quality: QueueQuality) = ledger.observe(this) { state ->
             state.copy(queue = state.queue.copy(observation = "observed", quality = quality.code,
-                pendingCount = count?.takeIf { it >= 0 }, lastFailure = null,
-                migration = when (migration) { "not-observed", "clear", "blocked", "unknown" -> migration; else -> state.queue.migration }))
+                pendingCount = count?.takeIf { it >= 0 }, lastFailure = null))
         }
 
         fun queueOperation(operation: QueueOperation, amount: Int = 1, failure: StorageFailure? = null) {

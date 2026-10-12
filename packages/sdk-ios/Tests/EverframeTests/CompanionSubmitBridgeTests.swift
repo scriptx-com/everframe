@@ -263,10 +263,9 @@ final class CompanionSubmitBridgeTests {
 
     // MARK: - Host attachments — drain at request time (Plan 06.2-13 Task 1)
     //
-    // Contract: the companion bridge consumes `Everframe.shared.setExtra` +
-    // `Everframe.shared.attachReactTree` exactly ONCE at the moment of
-    // `report.request` — not at submit time. After consumption,
-    // `__consumePendingAttachments()` MUST return (nil, nil). This mirrors
+    // Contract: the companion bridge consumes `Everframe.shared.setExtra`
+    // exactly ONCE at the moment of `report.request` — not at submit time.
+    // After consumption, `__consumePendingAttachments()` MUST return nil. This mirrors
     // the in-process iOS/tvOS reporter modal (EFReporterPresenter.swift:72)
     // so a host that calls `setExtra("xyz")` then drives two back-to-back
     // companion reports sees "xyz" in the FIRST envelope and nil in the
@@ -280,30 +279,19 @@ final class CompanionSubmitBridgeTests {
     // the drain semantics. Then we seed the stash through a test seam and
     // assert that the values land where the submit handler reads them.
 
-    // `attachReactTree` is deprecated (the value is drained and discarded,
-    // never shipped) but the drain-once contract below is exactly what the
-    // deprecation preserves, so this test must keep calling it. Marking the
-    // test itself deprecated is Swift's only per-call-site suppression —
-    // narrower than dropping the annotation on the API.
-    @available(*, deprecated)
     @Test func test4_consumePendingAttachments_drainsOnce() async throws {
         // Reset to known state.
         _ = await Everframe.shared.__consumePendingAttachments()
 
-        // Two values set.
         Everframe.shared.setExtra("companion-extra")
-        let treeJSON = Self.makeReactTreeJSON()
-        Everframe.shared.attachReactTree(treeJSON)
 
         // First drain (what the bridge does inside handleReportRequest).
-        let (extra1, tree1) = await Everframe.shared.__consumePendingAttachments()
+        let extra1 = await Everframe.shared.__consumePendingAttachments()
         #expect(extra1 == "companion-extra")
-        #expect(tree1 != nil)
 
         // Second drain — must be nil (consume-once invariant).
-        let (extra2, tree2) = await Everframe.shared.__consumePendingAttachments()
+        let extra2 = await Everframe.shared.__consumePendingAttachments()
         #expect(extra2 == nil)
-        #expect(tree2 == nil)
     }
 
     @Test func test5_stashedHostAttachments_threadIntoSubmit() throws {
@@ -395,28 +383,6 @@ final class CompanionSubmitBridgeTests {
     }
 
     // MARK: - Helpers
-
-    /// Build a minimal valid ReactTree JSON in the shape the JS bippy walker
-    /// emits: ISO 8601 with milliseconds, rendererHint "dom", single empty
-    /// root node. Same date format as the in-process modal decodes
-    /// (EFReporterPresenter.swift custom .dateDecodingStrategy).
-    static func makeReactTreeJSON() -> Data {
-        let json = """
-        {
-          "capturedAt": "2026-05-20T12:34:56.789Z",
-          "rendererHint": "dom",
-          "root": {
-            "children": [],
-            "componentName": "EverframeApp",
-            "componentType": "function",
-            "identifiers": {},
-            "rect": { "x": 0, "y": 0, "width": 100, "height": 100 },
-            "safeProps": {}
-          }
-        }
-        """
-        return Data(json.utf8)
-    }
 
     static func makeSubmit(correlationId: String) -> EverframeReportSubmit {
         return EverframeReportSubmit(

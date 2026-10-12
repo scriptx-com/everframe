@@ -7,7 +7,7 @@
 // new D-decision):
 //
 //   The RN bridge surface is the Phase 06 5-method TurboModule (configure,
-//   openReporter, registerSensitiveRect, setExtra, attachReactTree). The native
+//   openReporter, registerSensitiveRect, setExtra). The native
 //   EFReporterPresenter owns the entire report UX (capture + annotate + redact +
 //   submit) on iOS/iPadOS. On tvOS the on-device modal reporter was removed —
 //   tvOS hosts call the companion start API and route reporting through the
@@ -280,7 +280,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// every `configure()` is cheap, harmless churn, same as Android already
     /// accepts on every module construction.
     ///
-    /// Returns the fresh generation so `EverframeModule.mm`'s `-configure:`
+    /// Returns the fresh generation so `EverframeModule.mm`'s `-configureSync:`
     /// can capture it (via `currentExtraResolveHookGeneration()` below) and
     /// hand it back to `resetExtraResolverForTeardown(_:)` at `-invalidate`
     /// time. `@discardableResult` because `configure()` itself has no use
@@ -297,7 +297,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
 
     /// ObjC-visible read of whichever generation is live RIGHT NOW — i.e.
     /// whatever the most recent `installExtraResolveHook()` call minted.
-    /// `EverframeModule.mm`'s `-configure:` calls this immediately after
+    /// `EverframeModule.mm`'s `-configureSync:` calls this immediately after
     /// `configureWithSdkKey:...:error:` (which, on success or on the
     /// already-running-unchanged skip path, calls `installExtraResolveHook()`
     /// internally) and stashes the result on its own instance ivar for
@@ -402,7 +402,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// `RemoteVitalsBridge.reset()`'s own lifetime doc comment.
     ///
     /// IDENTITY GUARD (D1 fix — stale-teardown race). `generation` is the
-    /// value `EverframeModule.mm`'s `-configure:` captured via
+    /// value `EverframeModule.mm`'s `-configureSync:` captured via
     /// `currentExtraResolveHookGeneration()` right after ITS OWN
     /// `configure()` call, stashed on that ObjC instance and handed back
     /// here at `-invalidate` time. RN dispatches `-invalidate` on a
@@ -669,7 +669,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// `Everframe.shared.addBreadcrumb(message:kind:level:data:)` (Task 5) —
     /// NO validation/coercion happens here. That singleton already owns
     /// kind/level/data coercion AND gating (no-op pre-start / while killed),
-    /// exactly like `setExtra`/`attachReactTree` above never re-check
+    /// exactly like `setExtra` above never re-checks
     /// `captureGate` themselves. `data` crosses as an `NSDictionary?` — the
     /// codegen-typed `UnsafeObject` boundary for freeform objects; a
     /// non-dictionary payload (shouldn't happen via codegen, but fail-soft
@@ -693,8 +693,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
 
     /// Forward a host-declared user from JS into `Everframe.shared.setUser`.
     /// Pure pass-through: the native singleton owns storage — NO
-    /// validation/coercion happens here, same contract as `setExtra`/
-    /// `attachReactTree` above. `nil` clears the active user (the bridge
+    /// validation/coercion happens here, same contract as `setExtra`
+    /// above. `nil` clears the active user (the bridge
     /// forbids `T | null`, so JS expresses "clear" by calling with no
     /// argument, which crosses as `nil` here). A missing key on the incoming
     /// dictionary must become `nil`, never an empty string — that's what
@@ -787,9 +787,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     nonisolated(unsafe) private static var companionClient: RelayWSClient?
     /// The host's configured attach-PIN UI mode (spec 2026-08-19), parsed
     /// from `ConfigOpts.attachPinUi` at `configure()` time. Defaults to
-    /// `.builtin` — the pre-existing-behaviour default for a host that never
-    /// set the flag (including every host on an older RN SDK version whose
-    /// `configure()` call carries no such field at all).
+    /// `.builtin` for a host that never sets the flag.
     nonisolated(unsafe) private static var companionAttachPinUi: AttachPinUi = .builtin
     // `CompanionCaptureBridge` subscribes to the report.request notification
     // posted by RelayWSClient and runs the capture+send dance. Without an

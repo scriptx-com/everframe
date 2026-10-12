@@ -27,11 +27,11 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
 
-class LegacyReporterFixture {
-    fun create(context: Context) { Everframe.report.__resolver = { ReportResult.Cancelled("legacy") } }
+class IncompatibleReporterFixture {
+    fun create(context: Context) { Everframe.report.__resolver = { ReportResult.Cancelled("unexpected_fallback") } }
 }
 class ThrowingReporterFixture {
-    fun create(context: Context) { Everframe.report.__resolver = { ReportResult.Cancelled("unexpected_legacy") } }
+    fun create(context: Context) { Everframe.report.__resolver = { ReportResult.Cancelled("unexpected_fallback") } }
     suspend fun openForActivity(context: Context, activity: Activity?): ReportResult {
         throw IllegalStateException("private-host-value")
     }
@@ -61,10 +61,15 @@ class ReporterBridgeTest {
         activity.title = title
         return context().apply { onHostResume(activity) }
     }
-    @Test fun missingAdditiveMethodUsesLegacy() = runBlocking {
-        assertEquals(ReportResult.Cancelled("legacy"), ReporterBridge { LegacyReporterFixture::class.java }.open(resumed()))
+    @Test fun missingOpenMethodRejects() = runBlocking {
+        try {
+            ReporterBridge { IncompatibleReporterFixture::class.java }.open(resumed())
+            fail("must reject")
+        } catch (e: IllegalStateException) {
+            assertEquals("Reporter UI is incompatible; update the native reporter dependency", e.message)
+        }
     }
-    @Test fun presentMethodFailureNeverFallsBack() = runBlocking {
+    @Test fun openMethodFailureRejects() = runBlocking {
         try {
             ReporterBridge { ThrowingReporterFixture::class.java }.open(resumed())
             fail("must reject")
@@ -119,7 +124,7 @@ class ReporterBridgeTest {
         val module = EverframeModule(resumed())
         try {
             val worker = Thread {
-                module.configure(JavaOnlyMap.of("sdkKey", "reporter-test-only"))
+                module.configureSync(JavaOnlyMap.of("sdkKey", "reporter-test-only"))
                 module.startCompanion()
             }
             worker.start(); worker.join(2000)
@@ -142,7 +147,7 @@ class ReporterBridgeTest {
     @Test fun moduleSanitizesImmediateAndSuspendedCancellationAtPromiseBoundary() {
         assertEquals("http://127.0.0.1:9", dev.everframe.BuildConfig.INGEST_URL)
         val module = EverframeModule(resumed())
-        module.configure(JavaOnlyMap().apply { putString("sdkKey", "reporter-test-only") })
+        module.configureSync(JavaOnlyMap().apply { putString("sdkKey", "reporter-test-only") })
         for (suspended in listOf(false, true)) {
             val gate = CompletableDeferred<ReportResult>()
             val privateError = CancellationException("private-host-value").apply {

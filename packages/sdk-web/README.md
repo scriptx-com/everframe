@@ -69,9 +69,6 @@ nothing left to resolve. Don't point one at `dist/index.js`.
 </script>
 ```
 
-`sdkKey` arrives in 1.2.0; 1.1.0 and earlier read `apiKey`, which 1.2.0 still
-accepts as deprecated.
-
 **jsDelivr is the CDN.** It serves every npm package automatically, so
 `@everframe/web`'s ordinary `npm publish` *is* the CDN publish — there is no
 separate upload, bucket or deploy step. `dist/browser/index.js` is the

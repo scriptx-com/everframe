@@ -24,7 +24,7 @@ import { render, cleanup, fireEvent, waitFor, act } from '@testing-library/react
 import { useContext, useEffect } from 'react';
 import { useEverframe } from '../src/hook.js';
 import { EverframeProvider, EverframeContext } from '../src/provider.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '@everframe/web';
+import { scopedReporterTokenStorageKey } from '@everframe/web';
 import type { ThreadClient } from '@everframe/sdk-core';
 
 afterEach(() => {
@@ -150,7 +150,7 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
   });
 
   it('a mount-time config fetch failure followed by a wake() recovers once the config endpoint is healthy', async () => {
-    localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_wake_gate_recover_test'), 'evr_test0000000000000000000000000000000000');
     const originalFetch = globalThis.fetch;
     let configCalls = 0;
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {

@@ -12,7 +12,6 @@ export interface ErrorCaptureCounters {
   captureFailed: number;
   reentrantSuppressed: number;
   inactiveAborted: number;
-  legacyAttempted: number;
 }
 export type ErrorCaptureOutcome = Exclude<keyof ErrorCaptureCounters, 'attempted'>;
 export interface ErrorCaptureStatus {
@@ -25,7 +24,7 @@ export interface ErrorCaptureStatus {
 function emptyCounters(): ErrorCaptureCounters {
   return { attempted: 0, accepted: 0, duplicateSuppressed: 0, allowanceSuppressed: 0,
     bridgeUnavailable: 0, nativeRefused: 0, captureFailed: 0, reentrantSuppressed: 0,
-    inactiveAborted: 0, legacyAttempted: 0 };
+    inactiveAborted: 0 };
 }
 export function emptyErrorCaptureStatus(status: ErrorCaptureStatus['status'], reason: ErrorCaptureStatus['reason']): ErrorCaptureStatus {
   return { status, reason, scope: 'mounted-js-admission', limits: { handled: 10, automatic: 10 },

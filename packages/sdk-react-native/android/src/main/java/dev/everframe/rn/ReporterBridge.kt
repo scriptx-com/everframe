@@ -9,7 +9,6 @@ import android.os.Looper
 import android.util.Log
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.common.LifecycleState
-import dev.everframe.Everframe
 import dev.everframe.config.ReportResult
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -19,7 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Reflection preserves compatibility with separately built native reporter artifacts. */
+/** Resolves the reporter installer reflectively, so tests can substitute it. */
 internal class ReporterBridge(
     private val resolveInstaller: () -> Class<*> = { Class.forName("dev.everframe.ui.ReporterResolverInstaller") },
 ) {
@@ -46,17 +45,9 @@ internal class ReporterBridge(
         try {
             val type = installerType()
             val instance = type.getDeclaredConstructor().newInstance()
-            val method = try {
-                type.getMethod("openForActivity", Context::class.java, Activity::class.java, Continuation::class.java)
-            } catch (_: NoSuchMethodException) { null }
-            if (method == null) {
-                // Absence is the only legacy fallback. A present method's failure is final.
-                invoke(type.getMethod("create", Context::class.java), instance, context.applicationContext)
-                Everframe.report.open()
-            } else {
-                suspendCoroutineUninterceptedOrReturn<ReportResult> { continuation ->
-                    invoke(method, instance, context.applicationContext, activity, continuation)
-                }
+            val method = type.getMethod("openForActivity", Context::class.java, Activity::class.java, Continuation::class.java)
+            suspendCoroutineUninterceptedOrReturn<ReportResult> { continuation ->
+                invoke(method, instance, context.applicationContext, activity, continuation)
             }
         } catch (failure: Throwable) {
             when (failure) {

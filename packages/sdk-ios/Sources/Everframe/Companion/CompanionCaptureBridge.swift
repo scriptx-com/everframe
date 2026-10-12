@@ -380,8 +380,8 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
         //    Consume-once semantics — matches the in-process iOS/tvOS reporter
         //    modal (EFReporterPresenter.swift:72). If two report.requests fire
         //    back-to-back and the host called setExtra only before the first,
-        //    the second envelope MUST see (nil, nil) here.
-        let (hostExtraRaw, _) = await Everframe.shared.__consumePendingAttachments()
+        //    the second envelope MUST see nil here.
+        let hostExtraRaw = await Everframe.shared.__consumePendingAttachments()
         let hostExtraNormalized: String? = (hostExtraRaw?.isEmpty == true) ? nil : hostExtraRaw
 
         // 3. Stash capture state for the eventual submit (Plan 06.2-12 Task 2
@@ -845,10 +845,9 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
 
     /// `Notification.Name` posted by `awaitJsReactTreeAttach`. The RN bridge
     /// subscribes and forwards to the JS-side
-    /// `everframe.companion.reportRequested` event so the companion module can walk the React
-    /// fiber tree and call `attachReactTree` before native capture starts.
-    /// Non-RN hosts simply ignore the post — the bounded wait expires and
-    /// capture proceeds with no reactTree, matching pre-fix behavior.
+    /// `everframe.companion.reportRequested` event, the companion's JS-ready
+    /// handshake, before native capture starts. Non-RN hosts simply ignore the
+    /// post — the bounded wait expires and capture proceeds.
     public static let shouldAttachReactTreeNotification =
         Notification.Name("everframeCompanionShouldAttachReactTree")
 
@@ -886,8 +885,7 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
     }
 
     /// Called from the RN bridge's `signalCompanionReportRequestReady`
-    /// after JS finishes walking the React tree and calling
-    /// `attachReactTree`. Idempotent — a late call after the 250ms
+    /// once JS answers the handshake. Idempotent — a late call after the 250ms
     /// fallback already fired is a harmless no-op.
     @objc public static func signalReactTreeAttached(correlationId: String) {
         resumeAndDropPending(correlationId: correlationId)

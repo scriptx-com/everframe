@@ -847,10 +847,10 @@ describe('D1 — a stale teardown must not clear a hook a newer configure() inst
     ).toMatch(/extraResolveHookGeneration\s*\+=\s*1/);
   });
 
-  it('EverframeModule.mm captures the live generation after its own configure() call', () => {
+  it('EverframeModule.mm captures the live generation after its own configureSync() call', () => {
     expect(
       moduleCode,
-      `${IOS_MODULE}: -configure: must capture [EverframeBridge currentExtraResolveHookGeneration] onto an instance ivar — otherwise -invalidate has no way to prove which installation it corresponds to`,
+      `${IOS_MODULE}: -configureSync: must capture [EverframeBridge currentExtraResolveHookGeneration] onto an instance ivar — otherwise -invalidate has no way to prove which installation it corresponds to`,
     ).toMatch(/_extraResolveHookGeneration\s*=\s*\[EverframeBridge currentExtraResolveHookGeneration\]/);
   });
 

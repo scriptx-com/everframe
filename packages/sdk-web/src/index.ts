@@ -26,10 +26,6 @@ export type { WebPlatformAdapter } from './adapter.js';
 
 // ── Configuration + result shapes ───────────────────────────────────────
 export type { WebEverframeConfig } from './internal/types.js';
-/** @internal Shared with `@everframe/react`, which normalises its provider config the same way. */
-export type { ResolvedWebEverframeConfig } from './internal/types.js';
-/** @internal Shared with `@everframe/react`, which normalises its provider config the same way. */
-export { resolveSdkKey } from '@everframe/sdk-core';
 export { EverframeNotMountedError, EverframeReporterDisabledError } from './reporter-types.js';
 export type { ReporterResult } from './reporter-types.js';
 
@@ -108,10 +104,7 @@ export { submitReportFromDraft, drainOutbox } from './transport/submit.js';
 export type { CaptureBundle, BundleScreenshot } from './transport/draft-to-envelope.js';
 
 // ── Reporter credentials ────────────────────────────────────────────────
-export {
-  REPORTER_TOKEN_STORAGE_KEY,
-  scopedReporterTokenStorageKey,
-} from './reporter/credential-store.js';
+export { scopedReporterTokenStorageKey } from './reporter/credential-store.js';
 
 // ── Navigation screen markers ────────────────────────────────────────────
 export { createScreenRecorder } from './breadcrumbs/record-screen.js';
@@ -147,7 +140,6 @@ export type {
 } from './companion/ws-client.js';
 export {
   handleReportRequest,
-  handleReportSubmit,
   handleCompanionSubmitText,
   handleCompanionSubmitBinary,
 } from './companion/capture-bridge.js';
@@ -196,8 +188,8 @@ export {
 // cover React surfaces built on these modules — can no longer reach them by
 // relative path now that the modules live here.
 //
-// These, plus `createLocalStorageOutbox`, `REPORTER_TOKEN_STORAGE_KEY` and
-// `scopedReporterTokenStorageKey` above, are the members that survived the
+// These, plus `createLocalStorageOutbox` and `scopedReporterTokenStorageKey`
+// above, are the members that survived the
 // pre-publish surface audit: each has a real consumer in a `@everframe/react`
 // spec that imports it as `from '@everframe/web'`, so removing it here would
 // mean editing those specs. Every barrel member with NO consumer was dropped

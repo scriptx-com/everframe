@@ -1,6 +1,6 @@
 {
   "name": "@everframe/roku",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": false,
   "description": "Roku (BrightScript / SceneGraph) SDK for Everframe — automatic crash and error reporting.",
   "author": {

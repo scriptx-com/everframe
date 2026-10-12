@@ -50,7 +50,7 @@ class ExtraResolverHookTest {
         Everframe.__pendingExtraResolveHook = null
         Everframe.setExtra("pre-existing value")
 
-        val (extra, _) = Everframe.consumePendingAttachments()
+        val extra = Everframe.consumePendingAttachments()
 
         assertEquals("pre-existing value", extra)
     }
@@ -65,7 +65,7 @@ class ExtraResolverHookTest {
             Everframe.setExtra("fresh from resolver")
         }
 
-        val (extra, _) = Everframe.consumePendingAttachments()
+        val extra = Everframe.consumePendingAttachments()
 
         assertEquals("fresh from resolver", extra)
     }
@@ -77,7 +77,7 @@ class ExtraResolverHookTest {
             throw RuntimeException("resolver blew up")
         }
 
-        val (extra, _) = Everframe.consumePendingAttachments()
+        val extra = Everframe.consumePendingAttachments()
 
         assertEquals("still ships", extra)
     }
@@ -93,7 +93,7 @@ class ExtraResolverHookTest {
             withTimeoutOrNull(20) { jsNeverAnswers.await() }
         }
 
-        val (extra, _) = Everframe.consumePendingAttachments()
+        val extra = Everframe.consumePendingAttachments()
 
         // The wait honoured its own timeout — the hook returned instead of
         // hanging — and the report proceeds with the last pushed value.
@@ -106,8 +106,8 @@ class ExtraResolverHookTest {
         Everframe.setExtra("only once")
         Everframe.__pendingExtraResolveHook = null
 
-        val (first, _) = Everframe.consumePendingAttachments()
-        val (second, _) = Everframe.consumePendingAttachments()
+        val first = Everframe.consumePendingAttachments()
+        val second = Everframe.consumePendingAttachments()
 
         assertEquals("only once", first)
         assertNull(second)
@@ -179,8 +179,8 @@ class ExtraResolverHookTest {
         deferredB.complete(Unit)
         testScheduler.advanceUntilIdle()
 
-        val (extraA, _) = resultA.await()
-        val (extraB, _) = resultB.await()
+        val extraA = resultA.await()
+        val extraB = resultB.await()
 
         // Each call drains exactly the value ITS OWN resolve round trip
         // caused JS to push — not the other call's, and not nil. Before the
@@ -211,8 +211,8 @@ class ExtraResolverHookTest {
         val resultB = async { Everframe.consumePendingAttachments() }
 
         deferredA.complete(Unit)
-        val (extraA, _) = resultA.await()
-        val (extraB, _) = resultB.await()
+        val extraA = resultA.await()
+        val extraB = resultB.await()
 
         assertEquals("A's value", extraA)
         assertEquals("B's value", extraB)
@@ -241,7 +241,7 @@ class ExtraResolverHookTest {
         // see nothing. With the fix, cancellation propagates before the
         // drain runs, so the value is still here for a real subsequent call.
         Everframe.__pendingExtraResolveHook = null
-        val (extra, _) = Everframe.consumePendingAttachments()
+        val extra = Everframe.consumePendingAttachments()
 
         assertEquals("must survive cancellation", extra)
     }

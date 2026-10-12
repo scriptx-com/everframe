@@ -416,29 +416,6 @@ class CrashReporterTest {
     }
 
     @Test
-    fun `suppressed fatal survives reopen while legacy processing hydration is blocked`() {
-        val processing = File(storageDir, "crash-outbox.jsonl.processing")
-        val blocked = "{unreadable legacy batch\n"
-        processing.writeText(blocked)
-        sidecarFile().writeText(blocked)
-        val box = encryptedOutbox()
-        assertEquals(0, runBlocking { CrashSidecar(sidecarFile(), keys, JvmOutboxFileOps()).hydrateInto(box) })
-        assertTrue(hermesFatal())
-        CrashReporter.captureThrowable(Thread.currentThread(), rnWrapper())
-        assertEquals(1, runBlocking { box.count() })
-        CrashReporter.__resetForTesting()
-        val reopened = encryptedOutbox()
-        assertEquals(0, runBlocking { CrashSidecar(sidecarFile(), keys, JvmOutboxFileOps()).hydrateInto(reopened) })
-        val entry = runBlocking { reopened.hydrate() }.single()
-        val crash = Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject["payload"]!!.jsonObject["crash"]!!.jsonObject
-        assertEquals("errorutils", crash["mechanism"]!!.jsonPrimitive.content)
-        assertEquals(blocked, processing.readText())
-        assertEquals(blocked, sidecarFile().readText())
-        assertFalse(File(storageDir, "outbox.jsonl.encrypted").walkTopDown().filter { it.isFile }
-            .any { String(it.readBytes()).contains("test fatal") })
-    }
-
-    @Test
     fun `failed JS persistence preserves native wrapper fallback`() {
         failStorage()
         assertFalse(hermesFatal())
@@ -785,8 +762,7 @@ class CrashReporterTest {
         CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("boom"))
 
         // Read back through the encrypted outbox the sidecar writes straight
-        // into, the same way every sibling test in this class does —
-        // `CrashSidecar.hydrateInto` is now only the legacy-migration path.
+        // into, the same way every sibling test in this class does.
         val outbox = encryptedOutbox()
         assertEquals(1, runBlocking { outbox.count() })
         val entry = runBlocking { outbox.hydrate() }.single()

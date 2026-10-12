@@ -30,7 +30,7 @@ vi.mock('../src/mount/react-island.js', () => ({
 }));
 import { init, type Everframe, type InternalHandle } from '../src/init.js';
 import { EverframeNotMountedError } from '../src/reporter-types.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '../src/reporter/credential-store.js';
+import { scopedReporterTokenStorageKey } from '../src/reporter/credential-store.js';
 
 const TEST_TOKEN = 'evr_test0000000000000000000000000000000000';
 const config = { sdkKey: 'txx_live_test' };
@@ -46,7 +46,7 @@ beforeEach(() => {
   localStorage.clear();
   // A device token must already be present or pollOnce() idles on the
   // (unrelated) missing-token path before it ever reaches isEnabled().
-  localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, TEST_TOKEN);
+  localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), TEST_TOKEN);
 });
 
 afterEach(() => {
@@ -451,8 +451,8 @@ describe('dashboard-owned report hotkey', () => {
     stubFetch(undefined, false, 'Alt+R');
     const handle = init({
       sdkKey: 'txx_live_test',
-      // A legacy JavaScript caller may still pass the removed local option.
-      // The dashboard binding must win at runtime as well as in the TS API.
+      // A local binding is not a config option. An untyped caller passing one
+      // must not override the dashboard binding at runtime.
       hotkey: { binding: 'Ctrl+Shift+B' },
     } as unknown as Parameters<typeof init>[0]);
     handles.push(handle);

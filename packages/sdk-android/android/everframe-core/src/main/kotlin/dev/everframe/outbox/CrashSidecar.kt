@@ -17,9 +17,6 @@ class CrashSidecar private constructor(private val file: File, private val outbo
         file, JSONLOutbox(File(file.parentFile, "outbox.jsonl"), keys, ops, maxEntries),
     )
 
-    // Retain the existing public Unit JVM descriptor for already-compiled callers.
-    fun appendSync(entry: OutboxEntry) { appendSyncAccepted(entry) }
-
     internal fun appendSync(entry: OutboxEntry, authorization: OutboxAuthorization?) {
         appendSyncAccepted(entry, authorization)
     }
@@ -57,11 +54,6 @@ class CrashSidecar private constructor(private val file: File, private val outbo
     internal fun replaceSync(token: OutboxToken, replacement: OutboxEntry, authorization: OutboxAuthorization): Boolean = try {
         outbox.store.replaceSync(token, replacement, authorization)
     } catch (_: Exception) { false }
-
-    /** Import known legacy sources without renaming, rewriting, or discarding blocked input. */
-    suspend fun hydrateInto(outbox: JSONLOutbox): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        LegacyOutboxMigration.migrate(outbox)
-    }
 
     companion object {
         const val MAX_ENTRIES = JSONLOutbox.DEFAULT_MAX_ENTRIES

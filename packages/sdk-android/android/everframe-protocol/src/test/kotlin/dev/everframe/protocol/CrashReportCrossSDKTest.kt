@@ -233,12 +233,8 @@ class CrashReportCrossSDKTest {
         val encoded = wire.encodeToJsonElement(Crash.serializer(), crash).jsonObject.getValue("native")
         assertEquals(canonicalize(original), canonicalize(encoded))
 
-        // Pre-native constructors omit the sidecar; every copy overload keeps it.
-        val legacy = Crash(crash.exceptionType, crash.fatal, crash.fingerprint, crash.frames, crash.handled, crash.jsBundle,
-            crash.mechanism, crash.message, crash.occurredAt, crash.threadName, crash.jvm, crash.details, crash.causeChain)
-        assertEquals(null, legacy.native)
+        // Copies keep the sidecar.
         assertEquals(native, crash.copy(causeChain = crash.causeChain, message = "copied").native)
-        assertEquals(native, crash.copy(message = "older copy").native)
     }
 
     @Test

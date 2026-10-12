@@ -136,29 +136,4 @@ describe('setupReactNative', () => {
     ]);
   });
 
-  it('turns the blocks an earlier version generated into the short forms', async () => {
-    const root = await bareProject();
-    const legacy = join(__dirname, 'fixtures/legacy-build-artifacts');
-    await cp(join(legacy, 'app.build.gradle'), join(root, 'android/app/build.gradle'));
-    await cp(join(legacy, 'build.gradle'), join(root, 'android/build.gradle'));
-    await cp(join(legacy, 'project.pbxproj'), join(root, 'ios/App.xcodeproj/project.pbxproj'));
-    const result = await setupReactNative({ projectRoot: root, appId: APP });
-    expect(result.files.map((file) => file.path)).toEqual(['android/app/build.gradle', 'android/build.gradle', 'ios/App.xcodeproj/project.pbxproj']);
-    // The fixture pins 1.2.0; the root file changes once this checkout builds a later plugin.
-    expect(result.changed).toEqual([
-      'android/app/build.gradle',
-      ...(EVERFRAME_GRADLE_PLUGIN.endsWith(':1.2.0') ? [] : ['android/build.gradle']),
-      'ios/App.xcodeproj/project.pbxproj',
-    ]);
-    expect(await readFile(join(root, 'android/build.gradle'), 'utf8')).toContain(`classpath("${EVERFRAME_GRADLE_PLUGIN}")`);
-    const app = await readFile(join(root, 'android/app/build.gradle'), 'utf8');
-    expect(app).toContain(`// @generated begin everframe-build-artifacts\napply plugin: "dev.everframe"\neverframe { appId = "${APP}" }\n// @generated end everframe-build-artifacts\n`);
-    expect(app).not.toContain('ProcessBuilder');
-    expect(app).toContain("namespace '{{CLIENT_ID}}'");
-    const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
-    expect(pbx).toContain(xcodePhaseScript(APP).replace(/"/g, '\\"'));
-    expect(pbx).not.toContain('build collect');
-    expect(pbx).toContain('DEVELOPMENT_TEAM = {{DEVELOPMENT_TEAM}};');
-    expect((await setupReactNative({ projectRoot: root, appId: APP })).changed).toEqual([]);
-  });
 });

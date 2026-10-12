@@ -1,10 +1,24 @@
 {
   "name": "@everframe/bundler-plugin",
-  "version": "0.1.1",
+  "version": "1.2.0",
   "private": false,
   "description": "Bundler plugin that stamps an Everframe build identity into web bundles and uploads their source maps.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://everframe.dev",
+  "bugs": {
+    "url": "https://github.com/scriptx-com/everframe/issues"
+  },
+  "keywords": [
+    "everframe",
+    "vite",
+    "webpack",
+    "rollup",
+    "esbuild",
+    "nextjs",
+    "source-maps",
+    "crash-reporting"
+  ],
   "engines": {
     "node": ">=22"
   },

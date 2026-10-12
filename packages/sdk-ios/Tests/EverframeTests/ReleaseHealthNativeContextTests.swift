@@ -16,8 +16,8 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         return try NativeCrashRecoveryContext(sdkKey: old.sdkKey, endpoint: old.endpoint, identitySubject: nil,
             envelopeTemplate: old.envelopeTemplate, redaction: old.redaction, releaseHealthExposure: pointer)
     }
-    func testLegacyContextHasNoInventedExposure() throws {
-        let old = try NativeRecoveryTestData.context(), restored = try NativeCrashRecoveryContext.decode(old.encoded())
+    func testAContextWithoutAnExposureInventsNone() throws {
+        let plain = try NativeRecoveryTestData.context(), restored = try NativeCrashRecoveryContext.decode(plain.encoded())
         XCTAssertNil(restored.releaseHealthExposure)
         let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: UUID()), redact: { $0 })
         XCTAssertNil(try EverframeReportEnvelope(data: restored.entry(for: raw).envelopeBytes).payload.crash?.native?.releaseHealthEvidence)

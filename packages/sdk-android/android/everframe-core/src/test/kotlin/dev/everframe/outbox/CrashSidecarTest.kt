@@ -35,13 +35,12 @@ class CrashSidecarTest {
         CrashSidecar(file, keys, ops, capacity)
     private fun outbox(file: File) = JSONLOutbox(File(file.parentFile, "outbox.jsonl"), keys, JvmOutboxFileOps())
 
-    @Test fun `crash append reopens encrypted exact entry without migration`() = runBlocking {
+    @Test fun `crash append reopens encrypted exact entry`() = runBlocking {
         val file = sidecarFile()
         val original = makeEntry("sensitive").copy(identitySubject = "captured-person")
-        sidecar(file).appendSync(original)
+        sidecar(file).appendSyncAccepted(original)
         assertFalse(file.exists())
         assertEquals(listOf(original), outbox(file).hydrate())
-        assertEquals(0, sidecar(file).hydrateInto(outbox(file)))
         val bytes = File(file.parentFile, "outbox.jsonl.encrypted").walkTopDown()
             .filter { it.isFile }.flatMap { it.readBytes().asSequence() }.toList().toByteArray()
         assertFalse(String(bytes).contains("sensitive"))
@@ -51,7 +50,7 @@ class CrashSidecarTest {
     @Test fun `crash capacity retains accepted oldest entries`() = runBlocking {
         val file = sidecarFile()
         val crash = sidecar(file, 3)
-        for (i in 1..4) crash.appendSync(makeEntry("r-$i"))
+        for (i in 1..4) crash.appendSyncAccepted(makeEntry("r-$i"))
         assertEquals(listOf("r-1", "r-2", "r-3"), outbox(file).hydrate().map { it.reportId })
         assertFalse(file.exists())
     }
@@ -60,7 +59,7 @@ class CrashSidecarTest {
         val file = sidecarFile()
         val box = outbox(file)
         box.enqueue(makeEntry("normal"))
-        sidecar(file, 1).appendSync(makeEntry("crash"))
+        sidecar(file, 1).appendSyncAccepted(makeEntry("crash"))
         assertEquals(listOf("normal"), box.hydrate().map { it.reportId })
     }
 
@@ -69,7 +68,7 @@ class CrashSidecarTest {
         val broken = object : OutboxKeyProvider by keys {
             override fun createGeneration(generation: String): javax.crypto.SecretKey = error("unavailable")
         }
-        CrashSidecar(file, broken, JvmOutboxFileOps()).appendSync(makeEntry("lost"))
+        CrashSidecar(file, broken, JvmOutboxFileOps()).appendSyncAccepted(makeEntry("lost"))
         assertFalse(file.exists())
         assertEquals(0, outbox(file).count())
     }
@@ -86,10 +85,10 @@ class CrashSidecarTest {
         }
         val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
         try {
-            val write = writer.submit { sidecar(file, ops = ops).appendSync(makeEntry("normal")) }
+            val write = writer.submit { sidecar(file, ops = ops).appendSyncAccepted(makeEntry("normal")) }
             org.junit.Assert.assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
             val crash = java.util.concurrent.Executors.newSingleThreadExecutor()
-            try { crash.submit { sidecar(file).appendSync(makeEntry("rejected")) }.get(1, java.util.concurrent.TimeUnit.SECONDS) }
+            try { crash.submit { sidecar(file).appendSyncAccepted(makeEntry("rejected")) }.get(1, java.util.concurrent.TimeUnit.SECONDS) }
             finally { crash.shutdownNow(); release.countDown() }
             write.get(5, java.util.concurrent.TimeUnit.SECONDS)
             assertEquals(listOf("normal"), runBlocking { outbox(file).hydrate() }.map { it.reportId })
@@ -108,20 +107,8 @@ class CrashSidecarTest {
         dev.everframe.Everframe.captureGate = true
         sidecar(file).appendSync(makeEntry("old"), permission)
         assertEquals(0, outbox(file).count())
-        sidecar(file).appendSync(makeEntry("fresh"))
+        sidecar(file).appendSyncAccepted(makeEntry("fresh"))
         assertEquals(1, outbox(file).count())
         dev.everframe.Everframe.captureGate = false
-    }
-
-    @Test fun `legacy hydration remains separate from new encrypted appends`() = runBlocking {
-        val file = sidecarFile()
-        file.writeText(kotlinx.serialization.json.Json.encodeToString(OutboxEntry.serializer(), makeEntry("legacy")) + "\nNOT-JSON\n")
-        val original = file.readBytes()
-        assertEquals(1, sidecar(file).hydrateInto(outbox(file)))
-        org.junit.Assert.assertArrayEquals(original, file.readBytes())
-        outbox(file).drain { true }
-        assertEquals(0, sidecar(file).hydrateInto(outbox(file)))
-        assertEquals(0, outbox(file).count())
-        org.junit.Assert.assertArrayEquals(original, file.readBytes())
     }
 }

@@ -47,60 +47,6 @@ class ReportDiagnosticsPipelineTest {
         assertEquals(3, ledger.snapshot().queue.operations.getValue("enqueue-committed"))
     }
 
-    @Test fun enqueueAndDuplicatePreserveKnownMigrationDebt() {
-        val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
-        val legacy = tmp.newFile().apply { writeText("malformed legacy entry\n") }
-        val box = OutboxStore(tmp.newFolder(), JceTestOutboxKeyProvider(), JvmOutboxFileOps(), legacyFiles = listOf(legacy))
-        box.migrateLegacy()
-        assertNotNull(box.migrationBlocked)
-        box.snapshotTokens(owner)
-        assertEquals("partial", ledger.snapshot().queue.quality)
-        val item = entry("new")
-        val token = box.enqueueSync(item, allowed, owner)
-        assertEquals("partial", ledger.snapshot().queue.quality)
-        assertEquals("blocked", ledger.snapshot().queue.migration)
-        assertEquals(token, box.enqueueSync(item, allowed, owner))
-        assertEquals("partial", ledger.snapshot().queue.quality)
-        assertEquals(1, ledger.snapshot().queue.pendingCount)
-        assertTrue(legacy.exists())
-    }
-
-    @Test fun perCaptureFacadesKeepMigrationDebtObservedByTheDrain() = kotlinx.coroutines.runBlocking {
-        val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
-        val keys = JceTestOutboxKeyProvider()
-        val dir = tmp.newFolder()
-        val legacy = File(dir, "outbox.jsonl").apply { writeText("malformed legacy entry\n") }
-        JSONLOutbox(legacy, keys, JvmOutboxFileOps()).drainOwned(owner) { false }
-        assertEquals("partial", ledger.snapshot().queue.quality)
-        assertEquals("blocked", ledger.snapshot().queue.migration)
-        // Production builds a new sidecar, outbox and store for every capture.
-        val sidecar = { CrashSidecar(File(dir, "crash-outbox.jsonl"), keys, JvmOutboxFileOps()) }
-        assertTrue(sidecar().appendHandledSyncAccepted(entry("handled"), allowed, owner))
-        assertEquals(1, ledger.snapshot().queue.pendingCount)
-        assertEquals("partial", ledger.snapshot().queue.quality)
-        assertEquals("blocked", ledger.snapshot().queue.migration)
-        assertTrue(sidecar().appendSyncAccepted(entry("fatal"), allowed, owner))
-        assertEquals(2, ledger.snapshot().queue.pendingCount)
-        assertEquals("partial", ledger.snapshot().queue.quality)
-        assertEquals("blocked", ledger.snapshot().queue.migration)
-        assertTrue(legacy.exists())
-    }
-
-    @Test fun revocationForgetsMigrationDebtUntilTheNextMigration() = kotlinx.coroutines.runBlocking {
-        val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
-        val keys = JceTestOutboxKeyProvider()
-        val legacy = File(tmp.newFolder(), "outbox.jsonl").apply { writeText("malformed legacy entry\n") }
-        JSONLOutbox(legacy, keys, JvmOutboxFileOps()).drainOwned(owner) { false }
-        assertEquals("blocked", ledger.snapshot().queue.migration)
-        JSONLOutbox(legacy, keys, JvmOutboxFileOps()).store.revokeSync()
-        // Kill permanently suppresses legacy import, so the old debt is no longer current.
-        JSONLOutbox(legacy, keys, JvmOutboxFileOps()).store.enqueueSync(entry("after-kill"), allowed, owner)
-        assertEquals("not-observed", ledger.snapshot().queue.migration)
-        JSONLOutbox(legacy, keys, JvmOutboxFileOps()).drainOwned(owner) { false }
-        assertEquals("clear", ledger.snapshot().queue.migration)
-        assertEquals("complete", ledger.snapshot().queue.quality)
-    }
-
     @Test fun generationReplacementDuringStorageCommitCannotUpdateSuccessor() {
         for (operation in listOf("enqueue", "remove")) {
             val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
@@ -219,18 +165,4 @@ class ReportDiagnosticsPipelineTest {
         assertEquals(0, ledger.snapshot().queue.operations.getValue("enqueue-committed"))
         assertFalse(ledger.snapshot().toJson().contains("secret"))
     }
-
-    @Test fun readingWithoutMigrationDoesNotClaimLegacyDebtIsClear() {
-        val ledger = ReportDiagnostics(); val owner = ledger.beginGeneration(1, true)
-        val legacy = tmp.newFile("legacy.jsonl").apply { writeText("unread legacy content") }
-        val box = OutboxStore(tmp.newFolder(), JceTestOutboxKeyProvider(), JvmOutboxFileOps(), legacyFiles = listOf(legacy))
-        box.snapshotTokens(owner)
-        assertEquals("not-observed", ledger.snapshot().queue.migration)
-        box.migrateLegacy()
-        box.snapshotTokens(owner)
-        assertEquals("blocked", ledger.snapshot().queue.migration)
-        assertEquals("partial", ledger.snapshot().queue.quality)
-        assertTrue(legacy.exists())
-    }
-
 }

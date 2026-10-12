@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import type { Rect } from '@everframe/sdk-core';
 import {
   HIGHLIGHTER_OPACITY,
   HIGHLIGHTER_WIDTH_MULTIPLIER,
   TEXT_FONT_FAMILY,
   TEXT_LINE_HEIGHT,
-  newAnnotationId,
   type Annotation,
   type BlurRect,
 } from './annotation-model.js';
@@ -15,9 +13,9 @@ import {
 /**
  * Bake annotations into the screenshot bytes BEFORE the Blob leaves the device.
  *
- * PRIV-03 / ANN-02 lock — redaction regions are baked as SOLID BLACK fills.
- * (Earlier versions used a gaussian blur; reverted because residual shape +
- * color information leaks through a blur, defeating the redaction's purpose.)
+ * PRIV-03 / ANN-02 lock — redaction regions are baked as SOLID BLACK fills,
+ * not a blur: residual shape and color information leaks through a blur,
+ * defeating the redaction's purpose.
  *
  * Every other shape kind — pen, highlighter, rect, ellipse, arrow, text — is
  * baked too: the envelope still ships the structured annotation data for
@@ -35,11 +33,7 @@ import {
 export async function bakeAnnotations(
   source: Blob,
   annotations: Annotation[],
-  // Retained for backwards compat — no longer used now that redactions are
-  // a solid fill. New code should omit this argument.
-  _legacyBlurRadius?: number,
 ): Promise<Blob> {
-  void _legacyBlurRadius;
   if (annotations.length === 0) return source;
   let bitmap: ImageBitmap;
   try {
@@ -196,21 +190,3 @@ async function encodeBlobPreferWebP(
   return png;
 }
 
-/**
- * @deprecated Use `bakeAnnotations`. Kept as a thin shim so callers still
- * passing rect-only `Rect[]` (i.e. pre-annotation-baking code paths) keep
- * working. New callers should pass the full Annotation[] so pen strokes
- * get painted too.
- */
-export async function bakeBlurRegions(source: Blob, regions: Rect[]): Promise<Blob> {
-  if (regions.length === 0) return source;
-  const annotations: Annotation[] = regions.map((r) => ({
-    id: newAnnotationId(),
-    kind: 'blur',
-    x: r.x,
-    y: r.y,
-    width: r.width,
-    height: r.height,
-  }));
-  return bakeAnnotations(source, annotations);
-}

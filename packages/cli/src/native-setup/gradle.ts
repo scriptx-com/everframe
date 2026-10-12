@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { CLI_VERSION } from '../version.js';
 import { checkedAppId } from './script.js';
 
-declare const __EVERFRAME_ANDROID_VERSION__: string;
-/** The dev.everframe Gradle plugin of the Android SDK version this CLI ships with. */
-export const EVERFRAME_GRADLE_PLUGIN = `dev.everframe:gradle-plugin:${__EVERFRAME_ANDROID_VERSION__}`;
+/** The dev.everframe Gradle plugin released with this CLI; both share the Everframe version. */
+export const EVERFRAME_GRADLE_PLUGIN = `dev.everframe:gradle-plugin:${CLI_VERSION}`;
 const PLUGIN_TAG = 'everframe-gradle-plugin';
 const CLASSPATH_ANCHOR = /^([ \t]*)classpath\(\s*["']com\.facebook\.react:react-native-gradle-plugin["']\s*\)[ \t]*$/m;
 
@@ -47,10 +47,7 @@ function gradleBlock(appId: string): string {
   return [BEGIN, 'apply plugin: "dev.everframe"', `everframe { appId = "${checkedAppId(appId)}" }`, END].join('\n');
 }
 
-/**
- * Inserts the tagged block after the application plugin line, or replaces an existing one. The
- * long block earlier versions generated has the same tags, so it is replaced by the short one.
- */
+/** Inserts the tagged block after the application plugin line, or replaces an existing one. */
 export function patchAppBuildGradle(contents: string, appId: string): string {
   const block = gradleBlock(appId);
   const start = contents.indexOf(BEGIN);

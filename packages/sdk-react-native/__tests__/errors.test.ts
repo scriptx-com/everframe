@@ -243,47 +243,6 @@ describe('shared capture acceptance and bounded facts', () => {
     expect(JSON.parse(automatic.mock.calls[0]![0])).toMatchObject({ source: 'error', handled: false, fatal: false });
   });
 
-  it('legacy automatic true results preserve distinct keys on a reused object', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
-    Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
-    try {
-      automatic.mockReturnValue(true);
-      const thrown = makeError('original');
-      thrown.message = 'first occurrence';
-      current(thrown, false);
-      current(thrown, false);
-      thrown.message = 'later occurrence';
-      thrown.stack = 'Error: later occurrence\n at anotherFunction (bundle.js:1:2)';
-      current(thrown, false);
-      current(thrown, false);
-      expect(automatic).toHaveBeenCalledTimes(2);
-      expect(automatic.mock.calls.map(([payload]) => JSON.parse(payload))).toMatchObject([
-        { message: 'first occurrence', framesRaw: ['at original (bundle.js:1:2)'] },
-        { message: 'later occurrence', framesRaw: ['at anotherFunction (bundle.js:1:2)'] },
-      ]);
-      current(makeError('anotherFunction'), false);
-      expect(automatic).toHaveBeenCalledTimes(2);
-      expect(handled).not.toHaveBeenCalled();
-    } finally {
-      Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor);
-    }
-  });
-
-  it('legacy automatic attempts consume allowance even on false or throwing reports', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
-    Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
-    try {
-      automatic.mockReturnValueOnce(false).mockImplementationOnce(() => { throw new Error('bridge'); });
-      const first = makeError('first');
-      current(first, false); current(first, false);
-      const second = makeError('second');
-      current(second, false); current(second, false);
-      expect(automatic).toHaveBeenCalledTimes(2);
-    } finally {
-      Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor);
-    }
-  });
-
   it('one latch prevents bridge-driven recursion across automatic and explicit capture', () => {
     handled.mockImplementation(() => {
       current(makeError('recursive-auto'), false);
@@ -544,24 +503,6 @@ describe('shared capture acceptance and bounded facts', () => {
     expect(facts.framesRaw).toHaveLength(256);
     expect(facts.framesRaw[0].length).toBeLessThanOrEqual(1024);
     expect(facts.framesRaw[255]).toBe('at short');
-  });
-
-  it('preserves legacy attempt accounting when reportCrash property lookup throws', () => {
-    const handledDescriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
-    const automaticDescriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'reportCrash')!;
-    const thrown = makeError('legacy-lookup');
-    try {
-      Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, value: undefined });
-      Object.defineProperty(NativeEverframe, 'reportCrash', { configurable: true, get() { throw new Error('lookup'); } });
-      current(thrown, false);
-      Object.defineProperty(NativeEverframe, 'reportCrash', automaticDescriptor);
-      current(thrown, false);
-      expect(automatic).not.toHaveBeenCalled();
-      expect(previous).toHaveBeenCalledTimes(2);
-    } finally {
-      Object.defineProperty(NativeEverframe, 'captureHandledException', handledDescriptor);
-      Object.defineProperty(NativeEverframe, 'reportCrash', automaticDescriptor);
-    }
   });
 
   it.each([10n ** 10000n, Symbol('s'.repeat(10000))])('bounds oversized primitive rendering before String conversion', (value) => {

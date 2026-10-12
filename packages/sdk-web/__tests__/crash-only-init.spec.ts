@@ -28,7 +28,7 @@ vi.mock('../src/mount/react-island.js', () => ({
 
 import { init, type Everframe, type InternalHandle } from '../src/init.js';
 import { EverframeReporterDisabledError } from '../src/reporter-types.js';
-import { REPORTER_TOKEN_STORAGE_KEY } from '../src/reporter/credential-store.js';
+import { scopedReporterTokenStorageKey } from '../src/reporter/credential-store.js';
 import { __getCompanionApi } from '../src/companion/singleton.js';
 
 let handles: Everframe[] = [];
@@ -137,7 +137,7 @@ describe('crash-only init(): entry points', () => {
     };
 
     async function openInbox(reporterDisabled: boolean): Promise<IslandOpts> {
-      localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
+      localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), `evr_${'0'.repeat(36)}`);
       stubFetch({ ...replayOff, replies: { enabled: true } }, [thread]);
       mount(reporterDisabled);
       const fab = await vi.waitFor(

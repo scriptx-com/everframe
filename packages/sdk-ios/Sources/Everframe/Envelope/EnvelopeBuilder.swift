@@ -438,16 +438,20 @@ public struct EnvelopeBuilder {
 
         let payload = EverframePayload(
             annotations: annotations,
+            appleDiagnostic: nil,
             breadcrumbs: trimmedBreadcrumbs,
             // EverframeCrash/error reporting (spec 2026-07-18): nil for manual reporter
             // reports; populated by CrashReporter (Task 13) for automatic
             // crash/error reports.
             crash: crash,
+            diagnostic: nil,
             extra: userExtra,
             focus: nil,
+            inferredTermination: nil,
             logs: logsJSON,
             network: networkJSON,
             networkBodies: (networkBodies?.isEmpty == false) ? networkBodies : nil,
+            recoveredStall: nil,
             redactions: redactions,
             resources: resourcesJSON,
             vitals: vitalsGenerated

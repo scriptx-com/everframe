@@ -262,10 +262,6 @@ CLI that fails to start, or a failed upload prints a `warning:` line and the
 build continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
 `EVERFRAME_UPLOAD_TIMEOUT_SECONDS`, 600 by default.
 
-Setup from earlier versions wrote a long Gradle block and a long Xcode script.
-Run `expo prebuild` or `setup react-native` again to replace them with the
-lines above. Upload fixes then arrive with package updates.
-
 ## Android ELF upload
 
 Keep the unstripped shared library produced by each Android build and ABI:

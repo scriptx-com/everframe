@@ -147,7 +147,7 @@ describe('public captureException ownership', () => {
     expect(JSON.parse(automatic.mock.calls[0]![0]).details).toBeUndefined();
   });
 
-  it.each(['missing', 'nonfunction', 'lookup', 'call'])('fails softly on %s native handled capability with no legacy explicit fallback', (failure) => {
+  it.each(['missing', 'nonfunction', 'lookup', 'call'])('fails softly on %s native handled capability and keeps automatic capture', (failure) => {
     const runtime = mount();
     // Define the bridge property directly: RN host-object getters can throw too.
     const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
@@ -165,7 +165,7 @@ describe('public captureException ownership', () => {
     }
   });
 
-  it('keeps core handled facts independent when an older decoder ignores additive details', () => {
+  it('keeps core handled facts independent of the details field', () => {
     let oldDecoderFacts: Record<string, unknown> | undefined;
     handled.mockImplementationOnce((payload) => {
       const { details: ignored, ...facts } = JSON.parse(payload);

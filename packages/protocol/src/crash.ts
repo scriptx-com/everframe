@@ -70,7 +70,7 @@ export const CrashPayload = z
     mechanism: z.string().max(64),
     /** True when the host explicitly reports a caught exception. */
     handled: z.boolean(),
-    /** Process termination, separate from handled. Absent on older SDKs. */
+    /** Process termination, separate from handled. Optional: absent when the SDK does not classify it. */
     fatal: z.boolean().optional(),
     /** Crash time — distinct from submittedAt (next launch on Android). */
     occurredAt: z.string().datetime(),

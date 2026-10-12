@@ -36,13 +36,13 @@ it('projects detached fixed-schema native values without changing JS admission',
   expect(publicGetter().queue.pendingCount).toBe(1);
 });
 it.each([
-  ['missing', (): undefined => undefined, 'native-method-missing'],
+  ['missing', (): undefined => undefined, 'native-call-failed'],
   ['property', () => { throw new Error('private'); }, 'native-call-failed'],
   ['method', () => () => { throw new Error('private'); }, 'native-call-failed'],
   ['non-string', () => () => ({ private: 'content' }), 'invalid-native-snapshot'],
 ] as const)('%s native bridge has a content-free fallback', (_name, get, reason) => {
   mount(); bridge(get);
-  expect(getReportDeliveryStatus()).toMatchObject({ status: reason === 'native-method-missing' ? 'unsupported' : 'unavailable', reason, revision: 0 });
+  expect(getReportDeliveryStatus()).toMatchObject({ status: 'unavailable', reason, revision: 0 });
   expect(JSON.stringify(getReportDeliveryStatus())).not.toContain('private');
 });
 it('README names the fallback pairs the getters return', () => {
@@ -60,7 +60,7 @@ it('README names the fallback pairs the getters return', () => {
     pairs.push(`${status}/${reason}`);
   }
   for (const pair of pairs) expect(section).toContain(`\`${pair}\``);
-  expect(section).not.toContain('`unavailable/native-method-missing`');
+  expect(section).not.toContain('native-method-missing');
   expect(readme.replace(/\s+/g, ' ')).not.toContain('Native queue and delivery diagnostics remain unavailable');
 });
 it.each([
@@ -99,7 +99,7 @@ it('property reentrancy cannot call a method after ownership changes', () => {
 
 it('bridge accessors cannot weaken fixed enum validation by replacing array intrinsics', () => {
   mount();
-  const payload = JSON.parse(fixtureText); payload.queue.migration = 'PRIVATE_NATIVE_CONTENT';
+  const payload = JSON.parse(fixtureText); payload.queue.quality = 'PRIVATE_NATIVE_CONTENT';
   const text = JSON.stringify(payload), original = Array.prototype.includes;
   let result;
   bridge(() => { Array.prototype.includes = () => true; return () => text; });

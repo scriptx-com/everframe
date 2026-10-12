@@ -21,7 +21,6 @@ const passthrough = (name: string) =>
 vi.mock("react-native", () => ({
   TurboModuleRegistry: {
     getEnforcing: () => ({
-      configure: vi.fn(),
       configureSync: vi.fn(() => true),
       openReporter: vi.fn().mockResolvedValue({ status: "cancelled" }),
       registerSensitiveRect: vi.fn(),

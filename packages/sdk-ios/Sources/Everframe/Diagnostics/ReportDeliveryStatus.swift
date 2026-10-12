@@ -40,7 +40,6 @@ public struct ReportQueueStatus: Encodable, Sendable {
     public let terminalHttpPolicy = "attempt-remove"
     public internal(set) var operations = Dictionary(uniqueKeysWithValues: ReportQueueOperation.allCases.map { ($0.rawValue, 0) })
     public internal(set) var lastFailure: String?
-    public internal(set) var migration = "not-observed"
 }
 public struct ReportTransportStatus: Encodable, Sendable {
     public internal(set) var settledAttempts = 0

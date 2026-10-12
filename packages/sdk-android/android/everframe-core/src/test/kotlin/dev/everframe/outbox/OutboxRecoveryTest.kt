@@ -94,7 +94,6 @@ class OutboxRecoveryTest {
         (registry.get(null) as MutableMap<String, *>).remove(root.path)
         val reopened = OutboxStore(root, real, JvmOutboxFileOps())
         assertTrue(reopened.snapshotTokens().isEmpty())
-        assertTrue(reopened.hasRevocationHistory())
         assertFalse(File(root, "kill.pending").exists())
         reopened.enqueueSync(entry("new"), allowed)
     }

@@ -97,7 +97,7 @@ final class ExtraResolverHookTests {
         Everframe.__pendingExtraResolveHook = nil
         Everframe.shared.setExtra("pre-existing value")
 
-        let (extra, _) = await Everframe.shared.__consumePendingAttachments()
+        let extra = await Everframe.shared.__consumePendingAttachments()
 
         #expect(extra == "pre-existing value")
     }
@@ -111,7 +111,7 @@ final class ExtraResolverHookTests {
             Everframe.shared.setExtra("fresh from resolver")
         }
 
-        let (extra, _) = await Everframe.shared.__consumePendingAttachments()
+        let extra = await Everframe.shared.__consumePendingAttachments()
 
         #expect(extra == "fresh from resolver")
     }
@@ -130,7 +130,7 @@ final class ExtraResolverHookTests {
             // outcome takes on the JS side.
         }
 
-        let (extra, _) = await Everframe.shared.__consumePendingAttachments()
+        let extra = await Everframe.shared.__consumePendingAttachments()
 
         #expect(extra == "still ships")
     }
@@ -150,7 +150,7 @@ final class ExtraResolverHookTests {
         }
 
         let start = Date()
-        let (extra, _) = await Everframe.shared.__consumePendingAttachments()
+        let extra = await Everframe.shared.__consumePendingAttachments()
         let elapsed = Date().timeIntervalSince(start)
 
         // The wait honoured its own bound — the hook returned instead of
@@ -163,8 +163,8 @@ final class ExtraResolverHookTests {
         Everframe.shared.setExtra("only once")
         Everframe.__pendingExtraResolveHook = nil
 
-        let (first, _) = await Everframe.shared.__consumePendingAttachments()
-        let (second, _) = await Everframe.shared.__consumePendingAttachments()
+        let first = await Everframe.shared.__consumePendingAttachments()
+        let second = await Everframe.shared.__consumePendingAttachments()
 
         #expect(first == "only once")
         #expect(second == nil)
@@ -234,8 +234,8 @@ final class ExtraResolverHookTests {
 
         // JS answers B.
         await gateB.open()
-        let (extraA, _) = await taskA.value
-        let (extraB, _) = await taskB.value
+        let extraA = await taskA.value
+        let extraB = await taskB.value
 
         // Each call drains exactly the value ITS OWN resolve round trip
         // caused JS to push — not the other call's, and not nil. Before the
@@ -266,8 +266,8 @@ final class ExtraResolverHookTests {
         let taskB = Task { await Everframe.shared.__consumePendingAttachments() }
 
         await gateA.open()
-        let (extraA, _) = await taskA.value
-        let (extraB, _) = await taskB.value
+        let extraA = await taskA.value
+        let extraB = await taskB.value
 
         #expect(extraA == "A's value")
         #expect(extraB == "B's value")

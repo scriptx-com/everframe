@@ -103,13 +103,8 @@ internal class TXReporterPresenter(
 
             // Consume host-attached payload exactly once — matches iOS
             // TXReporterPresenter.swift:72. `hostExtra` is threaded through to
-            // the submission (for `payload.extra`). The React tree that comes
-            // back with it is DRAINED AND DISCARDED: tap-to-identify and the
-            // UI-tree payload are gone (spec 2026-08-29). The core
-            // `Everframe.attachReactTree` is still callable by pure-native
-            // hosts, so the pending slot must still be cleared or a stale
-            // attach would outlive the report that caused it.
-            val (hostExtra, _) = Everframe.consumePendingAttachments()
+            // the submission (for `payload.extra`).
+            val hostExtra = Everframe.consumePendingAttachments()
             val hostExtraNormalized = hostExtra?.takeIf { it.isNotEmpty() }
 
             // 0. FREEZE the session-replay rolling buffer the INSTANT the reporter

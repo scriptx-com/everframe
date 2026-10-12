@@ -122,7 +122,7 @@ export interface CompanionStartOptions {
   onReportRequest?: (correlationId: string, ws: RelayWSClient) => void;
   /**
    * Full override for the `report.submit` handler. Defaults to the SDK's
-   * passive observer (`handleReportSubmit`).
+   * own submit flow.
    */
   onReportSubmit?: (msg: ReportSubmit) => void;
   /**
