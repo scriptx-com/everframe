@@ -1,0 +1,31 @@
+packages/everframe_flutter/CHANGELOG.md
+  s_dbd309ddf8ec5b::t_25c6e2509dc5db 4,6
+packages/everframe_flutter/README.md
+  s_dbd309ddf8ec5b::t_a5bb08f72f429e 18-24
+packages/everframe_flutter/android/build.gradle.kts
+  s_dbd309ddf8ec5b::t_0f40bf12c61f02 4,47
+packages/everframe_flutter/android/src/main/kotlin/dev/everframe/flutter/EverframeFlutterPlugin.kt
+  s_dbd309ddf8ec5b::t_a334276fa7808c 81-82
+packages/everframe_flutter/ios/everframe_flutter.podspec
+  s_dbd309ddf8ec5b::t_3ef8c6882fe368 6
+packages/everframe_flutter/lib/src/web_sdk_web.dart
+  s_dbd309ddf8ec5b::t_7f5657041f84ec 90
+packages/everframe_flutter/pubspec.yaml
+  s_dbd309ddf8ec5b::t_812cf47030d613 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f56045ccc38287a58654089852ee897b9c6368f",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
