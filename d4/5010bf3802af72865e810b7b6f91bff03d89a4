@@ -1,0 +1,41 @@
+packages/sdk-web/__tests__/capture/replay/checkpoint.spec.ts
+  s_269319d6df67e5::t_30d27171a3d04d 1-69
+packages/sdk-web/__tests__/capture/replay/error-replay-adapter.spec.ts
+  s_269319d6df67e5::t_9ae9554a90cc24 55,71,121,170-189
+packages/sdk-web/__tests__/capture/replay/mask-zero-leak.spec.ts
+  s_269319d6df67e5::t_787b08b2f8a8a5 294,313-328
+packages/sdk-web/__tests__/capture/replay/snapshot.spec.ts
+  s_269319d6df67e5::t_8dad493670a06f 11-12,109-156,168,171
+packages/sdk-web/__tests__/transport/error-replay-drain.spec.ts
+  s_269319d6df67e5::t_e4d0a3461eb534 16,131-144
+packages/sdk-web/__tests__/transport/error-replay-tabs.spec.ts
+  s_269319d6df67e5::t_565cab36796b41 1-70
+packages/sdk-web/src/adapter.ts
+  s_269319d6df67e5::t_c7dcf2fdc9d212 110,113,615,1671-1674,2288-2291
+packages/sdk-web/src/capture/replay/checkpoint.ts
+  s_269319d6df67e5::t_cd04822e5acb18 1-98
+packages/sdk-web/src/capture/replay/error-replay.ts
+  s_269319d6df67e5::t_8fcf78e62751d9 25,33,75-77,109-110
+packages/sdk-web/src/capture/replay/recorder.ts
+  s_269319d6df67e5::t_721c254f262b5c 34,484-485,636-640,648
+packages/sdk-web/src/transport/error-replay-parts.ts
+  s_269319d6df67e5::t_fb299d4cafa20e 21-22,28,31,34,36-46,51-54,71-80
+packages/sdk-web/src/transport/submit.ts
+  s_269319d6df67e5::t_2c5a8563b13c20 28-29,557-573,628-629,711,716-722,738
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d45010bf3802af72865e810b7b6f91bff03d89a4",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
