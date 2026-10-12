@@ -52,8 +52,15 @@ struct NativeVideoRing: Sendable {
             return false
         }
         // Evict before insertion: retained bytes never transiently exceed budget.
-        while let first = segments.first,
-              segment.endNanos - first.startNanos > durationNanos || byteCount > byteLimit - segment.byteCount {
+        let windowStart = segment.endNanos > durationNanos ? segment.endNanos - durationNanos : 0
+        while let first = segments.first {
+            let nextStart = segments.count > 1 ? segments[1].startNanos : segment.startNanos
+            // A final captured frame holds until the next real segment starts.
+            // Keep at most one predecessor before the logical window when that
+            // hold intersects it, including across an arbitrarily long idle.
+            let holdsIntoWindow = first.lastFrameNanos != nil && nextStart > windowStart
+            let expired = segment.endNanos - first.startNanos > durationNanos && !holdsIntoWindow
+            guard expired || byteCount > byteLimit - segment.byteCount else { break }
             try removeFirst()
         }
         segments.append(segment)

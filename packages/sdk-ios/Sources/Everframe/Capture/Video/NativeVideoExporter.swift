@@ -57,8 +57,10 @@ actor NativeVideoExporter {
         }
         guard !cancelled, !Task.isCancelled else { throw CancellationError() }
         guard let first = segments.first, let last = segments.last else { return nil }
+        // Raw capture span can include a long idle plus its held predecessor.
+        // Each source file is still validated below; exported coverage is clipped
+        // to the configured logical window before any hold is extended.
         guard first.startNanos >= anchorNanos, last.endNanos > first.startNanos,
-              last.endNanos - first.startNanos <= NativeVideoLimits.maxDurationNanos,
               anchorEpochMs.isFinite, anchorEpochMs >= 0 else { throw NativeVideoExportError.invalidSegments }
         let cutoff = endNanos ?? last.endNanos
         guard cutoff > first.startNanos else { return nil }

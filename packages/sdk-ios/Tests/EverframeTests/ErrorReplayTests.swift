@@ -338,6 +338,76 @@ final class ErrorReplayTests: XCTestCase {
         }, [])
     }
 
+    func testLongIdleBeforeSecondSDKCaptureRetainsRedWhenBlueArrivesBeforeEntry() async throws {
+        try await idleDelayedCapture(rolloverBeforeEntry: false)
+    }
+
+    func testLongIdleBeforeSecondSDKCaptureRetainsRedAcrossPostErrorRollover() async throws {
+        try await idleDelayedCapture(rolloverBeforeEntry: true)
+    }
+
+    private func idleDelayedCapture(rolloverBeforeEntry: Bool) async throws {
+        let dir = tempDir.appendingPathComponent("idle-delayed-video")
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 2)
+        let anchor = DispatchTime.now().uptimeNanoseconds - 60_000_000_000
+        let accepted = try await recorder.append(Self.coloredFrame(anchor, blue: false)); XCTAssertTrue(accepted)
+        // Complete a real first snapshot at a historical capture time, without
+        // making the test wait a minute for the acquisition gap that follows.
+        let initial = try await recorder.snapshot(anchorNanos: anchor, anchorEpochMs: 0, endNanos: anchor + 200_000_000)
+        let first = try XCTUnwrap(initial)
+        defer { first.removeOwnedFile() }
+        XCTAssertEqual(try Self.colors(first.url), [false])
+        ErrorReplayGate.shared.publish(recording: true, epoch: epoch)
+        XCTAssertTrue(ErrorReplayGate.shared.reserve(epoch: epoch)) // first completed error used one slot
+        let beforeCapture = DispatchTime.now().uptimeNanoseconds
+        CrashReporter.__errorReplayProviderForTesting = { capture in
+            do {
+                XCTAssertGreaterThanOrEqual(capture.cutoffNanos, beforeCapture)
+                let result = try await recorder.snapshot(anchorNanos: anchor, anchorEpochMs: 0, endNanos: capture.cutoffNanos)
+                let movie = try XCTUnwrap(result, "The prior red frame must survive the later blue segment's insertion")
+                defer { movie.removeOwnedFile() }
+                let expectedEnd = Double(capture.cutoffNanos - anchor) / 1_000_000
+                XCTAssertEqual(movie.startEpochMs, expectedEnd - 30_000, accuracy: 2)
+                XCTAssertEqual(AVURLAsset(url: movie.url).duration.seconds * 1000, 30_000, accuracy: 2)
+                XCTAssertEqual(movie.startEpochMs + movie.durationMs, expectedEnd, accuracy: 2)
+                XCTAssertEqual(try Self.colors(movie.url), [false])
+                print("Idle delayed SDK media: cutoff=\(expectedEnd)ms start=\(movie.startEpochMs)ms duration=\(movie.durationMs)ms colors=\(try Self.colors(movie.url))")
+                let built = await ReporterSubmission.buildReplayAttachment(artifact: movie,
+                    byteBudget: ErrorReplayPolicy.maxReplayBytes)
+                let part = try XCTUnwrap(built)
+                let reference = try EnvelopeBuilder.makeJSONEncoder().encode(part.envelope)
+                return .attached(reference: reference, part: .init(name: part.multipart.name,
+                    filename: part.multipart.filename, contentType: part.multipart.contentType,
+                    dataBase64: part.multipart.data.base64EncodedString(), sha256Hex: part.multipart.sha256Hex),
+                    byteCount: part.multipart.data.count)
+            } catch { XCTFail("Idle delayed SDK replay failed: \(error)"); return .omitted("replay_unavailable") }
+        }
+        let box = outbox()
+        XCTAssertTrue(CrashReporter.captureHandledError(NSError(domain: "IdleDelayedReplay", code: 2), outbox: box))
+        let blueTime = DispatchTime.now().uptimeNanoseconds + 100_000_000
+        let blue = try await recorder.append(Self.coloredFrame(blueTime, blue: true)); XCTAssertTrue(blue)
+        let lastBlueTime = blueTime + (rolloverBeforeEntry ? 2_000_000_000 : 0)
+        if rolloverBeforeEntry {
+            let rollover = try await recorder.append(Self.coloredFrame(lastBlueTime, blue: true)); XCTAssertTrue(rollover)
+        }
+        let work = scheduled.takeWork(); XCTAssertEqual(work.count, 1)
+        for task in work { await task() }
+        XCTAssertEqual(try box.hydrate().first?.attachmentRefs.count, 1)
+        let frozen = try await recorder.finish(anchorNanos: anchor, anchorEpochMs: 0, endNanos: lastBlueTime + 500_000_000)
+        let report = try XCTUnwrap(frozen)
+        defer { report.removeOwnedFile() }
+        XCTAssertEqual(try Self.colors(report.url), rolloverBeforeEntry ? [false, true, true] : [false, true])
+        XCTAssertEqual(report.durationMs, 30_000, accuracy: 2)
+        XCTAssertEqual(try Self.frameTimes(report.url), rolloverBeforeEntry ? [0, 27_500, 29_500] : [0, 29_500])
+        XCTAssertEqual(try Self.colors(first.url), [false])
+        let firstDirectory = try XCTUnwrap(first.ownedDirectory)
+        first.removeOwnedFile()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: firstDirectory.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: report.url.path))
+        report.removeOwnedFile()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
+    }
+
     func testReplacementBeforePreviousSampleEndKeepsItsRealCaptureTime() async throws {
         let recorder = try NativeVideoRecorder(directory: tempDir.appendingPathComponent("overlap-video"), framesPerSecond: 2)
         let first = try await recorder.append(Self.coloredFrame(0, blue: false)); XCTAssertTrue(first)
