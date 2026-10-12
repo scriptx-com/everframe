@@ -34,10 +34,8 @@ import {
   INGEST_URL,
   createScreenRecorder,
   sha256Hex,
-  resolveSdkKey,
   type WebPlatformAdapter,
   type WebEverframeConfig,
-  type ResolvedWebEverframeConfig,
   type ReporterResult,
 } from '@everframe/web';
 import { useIdentityProp, type IdentityProp } from './identity-prop.js';
@@ -61,7 +59,7 @@ import { __setCurrentContext } from './contextSeam.js';
 export interface InternalContext {
   client: EverframeClient;
   adapter: WebPlatformAdapter;
-  config: ResolvedWebEverframeConfig;
+  config: WebEverframeConfig;
   /**
    * True once this Provider's own cleanup stopped the client, unless a kill()
    * from anywhere else reached it first. Only such a context is rebuilt after a
@@ -114,8 +112,7 @@ function sha256OfBytes(bytes: Uint8Array): Promise<string> {
 export const EverframeProvider = ({ config, identity, children }: EverframeProviderProps) => {
   // Repairable client contexts share the same real-mount configuration. A
   // child's effect may mutate the caller's object before StrictMode repairs it.
-  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
-  const [mountConfig] = useState<ResolvedWebEverframeConfig>(() => ({ ...resolveSdkKey(config) }));
+  const [mountConfig] = useState<WebEverframeConfig>(() => ({ ...config }));
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({

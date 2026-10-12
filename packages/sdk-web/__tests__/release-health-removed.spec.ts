@@ -8,7 +8,7 @@
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { init, type Everframe } from '../src/init.js';
-import type { ResolvedWebEverframeConfig, WebEverframeConfig } from '../src/internal/types.js';
+import type { WebEverframeConfig } from '../src/internal/types.js';
 
 let handles: Everframe[] = [];
 
@@ -42,7 +42,7 @@ describe('web release health is removed', () => {
 
   it('has no releaseHealth on the config or handle types', () => {
     // Each declaration stops compiling under `tsc -p tsconfig.test.json` if the key comes back.
-    const configHasNoKey: 'releaseHealth' extends keyof ResolvedWebEverframeConfig ? false : true = true;
+    const configHasNoKey: 'releaseHealth' extends keyof WebEverframeConfig ? false : true = true;
     const handleHasNoKey: 'releaseHealth' extends keyof Everframe ? false : true = true;
     expect([configHasNoKey, handleHasNoKey]).toEqual([true, true]);
   });

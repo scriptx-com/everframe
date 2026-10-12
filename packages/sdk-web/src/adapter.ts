@@ -62,7 +62,7 @@ import {
   RENDER_PATH,
   SCREENSHOT_RENDER_SDK_FEATURE,
 } from '@everframe/protocol';
-import type { ResolvedWebEverframeConfig } from './internal/types.js';
+import type { WebEverframeConfig } from './internal/types.js';
 import { EverframeReporterDisabledError, type ReporterResult } from './reporter-types.js';
 import { sensitiveRegistry } from './sensitive/registry.js';
 import { createReplayRecorder, type ReplayRecorder } from './capture/replay/index.js';
@@ -534,7 +534,7 @@ export function createSessionSampler(
 }
 
 export function createWebPlatformAdapter(
-  _config: ResolvedWebEverframeConfig,
+  _config: WebEverframeConfig,
   /**
    * Who is hosting this adapter — see internal/sdk-identity.ts. Passed in
    * rather than read from this package's own constants, because the two
