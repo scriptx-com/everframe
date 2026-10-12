@@ -171,8 +171,10 @@ class VideoPrivacySettlementTest {
         } finally { release.countDown() }
     }
 
-    @Test fun latestFailedOffUnsampledAndUnsupportedPoliciesDenyDespiteLastGoodConfig() = runBlocking {
-        for (denied in listOf("malformed", ON.replace("true", "false"), ON.replace("samplingRate\":1", "samplingRate\":0"),
+    // A later cut to samplingRate no longer denies: an admitted session keeps its admission, as on iOS
+    // and web (crash-only sessions spec 2026-10-12; CrashOnlyReplaySessionTest pins it).
+    @Test fun latestFailedOffAndUnsupportedPoliciesDenyDespiteLastGoodConfig() = runBlocking {
+        for (denied in listOf("malformed", ON.replace("true", "false"),
             ON.replace("framesPerSecond\":5", "framesPerSecond\":7"))) {
             body = ON
             val session = enabled(); val count = created.size

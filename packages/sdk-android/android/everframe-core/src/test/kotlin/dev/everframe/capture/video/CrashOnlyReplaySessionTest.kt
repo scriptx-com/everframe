@@ -58,6 +58,9 @@ class CrashOnlyReplaySessionTest {
     @Volatile private var crashOnlyRate: String? = null
     /** The `samplingRate` JSON value the fake server sends. */
     @Volatile private var reportRate = "1.0"
+    /** When set, `/api/config` answers 503. */
+    @Volatile private var serverDown = false
+    private val fetches = AtomicInteger()
     private lateinit var session: ReplaySession
 
     private fun config(reporterEnabled: Boolean) = EverframeConfig(appId = "a", sdkKey = "k",
@@ -79,8 +82,9 @@ class CrashOnlyReplaySessionTest {
     private fun buildSession(): ReplaySession {
         val session = ReplaySession(sdkKey = "k", context = ApplicationProvider.getApplicationContext(),
             provider = ReplayConfigProvider.make("https://a.test", "k", ConfigFetcher { request ->
-                Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("test")
-                    .body(body().toResponseBody("application/json".toMediaType())).build()
+                fetches.incrementAndGet()
+                Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(if (serverDown) 503 else 200)
+                    .message("test").body(body().toResponseBody("application/json".toMediaType())).build()
             }))
         session.videoStartupAdmission = VideoStartupAdmission(scheduler) { _, _ -> true }
         session.videoDeviceConditions = object : VideoDeviceConditions {
@@ -212,6 +216,92 @@ class CrashOnlyReplaySessionTest {
         assertEquals("the upgrade keeps the recording", 1, recorders.get())
         assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
         assertTrue(errorReplayAttaches())
+    }
+
+    private fun upgrade() { Everframe.__onCompanionMemberAttached(); runBlocking { session.applyCompanionUpgrade() }; drainMain() }
+
+    @Test fun anAdmittedCrashOnlySessionKeepsRecordingWhenTheRateDrops() {
+        crashOnlyRate = "1.0"
+        refresh()
+        assertEquals(1, recorders.get())
+        crashOnlyRate = "0.0"
+        refresh(); refresh()
+        assertEquals("an admission is kept for the session", 1, recorders.get())
+        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
+    }
+
+    @Test fun aReportSessionKeepsItsAdmissionWhenTheRateDrops() {
+        Everframe.__setConfigForTesting(config(reporterEnabled = true))
+        refresh()
+        reportRate = "0.0"
+        refresh()
+        assertEquals(1, recorders.get())
+        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
+    }
+
+    @Test fun aRefusalIsComparedAgainstTheLiveRateAgain() {
+        crashOnlyRate = "0.0"
+        refresh()
+        assertEquals(0, recorders.get())
+        crashOnlyRate = "1.0"
+        refresh()
+        assertEquals("a no is not sticky: a raised rate admits the session", 1, recorders.get())
+    }
+
+    @Test fun anUpgradeInheritsTheCrashOnlyAdmissionAfterBothRatesDrop() {
+        crashOnlyRate = "1.0"
+        refresh()
+        assertEquals(1, recorders.get())
+        crashOnlyRate = "0.0"; reportRate = "0.0"
+        upgrade()
+        refresh()
+        assertEquals(ReplayCoverage.Upgraded, Everframe.replayCoverage())
+        assertEquals("neither live rate admits the draw, the admission carries over", 1, recorders.get())
+        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
+    }
+
+    @Test fun theBondReappliesTheConfirmedConfigWithoutFetching() {
+        refresh()
+        assertEquals(0, recorders.get())
+        val before = fetches.get()
+        serverDown = true
+        Everframe._replaySession = session
+        try {
+            Everframe.__onCompanionMemberAttached()
+            val deadline = System.currentTimeMillis() + 5_000
+            while (lifecycle() != NativeVideoRecorder.State.BUFFERING) {
+                assertTrue("the bond never started recording", System.currentTimeMillis() < deadline)
+                Thread.sleep(10)
+            }
+            drainMain()
+        } finally { Everframe._replaySession = null }
+        assertEquals("the upgrade uses the confirmed config, no fetch", before, fetches.get())
+        assertEquals(1, recorders.get())
+        assertTrue(NetworkBodyCaptureState.isActive)
+    }
+
+    @Test fun anUnreachableServerAtTheBondNeverRevokesTheCrashOnlyRecording() {
+        crashOnlyRate = "1.0"
+        refresh()
+        assertEquals(1, recorders.get())
+        serverDown = true
+        val before = fetches.get()
+        upgrade()
+        assertEquals(before, fetches.get())
+        assertEquals("the recording survives the upgrade", 1, recorders.get())
+        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
+        assertTrue(errorReplayAttaches())
+    }
+
+    @Test fun aBondWithNoConfirmedConfigFetches() {
+        serverDown = true
+        refresh()
+        assertEquals(0, recorders.get())
+        serverDown = false
+        val before = fetches.get()
+        upgrade()
+        assertEquals("a failed last refresh leaves nothing to re-apply", before + 1, fetches.get())
+        assertEquals(1, recorders.get())
     }
 
     @Test fun upgradedCoverageSamplesAtTheHigherOfBothRates() {

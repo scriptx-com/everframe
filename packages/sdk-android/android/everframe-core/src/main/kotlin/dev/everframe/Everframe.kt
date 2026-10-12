@@ -2707,7 +2707,7 @@ object Everframe {
     /**
      * True while the current session was started with `reporterEnabled = false` and no companion has
      * bonded since: replay samples at the server's `crashOnlySamplingRate` (none when absent) and network
-     * bodies stay off. [ReplaySession] reads it on every config refresh, and an upgrade forces one.
+     * bodies stay off. [ReplaySession] reads it on every config refresh, and an upgrade re-applies one.
      */
     internal fun crashOnlyCoverage(): Boolean = replayCoverage() == ReplayCoverage.CrashOnly
 
@@ -2738,8 +2738,9 @@ object Everframe {
             _crashOnlyUpgraded = true
             _replaySession
         } ?: return // A session installed later reads the upgrade on its first refresh.
-        // Forced: native video needs a refresh that succeeded, and the coverage decision is made there.
-        sdkScope.launch { txGuardSuspend("companion.crashOnlyUpgrade") { session.refreshConfigNow() } }
+        // Re-applies the last confirmed config, fetching only when there is none, so a server that is
+        // unreachable at the bond never revokes a recording.
+        sdkScope.launch { txGuardSuspend("companion.crashOnlyUpgrade") { session.applyCompanionUpgrade() } }
     }
 
     // ---------------- Report API (resolver-backed) ----------------
