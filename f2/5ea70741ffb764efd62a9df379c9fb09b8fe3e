@@ -1,0 +1,24 @@
+packages/cli/src/setup-react-native.ts
+  s_dbd309ddf8ec5b::t_01c6be5fc5274c 26,62-63,65-66,68
+packages/cli/src/index.ts
+  s_dbd309ddf8ec5b::t_471a4ca70af057 168,172
+packages/cli/__tests__/setup-react-native.spec.ts
+  s_dbd309ddf8ec5b::t_311bb7404c08a8 6-7,113-135
+  s_dbd309ddf8ec5b::t_9507585b0af353 136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f25ea70741ffb764efd62a9df379c9fb09b8fe3e",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
