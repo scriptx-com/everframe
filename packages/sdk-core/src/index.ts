@@ -130,6 +130,7 @@ export {
   DEFAULT_CONFIG_TTL_MS,
   SDK_FEATURES_HEADER,
   createReplayLifecycle,
+  replaySamplingRate,
   BreadcrumbsConfig,
   BREADCRUMBS_CONFIG_DEFAULT,
   getBreadcrumbsConfig,
@@ -155,6 +156,7 @@ export type {
   ReplayState,
   ReplayLifecycle,
   ReplayLifecycleDeps,
+  ReplaySessionKind,
   NetworkBodiesConfig,
 } from './types/replay/index.js';
 export type * from './types/platform.js';
